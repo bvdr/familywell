@@ -1,4 +1,4 @@
-# Familywell — Architecture Design
+# Familywell - Architecture Design
 
 **Date:** 2026-07-14
 **Status:** Draft for review
@@ -8,7 +8,7 @@
 
 ## 1. What Familywell is
 
-An open-source family organization app: todo lists, shopping lists, calendars, multiple members, shared or private features, a family admin and members. Built on a **WordPress/Home Assistant-style core + modules** model — the core is small and stable, and features are self-contained modules (folders of code) that hook into it.
+An open-source family organization app: todo lists, shopping lists, calendars, multiple members, shared or private features, a family admin and members. Built on a **WordPress/Home Assistant-style core + modules** model - the core is small and stable, and features are self-contained modules (folders of code) that hook into it.
 
 Two ways to run it:
 
@@ -23,7 +23,7 @@ Monetization: **GitHub Sponsors** funds the open-source core; a **cloud subscrip
 
 **Goals**
 - One codebase / one Docker image that runs identically self-hosted and in our cloud.
-- A real plugin API: modules add backend logic, their own data, UI, or pure config — and our own first-party features use that same API.
+- A real plugin API: modules add backend logic, their own data, UI, or pure config - and our own first-party features use that same API.
 - A cloud that is cheap to run at low scale and scales with active usage.
 - Host-agnostic cloud: the compute host is a swappable decision, not lock-in.
 
@@ -57,14 +57,14 @@ Monetization: **GitHub Sponsors** funds the open-source core; a **cloud subscrip
    for homelab self-hosters
 ```
 
-The application is a **modular monolith**: a single Laravel app (the "core") that loads modules at boot/runtime. It is stateless — all state lives in Postgres and object storage — so any number of identical instances can serve any family.
+The application is a **modular monolith**: a single Laravel app (the "core") that loads modules at boot/runtime. It is stateless - all state lives in Postgres and object storage - so any number of identical instances can serve any family.
 
 ---
 
 ## 4. Core vs modules
 
 - **Core owns:** authentication, families and members, roles/permissions, the module registry, the hook bus, the marketplace client, and the base UI shell. Nothing family-feature-specific.
-- **Everything else is a module.** v1 ships **todos and shopping** as first-party modules, enabled by default, built on the exact same public API third-party modules use. Calendar follows next (see §13). This is deliberate — dogfooding the plugin API is what keeps it honest (the lesson from WordPress and Home Assistant: the platform is only as good as its own apps prove it).
+- **Everything else is a module.** v1 ships **todos and shopping** as first-party modules, enabled by default, built on the exact same public API third-party modules use. Calendar follows next (see §13). This is deliberate - dogfooding the plugin API is what keeps it honest (the lesson from WordPress and Home Assistant: the platform is only as good as its own apps prove it).
 
 ### Module anatomy
 
@@ -72,25 +72,25 @@ A module is a folder (e.g. `modules/shopping/`) with a manifest and up to four o
 
 | Part | What it is |
 |---|---|
-| **Manifest** (`module.json`) | id (`vendor/name` — the module's namespace root; all tables, routes, hooks, and slots are prefixed by it, see §12.3), version, `requires`, declared permissions/abilities, hook registrations |
+| **Manifest** (`module.json`) | id (`vendor/name` - the module's namespace root; all tables, routes, hooks, and slots are prefixed by it, see §12.3), version, `requires`, declared permissions/abilities, hook registrations |
 | **Backend** | A service provider that registers routes, event listeners (hooks/filters), and background jobs |
 | **Data** | Its own migrations; core provides a per-module migration runner and a registry table tracking installed/enabled state per family |
 | **UI** | A pre-built JS bundle that registers React components into **named slots** (dashboard widget, nav item, full screen) exposed by the core shell |
-| **Config-only** | Some modules ship only manifest + config (custom list types, automations) — no server code, safe to toggle at runtime anywhere |
+| **Config-only** | Some modules ship only manifest + config (custom list types, automations) - no server code, safe to toggle at runtime anywhere |
 
 ### Hook system
 
-The core exposes an event/listener bus (Laravel events) as the hook API — the WordPress "actions/filters" equivalent. Modules react to core events and can expose their own events for other modules. The core defines the hook contract; a module can be tested in isolation by firing a hook and asserting its listener ran, without booting other modules.
+The core exposes an event/listener bus (Laravel events) as the hook API - the WordPress "actions/filters" equivalent. Modules react to core events and can expose their own events for other modules. The core defines the hook contract; a module can be tested in isolation by firing a hook and asserting its listener ran, without booting other modules.
 
 ### UI extension
 
-The React (Inertia) shell exposes a **slot registry**. Modules ship **pre-built ESM assets** (React/Inertia externalized as a shared singleton) and the shell loads them at runtime via a manifest + dynamic `import()`, then each module calls `register(slot, Component)`. This is the module-federation pattern — it means self-host needs **no Node/Vite on the host** and the shell never compiles untrusted code at runtime. See §12.1 for the cloud (code-split) vs self-host (pre-built bundle) mechanics.
+The React (Inertia) shell exposes a **slot registry**. Modules ship **pre-built ESM assets** (React/Inertia externalized as a shared singleton) and the shell loads them at runtime via a manifest + dynamic `import()`, then each module calls `register(slot, Component)`. This is the module-federation pattern - it means self-host needs **no Node/Vite on the host** and the shell never compiles untrusted code at runtime. See §12.1 for the cloud (code-split) vs self-host (pre-built bundle) mechanics.
 
 ---
 
 ## 5. Stack
 
-- **Backend:** Laravel (PHP). Chosen because its building blocks map almost 1:1 to this design — service providers = module bootstrap, events/listeners = hooks, package auto-discovery = module discovery, per-module migrations, Composer as the module distribution rail. `nwidart/laravel-modules` is the base pattern for folder-based HMVC modules.
+- **Backend:** Laravel (PHP). Chosen because its building blocks map almost 1:1 to this design - service providers = module bootstrap, events/listeners = hooks, package auto-discovery = module discovery, per-module migrations, Composer as the module distribution rail. `nwidart/laravel-modules` is the base pattern for folder-based HMVC modules.
 - **Frontend:** Inertia + React (TSX) + shadcn/ui + Tailwind (the official Laravel React starter shape).
 - **Realtime:** Laravel Echo + Reverb (WebSockets) for live shared lists **from v1**; polling fallback if a self-hoster doesn't run Reverb. Multi-instance cloud needs a Redis pub/sub backplane, and the heartbeat must sit below the PaaS load-balancer idle timeout (see §12.4).
 - **Auth:** Laravel auth + `spatie/laravel-permission`.
@@ -101,10 +101,10 @@ The React (Inertia) shell exposes a **slot registry**. Modules ship **pre-built 
 
 - **Self-host:** SQLite by default (zero-config), or bring-your-own Postgres.
 - **Cloud:** one managed **Postgres**, multi-tenant. Every row is scoped by `family_id`, enforced by a global tenant scope so a query cannot cross families. App instances are stateless; state is Postgres + object storage only.
-- **Files:** object storage behind a single driver — R2 or DO Spaces in cloud (S3-compatible, cheap/no-egress), local disk or MinIO/S3 self-host.
-- **Install vs enable:** a module's migrations (DDL) run once per environment — at CI/CD deploy in cloud, at install time self-host. Enabling a module for a family is only a registry row flip and **never** issues DDL (see §12.2).
+- **Files:** object storage behind a single driver - R2 or DO Spaces in cloud (S3-compatible, cheap/no-egress), local disk or MinIO/S3 self-host.
+- **Install vs enable:** a module's migrations (DDL) run once per environment - at CI/CD deploy in cloud, at install time self-host. Enabling a module for a family is only a registry row flip and **never** issues DDL (see §12.2).
 
-**Why shared multi-tenant is safe here:** the cloud runs only vetted marketplace modules (trusted code). There is no untrusted per-family code executing, so families can safely share app instances and one database. (This is also how Home Assistant Cloud sidesteps the problem — it never runs your plugins; they run on your box.)
+**Why shared multi-tenant is safe here:** the cloud runs only vetted marketplace modules (trusted code). There is no untrusted per-family code executing, so families can safely share app instances and one database. (This is also how Home Assistant Cloud sidesteps the problem - it never runs your plugins; they run on your box.)
 
 DB sharding is **not** designed now. One managed Postgres with read replicas covers tens of thousands of families. Revisit only when metrics demand it (§13).
 
@@ -121,7 +121,7 @@ Authorization policies live in the core. Modules declare the abilities they need
 
 ---
 
-## 8. Cloud infrastructure — host-agnostic, DigitalOcean first
+## 8. Cloud infrastructure - host-agnostic, DigitalOcean first
 
 The cloud is **one stateless Docker image + one managed Postgres + object storage, with Cloudflare as the free edge in front.** Because the image is host-agnostic, the compute host is a reversible decision.
 
@@ -130,22 +130,22 @@ The cloud is **one stateless Docker image + one managed Postgres + object storag
 | Layer | Choice | Notes |
 |---|---|---|
 | Edge | Cloudflare | DNS, CDN, WAF, DDoS, TLS. Free tier. Works regardless of where compute runs. |
-| Compute | **DO App Platform** (chosen) | Managed PaaS: deploy the same Docker image, DO handles the box/OS, billed by the second. Zero server ops. Alternative: **Coolify on a Droplet** — cheaper and more control, but a single-box "pet" you maintain (OS/DR yourself). |
+| Compute | **DO App Platform** (chosen) | Managed PaaS: deploy the same Docker image, DO handles the box/OS, billed by the second. Zero server ops. Alternative: **Coolify on a Droplet** - cheaper and more control, but a single-box "pet" you maintain (OS/DR yourself). |
 | Database | DO Managed Postgres, single node (~$15/mo) | Automatic failover + daily backups. Cross-provider latency matters, so keep DB and compute co-located on DO. |
 | Files | DO Spaces (S3-compatible, built-in CDN) or R2 | Either via the S3 driver. |
 
 **Self-host distribution also targets Coolify:** publish a Coolify one-click template so homelab users deploy Familywell frictionlessly.
 
 **Documented alternatives (same image, no rewrite to switch):**
-- **Cloud Run** — mature autoscaling + scale-to-zero, per-100ms billing, generous free tier. The escape hatch when usage is bursty/idle and you want to stop paying for idle compute.
-- **Cloudflare Containers** — all-in-Cloudflare option; scale-to-zero economics, but autoscaling/routing tooling is still maturing (as of 2026) and there is a beta concurrency cap. Attractive later if you want a single Cloudflare stack.
+- **Cloud Run** - mature autoscaling + scale-to-zero, per-100ms billing, generous free tier. The escape hatch when usage is bursty/idle and you want to stop paying for idle compute.
+- **Cloudflare Containers** - all-in-Cloudflare option; scale-to-zero economics, but autoscaling/routing tooling is still maturing (as of 2026) and there is a beta concurrency cap. Attractive later if you want a single Cloudflare stack.
 
 ### Cost posture
 
 At launch, cost is dominated by the **always-on database**, not compute. Rough monthly figures:
 
-- **Credit phase (DO App Platform + Managed Postgres + Spaces):** ~$25–40/mo of usage, **effectively $0 while credit lasts.**
-- **Scale-to-zero hosts (Cloud Run / CF Containers) at light usage:** ~$8–15/mo compute, with a serverless Postgres (Neon/Supabase) instead of an always-on DB to keep the floor low.
+- **Credit phase (DO App Platform + Managed Postgres + Spaces):** ~$25-40/mo of usage, **effectively $0 while credit lasts.**
+- **Scale-to-zero hosts (Cloud Run / CF Containers) at light usage:** ~$8-15/mo compute, with a serverless Postgres (Neon/Supabase) instead of an always-on DB to keep the floor low.
 - The main cost levers everywhere: smallest instance that runs the app, a minimal or zero warm floor (trading cold-start latency for cost), and keeping files + egress behind Cloudflare/R2.
 
 ### Scaling path (when it matters, not before)
@@ -168,7 +168,7 @@ At launch, cost is dominated by the **always-on database**, not compute. Rough m
 ## 10. Security model
 
 - **Cloud:** only vetted modules run. Shared multi-tenant instances + one DB are safe because there is no untrusted code execution and every row is `family_id`-scoped by a global tenant scope.
-- **Self-host:** single-tenant on the user's own box — they can install anything; it's their machine and their risk.
+- **Self-host:** single-tenant on the user's own box - they can install anything; it's their machine and their risk.
 - **Edge:** Cloudflare provides WAF, DDoS protection, and TLS termination.
 - **Secrets:** never committed. Config via environment; deployment docs note every credential that must be set manually.
 
@@ -188,9 +188,9 @@ Four hurdles surfaced in review. Each has a design answer that must be settled b
 
 ### 12.1 Frontend module loading (the Vite/Inertia trap)
 
-Vite resolves assets at build time, so runtime-dropped modules break the pipeline. **Forcing a Vite build on a self-hoster's host is rejected** — it would require Node on their box and break the one-`docker run` promise.
+Vite resolves assets at build time, so runtime-dropped modules break the pipeline. **Forcing a Vite build on a self-hoster's host is rejected** - it would require Node on their box and break the one-`docker run` promise.
 
-Resolution: **modules ship pre-built ESM assets** (React/Inertia externalized as a shared singleton), loaded at runtime via a manifest + dynamic `import()` — the module-federation pattern (e.g. `@originjs/vite-plugin-federation`).
+Resolution: **modules ship pre-built ESM assets** (React/Inertia externalized as a shared singleton), loaded at runtime via a manifest + dynamic `import()` - the module-federation pattern (e.g. `@originjs/vite-plugin-federation`).
 
 - **Cloud:** all vetted modules are known at build time → one build, **code-split per module**; the per-family registry gates which chunks load (lazy `import()` keyed by enabled modules). A family never downloads JS for a disabled module.
 - **Self-host:** module assets are pre-built and shipped in the package → the core loads them as external ESM with **no Node/Vite on the host**. A `modules:build` CLI stays for dev/power users.
@@ -198,7 +198,7 @@ Resolution: **modules ship pre-built ESM assets** (React/Inertia externalized as
 
 Invariant: **the shell never compiles untrusted code at runtime.**
 
-### 12.2 The migration paradox — "installed" ≠ "enabled"
+### 12.2 The migration paradox - "installed" ≠ "enabled"
 
 Two concepts that must never be conflated:
 
@@ -218,10 +218,10 @@ Third-party modules will collide unless namespacing is enforced from the first c
 
 ### 12.4 WebSockets behind a PaaS load balancer
 
-DO App Platform (like most PaaS LBs) silently drops idle WebSocket connections after ~55–60s, and the cloud runs multiple stateless instances. Resolution:
+DO App Platform (like most PaaS LBs) silently drops idle WebSocket connections after ~55-60s, and the cloud runs multiple stateless instances. Resolution:
 
-- **Heartbeat < LB idle timeout** — set the Reverb/client ping to ~30s so the LB never sees the socket as idle.
-- **Redis pub/sub backplane for Reverb** — with N instances, a broadcast from instance A must reach a socket held by instance B. Reverb's Redis scaling driver is required the moment there is more than one instance; single-instance/self-host can skip it.
+- **Heartbeat < LB idle timeout** - set the Reverb/client ping to ~30s so the LB never sees the socket as idle.
+- **Redis pub/sub backplane for Reverb** - with N instances, a broadcast from instance A must reach a socket held by instance B. Reverb's Redis scaling driver is required the moment there is more than one instance; single-instance/self-host can skip it.
 
 ---
 

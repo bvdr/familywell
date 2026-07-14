@@ -4,18 +4,20 @@
 
 **Goal:** Stand up the Familywell core: a Dockerized Laravel + Inertia + React app with authentication, a family/member domain, per-family roles, and `family_id` tenant scoping, on top of which every future module hooks.
 
-**Architecture:** Start from the official Laravel React starter kit (gives Inertia 2 + React 19 + TypeScript + shadcn/ui + Tailwind 4 + auth scaffolding). Add three domain concepts — `Family`, family membership (a `family_user` pivot carrying a `role`), and an "active family" context resolved per request. A `BelongsToFamily` trait applies a global Eloquent scope so tenant-owned rows are automatically filtered to the active family. This is the tenancy primitive the whole app relies on.
+**Architecture:** Start from the official Laravel React starter kit (gives Inertia 2 + React 19 + TypeScript + shadcn/ui + Tailwind 4 + auth scaffolding). Add three domain concepts - `Family`, family membership (a `family_user` pivot carrying a `role`), and an "active family" context resolved per request. A `BelongsToFamily` trait applies a global Eloquent scope so tenant-owned rows are automatically filtered to the active family. This is the tenancy primitive the whole app relies on.
 
 **Tech Stack:** PHP 8.3, Laravel 12, Inertia 2, React 19 + TypeScript, shadcn/ui, Tailwind 4, Pest 3 (tests), PostgreSQL (target) / SQLite (test), Docker.
 
 ## Global Constraints
 
 - **One Docker image** runs identically self-hosted and in cloud (spec §2). No host-specific code paths in the app.
-- **Stateless app** — all state in Postgres + object storage; nothing on local disk that must persist (spec §3, §6).
+- **Stateless app** - all state in Postgres + object storage; nothing on local disk that must persist (spec §3, §6).
 - **Every tenant-owned row is scoped by `family_id`**, enforced by a global scope so a query cannot cross families (spec §6, §10).
+- **Active family lives in Laravel `Context`**, never in a raw static. Context propagates to queued jobs automatically and is request-scoped, so tenant context is correct in background jobs and does not leak between requests under Octane.
+- **Octane/FrankenPHP keeps the app in memory between requests.** Never hold request or tenant state in static properties or long-lived singletons that are not reset per request. Use `Context` or scoped container bindings.
 - **Namespacing:** core tables use no vendor prefix; module tables will later be `vendor_module_*`. Core must not squat on names a module would want (spec §12.3).
-- **Secrets never committed** — config via `.env`; `.env` is gitignored (spec §10, user rule).
-- **No em-dash characters anywhere** — code, comments, commits (user rule).
+- **Secrets never committed** - config via `.env`; `.env` is gitignored (spec §10, user rule).
+- **No em-dash characters anywhere** - code, comments, commits (user rule).
 - Test DB is SQLite in-memory; production/dev DB is Postgres. Migrations must run on both.
 
 ---
@@ -43,6 +45,8 @@ rsync -a --exclude='.git' familywell-tmp/ ./ && rm -rf familywell-tmp
 php artisan key:generate
 composer require laravel/breeze --dev
 php artisan breeze:install react --typescript --pest
+composer require laravel/octane
+php artisan octane:install --server=frankenphp
 npm install
 ```
 
@@ -67,13 +71,13 @@ it('serves the login page', function () {
 - [ ] **Step 3: Run it to verify it passes on the default scaffold**
 
 Run: `php artisan test --filter=SmokeTest`
-Expected: PASS (the starter kit ships these routes). If FAIL, the scaffold is incomplete — fix before proceeding.
+Expected: PASS (the starter kit ships these routes). If FAIL, the scaffold is incomplete - fix before proceeding.
 
 - [ ] **Step 4: Write the Dockerfile**
 
 ```dockerfile
 # Dockerfile
-# Single image: PHP-FPM + built frontend assets. Same image self-host and cloud (Global Constraint).
+# Single image: FrankenPHP (runs Octane) + built frontend assets. Same image self-host and cloud (Global Constraint).
 FROM node:22-alpine AS assets
 WORKDIR /app
 COPY package*.json ./
@@ -81,19 +85,19 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM php:8.3-fpm-alpine AS app
-RUN apk add --no-cache postgresql-dev icu-dev \
- && docker-php-ext-install pdo pdo_pgsql pdo_sqlite intl bcmath
+FROM dunglas/frankenphp:1-php8.3 AS app
+RUN install-php-extensions pdo_pgsql pdo_sqlite intl bcmath opcache
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-WORKDIR /var/www/html
+WORKDIR /app
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-scripts --prefer-dist --no-interaction
 COPY . .
 COPY --from=assets /app/public/build ./public/build
 RUN composer install --no-dev --optimize-autoloader --no-interaction
-# ponytail: artisan serve is fine for now; swap to nginx+php-fpm when traffic justifies it.
+# One production-grade image: FrankenPHP serves Octane (multi-threaded), no nginx+php-fpm to orchestrate.
+# Octane keeps the app in memory between requests, so tenant state must never live in a raw static (see Task 3).
 EXPOSE 8000
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+CMD ["php", "artisan", "octane:start", "--server=frankenphp", "--host=0.0.0.0", "--port=8000"]
 ```
 
 - [ ] **Step 5: Write docker-compose for local dev (Postgres alongside)**
@@ -210,7 +214,7 @@ return new class extends Migration {
             $table->id();
             $table->foreignId('family_id')->constrained()->cascadeOnDelete();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->string('role')->default('member'); // 'admin' | 'member' — per-family role (spec §7)
+            $table->string('role')->default('member'); // 'admin' | 'member' - per-family role (spec §7)
             $table->timestamps();
             $table->unique(['family_id', 'user_id']);
         });
@@ -253,7 +257,7 @@ class Family extends Model
 - [ ] **Step 5: Add the inverse relation on User**
 
 ```php
-// app/Models/User.php — add this method to the existing class
+// app/Models/User.php - add this method to the existing class
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 public function families(): BelongsToMany
@@ -315,9 +319,9 @@ git commit -m "feat: add Family model, membership pivot, and factory"
 **Interfaces:**
 - Consumes: `Family` model (Task 2), authenticated `User`.
 - Produces:
-  - `CurrentFamily::id(): ?int`, `CurrentFamily::set(int $familyId): void`, `CurrentFamily::forget(): void` — request-scoped active family holder (singleton).
-  - `BelongsToFamily` trait — any model using it gets a global scope filtering `where family_id = CurrentFamily::id()`, and auto-fills `family_id` on create. Models using it MUST have a `family_id` column.
-  - `SetActiveFamily` middleware — resolves the active family from the session (`active_family_id`), falling back to the user's first family, and calls `CurrentFamily::set()`.
+  - `CurrentFamily::id(): ?int`, `CurrentFamily::set(int $familyId): void`, `CurrentFamily::forget(): void` - active-family accessor backed by Laravel `Context` (propagates to queued jobs automatically; request-scoped and Octane-safe).
+  - `BelongsToFamily` trait - any model using it gets a global scope filtering `where family_id = CurrentFamily::id()`, and auto-fills `family_id` on create. Models using it MUST have a `family_id` column.
+  - `SetActiveFamily` middleware - resolves the active family from the session (`active_family_id`), falling back to the user's first family, and calls `CurrentFamily::set()`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -378,14 +382,16 @@ Expected: FAIL with "Class App\Support\Tenancy\CurrentFamily not found".
 // app/Support/Tenancy/CurrentFamily.php
 namespace App\Support\Tenancy;
 
-// Request-scoped holder for the active family id. Bound as a singleton per request.
+use Illuminate\Support\Facades\Context;
+
+// Active-family accessor backed by Laravel Context. Context is request-scoped (Octane-safe: no static
+// leaks between requests) AND is automatically serialized into queued jobs and restored in the worker,
+// so CurrentFamily::id() resolves correctly inside background jobs with zero per-job wiring.
 class CurrentFamily
 {
-    protected static ?int $id = null;
-
-    public static function set(int $familyId): void { static::$id = $familyId; }
-    public static function id(): ?int { return static::$id; }
-    public static function forget(): void { static::$id = null; }
+    public static function set(int $familyId): void { Context::add('family_id', $familyId); }
+    public static function id(): ?int { return Context::get('family_id'); }
+    public static function forget(): void { Context::forget('family_id'); }
 }
 ```
 
@@ -440,14 +446,15 @@ class SetActiveFamily
     public function handle(Request $request, Closure $next)
     {
         $user = $request->user();
-        if ($user) {
-            $familyId = $request->session()->get('active_family_id')
-                ?? $user->families()->first()?->id;
+        $familyId = $user
+            ? ($request->session()->get('active_family_id') ?? $user->families()->first()?->id)
+            : null;
 
-            if ($familyId) {
-                CurrentFamily::set($familyId);
-                $request->session()->put('active_family_id', $familyId);
-            }
+        if ($familyId) {
+            CurrentFamily::set($familyId);
+            $request->session()->put('active_family_id', $familyId);
+        } else {
+            CurrentFamily::forget(); // never inherit a prior request's context under Octane
         }
 
         return $next($request);
@@ -458,7 +465,7 @@ class SetActiveFamily
 - [ ] **Step 7: Register the middleware on the web group**
 
 ```php
-// bootstrap/app.php — inside ->withMiddleware(function (Middleware $middleware) { ... })
+// bootstrap/app.php - inside ->withMiddleware(function (Middleware $middleware) { ... })
 $middleware->web(append: [
     \App\Http\Middleware\SetActiveFamily::class,
 ]);
@@ -492,10 +499,39 @@ it('sets the active family for an authenticated request', function () {
 Run: `php artisan test --filter=ActiveFamilyMiddlewareTest`
 Expected: PASS.
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 10: Write the Context-seam test (proves the family rides along to jobs)**
+
+We do not test Laravel's guarantee that Context propagates to queued jobs (that is the framework's job). We test the seam we own: that `set()` writes the active family into `Context`, which is what Laravel then serializes into every queued job.
+
+```php
+<?php
+// tests/Feature/TenantContextTest.php
+use App\Models\Family;
+use App\Support\Tenancy\CurrentFamily;
+use Illuminate\Support\Facades\Context;
+
+it('stores the active family in Context so it propagates to queued jobs', function () {
+    $family = Family::factory()->create();
+
+    CurrentFamily::set($family->id);
+
+    // Laravel captures the current Context into queued job payloads and restores it in the worker,
+    // so CurrentFamily::id() resolves inside jobs without any per-job wiring.
+    expect(Context::get('family_id'))->toBe($family->id)
+        ->and(CurrentFamily::id())->toBe($family->id);
+
+    CurrentFamily::forget();
+    expect(CurrentFamily::id())->toBeNull();
+});
+```
+
+Run: `php artisan test --filter=TenantContextTest`
+Expected: PASS.
+
+- [ ] **Step 11: Commit**
 
 ```bash
-git add app/Support/Tenancy tests/Feature/TenancyScopeTest.php tests/Feature/ActiveFamilyMiddlewareTest.php app/Http/Middleware/SetActiveFamily.php bootstrap/app.php
+git add app/Support/Tenancy tests/Feature/TenancyScopeTest.php tests/Feature/ActiveFamilyMiddlewareTest.php tests/Feature/TenantContextTest.php app/Http/Middleware/SetActiveFamily.php bootstrap/app.php
 git commit -m "feat: add active-family context and BelongsToFamily global scope"
 ```
 
@@ -578,9 +614,9 @@ git commit -m "feat: create a family and admin membership on registration"
 **Interfaces:**
 - Consumes: `Family`, membership pivot, active-family context, `User`.
 - Produces:
-  - `POST /family/members` — admin attaches an existing user (by email) to the active family with a role. 403 for non-admins.
-  - `DELETE /family/members/{user}` — admin removes a member.
-  - `FamilyPolicy::manageMembers(User $user, Family $family): bool` — true only if the user's pivot role in that family is `admin`.
+  - `POST /family/members` - admin attaches an existing user (by email) to the active family with a role. 403 for non-admins.
+  - `DELETE /family/members/{user}` - admin removes a member.
+  - `FamilyPolicy::manageMembers(User $user, Family $family): bool` - true only if the user's pivot role in that family is `admin`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -697,7 +733,7 @@ class FamilyMemberController extends Controller
 - [ ] **Step 5: Register routes**
 
 ```php
-// routes/web.php — inside the auth middleware group
+// routes/web.php - inside the auth middleware group
 use App\Http\Controllers\FamilyMemberController;
 
 Route::post('/family/members', [FamilyMemberController::class, 'store'])->name('family.members.store');
@@ -722,9 +758,9 @@ git commit -m "feat: admin-only family member management"
 
 **Files:**
 - Create: `resources/js/pages/family/members.tsx`
-- Create: `app/Http/Controllers/FamilyMemberController.php` — add `index()` (modify)
+- Create: `app/Http/Controllers/FamilyMemberController.php` - add `index()` (modify)
 - Modify: `routes/web.php` (add GET route)
-- Modify: `resources/js/layouts/app-layout.tsx` (or the starter's main authenticated layout) — add a family switcher + Members nav link
+- Modify: `resources/js/layouts/app-layout.tsx` (or the starter's main authenticated layout) - add a family switcher + Members nav link
 - Test: `tests/Feature/FamilyMembersPageTest.php`
 
 **Interfaces:**
@@ -769,7 +805,7 @@ Expected: FAIL (route not defined → 404).
 - [ ] **Step 3: Add the index method to the controller**
 
 ```php
-// app/Http/Controllers/FamilyMemberController.php — add:
+// app/Http/Controllers/FamilyMemberController.php - add:
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Gate;
 
@@ -790,7 +826,7 @@ public function index()
 - [ ] **Step 4: Add the GET route**
 
 ```php
-// routes/web.php — inside the auth group, next to the other family routes
+// routes/web.php - inside the auth group, next to the other family routes
 Route::get('/family/members', [FamilyMemberController::class, 'index'])->name('family.members.index');
 ```
 
@@ -807,7 +843,7 @@ type Props = { family: { id: number; name: string }; members: Member[]; canManag
 export default function Members({ family, members, canManage }: Props) {
     return (
         <AppLayout>
-            <Head title={`${family.name} — Members`} />
+            <Head title={`${family.name} - Members`} />
             <div className="p-6">
                 <h1 className="text-xl font-semibold mb-4">{family.name}</h1>
                 <ul className="divide-y">
@@ -828,7 +864,7 @@ export default function Members({ family, members, canManage }: Props) {
 - [ ] **Step 6: Add the Members nav link and family name to the layout**
 
 ```tsx
-// resources/js/layouts/app-layout.tsx — add a nav link. Exact file may be named differently in the
+// resources/js/layouts/app-layout.tsx - add a nav link. Exact file may be named differently in the
 // starter (check resources/js/layouts/); add alongside the existing Dashboard link:
 import { Link } from '@inertiajs/react';
 // ...within the nav element:
@@ -862,12 +898,12 @@ git commit -m "feat: family members page and nav shell"
 
 **Interfaces:**
 - Consumes: everything.
-- Produces: a green suite and a runnable image — the P1 deliverable.
+- Produces: a green suite and a runnable image - the P1 deliverable.
 
 - [ ] **Step 1: Confirm the test DB is SQLite in-memory**
 
 ```xml
-<!-- phpunit.xml — inside <php> -->
+<!-- phpunit.xml - inside <php> -->
 <env name="DB_CONNECTION" value="sqlite"/>
 <env name="DB_DATABASE" value=":memory:"/>
 ```
@@ -875,7 +911,7 @@ git commit -m "feat: family members page and nav shell"
 - [ ] **Step 2: Run the entire test suite**
 
 Run: `php artisan test`
-Expected: all tests PASS (SmokeTest, FamilyModelTest, TenancyScopeTest, ActiveFamilyMiddlewareTest, RegistrationCreatesFamilyTest, FamilyMemberTest, FamilyMembersPageTest).
+Expected: all tests PASS (SmokeTest, FamilyModelTest, TenancyScopeTest, ActiveFamilyMiddlewareTest, TenantContextTest, RegistrationCreatesFamilyTest, FamilyMemberTest, FamilyMembersPageTest).
 
 - [ ] **Step 3: Boot the image against Postgres and hit the health route**
 
@@ -903,8 +939,8 @@ git commit -m "chore: pin sqlite in-memory test db and verify P1 suite"
 - `family_id` tenant scoping via global scope (spec §6, §10) → Task 3. ✅
 - Per-family roles admin/member (spec §7) → pivot `role`, Tasks 2, 5. ✅ (deviation from spatie flagged in handoff)
 - One Docker image, stateless (spec §2, §3) → Task 1, Task 7 Step 3. ✅
-- Module registry / hook bus / marketplace / realtime / first-party modules → **out of P1 scope**, covered by P2–P8. ✅ (intentional)
+- Module registry / hook bus / marketplace / realtime / first-party modules → **out of P1 scope**, covered by P2-P8. ✅ (intentional)
 
-**Placeholder scan:** No TBDs; every code step has complete code. The layout edit in Task 6 Step 6 notes the file may be named differently in the starter — that is a real instruction (verify the path), not a placeholder, and the surrounding steps are concrete.
+**Placeholder scan:** No TBDs; every code step has complete code. The layout edit in Task 6 Step 6 notes the file may be named differently in the starter - that is a real instruction (verify the path), not a placeholder, and the surrounding steps are concrete.
 
-**Type consistency:** `CurrentFamily::set/id/forget`, `BelongsToFamily`, `manageMembers`, pivot `role`, session key `active_family_id`, Inertia component `family/members` are used consistently across Tasks 3–7.
+**Type consistency:** `CurrentFamily::set/id/forget`, `BelongsToFamily`, `manageMembers`, pivot `role`, session key `active_family_id`, Inertia component `family/members` are used consistently across Tasks 3-7.
