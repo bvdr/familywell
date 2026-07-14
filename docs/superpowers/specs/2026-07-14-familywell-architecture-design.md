@@ -64,7 +64,7 @@ The application is a **modular monolith**: a single Laravel app (the "core") tha
 ## 4. Core vs modules
 
 - **Core owns:** authentication, families and members, roles/permissions, the module registry, the hook bus, the marketplace client, and the base UI shell. Nothing family-feature-specific.
-- **Everything else is a module:** todos, shopping, calendar are **first-party modules** built on the exact same public API third-party modules use. This is deliberate — dogfooding the plugin API is what keeps it honest (the lesson from WordPress and Home Assistant: the platform is only as good as its own apps prove it).
+- **Everything else is a module.** v1 ships **todos and shopping** as first-party modules, enabled by default, built on the exact same public API third-party modules use. Calendar follows next (see §12). This is deliberate — dogfooding the plugin API is what keeps it honest (the lesson from WordPress and Home Assistant: the platform is only as good as its own apps prove it).
 
 ### Module anatomy
 
@@ -92,7 +92,7 @@ The React (Inertia) shell exposes a **slot registry**. Modules call `register(sl
 
 - **Backend:** Laravel (PHP). Chosen because its building blocks map almost 1:1 to this design — service providers = module bootstrap, events/listeners = hooks, package auto-discovery = module discovery, per-module migrations, Composer as the module distribution rail. `nwidart/laravel-modules` is the base pattern for folder-based HMVC modules.
 - **Frontend:** Inertia + React (TSX) + shadcn/ui + Tailwind (the official Laravel React starter shape).
-- **Realtime:** Laravel Echo + Reverb (WebSockets) for live shared lists; polling fallback if a self-hoster doesn't run Reverb. **[decision to confirm: Reverb from v1 vs polling-only for v1]**
+- **Realtime:** Laravel Echo + Reverb (WebSockets) for live shared lists **from v1**; polling fallback if a self-hoster doesn't run Reverb.
 - **Auth:** Laravel auth + `spatie/laravel-permission`.
 
 ---
@@ -129,7 +129,7 @@ The cloud is **one stateless Docker image + one managed Postgres + object storag
 | Layer | Choice | Notes |
 |---|---|---|
 | Edge | Cloudflare | DNS, CDN, WAF, DDoS, TLS. Free tier. Works regardless of where compute runs. |
-| Compute | **Coolify on a DO Droplet** (recommended start) | Turns a Droplet into a PaaS: git deploys, Traefik + auto-SSL, orchestration. Cheap, burns credit efficiently, more control. Caveat: single-box "pet," no autoscale, you own OS/DR. Fine at launch scale (YAGNI on autoscale). Alternative: **DO App Platform** (managed, pricier, zero server ops). |
+| Compute | **DO App Platform** (chosen) | Managed PaaS: deploy the same Docker image, DO handles the box/OS, billed by the second. Zero server ops. Alternative: **Coolify on a Droplet** — cheaper and more control, but a single-box "pet" you maintain (OS/DR yourself). |
 | Database | DO Managed Postgres, single node (~$15/mo) | Automatic failover + daily backups. Cross-provider latency matters, so keep DB and compute co-located on DO. |
 | Files | DO Spaces (S3-compatible, built-in CDN) or R2 | Either via the S3 driver. |
 
@@ -143,7 +143,7 @@ The cloud is **one stateless Docker image + one managed Postgres + object storag
 
 At launch, cost is dominated by the **always-on database**, not compute. Rough monthly figures:
 
-- **Credit phase (DO, Coolify on one Droplet + Managed Postgres + Spaces):** ~$25–35/mo of usage, **effectively $0 while credit lasts.**
+- **Credit phase (DO App Platform + Managed Postgres + Spaces):** ~$25–40/mo of usage, **effectively $0 while credit lasts.**
 - **Scale-to-zero hosts (Cloud Run / CF Containers) at light usage:** ~$8–15/mo compute, with a serverless Postgres (Neon/Supabase) instead of an always-on DB to keep the floor low.
 - The main cost levers everywhere: smallest instance that runs the app, a minimal or zero warm floor (trading cold-start latency for cost), and keeping files + egress behind Cloudflare/R2.
 
@@ -183,6 +183,7 @@ At launch, cost is dominated by the **always-on database**, not compute. Rough m
 
 ## 12. Deferred (YAGNI until a real requirement forces it)
 
+- **Calendar module** (first-party). Ships right after v1; built on the same module API as todos/shopping.
 - **HA-style relay tier** (self-host + our paid tunnel). Cloudflare Tunnel makes it cheap to add later; not in v1.
 - **DB sharding / multi-region.** Read replicas first; shard by `family_id` only when metrics demand.
 - **Offline / mobile sync.**
@@ -192,8 +193,8 @@ At launch, cost is dominated by the **always-on database**, not compute. Rough m
 
 ---
 
-## 13. Open decisions to confirm
+## 13. Resolved decisions (v1)
 
-1. **Realtime:** Reverb (WebSockets) from v1, or polling-only for v1 and add Reverb later?
-2. **v1 first-party module scope:** todos + shopping + calendar all in v1, or ship todos + shopping first and calendar next?
-3. **Cloud starting host:** Coolify-on-Droplet (recommended) vs DO App Platform.
+1. **Realtime:** Reverb (WebSockets) from v1. Polling is the self-host fallback.
+2. **v1 first-party modules:** todos + shopping, enabled by default. Calendar follows next (§12).
+3. **Cloud starting host:** DO App Platform. Coolify-on-a-Droplet is the documented cheaper/more-control alternative and the self-host template target.
