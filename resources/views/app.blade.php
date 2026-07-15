@@ -11,6 +11,10 @@
 
         <style id="theme">{!! $themeCss ?? '' !!}</style>
         <script>window.__familywellModules = @json($moduleFrontends ?? []);</script>
+        <script>
+            window.__familywellReverb = @json($reverb ?? null);
+            window.__familywellFamilyId = @json($activeFamilyId ?? null);
+        </script>
 
         @routes
         @viteReactRefresh
