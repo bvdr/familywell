@@ -11,7 +11,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(\App\Support\Modules\ModuleRegistry::class, function () {
+            return new \App\Support\Modules\ModuleRegistry(base_path('modules'));
+        });
+
+        $this->app->singleton(\App\Support\Modules\Hooks::class);
     }
 
     /**

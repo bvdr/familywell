@@ -18,6 +18,11 @@ return Application::configure(basePath: dirname(__DIR__))
             AddLinkHeadersForPreloadedAssets::class,
             \App\Http\Middleware\SetActiveFamily::class,
             \App\Http\Middleware\ShareTheme::class,
+            \App\Http\Middleware\ShareModules::class,
+        ]);
+
+        $middleware->alias([
+            'module' => \App\Http\Middleware\EnsureModuleEnabled::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
