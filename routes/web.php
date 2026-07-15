@@ -13,6 +13,7 @@ Route::middleware(['auth'])->group(function () {
         return Inertia::render('dashboard');
     })->name('dashboard');
 
+    Route::get('/family/members', [FamilyMemberController::class, 'index'])->name('family.members.index');
     Route::post('/family/members', [FamilyMemberController::class, 'store'])->name('family.members.store');
     Route::delete('/family/members/{user}', [FamilyMemberController::class, 'destroy'])->name('family.members.destroy');
 });

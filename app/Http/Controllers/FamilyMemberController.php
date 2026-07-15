@@ -6,9 +6,24 @@ use App\Models\Family;
 use App\Models\User;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
+use Inertia\Inertia;
 
 class FamilyMemberController extends Controller
 {
+    public function index()
+    {
+        $family = Family::findOrFail(CurrentFamily::id());
+
+        return Inertia::render('family/members', [
+            'family' => ['id' => $family->id, 'name' => $family->name],
+            'members' => $family->members->map(fn ($m) => [
+                'id' => $m->id, 'name' => $m->name, 'email' => $m->email, 'role' => $m->pivot->role,
+            ]),
+            'canManage' => Gate::allows('manageMembers', $family),
+        ]);
+    }
+
     public function store(Request $request)
     {
         $family = Family::findOrFail(CurrentFamily::id());
