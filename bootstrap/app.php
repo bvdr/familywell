@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
             \App\Http\Middleware\SetActiveFamily::class,
+            \App\Http\Middleware\ShareTheme::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

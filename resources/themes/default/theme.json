@@ -1,0 +1,27 @@
+{
+    "name": "Default",
+    "colors": {
+        "bg": "#F5F3EE",
+        "surface": "#E8E4DC",
+        "surface-card": "#FFFFFF",
+        "surface-dark": "#1B3A28",
+        "text-primary": "#1B3A28",
+        "text-secondary": "#4A6B52",
+        "text-muted": "#7A9A80",
+        "text-inverse": "#FFFFFF",
+        "accent": "#2D5E3A",
+        "accent-light": "#C8DBBC",
+        "accent-subtle": "#E6F0E0",
+        "border": "#D4D0C8",
+        "error": "#C2453A",
+        "warning": "#D4943A",
+        "success": "#2D5E3A"
+    },
+    "fonts": {
+        "heading": "Playfair Display",
+        "body": "Inter",
+        "mono": "Geist Mono"
+    },
+    "spacing": { "xs": 4, "sm": 8, "md": 16, "lg": 24, "xl": 32, "2xl": 48 },
+    "radius": { "sm": 6, "md": 12, "lg": 16, "full": 9999 }
+}
