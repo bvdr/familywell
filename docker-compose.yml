@@ -10,7 +10,36 @@ services:
       DB_DATABASE: familywell
       DB_USERNAME: familywell
       DB_PASSWORD: familywell
-    depends_on: [db]
+      BROADCAST_CONNECTION: reverb
+      REVERB_HOST: reverb
+      REVERB_PORT: 8080
+      REVERB_SCHEME: http
+      REVERB_PUBLIC_HOST: localhost
+      REVERB_PUBLIC_PORT: 8080
+      REVERB_PUBLIC_SCHEME: http
+      REVERB_SCALING_ENABLED: "true"
+      REDIS_HOST: redis
+    depends_on: [db, redis, reverb]
+  reverb:
+    build: .
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    ports: ["8080:8080"]
+    env_file: .env
+    environment:
+      BROADCAST_CONNECTION: reverb
+      REVERB_HOST: 0.0.0.0
+      REVERB_PORT: 8080
+      REVERB_SCALING_ENABLED: "true"
+      REDIS_HOST: redis
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_DATABASE: familywell
+      DB_USERNAME: familywell
+      DB_PASSWORD: familywell
+    depends_on: [redis]
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
   db:
     image: postgres:16-alpine
     environment:
