@@ -2,7 +2,9 @@
 
 namespace Modules\Todos;
 
+use App\Events\TodosChanged;
 use App\Http\Controllers\Controller;
+use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Http\Request;
 
 class TodosController extends Controller
@@ -19,17 +21,21 @@ class TodosController extends Controller
             'visibility' => ['required', 'in:shared,private'],
         ]);
 
-        return TodoItem::create([
+        $item = TodoItem::create([
             'title' => $data['title'],
             'visibility' => $data['visibility'],
             'created_by' => $request->user()->id,
         ]);
+        TodosChanged::dispatch((int) CurrentFamily::id());
+
+        return $item;
     }
 
     public function update(Request $request, TodoItem $item)
     {
         abort_unless($item->visibility === 'shared' || $item->created_by === $request->user()->id, 403);
         $item->update(['done' => ! $item->done]);
+        TodosChanged::dispatch((int) CurrentFamily::id());
 
         return $item;
     }
@@ -38,6 +44,7 @@ class TodosController extends Controller
     {
         abort_unless($item->created_by === $request->user()->id, 403);
         $item->delete();
+        TodosChanged::dispatch((int) CurrentFamily::id());
 
         return response()->json(['ok' => true]);
     }
