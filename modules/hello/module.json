@@ -3,5 +3,6 @@
     "name": "Hello",
     "version": "1.0.0",
     "provider": "Modules\\Hello\\HelloServiceProvider",
+    "frontend": "resources/dist/hello.js",
     "requires": []
 }
