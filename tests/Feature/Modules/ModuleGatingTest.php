@@ -23,9 +23,9 @@ it('404s a module route when the module is not enabled', function () {
 
 it('serves a module route when enabled for the active family', function () {
     [$user, $family] = familyUser();
-    $registry = app(ModuleRegistry::class);
-    $registry->markInstalled('hello', '1.0.0');
-    $registry->enable('hello', $family->id);
+    // Proper install runs the module's migrations (creates hello_pings) and marks it installed.
+    $this->artisan('modules:migrate')->assertExitCode(0);
+    app(ModuleRegistry::class)->enable('hello', $family->id);
 
     $this->actingAs($user)->get('/m/hello')
         ->assertOk()
