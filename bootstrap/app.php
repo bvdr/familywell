@@ -19,6 +19,10 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\SetActiveFamily::class,
             \App\Http\Middleware\ShareTheme::class,
         ]);
+
+        $middleware->alias([
+            'module' => \App\Http\Middleware\EnsureModuleEnabled::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
