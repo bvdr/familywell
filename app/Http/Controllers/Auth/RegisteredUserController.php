@@ -42,6 +42,14 @@ class RegisteredUserController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
+        // Every new user gets their own family and is its admin (spec section 4, 7).
+        $family = \App\Models\Family::create([
+            'name' => $request->name."'s Family",
+            'owner_id' => $user->id,
+        ]);
+        $family->members()->attach($user, ['role' => 'admin']);
+        $request->session()->put('active_family_id', $family->id);
+
         event(new Registered($user));
 
         Auth::login($user);
