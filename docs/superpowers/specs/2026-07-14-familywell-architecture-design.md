@@ -26,6 +26,7 @@ Monetization: **GitHub Sponsors** funds the open-source core; a **cloud subscrip
 - A real plugin API: modules add backend logic, their own data, UI, or pure config - and our own first-party features use that same API.
 - A cloud that is cheap to run at low scale and scales with active usage.
 - Host-agnostic cloud: the compute host is a swappable decision, not lock-in.
+- Fully themeable: every visual primitive (color, spacing, type, radius, shadow) is a token in a `theme.json`, so themes are swappable at runtime and distributable.
 
 **Non-goals (deferred, see §13)**
 - Per-family runtime installation of *untrusted* code in the cloud (cloud = vetted modules only).
@@ -84,7 +85,7 @@ The core exposes an event/listener bus (Laravel events) as the hook API - the Wo
 
 ### UI extension
 
-The React (Inertia) shell exposes a **slot registry**. Modules ship **pre-built ESM assets** (React/Inertia externalized as a shared singleton) and the shell loads them at runtime via a manifest + dynamic `import()`, then each module calls `register(slot, Component)`. This is the module-federation pattern - it means self-host needs **no Node/Vite on the host** and the shell never compiles untrusted code at runtime. See §12.1 for the cloud (code-split) vs self-host (pre-built bundle) mechanics.
+The React (Inertia) shell exposes a **slot registry**. Modules ship **pre-built ESM assets** (React/Inertia externalized as a shared singleton) and the shell loads them at runtime via a manifest + dynamic `import()`, then each module calls `register(slot, Component)`. This is the module-federation pattern - it means self-host needs **no Node/Vite on the host** and the shell never compiles untrusted code at runtime. See §12.1 for the cloud (code-split) vs self-host (pre-built bundle) mechanics. Module UIs must reference **theme tokens** (CSS variables) only, never hardcoded colors or spacing, so every module inherits the active theme (see §5, Theming).
 
 ---
 
@@ -94,6 +95,18 @@ The React (Inertia) shell exposes a **slot registry**. Modules ship **pre-built 
 - **Frontend:** Inertia + React (TSX) + shadcn/ui + Tailwind (the official Laravel React starter shape).
 - **Realtime:** Laravel Echo + Reverb (WebSockets) for live shared lists **from v1**; polling fallback if a self-hoster doesn't run Reverb. Multi-instance cloud needs a Redis pub/sub backplane, and the heartbeat must sit below the PaaS load-balancer idle timeout (see §12.4).
 - **Auth:** Laravel auth + `spatie/laravel-permission`.
+
+### Theming and design tokens (theme.json)
+
+Every visual primitive - color, spacing, typography (family/size/weight), radius, shadow - is a **token defined in a `theme.json`**, never hardcoded in a component. This is the WordPress `theme.json` idea on our stack, and it lands naturally because shadcn/ui and Tailwind already run on CSS variables.
+
+- **Source of truth:** `theme.json` declares the token scales. The active theme is emitted as **CSS custom properties** and injected into the page at runtime (a server-rendered `<style>` in the root document), so switching a theme swaps the variable set with **no rebuild**.
+- **Consumption:** components reference tokens (`bg-surface`, `text-primary`, `rounded-[--radius-md]`, `font-heading`) and never literal hex/px. Modules obey the same rule (§4), so every module inherits the active theme automatically.
+- **Themes are distributable:** a theme is a `theme.json` with no server code, i.e. a **config-only module** (§4), so the module marketplace (§9) doubles as a theme marketplace. Vetted themes on cloud, any theme self-host. Light/dark are simply two token sets under the same contract.
+- **Selection:** a family picks its theme (family-level default). Per-member override, the in-app switcher, and persistence are deferred (§13); v1 ships the token contract plus one default theme.
+- **Fonts are self-hosted** so themes work offline and on self-host with no external font CDN.
+
+The v1 default theme is derived from the brand board: cream background, sage/forest green accents, Playfair Display headings, Inter body, Geist Mono. Concrete token values live in the P1 plan's default `theme.json`.
 
 ---
 
@@ -161,6 +174,7 @@ At launch, cost is dominated by the **always-on database**, not compute. Rough m
 - Modules are versioned packages in a registry we host (Composer-style).
 - **Cloud marketplace = the reviewed/vetted subset.** Self-hosters can install anything from anywhere.
 - The same marketplace client in core lists free and paid modules.
+- **Themes are config-only modules** (just a `theme.json`, no code), so the same registry and marketplace distribute themes (§5).
 - Revenue: GitHub Sponsors (core) + cloud subscription (hosting) + paid modules with revenue share (later).
 
 ---
@@ -228,6 +242,7 @@ DO App Platform (like most PaaS LBs) silently drops idle WebSocket connections a
 ## 13. Deferred (YAGNI until a real requirement forces it)
 
 - **Calendar module** (first-party). Ships right after v1; built on the same module API as todos/shopping.
+- **Theme management:** in-app theme switcher, per-family/per-member theme persistence, and theme marketplace curation. The token contract and one default theme ship in v1; selection UI comes later.
 - **HA-style relay tier** (self-host + our paid tunnel). Cloudflare Tunnel makes it cheap to add later; not in v1.
 - **DB sharding / multi-region.** Read replicas first; shard by `family_id` only when metrics demand.
 - **Offline / mobile sync.**

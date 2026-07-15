@@ -15,6 +15,7 @@
 - **Every tenant-owned row is scoped by `family_id`**, enforced by a global scope so a query cannot cross families (spec §6, §10).
 - **Active family lives in Laravel `Context`**, never in a raw static. Context propagates to queued jobs automatically and is request-scoped, so tenant context is correct in background jobs and does not leak between requests under Octane.
 - **Octane/FrankenPHP keeps the app in memory between requests.** Never hold request or tenant state in static properties or long-lived singletons that are not reset per request. Use `Context` or scoped container bindings.
+- **No hardcoded design values.** Every color, spacing, font, radius, and shadow is a token in `theme.json`, surfaced as a CSS variable; components and module UIs reference tokens only, never literal hex/px (spec §5, Theming).
 - **Namespacing:** core tables use no vendor prefix; module tables will later be `vendor_module_*`. Core must not squat on names a module would want (spec §12.3).
 - **Secrets never committed** - config via `.env`; `.env` is gitignored (spec §10, user rule).
 - **No em-dash characters anywhere** - code, comments, commits (user rule).
@@ -754,7 +755,186 @@ git commit -m "feat: admin-only family member management"
 
 ---
 
-### Task 6: Base UI shell with family switcher and members screen
+### Task 6: Theme tokens (theme.json to CSS variables)
+
+**Files:**
+- Create: `resources/themes/default/theme.json`
+- Create: `app/Support/Theming/ThemeTokens.php`
+- Create: `app/Http/Middleware/ShareTheme.php`
+- Modify: `bootstrap/app.php` (append `ShareTheme` to the web group)
+- Modify: `resources/views/app.blade.php` (inject the theme `<style>`)
+- Test: `tests/Feature/ThemeTokensTest.php`
+
+**Interfaces:**
+- Consumes: the root Blade view and web middleware group (Tasks 1, 3).
+- Produces:
+  - `resources/themes/default/theme.json` - the design-token source of truth (colors, fonts, spacing, radius), taken verbatim from the FamilyWell brand board.
+  - `ThemeTokens::css(string $theme = 'default'): string` - reads a theme's `theme.json` and returns a `:root { ... }` block of CSS custom properties (`--accent`, `--text-primary`, `--font-heading`, `--spacing-md`, `--radius-md`, ...).
+  - `ShareTheme` middleware shares `themeCss` to the Blade root, so each response ships the active theme's variables server-rendered (no FOUC, no rebuild to switch a theme).
+
+- [ ] **Step 1: Write the failing test**
+
+```php
+<?php
+// tests/Feature/ThemeTokensTest.php
+use App\Support\Theming\ThemeTokens;
+use function Pest\Laravel\get;
+
+it('emits the default theme tokens as CSS custom properties', function () {
+    $css = ThemeTokens::css('default');
+
+    expect($css)->toContain(':root{')
+        ->toContain('--accent:#2D5E3A')
+        ->toContain('--text-primary:#1B3A28')
+        ->toContain('--font-heading:Playfair Display')
+        ->toContain('--spacing-md:16px')
+        ->toContain('--radius-md:12px');
+});
+
+it('injects the theme variables into the served document', function () {
+    get('/login')
+        ->assertOk()
+        ->assertSee('id="theme"', false)
+        ->assertSee('--accent:#2D5E3A', false);
+});
+```
+
+- [ ] **Step 2: Run it to verify it fails**
+
+Run: `php artisan test --filter=ThemeTokensTest`
+Expected: FAIL with "Class App\Support\Theming\ThemeTokens not found".
+
+- [ ] **Step 3: Create the default theme.json (verbatim from the brand board)**
+
+```json
+// resources/themes/default/theme.json  (JSON has no comments; this path line is a note, not file content)
+{
+    "name": "Default",
+    "colors": {
+        "bg": "#F5F3EE",
+        "surface": "#E8E4DC",
+        "surface-card": "#FFFFFF",
+        "surface-dark": "#1B3A28",
+        "text-primary": "#1B3A28",
+        "text-secondary": "#4A6B52",
+        "text-muted": "#7A9A80",
+        "text-inverse": "#FFFFFF",
+        "accent": "#2D5E3A",
+        "accent-light": "#C8DBBC",
+        "accent-subtle": "#E6F0E0",
+        "border": "#D4D0C8",
+        "error": "#C2453A",
+        "warning": "#D4943A",
+        "success": "#2D5E3A"
+    },
+    "fonts": {
+        "heading": "Playfair Display",
+        "body": "Inter",
+        "mono": "Geist Mono"
+    },
+    "spacing": { "xs": 4, "sm": 8, "md": 16, "lg": 24, "xl": 32, "2xl": 48 },
+    "radius": { "sm": 6, "md": 12, "lg": 16, "full": 9999 }
+}
+```
+
+- [ ] **Step 4: Write ThemeTokens**
+
+```php
+<?php
+// app/Support/Theming/ThemeTokens.php
+namespace App\Support\Theming;
+
+// Reads a theme's theme.json and flattens its tokens to a :root CSS custom-property block.
+// spacing/radius numbers are treated as pixels. This block is injected server-side (see ShareTheme),
+// so swapping a theme is swapping this variable set - no asset rebuild.
+class ThemeTokens
+{
+    public static function css(string $theme = 'default'): string
+    {
+        $data = json_decode(file_get_contents(resource_path("themes/{$theme}/theme.json")), true);
+
+        $vars = [];
+        foreach (($data['colors'] ?? []) as $k => $v) {
+            $vars[] = "--{$k}:{$v}";
+        }
+        foreach (($data['fonts'] ?? []) as $k => $v) {
+            $vars[] = "--font-{$k}:{$v}";
+        }
+        foreach (($data['spacing'] ?? []) as $k => $v) {
+            $vars[] = "--spacing-{$k}:{$v}px";
+        }
+        foreach (($data['radius'] ?? []) as $k => $v) {
+            $vars[] = "--radius-{$k}:{$v}px";
+        }
+
+        return ':root{' . implode(';', $vars) . ';}';
+    }
+}
+```
+
+- [ ] **Step 5: Run the first assertion to verify it passes**
+
+Run: `php artisan test --filter="emits the default theme tokens"`
+Expected: PASS.
+
+- [ ] **Step 6: Write the ShareTheme middleware**
+
+```php
+<?php
+// app/Http/Middleware/ShareTheme.php
+namespace App\Http\Middleware;
+
+use App\Support\Theming\ThemeTokens;
+use Closure;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\View;
+
+class ShareTheme
+{
+    public function handle(Request $request, Closure $next)
+    {
+        // P1: always the default theme. Later: resolve the active family's chosen theme here.
+        View::share('themeCss', ThemeTokens::css('default'));
+
+        return $next($request);
+    }
+}
+```
+
+- [ ] **Step 7: Register the middleware on the web group**
+
+```php
+// bootstrap/app.php - extend the web append list from Task 3 to include ShareTheme:
+$middleware->web(append: [
+    \App\Http\Middleware\SetActiveFamily::class,
+    \App\Http\Middleware\ShareTheme::class,
+]);
+```
+
+- [ ] **Step 8: Inject the theme into the root document**
+
+```blade
+{{-- resources/views/app.blade.php - add inside <head>, before the @vite directive --}}
+<style id="theme">{!! $themeCss ?? '' !!}</style>
+```
+
+- [ ] **Step 9: Run the full ThemeTokensTest to verify both pass**
+
+Run: `php artisan test --filter=ThemeTokensTest`
+Expected: PASS (both).
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add resources/themes/default/theme.json app/Support/Theming/ThemeTokens.php app/Http/Middleware/ShareTheme.php bootstrap/app.php resources/views/app.blade.php tests/Feature/ThemeTokensTest.php
+git commit -m "feat: theme.json design tokens injected as CSS variables"
+```
+
+> **Follow-on (not P1):** binding these tokens to Tailwind utility names (via `@theme` in `app.css`) and re-pointing shadcn/ui's own variables at them (converting the hex tokens to the format shadcn expects) so the entire component library skins to the theme, plus self-hosting the Playfair Display / Inter / Geist Mono font files. Tracked for the frontend plan. P1 establishes the token contract and proves it reaches the page.
+
+---
+
+### Task 7: Base UI shell with family switcher and members screen
 
 **Files:**
 - Create: `resources/js/pages/family/members.tsx`
@@ -890,7 +1070,7 @@ git commit -m "feat: family members page and nav shell"
 
 ---
 
-### Task 7: Full-suite green and image smoke check
+### Task 8: Full-suite green and image smoke check
 
 **Files:**
 - Modify: `phpunit.xml` (confirm SQLite in-memory test DB)
@@ -911,7 +1091,7 @@ git commit -m "feat: family members page and nav shell"
 - [ ] **Step 2: Run the entire test suite**
 
 Run: `php artisan test`
-Expected: all tests PASS (SmokeTest, FamilyModelTest, TenancyScopeTest, ActiveFamilyMiddlewareTest, TenantContextTest, RegistrationCreatesFamilyTest, FamilyMemberTest, FamilyMembersPageTest).
+Expected: all tests PASS (SmokeTest, FamilyModelTest, TenancyScopeTest, ActiveFamilyMiddlewareTest, TenantContextTest, ThemeTokensTest, RegistrationCreatesFamilyTest, FamilyMemberTest, FamilyMembersPageTest).
 
 - [ ] **Step 3: Boot the image against Postgres and hit the health route**
 
@@ -935,10 +1115,11 @@ git commit -m "chore: pin sqlite in-memory test db and verify P1 suite"
 ## Self-Review
 
 **Spec coverage (P1 slice only):**
-- Core owns auth, families, members, roles, base UI shell (spec §4, §7) → Tasks 2, 4, 5, 6. ✅
+- Core owns auth, families, members, roles, base UI shell (spec §4, §7) → Tasks 2, 4, 5, 7. ✅
+- Theming: every visual primitive is a `theme.json` token surfaced as CSS variables (spec §5) → Task 6. ✅ (Tailwind/shadcn binding + font self-hosting flagged as follow-on)
 - `family_id` tenant scoping via global scope (spec §6, §10) → Task 3. ✅
 - Per-family roles admin/member (spec §7) → pivot `role`, Tasks 2, 5. ✅ (deviation from spatie flagged in handoff)
-- One Docker image, stateless (spec §2, §3) → Task 1, Task 7 Step 3. ✅
+- One Docker image, stateless (spec §2, §3) → Task 1, Task 8 Step 3. ✅
 - Module registry / hook bus / marketplace / realtime / first-party modules → **out of P1 scope**, covered by P2-P8. ✅ (intentional)
 
 **Placeholder scan:** No TBDs; every code step has complete code. The layout edit in Task 6 Step 6 notes the file may be named differently in the starter - that is a real instruction (verify the path), not a placeholder, and the surrounding steps are concrete.
