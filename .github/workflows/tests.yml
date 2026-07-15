@@ -5,10 +5,8 @@ on:
     branches:
       - develop
       - main
+  # Run on every pull request, including stacked PRs whose base is a feature branch.
   pull_request:
-    branches:
-      - develop
-      - main
 
 jobs:
   ci:
@@ -50,4 +48,4 @@ jobs:
         run: php artisan key:generate
 
       - name: Tests
-        run: ./vendor/bin/phpunit
+        run: ./vendor/bin/pest
