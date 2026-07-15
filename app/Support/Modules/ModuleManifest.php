@@ -11,6 +11,7 @@ class ModuleManifest
         public string $provider,
         public array $requires,
         public string $path,
+        public ?string $frontend = null,
     ) {}
 
     public static function fromPath(string $dir): self
@@ -24,7 +25,13 @@ class ModuleManifest
             provider: $data['provider'],
             requires: $data['requires'] ?? [],
             path: $dir,
+            frontend: $data['frontend'] ?? null,
         );
+    }
+
+    public function frontendFile(): ?string
+    {
+        return $this->frontend ? $this->path.'/'.$this->frontend : null;
     }
 
     public function migrationsPath(): string
