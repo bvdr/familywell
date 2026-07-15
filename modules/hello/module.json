@@ -1,0 +1,7 @@
+{
+    "id": "hello",
+    "name": "Hello",
+    "version": "1.0.0",
+    "provider": "Modules\\Hello\\HelloServiceProvider",
+    "requires": []
+}
