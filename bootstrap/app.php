@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\SetActiveFamily::class,
             \App\Http\Middleware\ShareTheme::class,
             \App\Http\Middleware\ShareModules::class,
+            \App\Http\Middleware\ShareRealtime::class,
         ]);
 
         $middleware->alias([
