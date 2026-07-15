@@ -7,7 +7,7 @@ COPY . .
 RUN npm run build
 
 FROM dunglas/frankenphp:1-php8.3 AS app
-RUN install-php-extensions pdo_pgsql pdo_sqlite intl bcmath opcache zip
+RUN install-php-extensions pdo_pgsql pdo_sqlite intl bcmath opcache zip pcntl
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 WORKDIR /app
 COPY composer.json composer.lock ./
