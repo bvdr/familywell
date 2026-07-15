@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\FamilyMemberController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -11,6 +12,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('dashboard', function () {
         return Inertia::render('dashboard');
     })->name('dashboard');
+
+    Route::post('/family/members', [FamilyMemberController::class, 'store'])->name('family.members.store');
+    Route::delete('/family/members/{user}', [FamilyMemberController::class, 'destroy'])->name('family.members.destroy');
 });
 
 require __DIR__.'/settings.php';
