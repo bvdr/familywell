@@ -9,7 +9,7 @@ export default function Members({ family, members, canManage }: Props) {
         <AppLayout>
             <Head title={`${family.name} Members`} />
             <div className="p-6">
-                <h1 className="text-xl font-semibold mb-4">{family.name}</h1>
+                <h1 className="mb-4 text-xl font-semibold">{family.name}</h1>
                 <ul className="divide-y">
                     {members.map((m) => (
                         <li key={m.id} className="flex justify-between py-2">
@@ -20,7 +20,7 @@ export default function Members({ family, members, canManage }: Props) {
                         </li>
                     ))}
                 </ul>
-                {canManage && <p className="mt-4 text-sm text-muted-foreground">You can manage members.</p>}
+                {canManage && <p className="text-muted-foreground mt-4 text-sm">You can manage members.</p>}
             </div>
         </AppLayout>
     );

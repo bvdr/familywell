@@ -21,6 +21,9 @@
         "typescript-eslint": "^8.23.0"
     },
     "dependencies": {
+        "@fontsource/geist-mono": "^5.2.8",
+        "@fontsource/inter": "^5.2.8",
+        "@fontsource/playfair-display": "^5.2.8",
         "@headlessui/react": "^2.2.0",
         "@inertiajs/react": "^2.0.0",
         "@radix-ui/react-avatar": "^1.1.3",
