@@ -14,6 +14,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // App Platform terminates TLS at its load balancer and forwards plain HTTP to the container,
+        // so without this Laravel builds http:// URLs and secure cookies never stick. '*' is safe here:
+        // the container is only reachable through the LB, never directly.
+        $middleware->trustProxies(at: '*');
+
         $middleware->web(append: [
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
