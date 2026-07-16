@@ -36,6 +36,12 @@
     --color-accent: var(--accent);
     --color-accent-foreground: var(--accent-foreground);
 
+    /* Raw brand tokens (emitted at runtime by ThemeTokens) surfaced as utilities for the auth
+       brand panel, which needs the forest surface and its on-dark text/accent directly. */
+    --color-surface-dark: var(--surface-dark);
+    --color-accent-light: var(--accent-light);
+    --color-text-inverse: var(--text-inverse);
+
     --color-destructive: var(--destructive);
     --color-destructive-foreground: var(--destructive-foreground);
 
