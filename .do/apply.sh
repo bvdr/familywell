@@ -10,8 +10,12 @@
 # script is idempotent and safe to re-run.
 #
 # Usage:
-#   .do/apply.sh create   # first time: creates the app
-#   .do/apply.sh update   # subsequent: updates the live spec in place
+#   .do/apply.sh create                      # first time: creates the app
+#   .do/apply.sh update                      # subsequent: updates the live spec in place
+#   DO_BRANCH=p8-deploy .do/apply.sh create  # build a branch other than the spec's
+#
+# DO_BRANCH exists so a deploy can be proven against a feature branch before it merges. Leave it
+# unset and you get the spec's branch (main), which is the state you want after the PR lands.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -36,10 +40,10 @@ fi
 RENDERED="$(mktemp)"
 trap 'rm -f "$RENDERED"' EXIT
 
-python3 - "$ENV_FILE" "$RENDERED" <<'PY'
+python3 - "$ENV_FILE" "$RENDERED" "${DO_BRANCH:-}" <<'PY'
 import sys, yaml
 
-env_file, out_file = sys.argv[1], sys.argv[2]
+env_file, out_file, branch = sys.argv[1], sys.argv[2], sys.argv[3]
 
 # Only these keys are allowed through, so a stray line in .env.do can never become an app env var.
 SECRETS = ("APP_KEY", "REVERB_APP_ID", "REVERB_APP_KEY", "REVERB_APP_SECRET")
@@ -61,6 +65,13 @@ spec = yaml.safe_load(open(".do/app.yaml"))
 spec.setdefault("envs", []).extend(
     {"key": k, "value": values[k], "type": "SECRET", "scope": "RUN_TIME"} for k in SECRETS
 )
+
+# Every component (web, reverb, migrate) must build the same commit, or the pre-deploy migration
+# could run a different schema than the code that serves it.
+if branch:
+    for component in (*spec.get("services", []), *spec.get("jobs", [])):
+        if "github" in component:
+            component["github"]["branch"] = branch
 
 yaml.safe_dump(spec, open(out_file, "w"), sort_keys=False)
 PY
