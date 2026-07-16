@@ -1,0 +1,67 @@
+name: deploy
+
+# Auto-deploy to DigitalOcean App Platform on every push to main.
+#
+# Why this workflow does the pushing instead of App Platform building on push:
+# App Platform's native build-on-push needs its GitHub app authorized against this private repo,
+# which is a browser OAuth flow (the deploy still fails today with "GitHub user not authenticated").
+# So Actions builds the image, pushes it to GHCR, and then asks App Platform to pull and redeploy.
+# The moment that GitHub app is authorized, this file can be deleted and the app switched back to a
+# github: source with deploy_on_push.
+on:
+  push:
+    branches: [main]
+    # Docs and the plan never change the running image, so skip a ~4 min build for them.
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+  workflow_dispatch: {}
+
+# One production deploy at a time. Don't cancel an in-flight one: a half-applied deploy is worse
+# than a slightly stale one, and App Platform already supersedes older deployments safely.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          # Built-in token, no stored secret: it can push to packages under this repo's owner.
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          # :latest is what the App Platform spec pulls; the sha tag is for traceability/rollback.
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/familywell:latest
+            ghcr.io/${{ github.repository_owner }}/familywell:${{ github.sha }}
+          # Layer cache in Actions so unchanged deps (composer/npm) don't rebuild every push.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Trigger App Platform deployment
+        # The app is an image: source, so it does not auto-pull. Creating a deployment makes it
+        # re-pull :latest (which we just pushed) and run the PRE_DEPLOY migrate job. --wait blocks
+        # until it is ACTIVE or ERROR, so a failed deploy fails this job instead of passing silently.
+        run: doctl apps create-deployment "${{ vars.DO_APP_ID }}" --wait
