@@ -1,6 +1,16 @@
 node_modules
 vendor
 .git
+# Every env file, not just .env: .env.do holds the production secrets and must never reach an
+# image layer (a bare `.env` pattern does not match it).
 .env
+.env.*
 public/build
 docs
+# Local dev binaries, ~158MB the image has no use for (the base image ships its own FrankenPHP).
+frankenphp
+frankenphp-worker.php
+caddy
+# Build/test artefacts that would only bloat the layer.
+.phpunit.cache
+database/database.sqlite

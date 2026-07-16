@@ -9,13 +9,15 @@
 # Secrets live in .env.do (gitignored). First run generates them; later runs reuse them, so this
 # script is idempotent and safe to re-run.
 #
-# Usage:
-#   .do/apply.sh create                      # first time: creates the app
-#   .do/apply.sh update                      # subsequent: updates the live spec in place
-#   DO_BRANCH=p8-deploy .do/apply.sh create  # build a branch other than the spec's
+# The GHCR pull credential is likewise injected here, from `gh auth token`, never committed.
 #
-# DO_BRANCH exists so a deploy can be proven against a feature branch before it merges. Leave it
-# unset and you get the spec's branch (main), which is the state you want after the PR lands.
+# Usage:
+#   .do/apply.sh create                   # first time: creates the app
+#   .do/apply.sh update                   # subsequent: updates the live spec in place
+#   DO_TAG=fe3fa94 .do/apply.sh update    # pin a specific image tag instead of the spec's
+#
+# DO_TAG exists so a deploy can be pinned to an exact image (build one with .do/push.sh) before the
+# branch merges. Leave it unset and you get the spec's tag.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -40,10 +42,15 @@ fi
 RENDERED="$(mktemp)"
 trap 'rm -f "$RENDERED"' EXIT
 
-python3 - "$ENV_FILE" "$RENDERED" "${DO_BRANCH:-}" <<'PY'
-import sys, yaml
+# GHCR is private, so App Platform needs a pull credential. Taken from the gh CLI at apply time
+# (it already carries read:packages) rather than stored anywhere.
+GHCR_CREDS="bvdr:$(gh auth token)"
+export GHCR_CREDS
 
-env_file, out_file, branch = sys.argv[1], sys.argv[2], sys.argv[3]
+python3 - "$ENV_FILE" "$RENDERED" "${DO_TAG:-}" <<'PY'
+import os, sys, yaml
+
+env_file, out_file, tag = sys.argv[1], sys.argv[2], sys.argv[3]
 
 # Only these keys are allowed through, so a stray line in .env.do can never become an app env var.
 SECRETS = ("APP_KEY", "REVERB_APP_ID", "REVERB_APP_KEY", "REVERB_APP_SECRET")
@@ -66,17 +73,20 @@ spec.setdefault("envs", []).extend(
     {"key": k, "value": values[k], "type": "SECRET", "scope": "RUN_TIME"} for k in SECRETS
 )
 
-# Every component (web, reverb, migrate) must build the same commit, or the pre-deploy migration
-# could run a different schema than the code that serves it.
-if branch:
-    for component in (*spec.get("services", []), *spec.get("jobs", [])):
-        if "github" in component:
-            component["github"]["branch"] = branch
+# Every component (web, reverb, migrate) must run the same image, or the pre-deploy migration
+# could apply a different schema than the code that then serves it.
+for component in (*spec.get("services", []), *spec.get("jobs", [])):
+    image = component.get("image")
+    if not image:
+        continue
+    image["registry_credentials"] = os.environ["GHCR_CREDS"]
+    if tag:
+        image["tag"] = tag
 
 yaml.safe_dump(spec, open(out_file, "w"), sort_keys=False)
 PY
 
-echo "==> ${ACTION}ing app from rendered spec (4 secrets injected)"
+echo "==> ${ACTION}ing app from rendered spec (secrets + GHCR credentials injected)"
 if [ "$ACTION" = "create" ]; then
     fw-do apps create --spec "$RENDERED" --format ID,Spec.Name,DefaultIngress
 else
