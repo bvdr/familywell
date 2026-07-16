@@ -1,6 +1,5 @@
-import AppLogoIcon from '@/components/app-logo-icon';
-import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
+import { Leaf } from 'lucide-react';
 
 interface AuthLayoutProps {
     children: React.ReactNode;
@@ -8,35 +7,78 @@ interface AuthLayoutProps {
     description?: string;
 }
 
+// Brand-panel content per auth screen (design: "Web · Auth Flow"). Keyed by route name so the pages
+// stay focused on their forms; anything not listed (reset-password, verify-email, confirm-password)
+// falls back to the calm login panel, keeping the whole auth surface consistent.
+type PanelContent = { headline: string; sub: string; image: string };
+
+const PANELS: Record<string, PanelContent> = {
+    login: {
+        headline: 'Where your family finds its rhythm.',
+        sub: 'Calm, shared organization for the people who matter most.',
+        image: '/images/auth/login.png',
+    },
+    register: {
+        headline: 'Start something calm together.',
+        sub: 'Create a shared home for schedules, lists, and the little moments in between.',
+        image: '/images/auth/register.png',
+    },
+    'password.request': {
+        headline: "We'll help you back in.",
+        sub: 'Resetting your password only takes a moment.',
+        image: '/images/auth/reset.png',
+    },
+};
+
 export default function AuthSplitLayout({ children, title, description }: AuthLayoutProps) {
-    const { name, quote } = usePage<SharedData>().props;
+    const { name } = usePage().props as { name?: string };
+    // ziggy's current() gives the active route name; fall back to the login panel for undesigned screens.
+    const routeName = typeof route().current === 'function' ? route().current() : undefined;
+    const panel = (routeName && PANELS[routeName]) || PANELS.login;
 
     return (
-        <div className="relative grid h-dvh flex-col items-center justify-center px-8 sm:px-0 lg:max-w-none lg:grid-cols-2 lg:px-0">
-            <div className="bg-muted relative hidden h-full flex-col p-10 text-white lg:flex dark:border-r">
-                <div className="absolute inset-0 bg-zinc-900" />
-                <Link href={route('home')} className="relative z-20 flex items-center text-lg font-medium">
-                    <AppLogoIcon className="mr-2 size-8 fill-current text-white" />
-                    {name}
+        <div className="grid min-h-dvh lg:grid-cols-2">
+            {/* Brand panel — hidden below lg, matching the design's mobile auth frames (form only). */}
+            <div className="bg-surface-dark relative hidden flex-col justify-between p-14 lg:flex">
+                <Link href={route('home')} className="text-text-inverse flex items-center gap-2.5">
+                    <Leaf className="text-accent-light size-6" />
+                    <span className="font-heading text-2xl">{name ?? 'FamilyWell'}</span>
                 </Link>
-                {quote && (
-                    <div className="relative z-20 mt-auto">
-                        <blockquote className="space-y-2">
-                            <p className="text-lg">&ldquo;{quote.message}&rdquo;</p>
-                            <footer className="text-sm text-neutral-300">{quote.author}</footer>
-                        </blockquote>
-                    </div>
-                )}
+
+                {/* Solid forest sits behind the image; on a missing file we hide the broken <img> so
+                    the panel stays clean rather than showing a broken-image glyph. */}
+                <div className="h-[340px] w-full overflow-hidden rounded-lg bg-black/10">
+                    <img
+                        src={panel.image}
+                        alt=""
+                        className="h-full w-full object-cover"
+                        loading="eager"
+                        onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                        }}
+                    />
+                </div>
+
+                <div className="flex max-w-md flex-col gap-3">
+                    <h2 className="text-text-inverse font-heading text-[34px] leading-tight">{panel.headline}</h2>
+                    <p className="text-accent-light text-[15px] leading-relaxed">{panel.sub}</p>
+                </div>
             </div>
-            <div className="w-full lg:p-8">
-                <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
-                    <Link href={route('home')} className="relative z-20 flex items-center justify-center lg:hidden">
-                        <AppLogoIcon className="h-10 fill-current text-black sm:h-12" />
+
+            {/* Form side */}
+            <div className="bg-background flex flex-col items-center justify-center p-6 sm:p-12">
+                <div className="flex w-full max-w-[420px] flex-col gap-6">
+                    {/* Wordmark shows on mobile where the brand panel is hidden. */}
+                    <Link href={route('home')} className="flex items-center gap-2.5 lg:hidden">
+                        <Leaf className="text-accent size-6" />
+                        <span className="font-heading text-primary text-2xl">{name ?? 'FamilyWell'}</span>
                     </Link>
-                    <div className="flex flex-col items-start gap-2 text-left sm:items-center sm:text-center">
-                        <h1 className="text-xl font-medium">{title}</h1>
-                        <p className="text-muted-foreground text-sm text-balance">{description}</p>
+
+                    <div className="flex flex-col gap-2">
+                        <h1 className="font-heading text-primary text-[32px] leading-tight">{title}</h1>
+                        {description && <p className="text-muted-foreground text-[15px]">{description}</p>}
                     </div>
+
                     {children}
                 </div>
             </div>
