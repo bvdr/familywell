@@ -5,6 +5,11 @@ interface AuthLayoutProps {
     children: React.ReactNode;
     title?: string;
     description?: string;
+    // Optional per-screen brand-panel overrides. Onboarding passes these (with the user's name);
+    // auth pages omit them and fall back to the route-keyed PANELS map below.
+    headline?: string;
+    sub?: string;
+    image?: string;
 }
 
 // Brand-panel content per auth screen (design: "Web · Auth Flow"). Keyed by route name so the pages
@@ -32,11 +37,13 @@ const PANELS: Record<string, PanelContent> = {
     },
 };
 
-export default function AuthSplitLayout({ children, title, description }: AuthLayoutProps) {
+export default function AuthSplitLayout({ children, title, description, headline, sub, image }: AuthLayoutProps) {
     const { name } = usePage().props as { name?: string };
     // ziggy's current() gives the active route name; fall back to the login panel for undesigned screens.
     const routeName = typeof route().current === 'function' ? route().current() : undefined;
-    const panel = (routeName && PANELS[routeName]) || PANELS.login;
+    const base = (routeName && PANELS[routeName]) || PANELS.login;
+    // Explicit props win over the route map, so onboarding can inject the user's name per step.
+    const panel = { headline: headline ?? base.headline, sub: sub ?? base.sub, image: image ?? base.image };
 
     return (
         <div className="grid min-h-dvh lg:grid-cols-2">
@@ -77,10 +84,14 @@ export default function AuthSplitLayout({ children, title, description }: AuthLa
                         <span className="font-heading text-primary text-2xl">{name ?? 'FamilyWell'}</span>
                     </Link>
 
-                    <div className="flex flex-col gap-2">
-                        <h1 className="font-heading text-primary text-[32px] leading-tight">{title}</h1>
-                        {description && <p className="text-muted-foreground text-[15px]">{description}</p>}
-                    </div>
+                    {/* Auth pages pass title/description; onboarding renders its own header (eyebrow,
+                        stepper) inside children so those sit above the title as the design shows. */}
+                    {title && (
+                        <div className="flex flex-col gap-2">
+                            <h1 className="font-heading text-primary text-[32px] leading-tight">{title}</h1>
+                            {description && <p className="text-muted-foreground text-[15px]">{description}</p>}
+                        </div>
+                    )}
 
                     {children}
                 </div>
