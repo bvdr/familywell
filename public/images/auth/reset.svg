@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" fill="none" role="img" aria-label="A calm botanical leaf branch">
+  <defs>
+    <linearGradient id="skyP" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#EEF0E7"/>
+      <stop offset="1" stop-color="#F5F1E8"/>
+    </linearGradient>
+    <clipPath id="frameP"><rect width="640" height="400" rx="16"/></clipPath>
+  </defs>
+  <g clip-path="url(#frameP)">
+    <rect width="640" height="400" fill="url(#skyP)"/>
+    <circle cx="470" cy="120" r="150" fill="#3E5C46" opacity="0.28"/>
+    <g fill="#9FBBA0" opacity="0.55">
+      <path d="M120 140c24-8 40 8 44 34-24 4-42-10-44-34Z"/>
+      <path d="M540 250c-24-8-40 8-44 34 24 4 42-10 44-34Z"/>
+    </g>
+    <path d="M40 360c120-70 220-40 360-30 90 6 150-14 200-46" stroke="#3E6B4A" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <!-- leaves along the branch -->
+    <g fill="#6E9A78">
+      <path d="M150 300c-8-22 4-40 26-46-2 24-12 40-26 46Z"/>
+      <path d="M210 276c8-22-4-40-26-46 2 24 12 40 26 46Z"/>
+      <path d="M270 254c-8-22 4-40 26-46-2 24-12 40-26 46Z"/>
+      <path d="M330 240c8-20-4-38-26-44 2 22 12 38 26 44Z"/>
+      <path d="M392 232c-8-20 4-38 26-44-2 22-12 38-26 44Z"/>
+    </g>
+    <g fill="#4A6B52">
+      <path d="M182 262c8-20-4-38-26-44 2 22 12 38 26 44Z"/>
+      <path d="M300 224c-8-20 4-38 26-44-2 22-12 38-26 44Z"/>
+      <path d="M430 214c8-18-4-34-26-40 2 20 12 34 26 40Z"/>
+    </g>
+    <path d="M0 372c150 18 260 8 380-8 90-12 180-2 260 10v26H0Z" fill="#E7E0CF"/>
+  </g>
+</svg>
