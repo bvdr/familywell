@@ -17,12 +17,20 @@
 #   DO_TAG=fe3fa94 .do/apply.sh update    # pin a specific image tag instead of the spec's
 #
 # DO_TAG exists so a deploy can be pinned to an exact image (build one with .do/push.sh) before the
-# branch merges. Leave it unset and you get the spec's tag.
+# branch merges. Leave it unset and you get the spec's tag (latest).
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 ACTION="${1:-update}"
 ENV_FILE=".env.do"
+
+# DO_TAG rewrites the live spec to a fixed tag. The GitHub Actions CD workflow redeploys :latest and
+# never touches the spec, so a spec pinned to some other tag makes every future auto-deploy a no-op
+# against a stale image. Warn loudly; reset by re-running with DO_TAG unset.
+if [ -n "${DO_TAG:-}" ]; then
+    echo "==> WARNING: DO_TAG=$DO_TAG pins the live spec off :latest and disables CD auto-deploy" >&2
+    echo "==>          re-run '.do/apply.sh update' with DO_TAG unset to restore latest-tracking" >&2
+fi
 
 if [ ! -f "$ENV_FILE" ]; then
     echo "==> $ENV_FILE not found, generating production secrets"
