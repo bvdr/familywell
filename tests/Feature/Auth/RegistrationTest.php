@@ -26,6 +26,7 @@ class RegistrationTest extends TestCase
         ]);
 
         $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
+        // New users no longer get an auto-created family; they land in onboarding to choose.
+        $response->assertRedirect(route('onboarding.index', absolute: false));
     }
 }
