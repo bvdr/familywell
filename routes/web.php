@@ -3,6 +3,7 @@
 use App\Http\Controllers\FamilyMemberController;
 use App\Http\Controllers\FamilyModuleController;
 use App\Http\Controllers\ModuleAssetController;
+use App\Http\Controllers\OnboardingController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -13,7 +14,16 @@ Route::get('/', function () {
     return redirect()->route('dashboard');
 })->name('home');
 
+// Onboarding: authed but NOT behind RequireFamily (that would loop), since this is where a
+// family-less user creates their first family.
 Route::middleware(['auth'])->group(function () {
+    Route::get('onboarding', [OnboardingController::class, 'index'])->name('onboarding.index');
+    Route::get('onboarding/create', [OnboardingController::class, 'create'])->name('onboarding.create');
+    Route::post('onboarding', [OnboardingController::class, 'store'])->name('onboarding.store');
+});
+
+// The app proper: requires both auth and a family.
+Route::middleware(['auth', 'family'])->group(function () {
     Route::get('dashboard', function () {
         return Inertia::render('dashboard');
     })->name('dashboard');
