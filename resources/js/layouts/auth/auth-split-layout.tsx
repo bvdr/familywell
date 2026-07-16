@@ -41,7 +41,7 @@ export default function AuthSplitLayout({ children, title, description }: AuthLa
     return (
         <div className="grid min-h-dvh lg:grid-cols-2">
             {/* Brand panel — hidden below lg, matching the design's mobile auth frames (form only). */}
-            <div className="bg-surface-dark relative hidden flex-col justify-between p-14 lg:flex">
+            <div className="bg-surface-dark relative hidden flex-col justify-between p-10 lg:flex">
                 <Link href={route('home')} className="text-text-inverse flex items-center gap-2.5">
                     <Leaf className="text-accent-light size-6" />
                     <span className="font-heading text-2xl">{name ?? 'FamilyWell'}</span>
@@ -50,7 +50,7 @@ export default function AuthSplitLayout({ children, title, description }: AuthLa
                 {/* Grows to fill the space between wordmark and tagline (min 340px), so the illustration
                     reads large on tall viewports. Solid forest sits behind it; on a missing file we hide
                     the broken <img> so the panel stays clean rather than showing a broken-image glyph. */}
-                <div className="my-8 min-h-[340px] w-full flex-1 overflow-hidden rounded-lg bg-black/10">
+                <div className="my-6 min-h-[460px] w-full flex-1 overflow-hidden rounded-lg bg-black/10">
                     <img
                         src={panel.image}
                         alt=""
