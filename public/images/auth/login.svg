@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" fill="none" role="img" aria-label="Calm hills at sunrise with a winding path">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F5F3EE"/>
+      <stop offset="1" stop-color="#EFE7D7"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#F6ECD6"/>
+      <stop offset="1" stop-color="#F6ECD6" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="frame"><rect width="640" height="400" rx="16"/></clipPath>
+  </defs>
+  <g clip-path="url(#frame)">
+    <rect width="640" height="400" fill="url(#sky)"/>
+    <circle cx="410" cy="150" r="120" fill="url(#sun)"/>
+    <circle cx="410" cy="150" r="46" fill="#EAD9B8"/>
+    <g fill="#4A6B52" opacity="0.35">
+      <path d="M120 92c14-4 26 0 34 8-14 2-26 0-34-8Z"/>
+      <path d="M150 78c12-2 22 2 28 9-12 1-22-1-28-9Z"/>
+    </g>
+    <path d="M0 250c90-30 150-24 230 4 90 32 180 22 410-10v156H0Z" fill="#C8DBBC"/>
+    <path d="M0 290c120-34 210-14 300 10 96 26 200 8 340-26v126H0Z" fill="#9FC0A0"/>
+    <path d="M0 320c140 44 250 8 360-16 90-20 190-8 280 14v82H0Z" fill="#6E9A78"/>
+    <path d="M300 320c-40 18-70 44-92 80h150c8-40 0-64-58-80Z" fill="#EDE7D6"/>
+    <path d="M0 356c120 30 240 14 360-10 96-18 190-6 280 16v38H0Z" fill="#3E6B4A"/>
+    <g fill="#2D5E3A">
+      <path d="M96 360c-8-26-8-44 0-70 8 26 8 44 0 70Z"/>
+      <path d="M556 356c-9-30-9-50 0-80 9 30 9 50 0 80Z"/>
+    </g>
+    <rect x="94" y="356" width="4" height="18" fill="#5A4632"/>
+    <rect x="554" y="352" width="4" height="22" fill="#5A4632"/>
+    <path d="M0 372c150 22 260 10 380-8 90-14 180-4 260 12v24H0Z" fill="#1B3A28"/>
+  </g>
+</svg>

@@ -10,23 +10,25 @@ interface AuthLayoutProps {
 // Brand-panel content per auth screen (design: "Web · Auth Flow"). Keyed by route name so the pages
 // stay focused on their forms; anything not listed (reset-password, verify-email, confirm-password)
 // falls back to the calm login panel, keeping the whole auth surface consistent.
+// The images are self-authored branded SVG placeholders (public/images/auth/*.svg). Drop in final
+// PNGs at the same path and update these three lines to swap them.
 type PanelContent = { headline: string; sub: string; image: string };
 
 const PANELS: Record<string, PanelContent> = {
     login: {
         headline: 'Where your family finds its rhythm.',
         sub: 'Calm, shared organization for the people who matter most.',
-        image: '/images/auth/login.png',
+        image: '/images/auth/login.svg',
     },
     register: {
         headline: 'Start something calm together.',
         sub: 'Create a shared home for schedules, lists, and the little moments in between.',
-        image: '/images/auth/register.png',
+        image: '/images/auth/register.svg',
     },
     'password.request': {
         headline: "We'll help you back in.",
         sub: 'Resetting your password only takes a moment.',
-        image: '/images/auth/reset.png',
+        image: '/images/auth/reset.svg',
     },
 };
 
