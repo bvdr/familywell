@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\Modules\ModuleRegistry;
+use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -45,6 +47,25 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            // Modules enabled for the active family, so the sidebar can show links for page-modules
+            // (e.g. Spending) only when they are turned on. Lazy closure on purpose: Inertia resolves
+            // share() at the START of the middleware chain, before SetActiveFamily sets the family
+            // context, so this must defer to render time when CurrentFamily::id() is available.
+            'modules' => fn () => ['enabled' => $this->enabledModuleIds()],
         ]);
+    }
+
+    /** @return list<string> */
+    private function enabledModuleIds(): array
+    {
+        if (! $familyId = CurrentFamily::id()) {
+            return [];
+        }
+
+        return collect(app(ModuleRegistry::class)->discover())
+            ->filter(fn ($m) => app(ModuleRegistry::class)->isEnabled($m->id, (int) $familyId))
+            ->keys()
+            ->values()
+            ->all();
     }
 }
