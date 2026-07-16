@@ -33,6 +33,12 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        // Establish the active family on login (registration does the same), so every
+        // authenticated request has a family context for tenant scoping and modules.
+        if ($family = $request->user()->families()->first()) {
+            $request->session()->put('active_family_id', $family->id);
+        }
+
         return redirect()->intended(route('dashboard', absolute: false));
     }
 
