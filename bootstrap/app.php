@@ -1,6 +1,12 @@
 <?php
 
+use App\Http\Middleware\EnsureModuleEnabled;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\RequireFamily;
+use App\Http\Middleware\SetActiveFamily;
+use App\Http\Middleware\ShareModules;
+use App\Http\Middleware\ShareRealtime;
+use App\Http\Middleware\ShareTheme;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -22,14 +28,15 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
-            \App\Http\Middleware\SetActiveFamily::class,
-            \App\Http\Middleware\ShareTheme::class,
-            \App\Http\Middleware\ShareModules::class,
-            \App\Http\Middleware\ShareRealtime::class,
+            SetActiveFamily::class,
+            ShareTheme::class,
+            ShareModules::class,
+            ShareRealtime::class,
         ]);
 
         $middleware->alias([
-            'module' => \App\Http\Middleware\EnsureModuleEnabled::class,
+            'module' => EnsureModuleEnabled::class,
+            'family' => RequireFamily::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
