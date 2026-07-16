@@ -14,4 +14,9 @@ class FamilyPolicy
             ->wherePivot('role', 'admin')
             ->exists();
     }
+
+    public function manageModules(User $user, Family $family): bool
+    {
+        return $this->manageMembers($user, $family);
+    }
 }
