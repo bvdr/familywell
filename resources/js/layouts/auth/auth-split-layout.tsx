@@ -47,9 +47,10 @@ export default function AuthSplitLayout({ children, title, description }: AuthLa
                     <span className="font-heading text-2xl">{name ?? 'FamilyWell'}</span>
                 </Link>
 
-                {/* Solid forest sits behind the image; on a missing file we hide the broken <img> so
-                    the panel stays clean rather than showing a broken-image glyph. */}
-                <div className="h-[340px] w-full overflow-hidden rounded-lg bg-black/10">
+                {/* Grows to fill the space between wordmark and tagline (min 340px), so the illustration
+                    reads large on tall viewports. Solid forest sits behind it; on a missing file we hide
+                    the broken <img> so the panel stays clean rather than showing a broken-image glyph. */}
+                <div className="my-8 min-h-[340px] w-full flex-1 overflow-hidden rounded-lg bg-black/10">
                     <img
                         src={panel.image}
                         alt=""
