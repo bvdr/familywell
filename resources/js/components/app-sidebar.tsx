@@ -3,11 +3,11 @@ import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
-import { Link } from '@inertiajs/react';
-import { Blocks, BookOpen, Folder, LayoutGrid, Users } from 'lucide-react';
+import { Link, usePage } from '@inertiajs/react';
+import { Blocks, BookOpen, Folder, LayoutGrid, Users, Wallet } from 'lucide-react';
 import AppLogo from './app-logo';
 
-const mainNavItems: NavItem[] = [
+const baseNavItems: NavItem[] = [
     {
         title: 'Dashboard',
         url: '/dashboard',
@@ -25,6 +25,11 @@ const mainNavItems: NavItem[] = [
     },
 ];
 
+// Page-modules that earn a sidebar link when the family has enabled them.
+const moduleNavItems: Record<string, NavItem> = {
+    spending: { title: 'Spending', url: '/m/spending', icon: Wallet },
+};
+
 const footerNavItems: NavItem[] = [
     {
         title: 'Repository',
@@ -39,6 +44,9 @@ const footerNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
+    const enabled = (usePage().props as { modules?: { enabled?: string[] } }).modules?.enabled ?? [];
+    const mainNavItems = [...baseNavItems, ...enabled.map((id) => moduleNavItems[id]).filter(Boolean)];
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
