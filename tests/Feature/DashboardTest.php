@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Family;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -15,10 +16,19 @@ class DashboardTest extends TestCase
         $this->get('/dashboard')->assertRedirect('/login');
     }
 
-    public function test_authenticated_users_can_visit_the_dashboard()
+    public function test_authenticated_users_with_a_family_can_visit_the_dashboard()
     {
-        $this->actingAs($user = User::factory()->create());
+        $user = User::factory()->create();
+        $family = Family::factory()->create(['owner_id' => $user->id]);
+        $family->members()->attach($user, ['role' => 'admin']);
 
-        $this->get('/dashboard')->assertOk();
+        $this->actingAs($user)->get('/dashboard')->assertOk();
+    }
+
+    public function test_users_without_a_family_are_sent_to_onboarding()
+    {
+        $this->actingAs(User::factory()->create());
+
+        $this->get('/dashboard')->assertRedirect(route('onboarding.index'));
     }
 }
