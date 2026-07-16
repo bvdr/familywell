@@ -1,10 +1,21 @@
 # DigitalOcean App Platform spec for Familywell (P8).
 #
 # NO SECRET VALUES LIVE HERE. This file is committed, so it carries only non-secret config.
-# The secret env vars (APP_KEY, the REVERB_APP_* trio, the R2 credentials) are injected at apply
-# time by .do/apply.sh, which pulls them from 1Password and the untracked .env.do. Applying this
-# file directly with `doctl apps update` would DELETE those secrets, because the App Platform spec
-# is declarative. Always go through .do/apply.sh.
+# The secret env vars (APP_KEY, the REVERB_APP_* trio) and the GHCR pull credentials are injected
+# at apply time by .do/apply.sh from the untracked .env.do and `gh auth token`. Applying this file
+# directly with `doctl apps update` would DELETE those secrets, because the App Platform spec is
+# declarative. Always go through .do/apply.sh.
+#
+# WHY A PRE-BUILT IMAGE INSTEAD OF THE GITHUB SOURCE:
+# App Platform's native github: source is the better setup (it builds on push and needs no registry),
+# but it requires DigitalOcean's GitHub app to be authorized against the private bvdr/familywell repo,
+# which is a browser OAuth flow no CLI can perform. The API rejects it today with
+# "GitHub user not authenticated". So we build the image ourselves and pull it from GHCR (free for
+# private packages) instead. To switch back once the GitHub app is authorized, replace each `image:`
+# block with the `github:` block shown below and drop .do/push.sh:
+#
+#     github: { repo: bvdr/familywell, branch: main, deploy_on_push: true }
+#     dockerfile_path: Dockerfile
 name: familywell
 region: fra
 
@@ -100,11 +111,11 @@ envs:
 
 services:
   - name: web
-    github:
-      repo: bvdr/familywell
-      branch: main
-      deploy_on_push: true
-    dockerfile_path: Dockerfile
+    image:
+      registry_type: GHCR
+      registry: bvdr
+      repository: familywell
+      tag: latest
     instance_size_slug: basic-xxs
     instance_count: 1
     http_port: 8000
@@ -135,11 +146,11 @@ services:
         scope: RUN_TIME
 
   - name: reverb
-    github:
-      repo: bvdr/familywell
-      branch: main
-      deploy_on_push: true
-    dockerfile_path: Dockerfile
+    image:
+      registry_type: GHCR
+      registry: bvdr
+      repository: familywell
+      tag: latest
     # Same image as web, different process: override the Dockerfile's Octane CMD.
     run_command: php artisan reverb:start --host=0.0.0.0 --port=8080
     instance_size_slug: basic-xxs
@@ -156,17 +167,25 @@ services:
 
 jobs:
   - name: migrate
-    github:
-      repo: bvdr/familywell
-      branch: main
-      deploy_on_push: true
-    dockerfile_path: Dockerfile
+    image:
+      registry_type: GHCR
+      registry: bvdr
+      repository: familywell
+      tag: latest
     # PRE_DEPLOY: schema is migrated before the new containers take traffic. Billed per second,
     # so a job that runs for a few seconds per deploy costs effectively nothing.
     kind: PRE_DEPLOY
     instance_size_slug: basic-xxs
     instance_count: 1
-    run_command: php artisan migrate --force
+    # Both commands, not just the first: `migrate` builds the core schema, while `modules:migrate`
+    # runs each module's own migrations AND writes the `modules` rows that mark them installed.
+    # Without the second, a fresh database has no installed modules, so the marketplace page lists
+    # nothing and no widget can ever be enabled. Both are idempotent, so re-running per deploy is fine.
+    #
+    # The explicit `sh -c` is load-bearing. The base image's ENTRYPOINT (docker-php-entrypoint) ends
+    # in `exec "$@"`, so a bare `a && b` here does NOT get a shell: the first command runs, the `&&`
+    # tail is silently dropped, and the job still exits 0. That failure is invisible in the logs.
+    run_command: sh -c "php artisan migrate --force && php artisan modules:migrate"
 
 ingress:
   rules:
