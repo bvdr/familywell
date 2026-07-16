@@ -1,0 +1,211 @@
+# DigitalOcean App Platform spec for Familywell (P8).
+#
+# NO SECRET VALUES LIVE HERE. This file is committed, so it carries only non-secret config.
+# The secret env vars (APP_KEY, the REVERB_APP_* trio) and the GHCR pull credentials are injected
+# at apply time by .do/apply.sh from the untracked .env.do and `gh auth token`. Applying this file
+# directly with `doctl apps update` would DELETE those secrets, because the App Platform spec is
+# declarative. Always go through .do/apply.sh.
+#
+# WHY A PRE-BUILT IMAGE INSTEAD OF THE GITHUB SOURCE:
+# App Platform's native github: source is the better setup (it builds on push and needs no registry),
+# but it requires DigitalOcean's GitHub app to be authorized against the private bvdr/familywell repo,
+# which is a browser OAuth flow no CLI can perform. The API rejects it today with
+# "GitHub user not authenticated". So we build the image ourselves and pull it from GHCR (free for
+# private packages) instead. To switch back once the GitHub app is authorized, replace each `image:`
+# block with the `github:` block shown below and drop .do/push.sh:
+#
+#     github: { repo: bvdr/familywell, branch: main, deploy_on_push: true }
+#     dockerfile_path: Dockerfile
+name: familywell
+region: fra
+
+databases:
+  # Pre-existing managed cluster (created out-of-band so its tier/cost is explicit, not implied).
+  # Attaching it here is also what puts the app in the cluster's trusted sources.
+  - name: db
+    engine: PG
+    version: "16"
+    cluster_name: familywell-db
+    production: true
+    db_name: familywell
+    db_user: familywell
+
+envs:
+  - key: APP_NAME
+    value: Familywell
+    scope: RUN_TIME
+  - key: APP_ENV
+    value: production
+    scope: RUN_TIME
+  - key: APP_DEBUG
+    value: "false"
+    scope: RUN_TIME
+  - key: APP_URL
+    value: ${APP_URL}
+    scope: RUN_TIME
+  # App Platform captures stdout/stderr as app logs; a file log would just fill an ephemeral disk.
+  - key: LOG_CHANNEL
+    value: stderr
+    scope: RUN_TIME
+  - key: LOG_LEVEL
+    value: info
+    scope: RUN_TIME
+
+  - key: DB_CONNECTION
+    value: pgsql
+    scope: RUN_TIME
+  - key: DB_HOST
+    value: ${db.HOSTNAME}
+    scope: RUN_TIME
+  - key: DB_PORT
+    value: ${db.PORT}
+    scope: RUN_TIME
+  - key: DB_DATABASE
+    value: ${db.DATABASE}
+    scope: RUN_TIME
+  - key: DB_USERNAME
+    value: ${db.USERNAME}
+    scope: RUN_TIME
+  - key: DB_PASSWORD
+    value: ${db.PASSWORD}
+    scope: RUN_TIME
+  # DO managed Postgres only accepts TLS connections.
+  - key: DB_SSLMODE
+    value: require
+    scope: RUN_TIME
+
+  # All three are the database driver: no Redis in this deployment (see the P8 plan, finding 2).
+  - key: SESSION_DRIVER
+    value: database
+    scope: RUN_TIME
+  - key: CACHE_STORE
+    value: database
+    scope: RUN_TIME
+  - key: QUEUE_CONNECTION
+    value: database
+    scope: RUN_TIME
+
+  - key: BROADCAST_CONNECTION
+    value: reverb
+    scope: RUN_TIME
+  # Reverb scaling needs Redis. We run exactly one Reverb instance, so it stays off.
+  # Turning this on without also adding Redis AND raising reverb's instance_count is a footgun.
+  - key: REVERB_SCALING_ENABLED
+    value: "false"
+    scope: RUN_TIME
+
+  # Object storage is deliberately NOT wired to R2 yet, and this is a considered call, not an omission:
+  # nothing in the app touches Storage:: at all (module JS is read off the image with file_get_contents,
+  # see ModuleAssetController), and league/flysystem-aws-s3-v3 is not even installed, so
+  # FILESYSTEM_DISK=s3 would fatal the moment anything did use it. R2 (never DO Spaces) is the right
+  # target the day a real upload lands: add the adapter, create the bucket, set AWS_* as SECRET.
+  - key: FILESYSTEM_DISK
+    value: local
+    scope: RUN_TIME
+
+  # Mail is deliberately unset: Bogdan has not picked the Resend key yet, and nothing in the app
+  # sends mail today (no MustVerifyEmail, no notifications). Swap to the real mailer when it exists.
+  - key: MAIL_MAILER
+    value: log
+    scope: RUN_TIME
+
+services:
+  - name: web
+    image:
+      registry_type: GHCR
+      registry: bvdr
+      repository: familywell
+      tag: latest
+    instance_size_slug: basic-xxs
+    instance_count: 1
+    http_port: 8000
+    health_check:
+      http_path: /up
+    envs:
+      # Server-to-server: the web service publishes broadcast events to Reverb over the app's
+      # private network, so this stays plain HTTP and never leaves DO.
+      - key: REVERB_HOST
+        value: ${reverb.PRIVATE_DOMAIN}
+        scope: RUN_TIME
+      - key: REVERB_PORT
+        value: "8080"
+        scope: RUN_TIME
+      - key: REVERB_SCHEME
+        value: http
+        scope: RUN_TIME
+      # Browser-facing: Echo connects back through the public ingress on 443, which is a different
+      # host/port/scheme than the private one above. ShareRealtime passes these to the browser.
+      - key: REVERB_PUBLIC_HOST
+        value: ${APP_DOMAIN}
+        scope: RUN_TIME
+      - key: REVERB_PUBLIC_PORT
+        value: "443"
+        scope: RUN_TIME
+      - key: REVERB_PUBLIC_SCHEME
+        value: https
+        scope: RUN_TIME
+
+  - name: reverb
+    image:
+      registry_type: GHCR
+      registry: bvdr
+      repository: familywell
+      tag: latest
+    # Same image as web, different process: override the Dockerfile's Octane CMD.
+    run_command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    instance_size_slug: basic-xxs
+    # Pinned at 1: more than one instance requires Redis for Reverb's scaling channel.
+    instance_count: 1
+    http_port: 8080
+    health_check:
+      # Reverb serves its own /up (vendor/laravel/reverb Factory.php), distinct from Laravel's.
+      http_path: /up
+    envs:
+      - key: REVERB_HOST
+        value: 0.0.0.0
+        scope: RUN_TIME
+
+jobs:
+  - name: migrate
+    image:
+      registry_type: GHCR
+      registry: bvdr
+      repository: familywell
+      tag: latest
+    # PRE_DEPLOY: schema is migrated before the new containers take traffic. Billed per second,
+    # so a job that runs for a few seconds per deploy costs effectively nothing.
+    kind: PRE_DEPLOY
+    instance_size_slug: basic-xxs
+    instance_count: 1
+    # Both commands, not just the first: `migrate` builds the core schema, while `modules:migrate`
+    # runs each module's own migrations AND writes the `modules` rows that mark them installed.
+    # Without the second, a fresh database has no installed modules, so the marketplace page lists
+    # nothing and no widget can ever be enabled. Both are idempotent, so re-running per deploy is fine.
+    #
+    # The explicit `sh -c` is load-bearing. The base image's ENTRYPOINT (docker-php-entrypoint) ends
+    # in `exec "$@"`, so a bare `a && b` here does NOT get a shell: the first command runs, the `&&`
+    # tail is silently dropped, and the job still exits 0. That failure is invisible in the logs.
+    run_command: sh -c "php artisan migrate --force && php artisan modules:migrate"
+
+ingress:
+  rules:
+    # Longest-prefix wins, so these two must be matched before the catch-all below.
+    # preserve_path_prefix is required: App Platform strips the matched prefix by default, and
+    # Reverb routes on the full /app/{key} and /apps/{id}/... paths.
+    - component:
+        name: reverb
+        preserve_path_prefix: true
+      match:
+        path:
+          prefix: /app
+    - component:
+        name: reverb
+        preserve_path_prefix: true
+      match:
+        path:
+          prefix: /apps
+    - component:
+        name: web
+      match:
+        path:
+          prefix: /
