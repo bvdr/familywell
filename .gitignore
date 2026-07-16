@@ -27,3 +27,6 @@ yarn-error.log
 **/caddy
 frankenphp
 frankenphp-worker.php
+
+# P8: production secrets for the DO App Platform deploy (see .do/apply.sh)
+.env.do
