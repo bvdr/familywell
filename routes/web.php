@@ -7,7 +7,10 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
-    return Inertia::render('welcome');
+    // Root goes straight to the app. Unauthenticated visitors get bounced to /login by the
+    // dashboard's auth middleware. There is no public marketing page yet, so the old Laravel
+    // welcome scaffold served no purpose here.
+    return redirect()->route('dashboard');
 })->name('home');
 
 Route::middleware(['auth'])->group(function () {
