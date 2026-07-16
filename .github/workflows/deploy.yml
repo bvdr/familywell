@@ -11,10 +11,15 @@ name: deploy
 on:
   push:
     branches: [main]
-    # Docs and the plan never change the running image, so skip a ~4 min build for them.
+    # Skip a ~4 min build+deploy for changes that cannot alter the running image.
+    # .do/** included on purpose: this workflow only triggers a redeploy of :latest, it never
+    # applies the spec, so a spec/script edit here would rebuild pointlessly AND look deployed
+    # without actually taking effect (spec changes need .do/apply.sh update).
     paths-ignore:
       - 'docs/**'
       - '**.md'
+      - '.do/**'
+      - '.github/**'
   workflow_dispatch: {}
 
 # One production deploy at a time. Don't cancel an in-flight one: a half-applied deploy is worse
