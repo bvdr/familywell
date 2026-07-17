@@ -1,9 +1,10 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { Check, Plus } from 'lucide-react';
+import { Check, Copy, MoreVertical, Pencil, Plus, Trash2 } from 'lucide-react';
 import { FormEventHandler, useEffect, useState } from 'react';
 
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -60,6 +61,8 @@ export default function Event({
 }) {
     const authId = (usePage().props as { auth: { user: { id: number } } }).auth.user.id;
     const [adding, setAdding] = useState(false);
+    // When set, the form is editing this spend id instead of creating a new one.
+    const [editing, setEditing] = useState<number | null>(null);
     // Display currency is cosmetic: it converts the base-currency figures for viewing. Default = base.
     const [display, setDisplay] = useState(event.currency);
     const fmt = (baseCents: number) => money(Math.round(baseCents * (event.rates[display] ?? 1)), display);
@@ -86,16 +89,43 @@ export default function Event({
         spent_at: today(),
     });
 
-    const addSpend: FormEventHandler = (e) => {
-        e.preventDefault();
-        form.post(route('spending.spends.store', event.id), {
-            preserveScroll: true,
-            onSuccess: () => {
-                form.reset('amount', 'note');
-                setAdding(false);
-            },
-        });
+    const closeForm = () => {
+        form.reset();
+        setEditing(null);
+        setAdding(false);
     };
+
+    const submitSpend: FormEventHandler = (e) => {
+        e.preventDefault();
+        const opts = { preserveScroll: true, onSuccess: () => closeForm() };
+        if (editing) {
+            form.patch(route('spending.spends.update', editing), opts);
+        } else {
+            form.post(route('spending.spends.store', event.id), opts);
+        }
+    };
+
+    const startEdit = (s: Spend) => {
+        form.setData({
+            amount: (s.amount / 100).toString(),
+            currency: s.currency,
+            category: s.category,
+            payer_id: s.payer.id,
+            note: s.note ?? '',
+            spent_at: s.spent_at,
+        });
+        setEditing(s.id);
+        setAdding(true);
+    };
+
+    const startAdd = () => {
+        form.reset();
+        setEditing(null);
+        setAdding(true);
+    };
+
+    const duplicate = (s: Spend) => router.post(route('spending.spends.duplicate', s.id), {}, { preserveScroll: true });
+    const remove = (s: Spend) => router.delete(route('spending.spends.destroy', s.id), { preserveScroll: true });
 
     const markPaid = (s: Suggestion) => {
         router.post(route('spending.settle', event.id), { from_user_id: s.from.id, to_user_id: s.to.id, amount: s.amount }, { preserveScroll: true });
@@ -174,9 +204,10 @@ export default function Event({
                     </section>
                 )}
 
-                {/* Add spend */}
+                {/* Add / edit spend */}
                 {adding ? (
-                    <form onSubmit={addSpend} className="bg-surface-card flex flex-col gap-3 rounded-xl border p-4">
+                    <form onSubmit={submitSpend} className="bg-surface-card flex flex-col gap-3 rounded-xl border p-4">
+                        <div className="text-primary text-sm font-medium">{editing ? 'Edit spend' : 'New spend'}</div>
                         <div className="grid grid-cols-[1fr_auto] gap-3">
                             <div className="grid gap-2">
                                 <Label htmlFor="amount">Amount</Label>
@@ -256,15 +287,15 @@ export default function Event({
                         </div>
                         <div className="flex gap-2">
                             <Button type="submit" disabled={form.processing}>
-                                Add spend
+                                {editing ? 'Save changes' : 'Add spend'}
                             </Button>
-                            <Button type="button" variant="ghost" onClick={() => setAdding(false)}>
+                            <Button type="button" variant="ghost" onClick={closeForm}>
                                 Cancel
                             </Button>
                         </div>
                     </form>
                 ) : (
-                    <Button onClick={() => setAdding(true)} className="w-full">
+                    <Button onClick={startAdd} className="w-full">
                         <Plus className="size-4" /> Add spend
                     </Button>
                 )}
@@ -285,9 +316,30 @@ export default function Event({
                                     </div>
                                 </div>
                             </div>
-                            <div className="text-right">
-                                <div className="text-primary text-sm font-semibold">{money(s.amount, s.currency)}</div>
-                                {s.currency !== display && <div className="text-muted-foreground text-xs">{fmt(s.base_amount)}</div>}
+                            <div className="flex items-center gap-1">
+                                <div className="text-right">
+                                    <div className="text-primary text-sm font-semibold">{money(s.amount, s.currency)}</div>
+                                    {s.currency !== display && <div className="text-muted-foreground text-xs">{fmt(s.base_amount)}</div>}
+                                </div>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="text-muted-foreground size-8" aria-label="Spend actions">
+                                            <MoreVertical className="size-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => startEdit(s)}>
+                                            <Pencil className="size-4" /> Edit
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => duplicate(s)}>
+                                            <Copy className="size-4" /> Duplicate
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => remove(s)}>
+                                            <Trash2 className="size-4" /> Delete
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </div>
                         </div>
                     ))}
