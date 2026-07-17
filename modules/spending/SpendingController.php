@@ -68,35 +68,35 @@ class SpendingController extends Controller
     public function storeSpend(Request $request, int $event): RedirectResponse
     {
         $event = $this->event($event);
-        $memberIds = $event->members()->pluck('users.id')->all();
-
-        $data = $request->validate([
-            'amount' => ['required', 'numeric', 'gt:0'],
-            'currency' => ['required', 'in:'.implode(',', self::CURRENCIES)],
-            'category' => ['required', 'in:'.implode(',', self::CATEGORIES)],
-            'payer_id' => ['required', 'integer', 'in:'.implode(',', $memberIds)],
-            'note' => ['nullable', 'string', 'max:255'],
-            'spent_at' => ['required', 'date'],
-        ]);
-
-        // Decimal major units in, integer minor units stored. round() so 48.00 -> 4800 exactly.
-        $amount = (int) round($data['amount'] * 100);
-        // Freeze the conversion to the event currency at the spend's date, so balances never drift.
-        $baseAmount = Fx::convert($amount, $data['currency'], $event->currency, $data['spent_at']);
-        $rate = $amount ? $baseAmount / $amount : 1;
+        $data = $this->validateSpend($request, $event);
 
         $event->spends()->create([
-            'payer_id' => $data['payer_id'],
-            'amount' => $amount,
-            'currency' => $data['currency'],
-            'base_amount' => $baseAmount,
-            'rate' => $rate,
-            'category' => $data['category'],
-            'note' => $data['note'] ?? null,
-            'spent_at' => $data['spent_at'],
+            ...$this->spendAttributes($data, $event),
             'created_by' => $request->user()->id,
         ]);
 
+        SpendingChanged::dispatch((int) CurrentFamily::id());
+
+        return back();
+    }
+
+    public function updateSpend(Request $request, int $spend): RedirectResponse
+    {
+        $spend = Spend::findOrFail($spend); // family-scoped resolve (see event() note)
+        $event = $this->event($spend->spend_event_id);
+        $data = $this->validateSpend($request, $event);
+
+        // Re-freeze the conversion, since amount/currency/date may have changed.
+        $spend->update($this->spendAttributes($data, $event));
+        SpendingChanged::dispatch((int) CurrentFamily::id());
+
+        return back();
+    }
+
+    public function duplicateSpend(int $spend): RedirectResponse
+    {
+        // Replicate keeps every attribute (currency, frozen base_amount, rate, date) except the id.
+        Spend::findOrFail($spend)->replicate()->save();
         SpendingChanged::dispatch((int) CurrentFamily::id());
 
         return back();
@@ -142,6 +142,39 @@ class SpendingController extends Controller
     private function event(int $id): SpendEvent
     {
         return SpendEvent::findOrFail($id);
+    }
+
+    private function validateSpend(Request $request, SpendEvent $event): array
+    {
+        $memberIds = $event->members()->pluck('users.id')->all();
+
+        return $request->validate([
+            'amount' => ['required', 'numeric', 'gt:0'],
+            'currency' => ['required', 'in:'.implode(',', self::CURRENCIES)],
+            'category' => ['required', 'in:'.implode(',', self::CATEGORIES)],
+            'payer_id' => ['required', 'integer', 'in:'.implode(',', $memberIds)],
+            'note' => ['nullable', 'string', 'max:255'],
+            'spent_at' => ['required', 'date'],
+        ]);
+    }
+
+    /** Build the stored columns from validated input, freezing the FX conversion at the spend's date. */
+    private function spendAttributes(array $data, SpendEvent $event): array
+    {
+        // Decimal major units in, integer minor units stored. round() so 48.00 -> 4800 exactly.
+        $amount = (int) round($data['amount'] * 100);
+        $baseAmount = Fx::convert($amount, $data['currency'], $event->currency, $data['spent_at']);
+
+        return [
+            'payer_id' => $data['payer_id'],
+            'amount' => $amount,
+            'currency' => $data['currency'],
+            'base_amount' => $baseAmount,
+            'rate' => $amount ? $baseAmount / $amount : 1,
+            'category' => $data['category'],
+            'note' => $data['note'] ?? null,
+            'spent_at' => $data['spent_at'],
+        ];
     }
 
     private function eventPayload(SpendEvent $event): array

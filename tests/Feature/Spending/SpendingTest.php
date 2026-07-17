@@ -112,6 +112,74 @@ it('records a foreign-currency spend converted to the event currency and frozen'
         ->assertInertia(fn ($page) => $page->where('event.total', 2000)->where('balances.0.net', 1333));
 });
 
+it('edits a spend and re-freezes the conversion', function () {
+    Http::fake(['api.frankfurter.dev/*' => Http::response(['rates' => ['EUR' => 0.25]])]);
+    [$family, $users] = spendingFamily();
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
+    $event = SpendEvent::first();
+    actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
+        'amount' => '10.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+    ]);
+    $spend = $event->spends()->first();
+
+    // Change amount + currency + payer -> re-validated and re-converted.
+    actingAs($users[0])->patch("/m/spending/spends/{$spend->id}", [
+        'amount' => '40.00', 'currency' => 'RON', 'category' => 'transport', 'payer_id' => $users[1]->id, 'spent_at' => '2026-07-16',
+    ])->assertRedirect();
+
+    $spend->refresh();
+    expect($spend->amount)->toBe(4000)
+        ->and($spend->currency)->toBe('RON')
+        ->and($spend->base_amount)->toBe(1000)   // 40.00 RON * 0.25 = 10.00 EUR
+        ->and($spend->payer_id)->toBe($users[1]->id)
+        ->and($spend->category)->toBe('transport');
+});
+
+it('duplicates a spend keeping its currency and frozen base amount', function () {
+    [$family, $users] = spendingFamily();
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
+    $event = SpendEvent::first();
+    actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
+        'amount' => '12.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+    ]);
+    $spend = $event->spends()->first();
+
+    actingAs($users[0])->post("/m/spending/spends/{$spend->id}/duplicate")->assertRedirect();
+
+    expect($event->spends()->count())->toBe(2);
+    $copy = $event->spends()->latest('id')->first();
+    expect($copy->amount)->toBe(1200)->and($copy->base_amount)->toBe($spend->base_amount)->and($copy->id)->not->toBe($spend->id);
+});
+
+it('deletes a spend', function () {
+    [$family, $users] = spendingFamily();
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
+    $event = SpendEvent::first();
+    actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
+        'amount' => '12.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+    ]);
+    $spend = $event->spends()->first();
+
+    actingAs($users[0])->delete("/m/spending/spends/{$spend->id}")->assertRedirect();
+    expect($event->spends()->count())->toBe(0);
+});
+
+it('does not let another family edit or duplicate a spend', function () {
+    [$familyA, $usersA] = spendingFamily();
+    actingAs($usersA[0])->post('/m/spending/events', ['name' => 'A', 'currency' => 'EUR']);
+    $eventA = SpendEvent::first();
+    actingAs($usersA[0])->post("/m/spending/events/{$eventA->id}/spends", [
+        'amount' => '5.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $usersA[0]->id, 'spent_at' => '2026-07-16',
+    ]);
+    $spendA = $eventA->spends()->first();
+
+    [$familyB, $usersB] = spendingFamily();
+    actingAs($usersB[0])->post("/m/spending/spends/{$spendA->id}/duplicate")->assertNotFound();
+    actingAs($usersB[0])->patch("/m/spending/spends/{$spendA->id}", [
+        'amount' => '99.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $usersB[0]->id, 'spent_at' => '2026-07-16',
+    ])->assertNotFound();
+});
+
 it('does not leak events across families', function () {
     [$familyA, $usersA] = spendingFamily();
     actingAs($usersA[0])->post('/m/spending/events', ['name' => 'A trip', 'currency' => 'EUR']);
