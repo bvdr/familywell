@@ -51,8 +51,10 @@ envs:
   - key: APP_DEBUG
     value: "false"
     scope: RUN_TIME
+  # Canonical URL is the custom domain (not the ${APP_URL} default ingress), so generated links,
+  # redirects, and password-reset emails use familywell.co.
   - key: APP_URL
-    value: ${APP_URL}
+    value: https://familywell.co
     scope: RUN_TIME
   # App Platform captures stdout/stderr as app logs; a file log would just fill an ephemeral disk.
   - key: LOG_CHANNEL
@@ -115,9 +117,7 @@ envs:
     scope: RUN_TIME
 
   # Mail via Resend SMTP. MAIL_PASSWORD (the Resend API key) is injected as a SECRET by apply.sh.
-  # Sender is @send.myfolio.so because that domain is verified in the Resend account; familywell.co
-  # is not yet verified there (needs DNS records we don't control), so switch the from-address once
-  # it is.
+  # Sender is @familywell.co, verified in Resend (DKIM/SPF records live in the Cloudflare zone).
   - key: MAIL_MAILER
     value: smtp
     scope: RUN_TIME
@@ -134,7 +134,7 @@ envs:
     value: resend
     scope: RUN_TIME
   - key: MAIL_FROM_ADDRESS
-    value: familywell@send.myfolio.so
+    value: hello@familywell.co
     scope: RUN_TIME
   - key: MAIL_FROM_NAME
     value: Familywell
@@ -167,7 +167,7 @@ services:
       # Browser-facing: Echo connects back through the public ingress on 443, which is a different
       # host/port/scheme than the private one above. ShareRealtime passes these to the browser.
       - key: REVERB_PUBLIC_HOST
-        value: ${APP_DOMAIN}
+        value: familywell.co
         scope: RUN_TIME
       - key: REVERB_PUBLIC_PORT
         value: "443"
