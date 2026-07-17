@@ -48,6 +48,17 @@ const CATEGORY: Record<string, string> = {
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+// Relative day header for the spend log: Today / Yesterday / a dated label.
+const dayLabel = (date: string) => {
+    const d = new Date(date + 'T00:00:00');
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const diff = Math.round((now.getTime() - d.getTime()) / 86_400_000);
+    if (diff === 0) return 'Today';
+    if (diff === 1) return 'Yesterday';
+    return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+};
+
 export default function Event({
     event,
     spends,
@@ -70,6 +81,18 @@ export default function Event({
     // Display currency is cosmetic: it converts the base-currency figures for viewing. Default = base.
     const [display, setDisplay] = useState(event.currency);
     const fmt = (baseCents: number) => money(Math.round(baseCents * (event.rates[display] ?? 1)), display);
+
+    // Spends arrive newest-first, so a sequential pass groups them into contiguous days.
+    const dayGroups = spends.reduce<{ date: string; spends: Spend[]; total: number }[]>((groups, s) => {
+        const last = groups[groups.length - 1];
+        if (last && last.date === s.spent_at) {
+            last.spends.push(s);
+            last.total += s.base_amount;
+        } else {
+            groups.push({ date: s.spent_at, spends: [s], total: s.base_amount });
+        }
+        return groups;
+    }, []);
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Spending', href: '/m/spending' },
@@ -343,53 +366,75 @@ export default function Event({
                     </Button>
                 )}
 
-                {/* Spend log — original currency, with the converted display amount when they differ */}
-                <section className="flex flex-col gap-2">
+                {/* Spend log — grouped by day, newest first, with a per-day subtotal */}
+                <section className="flex flex-col gap-4">
                     <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Spend log</h2>
-                    {spends.map((s) => (
-                        <div key={s.id} className="bg-surface-card flex items-center justify-between rounded-xl border p-3">
-                            <div className="flex items-center gap-3">
-                                {s.receipt_url ? (
-                                    <button type="button" onClick={() => setViewing(s.receipt_url)} className="shrink-0" aria-label="View receipt">
-                                        <img src={s.receipt_url} alt="Receipt" className="border-border size-9 rounded-lg border object-cover" />
-                                    </button>
-                                ) : (
-                                    <span className="bg-accent-subtle flex size-9 items-center justify-center rounded-lg text-base">
-                                        {CATEGORY[s.category]}
-                                    </span>
-                                )}
-                                <div>
-                                    <div className="text-primary text-sm font-medium">{s.note || s.category}</div>
-                                    <div className="text-muted-foreground text-xs capitalize">
-                                        {s.payer.name} · {s.category}
+                    {dayGroups.map((group) => (
+                        <div key={group.date} className="flex flex-col gap-2">
+                            <div className="flex items-center justify-between px-1">
+                                <span className="text-text-secondary text-sm font-medium">{dayLabel(group.date)}</span>
+                                <span className="text-muted-foreground text-sm">{fmt(group.total)}</span>
+                            </div>
+                            {group.spends.map((s) => (
+                                <div key={s.id} className="bg-surface-card flex items-center justify-between rounded-xl border p-3">
+                                    <div className="flex items-center gap-3">
+                                        {s.receipt_url ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => setViewing(s.receipt_url)}
+                                                className="shrink-0"
+                                                aria-label="View receipt"
+                                            >
+                                                <img
+                                                    src={s.receipt_url}
+                                                    alt="Receipt"
+                                                    className="border-border size-9 rounded-lg border object-cover"
+                                                />
+                                            </button>
+                                        ) : (
+                                            <span className="bg-accent-subtle flex size-9 items-center justify-center rounded-lg text-base">
+                                                {CATEGORY[s.category]}
+                                            </span>
+                                        )}
+                                        <div>
+                                            <div className="text-primary text-sm font-medium">{s.note || s.category}</div>
+                                            <div className="text-muted-foreground text-xs capitalize">
+                                                {s.payer.name} · {s.category}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        <div className="text-right">
+                                            <div className="text-primary text-sm font-semibold">{money(s.amount, s.currency)}</div>
+                                            {s.currency !== display && <div className="text-muted-foreground text-xs">{fmt(s.base_amount)}</div>}
+                                        </div>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="text-muted-foreground size-8"
+                                                    aria-label="Spend actions"
+                                                >
+                                                    <MoreVertical className="size-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onClick={() => startEdit(s)}>
+                                                    <Pencil className="size-4" /> Edit
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => duplicate(s)}>
+                                                    <Copy className="size-4" /> Duplicate
+                                                </DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => remove(s)}>
+                                                    <Trash2 className="size-4" /> Delete
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </div>
                                 </div>
-                            </div>
-                            <div className="flex items-center gap-1">
-                                <div className="text-right">
-                                    <div className="text-primary text-sm font-semibold">{money(s.amount, s.currency)}</div>
-                                    {s.currency !== display && <div className="text-muted-foreground text-xs">{fmt(s.base_amount)}</div>}
-                                </div>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="text-muted-foreground size-8" aria-label="Spend actions">
-                                            <MoreVertical className="size-4" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={() => startEdit(s)}>
-                                            <Pencil className="size-4" /> Edit
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => duplicate(s)}>
-                                            <Copy className="size-4" /> Duplicate
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => remove(s)}>
-                                            <Trash2 className="size-4" /> Delete
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </div>
+                            ))}
                         </div>
                     ))}
                 </section>
