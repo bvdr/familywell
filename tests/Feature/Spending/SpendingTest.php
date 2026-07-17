@@ -3,6 +3,7 @@
 use App\Models\Family;
 use App\Models\User;
 use App\Support\Modules\ModuleRegistry;
+use Illuminate\Support\Facades\Http;
 use Modules\Spending\SpendEvent;
 
 use function Pest\Laravel\actingAs;
@@ -57,7 +58,7 @@ it('records spends and reports balances and settle-up suggestions', function () 
 
     // user[0] pays 30.00, split three ways.
     actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
-        'amount' => '30.00', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+        'amount' => '30.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
     ])->assertRedirect();
 
     expect($event->spends()->first()->amount)->toBe(3000); // stored as cents
@@ -76,7 +77,7 @@ it('shifts balances after a settlement is marked paid', function () {
     actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
     $event = SpendEvent::first();
     actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
-        'amount' => '30.00', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+        'amount' => '30.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
     ]);
 
     actingAs($users[0])->post("/m/spending/events/{$event->id}/settle", [
@@ -84,6 +85,31 @@ it('shifts balances after a settlement is marked paid', function () {
     ])->assertRedirect();
 
     expect($event->settlements()->count())->toBe(1);
+});
+
+it('records a foreign-currency spend converted to the event currency and frozen', function () {
+    Http::fake([
+        'api.frankfurter.dev/*' => Http::response(['rates' => ['EUR' => 0.2]]),
+        'open.er-api.com/*' => Http::response(['rates' => ['EUR' => 0.2]]),
+    ]);
+
+    [$family, $users] = spendingFamily();
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
+    $event = SpendEvent::first();
+
+    // 100.00 RON at 0.2 -> 20.00 EUR base.
+    actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
+        'amount' => '100.00', 'currency' => 'RON', 'category' => 'transport', 'payer_id' => $users[0]->id, 'spent_at' => '2026-06-15',
+    ])->assertRedirect();
+
+    $spend = $event->spends()->first();
+    expect($spend->amount)->toBe(10000)          // original RON minor units
+        ->and($spend->currency)->toBe('RON')
+        ->and($spend->base_amount)->toBe(2000);  // frozen EUR base
+
+    // Balances are in the base currency (EUR): payer is owed 2/3 of 20.00.
+    actingAs($users[0])->get("/m/spending/events/{$event->id}")
+        ->assertInertia(fn ($page) => $page->where('event.total', 2000)->where('balances.0.net', 1333));
 });
 
 it('does not leak events across families', function () {
