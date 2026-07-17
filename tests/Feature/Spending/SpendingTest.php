@@ -3,7 +3,9 @@
 use App\Models\Family;
 use App\Models\User;
 use App\Support\Modules\ModuleRegistry;
+use Illuminate\Contracts\Broadcasting\Broadcaster;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Modules\Spending\SpendEvent;
@@ -213,6 +215,55 @@ it('does not serve a receipt to another family', function () {
 
     [$familyB, $usersB] = spendingFamily();
     actingAs($usersB[0])->get("/m/spending/spends/{$spendA->id}/receipt")->assertNotFound();
+});
+
+it('still records a spend when broadcasting is down', function () {
+    // A broadcaster that always throws, simulating an unreachable Reverb.
+    Broadcast::extend('boom', fn () => new class implements Broadcaster
+    {
+        public function auth($request) {}
+
+        public function validAuthenticationResponse($request, $result) {}
+
+        public function broadcast(array $channels, $event, array $payload = [])
+        {
+            throw new RuntimeException('reverb down');
+        }
+    });
+    config()->set('broadcasting.default', 'boom');
+    config()->set('broadcasting.connections.boom', ['driver' => 'boom']);
+
+    [$family, $users] = spendingFamily();
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
+    $event = SpendEvent::first();
+
+    // The write succeeds (redirect, not a 500) even though every broadcast throws.
+    actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
+        'amount' => '10.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+    ])->assertRedirect();
+
+    expect($event->spends()->count())->toBe(1);
+});
+
+it('updates a spend with a receipt via POST method-spoofing (the file-edit path)', function () {
+    Storage::fake('r2');
+    [$family, $users] = spendingFamily();
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
+    $event = SpendEvent::first();
+    actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
+        'amount' => '10.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+    ]);
+    $spend = $event->spends()->first();
+
+    // The frontend edits with a file as POST + _method=patch, since PHP can't parse a multipart PATCH.
+    actingAs($users[0])->post("/m/spending/spends/{$spend->id}", [
+        '_method' => 'patch',
+        'amount' => '22.00', 'currency' => 'EUR', 'category' => 'transport', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+        'receipt' => UploadedFile::fake()->create('r.jpg', 100, 'image/jpeg'),
+    ])->assertRedirect();
+
+    $spend->refresh();
+    expect($spend->amount)->toBe(2200)->and($spend->receipt_path)->not->toBeNull();
 });
 
 it('does not leak events across families', function () {
