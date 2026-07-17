@@ -47,9 +47,12 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
 
-        // No family is created here anymore. New users choose in onboarding (create / join / demo),
-        // then the OnboardingController creates the family. RequireFamily keeps the app unreachable
-        // until they do.
+        // If they arrived from an invitation link, finish that instead of onboarding. Otherwise new
+        // users choose in onboarding (create / join / demo); RequireFamily keeps the app gated until then.
+        if ($token = $request->session()->get('invite_token')) {
+            return to_route('invite.show', $token);
+        }
+
         return to_route('onboarding.index');
     }
 }
