@@ -266,6 +266,29 @@ it('updates a spend with a receipt via POST method-spoofing (the file-edit path)
     expect($spend->amount)->toBe(2200)->and($spend->receipt_path)->not->toBeNull();
 });
 
+it('removes an existing receipt when remove_receipt is set and no new file is uploaded', function () {
+    Storage::fake('r2');
+    [$family, $users] = spendingFamily();
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
+    $event = SpendEvent::first();
+    actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
+        'amount' => '10.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+        'receipt' => UploadedFile::fake()->create('r.jpg', 100, 'image/jpeg'),
+    ]);
+    $spend = $event->spends()->first();
+    $path = $spend->receipt_path;
+    expect($path)->not->toBeNull();
+
+    actingAs($users[0])->post("/m/spending/spends/{$spend->id}", [
+        '_method' => 'patch',
+        'amount' => '10.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+        'remove_receipt' => '1',
+    ])->assertRedirect();
+
+    expect($spend->refresh()->receipt_path)->toBeNull();
+    Storage::disk('r2')->assertMissing($path);
+});
+
 it('does not leak events across families', function () {
     [$familyA, $usersA] = spendingFamily();
     actingAs($usersA[0])->post('/m/spending/events', ['name' => 'A trip', 'currency' => 'EUR']);
