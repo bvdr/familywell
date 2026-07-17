@@ -61,7 +61,7 @@ import os, sys, yaml
 env_file, out_file, tag = sys.argv[1], sys.argv[2], sys.argv[3]
 
 # Only these keys are allowed through, so a stray line in .env.do can never become an app env var.
-SECRETS = ("APP_KEY", "REVERB_APP_ID", "REVERB_APP_KEY", "REVERB_APP_SECRET")
+SECRETS = ("APP_KEY", "REVERB_APP_ID", "REVERB_APP_KEY", "REVERB_APP_SECRET", "MAIL_PASSWORD")
 
 values = {}
 for line in open(env_file):
