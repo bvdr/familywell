@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\FamilyController;
+use App\Http\Controllers\FamilyInviteController;
 use App\Http\Controllers\FamilyMemberController;
 use App\Http\Controllers\FamilyModuleController;
 use App\Http\Controllers\ModuleAssetController;
@@ -16,10 +18,16 @@ Route::get('/', function () {
 
 // Onboarding: authed but NOT behind RequireFamily (that would loop), since this is where a
 // family-less user creates their first family.
+// The invite landing is public: it handles guests itself (remember the token, send them to register).
+Route::get('invite/{token}', [FamilyInviteController::class, 'show'])->name('invite.show');
+
 Route::middleware(['auth'])->group(function () {
     Route::get('onboarding', [OnboardingController::class, 'index'])->name('onboarding.index');
     Route::get('onboarding/create', [OnboardingController::class, 'create'])->name('onboarding.create');
     Route::post('onboarding', [OnboardingController::class, 'store'])->name('onboarding.store');
+
+    // Accepting requires a logged-in user, but NOT a family (a new/joining user has none yet).
+    Route::post('invite/{token}', [FamilyInviteController::class, 'accept'])->name('invite.accept');
 });
 
 // The app proper: requires both auth and a family.
@@ -29,8 +37,10 @@ Route::middleware(['auth', 'family'])->group(function () {
     })->name('dashboard');
 
     Route::get('/family/members', [FamilyMemberController::class, 'index'])->name('family.members.index');
-    Route::post('/family/members', [FamilyMemberController::class, 'store'])->name('family.members.store');
     Route::delete('/family/members/{user}', [FamilyMemberController::class, 'destroy'])->name('family.members.destroy');
+    Route::patch('/family', [FamilyController::class, 'update'])->name('family.update');
+    Route::post('/family/invitations', [FamilyInviteController::class, 'store'])->name('family.invitations.store');
+    Route::delete('/family/invitations/{invitation}', [FamilyInviteController::class, 'destroy'])->name('family.invitations.destroy');
 
     Route::get('/m/{module}/frontend.js', [ModuleAssetController::class, 'frontend'])->name('module.frontend');
 
