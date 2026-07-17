@@ -30,6 +30,7 @@ type Spend = {
     base_amount: number; // converted to the event currency
     category: string;
     note: string | null;
+    receipt_url: string | null;
     payer: { id: number; name: string };
     spent_at: string;
 };
@@ -80,14 +81,26 @@ export default function Event({
         return () => echo.leave(`family.${familyId}`);
     }, [familyId]);
 
-    const form = useForm({
+    const form = useForm<{
+        amount: string;
+        currency: string;
+        category: string;
+        payer_id: number;
+        note: string;
+        spent_at: string;
+        receipt: File | null;
+    }>({
         amount: '',
         currency: event.currency,
         category: 'food',
         payer_id: authId,
         note: '',
         spent_at: today(),
+        receipt: null,
     });
+
+    // Receipt of the spend being edited (a new upload replaces it).
+    const editingReceipt = editing ? (spends.find((s) => s.id === editing)?.receipt_url ?? null) : null;
 
     const closeForm = () => {
         form.reset();
@@ -113,6 +126,7 @@ export default function Event({
             payer_id: s.payer.id,
             note: s.note ?? '',
             spent_at: s.spent_at,
+            receipt: null,
         });
         setEditing(s.id);
         setAdding(true);
@@ -285,6 +299,27 @@ export default function Event({
                                 placeholder="Dinner at the taverna"
                             />
                         </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="receipt">Receipt photo (optional)</Label>
+                            <div className="flex items-center gap-3">
+                                {editingReceipt && !form.data.receipt && (
+                                    <img
+                                        src={editingReceipt}
+                                        alt="Current receipt"
+                                        className="border-border size-12 rounded-md border object-cover"
+                                    />
+                                )}
+                                <Input
+                                    id="receipt"
+                                    type="file"
+                                    accept="image/*"
+                                    className="file:text-primary text-muted-foreground cursor-pointer"
+                                    onChange={(e) => form.setData('receipt', e.target.files?.[0] ?? null)}
+                                />
+                            </div>
+                            {form.progress && <progress value={form.progress.percentage} max="100" className="h-1 w-full" />}
+                            <InputError message={form.errors.receipt} />
+                        </div>
                         <div className="flex gap-2">
                             <Button type="submit" disabled={form.processing}>
                                 {editing ? 'Save changes' : 'Add spend'}
@@ -306,9 +341,15 @@ export default function Event({
                     {spends.map((s) => (
                         <div key={s.id} className="bg-surface-card flex items-center justify-between rounded-xl border p-3">
                             <div className="flex items-center gap-3">
-                                <span className="bg-accent-subtle flex size-9 items-center justify-center rounded-lg text-base">
-                                    {CATEGORY[s.category]}
-                                </span>
+                                {s.receipt_url ? (
+                                    <a href={s.receipt_url} target="_blank" rel="noreferrer" className="shrink-0" title="View receipt">
+                                        <img src={s.receipt_url} alt="Receipt" className="border-border size-9 rounded-lg border object-cover" />
+                                    </a>
+                                ) : (
+                                    <span className="bg-accent-subtle flex size-9 items-center justify-center rounded-lg text-base">
+                                        {CATEGORY[s.category]}
+                                    </span>
+                                )}
                                 <div>
                                     <div className="text-primary text-sm font-medium">{s.note || s.category}</div>
                                     <div className="text-muted-foreground text-xs capitalize">

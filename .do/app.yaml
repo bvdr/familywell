@@ -107,13 +107,18 @@ envs:
     value: "false"
     scope: RUN_TIME
 
-  # Object storage is deliberately NOT wired to R2 yet, and this is a considered call, not an omission:
-  # nothing in the app touches Storage:: at all (module JS is read off the image with file_get_contents,
-  # see ModuleAssetController), and league/flysystem-aws-s3-v3 is not even installed, so
-  # FILESYSTEM_DISK=s3 would fatal the moment anything did use it. R2 (never DO Spaces) is the right
-  # target the day a real upload lands: add the adapter, create the bucket, set AWS_* as SECRET.
+  # Default disk stays local; receipts use the explicit `r2` disk (config/filesystems.php).
   - key: FILESYSTEM_DISK
     value: local
+    scope: RUN_TIME
+  # Cloudflare R2 (S3-compatible) for spend receipts. Endpoint + bucket are non-secret; the access
+  # key + secret are injected as SECRET by apply.sh. The bucket is private; the app streams objects
+  # through an auth-gated route, never a public URL.
+  - key: R2_ENDPOINT
+    value: https://4bfbdd8c267944d0b0cb8d49c862d34f.r2.cloudflarestorage.com
+    scope: RUN_TIME
+  - key: R2_BUCKET
+    value: familywell
     scope: RUN_TIME
 
   # Mail via Resend SMTP. MAIL_PASSWORD (the Resend API key) is injected as a SECRET by apply.sh.
