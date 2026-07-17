@@ -116,6 +116,7 @@ export default function Event({
         note: string;
         spent_at: string;
         receipt: File | null;
+        remove_receipt: boolean;
     }>({
         amount: '',
         currency: event.currency,
@@ -124,6 +125,7 @@ export default function Event({
         note: '',
         spent_at: today(),
         receipt: null,
+        remove_receipt: false,
     });
 
     // Receipt of the spend being edited (a new upload replaces it).
@@ -159,6 +161,7 @@ export default function Event({
             note: s.note ?? '',
             spent_at: s.spent_at,
             receipt: null,
+            remove_receipt: false,
         });
         setEditing(s.id);
         setAdding(true);
@@ -334,12 +337,34 @@ export default function Event({
                         <div className="grid gap-2">
                             <Label htmlFor="receipt">Receipt photo (optional)</Label>
                             <div className="flex items-center gap-3">
-                                {editingReceipt && !form.data.receipt && (
-                                    <img
-                                        src={editingReceipt}
-                                        alt="Current receipt"
-                                        className="border-border size-12 rounded-md border object-cover"
-                                    />
+                                {editingReceipt && !form.data.receipt && !form.data.remove_receipt && (
+                                    <div className="relative shrink-0">
+                                        <img
+                                            src={editingReceipt}
+                                            alt="Current receipt"
+                                            className="border-border size-12 rounded-md border object-cover"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => form.setData('remove_receipt', true)}
+                                            aria-label="Remove receipt"
+                                            className="bg-background text-muted-foreground hover:text-destructive border-border absolute -top-2 -right-2 flex size-5 items-center justify-center rounded-full border shadow-sm"
+                                        >
+                                            <X className="size-3" />
+                                        </button>
+                                    </div>
+                                )}
+                                {editingReceipt && form.data.remove_receipt && (
+                                    <span className="text-muted-foreground shrink-0 text-sm">
+                                        Removed.{' '}
+                                        <button
+                                            type="button"
+                                            onClick={() => form.setData('remove_receipt', false)}
+                                            className="text-primary underline"
+                                        >
+                                            Undo
+                                        </button>
+                                    </span>
                                 )}
                                 <Input
                                     id="receipt"
@@ -348,7 +373,9 @@ export default function Event({
                                     className="file:text-primary text-muted-foreground cursor-pointer"
                                     onChange={async (e) => {
                                         const file = e.target.files?.[0];
-                                        form.setData('receipt', file ? await compressImage(file) : null);
+                                        const receipt = file ? await compressImage(file) : null;
+                                        form.setData('receipt', receipt);
+                                        form.setData('remove_receipt', false); // a fresh pick supersedes a pending removal
                                     }}
                                 />
                             </div>
