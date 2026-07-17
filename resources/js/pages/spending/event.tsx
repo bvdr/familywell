@@ -4,6 +4,7 @@ import { FormEventHandler, useEffect, useState } from 'react';
 
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -64,6 +65,8 @@ export default function Event({
     const [adding, setAdding] = useState(false);
     // When set, the form is editing this spend id instead of creating a new one.
     const [editing, setEditing] = useState<number | null>(null);
+    // Receipt being viewed in the lightbox overlay.
+    const [viewing, setViewing] = useState<string | null>(null);
     // Display currency is cosmetic: it converts the base-currency figures for viewing. Default = base.
     const [display, setDisplay] = useState(event.currency);
     const fmt = (baseCents: number) => money(Math.round(baseCents * (event.rates[display] ?? 1)), display);
@@ -347,9 +350,9 @@ export default function Event({
                         <div key={s.id} className="bg-surface-card flex items-center justify-between rounded-xl border p-3">
                             <div className="flex items-center gap-3">
                                 {s.receipt_url ? (
-                                    <a href={s.receipt_url} target="_blank" rel="noreferrer" className="shrink-0" title="View receipt">
+                                    <button type="button" onClick={() => setViewing(s.receipt_url)} className="shrink-0" aria-label="View receipt">
                                         <img src={s.receipt_url} alt="Receipt" className="border-border size-9 rounded-lg border object-cover" />
-                                    </a>
+                                    </button>
                                 ) : (
                                     <span className="bg-accent-subtle flex size-9 items-center justify-center rounded-lg text-base">
                                         {CATEGORY[s.category]}
@@ -391,6 +394,14 @@ export default function Event({
                     ))}
                 </section>
             </div>
+
+            {/* Receipt lightbox */}
+            <Dialog open={!!viewing} onOpenChange={(open) => !open && setViewing(null)}>
+                <DialogContent className="max-w-3xl border-none bg-transparent p-0 shadow-none">
+                    <DialogTitle className="sr-only">Receipt</DialogTitle>
+                    {viewing && <img src={viewing} alt="Receipt" className="max-h-[85vh] w-full rounded-lg object-contain" />}
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

@@ -91,6 +91,10 @@ envs:
   - key: SESSION_DRIVER
     value: database
     scope: RUN_TIME
+  # Keep people signed in for 2 weeks (minutes). Sessions are rolling, so active users stay in.
+  - key: SESSION_LIFETIME
+    value: "20160"
+    scope: RUN_TIME
   - key: CACHE_STORE
     value: database
     scope: RUN_TIME
