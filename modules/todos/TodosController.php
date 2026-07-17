@@ -4,6 +4,7 @@ namespace Modules\Todos;
 
 use App\Events\TodosChanged;
 use App\Http\Controllers\Controller;
+use App\Support\Realtime;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Http\Request;
 
@@ -26,7 +27,7 @@ class TodosController extends Controller
             'visibility' => $data['visibility'],
             'created_by' => $request->user()->id,
         ]);
-        TodosChanged::dispatch((int) CurrentFamily::id());
+        Realtime::broadcast(new TodosChanged((int) CurrentFamily::id()));
 
         return $item;
     }
@@ -35,7 +36,7 @@ class TodosController extends Controller
     {
         abort_unless($item->visibility === 'shared' || $item->created_by === $request->user()->id, 403);
         $item->update(['done' => ! $item->done]);
-        TodosChanged::dispatch((int) CurrentFamily::id());
+        Realtime::broadcast(new TodosChanged((int) CurrentFamily::id()));
 
         return $item;
     }
@@ -44,7 +45,7 @@ class TodosController extends Controller
     {
         abort_unless($item->created_by === $request->user()->id, 403);
         $item->delete();
-        TodosChanged::dispatch((int) CurrentFamily::id());
+        Realtime::broadcast(new TodosChanged((int) CurrentFamily::id()));
 
         return response()->json(['ok' => true]);
     }
