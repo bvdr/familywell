@@ -8,8 +8,10 @@ use App\Models\Family;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SpendingController extends Controller
 {
@@ -70,10 +72,14 @@ class SpendingController extends Controller
         $event = $this->event($event);
         $data = $this->validateSpend($request, $event);
 
-        $event->spends()->create([
+        $spend = $event->spends()->create([
             ...$this->spendAttributes($data, $event),
             'created_by' => $request->user()->id,
         ]);
+
+        if ($request->hasFile('receipt')) {
+            $spend->update(['receipt_path' => $this->storeReceipt($request)]);
+        }
 
         SpendingChanged::dispatch((int) CurrentFamily::id());
 
@@ -88,9 +94,27 @@ class SpendingController extends Controller
 
         // Re-freeze the conversion, since amount/currency/date may have changed.
         $spend->update($this->spendAttributes($data, $event));
+
+        if ($request->hasFile('receipt')) {
+            $old = $spend->receipt_path;
+            $spend->update(['receipt_path' => $this->storeReceipt($request)]);
+            if ($old) {
+                Storage::disk('r2')->delete($old);
+            }
+        }
+
         SpendingChanged::dispatch((int) CurrentFamily::id());
 
         return back();
+    }
+
+    // Streams a spend's receipt from private R2. Family-scoped resolve keeps it to this family only.
+    public function receipt(int $spend): StreamedResponse
+    {
+        $spend = Spend::findOrFail($spend);
+        abort_unless($spend->receipt_path, 404);
+
+        return Storage::disk('r2')->response($spend->receipt_path);
     }
 
     public function duplicateSpend(int $spend): RedirectResponse
@@ -130,10 +154,20 @@ class SpendingController extends Controller
         // Resolve through the scoped query (not implicit binding): the family global scope only
         // applies once SetActiveFamily has run, which is after route-model binding. So a spend from
         // another family 404s here instead of leaking.
-        Spend::findOrFail($spend)->delete();
+        $spend = Spend::findOrFail($spend);
+        if ($spend->receipt_path) {
+            Storage::disk('r2')->delete($spend->receipt_path);
+        }
+        $spend->delete();
         SpendingChanged::dispatch((int) CurrentFamily::id());
 
         return back();
+    }
+
+    // Store an uploaded receipt in private R2 under the family's namespace; returns the object key.
+    private function storeReceipt(Request $request): string
+    {
+        return $request->file('receipt')->store('receipts/'.CurrentFamily::id(), 'r2');
     }
 
     // Tenant-scoped lookup. Implicit route-model binding runs before SetActiveFamily sets the family
@@ -155,6 +189,7 @@ class SpendingController extends Controller
             'payer_id' => ['required', 'integer', 'in:'.implode(',', $memberIds)],
             'note' => ['nullable', 'string', 'max:255'],
             'spent_at' => ['required', 'date'],
+            'receipt' => ['nullable', 'image', 'max:8192'], // up to 8 MB
         ]);
     }
 
@@ -218,6 +253,7 @@ class SpendingController extends Controller
                 'base_amount' => $s->base_amount, // converted to the event currency
                 'category' => $s->category,
                 'note' => $s->note,
+                'receipt_url' => $s->receipt_path ? route('spending.spends.receipt', $s->id) : null,
                 'payer' => ['id' => $s->payer_id, 'name' => $s->payer?->name],
                 'spent_at' => $s->spent_at->toDateString(),
             ])->values(),
