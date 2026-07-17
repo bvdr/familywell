@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { compressImage } from '@/lib/compress-image';
 import { money } from '@/lib/money';
 import { type BreadcrumbItem } from '@/types';
 
@@ -345,7 +346,10 @@ export default function Event({
                                     type="file"
                                     accept="image/*"
                                     className="file:text-primary text-muted-foreground cursor-pointer"
-                                    onChange={(e) => form.setData('receipt', e.target.files?.[0] ?? null)}
+                                    onChange={async (e) => {
+                                        const file = e.target.files?.[0];
+                                        form.setData('receipt', file ? await compressImage(file) : null);
+                                    }}
                                 />
                             </div>
                             {form.progress && <progress value={form.progress.percentage} max="100" className="h-1 w-full" />}
