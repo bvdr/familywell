@@ -6,6 +6,7 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { money } from '@/lib/money';
 import { type BreadcrumbItem } from '@/types';
@@ -69,19 +70,19 @@ export default function Events({ events, currencies }: { events: Event[]; curren
                             <InputError message={errors.name} />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="currency">Home currency</Label>
-                            <select
-                                id="currency"
-                                value={data.currency}
-                                onChange={(e) => setData('currency', e.target.value)}
-                                className="border-input bg-background h-9 rounded-md border px-3 text-sm"
-                            >
-                                {currencies.map((c) => (
-                                    <option key={c} value={c}>
-                                        {c}
-                                    </option>
-                                ))}
-                            </select>
+                            <Label>Home currency</Label>
+                            <Select value={data.currency} onValueChange={(v) => setData('currency', v)}>
+                                <SelectTrigger className="w-full">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {currencies.map((c) => (
+                                        <SelectItem key={c} value={c}>
+                                            {c}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div className="flex gap-2">
                             <Button type="submit" disabled={processing}>
