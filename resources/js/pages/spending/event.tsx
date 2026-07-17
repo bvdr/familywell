@@ -376,12 +376,24 @@ export default function Event({
                                 <span className="text-muted-foreground text-sm">{fmt(group.total)}</span>
                             </div>
                             {group.spends.map((s) => (
-                                <div key={s.id} className="bg-surface-card flex items-center justify-between rounded-xl border p-3">
+                                // Tapping the row edits the spend; the receipt thumbnail and the kebab
+                                // menu stop propagation so they keep their own actions.
+                                <div
+                                    key={s.id}
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => startEdit(s)}
+                                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && startEdit(s)}
+                                    className="bg-surface-card hover:border-accent/60 flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-colors"
+                                >
                                     <div className="flex items-center gap-3">
                                         {s.receipt_url ? (
                                             <button
                                                 type="button"
-                                                onClick={() => setViewing(s.receipt_url)}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setViewing(s.receipt_url);
+                                                }}
                                                 className="shrink-0"
                                                 aria-label="View receipt"
                                             >
@@ -415,6 +427,7 @@ export default function Event({
                                                     size="icon"
                                                     className="text-muted-foreground size-8"
                                                     aria-label="Spend actions"
+                                                    onClick={(e) => e.stopPropagation()}
                                                 >
                                                     <MoreVertical className="size-4" />
                                                 </Button>
