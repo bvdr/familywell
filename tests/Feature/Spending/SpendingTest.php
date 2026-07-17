@@ -3,7 +3,9 @@
 use App\Models\Family;
 use App\Models\User;
 use App\Support\Modules\ModuleRegistry;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Modules\Spending\SpendEvent;
 
 use function Pest\Laravel\actingAs;
@@ -178,6 +180,39 @@ it('does not let another family edit or duplicate a spend', function () {
     actingAs($usersB[0])->patch("/m/spending/spends/{$spendA->id}", [
         'amount' => '99.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $usersB[0]->id, 'spent_at' => '2026-07-16',
     ])->assertNotFound();
+});
+
+it('attaches a receipt image and serves it back to the family', function () {
+    Storage::fake('r2');
+    [$family, $users] = spendingFamily();
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
+    $event = SpendEvent::first();
+
+    actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
+        'amount' => '12.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+        'receipt' => UploadedFile::fake()->create('receipt.jpg', 200, 'image/jpeg'),
+    ])->assertRedirect();
+
+    $spend = $event->spends()->first();
+    expect($spend->receipt_path)->not->toBeNull();
+    Storage::disk('r2')->assertExists($spend->receipt_path);
+
+    actingAs($users[0])->get("/m/spending/spends/{$spend->id}/receipt")->assertOk();
+});
+
+it('does not serve a receipt to another family', function () {
+    Storage::fake('r2');
+    [$familyA, $usersA] = spendingFamily();
+    actingAs($usersA[0])->post('/m/spending/events', ['name' => 'A', 'currency' => 'EUR']);
+    $eventA = SpendEvent::first();
+    actingAs($usersA[0])->post("/m/spending/events/{$eventA->id}/spends", [
+        'amount' => '5.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $usersA[0]->id, 'spent_at' => '2026-07-16',
+        'receipt' => UploadedFile::fake()->create('r.jpg', 200, 'image/jpeg'),
+    ]);
+    $spendA = $eventA->spends()->first();
+
+    [$familyB, $usersB] = spendingFamily();
+    actingAs($usersB[0])->get("/m/spending/spends/{$spendA->id}/receipt")->assertNotFound();
 });
 
 it('does not leak events across families', function () {
