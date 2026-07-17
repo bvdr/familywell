@@ -39,6 +39,11 @@ class AuthenticatedSessionController extends Controller
             $request->session()->put('active_family_id', $family->id);
         }
 
+        // Finish a pending invitation the user was logging in to accept.
+        if ($token = $request->session()->get('invite_token')) {
+            return redirect()->route('invite.show', $token);
+        }
+
         return redirect()->intended(route('dashboard', absolute: false));
     }
 

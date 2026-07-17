@@ -1,26 +1,295 @@
+import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Check, Mail, Plus, Trash2, X } from 'lucide-react';
+import { FormEventHandler, useState } from 'react';
+
+import InputError from '@/components/input-error';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
-import { Head } from '@inertiajs/react';
+import { type BreadcrumbItem } from '@/types';
 
 type Member = { id: number; name: string; email: string; role: string };
-type Props = { family: { id: number; name: string }; members: Member[]; canManage: boolean };
+type Invitation = { id: number; email: string; role: string };
+type Family = { id: number; name: string; description: string | null; color: string; emoji: string; owner_id: number };
+type Props = {
+    family: Family;
+    members: Member[];
+    invitations: Invitation[];
+    canManage: boolean;
+    palette: { colors: string[]; emojis: string[] };
+};
 
-export default function Members({ family, members, canManage }: Props) {
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'Members', href: '/family/members' }];
+
+function RoleBadge({ role }: { role: string }) {
+    const admin = role.toLowerCase() === 'admin' || role.toLowerCase() === 'owner';
     return (
-        <AppLayout>
-            <Head title={`${family.name} Members`} />
-            <div className="p-6">
-                <h1 className="mb-4 text-xl font-semibold">{family.name}</h1>
-                <ul className="divide-y">
-                    {members.map((m) => (
-                        <li key={m.id} className="flex justify-between py-2">
-                            <span>
-                                {m.name} <span className="text-muted-foreground">({m.email})</span>
+        <span
+            className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${
+                admin ? 'bg-accent-subtle text-accent' : 'bg-surface text-text-secondary'
+            }`}
+        >
+            {role}
+        </span>
+    );
+}
+
+export default function Members({ family, members, invitations, canManage, palette }: Props) {
+    const authId = (usePage().props as { auth: { user: { id: number } } }).auth.user.id;
+    const [inviteOpen, setInviteOpen] = useState(false);
+
+    const settings = useForm({ name: family.name, description: family.description ?? '', color: family.color, emoji: family.emoji });
+    const invite = useForm({ email: '', role: 'member' });
+
+    const saveSettings: FormEventHandler = (e) => {
+        e.preventDefault();
+        settings.patch(route('family.update'), { preserveScroll: true });
+    };
+    const sendInvite: FormEventHandler = (e) => {
+        e.preventDefault();
+        invite.post(route('family.invitations.store'), {
+            preserveScroll: true,
+            onSuccess: () => {
+                invite.reset();
+                setInviteOpen(false);
+            },
+        });
+    };
+    const removeMember = (id: number) => router.delete(route('family.members.destroy', id), { preserveScroll: true });
+    const revokeInvite = (id: number) => router.delete(route('family.invitations.destroy', id), { preserveScroll: true });
+
+    return (
+        <AppLayout breadcrumbs={breadcrumbs}>
+            <Head title={`${family.name} · Members`} />
+            <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 p-4 md:p-6">
+                {/* Family identity + settings */}
+                {canManage ? (
+                    <form onSubmit={saveSettings} className="bg-surface-card flex flex-col gap-5 rounded-2xl border p-6">
+                        <div className="flex items-center gap-4">
+                            <span
+                                className="flex size-14 shrink-0 items-center justify-center rounded-2xl text-3xl"
+                                style={{ backgroundColor: settings.data.color }}
+                            >
+                                {settings.data.emoji}
                             </span>
-                            <span className="text-sm uppercase">{m.role}</span>
-                        </li>
-                    ))}
-                </ul>
-                {canManage && <p className="text-muted-foreground mt-4 text-sm">You can manage members.</p>}
+                            <div className="flex-1">
+                                <h1 className="font-heading text-primary text-2xl leading-tight">Family settings</h1>
+                                <p className="text-muted-foreground text-sm">The name and look everyone in your family sees.</p>
+                            </div>
+                        </div>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="grid gap-2">
+                                <Label htmlFor="name">Family name</Label>
+                                <Input id="name" value={settings.data.name} onChange={(e) => settings.setData('name', e.target.value)} />
+                                <InputError message={settings.errors.name} />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="description">Short description</Label>
+                                <Input
+                                    id="description"
+                                    value={settings.data.description}
+                                    onChange={(e) => settings.setData('description', e.target.value)}
+                                    placeholder="e.g. Home base for the Riveras"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-6">
+                            <div className="flex flex-col gap-2">
+                                <span className="text-xs font-medium">Color</span>
+                                <div className="flex gap-2">
+                                    {palette.colors.map((c) => (
+                                        <button
+                                            key={c}
+                                            type="button"
+                                            aria-label={`Color ${c}`}
+                                            onClick={() => settings.setData('color', c)}
+                                            className="flex size-7 items-center justify-center rounded-md ring-offset-2 transition-transform hover:scale-110"
+                                            style={{ backgroundColor: c }}
+                                        >
+                                            {settings.data.color === c && <Check className="text-text-inverse size-4" />}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <span className="text-xs font-medium">Emoji</span>
+                                <div className="flex gap-2">
+                                    {palette.emojis.map((em) => (
+                                        <button
+                                            key={em}
+                                            type="button"
+                                            aria-label={`Emoji ${em}`}
+                                            onClick={() => settings.setData('emoji', em)}
+                                            className={`flex size-7 items-center justify-center rounded-md border text-base transition-transform hover:scale-110 ${
+                                                settings.data.emoji === em ? 'border-accent bg-accent-subtle' : 'border-border bg-surface-card'
+                                            }`}
+                                        >
+                                            {em}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <Button type="submit" disabled={settings.processing}>
+                                Save changes
+                            </Button>
+                            {settings.recentlySuccessful && <span className="text-accent text-sm">Saved</span>}
+                        </div>
+                    </form>
+                ) : (
+                    <div className="flex items-center gap-4">
+                        <span className="flex size-14 items-center justify-center rounded-2xl text-3xl" style={{ backgroundColor: family.color }}>
+                            {family.emoji}
+                        </span>
+                        <div>
+                            <h1 className="font-heading text-primary text-2xl">{family.name}</h1>
+                            {family.description && <p className="text-muted-foreground text-sm">{family.description}</p>}
+                        </div>
+                    </div>
+                )}
+
+                {/* Members */}
+                <section className="flex flex-col gap-4">
+                    <div className="flex items-end justify-between">
+                        <div>
+                            <h2 className="font-heading text-primary text-xl">Members</h2>
+                            <p className="text-muted-foreground text-sm">Manage who belongs to your family space.</p>
+                        </div>
+                        {canManage && (
+                            <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+                                <DialogTrigger asChild>
+                                    <Button>
+                                        <Plus className="size-4" /> Invite member
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle className="font-heading text-xl">Invite to {family.name}</DialogTitle>
+                                        <DialogDescription>We'll email them a link to join. They can accept from any device.</DialogDescription>
+                                    </DialogHeader>
+                                    <form onSubmit={sendInvite} className="flex flex-col gap-4">
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="email">Email</Label>
+                                            <Input
+                                                id="email"
+                                                type="email"
+                                                autoFocus
+                                                value={invite.data.email}
+                                                onChange={(e) => invite.setData('email', e.target.value)}
+                                                placeholder="name@email.com"
+                                            />
+                                            <InputError message={invite.errors.email} />
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label>Role</Label>
+                                            <Select value={invite.data.role} onValueChange={(v) => invite.setData('role', v)}>
+                                                <SelectTrigger>
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="member">Member</SelectItem>
+                                                    <SelectItem value="admin">Admin</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <Button type="submit" disabled={invite.processing} className="w-full">
+                                            <Mail className="size-4" /> Send invite
+                                        </Button>
+                                    </form>
+                                </DialogContent>
+                            </Dialog>
+                        )}
+                    </div>
+
+                    <div className="bg-surface-card overflow-hidden rounded-2xl border">
+                        <Table>
+                            <TableHeader>
+                                <TableRow className="bg-surface hover:bg-surface">
+                                    <TableHead className="text-text-muted text-xs tracking-wider uppercase">Name</TableHead>
+                                    <TableHead className="text-text-muted hidden text-xs tracking-wider uppercase sm:table-cell">Email</TableHead>
+                                    <TableHead className="text-text-muted text-xs tracking-wider uppercase">Role</TableHead>
+                                    {canManage && <TableHead className="w-10"></TableHead>}
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {members.map((m) => {
+                                    const isOwner = m.id === family.owner_id;
+                                    return (
+                                        <TableRow key={m.id}>
+                                            <TableCell>
+                                                <div className="flex items-center gap-3">
+                                                    <span className="bg-accent text-text-inverse flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-medium">
+                                                        {m.name.charAt(0).toUpperCase()}
+                                                    </span>
+                                                    <div>
+                                                        <div className="text-primary font-medium">
+                                                            {m.name}
+                                                            {m.id === authId && <span className="text-muted-foreground font-normal"> · You</span>}
+                                                        </div>
+                                                        <div className="text-muted-foreground text-xs sm:hidden">{m.email}</div>
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-text-secondary hidden sm:table-cell">{m.email}</TableCell>
+                                            <TableCell>
+                                                <RoleBadge role={isOwner ? 'owner' : m.role} />
+                                            </TableCell>
+                                            {canManage && (
+                                                <TableCell>
+                                                    {!isOwner && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="text-muted-foreground hover:text-destructive size-8"
+                                                            aria-label={`Remove ${m.name}`}
+                                                            onClick={() => removeMember(m.id)}
+                                                        >
+                                                            <Trash2 className="size-4" />
+                                                        </Button>
+                                                    )}
+                                                </TableCell>
+                                            )}
+                                        </TableRow>
+                                    );
+                                })}
+                            </TableBody>
+                        </Table>
+                    </div>
+
+                    {/* Pending invitations */}
+                    {canManage && invitations.length > 0 && (
+                        <div className="flex flex-col gap-2">
+                            <h3 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Pending invitations</h3>
+                            {invitations.map((i) => (
+                                <div key={i.id} className="flex items-center justify-between rounded-xl border border-dashed p-3">
+                                    <div className="flex items-center gap-3">
+                                        <span className="bg-surface text-text-muted flex size-9 items-center justify-center rounded-full">
+                                            <Mail className="size-4" />
+                                        </span>
+                                        <div className="text-sm">
+                                            <div className="text-primary">{i.email}</div>
+                                            <div className="text-muted-foreground text-xs">Invited as {i.role}</div>
+                                        </div>
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="text-muted-foreground hover:text-destructive size-8"
+                                        aria-label={`Revoke invite to ${i.email}`}
+                                        onClick={() => revokeInvite(i.id)}
+                                    >
+                                        <X className="size-4" />
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </section>
             </div>
         </AppLayout>
     );
