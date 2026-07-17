@@ -2,7 +2,11 @@
 
 namespace Modules\Hello;
 
+use App\Events\FamilyPinged;
 use App\Support\Modules\Hooks;
+use App\Support\Realtime;
+use App\Support\Tenancy\CurrentFamily;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -13,13 +17,13 @@ class HelloServiceProvider extends ServiceProvider
         // Backend logic reacting to a hook: record a family-scoped ping (uses the P1 tenant scope)
         // and broadcast it live to the family's private channel.
         $hooks->listen('hello.pinged', function () {
-            $familyId = (int) \App\Support\Tenancy\CurrentFamily::id();
-            \Illuminate\Support\Facades\DB::table('hello_pings')->insert([
+            $familyId = (int) CurrentFamily::id();
+            DB::table('hello_pings')->insert([
                 'family_id' => $familyId,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
-            \App\Events\FamilyPinged::dispatch($familyId);
+            Realtime::broadcast(new FamilyPinged($familyId));
         });
 
         Route::middleware(['web', 'auth', 'module:hello'])->group(function () use ($hooks) {
