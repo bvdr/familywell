@@ -4,6 +4,7 @@ namespace Modules\Shopping;
 
 use App\Events\ShoppingChanged;
 use App\Http\Controllers\Controller;
+use App\Support\Realtime;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Http\Request;
 
@@ -27,7 +28,7 @@ class ShoppingController extends Controller
             'visibility' => $data['visibility'],
             'created_by' => $request->user()->id,
         ]);
-        ShoppingChanged::dispatch((int) CurrentFamily::id());
+        Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
 
         return $item;
     }
@@ -36,7 +37,7 @@ class ShoppingController extends Controller
     {
         abort_unless($item->visibility === 'shared' || $item->created_by === $request->user()->id, 403);
         $item->update(['bought' => ! $item->bought]);
-        ShoppingChanged::dispatch((int) CurrentFamily::id());
+        Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
 
         return $item;
     }
@@ -45,7 +46,7 @@ class ShoppingController extends Controller
     {
         abort_unless($item->created_by === $request->user()->id, 403);
         $item->delete();
-        ShoppingChanged::dispatch((int) CurrentFamily::id());
+        Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
 
         return response()->json(['ok' => true]);
     }
