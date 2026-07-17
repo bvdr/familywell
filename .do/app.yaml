@@ -30,6 +30,17 @@ databases:
     db_name: familywell
     db_user: familywell
 
+# Custom domain (DNS lives in Cloudflare, external to DO). No `zone:` field, so DO treats these as
+# external and issues a Let's Encrypt cert once the Cloudflare CNAMEs point at the app's ingress.
+# familywell.co is PRIMARY (an ALIAS needs a PRIMARY custom domain to alias to). Safe: DO's
+# ${APP_DOMAIN}/${APP_URL} bind to the default *.ondigitalocean.app ingress, not the custom primary,
+# so nothing about the running app changes until DNS points here.
+domains:
+  - domain: familywell.co
+    type: PRIMARY
+  - domain: www.familywell.co
+    type: ALIAS
+
 envs:
   - key: APP_NAME
     value: Familywell
