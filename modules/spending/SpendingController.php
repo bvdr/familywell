@@ -5,6 +5,7 @@ namespace Modules\Spending;
 use App\Events\SpendingChanged;
 use App\Http\Controllers\Controller;
 use App\Models\Family;
+use App\Support\Realtime;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -57,7 +58,7 @@ class SpendingController extends Controller
         $family = Family::findOrFail(CurrentFamily::id());
         $event->members()->sync($family->members->pluck('id'));
 
-        SpendingChanged::dispatch((int) CurrentFamily::id());
+        Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
 
         return to_route('spending.show', $event);
     }
@@ -81,7 +82,7 @@ class SpendingController extends Controller
             $spend->update(['receipt_path' => $this->storeReceipt($request)]);
         }
 
-        SpendingChanged::dispatch((int) CurrentFamily::id());
+        Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
 
         return back();
     }
@@ -103,7 +104,7 @@ class SpendingController extends Controller
             }
         }
 
-        SpendingChanged::dispatch((int) CurrentFamily::id());
+        Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
 
         return back();
     }
@@ -121,7 +122,7 @@ class SpendingController extends Controller
     {
         // Replicate keeps every attribute (currency, frozen base_amount, rate, date) except the id.
         Spend::findOrFail($spend)->replicate()->save();
-        SpendingChanged::dispatch((int) CurrentFamily::id());
+        Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
 
         return back();
     }
@@ -144,7 +145,7 @@ class SpendingController extends Controller
             'created_by' => $request->user()->id,
         ]);
 
-        SpendingChanged::dispatch((int) CurrentFamily::id());
+        Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
 
         return back();
     }
@@ -159,7 +160,7 @@ class SpendingController extends Controller
             Storage::disk('r2')->delete($spend->receipt_path);
         }
         $spend->delete();
-        SpendingChanged::dispatch((int) CurrentFamily::id());
+        Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
 
         return back();
     }

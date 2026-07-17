@@ -112,8 +112,13 @@ export default function Event({
         e.preventDefault();
         const opts = { preserveScroll: true, onSuccess: () => closeForm() };
         if (editing) {
-            form.patch(route('spending.spends.update', editing), opts);
+            // PHP never parses a multipart body on a PATCH request, so a receipt upload on edit must
+            // go as POST + _method spoofing. forceFormData makes it multipart so _method is read as a
+            // form field for the override.
+            form.transform((d) => ({ ...d, _method: 'patch' }));
+            form.post(route('spending.spends.update', editing), { ...opts, forceFormData: true });
         } else {
+            form.transform((d) => d); // reset any prior _method transform
             form.post(route('spending.spends.store', event.id), opts);
         }
     };
