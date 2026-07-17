@@ -190,7 +190,7 @@ class SpendingController extends Controller
             'payer_id' => ['required', 'integer', 'in:'.implode(',', $memberIds)],
             'note' => ['nullable', 'string', 'max:255'],
             'spent_at' => ['required', 'date'],
-            'receipt' => ['nullable', 'image', 'max:8192'], // up to 8 MB
+            'receipt' => ['nullable', 'image', 'max:12288'], // up to 12 MB (PHP allows 16M, see Dockerfile)
         ]);
     }
 
