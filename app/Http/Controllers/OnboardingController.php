@@ -46,8 +46,8 @@ class OnboardingController extends Controller
             'description' => ['nullable', 'string', 'max:255'],
             // Constrained to the palette/emoji sets the picker offers, so a crafted request can't
             // store arbitrary values that would later render as raw text in the UI.
-            'color' => ['required', 'string', 'in:'.implode(',', self::COLORS)],
-            'emoji' => ['required', 'string', 'in:'.implode(',', self::EMOJIS)],
+            'color' => ['required', 'string', 'in:'.implode(',', Family::COLORS)],
+            'emoji' => ['required', 'string', 'in:'.implode(',', Family::EMOJIS)],
         ]);
 
         $user = $request->user();
@@ -66,9 +66,4 @@ class OnboardingController extends Controller
 
         return to_route('dashboard');
     }
-
-    // Keep these in sync with the picker in resources/js/pages/onboarding/create-family.tsx.
-    private const COLORS = ['#2D5E3A', '#D4943A', '#C2453A', '#4A6B52', '#1B3A28', '#7A9A80'];
-
-    private const EMOJIS = ['🌿', '🏡', '☀️', '🐻', '🌸', '⭐'];
 }
