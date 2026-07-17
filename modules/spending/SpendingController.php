@@ -72,16 +72,25 @@ class SpendingController extends Controller
 
         $data = $request->validate([
             'amount' => ['required', 'numeric', 'gt:0'],
+            'currency' => ['required', 'in:'.implode(',', self::CURRENCIES)],
             'category' => ['required', 'in:'.implode(',', self::CATEGORIES)],
             'payer_id' => ['required', 'integer', 'in:'.implode(',', $memberIds)],
             'note' => ['nullable', 'string', 'max:255'],
             'spent_at' => ['required', 'date'],
         ]);
 
+        // Decimal major units in, integer minor units stored. round() so 48.00 -> 4800 exactly.
+        $amount = (int) round($data['amount'] * 100);
+        // Freeze the conversion to the event currency at the spend's date, so balances never drift.
+        $baseAmount = Fx::convert($amount, $data['currency'], $event->currency, $data['spent_at']);
+        $rate = $amount ? $baseAmount / $amount : 1;
+
         $event->spends()->create([
             'payer_id' => $data['payer_id'],
-            // Decimal major units in, integer cents stored. round() before cast so 48.00 -> 4800 exactly.
-            'amount' => (int) round($data['amount'] * 100),
+            'amount' => $amount,
+            'currency' => $data['currency'],
+            'base_amount' => $baseAmount,
+            'rate' => $rate,
             'category' => $data['category'],
             'note' => $data['note'] ?? null,
             'spent_at' => $data['spent_at'],
@@ -143,9 +152,11 @@ class SpendingController extends Controller
         $spends = $event->spends()->with('payer:id,name')->latest('spent_at')->latest('id')->get();
         $settlements = $event->settlements()->get();
 
+        // Balances are computed in the event's base currency, so they use base_amount (each spend
+        // already converted + frozen at capture). Settlements are recorded in the base currency too.
         $balances = Balances::for(
             $memberIds,
-            $spends->map(fn (Spend $s) => ['payer_id' => $s->payer_id, 'amount' => $s->amount])->all(),
+            $spends->map(fn (Spend $s) => ['payer_id' => $s->payer_id, 'amount' => $s->base_amount])->all(),
             $settlements->map(fn (SpendSettlement $t) => [
                 'from_user_id' => $t->from_user_id, 'to_user_id' => $t->to_user_id, 'amount' => $t->amount,
             ])->all(),
@@ -159,13 +170,19 @@ class SpendingController extends Controller
                 'id' => $event->id,
                 'name' => $event->name,
                 'currency' => $event->currency,
-                'total' => (int) $spends->sum('amount'),
+                'total' => (int) $spends->sum('base_amount'),
                 'members' => $members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),
                 'categories' => self::CATEGORIES,
+                'currencies' => self::CURRENCIES,
+                // Latest rates from the base currency to every supported currency, so the client can
+                // convert any base figure to a chosen display currency without another round-trip.
+                'rates' => Fx::ratesFrom($event->currency, self::CURRENCIES),
             ],
             'spends' => $spends->map(fn (Spend $s) => [
                 'id' => $s->id,
-                'amount' => $s->amount,
+                'amount' => $s->amount,           // original amount, in this spend's currency
+                'currency' => $s->currency,
+                'base_amount' => $s->base_amount, // converted to the event currency
                 'category' => $s->category,
                 'note' => $s->note,
                 'payer' => ['id' => $s->payer_id, 'name' => $s->payer?->name],

@@ -6,13 +6,32 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { money } from '@/lib/money';
 import { type BreadcrumbItem } from '@/types';
 
 type Member = { id: number; name: string };
-type EventT = { id: number; name: string; currency: string; total: number; members: Member[]; categories: string[] };
-type Spend = { id: number; amount: number; category: string; note: string | null; payer: { id: number; name: string }; spent_at: string };
+type EventT = {
+    id: number;
+    name: string;
+    currency: string;
+    total: number;
+    members: Member[];
+    categories: string[];
+    currencies: string[];
+    rates: Record<string, number>; // base currency -> each supported currency (latest)
+};
+type Spend = {
+    id: number;
+    amount: number; // original amount in `currency`
+    currency: string;
+    base_amount: number; // converted to the event currency
+    category: string;
+    note: string | null;
+    payer: { id: number; name: string };
+    spent_at: string;
+};
 type Balance = { user_id: number; name: string; net: number };
 type Suggestion = { from: { id: number; name: string }; to: { id: number; name: string }; amount: number };
 
@@ -41,23 +60,26 @@ export default function Event({
 }) {
     const authId = (usePage().props as { auth: { user: { id: number } } }).auth.user.id;
     const [adding, setAdding] = useState(false);
+    // Display currency is cosmetic: it converts the base-currency figures for viewing. Default = base.
+    const [display, setDisplay] = useState(event.currency);
+    const fmt = (baseCents: number) => money(Math.round(baseCents * (event.rates[display] ?? 1)), display);
+
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Spending', href: '/m/spending' },
         { title: event.name, href: route('spending.show', event.id) },
     ];
 
-    // Live sync: a change from anyone in the family reloads this page's data (design: "totals stay
-    // in sync for everyone"). Best-effort — no-op if Echo isn't connected.
+    // Live sync: a change from anyone in the family reloads this page's data. Best-effort.
     useEffect(() => {
         const echo = window.Echo;
         if (!echo) return;
-        const channel = echo.private(`family.${familyId}`);
-        channel.listen('.SpendingChanged', () => router.reload());
+        echo.private(`family.${familyId}`).listen('.SpendingChanged', () => router.reload());
         return () => echo.leave(`family.${familyId}`);
     }, [familyId]);
 
     const form = useForm({
         amount: '',
+        currency: event.currency,
         category: 'food',
         payer_id: authId,
         note: '',
@@ -83,12 +105,28 @@ export default function Event({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={event.name} />
             <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
-                {/* Total */}
+                {/* Total + display-currency selector */}
                 <div className="bg-surface-dark text-text-inverse rounded-2xl p-5">
-                    <div className="text-accent-light text-xs tracking-widest uppercase">Total spent</div>
-                    <div className="font-heading mt-1 text-4xl">{money(event.total, event.currency)}</div>
-                    <div className="text-accent-light mt-1 text-sm">
-                        {event.members.length} people · {spends.length} spends
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <div className="text-accent-light text-xs tracking-widest uppercase">Total spent</div>
+                            <div className="font-heading mt-1 text-4xl">{fmt(event.total)}</div>
+                            <div className="text-accent-light mt-1 text-sm">
+                                {event.members.length} people · {spends.length} spends
+                            </div>
+                        </div>
+                        <Select value={display} onValueChange={setDisplay}>
+                            <SelectTrigger className="border-text-inverse/25 text-text-inverse h-9 w-[88px] bg-transparent">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {event.currencies.map((c) => (
+                                    <SelectItem key={c} value={c}>
+                                        {c}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
 
@@ -110,7 +148,7 @@ export default function Event({
                                 className={`text-sm font-semibold ${b.net > 0 ? 'text-accent' : b.net < 0 ? 'text-[var(--warning)]' : 'text-muted-foreground'}`}
                             >
                                 {b.net > 0 ? '+' : ''}
-                                {money(b.net, event.currency)}
+                                {fmt(b.net)}
                             </div>
                         </div>
                     ))}
@@ -126,7 +164,7 @@ export default function Event({
                                     <span className="text-primary font-medium">{s.from.name}</span>
                                     <span className="text-muted-foreground"> pays </span>
                                     <span className="text-primary font-medium">{s.to.name}</span>
-                                    <span className="text-primary ml-2 font-semibold">{money(s.amount, event.currency)}</span>
+                                    <span className="text-primary ml-2 font-semibold">{fmt(s.amount)}</span>
                                 </div>
                                 <Button size="sm" variant="outline" onClick={() => markPaid(s)}>
                                     <Check className="size-4" /> Mark paid
@@ -139,9 +177,9 @@ export default function Event({
                 {/* Add spend */}
                 {adding ? (
                     <form onSubmit={addSpend} className="bg-surface-card flex flex-col gap-3 rounded-xl border p-4">
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-[1fr_auto] gap-3">
                             <div className="grid gap-2">
-                                <Label htmlFor="amount">Amount ({event.currency})</Label>
+                                <Label htmlFor="amount">Amount</Label>
                                 <Input
                                     id="amount"
                                     type="number"
@@ -155,47 +193,57 @@ export default function Event({
                                 <InputError message={form.errors.amount} />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="spent_at">Date</Label>
-                                <Input
-                                    id="spent_at"
-                                    type="date"
-                                    value={form.data.spent_at}
-                                    onChange={(e) => form.setData('spent_at', e.target.value)}
-                                />
+                                <Label>Currency</Label>
+                                <Select value={form.data.currency} onValueChange={(v) => form.setData('currency', v)}>
+                                    <SelectTrigger className="w-[92px]">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {event.currencies.map((c) => (
+                                            <SelectItem key={c} value={c}>
+                                                {c}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <div className="grid gap-2">
-                                <Label htmlFor="category">Category</Label>
-                                <select
-                                    id="category"
-                                    value={form.data.category}
-                                    onChange={(e) => form.setData('category', e.target.value)}
-                                    className="border-input bg-background h-9 rounded-md border px-3 text-sm capitalize"
-                                >
-                                    {event.categories.map((c) => (
-                                        <option key={c} value={c}>
-                                            {CATEGORY[c]} {c}
-                                        </option>
-                                    ))}
-                                </select>
+                                <Label>Category</Label>
+                                <Select value={form.data.category} onValueChange={(v) => form.setData('category', v)}>
+                                    <SelectTrigger className="w-full capitalize">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {event.categories.map((c) => (
+                                            <SelectItem key={c} value={c} className="capitalize">
+                                                {CATEGORY[c]} {c}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="payer">Paid by</Label>
-                                <select
-                                    id="payer"
-                                    value={form.data.payer_id}
-                                    onChange={(e) => form.setData('payer_id', Number(e.target.value))}
-                                    className="border-input bg-background h-9 rounded-md border px-3 text-sm"
-                                >
-                                    {event.members.map((m) => (
-                                        <option key={m.id} value={m.id}>
-                                            {m.name}
-                                            {m.id === authId ? ' (You)' : ''}
-                                        </option>
-                                    ))}
-                                </select>
+                                <Label>Paid by</Label>
+                                <Select value={String(form.data.payer_id)} onValueChange={(v) => form.setData('payer_id', Number(v))}>
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {event.members.map((m) => (
+                                            <SelectItem key={m.id} value={String(m.id)}>
+                                                {m.name}
+                                                {m.id === authId ? ' (You)' : ''}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="date">Date</Label>
+                            <Input id="date" type="date" value={form.data.spent_at} onChange={(e) => form.setData('spent_at', e.target.value)} />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="note">Note (optional)</Label>
@@ -221,7 +269,7 @@ export default function Event({
                     </Button>
                 )}
 
-                {/* Spend log */}
+                {/* Spend log — original currency, with the converted display amount when they differ */}
                 <section className="flex flex-col gap-2">
                     <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Spend log</h2>
                     {spends.map((s) => (
@@ -237,7 +285,10 @@ export default function Event({
                                     </div>
                                 </div>
                             </div>
-                            <div className="text-primary text-sm font-semibold">{money(s.amount, event.currency)}</div>
+                            <div className="text-right">
+                                <div className="text-primary text-sm font-semibold">{money(s.amount, s.currency)}</div>
+                                {s.currency !== display && <div className="text-muted-foreground text-xs">{fmt(s.base_amount)}</div>}
+                            </div>
                         </div>
                     ))}
                 </section>
