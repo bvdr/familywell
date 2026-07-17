@@ -13,7 +13,7 @@ class Spend extends Model
 
     protected $table = 'spending_spends';
 
-    protected $fillable = ['spend_event_id', 'payer_id', 'amount', 'currency', 'base_amount', 'rate', 'category', 'note', 'spent_at', 'created_by'];
+    protected $fillable = ['spend_event_id', 'payer_id', 'amount', 'currency', 'base_amount', 'rate', 'category', 'note', 'receipt_path', 'spent_at', 'created_by'];
 
     protected $casts = [
         'amount' => 'integer',      // original amount in `currency`, minor units
