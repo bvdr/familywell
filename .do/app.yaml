@@ -114,10 +114,30 @@ envs:
     value: local
     scope: RUN_TIME
 
-  # Mail is deliberately unset: Bogdan has not picked the Resend key yet, and nothing in the app
-  # sends mail today (no MustVerifyEmail, no notifications). Swap to the real mailer when it exists.
+  # Mail via Resend SMTP. MAIL_PASSWORD (the Resend API key) is injected as a SECRET by apply.sh.
+  # Sender is @send.myfolio.so because that domain is verified in the Resend account; familywell.co
+  # is not yet verified there (needs DNS records we don't control), so switch the from-address once
+  # it is.
   - key: MAIL_MAILER
-    value: log
+    value: smtp
+    scope: RUN_TIME
+  - key: MAIL_HOST
+    value: smtp.resend.com
+    scope: RUN_TIME
+  - key: MAIL_PORT
+    value: "587"
+    scope: RUN_TIME
+  - key: MAIL_ENCRYPTION
+    value: tls
+    scope: RUN_TIME
+  - key: MAIL_USERNAME
+    value: resend
+    scope: RUN_TIME
+  - key: MAIL_FROM_ADDRESS
+    value: familywell@send.myfolio.so
+    scope: RUN_TIME
+  - key: MAIL_FROM_NAME
+    value: Familywell
     scope: RUN_TIME
 
 services:
