@@ -102,6 +102,10 @@ class SpendingController extends Controller
             if ($old) {
                 Storage::disk('r2')->delete($old);
             }
+        } elseif ($request->boolean('remove_receipt') && $spend->receipt_path) {
+            // No replacement uploaded, just clearing the existing one.
+            Storage::disk('r2')->delete($spend->receipt_path);
+            $spend->update(['receipt_path' => null]);
         }
 
         Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
@@ -191,6 +195,7 @@ class SpendingController extends Controller
             'note' => ['nullable', 'string', 'max:255'],
             'spent_at' => ['required', 'date'],
             'receipt' => ['nullable', 'image', 'max:12288'], // up to 12 MB (PHP allows 16M, see Dockerfile)
+            'remove_receipt' => ['nullable', 'boolean'], // clear an existing receipt without replacing it
         ]);
     }
 
