@@ -95,3 +95,16 @@ it('404s an unknown or revoked link token', function () {
     sharingFamily();
     get('/e/does-not-exist')->assertNotFound();
 });
+
+it('surfaces accessible spend events as dashboard items and hides private ones', function () {
+    [, $u] = sharingFamily();
+    $event = makeEvent($u[0]);
+
+    // family visibility: the event shows for another member
+    actingAs($u[1])->get('/dashboard')->assertInertia(fn ($p) => $p->component('dashboard')->has('items', 1)->where('items.0.title', 'Trip'));
+
+    // private: gone for the other member, still there for the owner
+    $event->setVisibility('private');
+    actingAs($u[1])->get('/dashboard')->assertInertia(fn ($p) => $p->has('items', 0));
+    actingAs($u[0])->get('/dashboard')->assertInertia(fn ($p) => $p->has('items', 1));
+});
