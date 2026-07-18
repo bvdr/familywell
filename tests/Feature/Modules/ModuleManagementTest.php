@@ -22,7 +22,7 @@ it('lists installed modules with enabled state', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $p) => $p->component('family/modules')
             ->where('canManage', true)
-            ->has('modules'));
+            ->has('catalog'));
 });
 
 it('lets an admin enable and disable a module', function () {
