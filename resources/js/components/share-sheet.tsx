@@ -112,38 +112,44 @@ export function ShareSheet({
                 {/* People */}
                 <div className="mt-5 flex flex-col gap-1">
                     <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Can add spends</p>
-                    {state.members.map((m) => (
-                        <div key={m.id} className="flex items-center gap-3 py-2">
-                            <span className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-full text-sm font-medium">
-                                {initial(m.name)}
-                            </span>
-                            <div className="flex-1">
-                                <div className="text-primary text-sm font-medium">{m.name}</div>
-                                {m.isOwner && <div className="text-muted-foreground text-xs">Owner</div>}
-                            </div>
-                            {m.isOwner ? (
-                                <span className="text-muted-foreground text-sm">Owner</span>
-                            ) : state.canManage ? (
-                                <select
-                                    value={m.role ?? 'none'}
-                                    onChange={(e) =>
-                                        e.target.value === 'none' ? removeMember(m.id) : setRole(m.id, e.target.value as ShareMember['role'])
-                                    }
-                                    className="border-border bg-surface-card text-primary rounded-lg border py-1.5 pr-7 pl-3 text-sm"
-                                >
-                                    <option value="editor">Can add</option>
-                                    <option value="viewer">Can view</option>
-                                    {/* Removing a person only sticks once visibility is narrowed; in
-                                        "family" mode everyone can add regardless. */}
-                                    {state.visibility !== 'family' && <option value="none">No access</option>}
-                                </select>
-                            ) : (
-                                <span className="text-muted-foreground text-sm">
-                                    {m.role === 'editor' ? 'Can add' : m.role === 'viewer' ? 'Can view' : 'No access'}
+                    {state.members.map((m) => {
+                        // Private = owner only, so everyone else is dimmed and locked out.
+                        const excluded = state.visibility === 'private' && !m.isOwner;
+                        return (
+                            <div key={m.id} className={`flex items-center gap-3 py-2 transition-opacity ${excluded ? 'opacity-40' : ''}`}>
+                                <span className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-full text-sm font-medium">
+                                    {initial(m.name)}
                                 </span>
-                            )}
-                        </div>
-                    ))}
+                                <div className="flex-1">
+                                    <div className="text-primary text-sm font-medium">{m.name}</div>
+                                    {m.isOwner && <div className="text-muted-foreground text-xs">Owner</div>}
+                                </div>
+                                {m.isOwner ? (
+                                    <span className="text-muted-foreground text-sm">Owner</span>
+                                ) : excluded ? (
+                                    <span className="text-muted-foreground text-sm">No access</span>
+                                ) : state.canManage ? (
+                                    <select
+                                        value={m.role ?? 'none'}
+                                        onChange={(e) =>
+                                            e.target.value === 'none' ? removeMember(m.id) : setRole(m.id, e.target.value as ShareMember['role'])
+                                        }
+                                        className="border-border bg-surface-card text-primary rounded-lg border py-1.5 pr-7 pl-3 text-sm"
+                                    >
+                                        <option value="editor">Can add</option>
+                                        <option value="viewer">Can view</option>
+                                        {/* Removing a person only sticks once visibility is narrowed; in
+                                        "family" mode everyone can add regardless. */}
+                                        {state.visibility !== 'family' && <option value="none">No access</option>}
+                                    </select>
+                                ) : (
+                                    <span className="text-muted-foreground text-sm">
+                                        {m.role === 'editor' ? 'Can add' : m.role === 'viewer' ? 'Can view' : 'No access'}
+                                    </span>
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
 
                 {/* Invite link */}
