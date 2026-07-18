@@ -1,0 +1,18 @@
+<!-- @dsCard group="Spacing" viewport="700x160" name="Radius & Shadow" subtitle="Corner radii and elevation" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../styles.css"><style>
+body{margin:0;padding:24px;background:var(--bg);display:flex;gap:20px;align-items:center}
+.col{display:flex;flex-direction:column;gap:8px;align-items:center}
+.b{width:80px;height:56px;background:var(--surface-card);border:1px solid var(--border)}
+.n{font-family:var(--font-mono);font-size:11px;color:var(--text-muted)}
+.t{font-size:12px;font-weight:500;color:var(--text-primary)}
+.sep{width:1px;height:80px;background:var(--border)}
+</style></head><body>
+<div class="col"><div class="b" style="border-radius:6px"></div><span class="t">sm</span><span class="n">6px</span></div>
+<div class="col"><div class="b" style="border-radius:12px"></div><span class="t">md</span><span class="n">12px</span></div>
+<div class="col"><div class="b" style="border-radius:16px"></div><span class="t">lg</span><span class="n">16px</span></div>
+<div class="col"><div class="b" style="border-radius:9999px;width:56px"></div><span class="t">full</span><span class="n">∞</span></div>
+<div class="sep"></div>
+<div class="col"><div class="b" style="border-radius:12px;border:none;box-shadow:0 1px 2px rgba(27,58,40,.06)"></div><span class="t">sm</span><span class="n">shadow</span></div>
+<div class="col"><div class="b" style="border-radius:12px;border:none;box-shadow:0 2px 12px rgba(0,0,0,.10)"></div><span class="t">md</span><span class="n">shadow</span></div>
+<div class="col"><div class="b" style="border-radius:12px;border:none;box-shadow:0 12px 32px rgba(27,58,40,.12)"></div><span class="t">lg</span><span class="n">shadow</span></div>
+</body></html>
