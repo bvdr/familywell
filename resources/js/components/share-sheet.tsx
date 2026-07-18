@@ -1,7 +1,7 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { router } from '@inertiajs/react';
 import { Check, Copy, Link2, Lock, UserCheck, Users } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export type ShareMember = { id: number; name: string; role: 'owner' | 'editor' | 'viewer' | null; isOwner: boolean };
 export type ShareState = {
@@ -34,15 +34,28 @@ export function ShareSheet({
     eventName: string;
 }) {
     const [copied, setCopied] = useState(false);
+    // Mirror the server prop locally so toggles react instantly. The effect re-syncs whenever the
+    // server confirms (props change) or, if the request fails, reverts to the unchanged prop.
+    const [state, setState] = useState(share);
+    useEffect(() => setState(share), [share]);
+
     const base = `/shares/${share.type}/${share.id}`;
     const opts = { preserveScroll: true, preserveState: true } as const;
 
-    const setVisibility = (visibility: string) => router.patch(`${base}/visibility`, { visibility }, opts);
-    const setRole = (userId: number, role: string) => router.put(`${base}/members/${userId}`, { role }, opts);
+    // On failure the server props don't change, so revert the optimistic state to the last-confirmed prop.
+    const revert = () => setState(share);
+    const setVisibility = (visibility: ShareState['visibility']) => {
+        setState((s) => ({ ...s, visibility })); // optimistic
+        router.patch(`${base}/visibility`, { visibility }, { ...opts, onError: revert });
+    };
+    const setRole = (userId: number, role: ShareMember['role']) => {
+        setState((s) => ({ ...s, members: s.members.map((m) => (m.id === userId ? { ...m, role } : m)) })); // optimistic
+        router.put(`${base}/members/${userId}`, { role }, { ...opts, onError: revert });
+    };
     const createLink = () => router.post(`${base}/link`, {}, opts);
     const copy = () => {
-        if (!share.link) return;
-        navigator.clipboard.writeText(share.link.url).then(() => {
+        if (!state.link) return;
+        navigator.clipboard.writeText(state.link.url).then(() => {
             setCopied(true);
             setTimeout(() => setCopied(false), 1600);
         });
@@ -60,16 +73,16 @@ export function ShareSheet({
                 <div className="mt-2 flex flex-col gap-2">
                     <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Who can add spends</p>
                     {VISIBILITY.map((v) => {
-                        const active = share.visibility === v.key;
+                        const active = state.visibility === v.key;
                         return (
                             <button
                                 key={v.key}
                                 type="button"
-                                disabled={!share.canManage}
+                                disabled={!state.canManage}
                                 onClick={() => setVisibility(v.key)}
                                 className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
                                     active ? 'border-primary bg-accent-subtle' : 'bg-surface-card hover:border-accent'
-                                } ${share.canManage ? '' : 'opacity-70'}`}
+                                } ${state.canManage ? '' : 'opacity-70'}`}
                             >
                                 <span
                                     className={`flex size-9 items-center justify-center rounded-lg ${active ? 'bg-primary text-primary-foreground' : 'bg-accent-subtle text-primary'}`}
@@ -93,7 +106,7 @@ export function ShareSheet({
                 {/* People */}
                 <div className="mt-5 flex flex-col gap-1">
                     <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Can add spends</p>
-                    {share.members.map((m) => (
+                    {state.members.map((m) => (
                         <div key={m.id} className="flex items-center gap-3 py-2">
                             <span className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-full text-sm font-medium">
                                 {initial(m.name)}
@@ -104,10 +117,10 @@ export function ShareSheet({
                             </div>
                             {m.isOwner ? (
                                 <span className="text-muted-foreground text-sm">Owner</span>
-                            ) : share.canManage ? (
+                            ) : state.canManage ? (
                                 <select
                                     value={m.role ?? 'viewer'}
-                                    onChange={(e) => setRole(m.id, e.target.value)}
+                                    onChange={(e) => setRole(m.id, e.target.value as ShareMember['role'])}
                                     className="border-border bg-surface-card text-primary rounded-lg border py-1.5 pr-7 pl-3 text-sm"
                                 >
                                     <option value="editor">Can add</option>
@@ -123,11 +136,11 @@ export function ShareSheet({
                 {/* Invite link */}
                 <div className="mt-5 flex flex-col gap-2">
                     <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Invite link</p>
-                    {share.link ? (
+                    {state.link ? (
                         <>
                             <div className="bg-surface flex items-center gap-2 rounded-xl border p-2 pl-3">
                                 <Link2 className="text-muted-foreground size-4 shrink-0" />
-                                <span className="text-primary flex-1 truncate text-sm">{share.link.url}</span>
+                                <span className="text-primary flex-1 truncate text-sm">{state.link.url}</span>
                                 <button
                                     onClick={copy}
                                     className="bg-primary text-primary-foreground inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium"
@@ -138,7 +151,7 @@ export function ShareSheet({
                             </div>
                             <p className="text-muted-foreground text-xs">Anyone with the link can view this event.</p>
                         </>
-                    ) : share.canManage ? (
+                    ) : state.canManage ? (
                         <button
                             onClick={createLink}
                             className="bg-surface-card hover:border-accent text-primary inline-flex items-center justify-center gap-2 rounded-xl border p-3 text-sm font-medium transition-colors"

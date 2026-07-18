@@ -226,6 +226,7 @@ export default function Event({
 
                 <Link
                     href={route('spending.stats', event.id)}
+                    prefetch
                     className="bg-surface-card hover:border-accent flex items-center justify-between rounded-xl border p-3 transition-colors"
                 >
                     <span className="text-primary flex items-center gap-2.5 font-medium">
