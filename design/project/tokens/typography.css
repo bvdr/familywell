@@ -1,0 +1,33 @@
+/* FamilyWell — Typography tokens
+   Playfair Display (serif) for headings + brand, Inter for body/UI,
+   Geist Mono for metadata, times, code. */
+:root {
+  --font-heading: "Playfair Display", Georgia, "Times New Roman", serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", "SF Mono", ui-monospace, "Menlo", monospace;
+
+  /* Type scale (px values pulled from the source Brand board) */
+  --fs-display: 48px;   /* brand / hero — Playfair */
+  --fs-h1: 32px;        /* page titles — Playfair */
+  --fs-h2: 24px;        /* section headers — Playfair */
+  --fs-h3: 20px;        /* card / group titles — Playfair */
+  --fs-body-lg: 16px;   /* body — Inter */
+  --fs-body: 15px;      /* default UI text — Inter */
+  --fs-body-sm: 14px;   /* dense UI / labels — Inter */
+  --fs-caption: 13px;   /* captions, meta — Inter */
+  --fs-micro: 12px;     /* tab labels, tiny meta — Inter */
+  --fs-mono: 14px;      /* monospace — Geist Mono */
+
+  /* Weights — Playfair used at normal(400) & 600; Inter 400/500/600 */
+  --fw-regular: 400; /* @kind other */
+  --fw-medium: 500; /* @kind other */
+  --fw-semibold: 600; /* @kind other */
+
+  --lh-tight: 1.15;   /* @kind other */
+  --lh-snug: 1.35;    /* @kind other */
+  --lh-normal: 1.55;  /* @kind other */
+
+  --tracking-tight: -0.01em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.02em;
+}

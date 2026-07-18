@@ -1,37 +1,99 @@
-import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
 import AppLayout from '@/layouts/app-layout';
 import { Slot } from '@/lib/modules';
-import { type BreadcrumbItem } from '@/types';
-import { Head } from '@inertiajs/react';
+import { type BreadcrumbItem, type SharedData } from '@/types';
+import { Head, Link, usePage } from '@inertiajs/react';
+import { Blocks, Plus, UserPlus, Users, Wallet } from 'lucide-react';
 
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Dashboard',
-        href: '/dashboard',
-    },
-];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' }];
+
+// Time-of-day greeting, resolved on the client so it matches the viewer's clock.
+function greeting() {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 18) return 'Good afternoon';
+    return 'Good evening';
+}
+
+const todayLabel = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+
+// Side-rail shortcut into a family area. Solid-green icon well, DS card treatment.
+function Shortcut({ href, icon: Icon, title, sub }: { href: string; icon: typeof Wallet; title: string; sub: string }) {
+    return (
+        <Link href={href} className="bg-surface-card hover:border-accent flex items-center gap-3 rounded-xl border p-3 transition-colors">
+            <span className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-lg">
+                <Icon className="size-4.5" />
+            </span>
+            <span className="min-w-0">
+                <span className="text-primary block truncate font-medium">{title}</span>
+                <span className="text-muted-foreground block truncate text-sm">{sub}</span>
+            </span>
+        </Link>
+    );
+}
 
 export default function Dashboard() {
+    const { auth, modules } = usePage<SharedData & { modules?: { enabled?: string[] } }>().props;
+    const firstName = auth.user.name.split(' ')[0];
+    const spendingOn = (modules?.enabled ?? []).includes('spending');
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
-            <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
-                <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-                    <Slot name="dashboard.widgets" />
+            <div className="mx-auto flex w-full max-w-6xl flex-col gap-7 p-4 md:p-8">
+                <div className="flex flex-wrap items-end justify-between gap-4">
+                    <div>
+                        <h1 className="font-heading text-primary text-3xl">
+                            {greeting()}, {firstName}
+                        </h1>
+                        <p className="text-muted-foreground mt-1 text-sm">{todayLabel}</p>
+                    </div>
+                    <div className="flex gap-2">
+                        <Link
+                            href="/family/invite"
+                            className="bg-surface-card text-primary hover:border-accent inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-colors"
+                        >
+                            <UserPlus className="size-4" />
+                            Invite
+                        </Link>
+                        {spendingOn && (
+                            <Link
+                                href="/m/spending"
+                                className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors"
+                            >
+                                <Plus className="size-4" />
+                                Spending
+                            </Link>
+                        )}
+                    </div>
                 </div>
-                <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-                    <div className="border-sidebar-border/70 dark:border-sidebar-border relative aspect-video overflow-hidden rounded-xl border">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
+
+                <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+                    <div className="grid auto-rows-min gap-4 sm:grid-cols-2">
+                        <Slot
+                            name="dashboard.widgets"
+                            fallback={
+                                <Link
+                                    href="/family/modules"
+                                    className="bg-surface-card hover:border-accent flex min-h-56 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed p-8 text-center transition-colors sm:col-span-2"
+                                >
+                                    <span className="bg-accent-subtle text-primary flex size-12 items-center justify-center rounded-2xl">
+                                        <Blocks className="size-6" />
+                                    </span>
+                                    <span className="font-heading text-primary text-xl">A calm start</span>
+                                    <span className="text-muted-foreground max-w-xs text-sm">
+                                        Turn on a module like Todos or Shopping and its widgets will gather here.
+                                    </span>
+                                </Link>
+                            }
+                        />
                     </div>
-                    <div className="border-sidebar-border/70 dark:border-sidebar-border relative aspect-video overflow-hidden rounded-xl border">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
-                    </div>
-                    <div className="border-sidebar-border/70 dark:border-sidebar-border relative aspect-video overflow-hidden rounded-xl border">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
-                    </div>
-                </div>
-                <div className="border-sidebar-border/70 dark:border-sidebar-border relative min-h-[100vh] flex-1 rounded-xl border md:min-h-min">
-                    <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
+
+                    <aside className="flex flex-col gap-3">
+                        <h2 className="font-heading text-primary px-1 text-lg">Jump back in</h2>
+                        <Shortcut href="/family/members" icon={Users} title="Members" sub="Who's in your family" />
+                        <Shortcut href="/family/modules" icon={Blocks} title="Modules" sub="Turn features on or off" />
+                        {spendingOn && <Shortcut href="/m/spending" icon={Wallet} title="Spending" sub="Shared expense trackers" />}
+                    </aside>
                 </div>
             </div>
         </AppLayout>
