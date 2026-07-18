@@ -2,6 +2,7 @@
 
 namespace Modules\Spending;
 
+use App\Support\Sharing\ShareableRegistry;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -9,6 +10,9 @@ class SpendingServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        // Opt spend events into the core sharing system (addressable as `spend_event` in share URLs).
+        ShareableRegistry::register('spend_event', SpendEvent::class);
+
         // Full Inertia pages (not a dashboard widget): Spending is a whole app section. Gated by
         // `module:spending` so it is only reachable when the family has enabled it.
         Route::middleware(['web', 'auth', 'family', 'module:spending'])
