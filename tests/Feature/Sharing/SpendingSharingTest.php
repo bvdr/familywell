@@ -96,6 +96,19 @@ it('404s an unknown or revoked link token', function () {
     get('/e/does-not-exist')->assertNotFound();
 });
 
+it('lets an editor rename the event but not a viewer', function () {
+    [, $u] = sharingFamily();
+    $event = makeEvent($u[0]);
+
+    actingAs($u[0])->patch("/m/spending/events/{$event->id}", ['name' => 'Greece 2027'])->assertRedirect();
+    expect($event->fresh()->name)->toBe('Greece 2027');
+
+    $event->setVisibility('invited');
+    $event->shares()->create(['user_id' => $u[1]->id, 'role' => 'viewer']);
+    actingAs($u[1])->patch("/m/spending/events/{$event->id}", ['name' => 'Nope'])->assertForbidden();
+    expect($event->fresh()->name)->toBe('Greece 2027');
+});
+
 it('renders event stats for someone who can view and 403s those who cannot', function () {
     [, $u] = sharingFamily();
     $event = makeEvent($u[0]);
