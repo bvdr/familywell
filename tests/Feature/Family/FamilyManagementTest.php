@@ -31,6 +31,19 @@ it('lets an admin edit the family details', function () {
     expect($family->fresh())->name->toBe('The Riveras')->emoji->toBe('🏡')->color->toBe('#D4943A');
 });
 
+it('accepts any hex color and any emoji, not just the presets', function () {
+    [$family, $admin] = managedFamily();
+
+    actingAs($admin)->patch('/family', [
+        'name' => 'Wolfpack', 'color' => '#7B2D8E', 'emoji' => '🐺',
+    ])->assertRedirect()->assertSessionHasNoErrors();
+    expect($family->fresh())->color->toBe('#7B2D8E')->emoji->toBe('🐺');
+
+    // ...but plain text is not an emoji, and a non-hex color is rejected.
+    actingAs($admin)->patch('/family', ['name' => 'X', 'color' => '#7B2D8E', 'emoji' => 'hi'])->assertSessionHasErrors('emoji');
+    actingAs($admin)->patch('/family', ['name' => 'X', 'color' => 'blue', 'emoji' => '🐺'])->assertSessionHasErrors('color');
+});
+
 it('forbids a non-admin from editing the family', function () {
     [$family, , $member] = managedFamily();
 

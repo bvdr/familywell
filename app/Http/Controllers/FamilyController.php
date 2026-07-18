@@ -18,8 +18,11 @@ class FamilyController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:255'],
-            'color' => ['required', 'in:'.implode(',', Family::COLORS)],
-            'emoji' => ['required', 'in:'.implode(',', Family::EMOJIS)],
+            // Any hex color and any single emoji, not just the presets. The emoji must start with a
+            // pictographic character (so plain text is rejected) and stays short (one grapheme, incl.
+            // ZWJ sequences like 👨‍👩‍👧‍👦).
+            'color' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'emoji' => ['required', 'string', 'max:16', 'regex:/^\p{Extended_Pictographic}/u'],
         ]);
 
         $family->update($data);

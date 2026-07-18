@@ -25,6 +25,17 @@ type Props = {
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Members', href: '/family/members' }];
 
+// Keep only the last emoji the user typed (one grapheme, so ZWJ sequences like 👨‍👩‍👧‍👦 stay intact).
+const lastEmoji = (v: string): string => {
+    if (!v) return '';
+    try {
+        const parts = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(v)];
+        return parts.length ? parts[parts.length - 1].segment : '';
+    } catch {
+        return [...v].pop() ?? '';
+    }
+};
+
 function RoleBadge({ role }: { role: string }) {
     const admin = role.toLowerCase() === 'admin' || role.toLowerCase() === 'owner';
     return (
@@ -43,6 +54,8 @@ export default function Members({ family, members, invitations, canManage, palet
     const [inviteOpen, setInviteOpen] = useState(false);
 
     const settings = useForm({ name: family.name, description: family.description ?? '', color: family.color, emoji: family.emoji });
+    const customColor = !palette.colors.includes(settings.data.color);
+    const customEmoji = !palette.emojis.includes(settings.data.emoji);
     const invite = useForm({ email: '', role: 'member' });
 
     const saveSettings: FormEventHandler = (e) => {
@@ -100,24 +113,44 @@ export default function Members({ family, members, invitations, canManage, palet
                         <div className="flex flex-wrap items-center gap-6">
                             <div className="flex flex-col gap-2">
                                 <span className="text-xs font-medium">Color</span>
-                                <div className="flex gap-2">
+                                <div className="flex flex-wrap items-center gap-2">
                                     {palette.colors.map((c) => (
                                         <button
                                             key={c}
                                             type="button"
                                             aria-label={`Color ${c}`}
                                             onClick={() => settings.setData('color', c)}
-                                            className="flex size-7 items-center justify-center rounded-md ring-offset-2 transition-transform hover:scale-110"
+                                            className="flex size-7 items-center justify-center rounded-md transition-transform hover:scale-110"
                                             style={{ backgroundColor: c }}
                                         >
                                             {settings.data.color === c && <Check className="text-text-inverse size-4" />}
                                         </button>
                                     ))}
+                                    {/* Any color: the native OS color picker, styled as a swatch. */}
+                                    <label
+                                        title="Pick any color"
+                                        className="relative flex size-7 cursor-pointer items-center justify-center overflow-hidden rounded-md"
+                                        style={
+                                            customColor
+                                                ? { backgroundColor: settings.data.color }
+                                                : { background: 'conic-gradient(from 0deg, #c2453a, #d4943a, #7a9a80, #2d5e3a, #4a6b52, #c2453a)' }
+                                        }
+                                    >
+                                        <input
+                                            type="color"
+                                            value={settings.data.color}
+                                            onChange={(e) => settings.setData('color', e.target.value)}
+                                            aria-label="Custom color"
+                                            className="absolute inset-0 size-full cursor-pointer opacity-0"
+                                        />
+                                        {customColor ? <Check className="text-text-inverse size-4" /> : <Plus className="size-3.5 text-white" />}
+                                    </label>
                                 </div>
+                                <InputError message={settings.errors.color} />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <span className="text-xs font-medium">Emoji</span>
-                                <div className="flex gap-2">
+                                <div className="flex flex-wrap items-center gap-2">
                                     {palette.emojis.map((em) => (
                                         <button
                                             key={em}
@@ -131,7 +164,22 @@ export default function Members({ family, members, invitations, canManage, palet
                                             {em}
                                         </button>
                                     ))}
+                                    {/* Any emoji: tap the box and use the OS emoji keyboard. */}
+                                    <input
+                                        type="text"
+                                        value={settings.data.emoji}
+                                        onChange={(e) => settings.setData('emoji', lastEmoji(e.target.value))}
+                                        aria-label="Type any emoji"
+                                        title="Tap and use your keyboard's emoji key"
+                                        className={`flex size-7 items-center justify-center rounded-md border border-dashed text-center text-base ${
+                                            customEmoji ? 'border-accent bg-accent-subtle' : 'border-border bg-surface-card'
+                                        }`}
+                                    />
                                 </div>
+                                <p className="text-muted-foreground text-xs">
+                                    Pick one above, or tap the dashed box and use your keyboard's emoji key.
+                                </p>
+                                <InputError message={settings.errors.emoji} />
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
