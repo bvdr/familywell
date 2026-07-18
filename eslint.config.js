@@ -38,7 +38,9 @@ export default [
         },
     },
     {
-        ignores: ['vendor', 'node_modules', 'public', 'bootstrap/ssr', 'tailwind.config.js'],
+        // `design/` is the vendored Claude Design handoff bundle (generated JS/prompts), not our
+        // source; `modules/*/resources/dist` are pre-built module bundles. Neither should be linted.
+        ignores: ['vendor', 'node_modules', 'public', 'bootstrap/ssr', 'tailwind.config.js', 'design', 'modules/*/resources/dist'],
     },
     prettier, // Turn off all rules that might conflict with Prettier
 ];

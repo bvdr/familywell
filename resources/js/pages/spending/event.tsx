@@ -1,5 +1,5 @@
-import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { Check, Copy, MoreVertical, Pencil, Plus, Trash2, UserPlus, X } from 'lucide-react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { BarChart3, Check, ChevronRight, Copy, MoreVertical, Pencil, Plus, Trash2, UserPlus, X } from 'lucide-react';
 import { FormEventHandler, useEffect, useState } from 'react';
 
 import InputError from '@/components/input-error';
@@ -223,6 +223,16 @@ export default function Event({
                     </div>
                 </div>
                 {share && <ShareSheet open={sharing} onOpenChange={setSharing} share={share} eventName={event.name} />}
+
+                <Link
+                    href={route('spending.stats', event.id)}
+                    className="bg-surface-card hover:border-accent flex items-center justify-between rounded-xl border p-3 transition-colors"
+                >
+                    <span className="text-primary flex items-center gap-2.5 font-medium">
+                        <BarChart3 className="size-5" /> See stats
+                    </span>
+                    <ChevronRight className="text-muted-foreground size-4" />
+                </Link>
 
                 {/* Balances */}
                 <section className="flex flex-col gap-2">
