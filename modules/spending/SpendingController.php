@@ -6,6 +6,7 @@ use App\Events\SpendingChanged;
 use App\Http\Controllers\Controller;
 use App\Models\Family;
 use App\Support\Realtime;
+use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,20 +21,28 @@ class SpendingController extends Controller
 
     private const CURRENCIES = ['EUR', 'RON', 'USD', 'GBP'];
 
-    public function index(): Response
+    public function __construct(private ShareAccess $access) {}
+
+    public function index(Request $request): Response
     {
+        $userId = $request->user()->id;
+
         $events = SpendEvent::query()
             ->withSum('spends', 'amount')
-            ->with('members:id,name')
+            ->with(['members:id,name', 'shareSetting', 'shares'])
             ->latest()
             ->get()
+            // The BelongsToFamily scope already limits to the current family (and the `family`
+            // middleware guarantees the user is a member), so any `family`-visibility event is
+            // visible; `invited`/`private` ones need an explicit share row.
+            ->filter(fn (SpendEvent $e) => $e->visibility() === 'family' || $e->shares->contains('user_id', $userId))
             ->map(fn (SpendEvent $e) => [
                 'id' => $e->id,
                 'name' => $e->name,
                 'currency' => $e->currency,
                 'total' => (int) $e->spends_sum_amount,
                 'members' => $e->members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),
-            ]);
+            ])->values();
 
         return Inertia::render('spending/events', [
             'events' => $events,
@@ -58,19 +67,34 @@ class SpendingController extends Controller
         $family = Family::findOrFail(CurrentFamily::id());
         $event->members()->sync($family->members->pluck('id'));
 
+        // The creator owns the share (can manage visibility/roles/links). Visibility defaults to
+        // `family`, so all members can add spends until the owner narrows it.
+        $event->shares()->create(['user_id' => $request->user()->id, 'role' => 'owner']);
+
         Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
 
         return to_route('spending.show', $event);
     }
 
-    public function show(int $event): Response
+    public function show(Request $request, int $event): Response
     {
-        return Inertia::render('spending/event', $this->eventPayload($this->event($event)));
+        $event = $this->event($event);
+
+        // Self-heal events created before sharing existed: the original creator adopts ownership so
+        // they can manage visibility/roles/links. Idempotent.
+        if (! $event->shares()->where('role', 'owner')->exists()) {
+            $event->shares()->firstOrCreate(['user_id' => $event->created_by], ['role' => 'owner']);
+        }
+
+        abort_unless($this->access->canView($request->user(), $event), 403);
+
+        return Inertia::render('spending/event', $this->eventPayload($event));
     }
 
     public function storeSpend(Request $request, int $event): RedirectResponse
     {
         $event = $this->event($event);
+        abort_unless($this->access->canEdit($request->user(), $event), 403);
         $data = $this->validateSpend($request, $event);
 
         $spend = $event->spends()->create([
@@ -91,6 +115,7 @@ class SpendingController extends Controller
     {
         $spend = Spend::findOrFail($spend); // family-scoped resolve (see event() note)
         $event = $this->event($spend->spend_event_id);
+        abort_unless($this->access->canEdit($request->user(), $event), 403);
         $data = $this->validateSpend($request, $event);
 
         // Re-freeze the conversion, since amount/currency/date may have changed.
@@ -117,6 +142,7 @@ class SpendingController extends Controller
     public function receipt(int $spend): StreamedResponse
     {
         $spend = Spend::findOrFail($spend);
+        abort_unless($this->access->canView(request()->user(), $this->event($spend->spend_event_id)), 403);
         abort_unless($spend->receipt_path, 404);
 
         return Storage::disk('r2')->response($spend->receipt_path);
@@ -124,8 +150,10 @@ class SpendingController extends Controller
 
     public function duplicateSpend(int $spend): RedirectResponse
     {
+        $spend = Spend::findOrFail($spend);
+        abort_unless($this->access->canEdit(request()->user(), $this->event($spend->spend_event_id)), 403);
         // Replicate keeps every attribute (currency, frozen base_amount, rate, date) except the id.
-        Spend::findOrFail($spend)->replicate()->save();
+        $spend->replicate()->save();
         Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
 
         return back();
@@ -134,6 +162,7 @@ class SpendingController extends Controller
     public function settle(Request $request, int $event): RedirectResponse
     {
         $event = $this->event($event);
+        abort_unless($this->access->canEdit($request->user(), $event), 403);
         $memberIds = $event->members()->pluck('users.id')->all();
 
         $data = $request->validate([
@@ -160,6 +189,7 @@ class SpendingController extends Controller
         // applies once SetActiveFamily has run, which is after route-model binding. So a spend from
         // another family 404s here instead of leaking.
         $spend = Spend::findOrFail($spend);
+        abort_unless($this->access->canEdit(request()->user(), $this->event($spend->spend_event_id)), 403);
         if ($spend->receipt_path) {
             Storage::disk('r2')->delete($spend->receipt_path);
         }
@@ -223,6 +253,23 @@ class SpendingController extends Controller
         $members = $event->members()->get(['users.id', 'name']);
         $memberIds = $members->pluck('id')->all();
 
+        // Sharing state for the "Share event" sheet: each family member's effective role, the current
+        // visibility, whether this viewer can manage, and the read-only invite link (if any).
+        $visibility = $event->visibility();
+        $sharesByUser = $event->shares()->get()->keyBy('user_id');
+        $family = Family::findOrFail(CurrentFamily::id());
+        $shareMembers = $family->members->map(function ($m) use ($sharesByUser, $visibility) {
+            $explicit = $sharesByUser->get($m->id)?->role;
+
+            return [
+                'id' => $m->id,
+                'name' => $m->name,
+                'role' => $explicit ?? ($visibility === 'family' ? 'editor' : null),
+                'isOwner' => $explicit === 'owner',
+            ];
+        })->values();
+        $link = $event->shareLinks()->first();
+
         $spends = $event->spends()->with('payer:id,name')->latest('spent_at')->latest('id')->get();
         $settlements = $event->settlements()->get();
 
@@ -271,6 +318,18 @@ class SpendingController extends Controller
                 'to' => ['id' => $s['to'], 'name' => $nameOf($s['to'])],
                 'amount' => $s['amount'],
             ])->values(),
+            'share' => [
+                'type' => 'spend_event',
+                'id' => $event->id,
+                'visibility' => $visibility,
+                'canManage' => $this->access->canManage(request()->user(), $event),
+                'members' => $shareMembers,
+                'link' => $link ? [
+                    'id' => $link->id,
+                    'token' => $link->token,
+                    'url' => route('share.public', $link->token),
+                ] : null,
+            ],
         ];
     }
 }
