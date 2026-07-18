@@ -1,8 +1,9 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { Check, Copy, MoreVertical, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Check, Copy, MoreVertical, Pencil, Plus, Trash2, UserPlus, X } from 'lucide-react';
 import { FormEventHandler, useEffect, useState } from 'react';
 
 import InputError from '@/components/input-error';
+import { ShareSheet, type ShareState } from '@/components/share-sheet';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -66,15 +67,18 @@ export default function Event({
     balances,
     suggestions,
     familyId,
+    share,
 }: {
     event: EventT;
     spends: Spend[];
     balances: Balance[];
     suggestions: Suggestion[];
     familyId: number;
+    share: ShareState;
 }) {
     const authId = (usePage().props as { auth: { user: { id: number } } }).auth.user.id;
     const [adding, setAdding] = useState(false);
+    const [sharing, setSharing] = useState(false);
     // When set, the form is editing this spend id instead of creating a new one.
     const [editing, setEditing] = useState<number | null>(null);
     // Receipt being viewed in the lightbox overlay.
@@ -194,20 +198,31 @@ export default function Event({
                                 {event.members.length} people · {spends.length} spends
                             </div>
                         </div>
-                        <Select value={display} onValueChange={setDisplay}>
-                            <SelectTrigger className="border-text-inverse/25 text-text-inverse h-9 w-[88px] bg-transparent">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {event.currencies.map((c) => (
-                                    <SelectItem key={c} value={c}>
-                                        {c}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setSharing(true)}
+                                aria-label="Share event"
+                                className="border-text-inverse/25 text-text-inverse flex size-9 items-center justify-center rounded-lg border transition-colors hover:bg-white/10"
+                            >
+                                <UserPlus className="size-4.5" />
+                            </button>
+                            <Select value={display} onValueChange={setDisplay}>
+                                <SelectTrigger className="border-text-inverse/25 text-text-inverse h-9 w-[88px] bg-transparent">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {event.currencies.map((c) => (
+                                        <SelectItem key={c} value={c}>
+                                            {c}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                 </div>
+                {share && <ShareSheet open={sharing} onOpenChange={setSharing} share={share} eventName={event.name} />}
 
                 {/* Balances */}
                 <section className="flex flex-col gap-2">
