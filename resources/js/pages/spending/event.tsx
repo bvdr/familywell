@@ -1,5 +1,5 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { BarChart3, Check, ChevronRight, Copy, MoreVertical, Pencil, Plus, Trash2, UserPlus, X } from 'lucide-react';
+import { BarChart3, Check, ChevronLeft, ChevronRight, Copy, MoreVertical, Pencil, Plus, Trash2, UserPlus, X } from 'lucide-react';
 import { FormEventHandler, useEffect, useState } from 'react';
 
 import InputError from '@/components/input-error';
@@ -33,7 +33,7 @@ type Spend = {
     base_amount: number; // converted to the event currency
     category: string;
     note: string | null;
-    receipt_url: string | null;
+    receipts: { id: number; url: string }[];
     payer: { id: number; name: string };
     spent_at: string;
 };
@@ -81,8 +81,13 @@ export default function Event({
     const [sharing, setSharing] = useState(false);
     // When set, the form is editing this spend id instead of creating a new one.
     const [editing, setEditing] = useState<number | null>(null);
-    // Receipt being viewed in the lightbox overlay.
-    const [viewing, setViewing] = useState<string | null>(null);
+    // Receipt photos being viewed in the lightbox overlay, and which one is showing.
+    const [viewing, setViewing] = useState<string[] | null>(null);
+    const [viewIndex, setViewIndex] = useState(0);
+    const openLightbox = (urls: string[], index = 0) => {
+        setViewing(urls);
+        setViewIndex(index);
+    };
     // Display currency is cosmetic: it converts the base-currency figures for viewing. Default = base.
     const [display, setDisplay] = useState(event.currency);
     const fmt = (baseCents: number) => money(Math.round(baseCents * (event.rates[display] ?? 1)), display);
@@ -119,8 +124,8 @@ export default function Event({
         payer_id: number;
         note: string;
         spent_at: string;
-        receipt: File | null;
-        remove_receipt: boolean;
+        receipts: File[];
+        remove_receipt_ids: number[];
     }>({
         amount: '',
         currency: event.currency,
@@ -128,12 +133,14 @@ export default function Event({
         payer_id: authId,
         note: '',
         spent_at: today(),
-        receipt: null,
-        remove_receipt: false,
+        receipts: [],
+        remove_receipt_ids: [],
     });
 
-    // Receipt of the spend being edited (a new upload replaces it).
-    const editingReceipt = editing ? (spends.find((s) => s.id === editing)?.receipt_url ?? null) : null;
+    // Existing receipts of the spend being edited, minus any the user has marked for removal.
+    const existingReceipts = editing
+        ? (spends.find((s) => s.id === editing)?.receipts ?? []).filter((r) => !form.data.remove_receipt_ids.includes(r.id))
+        : [];
 
     const closeForm = () => {
         form.reset();
@@ -164,8 +171,8 @@ export default function Event({
             payer_id: s.payer.id,
             note: s.note ?? '',
             spent_at: s.spent_at,
-            receipt: null,
-            remove_receipt: false,
+            receipts: [],
+            remove_receipt_ids: [],
         });
         setEditing(s.id);
         setAdding(true);
@@ -361,52 +368,67 @@ export default function Event({
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="receipt">Receipt photo (optional)</Label>
-                            <div className="flex items-center gap-3">
-                                {editingReceipt && !form.data.receipt && !form.data.remove_receipt && (
-                                    <div className="relative shrink-0">
-                                        <img
-                                            src={editingReceipt}
-                                            alt="Current receipt"
-                                            className="border-border size-12 rounded-md border object-cover"
-                                        />
+                            <Label htmlFor="receipts">Receipt photos (optional)</Label>
+                            <div className="flex flex-wrap items-center gap-2">
+                                {/* Existing photos on the spend, each removable (queued for deletion on save). */}
+                                {existingReceipts.map((r) => (
+                                    <div key={r.id} className="relative shrink-0">
+                                        <img src={r.url} alt="Receipt" className="border-border size-14 rounded-md border object-cover" />
                                         <button
                                             type="button"
-                                            onClick={() => form.setData('remove_receipt', true)}
-                                            aria-label="Remove receipt"
+                                            onClick={() => form.setData('remove_receipt_ids', [...form.data.remove_receipt_ids, r.id])}
+                                            aria-label="Remove photo"
                                             className="bg-background text-muted-foreground hover:text-destructive border-border absolute -top-2 -right-2 flex size-5 items-center justify-center rounded-full border shadow-sm"
                                         >
                                             <X className="size-3" />
                                         </button>
                                     </div>
-                                )}
-                                {editingReceipt && form.data.remove_receipt && (
-                                    <span className="text-muted-foreground shrink-0 text-sm">
-                                        Removed.{' '}
+                                ))}
+                                {/* Newly picked files (previewed locally), each removable before saving. */}
+                                {form.data.receipts.map((file, i) => (
+                                    <div key={i} className="relative shrink-0">
+                                        <img
+                                            src={URL.createObjectURL(file)}
+                                            alt="New photo"
+                                            className="border-border size-14 rounded-md border object-cover"
+                                        />
                                         <button
                                             type="button"
-                                            onClick={() => form.setData('remove_receipt', false)}
-                                            className="text-primary underline"
+                                            onClick={() =>
+                                                form.setData(
+                                                    'receipts',
+                                                    form.data.receipts.filter((_, k) => k !== i),
+                                                )
+                                            }
+                                            aria-label="Remove photo"
+                                            className="bg-background text-muted-foreground hover:text-destructive border-border absolute -top-2 -right-2 flex size-5 items-center justify-center rounded-full border shadow-sm"
                                         >
-                                            Undo
+                                            <X className="size-3" />
                                         </button>
-                                    </span>
-                                )}
-                                <Input
-                                    id="receipt"
+                                    </div>
+                                ))}
+                                <label
+                                    htmlFor="receipts"
+                                    className="border-border text-muted-foreground hover:border-accent hover:text-primary flex size-14 shrink-0 cursor-pointer items-center justify-center rounded-md border border-dashed transition-colors"
+                                >
+                                    <Plus className="size-5" />
+                                </label>
+                                <input
+                                    id="receipts"
                                     type="file"
                                     accept="image/*"
-                                    className="file:text-primary text-muted-foreground cursor-pointer"
+                                    multiple
+                                    className="hidden"
                                     onChange={async (e) => {
-                                        const file = e.target.files?.[0];
-                                        const receipt = file ? await compressImage(file) : null;
-                                        form.setData('receipt', receipt);
-                                        form.setData('remove_receipt', false); // a fresh pick supersedes a pending removal
+                                        const files = Array.from(e.target.files ?? []);
+                                        const compressed = await Promise.all(files.map((f) => compressImage(f)));
+                                        form.setData('receipts', [...form.data.receipts, ...compressed]);
+                                        e.target.value = ''; // let the same file be picked again after removal
                                     }}
                                 />
                             </div>
                             {form.progress && <progress value={form.progress.percentage} max="100" className="h-1 w-full" />}
-                            <InputError message={form.errors.receipt} />
+                            <InputError message={form.errors.receipts} />
                         </div>
                         <div className="flex gap-2">
                             <Button type="submit" disabled={form.processing}>
@@ -444,21 +466,26 @@ export default function Event({
                                     className="bg-surface-card hover:border-accent/60 flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-colors"
                                 >
                                     <div className="flex items-center gap-3">
-                                        {s.receipt_url ? (
+                                        {s.receipts.length > 0 ? (
                                             <button
                                                 type="button"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    setViewing(s.receipt_url);
+                                                    openLightbox(s.receipts.map((r) => r.url));
                                                 }}
-                                                className="shrink-0"
-                                                aria-label="View receipt"
+                                                className="relative shrink-0"
+                                                aria-label={`View ${s.receipts.length} receipt photo${s.receipts.length > 1 ? 's' : ''}`}
                                             >
                                                 <img
-                                                    src={s.receipt_url}
+                                                    src={s.receipts[0].url}
                                                     alt="Receipt"
                                                     className="border-border size-9 rounded-lg border object-cover"
                                                 />
+                                                {s.receipts.length > 1 && (
+                                                    <span className="bg-primary text-primary-foreground absolute -top-1.5 -right-1.5 flex min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold tabular-nums">
+                                                        {s.receipts.length}
+                                                    </span>
+                                                )}
                                             </button>
                                         ) : (
                                             <span className="bg-accent-subtle flex size-9 items-center justify-center rounded-lg text-base">
@@ -514,11 +541,38 @@ export default function Event({
                 </section>
             </div>
 
-            {/* Receipt lightbox */}
+            {/* Receipt lightbox — swipe/click through a spend's photos */}
             <Dialog open={!!viewing} onOpenChange={(open) => !open && setViewing(null)}>
                 <DialogContent className="max-w-3xl border-none bg-transparent p-0 shadow-none">
-                    <DialogTitle className="sr-only">Receipt</DialogTitle>
-                    {viewing && <img src={viewing} alt="Receipt" className="max-h-[85vh] w-full rounded-lg object-contain" />}
+                    <DialogTitle className="sr-only">Receipt photos</DialogTitle>
+                    {viewing && (
+                        <div className="relative">
+                            <img src={viewing[viewIndex]} alt="Receipt" className="max-h-[85vh] w-full rounded-lg object-contain" />
+                            {viewing.length > 1 && (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => setViewIndex((i) => (i - 1 + viewing.length) % viewing.length)}
+                                        aria-label="Previous photo"
+                                        className="absolute top-1/2 left-2 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm"
+                                    >
+                                        <ChevronLeft className="size-6" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setViewIndex((i) => (i + 1) % viewing.length)}
+                                        aria-label="Next photo"
+                                        className="absolute top-1/2 right-2 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm"
+                                    >
+                                        <ChevronRight className="size-6" />
+                                    </button>
+                                    <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/45 px-2.5 py-1 font-mono text-xs text-white tabular-nums">
+                                        {viewIndex + 1} / {viewing.length}
+                                    </span>
+                                </>
+                            )}
+                        </div>
+                    )}
                 </DialogContent>
             </Dialog>
         </AppLayout>
