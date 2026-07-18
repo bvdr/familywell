@@ -1,0 +1,16 @@
+{
+    "name": "FamilyWell",
+    "short_name": "FamilyWell",
+    "description": "Shared family life: expenses, tasks and more.",
+    "start_url": "/dashboard",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#F5F3EE",
+    "theme_color": "#2D5E3A",
+    "orientation": "portrait",
+    "icons": [
+        { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+        { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+        { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    ]
+}

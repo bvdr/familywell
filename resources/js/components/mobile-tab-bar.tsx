@@ -21,7 +21,7 @@ export function MobileTabBar() {
     const items = [...baseItems, ...enabled.map((id) => moduleItems[id]).filter(Boolean)];
 
     return (
-        <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-3 md:hidden">
+        <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden">
             <div className="border-border/60 pointer-events-auto flex w-full max-w-md items-center justify-around gap-1 rounded-full border bg-white/75 p-1.5 shadow-[var(--shadow-fw-md)] backdrop-blur-xl">
                 {items.map((item) => {
                     // Match on prefix so a sub-page (e.g. a single spend event) keeps its tab lit.
