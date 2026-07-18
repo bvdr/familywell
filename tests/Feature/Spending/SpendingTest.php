@@ -184,7 +184,7 @@ it('does not let another family edit or duplicate a spend', function () {
     ])->assertNotFound();
 });
 
-it('attaches a receipt image and serves it back to the family', function () {
+it('attaches multiple receipt images and serves them back to the family', function () {
     Storage::fake('r2');
     [$family, $users] = spendingFamily();
     actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
@@ -192,14 +192,18 @@ it('attaches a receipt image and serves it back to the family', function () {
 
     actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
         'amount' => '12.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
-        'receipt' => UploadedFile::fake()->create('receipt.jpg', 200, 'image/jpeg'),
+        'receipts' => [
+            UploadedFile::fake()->create('a.jpg', 200, 'image/jpeg'),
+            UploadedFile::fake()->create('b.jpg', 200, 'image/jpeg'),
+        ],
     ])->assertRedirect();
 
     $spend = $event->spends()->first();
-    expect($spend->receipt_path)->not->toBeNull();
-    Storage::disk('r2')->assertExists($spend->receipt_path);
+    expect($spend->receipts()->count())->toBe(2);
+    $receipt = $spend->receipts()->first();
+    Storage::disk('r2')->assertExists($receipt->path);
 
-    actingAs($users[0])->get("/m/spending/spends/{$spend->id}/receipt")->assertOk();
+    actingAs($users[0])->get("/m/spending/spends/receipts/{$receipt->id}")->assertOk();
 });
 
 it('does not serve a receipt to another family', function () {
@@ -209,12 +213,12 @@ it('does not serve a receipt to another family', function () {
     $eventA = SpendEvent::first();
     actingAs($usersA[0])->post("/m/spending/events/{$eventA->id}/spends", [
         'amount' => '5.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $usersA[0]->id, 'spent_at' => '2026-07-16',
-        'receipt' => UploadedFile::fake()->create('r.jpg', 200, 'image/jpeg'),
+        'receipts' => [UploadedFile::fake()->create('r.jpg', 200, 'image/jpeg')],
     ]);
-    $spendA = $eventA->spends()->first();
+    $receiptA = $eventA->spends()->first()->receipts()->first();
 
     [$familyB, $usersB] = spendingFamily();
-    actingAs($usersB[0])->get("/m/spending/spends/{$spendA->id}/receipt")->assertNotFound();
+    actingAs($usersB[0])->get("/m/spending/spends/receipts/{$receiptA->id}")->assertNotFound();
 });
 
 it('still records a spend when broadcasting is down', function () {
@@ -245,7 +249,7 @@ it('still records a spend when broadcasting is down', function () {
     expect($event->spends()->count())->toBe(1);
 });
 
-it('updates a spend with a receipt via POST method-spoofing (the file-edit path)', function () {
+it('adds a receipt on edit via POST method-spoofing (the file-edit path)', function () {
     Storage::fake('r2');
     [$family, $users] = spendingFamily();
     actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
@@ -255,37 +259,40 @@ it('updates a spend with a receipt via POST method-spoofing (the file-edit path)
     ]);
     $spend = $event->spends()->first();
 
-    // The frontend edits with a file as POST + _method=patch, since PHP can't parse a multipart PATCH.
+    // The frontend edits with files as POST + _method=patch, since PHP can't parse a multipart PATCH.
     actingAs($users[0])->post("/m/spending/spends/{$spend->id}", [
         '_method' => 'patch',
         'amount' => '22.00', 'currency' => 'EUR', 'category' => 'transport', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
-        'receipt' => UploadedFile::fake()->create('r.jpg', 100, 'image/jpeg'),
+        'receipts' => [UploadedFile::fake()->create('r.jpg', 100, 'image/jpeg')],
     ])->assertRedirect();
 
     $spend->refresh();
-    expect($spend->amount)->toBe(2200)->and($spend->receipt_path)->not->toBeNull();
+    expect($spend->amount)->toBe(2200)->and($spend->receipts()->count())->toBe(1);
 });
 
-it('removes an existing receipt when remove_receipt is set and no new file is uploaded', function () {
+it('removes only the selected receipts on edit', function () {
     Storage::fake('r2');
     [$family, $users] = spendingFamily();
     actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
     $event = SpendEvent::first();
     actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
         'amount' => '10.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
-        'receipt' => UploadedFile::fake()->create('r.jpg', 100, 'image/jpeg'),
+        'receipts' => [
+            UploadedFile::fake()->create('a.jpg', 100, 'image/jpeg'),
+            UploadedFile::fake()->create('b.jpg', 100, 'image/jpeg'),
+        ],
     ]);
     $spend = $event->spends()->first();
-    $path = $spend->receipt_path;
-    expect($path)->not->toBeNull();
+    $toRemove = $spend->receipts()->first();
+    $path = $toRemove->path;
 
     actingAs($users[0])->post("/m/spending/spends/{$spend->id}", [
         '_method' => 'patch',
         'amount' => '10.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
-        'remove_receipt' => '1',
+        'remove_receipt_ids' => [$toRemove->id],
     ])->assertRedirect();
 
-    expect($spend->refresh()->receipt_path)->toBeNull();
+    expect($spend->receipts()->count())->toBe(1);
     Storage::disk('r2')->assertMissing($path);
 });
 
