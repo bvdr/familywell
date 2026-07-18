@@ -215,7 +215,7 @@ export default function Event({
                     {balances.map((b) => (
                         <div key={b.user_id} className="bg-surface-card flex items-center justify-between rounded-xl border p-3">
                             <div className="flex items-center gap-3">
-                                <span className="bg-accent text-text-inverse flex size-8 items-center justify-center rounded-full text-sm font-medium">
+                                <span className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-full text-sm font-medium">
                                     {b.name.charAt(0).toUpperCase()}
                                 </span>
                                 <div>
@@ -224,7 +224,7 @@ export default function Event({
                                 </div>
                             </div>
                             <div
-                                className={`text-sm font-semibold ${b.net > 0 ? 'text-accent' : b.net < 0 ? 'text-[var(--warning)]' : 'text-muted-foreground'}`}
+                                className={`text-sm font-semibold ${b.net > 0 ? 'text-primary' : b.net < 0 ? 'text-[var(--warning)]' : 'text-muted-foreground'}`}
                             >
                                 {b.net > 0 ? '+' : ''}
                                 {fmt(b.net)}
