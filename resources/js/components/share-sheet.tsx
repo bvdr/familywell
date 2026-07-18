@@ -52,6 +52,12 @@ export function ShareSheet({
         setState((s) => ({ ...s, members: s.members.map((m) => (m.id === userId ? { ...m, role } : m)) })); // optimistic
         router.put(`${base}/members/${userId}`, { role }, { ...opts, onError: revert });
     };
+    // Revoke a person's access (deletes their grant). In "invited"/"private" mode they lose access;
+    // in "family" mode everyone can add regardless, so it only bites once you narrow visibility.
+    const removeMember = (userId: number) => {
+        setState((s) => ({ ...s, members: s.members.map((m) => (m.id === userId ? { ...m, role: null } : m)) })); // optimistic
+        router.delete(`${base}/members/${userId}`, { ...opts, onError: revert });
+    };
     const createLink = () => router.post(`${base}/link`, {}, opts);
     const copy = () => {
         if (!state.link) return;
@@ -119,15 +125,22 @@ export function ShareSheet({
                                 <span className="text-muted-foreground text-sm">Owner</span>
                             ) : state.canManage ? (
                                 <select
-                                    value={m.role ?? 'viewer'}
-                                    onChange={(e) => setRole(m.id, e.target.value as ShareMember['role'])}
+                                    value={m.role ?? 'none'}
+                                    onChange={(e) =>
+                                        e.target.value === 'none' ? removeMember(m.id) : setRole(m.id, e.target.value as ShareMember['role'])
+                                    }
                                     className="border-border bg-surface-card text-primary rounded-lg border py-1.5 pr-7 pl-3 text-sm"
                                 >
                                     <option value="editor">Can add</option>
                                     <option value="viewer">Can view</option>
+                                    {/* Removing a person only sticks once visibility is narrowed; in
+                                        "family" mode everyone can add regardless. */}
+                                    {state.visibility !== 'family' && <option value="none">No access</option>}
                                 </select>
                             ) : (
-                                <span className="text-muted-foreground text-sm">{m.role === 'viewer' ? 'Can view' : 'Can add'}</span>
+                                <span className="text-muted-foreground text-sm">
+                                    {m.role === 'editor' ? 'Can add' : m.role === 'viewer' ? 'Can view' : 'No access'}
+                                </span>
                             )}
                         </div>
                     ))}

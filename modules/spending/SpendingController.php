@@ -107,14 +107,6 @@ class SpendingController extends Controller
             ->sortByDesc('amount')->values()
             ->map(fn ($r) => [...$r, 'pct' => $pct($r['amount'])]);
 
-        $byPayer = $spends->groupBy('payer_id')
-            ->map(fn ($g, $pid) => [
-                'id' => (int) $pid,
-                'name' => $members->firstWhere('id', (int) $pid)?->name ?? ($g->first()->payer?->name ?? '?'),
-                'amount' => (int) $g->sum('base_amount'),
-            ])->sortByDesc('amount')->values()
-            ->map(fn ($r) => [...$r, 'pct' => $pct($r['amount'])]);
-
         // Daily totals in chronological order, with a running cumulative for the trend curve.
         $running = 0;
         $overTime = $spends->groupBy(fn (Spend $s) => $s->spent_at->toDateString())
@@ -131,11 +123,11 @@ class SpendingController extends Controller
         return Inertia::render('spending/stats', [
             'event' => ['id' => $event->id, 'name' => $event->name, 'currency' => $event->currency, 'total' => $total],
             'byCategory' => $byCategory,
-            'byPayer' => $byPayer,
             'overTime' => $overTime,
             'facts' => [
                 'count' => $spends->count(),
                 'average' => $spends->count() ? (int) round($total / $spends->count()) : 0,
+                'dailyAverage' => $overTime->count() ? (int) round($total / $overTime->count()) : 0,
                 'biggest' => $biggest ? ['amount' => (int) $biggest->base_amount, 'label' => $biggest->note ?: ucfirst($biggest->category)] : null,
                 'days' => $overTime->count(),
                 'people' => $members->count(),
