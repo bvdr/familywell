@@ -1,0 +1,45 @@
+/* FamilyWell — Color tokens
+   Earthy, warm palette: forest greens on a cream paper ground. */
+:root {
+  /* ---- Base palette (raw values) ---- */
+  --fw-cream: #F5F3EE;       /* app background — warm paper */
+  --fw-sand: #E8E4DC;        /* raised surface / subtle fill */
+  --fw-white: #FFFFFF;       /* cards */
+  --fw-forest: #1B3A28;      /* deepest green — primary text, dark surfaces */
+  --fw-accent: #2D5E3A;      /* brand green — buttons, accents */
+  --fw-sage: #4A6B52;        /* secondary text */
+  --fw-moss: #7A9A80;        /* muted text, disabled */
+  --fw-accent-light: #C8DBBC;/* soft green — avatars, highlights */
+  --fw-accent-subtle: #E6F0E0;/* faint green — icon wells, active tabs */
+  --fw-line: #D4D0C8;        /* borders, dividers */
+  --fw-red: #C2453A;         /* error / destructive */
+  --fw-amber: #D4943A;       /* warning */
+  --fw-green: #2D5E3A;       /* success (== accent) */
+
+  /* ---- Semantic aliases ---- */
+  --bg: var(--fw-cream);
+  --surface: var(--fw-sand);
+  --surface-card: var(--fw-white);
+  --surface-dark: var(--fw-forest);
+
+  --text-primary: var(--fw-forest);
+  --text-secondary: var(--fw-sage);
+  --text-muted: var(--fw-moss);
+  --text-inverse: var(--fw-white);
+
+  --accent: var(--fw-accent);
+  --accent-hover: #234B2E;      /* accent, darkened ~8% for hover */
+  --accent-light: var(--fw-accent-light);
+  --accent-subtle: var(--fw-accent-subtle);
+
+  --border: var(--fw-line);
+  --border-strong: #B9B4A9;
+
+  --error: var(--fw-red);
+  --warning: var(--fw-amber);
+  --success: var(--fw-green);
+
+  /* Tinted state wells (used behind status icons on web) */
+  --warning-subtle: #D4943A1F;
+  --error-subtle: #C2453A1A;
+}

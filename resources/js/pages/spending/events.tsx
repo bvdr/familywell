@@ -115,7 +115,7 @@ export default function Events({ events, currencies }: { events: Event[]; curren
                                 </span>
                                 <div>
                                     <div className="text-primary font-medium">{ev.name}</div>
-                                    <div className="text-muted-foreground text-sm">{money(ev.total, ev.currency)}</div>
+                                    <div className="text-muted-foreground font-mono text-sm tabular-nums">{money(ev.total, ev.currency)}</div>
                                 </div>
                             </div>
                             <Avatars members={ev.members} />

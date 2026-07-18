@@ -1,0 +1,32 @@
+/* FamilyWell — base element defaults.
+   Light-touch resets so specimens & kits inherit brand type/colors. */
+:root {
+  color-scheme: light;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  line-height: var(--lh-normal);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+h1, h2, h3, h4 {
+  font-family: var(--font-heading);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  line-height: var(--lh-tight);
+  margin: 0;
+}
+p { margin: 0; text-wrap: pretty; }
+a {
+  color: var(--accent);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+a:hover { color: var(--accent-hover); }
+code, kbd, samp { font-family: var(--font-mono); font-size: 0.92em; }
+*, *::before, *::after { box-sizing: border-box; }
+::selection { background: var(--accent-light); color: var(--fw-forest); }
