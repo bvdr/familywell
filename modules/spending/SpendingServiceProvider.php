@@ -51,6 +51,7 @@ class SpendingServiceProvider extends ServiceProvider
                 Route::get('/', [SpendingController::class, 'index'])->name('index');
                 Route::post('/events', [SpendingController::class, 'storeEvent'])->name('events.store');
                 Route::get('/events/{event}', [SpendingController::class, 'show'])->name('show');
+                Route::get('/events/{event}/stats', [SpendingController::class, 'stats'])->name('stats');
                 Route::post('/events/{event}/spends', [SpendingController::class, 'storeSpend'])->name('spends.store');
                 Route::post('/events/{event}/settle', [SpendingController::class, 'settle'])->name('settle');
                 Route::patch('/spends/{spend}', [SpendingController::class, 'updateSpend'])->name('spends.update');
