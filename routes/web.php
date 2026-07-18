@@ -8,6 +8,7 @@ use App\Http\Controllers\ModuleAssetController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PublicShareController;
 use App\Http\Controllers\ShareController;
+use App\Support\Dashboard\DashboardItems;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -39,7 +40,8 @@ Route::get('/e/{token}', [PublicShareController::class, 'show'])->middleware('th
 // The app proper: requires both auth and a family.
 Route::middleware(['auth', 'family'])->group(function () {
     Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
+        // Modules surface their own entities here (e.g. spend events), deep-linked, via DashboardItems.
+        return Inertia::render('dashboard', ['items' => DashboardItems::collect()]);
     })->name('dashboard');
 
     // Generic sharing management for any registered shareable entity ({type}/{id}). Owner-only,
