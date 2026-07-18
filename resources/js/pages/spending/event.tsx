@@ -224,7 +224,7 @@ export default function Event({
                                 </div>
                             </div>
                             <div
-                                className={`text-sm font-semibold ${b.net > 0 ? 'text-primary' : b.net < 0 ? 'text-[var(--warning)]' : 'text-muted-foreground'}`}
+                                className={`font-mono text-sm font-semibold tabular-nums ${b.net > 0 ? 'text-primary' : b.net < 0 ? 'text-[var(--warning)]' : 'text-muted-foreground'}`}
                             >
                                 {b.net > 0 ? '+' : ''}
                                 {fmt(b.net)}
@@ -243,7 +243,7 @@ export default function Event({
                                     <span className="text-primary font-medium">{s.from.name}</span>
                                     <span className="text-muted-foreground"> pays </span>
                                     <span className="text-primary font-medium">{s.to.name}</span>
-                                    <span className="text-primary ml-2 font-semibold">{fmt(s.amount)}</span>
+                                    <span className="text-primary ml-2 font-mono font-semibold tabular-nums">{fmt(s.amount)}</span>
                                 </div>
                                 <Button size="sm" variant="outline" onClick={() => markPaid(s)}>
                                     <Check className="size-4" /> Mark paid
@@ -404,7 +404,7 @@ export default function Event({
                         <div key={group.date} className="flex flex-col gap-2">
                             <div className="flex items-center justify-between px-1">
                                 <span className="text-text-secondary text-sm font-medium">{dayLabel(group.date)}</span>
-                                <span className="text-muted-foreground text-sm">{fmt(group.total)}</span>
+                                <span className="text-muted-foreground font-mono text-sm tabular-nums">{fmt(group.total)}</span>
                             </div>
                             {group.spends.map((s) => (
                                 // Tapping the row edits the spend; the receipt thumbnail and the kebab
@@ -448,8 +448,12 @@ export default function Event({
                                     </div>
                                     <div className="flex items-center gap-1">
                                         <div className="text-right">
-                                            <div className="text-primary text-sm font-semibold">{money(s.amount, s.currency)}</div>
-                                            {s.currency !== display && <div className="text-muted-foreground text-xs">{fmt(s.base_amount)}</div>}
+                                            <div className="text-primary font-mono text-sm font-semibold tabular-nums">
+                                                {money(s.amount, s.currency)}
+                                            </div>
+                                            {s.currency !== display && (
+                                                <div className="text-muted-foreground font-mono text-xs tabular-nums">{fmt(s.base_amount)}</div>
+                                            )}
                                         </div>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
