@@ -91,6 +91,16 @@ class SpendingController extends Controller
         return Inertia::render('spending/event', $this->eventPayload($event));
     }
 
+    public function updateEvent(Request $request, int $event): RedirectResponse
+    {
+        $event = $this->event($event);
+        abort_unless($this->access->canEdit($request->user(), $event), 403);
+        $event->update($request->validate(['name' => ['required', 'string', 'max:255']]));
+        Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
+
+        return back();
+    }
+
     public function stats(Request $request, int $event): Response
     {
         $event = $this->event($event);

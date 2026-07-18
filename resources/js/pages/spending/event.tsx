@@ -92,6 +92,20 @@ export default function Event({
     const [display, setDisplay] = useState(event.currency);
     const fmt = (baseCents: number) => money(Math.round(baseCents * (event.rates[display] ?? 1)), display);
 
+    // Inline title editing. `title` mirrors the server value (optimistic on save, re-synced on reload).
+    const [editingTitle, setEditingTitle] = useState(false);
+    const [title, setTitle] = useState(event.name);
+    useEffect(() => setTitle(event.name), [event.name]);
+    const saveTitle = () => {
+        const name = title.trim();
+        setEditingTitle(false);
+        if (name && name !== event.name) {
+            router.patch(route('spending.events.update', event.id), { name }, { preserveScroll: true });
+        } else {
+            setTitle(event.name); // ignore an empty or unchanged rename
+        }
+    };
+
     // Spends arrive newest-first, so a sequential pass groups them into contiguous days.
     const dayGroups = spends.reduce<{ date: string; spends: Spend[]; total: number }[]>((groups, s) => {
         const last = groups[groups.length - 1];
@@ -195,6 +209,35 @@ export default function Event({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={event.name} />
             <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
+                {/* Editable event title — tap it (or the pen) to rename. */}
+                {editingTitle ? (
+                    <input
+                        autoFocus
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        onBlur={saveTitle}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveTitle();
+                            if (e.key === 'Escape') {
+                                setTitle(event.name);
+                                setEditingTitle(false);
+                            }
+                        }}
+                        aria-label="Event title"
+                        className="font-heading text-primary border-border focus:border-accent w-full rounded-lg border bg-transparent px-1 text-2xl outline-none"
+                    />
+                ) : (
+                    <button
+                        type="button"
+                        onClick={() => setEditingTitle(true)}
+                        className="group -mb-1 flex items-center gap-2 self-start text-left"
+                        aria-label="Rename event"
+                    >
+                        <h1 className="font-heading text-primary text-2xl">{title}</h1>
+                        <Pencil className="text-muted-foreground group-hover:text-primary size-4 transition-colors" />
+                    </button>
+                )}
+
                 {/* Total + display-currency selector */}
                 <div className="bg-surface-dark text-text-inverse rounded-2xl p-5">
                     <div className="flex items-start justify-between">
