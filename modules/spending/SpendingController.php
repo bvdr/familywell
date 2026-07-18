@@ -91,6 +91,59 @@ class SpendingController extends Controller
         return Inertia::render('spending/event', $this->eventPayload($event));
     }
 
+    public function stats(Request $request, int $event): Response
+    {
+        $event = $this->event($event);
+        abort_unless($this->access->canView($request->user(), $event), 403);
+
+        // All figures in the event's base currency (cents). base_amount is frozen at capture.
+        $spends = $event->spends()->with('payer:id,name')->get();
+        $members = $event->members()->get(['users.id', 'name']);
+        $total = (int) $spends->sum('base_amount');
+        $pct = fn (int $amount) => $total ? round($amount / $total * 100) : 0;
+
+        $byCategory = $spends->groupBy('category')
+            ->map(fn ($g, $cat) => ['key' => $cat, 'amount' => (int) $g->sum('base_amount')])
+            ->sortByDesc('amount')->values()
+            ->map(fn ($r) => [...$r, 'pct' => $pct($r['amount'])]);
+
+        $byPayer = $spends->groupBy('payer_id')
+            ->map(fn ($g, $pid) => [
+                'id' => (int) $pid,
+                'name' => $members->firstWhere('id', (int) $pid)?->name ?? ($g->first()->payer?->name ?? '?'),
+                'amount' => (int) $g->sum('base_amount'),
+            ])->sortByDesc('amount')->values()
+            ->map(fn ($r) => [...$r, 'pct' => $pct($r['amount'])]);
+
+        // Daily totals in chronological order, with a running cumulative for the trend curve.
+        $running = 0;
+        $overTime = $spends->groupBy(fn (Spend $s) => $s->spent_at->toDateString())
+            ->map(fn ($g) => (int) $g->sum('base_amount'))
+            ->sortKeys()
+            ->map(function (int $amount, string $date) use (&$running) {
+                $running += $amount;
+
+                return ['date' => $date, 'amount' => $amount, 'cumulative' => $running];
+            })->values();
+
+        $biggest = $spends->sortByDesc('base_amount')->first();
+
+        return Inertia::render('spending/stats', [
+            'event' => ['id' => $event->id, 'name' => $event->name, 'currency' => $event->currency, 'total' => $total],
+            'byCategory' => $byCategory,
+            'byPayer' => $byPayer,
+            'overTime' => $overTime,
+            'facts' => [
+                'count' => $spends->count(),
+                'average' => $spends->count() ? (int) round($total / $spends->count()) : 0,
+                'biggest' => $biggest ? ['amount' => (int) $biggest->base_amount, 'label' => $biggest->note ?: ucfirst($biggest->category)] : null,
+                'days' => $overTime->count(),
+                'people' => $members->count(),
+                'perPerson' => $members->count() ? (int) round($total / $members->count()) : 0,
+            ],
+        ]);
+    }
+
     public function storeSpend(Request $request, int $event): RedirectResponse
     {
         $event = $this->event($event);
