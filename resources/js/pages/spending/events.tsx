@@ -1,4 +1,4 @@
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { Plus, Wallet } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
@@ -104,9 +104,10 @@ export default function Events({ events, currencies }: { events: Event[]; curren
 
                 <div className="flex flex-col gap-3">
                     {events.map((ev) => (
-                        <button
+                        <Link
                             key={ev.id}
-                            onClick={() => router.visit(route('spending.show', ev.id))}
+                            href={route('spending.show', ev.id)}
+                            prefetch
                             className="bg-surface-card hover:border-accent flex items-center justify-between rounded-xl border p-4 text-left transition-colors"
                         >
                             <div className="flex items-center gap-3">
@@ -119,7 +120,7 @@ export default function Events({ events, currencies }: { events: Event[]; curren
                                 </div>
                             </div>
                             <Avatars members={ev.members} />
-                        </button>
+                        </Link>
                     ))}
                 </div>
             </div>

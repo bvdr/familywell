@@ -26,7 +26,7 @@ const todayLabel = new Date().toLocaleDateString(undefined, { weekday: 'long', m
 // Side-rail shortcut into a family area. Solid-green icon well, DS card treatment.
 function Shortcut({ href, icon: Icon, title, sub }: { href: string; icon: typeof Wallet; title: string; sub: string }) {
     return (
-        <Link href={href} className="bg-surface-card hover:border-accent flex items-center gap-3 rounded-xl border p-3 transition-colors">
+        <Link href={href} prefetch className="bg-surface-card hover:border-accent flex items-center gap-3 rounded-xl border p-3 transition-colors">
             <span className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-lg">
                 <Icon className="size-4.5" />
             </span>
@@ -84,6 +84,7 @@ export default function Dashboard({ items = [] }: { items?: DashItem[] }) {
                                     <Link
                                         key={it.href}
                                         href={it.href}
+                                        prefetch
                                         className="bg-surface-card hover:border-accent flex items-center gap-3 rounded-xl border p-3 transition-colors"
                                     >
                                         <span className="bg-primary text-primary-foreground flex size-10 shrink-0 items-center justify-center rounded-lg">
