@@ -5,16 +5,15 @@ import { Head } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 
 type Cat = { key: string; amount: number; pct: number };
-type Payer = { id: number; name: string; amount: number; pct: number };
 type Point = { date: string; amount: number; cumulative: number };
 type Props = {
     event: { id: number; name: string; currency: string; total: number };
     byCategory: Cat[];
-    byPayer: Payer[];
     overTime: Point[];
     facts: {
         count: number;
         average: number;
+        dailyAverage: number;
         biggest: { amount: number; label: string } | null;
         days: number;
         people: number;
@@ -85,7 +84,7 @@ function TrendCurve({ points, currency }: { points: Point[]; currency: string })
 
 function Fact({ label, value, sub, mono }: { label: string; value: string; sub?: string; mono?: boolean }) {
     return (
-        <div className="flex flex-col gap-1 px-4 py-4">
+        <div className="bg-surface-card flex flex-col gap-1 px-4 py-4">
             <span className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{label}</span>
             <span className={`text-primary text-lg font-semibold ${mono ? 'font-mono tabular-nums' : ''}`}>{value}</span>
             {sub && <span className="text-muted-foreground truncate text-xs">{sub}</span>}
@@ -93,7 +92,7 @@ function Fact({ label, value, sub, mono }: { label: string; value: string; sub?:
     );
 }
 
-export default function Stats({ event, byCategory, byPayer, overTime, facts }: Props) {
+export default function Stats({ event, byCategory, overTime, facts }: Props) {
     const [grown, setGrown] = useState(false);
     useEffect(() => {
         const t = setTimeout(() => setGrown(true), 60);
@@ -164,35 +163,16 @@ export default function Stats({ event, byCategory, byPayer, overTime, facts }: P
                     </div>
                 </section>
 
-                <div className="grid gap-8 lg:grid-cols-2">
-                    {/* Who paid */}
-                    <section className="flex flex-col gap-4">
-                        <h2 className="font-heading text-primary text-lg">Who paid</h2>
-                        <div className="flex flex-col gap-4">
-                            {byPayer.map((p) => (
-                                <div key={p.id} className="flex flex-col gap-1.5">
-                                    <div className="flex items-baseline justify-between gap-3">
-                                        <span className="text-primary text-sm font-medium">{p.name}</span>
-                                        <span className="text-text-secondary font-mono text-sm tabular-nums">
-                                            {fmt(p.amount)} <span className="text-muted-foreground">· {p.pct}%</span>
-                                        </span>
-                                    </div>
-                                    <Bar pct={p.pct} color="var(--primary)" grown={grown} />
-                                </div>
-                            ))}
-                        </div>
-                    </section>
+                {/* Over the trip */}
+                <section className="flex flex-col gap-4">
+                    <h2 className="font-heading text-primary text-lg">Over the trip</h2>
+                    <TrendCurve points={overTime} currency={event.currency} />
+                </section>
 
-                    {/* Over the trip */}
-                    <section className="flex flex-col gap-4">
-                        <h2 className="font-heading text-primary text-lg">Over the trip</h2>
-                        <TrendCurve points={overTime} currency={event.currency} />
-                    </section>
-                </div>
-
-                {/* Quick facts — one panel, hairline-separated, not a card grid. */}
-                <section className="bg-surface-card divide-border grid grid-cols-1 divide-y rounded-2xl border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+                {/* Quick facts — one panel, hairline-separated via a 1px gap over the border color. */}
+                <section className="bg-border grid grid-cols-2 gap-px overflow-hidden rounded-2xl border sm:grid-cols-4">
                     <Fact label="Average spend" value={fmt(facts.average)} mono />
+                    <Fact label="Daily average" value={fmt(facts.dailyAverage)} mono />
                     {facts.biggest && <Fact label="Biggest spend" value={fmt(facts.biggest.amount)} sub={facts.biggest.label} mono />}
                     {top && <Fact label="Top category" value={catMeta(top.key).label} sub={`${top.pct}% of spend`} />}
                 </section>

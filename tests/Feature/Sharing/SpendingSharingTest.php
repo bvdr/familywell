@@ -103,7 +103,7 @@ it('renders event stats for someone who can view and 403s those who cannot', fun
 
     actingAs($u[1])->get("/m/spending/events/{$event->id}/stats")
         ->assertOk()
-        ->assertInertia(fn ($p) => $p->component('spending/stats')->has('byCategory')->has('byPayer')->has('facts'));
+        ->assertInertia(fn ($p) => $p->component('spending/stats')->has('byCategory')->has('overTime')->has('facts'));
 
     $event->setVisibility('private');
     actingAs($u[1])->get("/m/spending/events/{$event->id}/stats")->assertForbidden();
