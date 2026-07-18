@@ -147,9 +147,7 @@ class SpendingController extends Controller
             'created_by' => $request->user()->id,
         ]);
 
-        if ($request->hasFile('receipt')) {
-            $spend->update(['receipt_path' => $this->storeReceipt($request)]);
-        }
+        $this->attachReceipts($request, $spend);
 
         Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
 
@@ -166,31 +164,23 @@ class SpendingController extends Controller
         // Re-freeze the conversion, since amount/currency/date may have changed.
         $spend->update($this->spendAttributes($data, $event));
 
-        if ($request->hasFile('receipt')) {
-            $old = $spend->receipt_path;
-            $spend->update(['receipt_path' => $this->storeReceipt($request)]);
-            if ($old) {
-                Storage::disk('r2')->delete($old);
-            }
-        } elseif ($request->boolean('remove_receipt') && $spend->receipt_path) {
-            // No replacement uploaded, just clearing the existing one.
-            Storage::disk('r2')->delete($spend->receipt_path);
-            $spend->update(['receipt_path' => null]);
-        }
+        $this->removeReceipts($request, $spend);
+        $this->attachReceipts($request, $spend);
 
         Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
 
         return back();
     }
 
-    // Streams a spend's receipt from private R2. Family-scoped resolve keeps it to this family only.
-    public function receipt(int $spend): StreamedResponse
+    // Streams one receipt photo from private R2. Resolving the parent spend applies the family scope;
+    // the sharing check limits it to people who can view the event.
+    public function receiptFile(int $receipt): StreamedResponse
     {
-        $spend = Spend::findOrFail($spend);
+        $receipt = SpendReceipt::findOrFail($receipt);
+        $spend = Spend::findOrFail($receipt->spend_id);
         abort_unless($this->access->canView(request()->user(), $this->event($spend->spend_event_id)), 403);
-        abort_unless($spend->receipt_path, 404);
 
-        return Storage::disk('r2')->response($spend->receipt_path);
+        return Storage::disk('r2')->response($receipt->path);
     }
 
     public function duplicateSpend(int $spend): RedirectResponse
@@ -235,8 +225,12 @@ class SpendingController extends Controller
         // another family 404s here instead of leaking.
         $spend = Spend::findOrFail($spend);
         abort_unless($this->access->canEdit(request()->user(), $this->event($spend->spend_event_id)), 403);
+        // Remove each receipt's R2 object; the rows cascade-delete with the spend.
+        foreach ($spend->receipts as $r) {
+            Storage::disk('r2')->delete($r->path);
+        }
         if ($spend->receipt_path) {
-            Storage::disk('r2')->delete($spend->receipt_path);
+            Storage::disk('r2')->delete($spend->receipt_path); // legacy single receipt, if present
         }
         $spend->delete();
         Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
@@ -244,10 +238,25 @@ class SpendingController extends Controller
         return back();
     }
 
-    // Store an uploaded receipt in private R2 under the family's namespace; returns the object key.
-    private function storeReceipt(Request $request): string
+    // Store any newly uploaded receipt photos (receipts[]) in private R2 as their own rows.
+    private function attachReceipts(Request $request, Spend $spend): void
     {
-        return $request->file('receipt')->store('receipts/'.CurrentFamily::id(), 'r2');
+        foreach ((array) $request->file('receipts', []) as $file) {
+            $spend->receipts()->create(['path' => $file->store('receipts/'.CurrentFamily::id(), 'r2')]);
+        }
+    }
+
+    // Delete the receipts whose ids the client listed (remove_receipt_ids[]), including their R2 objects.
+    private function removeReceipts(Request $request, Spend $spend): void
+    {
+        $ids = array_filter((array) $request->input('remove_receipt_ids', []));
+        if (! $ids) {
+            return;
+        }
+        foreach ($spend->receipts()->whereIn('id', $ids)->get() as $r) {
+            Storage::disk('r2')->delete($r->path);
+            $r->delete();
+        }
     }
 
     // Tenant-scoped lookup. Implicit route-model binding runs before SetActiveFamily sets the family
@@ -269,8 +278,10 @@ class SpendingController extends Controller
             'payer_id' => ['required', 'integer', 'in:'.implode(',', $memberIds)],
             'note' => ['nullable', 'string', 'max:255'],
             'spent_at' => ['required', 'date'],
-            'receipt' => ['nullable', 'image', 'max:12288'], // up to 12 MB (PHP allows 16M, see Dockerfile)
-            'remove_receipt' => ['nullable', 'boolean'], // clear an existing receipt without replacing it
+            'receipts' => ['nullable', 'array', 'max:10'], // up to 10 photos per spend
+            'receipts.*' => ['image', 'max:12288'], // up to 12 MB each (PHP allows 16M, see Dockerfile)
+            'remove_receipt_ids' => ['nullable', 'array'], // ids of existing receipts to detach (on edit)
+            'remove_receipt_ids.*' => ['integer'],
         ]);
     }
 
@@ -315,7 +326,7 @@ class SpendingController extends Controller
         })->values();
         $link = $event->shareLinks()->first();
 
-        $spends = $event->spends()->with('payer:id,name')->latest('spent_at')->latest('id')->get();
+        $spends = $event->spends()->with(['payer:id,name', 'receipts:id,spend_id'])->latest('spent_at')->latest('id')->get();
         $settlements = $event->settlements()->get();
 
         // Balances are computed in the event's base currency, so they use base_amount (each spend
@@ -351,7 +362,10 @@ class SpendingController extends Controller
                 'base_amount' => $s->base_amount, // converted to the event currency
                 'category' => $s->category,
                 'note' => $s->note,
-                'receipt_url' => $s->receipt_path ? route('spending.spends.receipt', $s->id) : null,
+                'receipts' => $s->receipts->map(fn (SpendReceipt $r) => [
+                    'id' => $r->id,
+                    'url' => route('spending.receipts.show', $r->id),
+                ])->values(),
                 'payer' => ['id' => $s->payer_id, 'name' => $s->payer?->name],
                 'spent_at' => $s->spent_at->toDateString(),
             ])->values(),
