@@ -23,8 +23,11 @@ class FamilyModuleController extends Controller
                 'enabled' => $registry->isEnabled($m->id, $family->id),
             ])->values();
 
+        // Note: keyed as `catalog`, not `modules`. `modules` is a globally shared Inertia prop
+        // (HandleInertiaRequests => {enabled: [...]}) that the nav reads to show module links; a
+        // page prop of the same name would shadow it and drop those links on this page.
         return Inertia::render('family/modules', [
-            'modules' => $modules,
+            'catalog' => $modules,
             'canManage' => Gate::allows('manageModules', $family),
         ]);
     }
