@@ -1,5 +1,5 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { Check, Copy, MoreVertical, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Check, Copy, MoreVertical, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { FormEventHandler, useEffect, useState } from 'react';
 
 import InputError from '@/components/input-error';
