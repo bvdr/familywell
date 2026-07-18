@@ -6,6 +6,8 @@ use App\Http\Controllers\FamilyMemberController;
 use App\Http\Controllers\FamilyModuleController;
 use App\Http\Controllers\ModuleAssetController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\PublicShareController;
+use App\Http\Controllers\ShareController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -30,11 +32,23 @@ Route::middleware(['auth'])->group(function () {
     Route::post('invite/{token}', [FamilyInviteController::class, 'accept'])->name('invite.accept');
 });
 
+// Public read-only view of a shared entity via its invite-link token. No auth by design; the token
+// is a 48-char unguessable secret. Throttled since it's unauthenticated (enumeration / abuse guard).
+Route::get('/e/{token}', [PublicShareController::class, 'show'])->middleware('throttle:120,1')->name('share.public');
+
 // The app proper: requires both auth and a family.
 Route::middleware(['auth', 'family'])->group(function () {
     Route::get('dashboard', function () {
         return Inertia::render('dashboard');
     })->name('dashboard');
+
+    // Generic sharing management for any registered shareable entity ({type}/{id}). Owner-only,
+    // enforced in the controller.
+    Route::patch('/shares/{type}/{id}/visibility', [ShareController::class, 'visibility'])->name('shares.visibility');
+    Route::put('/shares/{type}/{id}/members/{user}', [ShareController::class, 'putMember'])->name('shares.members.put');
+    Route::delete('/shares/{type}/{id}/members/{user}', [ShareController::class, 'removeMember'])->name('shares.members.remove');
+    Route::post('/shares/{type}/{id}/link', [ShareController::class, 'createLink'])->name('shares.link.create');
+    Route::delete('/shares/{type}/{id}/link/{link}', [ShareController::class, 'deleteLink'])->name('shares.link.delete');
 
     Route::get('/family/members', [FamilyMemberController::class, 'index'])->name('family.members.index');
     Route::delete('/family/members/{user}', [FamilyMemberController::class, 'destroy'])->name('family.members.destroy');
