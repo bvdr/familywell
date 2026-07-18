@@ -30,6 +30,7 @@ export function MobileTabBar() {
                         <Link
                             key={item.url}
                             href={item.url}
+                            prefetch
                             className={`flex flex-1 flex-col items-center gap-0.5 rounded-full py-1.5 text-[10px] font-medium transition-colors ${
                                 // --accent is the pale hover-green in this app; the forest green is --primary.
                                 active ? 'bg-accent-subtle text-primary font-semibold' : 'text-text-muted'
