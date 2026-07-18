@@ -23,7 +23,7 @@ function Avatars({ members }: { members: Member[] }) {
                 <span
                     key={m.id}
                     title={m.name}
-                    className="bg-accent text-text-inverse ring-background flex size-7 items-center justify-center rounded-full text-xs font-medium ring-2"
+                    className="bg-primary text-primary-foreground ring-background flex size-7 items-center justify-center rounded-full text-xs font-medium ring-2"
                 >
                     {m.name.charAt(0).toUpperCase()}
                 </span>
@@ -110,7 +110,7 @@ export default function Events({ events, currencies }: { events: Event[]; curren
                             className="bg-surface-card hover:border-accent flex items-center justify-between rounded-xl border p-4 text-left transition-colors"
                         >
                             <div className="flex items-center gap-3">
-                                <span className="bg-accent-subtle text-accent flex size-10 items-center justify-center rounded-lg">
+                                <span className="bg-accent-subtle text-primary flex size-10 items-center justify-center rounded-lg">
                                     <Wallet className="size-5" />
                                 </span>
                                 <div>
