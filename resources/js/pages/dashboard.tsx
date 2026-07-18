@@ -2,9 +2,16 @@ import AppLayout from '@/layouts/app-layout';
 import { Slot } from '@/lib/modules';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { Blocks, Plus, UserPlus, Users, Wallet } from 'lucide-react';
+import { Blocks, type LucideIcon, Plus, UserPlus, Users, Wallet } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' }];
+
+// A concrete entity a module surfaces on the dashboard (a spend event, later a list, etc.).
+type DashItem = { title: string; subtitle: string; href: string; icon: string };
+
+// Map a provider's icon key to a lucide icon; fall back to a neutral one.
+const ICONS: Record<string, LucideIcon> = { wallet: Wallet };
+const iconFor = (key: string) => ICONS[key] ?? Blocks;
 
 // Time-of-day greeting, resolved on the client so it matches the viewer's clock.
 function greeting() {
@@ -31,7 +38,7 @@ function Shortcut({ href, icon: Icon, title, sub }: { href: string; icon: typeof
     );
 }
 
-export default function Dashboard() {
+export default function Dashboard({ items = [] }: { items?: DashItem[] }) {
     const { auth, modules } = usePage<SharedData & { modules?: { enabled?: string[] } }>().props;
     const firstName = auth.user.name.split(' ')[0];
     const spendingOn = (modules?.enabled ?? []).includes('spending');
@@ -66,6 +73,32 @@ export default function Dashboard() {
                         )}
                     </div>
                 </div>
+
+                {items.length > 0 && (
+                    <section className="flex flex-col gap-3">
+                        <h2 className="font-heading text-primary px-1 text-lg">Pick up where you left off</h2>
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            {items.map((it) => {
+                                const Icon = iconFor(it.icon);
+                                return (
+                                    <Link
+                                        key={it.href}
+                                        href={it.href}
+                                        className="bg-surface-card hover:border-accent flex items-center gap-3 rounded-xl border p-3 transition-colors"
+                                    >
+                                        <span className="bg-primary text-primary-foreground flex size-10 shrink-0 items-center justify-center rounded-lg">
+                                            <Icon className="size-5" />
+                                        </span>
+                                        <span className="min-w-0">
+                                            <span className="text-primary block truncate font-medium">{it.title}</span>
+                                            <span className="text-muted-foreground block truncate font-mono text-sm tabular-nums">{it.subtitle}</span>
+                                        </span>
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    </section>
+                )}
 
                 <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
                     <div className="grid auto-rows-min gap-4 sm:grid-cols-2">
