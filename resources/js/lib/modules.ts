@@ -15,12 +15,15 @@ function subscribe(l: () => void): () => void {
     return () => listeners.delete(l);
 }
 
-export function Slot({ name }: { name: string }) {
+export function Slot({ name, fallback }: { name: string; fallback?: React.ReactNode }) {
     const comps = React.useSyncExternalStore(
         subscribe,
         () => slots.get(name) ?? EMPTY,
         () => slots.get(name) ?? EMPTY,
     );
+    // No module has registered anything here (e.g. a family with no widget modules enabled):
+    // render the caller's fallback so the surface isn't just an empty void.
+    if (comps.length === 0) return fallback ?? null;
     return React.createElement(
         React.Fragment,
         null,
