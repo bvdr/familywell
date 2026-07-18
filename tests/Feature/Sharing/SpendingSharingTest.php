@@ -96,6 +96,19 @@ it('404s an unknown or revoked link token', function () {
     get('/e/does-not-exist')->assertNotFound();
 });
 
+it('renders event stats for someone who can view and 403s those who cannot', function () {
+    [, $u] = sharingFamily();
+    $event = makeEvent($u[0]);
+    actingAs($u[0])->post("/m/spending/events/{$event->id}/spends", validSpend($u[0]))->assertRedirect();
+
+    actingAs($u[1])->get("/m/spending/events/{$event->id}/stats")
+        ->assertOk()
+        ->assertInertia(fn ($p) => $p->component('spending/stats')->has('byCategory')->has('byPayer')->has('facts'));
+
+    $event->setVisibility('private');
+    actingAs($u[1])->get("/m/spending/events/{$event->id}/stats")->assertForbidden();
+});
+
 it('surfaces accessible spend events as dashboard items and hides private ones', function () {
     [, $u] = sharingFamily();
     $event = makeEvent($u[0]);
