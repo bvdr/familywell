@@ -1,3 +1,4 @@
+import { AddToHomeScreenHint } from '@/components/add-to-home-screen-hint';
 import { AppContent } from '@/components/app-content';
 import { AppShell } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
@@ -15,6 +16,7 @@ export default function AppSidebarLayout({ children, breadcrumbs = [] }: { child
                 <div className="pb-24 md:pb-0">{children}</div>
             </AppContent>
             <MobileTabBar />
+            <AddToHomeScreenHint />
         </AppShell>
     );
 }
