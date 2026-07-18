@@ -12,8 +12,9 @@ export default function AppSidebarLayout({ children, breadcrumbs = [] }: { child
             <AppSidebar />
             <AppContent variant="sidebar">
                 <AppSidebarHeader breadcrumbs={breadcrumbs} />
-                {/* pb keeps content clear of the floating mobile tab bar (~56px + safe area). */}
-                <div className="pb-24 md:pb-0">{children}</div>
+                {/* Clear the floating tab bar: its pill height plus the same safe-area inset the bar
+                    itself uses, so the last row never hides under it on notched phones. */}
+                <div className="pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0">{children}</div>
             </AppContent>
             <MobileTabBar />
             <AddToHomeScreenHint />
