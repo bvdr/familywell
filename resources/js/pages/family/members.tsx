@@ -30,7 +30,7 @@ function RoleBadge({ role }: { role: string }) {
     return (
         <span
             className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${
-                admin ? 'bg-accent-subtle text-accent' : 'bg-surface text-text-secondary'
+                admin ? 'bg-accent-subtle text-primary' : 'bg-surface text-text-secondary'
             }`}
         >
             {role}
@@ -223,7 +223,7 @@ export default function Members({ family, members, invitations, canManage, palet
                                         <TableRow key={m.id}>
                                             <TableCell>
                                                 <div className="flex items-center gap-3">
-                                                    <span className="bg-accent text-text-inverse flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-medium">
+                                                    <span className="bg-primary text-primary-foreground flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-medium">
                                                         {m.name.charAt(0).toUpperCase()}
                                                     </span>
                                                     <div>
