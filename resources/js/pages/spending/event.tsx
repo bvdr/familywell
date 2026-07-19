@@ -456,15 +456,16 @@ export default function Event({
                         <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
                             <div className="grid gap-2">
                                 <Label htmlFor="amount">Amount</Label>
+                                {/* type=text (not number) so iOS honours inputMode=decimal and shows the real
+                                    decimal pad. In comma-locales the separator key is a comma, so we normalise
+                                    it to a dot (and strip stray chars) since the backend wants a plain number. */}
                                 <Input
                                     id="amount"
                                     ref={amountRef}
-                                    type="number"
+                                    type="text"
                                     inputMode="decimal"
-                                    step="0.01"
-                                    min="0"
                                     value={form.data.amount}
-                                    onChange={(e) => form.setData('amount', e.target.value)}
+                                    onChange={(e) => form.setData('amount', e.target.value.replace(/,/g, '.').replace(/[^\d.]/g, ''))}
                                     placeholder="0.00"
                                 />
                                 <InputError message={form.errors.amount} />
