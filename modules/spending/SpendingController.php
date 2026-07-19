@@ -119,7 +119,7 @@ class SpendingController extends Controller
         abort_unless($this->access->canView($request->user(), $event), 403);
 
         // All figures in the event's base currency (cents). base_amount is frozen at capture.
-        $spends = $event->spends()->with('payer:id,name')->get();
+        $spends = $event->spends()->with(['payer:id,name', 'source:id,name,type'])->get();
         $members = $event->members()->get(['users.id', 'name']);
         $total = (int) $spends->sum('base_amount');
         $pct = fn (int $amount) => $total ? round($amount / $total * 100) : 0;
@@ -140,11 +140,23 @@ class SpendingController extends Controller
                 return ['date' => $date, 'amount' => $amount, 'cumulative' => $running];
             })->values();
 
+        // Split by how each spend was paid; spends without a source fall into a "Not specified" bucket.
+        $bySource = $spends->groupBy(fn (Spend $s) => $s->source_id ?? 'none')
+            ->map(fn ($g) => [
+                'key' => (string) ($g->first()->source_id ?? 'none'),
+                'label' => $g->first()->source?->name ?? 'Not specified',
+                'type' => $g->first()->source?->type ?? 'none',
+                'amount' => (int) $g->sum('base_amount'),
+            ])
+            ->sortByDesc('amount')->values()
+            ->map(fn ($r) => [...$r, 'pct' => $pct($r['amount'])]);
+
         $biggest = $spends->sortByDesc('base_amount')->first();
 
         return Inertia::render('spending/stats', [
             'event' => ['id' => $event->id, 'name' => $event->name, 'currency' => $event->currency, 'total' => $total],
             'byCategory' => $byCategory,
+            'bySource' => $bySource,
             'overTime' => $overTime,
             'facts' => [
                 'count' => $spends->count(),
