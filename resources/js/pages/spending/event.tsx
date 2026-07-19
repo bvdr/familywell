@@ -436,9 +436,19 @@ export default function Event({
                 )}
 
                 {/* Add / edit spend */}
-                {adding ? (
-                    <form onSubmit={submitSpend} className="bg-surface-card flex flex-col gap-3 rounded-xl border p-4">
-                        <div className="text-primary text-sm font-medium">{editing ? 'Edit spend' : 'New spend'}</div>
+                <Button onClick={startAdd} className="w-full">
+                    <Plus className="size-4" /> Add spend
+                </Button>
+
+                {/* Add / edit a spend in a bottom drawer on mobile, a centered overlay on desktop.
+                    Closing the drawer cancels. */}
+                <ResponsiveModal
+                    open={adding}
+                    onOpenChange={(o) => !o && closeForm()}
+                    title={editing ? 'Edit spend' : 'New spend'}
+                    className="sm:max-w-lg"
+                >
+                    <form onSubmit={submitSpend} className="flex flex-col gap-3">
                         <div className="grid grid-cols-[1fr_auto] gap-3">
                             <div className="grid gap-2">
                                 <Label htmlFor="amount">Amount</Label>
@@ -607,20 +617,11 @@ export default function Event({
                             {form.progress && <progress value={form.progress.percentage} max="100" className="h-1 w-full" />}
                             <InputError message={form.errors.receipts} />
                         </div>
-                        <div className="flex gap-2">
-                            <Button type="submit" disabled={form.processing}>
-                                {editing ? 'Save changes' : 'Add spend'}
-                            </Button>
-                            <Button type="button" variant="ghost" onClick={closeForm}>
-                                Cancel
-                            </Button>
-                        </div>
+                        <Button type="submit" disabled={form.processing} className="mt-1 w-full">
+                            Save
+                        </Button>
                     </form>
-                ) : (
-                    <Button onClick={startAdd} className="w-full">
-                        <Plus className="size-4" /> Add spend
-                    </Button>
-                )}
+                </ResponsiveModal>
 
                 {/* Spend log — grouped by day, newest first, with a per-day subtotal */}
                 <section className="flex flex-col gap-4">
