@@ -1,5 +1,21 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { BarChart3, Check, ChevronLeft, ChevronRight, Copy, MoreVertical, Pencil, Plus, Trash2, UserPlus, X } from 'lucide-react';
+import {
+    Banknote,
+    BarChart3,
+    Check,
+    ChevronLeft,
+    ChevronRight,
+    Copy,
+    CreditCard,
+    Landmark,
+    MoreVertical,
+    Pencil,
+    Plus,
+    Trash2,
+    UserPlus,
+    Wallet,
+    X,
+} from 'lucide-react';
 import { FormEventHandler, useEffect, useState } from 'react';
 
 import InputError from '@/components/input-error';
@@ -9,6 +25,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { compressImage } from '@/lib/compress-image';
@@ -39,7 +56,12 @@ type Spend = {
     spent_at: string;
 };
 type Source = { id: number; name: string; type: string };
-const SOURCE_TYPES = ['cash', 'card', 'bank', 'other'];
+const SOURCE_TYPE_META = [
+    { key: 'cash', label: 'Cash', icon: Banknote },
+    { key: 'card', label: 'Card', icon: CreditCard },
+    { key: 'bank', label: 'Bank', icon: Landmark },
+    { key: 'other', label: 'Other', icon: Wallet },
+] as const;
 type Balance = { user_id: number; name: string; net: number };
 type Suggestion = { from: { id: number; name: string }; to: { id: number; name: string }; amount: number };
 
@@ -160,19 +182,22 @@ export default function Event({
 
     // Inline "paid with" source creation. New sources appear in `sources` after the create reloads;
     // we then auto-select the freshest one.
-    const [addingSource, setAddingSource] = useState(false);
+    const [sourceModalOpen, setSourceModalOpen] = useState(false);
     const [newSource, setNewSource] = useState<{ name: string; type: string }>({ name: '', type: 'card' });
+    const [savingSource, setSavingSource] = useState(false);
     const [justAddedSource, setJustAddedSource] = useState(false);
     const createSource = () => {
         if (!newSource.name.trim()) return;
+        setSavingSource(true);
         router.post(route('spending.sources.store'), newSource, {
             preserveScroll: true,
             preserveState: true,
             onSuccess: () => {
                 setNewSource({ name: '', type: 'card' });
-                setAddingSource(false);
+                setSourceModalOpen(false);
                 setJustAddedSource(true);
             },
+            onFinish: () => setSavingSource(false),
         });
     };
     useEffect(() => {
@@ -307,6 +332,54 @@ export default function Event({
                 </div>
                 {share && <ShareSheet open={sharing} onOpenChange={setSharing} share={share} eventName={event.name} />}
 
+                {/* New payment source — bottom drawer on mobile, centered overlay on desktop. */}
+                <ResponsiveModal
+                    open={sourceModalOpen}
+                    onOpenChange={setSourceModalOpen}
+                    title="New payment source"
+                    description="A reusable way to record how a spend was paid."
+                >
+                    <div className="flex flex-col gap-4">
+                        <div className="grid gap-1.5">
+                            <Label htmlFor="source-name">Name</Label>
+                            <Input
+                                id="source-name"
+                                autoFocus
+                                value={newSource.name}
+                                onChange={(e) => setNewSource((s) => ({ ...s, name: e.target.value }))}
+                                onKeyDown={(e) => e.key === 'Enter' && createSource()}
+                                placeholder="Wise, cash Oana…"
+                            />
+                        </div>
+                        <div className="grid gap-1.5">
+                            <Label>Type</Label>
+                            <div className="grid grid-cols-4 gap-2">
+                                {SOURCE_TYPE_META.map((t) => {
+                                    const active = newSource.type === t.key;
+                                    return (
+                                        <button
+                                            key={t.key}
+                                            type="button"
+                                            onClick={() => setNewSource((s) => ({ ...s, type: t.key }))}
+                                            className={`flex flex-col items-center gap-1.5 rounded-xl border p-2.5 text-xs font-medium transition-colors ${
+                                                active
+                                                    ? 'border-primary bg-primary text-primary-foreground'
+                                                    : 'bg-surface-card text-text-secondary hover:border-accent'
+                                            }`}
+                                        >
+                                            <t.icon className="size-5" />
+                                            {t.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        <Button type="button" onClick={createSource} disabled={!newSource.name.trim() || savingSource} className="mt-1 w-full">
+                            {savingSource ? 'Adding…' : 'Add source'}
+                        </Button>
+                    </div>
+                </ResponsiveModal>
+
                 <Link
                     href={route('spending.stats', event.id)}
                     prefetch
@@ -434,7 +507,11 @@ export default function Event({
                             <Label>Paid with</Label>
                             <Select
                                 value={form.data.source_id ? String(form.data.source_id) : 'none'}
-                                onValueChange={(v) => form.setData('source_id', v === 'none' ? null : Number(v))}
+                                onValueChange={(v) => {
+                                    // The last item opens the new-source modal instead of selecting a value.
+                                    if (v === '__new__') setSourceModalOpen(true);
+                                    else form.setData('source_id', v === 'none' ? null : Number(v));
+                                }}
                             >
                                 <SelectTrigger className="w-full">
                                     <SelectValue />
@@ -443,55 +520,16 @@ export default function Event({
                                     <SelectItem value="none">Not specified</SelectItem>
                                     {sources.map((s) => (
                                         <SelectItem key={s.id} value={String(s.id)}>
-                                            {s.name} · {s.type}
+                                            {s.name} <span className="text-muted-foreground">· {s.type}</span>
                                         </SelectItem>
                                     ))}
+                                    <SelectItem value="__new__" className="text-primary font-medium">
+                                        <span className="flex items-center gap-1.5">
+                                            <Plus className="size-3.5" /> New source
+                                        </span>
+                                    </SelectItem>
                                 </SelectContent>
                             </Select>
-                            {addingSource ? (
-                                <div className="bg-surface flex flex-wrap items-end gap-2 rounded-lg border p-2">
-                                    <div className="grid flex-1 gap-1">
-                                        <Label htmlFor="source-name" className="text-xs">
-                                            Name
-                                        </Label>
-                                        <Input
-                                            id="source-name"
-                                            autoFocus
-                                            value={newSource.name}
-                                            onChange={(e) => setNewSource((s) => ({ ...s, name: e.target.value }))}
-                                            placeholder="Wise, cash Oana…"
-                                        />
-                                    </div>
-                                    <Select value={newSource.type} onValueChange={(v) => setNewSource((s) => ({ ...s, type: v }))}>
-                                        <SelectTrigger className="w-[110px] capitalize">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {SOURCE_TYPES.map((t) => (
-                                                <SelectItem key={t} value={t} className="capitalize">
-                                                    {t}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <div className="flex gap-1">
-                                        <Button type="button" size="sm" onClick={createSource} disabled={!newSource.name.trim()}>
-                                            Add
-                                        </Button>
-                                        <Button type="button" size="sm" variant="ghost" onClick={() => setAddingSource(false)}>
-                                            Cancel
-                                        </Button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <button
-                                    type="button"
-                                    onClick={() => setAddingSource(true)}
-                                    className="text-primary flex items-center gap-1 self-start text-sm font-medium"
-                                >
-                                    <Plus className="size-3.5" /> New source
-                                </button>
-                            )}
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="date">Date</Label>
