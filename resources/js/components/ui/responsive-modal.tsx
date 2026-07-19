@@ -17,19 +17,28 @@ function useIsStandalone() {
     return standalone;
 }
 
-// Height of the visible viewport (shrinks when the keyboard opens). Used to hard-cap the standalone
-// drawer so it always fits above the keyboard, even where dvh doesn't recompute.
-function useViewportHeight(active: boolean) {
-    const [h, setH] = React.useState<number | null>(null);
+// Pins the standalone drawer to the visible viewport. `bottom` lifts it onto the top edge of the
+// keyboard (the keyboard's height, whether iOS resizes the webview or overlays it — both are covered
+// because it's derived from visualViewport), and `maxHeight` caps it so it always fits above.
+function useDrawerViewport(active: boolean) {
+    const [box, setBox] = React.useState<{ maxHeight: number; bottom: number } | null>(null);
     React.useEffect(() => {
         const vv = window.visualViewport;
         if (!active || !vv) return;
-        const update = () => setH(vv.height);
+        const update = () =>
+            setBox({
+                maxHeight: vv.height - 8,
+                bottom: Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)),
+            });
         vv.addEventListener('resize', update);
+        vv.addEventListener('scroll', update);
         update();
-        return () => vv.removeEventListener('resize', update);
+        return () => {
+            vv.removeEventListener('resize', update);
+            vv.removeEventListener('scroll', update);
+        };
     }, [active]);
-    return h;
+    return box;
 }
 
 // One overlay, two shapes: a native-feeling bottom drawer on mobile (vaul — drag-to-dismiss, momentum,
@@ -53,7 +62,7 @@ export function ResponsiveModal({
 }) {
     const isMobile = useIsMobile();
     const isStandalone = useIsStandalone();
-    const vvHeight = useViewportHeight(isStandalone && open);
+    const box = useDrawerViewport(isStandalone && open);
 
     // Radix/vaul focus the content container by default, so no field is focused and iOS shows no keyboard.
     // Steering focus to a specific field during the open keeps it inside the user gesture, so the keyboard opens.
@@ -70,8 +79,9 @@ export function ResponsiveModal({
                 <DrawerContent
                     className={className}
                     onOpenAutoFocus={onOpenAutoFocus}
-                    // In a standalone PWA, hard-cap to the visible height so the keyboard never hides content.
-                    style={isStandalone && vvHeight ? { maxHeight: vvHeight - 8 } : undefined}
+                    // In a standalone PWA, sit on top of the keyboard and cap to the visible height so
+                    // nothing shows through below and the keyboard never hides content.
+                    style={box ? { maxHeight: box.maxHeight, bottom: box.bottom } : undefined}
                 >
                     {/* min-h-0 lets this region actually scroll inside the capped drawer (and lets vaul
                         tell a scroll from a dismiss drag). overflow-x-hidden keeps scrolling vertical-only.
