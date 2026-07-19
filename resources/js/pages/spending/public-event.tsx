@@ -44,19 +44,19 @@ export default function PublicEvent({ event, spends }: Props) {
                 <section className="flex flex-col gap-2">
                     <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Spends</h2>
                     {spends.map((s) => (
-                        <div key={s.id} className="bg-surface-card flex items-center justify-between rounded-xl border p-3">
-                            <div className="flex items-center gap-3">
-                                <span className="bg-accent-subtle flex size-9 items-center justify-center rounded-lg text-base">
+                        <div key={s.id} className="bg-surface-card flex items-center gap-3 rounded-xl border p-3">
+                            <div className="flex min-w-0 flex-1 items-center gap-3">
+                                <span className="bg-accent-subtle flex size-9 shrink-0 items-center justify-center rounded-lg text-base">
                                     {CATEGORY[s.category] ?? '•'}
                                 </span>
-                                <div>
-                                    <div className="text-primary text-sm font-medium">{s.note || s.category}</div>
-                                    <div className="text-muted-foreground text-xs capitalize">
-                                        {s.payer ?? 'Someone'} · {dayLabel(s.spent_at)}
+                                <div className="min-w-0 flex-1">
+                                    <div className="text-primary line-clamp-2 text-sm font-medium">{s.note || s.category}</div>
+                                    <div className="text-muted-foreground truncate text-xs capitalize">
+                                        {(s.payer ?? 'Someone').split(' ')[0]} · {dayLabel(s.spent_at)}
                                     </div>
                                 </div>
                             </div>
-                            <div className="text-right">
+                            <div className="shrink-0 text-right">
                                 <div className="text-primary font-mono text-sm font-semibold tabular-nums">{money(s.amount, s.currency)}</div>
                                 {s.currency !== event.currency && (
                                     <div className="text-muted-foreground font-mono text-xs tabular-nums">{money(s.base_amount, event.currency)}</div>
