@@ -640,9 +640,9 @@ export default function Event({
                                     tabIndex={0}
                                     onClick={() => startEdit(s)}
                                     onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && startEdit(s)}
-                                    className="bg-surface-card hover:border-accent/60 flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-colors"
+                                    className="bg-surface-card hover:border-accent/60 flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors"
                                 >
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex min-w-0 flex-1 items-center gap-3">
                                         {s.receipts.length > 0 ? (
                                             <button
                                                 type="button"
@@ -669,15 +669,15 @@ export default function Event({
                                                 {CATEGORY[s.category]}
                                             </span>
                                         )}
-                                        <div>
-                                            <div className="text-primary text-sm font-medium">{s.note || s.category}</div>
-                                            <div className="text-muted-foreground text-xs capitalize">
-                                                {s.payer.name} · {s.category}
+                                        <div className="min-w-0 flex-1">
+                                            <div className="text-primary line-clamp-2 text-sm font-medium">{s.note || s.category}</div>
+                                            <div className="text-muted-foreground truncate text-xs capitalize">
+                                                {s.payer.name.split(' ')[0]} · {s.category}
                                                 {s.source && <span className="normal-case"> · {s.source.name}</span>}
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-1">
+                                    <div className="flex shrink-0 items-center gap-1">
                                         <div className="text-right">
                                             <div className="text-primary font-mono text-sm font-semibold tabular-nums">
                                                 {money(s.amount, s.currency)}
