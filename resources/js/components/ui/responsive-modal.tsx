@@ -4,13 +4,8 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import * as React from 'react';
 
-// One overlay, two shapes: a native-feeling bottom drawer on mobile (vaul — drag-to-dismiss, momentum),
-// a centered dialog on desktop. Same title / description / body API.
-//
-// Keyboard handling is delegated to the platform: interactive-widget=resizes-content (see the viewport
-// meta) shrinks the layout viewport when the keyboard opens, so the bottom-anchored drawer and its
-// max-h-[94dvh] cap already sit flush above it. That means repositionInputs must stay off — otherwise
-// vaul would lift the drawer a second time and leave a gap.
+// One overlay, two shapes: a native-feeling bottom drawer on mobile (vaul — drag-to-dismiss, momentum,
+// keyboard-aware via its own repositionInputs), a centered dialog on desktop. Same title/description/body API.
 export function ResponsiveModal({
     open,
     onOpenChange,
@@ -41,7 +36,7 @@ export function ResponsiveModal({
 
     if (isMobile) {
         return (
-            <Drawer open={open} onOpenChange={onOpenChange} repositionInputs={false}>
+            <Drawer open={open} onOpenChange={onOpenChange}>
                 <DrawerContent className={className} onOpenAutoFocus={onOpenAutoFocus}>
                     {/* min-h-0 lets this region actually scroll inside the capped drawer (and lets vaul
                         tell a scroll from a dismiss drag). overflow-x-hidden keeps scrolling vertical-only. */}
