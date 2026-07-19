@@ -91,6 +91,18 @@ class SpendingController extends Controller
         return Inertia::render('spending/event', $this->eventPayload($event));
     }
 
+    // Create a reusable payment source for the family (auto-scoped by BelongsToFamily).
+    public function storeSource(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:60'],
+            'type' => ['required', 'in:'.implode(',', SpendSource::TYPES)],
+        ]);
+        SpendSource::create($data);
+
+        return back();
+    }
+
     public function updateEvent(Request $request, int $event): RedirectResponse
     {
         $event = $this->event($event);
@@ -286,6 +298,8 @@ class SpendingController extends Controller
             'currency' => ['required', 'in:'.implode(',', self::CURRENCIES)],
             'category' => ['required', 'in:'.implode(',', self::CATEGORIES)],
             'payer_id' => ['required', 'integer', 'in:'.implode(',', $memberIds)],
+            // Optional payment source; must be one of the family's (SpendSource is family-scoped).
+            'source_id' => ['nullable', 'integer', 'in:'.implode(',', SpendSource::pluck('id')->all() ?: [0])],
             'note' => ['nullable', 'string', 'max:255'],
             'spent_at' => ['required', 'date'],
             'receipts' => ['nullable', 'array', 'max:10'], // up to 10 photos per spend
@@ -304,6 +318,7 @@ class SpendingController extends Controller
 
         return [
             'payer_id' => $data['payer_id'],
+            'source_id' => $data['source_id'] ?? null,
             'amount' => $amount,
             'currency' => $data['currency'],
             'base_amount' => $baseAmount,
@@ -336,8 +351,9 @@ class SpendingController extends Controller
         })->values();
         $link = $event->shareLinks()->first();
 
-        $spends = $event->spends()->with(['payer:id,name', 'receipts:id,spend_id'])->latest('spent_at')->latest('id')->get();
+        $spends = $event->spends()->with(['payer:id,name', 'source:id,name,type', 'receipts:id,spend_id'])->latest('spent_at')->latest('id')->get();
         $settlements = $event->settlements()->get();
+        $sources = SpendSource::orderBy('id')->get(['id', 'name', 'type']); // creation order → newest last
 
         // Balances are computed in the event's base currency, so they use base_amount (each spend
         // already converted + frozen at capture). Settlements are recorded in the base currency too.
@@ -353,6 +369,7 @@ class SpendingController extends Controller
 
         return [
             'familyId' => (int) CurrentFamily::id(),
+            'sources' => $sources,
             'event' => [
                 'id' => $event->id,
                 'name' => $event->name,
@@ -376,6 +393,7 @@ class SpendingController extends Controller
                     'id' => $r->id,
                     'url' => route('spending.receipts.show', $r->id),
                 ])->values(),
+                'source' => $s->source ? ['id' => $s->source->id, 'name' => $s->source->name, 'type' => $s->source->type] : null,
                 'payer' => ['id' => $s->payer_id, 'name' => $s->payer?->name],
                 'spent_at' => $s->spent_at->toDateString(),
             ])->values(),
