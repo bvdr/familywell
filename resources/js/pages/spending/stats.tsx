@@ -5,10 +5,12 @@ import { Head } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 
 type Cat = { key: string; amount: number; pct: number };
+type Source = { key: string; label: string; type: string; amount: number; pct: number };
 type Point = { date: string; amount: number; cumulative: number };
 type Props = {
     event: { id: number; name: string; currency: string; total: number };
     byCategory: Cat[];
+    bySource: Source[];
     overTime: Point[];
     facts: {
         count: number;
@@ -30,6 +32,15 @@ const CATEGORY_META: Record<string, { label: string; color: string }> = {
     other: { label: 'Other', color: '#9A8C7A' }, // taupe
 };
 const catMeta = (k: string) => CATEGORY_META[k] ?? { label: k.charAt(0).toUpperCase() + k.slice(1), color: '#9A8C7A' };
+
+// Payment methods share the same earthy palette, keyed by source type; unspecified is the neutral taupe.
+const SOURCE_COLOR: Record<string, string> = {
+    cash: '#2F6B44', // forest
+    card: '#B5623C', // terracotta
+    bank: '#C99A3A', // gold
+    other: '#4F7A6B', // muted teal-green
+    none: '#9A8C7A', // taupe
+};
 
 const shortDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
@@ -92,7 +103,7 @@ function Fact({ label, value, sub, mono }: { label: string; value: string; sub?:
     );
 }
 
-export default function Stats({ event, byCategory, overTime, facts }: Props) {
+export default function Stats({ event, byCategory, bySource, overTime, facts }: Props) {
     const [grown, setGrown] = useState(false);
     useEffect(() => {
         const t = setTimeout(() => setGrown(true), 60);
@@ -162,6 +173,33 @@ export default function Stats({ event, byCategory, overTime, facts }: Props) {
                         })}
                     </div>
                 </section>
+
+                {/* By payment method — only worth showing once a spend actually names a source. */}
+                {bySource.some((s) => s.key !== 'none') && (
+                    <section className="flex flex-col gap-4">
+                        <h2 className="font-heading text-primary text-lg">By payment method</h2>
+                        <div className="flex flex-col gap-4">
+                            {bySource.map((s) => {
+                                const color = SOURCE_COLOR[s.type] ?? SOURCE_COLOR.none;
+                                return (
+                                    <div key={s.key} className="flex flex-col gap-1.5">
+                                        <div className="flex items-baseline justify-between gap-3">
+                                            <span className="text-primary flex items-center gap-2 text-sm font-medium">
+                                                <span className="size-2.5 rounded-full" style={{ background: color }} />
+                                                {s.label}
+                                                {s.type !== 'none' && <span className="text-muted-foreground text-xs font-normal">· {s.type}</span>}
+                                            </span>
+                                            <span className="text-text-secondary font-mono text-sm tabular-nums">
+                                                {fmt(s.amount)} <span className="text-muted-foreground">· {s.pct}%</span>
+                                            </span>
+                                        </div>
+                                        <Bar pct={s.pct} color={color} grown={grown} />
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </section>
+                )}
 
                 {/* Over the trip */}
                 <section className="flex flex-col gap-4">
