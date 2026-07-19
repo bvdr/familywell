@@ -41,6 +41,7 @@ export function ResponsiveModal({
     description,
     children,
     className,
+    autoFocusRef,
 }: {
     open: boolean;
     onOpenChange: (v: boolean) => void;
@@ -48,23 +49,34 @@ export function ResponsiveModal({
     description?: string;
     children: React.ReactNode;
     className?: string; // extra classes for the content (e.g. a wider desktop max-width)
+    autoFocusRef?: React.RefObject<HTMLElement | null>; // field to focus on open (else the container gets focus)
 }) {
     const isMobile = useIsMobile();
     const isStandalone = useIsStandalone();
     const vvHeight = useViewportHeight(isStandalone && open);
+
+    // Radix/vaul focus the content container by default, so no field is focused and iOS shows no keyboard.
+    // Steering focus to a specific field during the open keeps it inside the user gesture, so the keyboard opens.
+    const onOpenAutoFocus = autoFocusRef
+        ? (e: Event) => {
+              e.preventDefault();
+              autoFocusRef.current?.focus();
+          }
+        : undefined;
 
     if (isMobile) {
         return (
             <Drawer open={open} onOpenChange={onOpenChange} repositionInputs={!isStandalone}>
                 <DrawerContent
                     className={className}
+                    onOpenAutoFocus={onOpenAutoFocus}
                     // In a standalone PWA, hard-cap to the visible height so the keyboard never hides content.
                     style={isStandalone && vvHeight ? { maxHeight: vvHeight - 8 } : undefined}
                 >
                     {/* min-h-0 lets this region actually scroll inside the capped drawer (and lets vaul
-                        tell a scroll from a dismiss drag). It clears the keyboard because the drawer is
-                        capped to the visible height. */}
-                    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-5 pt-1 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+                        tell a scroll from a dismiss drag). overflow-x-hidden keeps scrolling vertical-only.
+                        It clears the keyboard because the drawer is capped to the visible height. */}
+                    <div className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-contain px-5 pt-1 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
                         <div className="mb-4 flex flex-col gap-1 text-left">
                             <DrawerTitle>{title}</DrawerTitle>
                             {description && <DrawerDescription>{description}</DrawerDescription>}
@@ -78,7 +90,7 @@ export function ResponsiveModal({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className={cn('max-h-[90vh] overflow-y-auto sm:max-w-md', className)}>
+            <DialogContent className={cn('max-h-[90vh] overflow-y-auto sm:max-w-md', className)} onOpenAutoFocus={onOpenAutoFocus}>
                 <DialogHeader>
                     <DialogTitle className="font-heading text-primary text-xl">{title}</DialogTitle>
                     {description && <DialogDescription className="text-muted-foreground text-sm">{description}</DialogDescription>}
