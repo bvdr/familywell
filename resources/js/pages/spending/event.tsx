@@ -34,9 +34,12 @@ type Spend = {
     category: string;
     note: string | null;
     receipts: { id: number; url: string }[];
+    source: Source | null;
     payer: { id: number; name: string };
     spent_at: string;
 };
+type Source = { id: number; name: string; type: string };
+const SOURCE_TYPES = ['cash', 'card', 'bank', 'other'];
 type Balance = { user_id: number; name: string; net: number };
 type Suggestion = { from: { id: number; name: string }; to: { id: number; name: string }; amount: number };
 
@@ -64,6 +67,7 @@ const dayLabel = (date: string) => {
 export default function Event({
     event,
     spends,
+    sources,
     balances,
     suggestions,
     familyId,
@@ -71,6 +75,7 @@ export default function Event({
 }: {
     event: EventT;
     spends: Spend[];
+    sources: Source[];
     balances: Balance[];
     suggestions: Suggestion[];
     familyId: number;
@@ -136,6 +141,7 @@ export default function Event({
         currency: string;
         category: string;
         payer_id: number;
+        source_id: number | null;
         note: string;
         spent_at: string;
         receipts: File[];
@@ -145,11 +151,37 @@ export default function Event({
         currency: event.currency,
         category: 'food',
         payer_id: authId,
+        source_id: null,
         note: '',
         spent_at: today(),
         receipts: [],
         remove_receipt_ids: [],
     });
+
+    // Inline "paid with" source creation. New sources appear in `sources` after the create reloads;
+    // we then auto-select the freshest one.
+    const [addingSource, setAddingSource] = useState(false);
+    const [newSource, setNewSource] = useState<{ name: string; type: string }>({ name: '', type: 'card' });
+    const [justAddedSource, setJustAddedSource] = useState(false);
+    const createSource = () => {
+        if (!newSource.name.trim()) return;
+        router.post(route('spending.sources.store'), newSource, {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => {
+                setNewSource({ name: '', type: 'card' });
+                setAddingSource(false);
+                setJustAddedSource(true);
+            },
+        });
+    };
+    useEffect(() => {
+        if (justAddedSource && sources.length) {
+            form.setData('source_id', sources[sources.length - 1].id);
+            setJustAddedSource(false);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [sources.length, justAddedSource]);
 
     // Existing receipts of the spend being edited, minus any the user has marked for removal.
     const existingReceipts = editing
@@ -183,6 +215,7 @@ export default function Event({
             currency: s.currency,
             category: s.category,
             payer_id: s.payer.id,
+            source_id: s.source?.id ?? null,
             note: s.note ?? '',
             spent_at: s.spent_at,
             receipts: [],
@@ -398,6 +431,69 @@ export default function Event({
                             </div>
                         </div>
                         <div className="grid gap-2">
+                            <Label>Paid with</Label>
+                            <Select
+                                value={form.data.source_id ? String(form.data.source_id) : 'none'}
+                                onValueChange={(v) => form.setData('source_id', v === 'none' ? null : Number(v))}
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">Not specified</SelectItem>
+                                    {sources.map((s) => (
+                                        <SelectItem key={s.id} value={String(s.id)}>
+                                            {s.name} · {s.type}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {addingSource ? (
+                                <div className="bg-surface flex flex-wrap items-end gap-2 rounded-lg border p-2">
+                                    <div className="grid flex-1 gap-1">
+                                        <Label htmlFor="source-name" className="text-xs">
+                                            Name
+                                        </Label>
+                                        <Input
+                                            id="source-name"
+                                            autoFocus
+                                            value={newSource.name}
+                                            onChange={(e) => setNewSource((s) => ({ ...s, name: e.target.value }))}
+                                            placeholder="Wise, cash Oana…"
+                                        />
+                                    </div>
+                                    <Select value={newSource.type} onValueChange={(v) => setNewSource((s) => ({ ...s, type: v }))}>
+                                        <SelectTrigger className="w-[110px] capitalize">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {SOURCE_TYPES.map((t) => (
+                                                <SelectItem key={t} value={t} className="capitalize">
+                                                    {t}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <div className="flex gap-1">
+                                        <Button type="button" size="sm" onClick={createSource} disabled={!newSource.name.trim()}>
+                                            Add
+                                        </Button>
+                                        <Button type="button" size="sm" variant="ghost" onClick={() => setAddingSource(false)}>
+                                            Cancel
+                                        </Button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => setAddingSource(true)}
+                                    className="text-primary flex items-center gap-1 self-start text-sm font-medium"
+                                >
+                                    <Plus className="size-3.5" /> New source
+                                </button>
+                            )}
+                        </div>
+                        <div className="grid gap-2">
                             <Label htmlFor="date">Date</Label>
                             <Input id="date" type="date" value={form.data.spent_at} onChange={(e) => form.setData('spent_at', e.target.value)} />
                         </div>
@@ -539,6 +635,7 @@ export default function Event({
                                             <div className="text-primary text-sm font-medium">{s.note || s.category}</div>
                                             <div className="text-muted-foreground text-xs capitalize">
                                                 {s.payer.name} · {s.category}
+                                                {s.source && <span className="normal-case"> · {s.source.name}</span>}
                                             </div>
                                         </div>
                                     </div>
