@@ -449,8 +449,13 @@ export default function Event({
                     title={editing ? 'Edit spend' : 'New spend'}
                     className="sm:max-w-lg"
                     autoFocusRef={amountRef}
+                    footer={
+                        <Button type="submit" form="spend-form" disabled={form.processing} className="w-full">
+                            Save
+                        </Button>
+                    }
                 >
-                    <form onSubmit={submitSpend} className="flex flex-col gap-3">
+                    <form id="spend-form" onSubmit={submitSpend} className="flex flex-col gap-3">
                         {/* minmax(0,1fr) lets the amount input shrink below its intrinsic ~20ch width so the
                             row never overflows the drawer horizontally. */}
                         <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
@@ -630,9 +635,6 @@ export default function Event({
                             {form.progress && <progress value={form.progress.percentage} max="100" className="h-1 w-full" />}
                             <InputError message={form.errors.receipts} />
                         </div>
-                        <Button type="submit" disabled={form.processing} className="mt-1 w-full">
-                            Save
-                        </Button>
                     </form>
                 </ResponsiveModal>
 
