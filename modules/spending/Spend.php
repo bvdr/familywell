@@ -15,7 +15,7 @@ class Spend extends Model
     protected $table = 'spending_spends';
 
     // receipt_path is legacy (single receipt); receipts are now rows in spending_receipts.
-    protected $fillable = ['spend_event_id', 'payer_id', 'amount', 'currency', 'base_amount', 'rate', 'category', 'note', 'receipt_path', 'spent_at', 'created_by'];
+    protected $fillable = ['spend_event_id', 'payer_id', 'source_id', 'amount', 'currency', 'base_amount', 'rate', 'category', 'note', 'receipt_path', 'spent_at', 'created_by'];
 
     protected $casts = [
         'amount' => 'integer',      // original amount in `currency`, minor units
@@ -27,6 +27,11 @@ class Spend extends Model
     public function payer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'payer_id');
+    }
+
+    public function source(): BelongsTo
+    {
+        return $this->belongsTo(SpendSource::class, 'source_id');
     }
 
     /** Receipt photos attached to this spend (many). */

@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Modules\Spending\SpendEvent;
+use Modules\Spending\SpendSource;
 
 use function Pest\Laravel\actingAs;
 
@@ -303,4 +304,36 @@ it('does not leak events across families', function () {
 
     [$familyB, $usersB] = spendingFamily();
     actingAs($usersB[0])->get("/m/spending/events/{$eventA->id}")->assertNotFound();
+});
+
+it('creates a payment source and records a spend paid with it', function () {
+    [$family, $users] = spendingFamily();
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
+    $event = SpendEvent::first();
+
+    actingAs($users[0])->post('/m/spending/sources', ['name' => 'Wise', 'type' => 'card'])->assertRedirect();
+    $source = SpendSource::first();
+    expect($source->name)->toBe('Wise')->and($source->type)->toBe('card');
+
+    actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
+        'amount' => '20.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+        'source_id' => $source->id,
+    ])->assertRedirect();
+
+    expect($event->spends()->first()->source_id)->toBe($source->id);
+});
+
+it('rejects a payment source from another family', function () {
+    [$familyA, $usersA] = spendingFamily();
+    actingAs($usersA[0])->post('/m/spending/sources', ['name' => 'A card', 'type' => 'card']);
+    $sourceAId = SpendSource::first()->id;
+
+    [$familyB, $usersB] = spendingFamily();
+    actingAs($usersB[0])->post('/m/spending/events', ['name' => 'B', 'currency' => 'EUR']);
+    $eventB = SpendEvent::first();
+
+    actingAs($usersB[0])->post("/m/spending/events/{$eventB->id}/spends", [
+        'amount' => '5.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $usersB[0]->id, 'spent_at' => '2026-07-16',
+        'source_id' => $sourceAId,
+    ])->assertSessionHasErrors('source_id');
 });
