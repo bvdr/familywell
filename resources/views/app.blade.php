@@ -2,8 +2,10 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
         <meta charset="utf-8">
-        {{-- viewport-fit=cover lets the standalone PWA paint under the notch; the tab bar uses the safe-area inset. --}}
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+        {{-- viewport-fit=cover lets the standalone PWA paint under the notch; the tab bar uses the safe-area inset.
+             interactive-widget=resizes-content makes the keyboard shrink the layout viewport (iOS 17+), so a
+             bottom-anchored drawer sits flush above it without any visualViewport math. --}}
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
 
