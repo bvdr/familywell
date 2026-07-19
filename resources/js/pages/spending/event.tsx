@@ -16,7 +16,7 @@ import {
     Wallet,
     X,
 } from 'lucide-react';
-import { FormEventHandler, useEffect, useState } from 'react';
+import { FormEventHandler, useEffect, useRef, useState } from 'react';
 
 import InputError from '@/components/input-error';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
@@ -120,6 +120,7 @@ export default function Event({
     const fmt = (baseCents: number) => money(Math.round(baseCents * (event.rates[display] ?? 1)), display);
 
     // Inline title editing. `title` mirrors the server value (optimistic on save, re-synced on reload).
+    const amountRef = useRef<HTMLInputElement>(null); // focused when the spend drawer opens, so the numeric pad shows
     const [editingTitle, setEditingTitle] = useState(false);
     const [title, setTitle] = useState(event.name);
     useEffect(() => setTitle(event.name), [event.name]);
@@ -447,17 +448,21 @@ export default function Event({
                     onOpenChange={(o) => !o && closeForm()}
                     title={editing ? 'Edit spend' : 'New spend'}
                     className="sm:max-w-lg"
+                    autoFocusRef={amountRef}
                 >
                     <form onSubmit={submitSpend} className="flex flex-col gap-3">
-                        <div className="grid grid-cols-[1fr_auto] gap-3">
+                        {/* minmax(0,1fr) lets the amount input shrink below its intrinsic ~20ch width so the
+                            row never overflows the drawer horizontally. */}
+                        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
                             <div className="grid gap-2">
                                 <Label htmlFor="amount">Amount</Label>
                                 <Input
                                     id="amount"
+                                    ref={amountRef}
                                     type="number"
+                                    inputMode="decimal"
                                     step="0.01"
                                     min="0"
-                                    autoFocus
                                     value={form.data.amount}
                                     onChange={(e) => form.setData('amount', e.target.value)}
                                     placeholder="0.00"
@@ -543,7 +548,14 @@ export default function Event({
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="date">Date</Label>
-                            <Input id="date" type="date" value={form.data.spent_at} onChange={(e) => form.setData('spent_at', e.target.value)} />
+                            {/* appearance-none strips iOS's native date chrome so it keeps the shared h-10 sizing. */}
+                            <Input
+                                id="date"
+                                type="date"
+                                className="appearance-none"
+                                value={form.data.spent_at}
+                                onChange={(e) => form.setData('spent_at', e.target.value)}
+                            />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="note">Note (optional)</Label>
