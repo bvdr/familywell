@@ -4,6 +4,31 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import * as React from 'react';
 
+// Height of the keyboard, i.e. how far a bottom-anchored fixed element must lift to clear it.
+// innerHeight is the layout viewport (unchanged by an overlaying keyboard); visualViewport.height is
+// the part still visible. Their difference is the keyboard. This is self-correcting: where the platform
+// already resizes the layout for the keyboard (interactive-widget=resizes-content, iOS 17+), the two
+// heights match and the offset is 0, so we never lift twice.
+function useKeyboardOffset(active: boolean) {
+    const [offset, setOffset] = React.useState(0);
+    React.useEffect(() => {
+        const vv = window.visualViewport;
+        if (!active || !vv) {
+            setOffset(0);
+            return;
+        }
+        const update = () => setOffset(Math.max(0, Math.round(window.innerHeight - vv.height)));
+        vv.addEventListener('resize', update);
+        vv.addEventListener('scroll', update);
+        update();
+        return () => {
+            vv.removeEventListener('resize', update);
+            vv.removeEventListener('scroll', update);
+        };
+    }, [active]);
+    return offset;
+}
+
 // One overlay, two shapes: a native-feeling bottom drawer on mobile (vaul — drag-to-dismiss, momentum),
 // a centered dialog on desktop. Same title / description / body / footer API.
 //
@@ -31,6 +56,7 @@ export function ResponsiveModal({
     autoFocusRef?: React.RefObject<HTMLElement | null>; // field to focus on open (else the container gets focus)
 }) {
     const isMobile = useIsMobile();
+    const keyboardOffset = useKeyboardOffset(isMobile && open);
 
     // Radix/vaul focus the content container by default, so no field is focused and iOS shows no keyboard.
     // Steering focus to a specific field during the open keeps it inside the user gesture, so the keyboard
@@ -45,7 +71,13 @@ export function ResponsiveModal({
     if (isMobile) {
         return (
             <Drawer open={open} onOpenChange={onOpenChange} repositionInputs={false}>
-                <DrawerContent className={className} onOpenAutoFocus={onOpenAutoFocus}>
+                <DrawerContent
+                    className={className}
+                    onOpenAutoFocus={onOpenAutoFocus}
+                    // Lift the whole sheet above the keyboard and cap it to the visible height, so the pinned
+                    // footer and fields stay in view. Both are no-ops (0 / 94dvh) when no keyboard is open.
+                    style={keyboardOffset ? { bottom: keyboardOffset, maxHeight: `calc(100dvh - ${keyboardOffset}px - 1.5rem)` } : undefined}
+                >
                     <div className="mb-3 flex shrink-0 flex-col gap-1 px-5 pt-1 text-left">
                         <DrawerTitle>{title}</DrawerTitle>
                         {description && <DrawerDescription>{description}</DrawerDescription>}
