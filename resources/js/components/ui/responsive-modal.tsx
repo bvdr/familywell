@@ -21,7 +21,9 @@ function useKeyboardOffset(active: boolean) {
             setOffset(0);
             return;
         }
-        const update = () => setOffset(Math.max(0, Math.round(window.innerHeight - vv.height)));
+        // Keyboard top in layout coordinates = visualViewport top (offsetTop) + its height; the drawer's
+        // bottom must clear exactly that. Omitting offsetTop lifts it too high and leaves a gap under it.
+        const update = () => setOffset(Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)));
         vv.addEventListener('resize', update);
         vv.addEventListener('scroll', update);
         update();
@@ -93,7 +95,7 @@ export function ResponsiveModal({
                     onOpenAutoFocus={onOpenAutoFocus}
                     // Lift the whole sheet above the keyboard and cap it to the visible height, so the pinned
                     // footer and fields stay in view. Both are no-ops (0 / 94dvh) when no keyboard is open.
-                    style={keyboardOffset ? { bottom: keyboardOffset, maxHeight: `calc(100dvh - ${keyboardOffset}px - 1.5rem)` } : undefined}
+                    style={keyboardOffset ? { bottom: keyboardOffset, maxHeight: `calc(100dvh - ${keyboardOffset}px - 0.5rem)` } : undefined}
                 >
                     <div className="mb-3 flex shrink-0 items-start justify-between gap-3 px-5 pt-1">
                         <div className="flex flex-col gap-1 text-left">
@@ -111,7 +113,7 @@ export function ResponsiveModal({
                         scrolls (and lets vaul tell a scroll from a dismiss drag); overflow-x-hidden keeps it vertical. */}
                     <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-5 pb-2">{children}</div>
                     {footer && (
-                        <div className="border-border/60 shrink-0 border-t px-5 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+                        <div className="border-border/60 shrink-0 border-t px-5 pt-2.5 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
                             {footer}
                         </div>
                     )}
