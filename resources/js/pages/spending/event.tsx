@@ -455,7 +455,11 @@ export default function Event({
                         </Button>
                     }
                 >
-                    <form id="spend-form" onSubmit={submitSpend} className="flex flex-col gap-3">
+                    {/* The <form> holds no fields directly; the text inputs join it via form="spend-form" and
+                        the dropdowns stay outside it. That keeps Radix's hidden native <select>s out of the
+                        form's field set, so iOS enables the keyboard's prev/next arrows across Amount/Date/Note. */}
+                    <form id="spend-form" onSubmit={submitSpend} className="hidden" />
+                    <div className="flex flex-col gap-3">
                         {/* minmax(0,1fr) lets the amount input shrink below its intrinsic ~20ch width so the
                             row never overflows the drawer horizontally. */}
                         <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
@@ -466,6 +470,7 @@ export default function Event({
                                     it to a dot (and strip stray chars) since the backend wants a plain number. */}
                                 <Input
                                     id="amount"
+                                    form="spend-form"
                                     ref={amountRef}
                                     type="text"
                                     inputMode="decimal"
@@ -557,6 +562,7 @@ export default function Event({
                             {/* appearance-none strips iOS's native date chrome so it keeps the shared h-10 sizing. */}
                             <Input
                                 id="date"
+                                form="spend-form"
                                 type="date"
                                 className="appearance-none"
                                 value={form.data.spent_at}
@@ -567,6 +573,7 @@ export default function Event({
                             <Label htmlFor="note">Note (optional)</Label>
                             <Input
                                 id="note"
+                                form="spend-form"
                                 value={form.data.note}
                                 onChange={(e) => form.setData('note', e.target.value)}
                                 placeholder="Dinner at the taverna"
@@ -635,7 +642,7 @@ export default function Event({
                             {form.progress && <progress value={form.progress.percentage} max="100" className="h-1 w-full" />}
                             <InputError message={form.errors.receipts} />
                         </div>
-                    </form>
+                    </div>
                 </ResponsiveModal>
 
                 {/* Spend log — grouped by day, newest first, with a per-day subtotal */}
