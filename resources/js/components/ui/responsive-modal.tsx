@@ -113,7 +113,14 @@ export function ResponsiveModal({
                         scrolls (and lets vaul tell a scroll from a dismiss drag); overflow-x-hidden keeps it vertical. */}
                     <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-5 pb-2">{children}</div>
                     {footer && (
-                        <div className="border-border/60 shrink-0 border-t px-5 pt-2.5 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
+                        <div
+                            className={cn(
+                                'border-border/60 shrink-0 border-t px-5 pt-2.5',
+                                // The safe-area inset clears the home indicator, but the keyboard already covers
+                                // that strip. Reserving it while the keyboard is open just leaves dead space under Save.
+                                keyboardOffset ? 'pb-3' : 'pb-[calc(0.75rem+env(safe-area-inset-bottom))]',
+                            )}
+                        >
                             {footer}
                         </div>
                     )}
