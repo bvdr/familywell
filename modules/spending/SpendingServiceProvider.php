@@ -51,6 +51,8 @@ class SpendingServiceProvider extends ServiceProvider
                 Route::get('/', [SpendingController::class, 'index'])->name('index');
                 Route::post('/events', [SpendingController::class, 'storeEvent'])->name('events.store');
                 Route::post('/sources', [SpendingController::class, 'storeSource'])->name('sources.store');
+                // Throttled: each scan is a paid model call, so cap per-user bursts.
+                Route::post('/scan-receipt', [SpendingController::class, 'scanReceipt'])->middleware('throttle:20,1')->name('scan');
                 Route::get('/events/{event}', [SpendingController::class, 'show'])->name('show');
                 Route::patch('/events/{event}', [SpendingController::class, 'updateEvent'])->name('events.update');
                 Route::get('/events/{event}/stats', [SpendingController::class, 'stats'])->name('stats');

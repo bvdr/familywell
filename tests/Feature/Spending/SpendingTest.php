@@ -337,3 +337,70 @@ it('rejects a payment source from another family', function () {
         'source_id' => $sourceAId,
     ])->assertSessionHasErrors('source_id');
 });
+
+it('scans a receipt into prefill fields, summing line items when no total is printed', function () {
+    [$family, $users] = spendingFamily();
+    config(['services.gemini.key' => 'test-key']);
+
+    // Model returns a wrong total but correct line items and no printed total: we must sum the items.
+    Http::fake(['generativelanguage.googleapis.com/*' => Http::response([
+        'candidates' => [[
+            'content' => ['parts' => [[
+                'text' => json_encode([
+                    'amount' => 999,
+                    'has_printed_total' => false,
+                    'currency' => 'eur',
+                    'date' => '2026-07-19',
+                    'category' => 'FOOD',
+                    'note' => 'Beach bar',
+                    'line_items' => [
+                        ['name' => 'Coffee', 'price' => 5],
+                        ['name' => 'Coffee', 'price' => 5],
+                        ['name' => 'Drinks', 'price' => 6],
+                    ],
+                ]),
+            ]]],
+        ]],
+    ])]);
+
+    actingAs($users[0])
+        ->post('/m/spending/scan-receipt', ['photo' => UploadedFile::fake()->create('receipt.jpg', 200, 'image/jpeg')])
+        ->assertOk()
+        ->assertExactJson([
+            'amount' => 16,       // 5 + 5 + 6, not the model's bogus 999
+            'currency' => 'EUR',  // upper-cased + validated against the app's list
+            'date' => '2026-07-19',
+            'category' => 'food', // lower-cased + validated
+            'note' => 'Beach bar',
+        ]);
+});
+
+it('trusts the printed total instead of summing when the receipt prints one', function () {
+    [$family, $users] = spendingFamily();
+    config(['services.gemini.key' => 'test-key']);
+
+    Http::fake(['generativelanguage.googleapis.com/*' => Http::response([
+        'candidates' => [['content' => ['parts' => [['text' => json_encode([
+            'amount' => 42.5,
+            'has_printed_total' => true,
+            'currency' => 'EUR',
+            'date' => '2026-07-19',
+            'category' => 'food',
+            'line_items' => [['name' => 'x', 'price' => 1]], // present but must be ignored
+        ])]]]]],
+    ])]);
+
+    actingAs($users[0])
+        ->post('/m/spending/scan-receipt', ['photo' => UploadedFile::fake()->create('receipt.jpg', 200, 'image/jpeg')])
+        ->assertOk()
+        ->assertJsonPath('amount', 42.5);
+});
+
+it('404s receipt scanning when no Gemini key is configured', function () {
+    [$family, $users] = spendingFamily();
+    config(['services.gemini.key' => null]);
+
+    actingAs($users[0])
+        ->post('/m/spending/scan-receipt', ['photo' => UploadedFile::fake()->create('receipt.jpg', 200, 'image/jpeg')])
+        ->assertNotFound();
+});

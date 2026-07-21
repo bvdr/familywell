@@ -35,4 +35,13 @@ return [
         ],
     ],
 
+    // Google Gemini, used only for receipt scanning. The whole feature is gated on `key` being set:
+    // no key, no "Scan receipt" option (see ReceiptScanner::configured()). gemini-3-flash reads messy,
+    // rotated, multilingual receipts reliably in testing while costing ~$0.001 per scan; self-hosters
+    // can point `model` elsewhere.
+    'gemini' => [
+        'key' => env('GEMINI_API_KEY'),
+        'model' => env('GEMINI_MODEL', 'gemini-3-flash-preview'),
+    ],
+
 ];
