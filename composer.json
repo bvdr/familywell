@@ -1,12 +1,18 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/react-starter-kit",
+    "name": "bvdr/familywell",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
+    "description": "Open-source family organization app: shared spending, to-dos, and shopping lists, built on a small core with self-contained modules.",
     "keywords": [
+        "familywell",
+        "family",
         "laravel",
-        "framework"
+        "inertia",
+        "react",
+        "self-hosted",
+        "modules"
     ],
+    "homepage": "https://familywell.co",
     "license": "MIT",
     "require": {
         "php": "^8.2",
