@@ -2,12 +2,14 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
     Banknote,
     BarChart3,
+    Camera,
     Check,
     ChevronLeft,
     ChevronRight,
     Copy,
     CreditCard,
     Landmark,
+    Loader2,
     MoreVertical,
     Pencil,
     Plus,
@@ -94,6 +96,7 @@ export default function Event({
     suggestions,
     familyId,
     share,
+    scanEnabled,
 }: {
     event: EventT;
     spends: Spend[];
@@ -102,6 +105,7 @@ export default function Event({
     suggestions: Suggestion[];
     familyId: number;
     share: ShareState;
+    scanEnabled: boolean;
 }) {
     const authId = (usePage().props as { auth: { user: { id: number } } }).auth.user.id;
     const [adding, setAdding] = useState(false);
@@ -255,6 +259,53 @@ export default function Event({
         form.reset();
         setEditing(null);
         setAdding(true);
+    };
+
+    // Scan a receipt photo: the endpoint reads it into prefill fields, then we open the New-spend drawer
+    // pre-filled (and attach the photo as the receipt) so the user just reviews and Saves.
+    const scanInputRef = useRef<HTMLInputElement>(null);
+    const [scanning, setScanning] = useState(false);
+    const [scanError, setScanError] = useState<string | null>(null);
+
+    const handleScanFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        e.target.value = ''; // let the same photo be picked again after an error
+        if (!file) return;
+        setScanError(null);
+        setScanning(true);
+        try {
+            const photo = await compressImage(file, 800_000);
+            const body = new FormData();
+            body.append('photo', photo);
+            // Laravel validates the XSRF-TOKEN cookie via this header (no axios in this app).
+            const xsrf = decodeURIComponent(document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]+)/)?.[1] ?? '');
+            const res = await fetch(route('spending.scan'), {
+                method: 'POST',
+                headers: { 'X-XSRF-TOKEN': xsrf, Accept: 'application/json' },
+                body,
+                credentials: 'same-origin',
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Could not read the receipt.');
+            form.reset();
+            form.setData({
+                amount: data.amount != null ? String(data.amount) : '',
+                currency: data.currency ?? event.currency,
+                category: data.category ?? 'food',
+                payer_id: authId,
+                source_id: null,
+                note: data.note ?? '',
+                spent_at: data.date ?? today(),
+                receipts: [photo], // keep the scanned photo attached to the spend
+                remove_receipt_ids: [],
+            });
+            setEditing(null);
+            setAdding(true);
+        } catch (err) {
+            setScanError(err instanceof Error ? err.message : 'Could not read the receipt.');
+        } finally {
+            setScanning(false);
+        }
     };
 
     const duplicate = (s: Spend) => router.post(route('spending.spends.duplicate', s.id), {}, { preserveScroll: true });
@@ -436,10 +487,30 @@ export default function Event({
                     </section>
                 )}
 
-                {/* Add / edit spend */}
-                <Button onClick={startAdd} className="w-full">
-                    <Plus className="size-4" /> Add spend
-                </Button>
+                {/* Add / edit spend. Scan is only offered when the server has a Gemini key configured. */}
+                <div className="flex flex-col gap-2">
+                    {scanEnabled && (
+                        <>
+                            <Button variant="outline" onClick={() => scanInputRef.current?.click()} disabled={scanning} className="w-full">
+                                {scanning ? (
+                                    <>
+                                        <Loader2 className="size-4 animate-spin" /> Reading receipt…
+                                    </>
+                                ) : (
+                                    <>
+                                        <Camera className="size-4" /> Scan receipt
+                                    </>
+                                )}
+                            </Button>
+                            {/* capture=environment opens the rear camera on mobile; a normal picker on desktop. */}
+                            <input ref={scanInputRef} type="file" accept="image/*" capture="environment" hidden onChange={handleScanFile} />
+                            {scanError && <p className="text-destructive text-center text-sm">{scanError}</p>}
+                        </>
+                    )}
+                    <Button onClick={startAdd} className="w-full">
+                        <Plus className="size-4" /> Add spend
+                    </Button>
+                </div>
 
                 {/* Add / edit a spend in a bottom drawer on mobile, a centered overlay on desktop.
                     Closing the drawer cancels. */}

@@ -8,6 +8,7 @@ use App\Models\Family;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -101,6 +102,23 @@ class SpendingController extends Controller
         SpendSource::create($data);
 
         return back();
+    }
+
+    // Read a receipt photo into prefill fields for a new spend. Returns plain JSON (not an Inertia
+    // redirect) because the client uses it to seed the form, then the user reviews and saves. 404 when
+    // scanning isn't configured, so a missing key never looks like a server error.
+    public function scanReceipt(Request $request): JsonResponse
+    {
+        abort_unless(ReceiptScanner::configured(), 404);
+        $request->validate(['photo' => ['required', 'image', 'max:10240']]);
+
+        try {
+            $data = (new ReceiptScanner(self::CATEGORIES, self::CURRENCIES))->scan($request->file('photo'));
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json($data);
     }
 
     public function updateEvent(Request $request, int $event): RedirectResponse
@@ -381,6 +399,7 @@ class SpendingController extends Controller
 
         return [
             'familyId' => (int) CurrentFamily::id(),
+            'scanEnabled' => ReceiptScanner::configured(),
             'sources' => $sources,
             'event' => [
                 'id' => $event->id,
