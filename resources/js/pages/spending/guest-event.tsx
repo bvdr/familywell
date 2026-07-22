@@ -1,12 +1,12 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { money } from '@/lib/money';
 import { Head, router, useForm } from '@inertiajs/react';
-import { Check, Pencil, Plus, Trash2, UserRound } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { FormEventHandler, useEffect, useMemo, useRef, useState } from 'react';
 
 type Guest = { id: number; name: string; role: 'viewer' | 'editor' };
 type Spend = {
@@ -258,6 +258,7 @@ function Shell({ title, children }: { title: string; children: React.ReactNode }
 }
 
 function SpendForm({ token, me, event, editing, onClose }: { token: string; me: Guest; event: EventT; editing: Spend | null; onClose: () => void }) {
+    const amountRef = useRef<HTMLInputElement>(null); // focused on open so the numeric pad shows
     const form = useForm({
         guest_id: me.id,
         amount: editing ? (editing.amount / 100).toString() : '',
@@ -267,7 +268,8 @@ function SpendForm({ token, me, event, editing, onClose }: { token: string; me: 
         spent_at: editing?.spent_at ?? today(),
     });
 
-    const submit = () => {
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
         const opts = { preserveScroll: true, onSuccess: onClose };
         if (editing) {
             form.patch(`/m/spending/guest/${token}/spends/${editing.id}`, opts);
@@ -277,92 +279,99 @@ function SpendForm({ token, me, event, editing, onClose }: { token: string; me: 
     };
 
     return (
-        <Sheet open onOpenChange={(v) => !v && onClose()}>
-            <SheetContent side="bottom" className="max-h-[92vh] overflow-y-auto rounded-t-2xl px-4 pb-8 sm:mx-auto sm:max-w-md">
-                <SheetHeader className="px-0 text-left">
-                    <SheetTitle className="font-heading text-primary text-2xl">{editing ? 'Edit expense' : 'Add expense'}</SheetTitle>
-                    <p className="text-muted-foreground -mt-1 flex items-center gap-1.5 text-sm">
-                        <UserRound className="size-3.5" /> paid by {me.name}
-                    </p>
-                </SheetHeader>
-
-                <div className="mt-2 flex flex-col gap-4">
-                    <div className="flex gap-2">
-                        <div className="grid flex-1 gap-1.5">
-                            <Label htmlFor="amount">Amount</Label>
-                            <Input
-                                id="amount"
-                                autoFocus
-                                inputMode="decimal"
-                                value={form.data.amount}
-                                onChange={(e) => form.setData('amount', e.target.value)}
-                                placeholder="0.00"
-                            />
-                        </div>
-                        <div className="grid w-28 gap-1.5">
-                            <Label>Currency</Label>
-                            <Select value={form.data.currency} onValueChange={(v) => form.setData('currency', v)}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {event.currencies.map((c) => (
-                                        <SelectItem key={c} value={c}>
-                                            {c}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+        // Keyboard-safe drawer: pinned header + footer, only the fields scroll (see ResponsiveModal).
+        <ResponsiveModal
+            open
+            onOpenChange={(v) => !v && onClose()}
+            title={editing ? 'Edit expense' : 'Add expense'}
+            description={`Paid by ${me.name}`}
+            autoFocusRef={amountRef}
+            footer={
+                <Button type="submit" form="guest-spend-form" disabled={!form.data.amount.trim() || form.processing} className="w-full">
+                    {form.processing ? 'Saving…' : editing ? 'Save changes' : 'Add expense'}
+                </Button>
+            }
+        >
+            {/* The <form> carries no fields directly; inputs join it via form="guest-spend-form" so the
+                pinned footer button (rendered outside this scroll region) can still submit. */}
+            <form id="guest-spend-form" onSubmit={submit} className="hidden" />
+            <div className="flex flex-col gap-4 pt-1">
+                <div className="flex gap-2">
+                    <div className="grid flex-1 gap-1.5">
+                        <Label htmlFor="amount">Amount</Label>
+                        <Input
+                            id="amount"
+                            ref={amountRef}
+                            form="guest-spend-form"
+                            inputMode="decimal"
+                            value={form.data.amount}
+                            onChange={(e) => form.setData('amount', e.target.value)}
+                            placeholder="0.00"
+                        />
                     </div>
-
-                    <div className="grid gap-1.5">
-                        <Label>Category</Label>
-                        <div className="grid grid-cols-5 gap-2">
-                            {event.categories.map((c) => {
-                                const active = form.data.category === c;
-                                return (
-                                    <button
-                                        key={c}
-                                        type="button"
-                                        onClick={() => form.setData('category', c)}
-                                        className={`flex flex-col items-center gap-1 rounded-xl border p-2 text-xs font-medium capitalize transition-colors ${
-                                            active
-                                                ? 'border-primary bg-primary text-primary-foreground'
-                                                : 'bg-surface-card text-text-secondary hover:border-accent'
-                                        }`}
-                                    >
-                                        <span className="text-base">{CATEGORY[c] ?? '•'}</span>
+                    <div className="grid w-28 gap-1.5">
+                        <Label>Currency</Label>
+                        <Select value={form.data.currency} onValueChange={(v) => form.setData('currency', v)}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {event.currencies.map((c) => (
+                                    <SelectItem key={c} value={c}>
                                         {c}
-                                    </button>
-                                );
-                            })}
-                        </div>
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
-
-                    <div className="grid gap-1.5">
-                        <Label htmlFor="note">Note</Label>
-                        <Input id="note" value={form.data.note} onChange={(e) => form.setData('note', e.target.value)} placeholder="Optional" />
-                    </div>
-
-                    <div className="grid gap-1.5">
-                        <Label htmlFor="spent_at">Date</Label>
-                        <Input id="spent_at" type="date" value={form.data.spent_at} onChange={(e) => form.setData('spent_at', e.target.value)} />
-                    </div>
-
-                    <Button type="button" onClick={submit} disabled={!form.data.amount.trim() || form.processing} className="mt-1 w-full">
-                        {form.processing ? (
-                            'Saving…'
-                        ) : editing ? (
-                            'Save changes'
-                        ) : (
-                            <>
-                                <Check className="size-4" /> Add expense
-                            </>
-                        )}
-                    </Button>
                 </div>
-            </SheetContent>
-        </Sheet>
+
+                <div className="grid gap-1.5">
+                    <Label>Category</Label>
+                    <div className="grid grid-cols-5 gap-2">
+                        {event.categories.map((c) => {
+                            const active = form.data.category === c;
+                            return (
+                                <button
+                                    key={c}
+                                    type="button"
+                                    onClick={() => form.setData('category', c)}
+                                    className={`flex flex-col items-center gap-1 rounded-xl border p-2 text-xs font-medium capitalize transition-colors ${
+                                        active
+                                            ? 'border-primary bg-primary text-primary-foreground'
+                                            : 'bg-surface-card text-text-secondary hover:border-accent'
+                                    }`}
+                                >
+                                    <span className="text-base">{CATEGORY[c] ?? '•'}</span>
+                                    {c}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                <div className="grid gap-1.5">
+                    <Label htmlFor="note">Note</Label>
+                    <Input
+                        id="note"
+                        form="guest-spend-form"
+                        value={form.data.note}
+                        onChange={(e) => form.setData('note', e.target.value)}
+                        placeholder="Optional"
+                    />
+                </div>
+
+                <div className="grid gap-1.5">
+                    <Label htmlFor="spent_at">Date</Label>
+                    <Input
+                        id="spent_at"
+                        form="guest-spend-form"
+                        type="date"
+                        value={form.data.spent_at}
+                        onChange={(e) => form.setData('spent_at', e.target.value)}
+                    />
+                </div>
+            </div>
+        </ResponsiveModal>
     );
 }
