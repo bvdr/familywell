@@ -521,18 +521,38 @@ export default function Event({
                                     <Pencil className="text-muted-foreground group-hover:text-primary size-4 shrink-0 transition-colors" />
                                 </button>
                             )}
-                            <Select value={display} onValueChange={setDisplay}>
-                                <SelectTrigger className="border-border text-primary h-9 w-[84px] shrink-0">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {event.currencies.map((c) => (
-                                        <SelectItem key={c} value={c}>
-                                            {c}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <div className="flex shrink-0 items-center gap-2">
+                                {/* Quick access to sharing; full controls also live in the Settings tab. */}
+                                <button
+                                    type="button"
+                                    onClick={() => setSharing(true)}
+                                    aria-label="Share with family"
+                                    className="border-border text-primary hover:bg-surface flex size-9 items-center justify-center rounded-lg border transition-colors"
+                                >
+                                    <UserPlus className="size-4.5" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setGuestSharing(true)}
+                                    aria-label="Guest link"
+                                    className="border-border text-primary hover:bg-surface relative flex size-9 items-center justify-center rounded-lg border transition-colors"
+                                >
+                                    <Link2 className="size-4.5" />
+                                    {guestShare?.enabled && <span className="bg-primary absolute -top-0.5 -right-0.5 size-2 rounded-full" />}
+                                </button>
+                                <Select value={display} onValueChange={setDisplay}>
+                                    <SelectTrigger className="border-border text-primary h-9 w-[76px] shrink-0">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {event.currencies.map((c) => (
+                                            <SelectItem key={c} value={c}>
+                                                {c}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                         <nav className="-mb-px flex gap-1 overflow-x-auto">
                             {TABS.map((t) => {
