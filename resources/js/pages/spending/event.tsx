@@ -9,6 +9,7 @@ import {
     Copy,
     CreditCard,
     Landmark,
+    Link2,
     Loader2,
     MoreVertical,
     Pencil,
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react';
 import { FormEventHandler, useEffect, useRef, useState } from 'react';
 
+import { GuestSheet, type GuestShareState } from '@/components/guest-sheet';
 import InputError from '@/components/input-error';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
 import { Button } from '@/components/ui/button';
@@ -54,7 +56,8 @@ type Spend = {
     note: string | null;
     receipts: { id: number; url: string }[];
     source: Source | null;
-    payer: { id: number; name: string };
+    // A user paid (id set) or a guest did (isGuest, no user id to prefill the payer select with).
+    payer: { id: number | null; name: string | null; isGuest: boolean };
     spent_at: string;
 };
 type Source = { id: number; name: string; type: string };
@@ -64,8 +67,10 @@ const SOURCE_TYPE_META = [
     { key: 'bank', label: 'Bank', icon: Landmark },
     { key: 'other', label: 'Other', icon: Wallet },
 ] as const;
-type Balance = { user_id: number; name: string; net: number };
-type Suggestion = { from: { id: number; name: string }; to: { id: number; name: string }; amount: number };
+// Participant ids are namespaced strings ('u{id}' for family members, 'g{id}' for guests) so users
+// and guests never collide in one balance sheet.
+type Balance = { id: string; name: string; net: number };
+type Suggestion = { from: { id: string; name: string }; to: { id: string; name: string }; amount: number; canSettle: boolean };
 
 const CATEGORY: Record<string, string> = {
     food: '🍽️',
@@ -96,6 +101,7 @@ export default function Event({
     suggestions,
     familyId,
     share,
+    guestShare,
     scanEnabled,
 }: {
     event: EventT;
@@ -105,11 +111,13 @@ export default function Event({
     suggestions: Suggestion[];
     familyId: number;
     share: ShareState;
+    guestShare: GuestShareState;
     scanEnabled: boolean;
 }) {
     const authId = (usePage().props as { auth: { user: { id: number } } }).auth.user.id;
     const [adding, setAdding] = useState(false);
     const [sharing, setSharing] = useState(false);
+    const [guestSharing, setGuestSharing] = useState(false);
     // When set, the form is editing this spend id instead of creating a new one.
     const [editing, setEditing] = useState<number | null>(null);
     // Receipt photos being viewed in the lightbox overlay, and which one is showing.
@@ -244,7 +252,8 @@ export default function Event({
             amount: (s.amount / 100).toString(),
             currency: s.currency,
             category: s.category,
-            payer_id: s.payer.id,
+            // Guest-paid spends have no user payer to prefill; default the select to the current user.
+            payer_id: s.payer.id ?? authId,
             source_id: s.source?.id ?? null,
             note: s.note ?? '',
             spent_at: s.spent_at,
@@ -311,8 +320,14 @@ export default function Event({
     const duplicate = (s: Spend) => router.post(route('spending.spends.duplicate', s.id), {}, { preserveScroll: true });
     const remove = (s: Spend) => router.delete(route('spending.spends.destroy', s.id), { preserveScroll: true });
 
+    // Settle-up records a user-to-user payment; the ids are 'u{id}' so strip the prefix. Suggestions
+    // that involve a guest aren't one-click settleable (canSettle=false) and hide the button.
     const markPaid = (s: Suggestion) => {
-        router.post(route('spending.settle', event.id), { from_user_id: s.from.id, to_user_id: s.to.id, amount: s.amount }, { preserveScroll: true });
+        router.post(
+            route('spending.settle', event.id),
+            { from_user_id: Number(s.from.id.slice(1)), to_user_id: Number(s.to.id.slice(1)), amount: s.amount },
+            { preserveScroll: true },
+        );
     };
 
     return (
@@ -367,6 +382,16 @@ export default function Event({
                             >
                                 <UserPlus className="size-4.5" />
                             </button>
+                            <button
+                                type="button"
+                                onClick={() => setGuestSharing(true)}
+                                aria-label="Guest link"
+                                className="border-text-inverse/25 text-text-inverse relative flex size-9 items-center justify-center rounded-lg border transition-colors hover:bg-white/10"
+                            >
+                                <Link2 className="size-4.5" />
+                                {/* A dot signals the guest link is live. */}
+                                {guestShare?.enabled && <span className="bg-accent-light absolute -top-0.5 -right-0.5 size-2 rounded-full" />}
+                            </button>
                             <Select value={display} onValueChange={setDisplay}>
                                 <SelectTrigger className="border-text-inverse/25 text-text-inverse h-9 w-[88px] bg-transparent">
                                     <SelectValue />
@@ -383,6 +408,7 @@ export default function Event({
                     </div>
                 </div>
                 {share && <ShareSheet open={sharing} onOpenChange={setSharing} share={share} eventName={event.name} />}
+                {guestShare && <GuestSheet open={guestSharing} onOpenChange={setGuestSharing} guestShare={guestShare} entityName={event.name} />}
 
                 {/* New payment source — bottom drawer on mobile, centered overlay on desktop. */}
                 <ResponsiveModal
@@ -447,7 +473,7 @@ export default function Event({
                 <section className="flex flex-col gap-2">
                     <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Balances</h2>
                     {balances.map((b) => (
-                        <div key={b.user_id} className="bg-surface-card flex items-center justify-between rounded-xl border p-3">
+                        <div key={b.id} className="bg-surface-card flex items-center justify-between rounded-xl border p-3">
                             <div className="flex items-center gap-3">
                                 <span className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-full text-sm font-medium">
                                     {b.name.charAt(0).toUpperCase()}
@@ -479,9 +505,11 @@ export default function Event({
                                     <span className="text-primary font-medium">{s.to.name}</span>
                                     <span className="text-primary ml-2 font-mono font-semibold tabular-nums">{fmt(s.amount)}</span>
                                 </div>
-                                <Button size="sm" variant="outline" onClick={() => markPaid(s)}>
-                                    <Check className="size-4" /> Mark paid
-                                </Button>
+                                {s.canSettle && (
+                                    <Button size="sm" variant="outline" onClick={() => markPaid(s)}>
+                                        <Check className="size-4" /> Mark paid
+                                    </Button>
+                                )}
                             </div>
                         ))}
                     </section>
@@ -766,7 +794,7 @@ export default function Event({
                                         <div className="min-w-0 flex-1">
                                             <div className="text-primary line-clamp-2 text-sm font-medium">{s.note || s.category}</div>
                                             <div className="text-muted-foreground truncate text-xs capitalize">
-                                                {s.payer.name.split(' ')[0]} · {s.category}
+                                                {(s.payer.name ?? 'Guest').split(' ')[0]} · {s.category}
                                                 {s.source && <span className="normal-case"> · {s.source.name}</span>}
                                             </div>
                                         </div>
