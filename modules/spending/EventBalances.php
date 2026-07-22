@@ -18,14 +18,20 @@ class EventBalances
     public static function of(SpendEvent $event, Collection $spends, Collection $settlements): array
     {
         $names = $event->participantNames();
+        $split = $event->splitSettings(); // ['weights' => key=>int, 'coveredBy' => key=>key]
 
         $result = Balances::for(
-            array_keys($names),
-            $spends->map(fn (Spend $s) => ['payer_id' => $s->participantKey(), 'amount' => $s->base_amount])->all(),
+            $split['weights'],
+            $spends->map(fn (Spend $s) => [
+                'payer' => $s->participantKey(),
+                'amount' => $s->base_amount,
+                'shares' => self::sharesOf($s), // null unless this spend overrides its split
+            ])->all(),
             // Settlements are recorded between users only (an authenticated action), so they're all 'u' keys.
             $settlements->map(fn (SpendSettlement $t) => [
-                'from_user_id' => 'u'.$t->from_user_id, 'to_user_id' => 'u'.$t->to_user_id, 'amount' => $t->amount,
+                'from' => 'u'.$t->from_user_id, 'to' => 'u'.$t->to_user_id, 'amount' => $t->amount,
             ])->all(),
+            $split['coveredBy'],
         );
 
         $name = fn (string $key) => $names[$key] ?? '?';
@@ -42,5 +48,21 @@ class EventBalances
                 'canSettle' => str_starts_with($s['from'], 'u') && str_starts_with($s['to'], 'u'),
             ])->values()->all(),
         ];
+    }
+
+    /**
+     * A spend's split override for the math, or null when it splits among everyone (the common case).
+     * Rows with a null amount mean "weighted split among just these participants"; rows with an amount
+     * mean an exact split. Relies on the caller eager-loading `shares` to avoid an N+1.
+     *
+     * @return array<string,int|null>|null
+     */
+    private static function sharesOf(Spend $spend): ?array
+    {
+        if ($spend->shares->isEmpty()) {
+            return null;
+        }
+
+        return $spend->shares->mapWithKeys(fn (SpendShare $sh) => [$sh->participant_key => $sh->amount])->all();
     }
 }
