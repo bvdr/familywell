@@ -464,6 +464,18 @@ class SpendingController extends Controller
             'date' => $t->created_at?->toDateString(),
         ])->values();
 
+        // Personal breakdown for the viewer (only if they're a participant in this event). Everything in
+        // base cents. net = paid - share + sent - received (see Balances), so share is derived from the rest.
+        $userId = request()->user()->id;
+        $mySummary = $members->contains('id', $userId) ? (function () use ($userId, $spends, $settlements, $balances) {
+            $paid = (int) $spends->where('payer_id', $userId)->sum('base_amount');
+            $sent = (int) $settlements->where('from_user_id', $userId)->sum('amount');
+            $received = (int) $settlements->where('to_user_id', $userId)->sum('amount');
+            $net = (int) (collect($balances['balances'])->firstWhere('id', 'u'.$userId)['net'] ?? 0);
+
+            return ['paid' => $paid, 'share' => $paid + $sent - $received - $net, 'sent' => $sent, 'received' => $received, 'net' => $net];
+        })() : null;
+
         return [
             'familyId' => (int) CurrentFamily::id(),
             'scanEnabled' => ReceiptScanner::configured(),
@@ -505,6 +517,7 @@ class SpendingController extends Controller
             'suggestions' => $balances['suggestions'],
             'participants' => $participants,
             'transfers' => $transfers,
+            'mySummary' => $mySummary,
             'share' => [
                 'type' => 'spend_event',
                 'id' => $event->id,
