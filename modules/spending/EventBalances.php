@@ -63,6 +63,15 @@ class EventBalances
             return null;
         }
 
-        return $spend->shares->mapWithKeys(fn (SpendShare $sh) => [$sh->participant_key => $sh->amount])->all();
+        return $spend->shares->mapWithKeys(function (SpendShare $sh) use ($spend) {
+            // 'some' rows have a null amount (weighted split among the listed participants). 'exact' rows
+            // store the amount in the SPEND's currency, so convert to base proportionally to the spend's
+            // frozen conversion; the shares then reconcile to base_amount (Balances parks any cent remainder).
+            $amount = $sh->amount === null || $spend->amount <= 0
+                ? $sh->amount
+                : (int) round($sh->amount * $spend->base_amount / $spend->amount);
+
+            return [$sh->participant_key => $amount];
+        })->all();
     }
 }
