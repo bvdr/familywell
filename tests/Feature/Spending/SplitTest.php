@@ -85,3 +85,32 @@ it('limits a spend to only the participants it is shared with', function () {
         ->and($net['u'.$users[1]->id])->toBe(-1500)
         ->and($net['u'.$users[2]->id])->toBe(0);  // not part of this spend
 });
+
+it('sets a headcount through the endpoint and clears it back to default', function () {
+    [, $users, $event] = splitEvent();
+    $key = 'u'.$users[1]->id;
+
+    actingAs($users[0])->patch("/m/spending/events/{$event->id}/participants/{$key}", ['weight' => 3, 'covered_by' => ''])->assertRedirect();
+    expect(SpendParticipant::where('participant_key', $key)->value('weight'))->toBe(3);
+
+    // weight 1 + no cover is the default, so the row is removed (table stays sparse).
+    actingAs($users[0])->patch("/m/spending/events/{$event->id}/participants/{$key}", ['weight' => 1, 'covered_by' => '']);
+    expect(SpendParticipant::where('participant_key', $key)->exists())->toBeFalse();
+});
+
+it('validates cover targets: no self-cover and no chains', function () {
+    [, $users, $event] = splitEvent();
+    [$a, $b, $c] = ['u'.$users[0]->id, 'u'.$users[1]->id, 'u'.$users[2]->id];
+
+    // Can't cover yourself.
+    actingAs($users[0])->patch("/m/spending/events/{$event->id}/participants/{$a}", ['weight' => 1, 'covered_by' => $a])->assertStatus(422);
+
+    // a covers b (fine).
+    actingAs($users[0])->patch("/m/spending/events/{$event->id}/participants/{$b}", ['weight' => 1, 'covered_by' => $a])->assertRedirect();
+
+    // a now covers someone, so a itself can't be covered.
+    actingAs($users[0])->patch("/m/spending/events/{$event->id}/participants/{$a}", ['weight' => 1, 'covered_by' => $c])->assertStatus(422);
+
+    // b is covered, so nobody can be covered by b.
+    actingAs($users[0])->patch("/m/spending/events/{$event->id}/participants/{$c}", ['weight' => 1, 'covered_by' => $b])->assertStatus(422);
+});
