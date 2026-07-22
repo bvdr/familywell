@@ -1,4 +1,4 @@
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { router } from '@inertiajs/react';
 import { Check, Copy, Link2, Lock, LockOpen, Plus, Trash2, UserRound } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -74,19 +74,29 @@ export function GuestSheet({
     };
 
     return (
-        <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="bottom" className="max-h-[88vh] overflow-y-auto rounded-t-2xl px-4 pb-8 sm:mx-auto sm:max-w-md">
-                <SheetHeader className="px-0 text-left">
-                    <SheetTitle className="font-heading text-primary text-2xl">Guest link</SheetTitle>
-                    <p className="text-muted-foreground -mt-1 text-sm">Let people without an account join {entityName}</p>
-                </SheetHeader>
-
+        // Keyboard-safe drawer (pinned header + footer, scrolling body) so the password / guest-name
+        // inputs stay usable with the iOS keyboard open. See ResponsiveModal.
+        <ResponsiveModal
+            open={open}
+            onOpenChange={onOpenChange}
+            title="Guest link"
+            description={`Let people without an account join ${entityName}`}
+            footer={
+                <button
+                    onClick={() => onOpenChange(false)}
+                    className="bg-primary text-primary-foreground w-full rounded-xl py-3 text-sm font-semibold"
+                >
+                    Done
+                </button>
+            }
+        >
+            <div className="flex flex-col pt-1">
                 {/* On / off */}
                 <button
                     type="button"
                     disabled={!state.canManage}
                     onClick={() => toggle(!state.enabled)}
-                    className={`mt-2 flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
+                    className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
                         state.enabled ? 'border-primary bg-accent-subtle' : 'bg-surface-card hover:border-accent'
                     } ${state.canManage ? '' : 'opacity-70'}`}
                 >
@@ -223,14 +233,7 @@ export function GuestSheet({
                         </div>
                     </>
                 )}
-
-                <button
-                    onClick={() => onOpenChange(false)}
-                    className="bg-primary text-primary-foreground mt-6 w-full rounded-xl py-3 text-sm font-semibold"
-                >
-                    Done
-                </button>
-            </SheetContent>
-        </Sheet>
+            </div>
+        </ResponsiveModal>
     );
 }
