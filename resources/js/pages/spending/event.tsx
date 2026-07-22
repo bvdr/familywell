@@ -78,6 +78,8 @@ type Balance = { id: string; name: string; net: number };
 type Suggestion = { from: { id: string; name: string }; to: { id: string; name: string }; amount: number; canSettle: boolean };
 type Participant = { key: string; name: string; kind: 'member' | 'guest'; weight: number; coveredBy: string | null };
 type Transfer = { id: number; from: string; to: string; amount: number; date: string };
+// Personal breakdown for the viewer (base cents). null when the viewer isn't a participant.
+type MySummary = { paid: number; share: number; sent: number; received: number; net: number } | null;
 
 // Soft, warm per-person avatar palette (borrowed from the reference). Colours are assigned by the
 // participant's position (see AvatarColorContext) so everyone in an event gets a distinct colour;
@@ -153,6 +155,7 @@ export default function Event({
     suggestions,
     participants,
     transfers,
+    mySummary,
     familyId,
     share,
     guestShare,
@@ -165,6 +168,7 @@ export default function Event({
     suggestions: Suggestion[];
     participants: Participant[];
     transfers: Transfer[];
+    mySummary: MySummary;
     familyId: number;
     share: ShareState;
     guestShare: GuestShareState;
@@ -746,8 +750,44 @@ export default function Event({
                         {/* BALANCES + suggested settle-up */}
                         {tab === 'balances' && (
                             <>
+                                {/* Personal breakdown for the viewer. */}
+                                {mySummary && (
+                                    <section className="flex flex-col gap-2">
+                                        <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Your summary</h2>
+                                        <div className="bg-surface-card flex flex-col rounded-2xl border p-4">
+                                            {[
+                                                { label: 'Total spent', value: event.total },
+                                                { label: 'You paid', value: mySummary.paid },
+                                                { label: 'Your share', value: mySummary.share },
+                                                ...(mySummary.sent > 0 ? [{ label: 'Transfers sent', value: mySummary.sent }] : []),
+                                                ...(mySummary.received > 0 ? [{ label: 'Transfers received', value: mySummary.received }] : []),
+                                            ].map((row) => (
+                                                <div
+                                                    key={row.label}
+                                                    className="border-border/50 flex items-center justify-between border-b border-dashed py-2 text-sm"
+                                                >
+                                                    <span className="text-text-secondary">{row.label}</span>
+                                                    <span className="text-primary font-mono tabular-nums">{fmt(row.value)}</span>
+                                                </div>
+                                            ))}
+                                            <div className="mt-1 flex items-center justify-between pt-2">
+                                                <span className="text-primary font-medium">
+                                                    {mySummary.net > 0 ? 'You get back' : mySummary.net < 0 ? 'You owe' : 'You’re settled up'}
+                                                </span>
+                                                <span
+                                                    className={`font-mono text-lg font-semibold tabular-nums ${mySummary.net > 0 ? 'text-primary' : mySummary.net < 0 ? 'text-[var(--warning)]' : 'text-muted-foreground'}`}
+                                                >
+                                                    {mySummary.net === 0 ? '—' : fmt(Math.abs(mySummary.net))}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </section>
+                                )}
+
                                 <section className="flex flex-col gap-2">
-                                    <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Balances</h2>
+                                    <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
+                                        {mySummary ? 'Everyone' : 'Balances'}
+                                    </h2>
                                     {balances.map((b) => (
                                         <div key={b.id} className="bg-surface-card flex items-center justify-between rounded-xl border p-3">
                                             <div className="flex items-center gap-3">
