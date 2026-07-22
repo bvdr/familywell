@@ -3,6 +3,7 @@
 namespace Modules\Spending;
 
 use App\Support\Dashboard\DashboardItems;
+use App\Support\Guests\GuestableRegistry;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
@@ -17,6 +18,8 @@ class SpendingServiceProvider extends ServiceProvider
     {
         // Opt spend events into the core sharing system (addressable as `spend_event` in share URLs).
         ShareableRegistry::register('spend_event', SpendEvent::class);
+        // Opt them into the core guest-sharing system too (named participants + unguessable link).
+        GuestableRegistry::register('spend_event', SpendEvent::class);
 
         // Surface the family's spend events on the dashboard (the entities themselves, deep-linked),
         // not just a link to the module. Respects sharing: only events the viewer can see.
@@ -62,6 +65,18 @@ class SpendingServiceProvider extends ServiceProvider
                 Route::post('/spends/{spend}/duplicate', [SpendingController::class, 'duplicateSpend'])->name('spends.duplicate');
                 Route::get('/spends/receipts/{receipt}', [SpendingController::class, 'receiptFile'])->name('receipts.show');
                 Route::delete('/spends/{spend}', [SpendingController::class, 'destroySpend'])->name('spends.destroy');
+            });
+
+        // Public guest writes: editor guests add/edit/delete their own spends through the guest link.
+        // No auth or family middleware; each request is authorized by the link token + the acting
+        // guest's role (GuestAccess). Throttled since it's unauthenticated. 'web' gives it a session.
+        Route::middleware(['web', 'throttle:60,1'])
+            ->prefix('m/spending/guest/{token}')
+            ->name('spending.guest.')
+            ->group(function () {
+                Route::post('/spends', [GuestSpendController::class, 'store'])->name('spends.store');
+                Route::patch('/spends/{spend}', [GuestSpendController::class, 'update'])->name('spends.update');
+                Route::delete('/spends/{spend}', [GuestSpendController::class, 'destroy'])->name('spends.destroy');
             });
     }
 }

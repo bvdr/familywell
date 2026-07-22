@@ -18,9 +18,10 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SpendingController extends Controller
 {
-    private const CATEGORIES = ['food', 'transport', 'lodging', 'activities', 'other'];
+    // Public so the guest view (SpendEvent::guestView) can reuse the same option lists.
+    public const CATEGORIES = ['food', 'transport', 'lodging', 'activities', 'other'];
 
-    private const CURRENCIES = ['EUR', 'RON', 'USD', 'GBP'];
+    public const CURRENCIES = ['EUR', 'RON', 'USD', 'GBP'];
 
     public function __construct(private ShareAccess $access) {}
 
@@ -342,27 +343,12 @@ class SpendingController extends Controller
     /** Build the stored columns from validated input, freezing the FX conversion at the spend's date. */
     private function spendAttributes(array $data, SpendEvent $event): array
     {
-        // Decimal major units in, integer minor units stored. round() so 48.00 -> 4800 exactly.
-        $amount = (int) round($data['amount'] * 100);
-        $baseAmount = Fx::convert($amount, $data['currency'], $event->currency, $data['spent_at']);
-
-        return [
-            'payer_id' => $data['payer_id'],
-            'source_id' => $data['source_id'] ?? null,
-            'amount' => $amount,
-            'currency' => $data['currency'],
-            'base_amount' => $baseAmount,
-            'rate' => $amount ? $baseAmount / $amount : 1,
-            'category' => $data['category'],
-            'note' => $data['note'] ?? null,
-            'spent_at' => $data['spent_at'],
-        ];
+        return ['payer_id' => $data['payer_id'], ...$event->buildSpend($data)];
     }
 
     private function eventPayload(SpendEvent $event): array
     {
         $members = $event->members()->get(['users.id', 'name']);
-        $memberIds = $members->pluck('id')->all();
 
         // Sharing state for the "Share event" sheet: each family member's effective role, the current
         // visibility, whether this viewer can manage, and the read-only invite link (if any).
@@ -381,21 +367,13 @@ class SpendingController extends Controller
         })->values();
         $link = $event->shareLinks()->first();
 
-        $spends = $event->spends()->with(['payer:id,name', 'source:id,name,type', 'receipts:id,spend_id'])->latest('spent_at')->latest('id')->get();
+        $spends = $event->spends()->with(['payer:id,name', 'payerGuest:id,name', 'source:id,name,type', 'receipts:id,spend_id'])->latest('spent_at')->latest('id')->get();
         $settlements = $event->settlements()->get();
         $sources = SpendSource::orderBy('id')->get(['id', 'name', 'type']); // creation order → newest last
 
-        // Balances are computed in the event's base currency, so they use base_amount (each spend
-        // already converted + frozen at capture). Settlements are recorded in the base currency too.
-        $balances = Balances::for(
-            $memberIds,
-            $spends->map(fn (Spend $s) => ['payer_id' => $s->payer_id, 'amount' => $s->base_amount])->all(),
-            $settlements->map(fn (SpendSettlement $t) => [
-                'from_user_id' => $t->from_user_id, 'to_user_id' => $t->to_user_id, 'amount' => $t->amount,
-            ])->all(),
-        );
-
-        $nameOf = fn (int $id) => $members->firstWhere('id', $id)?->name ?? '?';
+        // Balances span family members AND guests, in the event's base currency (see EventBalances).
+        $balances = EventBalances::of($event, $spends, $settlements);
+        $guestLink = $event->guestLink;
 
         return [
             'familyId' => (int) CurrentFamily::id(),
@@ -425,17 +403,12 @@ class SpendingController extends Controller
                     'url' => route('spending.receipts.show', $r->id),
                 ])->values(),
                 'source' => $s->source ? ['id' => $s->source->id, 'name' => $s->source->name, 'type' => $s->source->type] : null,
-                'payer' => ['id' => $s->payer_id, 'name' => $s->payer?->name],
+                // A user paid (payer.id set) or a guest did (isGuest, no user id to prefill the form with).
+                'payer' => ['id' => $s->payer_id, 'name' => $s->payer?->name ?? $s->payerGuest?->name, 'isGuest' => $s->payer_guest_id !== null],
                 'spent_at' => $s->spent_at->toDateString(),
             ])->values(),
-            'balances' => collect($balances['net'])
-                ->map(fn (int $cents, int $id) => ['user_id' => $id, 'name' => $nameOf($id), 'net' => $cents])
-                ->values(),
-            'suggestions' => collect($balances['suggestions'])->map(fn ($s) => [
-                'from' => ['id' => $s['from'], 'name' => $nameOf($s['from'])],
-                'to' => ['id' => $s['to'], 'name' => $nameOf($s['to'])],
-                'amount' => $s['amount'],
-            ])->values(),
+            'balances' => $balances['balances'],
+            'suggestions' => $balances['suggestions'],
             'share' => [
                 'type' => 'spend_event',
                 'id' => $event->id,
@@ -447,6 +420,17 @@ class SpendingController extends Controller
                     'token' => $link->token,
                     'url' => route('share.public', $link->token),
                 ] : null,
+            ],
+            // Guest sharing: named, account-less participants + the unguessable (optionally password-
+            // gated) link. Managed through the generic /guest-links/{type}/{id} endpoints.
+            'guestShare' => [
+                'type' => 'spend_event',
+                'id' => $event->id,
+                'canManage' => $this->access->canManage(request()->user(), $event),
+                'enabled' => $guestLink !== null,
+                'hasPassword' => (bool) $guestLink?->hasPassword(),
+                'url' => $guestLink ? route('guest.public', $guestLink->token) : null,
+                'guests' => $event->guests->map(fn ($g) => ['id' => $g->id, 'name' => $g->name, 'role' => $g->role])->values(),
             ],
         ];
     }
