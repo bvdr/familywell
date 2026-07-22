@@ -59,6 +59,9 @@ type Spend = {
     source: Source | null;
     // A user paid (id set) or a guest did (isGuest, no user id to prefill the payer select with).
     payer: { id: number | null; name: string | null; isGuest: boolean };
+    // How the spend splits; shares list the subset (some) or per-person amounts (exact, spend currency).
+    split: 'all' | 'some' | 'exact';
+    shares: { key: string; amount: number | null }[];
     spent_at: string;
 };
 type Source = { id: number; name: string; type: string };
@@ -214,6 +217,7 @@ export default function Event({
         return () => echo.leave(`family.${familyId}`);
     }, [familyId]);
 
+    const allKeys = participants.map((p) => p.key);
     const form = useForm<{
         amount: string;
         currency: string;
@@ -224,6 +228,9 @@ export default function Event({
         spent_at: string;
         receipts: File[];
         remove_receipt_ids: number[];
+        split: 'all' | 'some' | 'exact';
+        share_keys: string[];
+        share_amounts: Record<string, string>;
     }>({
         amount: '',
         currency: event.currency,
@@ -234,7 +241,47 @@ export default function Event({
         spent_at: today(),
         receipts: [],
         remove_receipt_ids: [],
+        split: 'all',
+        share_keys: allKeys,
+        share_amounts: {},
     });
+
+    // --- Per-expense split helpers (used by the Split section of the form) ---
+    const toggleShareKey = (key: string) =>
+        form.setData(
+            'share_keys',
+            form.data.share_keys.includes(key) ? form.data.share_keys.filter((k) => k !== key) : [...form.data.share_keys, key],
+        );
+    const setShareAmount = (key: string, val: string) =>
+        form.setData('share_amounts', { ...form.data.share_amounts, [key]: val.replace(/,/g, '.').replace(/[^\d.]/g, '') });
+    // Fill exact amounts by splitting the total equally (cents distributed to the first people).
+    const splitEqually = () => {
+        const total = Math.round(Number(form.data.amount || 0) * 100);
+        const n = participants.length;
+        if (n === 0) return;
+        const base = Math.floor(total / n);
+        const rem = total - base * n;
+        const amounts: Record<string, string> = {};
+        participants.forEach((p, i) => (amounts[p.key] = ((base + (i < rem ? 1 : 0)) / 100).toFixed(2)));
+        form.setData('share_amounts', amounts);
+    };
+    const amountCents = Math.round(Number(form.data.amount || 0) * 100);
+    const exactSumCents = participants.reduce((sum, p) => sum + Math.round(Number(form.data.share_amounts[p.key] || 0) * 100), 0);
+    const remainingCents = amountCents - exactSumCents;
+    const splitValid =
+        form.data.split === 'all' ||
+        (form.data.split === 'some' && form.data.share_keys.length > 0) ||
+        (form.data.split === 'exact' && exactSumCents > 0 && remainingCents === 0);
+    // Build the shares payload the backend expects from the split mode.
+    const withShares = <T extends Record<string, unknown>>(d: T) => {
+        const shares =
+            form.data.split === 'some'
+                ? form.data.share_keys.map((key) => ({ key }))
+                : form.data.split === 'exact'
+                  ? participants.map((p) => ({ key: p.key, amount: Number(form.data.share_amounts[p.key] || 0) }))
+                  : [];
+        return { ...d, split: form.data.split, shares };
+    };
 
     // Inline "paid with" source creation. New sources appear in `sources` after the create reloads;
     // we then auto-select the freshest one.
@@ -282,10 +329,10 @@ export default function Event({
             // PHP never parses a multipart body on a PATCH request, so a receipt upload on edit must
             // go as POST + _method spoofing. forceFormData makes it multipart so _method is read as a
             // form field for the override.
-            form.transform((d) => ({ ...d, _method: 'patch' }));
+            form.transform((d) => ({ ...withShares(d), _method: 'patch' }));
             form.post(route('spending.spends.update', editing), { ...opts, forceFormData: true });
         } else {
-            form.transform((d) => d); // reset any prior _method transform
+            form.transform((d) => withShares(d));
             form.post(route('spending.spends.store', event.id), opts);
         }
     };
@@ -302,6 +349,9 @@ export default function Event({
             spent_at: s.spent_at,
             receipts: [],
             remove_receipt_ids: [],
+            split: s.split,
+            share_keys: s.split === 'some' ? s.shares.map((x) => x.key) : allKeys,
+            share_amounts: s.split === 'exact' ? Object.fromEntries(s.shares.map((x) => [x.key, String(x.amount ?? 0)])) : {},
         });
         setEditing(s.id);
         setAdding(true);
@@ -350,6 +400,9 @@ export default function Event({
                 spent_at: data.date ?? today(),
                 receipts: [photo], // keep the scanned photo attached to the spend
                 remove_receipt_ids: [],
+                split: 'all',
+                share_keys: allKeys,
+                share_amounts: {},
             });
             setEditing(null);
             setAdding(true);
@@ -739,7 +792,7 @@ export default function Event({
                         className="sm:max-w-lg"
                         autoFocusRef={amountRef}
                         footer={
-                            <Button type="submit" form="spend-form" disabled={form.processing} className="w-full">
+                            <Button type="submit" form="spend-form" disabled={form.processing || !splitValid} className="w-full">
                                 Save
                             </Button>
                         }
@@ -818,6 +871,93 @@ export default function Event({
                                     </Select>
                                 </div>
                             </div>
+                            {/* How this spend splits: everyone (default), a chosen subset, or exact amounts. */}
+                            <div className="grid gap-2">
+                                <Label>Split</Label>
+                                <div className="bg-surface grid grid-cols-3 gap-1 rounded-lg border p-1">
+                                    {(
+                                        [
+                                            ['all', 'Everyone'],
+                                            ['some', 'Only some'],
+                                            ['exact', 'Custom'],
+                                        ] as const
+                                    ).map(([k, l]) => (
+                                        <button
+                                            key={k}
+                                            type="button"
+                                            onClick={() => {
+                                                form.setData('split', k);
+                                                if (k === 'exact' && Object.keys(form.data.share_amounts).length === 0) splitEqually();
+                                            }}
+                                            className={`rounded-md py-1.5 text-sm font-medium transition-colors ${
+                                                form.data.split === k ? 'bg-primary text-primary-foreground' : 'text-text-secondary'
+                                            }`}
+                                        >
+                                            {l}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {form.data.split === 'some' && (
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {participants.map((p) => {
+                                            const on = form.data.share_keys.includes(p.key);
+                                            return (
+                                                <button
+                                                    key={p.key}
+                                                    type="button"
+                                                    onClick={() => toggleShareKey(p.key)}
+                                                    className={`flex items-center gap-2 rounded-lg border p-2 text-left text-sm transition-colors ${
+                                                        on ? 'border-primary bg-accent-subtle' : 'bg-surface-card'
+                                                    }`}
+                                                >
+                                                    <PersonAvatar name={p.name} className="size-6 text-xs" />
+                                                    <span className="text-primary min-w-0 flex-1 truncate">{p.name}</span>
+                                                    {on && <Check className="text-primary size-4 shrink-0" />}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
+                                {form.data.split === 'exact' && (
+                                    <div className="flex flex-col gap-2">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-muted-foreground text-xs">Amount each owes ({form.data.currency})</span>
+                                            <button type="button" onClick={splitEqually} className="text-primary text-xs font-medium underline">
+                                                Split equally
+                                            </button>
+                                        </div>
+                                        {participants.map((p) => (
+                                            <div key={p.key} className="flex items-center gap-2">
+                                                <PersonAvatar name={p.name} className="size-6 text-xs" />
+                                                <span className="text-primary min-w-0 flex-1 truncate text-sm">{p.name}</span>
+                                                <Input
+                                                    form="spend-form"
+                                                    inputMode="decimal"
+                                                    value={form.data.share_amounts[p.key] ?? ''}
+                                                    onChange={(e) => setShareAmount(p.key, e.target.value)}
+                                                    placeholder="0.00"
+                                                    className="w-24 text-right"
+                                                />
+                                            </div>
+                                        ))}
+                                        <div
+                                            className={`flex items-center justify-between text-xs ${remainingCents !== 0 ? 'text-[var(--warning)]' : 'text-muted-foreground'}`}
+                                        >
+                                            <span>
+                                                {money(exactSumCents, form.data.currency)} of {money(amountCents, form.data.currency)}
+                                            </span>
+                                            <span>
+                                                {remainingCents === 0
+                                                    ? 'balanced'
+                                                    : `${money(Math.abs(remainingCents), form.data.currency)} ${remainingCents > 0 ? 'left' : 'over'}`}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
                             <div className="grid gap-2">
                                 <Label>Paid with</Label>
                                 <Select
@@ -984,6 +1124,12 @@ export default function Event({
                                                     <div className="text-primary line-clamp-2 text-sm font-medium">{s.note || s.category}</div>
                                                     <div className="text-muted-foreground truncate text-xs capitalize">
                                                         {(s.payer.name ?? 'Guest').split(' ')[0]} · {s.category}
+                                                        {s.split !== 'all' && (
+                                                            <span className="normal-case">
+                                                                {' '}
+                                                                · {s.split === 'exact' ? 'custom split' : `${s.shares.length} people`}
+                                                            </span>
+                                                        )}
                                                         {s.source && <span className="normal-case"> · {s.source.name}</span>}
                                                     </div>
                                                 </div>

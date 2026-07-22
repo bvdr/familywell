@@ -98,6 +98,43 @@ it('sets a headcount through the endpoint and clears it back to default', functi
     expect(SpendParticipant::where('participant_key', $key)->exists())->toBeFalse();
 });
 
+it('stores a spend split among only some participants via the form', function () {
+    [, $users, $event] = splitEvent();
+    actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
+        'amount' => '30.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+        'split' => 'some', 'shares' => [['key' => 'u'.$users[0]->id], ['key' => 'u'.$users[1]->id]],
+    ])->assertRedirect();
+
+    $spend = $event->spends()->first();
+    expect($spend->shares()->count())->toBe(2)
+        ->and($spend->shares()->whereNotNull('amount')->count())->toBe(0); // 'some' rows carry no amount
+
+    $net = netsOf($event);
+    expect($net['u'.$users[0]->id])->toBe(1500)
+        ->and($net['u'.$users[1]->id])->toBe(-1500)
+        ->and($net['u'.$users[2]->id])->toBe(0); // excluded from this spend
+});
+
+it('stores exact per-person amounts (spend currency) and bills them', function () {
+    [, $users, $event] = splitEvent();
+    actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
+        'amount' => '30.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+        'split' => 'exact', 'shares' => [
+            ['key' => 'u'.$users[0]->id, 'amount' => '20'],
+            ['key' => 'u'.$users[1]->id, 'amount' => '10'],
+            ['key' => 'u'.$users[2]->id, 'amount' => '0'],
+        ],
+    ])->assertRedirect();
+
+    $spend = $event->spends()->first();
+    expect((int) $spend->shares()->where('participant_key', 'u'.$users[0]->id)->value('amount'))->toBe(2000); // stored in spend currency minor units
+
+    $net = netsOf($event);
+    expect($net['u'.$users[0]->id])->toBe(1000)   // paid 3000, owes 2000
+        ->and($net['u'.$users[1]->id])->toBe(-1000)
+        ->and($net['u'.$users[2]->id])->toBe(0);
+});
+
 it('validates cover targets: no self-cover and no chains', function () {
     [, $users, $event] = splitEvent();
     [$a, $b, $c] = ['u'.$users[0]->id, 'u'.$users[1]->id, 'u'.$users[2]->id];
