@@ -1,6 +1,6 @@
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { router } from '@inertiajs/react';
-import { Check, Copy, Link2, Lock, LockOpen, Plus, Trash2, UserRound } from 'lucide-react';
+import { Check, Copy, Link2, Lock, LockOpen, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 // Reusable, module-agnostic guest-sharing manager. Any entity that uses the core GuestShareable trait
@@ -199,35 +199,35 @@ export function GuestSheet({
                                 </div>
                             ))}
 
-                            {/* Add guest */}
+                            {/* Add guest. Name on its own row, then role + an explicit "Add person" button
+                                so the action is obvious (a lone icon crammed on the input row got clipped
+                                off the drawer edge, leaving Enter as the only non-obvious way to add). */}
                             {state.canManage && (
-                                <div className="mt-2 flex items-center gap-2">
-                                    <span className="text-muted-foreground flex size-9 shrink-0 items-center justify-center">
-                                        <UserRound className="size-4.5" />
-                                    </span>
+                                <div className="border-border/60 mt-2 flex flex-col gap-2 border-t pt-3">
                                     <input
                                         value={newName}
                                         onChange={(e) => setNewName(e.target.value)}
                                         onKeyDown={(e) => e.key === 'Enter' && addGuest()}
                                         placeholder="Guest name"
-                                        className="border-border bg-surface-card text-primary focus:border-accent flex-1 rounded-lg border px-3 py-2 text-base outline-none md:text-sm"
+                                        className="border-border bg-surface-card text-primary focus:border-accent w-full rounded-lg border px-3 py-2 text-base outline-none md:text-sm"
                                     />
-                                    <select
-                                        value={newRole}
-                                        onChange={(e) => setNewRole(e.target.value as GuestPerson['role'])}
-                                        className="border-border bg-surface-card text-primary rounded-lg border py-2 pr-7 pl-3 text-base md:text-sm"
-                                    >
-                                        <option value="editor">Can add</option>
-                                        <option value="viewer">View only</option>
-                                    </select>
-                                    <button
-                                        onClick={addGuest}
-                                        disabled={!newName.trim()}
-                                        aria-label="Add guest"
-                                        className="bg-primary text-primary-foreground flex size-9 shrink-0 items-center justify-center rounded-lg disabled:opacity-40"
-                                    >
-                                        <Plus className="size-4.5" />
-                                    </button>
+                                    <div className="flex gap-2">
+                                        <select
+                                            value={newRole}
+                                            onChange={(e) => setNewRole(e.target.value as GuestPerson['role'])}
+                                            className="border-border bg-surface-card text-primary rounded-lg border py-2 pr-7 pl-3 text-base md:text-sm"
+                                        >
+                                            <option value="editor">Can add</option>
+                                            <option value="viewer">View only</option>
+                                        </select>
+                                        <button
+                                            onClick={addGuest}
+                                            disabled={!newName.trim()}
+                                            className="bg-primary text-primary-foreground flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold disabled:opacity-40"
+                                        >
+                                            <Plus className="size-4.5" /> Add person
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>
