@@ -241,6 +241,7 @@ class SpendingController extends Controller
         ]);
 
         $this->attachReceipts($request, $spend);
+        $this->syncShares($spend, $data);
 
         Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
 
@@ -259,6 +260,7 @@ class SpendingController extends Controller
 
         $this->removeReceipts($request, $spend);
         $this->attachReceipts($request, $spend);
+        $this->syncShares($spend, $data);
 
         Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
 
@@ -363,6 +365,7 @@ class SpendingController extends Controller
     private function validateSpend(Request $request, SpendEvent $event): array
     {
         $memberIds = $event->members()->pluck('users.id')->all();
+        $participantKeys = array_keys($event->participantNames());
 
         return $request->validate([
             'amount' => ['required', 'numeric', 'gt:0'],
@@ -377,7 +380,31 @@ class SpendingController extends Controller
             'receipts.*' => ['image', 'max:12288'], // up to 12 MB each (PHP allows 16M, see Dockerfile)
             'remove_receipt_ids' => ['nullable', 'array'], // ids of existing receipts to detach (on edit)
             'remove_receipt_ids.*' => ['integer'],
+            // How the spend splits: all (everyone), some (a subset), exact (per-person amounts).
+            'split' => ['nullable', 'in:all,some,exact'],
+            'shares' => ['nullable', 'array'],
+            'shares.*.key' => ['required_with:shares', 'in:'.implode(',', $participantKeys)],
+            'shares.*.amount' => ['nullable', 'numeric', 'min:0'],
         ]);
+    }
+
+    // Persist a spend's split override rows from the validated input. Amounts are stored in the spend's
+    // OWN currency (minor units); EventBalances converts them to the base currency for the maths.
+    private function syncShares(Spend $spend, array $data): void
+    {
+        $spend->shares()->delete();
+        $split = $data['split'] ?? 'all';
+        $shares = $data['shares'] ?? [];
+        if ($split === 'all' || $shares === []) {
+            return; // no rows = split among everyone (weighted)
+        }
+
+        foreach ($shares as $sh) {
+            $spend->shares()->create([
+                'participant_key' => $sh['key'],
+                'amount' => $split === 'exact' ? (int) round(($sh['amount'] ?? 0) * 100) : null,
+            ]);
+        }
     }
 
     /** Build the stored columns from validated input, freezing the FX conversion at the spend's date. */
@@ -468,6 +495,10 @@ class SpendingController extends Controller
                 'source' => $s->source ? ['id' => $s->source->id, 'name' => $s->source->name, 'type' => $s->source->type] : null,
                 // A user paid (payer.id set) or a guest did (isGuest, no user id to prefill the form with).
                 'payer' => ['id' => $s->payer_id, 'name' => $s->payer?->name ?? $s->payerGuest?->name, 'isGuest' => $s->payer_guest_id !== null],
+                // How this spend splits, for prefilling the edit form. Exact amounts are in the spend's
+                // own currency (major units); 'some' rows carry no amount.
+                'split' => $s->shares->isEmpty() ? 'all' : ($s->shares->whereNotNull('amount')->isNotEmpty() ? 'exact' : 'some'),
+                'shares' => $s->shares->map(fn (SpendShare $sh) => ['key' => $sh->participant_key, 'amount' => $sh->amount === null ? null : $sh->amount / 100])->values(),
                 'spent_at' => $s->spent_at->toDateString(),
             ])->values(),
             'balances' => $balances['balances'],
