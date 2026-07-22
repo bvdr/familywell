@@ -28,6 +28,39 @@ class SpendEvent extends Model implements ProvidesGuestView, ProvidesPublicShare
         return $this->belongsToMany(User::class, 'spending_event_user', 'spend_event_id', 'user_id');
     }
 
+    /** Per-participant split settings (headcount + covered_by); rows exist only for non-defaults. */
+    public function participantSettings(): HasMany
+    {
+        return $this->hasMany(SpendParticipant::class);
+    }
+
+    /**
+     * Split settings for the balance math: every participant's key => headcount weight (>=1), and the
+     * cover map (key => coverer key). Participants default to weight 1 and no cover, so events with no
+     * `spending_participants` rows split equally among everyone exactly as before.
+     *
+     * @return array{weights: array<string,int>, coveredBy: array<string,string>}
+     */
+    public function splitSettings(): array
+    {
+        $names = $this->participantNames();
+        $weights = array_fill_keys(array_keys($names), 1);
+        $coveredBy = [];
+
+        foreach ($this->participantSettings as $p) {
+            if (! array_key_exists($p->participant_key, $weights)) {
+                continue; // stale row for a participant no longer on the event
+            }
+            $weights[$p->participant_key] = max(1, $p->weight);
+            // Only honour a cover pointing at a real, current participant.
+            if ($p->covered_by && array_key_exists($p->covered_by, $names)) {
+                $coveredBy[$p->participant_key] = $p->covered_by;
+            }
+        }
+
+        return ['weights' => $weights, 'coveredBy' => $coveredBy];
+    }
+
     /**
      * Every participant's balance key => display name, across family members ('u{id}') and guests
      * ('g{id}'). Namespaced so a user id and a guest id can never collide in the balance sheet.
@@ -118,7 +151,7 @@ class SpendEvent extends Model implements ProvidesGuestView, ProvidesPublicShare
     public function guestView(): array
     {
         $spends = $this->spends()
-            ->with(['payer:id,name', 'payerGuest:id,name', 'source:id,name,type'])
+            ->with(['payer:id,name', 'payerGuest:id,name', 'source:id,name,type', 'shares'])
             ->latest('spent_at')->latest('id')->get();
         $settlements = $this->settlements()->get();
         $balances = EventBalances::of($this, $spends, $settlements);

@@ -367,7 +367,7 @@ class SpendingController extends Controller
         })->values();
         $link = $event->shareLinks()->first();
 
-        $spends = $event->spends()->with(['payer:id,name', 'payerGuest:id,name', 'source:id,name,type', 'receipts:id,spend_id'])->latest('spent_at')->latest('id')->get();
+        $spends = $event->spends()->with(['payer:id,name', 'payerGuest:id,name', 'source:id,name,type', 'receipts:id,spend_id', 'shares'])->latest('spent_at')->latest('id')->get();
         $settlements = $event->settlements()->get();
         $sources = SpendSource::orderBy('id')->get(['id', 'name', 'type']); // creation order → newest last
 
