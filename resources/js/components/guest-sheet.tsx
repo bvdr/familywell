@@ -137,7 +137,7 @@ export function GuestSheet({
                                         onChange={(e) => setPassword(e.target.value)}
                                         onKeyDown={(e) => e.key === 'Enter' && savePassword()}
                                         placeholder={state.hasPassword ? 'Change password…' : 'Add a password (optional)'}
-                                        className="border-border bg-surface-card text-primary focus:border-accent flex-1 rounded-lg border px-3 py-2 text-sm outline-none"
+                                        className="border-border bg-surface-card text-primary focus:border-accent flex-1 rounded-lg border px-3 py-2 text-base outline-none md:text-sm"
                                     />
                                     <button
                                         onClick={savePassword}
@@ -170,7 +170,7 @@ export function GuestSheet({
                                             <select
                                                 value={g.role}
                                                 onChange={(e) => setRole(g.id, e.target.value as GuestPerson['role'])}
-                                                className="border-border bg-surface-card text-primary rounded-lg border py-1.5 pr-7 pl-3 text-sm"
+                                                className="border-border bg-surface-card text-primary rounded-lg border py-1.5 pr-7 pl-3 text-base md:text-sm"
                                             >
                                                 <option value="editor">Can add</option>
                                                 <option value="viewer">View only</option>
@@ -200,12 +200,12 @@ export function GuestSheet({
                                         onChange={(e) => setNewName(e.target.value)}
                                         onKeyDown={(e) => e.key === 'Enter' && addGuest()}
                                         placeholder="Guest name"
-                                        className="border-border bg-surface-card text-primary focus:border-accent flex-1 rounded-lg border px-3 py-2 text-sm outline-none"
+                                        className="border-border bg-surface-card text-primary focus:border-accent flex-1 rounded-lg border px-3 py-2 text-base outline-none md:text-sm"
                                     />
                                     <select
                                         value={newRole}
                                         onChange={(e) => setNewRole(e.target.value as GuestPerson['role'])}
-                                        className="border-border bg-surface-card text-primary rounded-lg border py-2 pr-7 pl-3 text-sm"
+                                        className="border-border bg-surface-card text-primary rounded-lg border py-2 pr-7 pl-3 text-base md:text-sm"
                                     >
                                         <option value="editor">Can add</option>
                                         <option value="viewer">View only</option>
