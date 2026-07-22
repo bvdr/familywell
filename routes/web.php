@@ -4,8 +4,10 @@ use App\Http\Controllers\FamilyController;
 use App\Http\Controllers\FamilyInviteController;
 use App\Http\Controllers\FamilyMemberController;
 use App\Http\Controllers\FamilyModuleController;
+use App\Http\Controllers\GuestLinkController;
 use App\Http\Controllers\ModuleAssetController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\PublicGuestController;
 use App\Http\Controllers\PublicShareController;
 use App\Http\Controllers\ShareController;
 use App\Support\Dashboard\DashboardItems;
@@ -37,6 +39,13 @@ Route::middleware(['auth'])->group(function () {
 // is a 48-char unguessable secret. Throttled since it's unauthenticated (enumeration / abuse guard).
 Route::get('/e/{token}', [PublicShareController::class, 'show'])->middleware('throttle:120,1')->name('share.public');
 
+// Public guest view of a guest-shared entity via its link token. No auth by design; the token is a
+// 48-char unguessable secret, with an optional password gate. Throttled (unauthenticated). The 'web'
+// group gives it a session, which the password unlock uses. Guest-initiated writes live on the owning
+// module's own public routes (authorized via GuestAccess).
+Route::get('/g/{token}', [PublicGuestController::class, 'show'])->middleware('throttle:120,1')->name('guest.public');
+Route::post('/g/{token}/unlock', [PublicGuestController::class, 'unlock'])->middleware('throttle:20,1')->name('guest.unlock');
+
 // The app proper: requires both auth and a family.
 Route::middleware(['auth', 'family'])->group(function () {
     Route::get('dashboard', function () {
@@ -51,6 +60,13 @@ Route::middleware(['auth', 'family'])->group(function () {
     Route::delete('/shares/{type}/{id}/members/{user}', [ShareController::class, 'removeMember'])->name('shares.members.remove');
     Route::post('/shares/{type}/{id}/link', [ShareController::class, 'createLink'])->name('shares.link.create');
     Route::delete('/shares/{type}/{id}/link/{link}', [ShareController::class, 'deleteLink'])->name('shares.link.delete');
+
+    // Generic guest-sharing management for any registered guestable entity ({type}/{id}). Owner-only.
+    Route::patch('/guest-links/{type}/{id}', [GuestLinkController::class, 'update'])->name('guests.link.update');
+    Route::patch('/guest-links/{type}/{id}/password', [GuestLinkController::class, 'password'])->name('guests.link.password');
+    Route::post('/guest-links/{type}/{id}/guests', [GuestLinkController::class, 'storeGuest'])->name('guests.store');
+    Route::patch('/guest-links/{type}/{id}/guests/{guest}', [GuestLinkController::class, 'updateGuest'])->name('guests.update');
+    Route::delete('/guest-links/{type}/{id}/guests/{guest}', [GuestLinkController::class, 'destroyGuest'])->name('guests.destroy');
 
     Route::get('/family/members', [FamilyMemberController::class, 'index'])->name('family.members.index');
     Route::delete('/family/members/{user}', [FamilyMemberController::class, 'destroy'])->name('family.members.destroy');
