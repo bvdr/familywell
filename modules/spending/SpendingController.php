@@ -132,6 +132,46 @@ class SpendingController extends Controller
         return back();
     }
 
+    // Set a participant's split settings: headcount (how many people they pay for) and an optional
+    // "covered by" (another participant who absorbs their share). Key is u{userId} / g{guestId}.
+    public function updateParticipant(Request $request, int $event, string $key): RedirectResponse
+    {
+        $event = $this->event($event);
+        abort_unless($this->access->canEdit($request->user(), $event), 403);
+
+        $names = $event->participantNames();
+        abort_unless(array_key_exists($key, $names), 404);
+
+        $data = $request->validate([
+            'weight' => ['required', 'integer', 'min:1', 'max:99'],
+            'covered_by' => ['nullable', 'string'],
+        ]);
+
+        $coveredBy = $data['covered_by'] ?: null;
+        if ($coveredBy !== null) {
+            // Must point at a different, real participant, and never form a chain: the coverer has to pay
+            // their own share, and this participant can't already be covering someone else.
+            abort_unless(array_key_exists($coveredBy, $names) && $coveredBy !== $key, 422, 'Invalid cover target.');
+            $rows = $event->participantSettings()->get();
+            abort_if((bool) $rows->firstWhere('participant_key', $coveredBy)?->covered_by, 422, 'That person is already covered by someone.');
+            abort_if((bool) $rows->firstWhere('covered_by', $key), 422, 'This person already covers someone, so they can\'t be covered.');
+        }
+
+        // Keep the table sparse: the default (weight 1, no cover) is stored as the absence of a row.
+        if ($data['weight'] === 1 && $coveredBy === null) {
+            $event->participantSettings()->where('participant_key', $key)->delete();
+        } else {
+            $event->participantSettings()->updateOrCreate(
+                ['participant_key' => $key],
+                ['weight' => $data['weight'], 'covered_by' => $coveredBy],
+            );
+        }
+
+        Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
+
+        return back();
+    }
+
     public function stats(Request $request, int $event): Response
     {
         $event = $this->event($event);
@@ -375,6 +415,28 @@ class SpendingController extends Controller
         $balances = EventBalances::of($event, $spends, $settlements);
         $guestLink = $event->guestLink;
 
+        // Participants for the Settings tab: every member + guest with their split settings (headcount
+        // + covered_by). Keyed by u{id}/g{id} to match the balance keys.
+        $split = $event->splitSettings();
+        $names = $event->participantNames();
+        $participants = collect($names)->map(fn ($name, $key) => [
+            'key' => $key,
+            'name' => $name,
+            'kind' => str_starts_with($key, 'u') ? 'member' : 'guest',
+            'weight' => $split['weights'][$key] ?? 1,
+            'coveredBy' => $split['coveredBy'][$key] ?? null,
+        ])->values();
+
+        // Recorded settle-up payments (the Transfers tab). Settlements are user-to-user.
+        $memberName = fn (int $id) => $members->firstWhere('id', $id)?->name ?? '?';
+        $transfers = $settlements->sortByDesc('id')->map(fn (SpendSettlement $t) => [
+            'id' => $t->id,
+            'from' => $memberName($t->from_user_id),
+            'to' => $memberName($t->to_user_id),
+            'amount' => $t->amount,
+            'date' => $t->created_at?->toDateString(),
+        ])->values();
+
         return [
             'familyId' => (int) CurrentFamily::id(),
             'scanEnabled' => ReceiptScanner::configured(),
@@ -385,6 +447,7 @@ class SpendingController extends Controller
                 'currency' => $event->currency,
                 'total' => (int) $spends->sum('base_amount'),
                 'members' => $members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),
+                'people' => array_sum($split['weights']), // total headcount, not participant rows
                 'categories' => self::CATEGORIES,
                 'currencies' => self::CURRENCIES,
                 // Latest rates from the base currency to every supported currency, so the client can
@@ -409,6 +472,8 @@ class SpendingController extends Controller
             ])->values(),
             'balances' => $balances['balances'],
             'suggestions' => $balances['suggestions'],
+            'participants' => $participants,
+            'transfers' => $transfers,
             'share' => [
                 'type' => 'spend_event',
                 'id' => $event->id,

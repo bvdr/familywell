@@ -42,6 +42,7 @@ type EventT = {
     name: string;
     currency: string;
     total: number;
+    people: number; // total headcount (sum of participant weights), not row count
     members: Member[];
     categories: string[];
     currencies: string[];
@@ -71,6 +72,43 @@ const SOURCE_TYPE_META = [
 // and guests never collide in one balance sheet.
 type Balance = { id: string; name: string; net: number };
 type Suggestion = { from: { id: string; name: string }; to: { id: string; name: string }; amount: number; canSettle: boolean };
+type Participant = { key: string; name: string; kind: 'member' | 'guest'; weight: number; coveredBy: string | null };
+type Transfer = { id: number; from: string; to: string; amount: number; date: string };
+
+// Soft, warm per-person avatar palette (borrowed from the reference); a deterministic hash of the
+// name picks a stable colour, so the same person is always the same colour across every tab.
+const PERSON_COLORS = [
+    { bg: '#DCE7D5', fg: '#3B5233' }, // sage
+    { bg: '#D9E2EC', fg: '#3A4A5B' }, // slate blue
+    { bg: '#EAD9DE', fg: '#6B4652' }, // dusty rose
+    { bg: '#E7DECF', fg: '#5C513A' }, // sand
+    { bg: '#E1DAE9', fg: '#4E4460' }, // muted violet
+    { bg: '#E6DCCF', fg: '#6B4E3D' }, // clay
+] as const;
+const personColor = (name: string) => {
+    let h = 0;
+    for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+    return PERSON_COLORS[h % PERSON_COLORS.length];
+};
+function PersonAvatar({ name, className = 'size-9 text-sm' }: { name: string; className?: string }) {
+    const c = personColor(name);
+    return (
+        <span
+            className={`flex shrink-0 items-center justify-center rounded-full font-semibold ${className}`}
+            style={{ backgroundColor: c.bg, color: c.fg }}
+        >
+            {(name || '?').charAt(0).toUpperCase()}
+        </span>
+    );
+}
+
+const TABS = [
+    { key: 'expenses', label: 'Expenses' },
+    { key: 'transfers', label: 'Transfers' },
+    { key: 'balances', label: 'Balances' },
+    { key: 'settings', label: 'Settings' },
+] as const;
+type TabKey = (typeof TABS)[number]['key'];
 
 const CATEGORY: Record<string, string> = {
     food: '🍽️',
@@ -99,6 +137,8 @@ export default function Event({
     sources,
     balances,
     suggestions,
+    participants,
+    transfers,
     familyId,
     share,
     guestShare,
@@ -109,12 +149,15 @@ export default function Event({
     sources: Source[];
     balances: Balance[];
     suggestions: Suggestion[];
+    participants: Participant[];
+    transfers: Transfer[];
     familyId: number;
     share: ShareState;
     guestShare: GuestShareState;
     scanEnabled: boolean;
 }) {
     const authId = (usePage().props as { auth: { user: { id: number } } }).auth.user.id;
+    const [tab, setTab] = useState<TabKey>('expenses');
     const [adding, setAdding] = useState(false);
     const [sharing, setSharing] = useState(false);
     const [guestSharing, setGuestSharing] = useState(false);
@@ -330,515 +373,668 @@ export default function Event({
         );
     };
 
+    // Split settings (Settings tab). Only the owner manages them; the server re-validates regardless.
+    const canManageSettings = share?.canManage ?? false;
+    const patchParticipant = (p: Participant, weight: number, coveredBy: string | null) =>
+        router.patch(
+            route('spending.participants.update', { event: event.id, key: p.key }),
+            { weight, covered_by: coveredBy ?? '' },
+            { preserveScroll: true, preserveState: true },
+        );
+    const setWeight = (p: Participant, w: number) => patchParticipant(p, Math.max(1, w), p.coveredBy);
+    const setCover = (p: Participant, key: string | null) => patchParticipant(p, p.weight, key);
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={event.name} />
-            <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
-                {/* Editable event title — tap it (or the pen) to rename. */}
-                {editingTitle ? (
-                    <input
-                        autoFocus
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
-                        onBlur={saveTitle}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter') saveTitle();
-                            if (e.key === 'Escape') {
-                                setTitle(event.name);
-                                setEditingTitle(false);
-                            }
-                        }}
-                        aria-label="Event title"
-                        className="font-heading text-primary border-border focus:border-accent w-full rounded-lg border bg-transparent px-1 text-2xl outline-none"
-                    />
-                ) : (
-                    <button
-                        type="button"
-                        onClick={() => setEditingTitle(true)}
-                        className="group -mb-1 flex items-center gap-2 self-start text-left"
-                        aria-label="Rename event"
-                    >
-                        <h1 className="font-heading text-primary text-2xl">{title}</h1>
-                        <Pencil className="text-muted-foreground group-hover:text-primary size-4 transition-colors" />
-                    </button>
-                )}
+            <div className="mx-auto w-full max-w-2xl">
+                {/* Sticky editorial header: the serif title, the display currency, and the tab bar that
+                    stays put while a tab's content scrolls under it. */}
+                <header className="bg-background/95 border-border/60 sticky top-0 z-20 border-b px-4 pt-3 backdrop-blur-sm">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                        {editingTitle ? (
+                            <input
+                                autoFocus
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                onBlur={saveTitle}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') saveTitle();
+                                    if (e.key === 'Escape') {
+                                        setTitle(event.name);
+                                        setEditingTitle(false);
+                                    }
+                                }}
+                                aria-label="Event title"
+                                className="font-heading text-primary border-border focus:border-accent min-w-0 flex-1 rounded-lg border bg-transparent px-1 text-2xl outline-none"
+                            />
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => setEditingTitle(true)}
+                                className="group flex min-w-0 items-center gap-2 text-left"
+                                aria-label="Rename event"
+                            >
+                                <h1 className="font-heading text-primary truncate text-2xl">{title}</h1>
+                                <Pencil className="text-muted-foreground group-hover:text-primary size-4 shrink-0 transition-colors" />
+                            </button>
+                        )}
+                        <Select value={display} onValueChange={setDisplay}>
+                            <SelectTrigger className="border-border text-primary h-9 w-[84px] shrink-0">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {event.currencies.map((c) => (
+                                    <SelectItem key={c} value={c}>
+                                        {c}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <nav className="-mb-px flex gap-1 overflow-x-auto">
+                        {TABS.map((t) => {
+                            const active = tab === t.key;
+                            return (
+                                <button
+                                    key={t.key}
+                                    type="button"
+                                    onClick={() => setTab(t.key)}
+                                    className={`relative shrink-0 px-3 pt-1 pb-2.5 text-sm font-medium transition-colors ${
+                                        active ? 'text-primary' : 'text-muted-foreground hover:text-primary'
+                                    }`}
+                                >
+                                    {t.label}
+                                    {t.key === 'transfers' && transfers.length > 0 && (
+                                        <span className="text-muted-foreground ml-1 tabular-nums">{transfers.length}</span>
+                                    )}
+                                    {active && <span className="bg-primary absolute inset-x-3 -bottom-px h-0.5 rounded-full" />}
+                                </button>
+                            );
+                        })}
+                    </nav>
+                </header>
 
-                {/* Total + display-currency selector */}
-                <div className="bg-surface-dark text-text-inverse rounded-2xl p-5">
-                    <div className="flex items-start justify-between">
-                        <div>
+                <div className="flex flex-col gap-4 p-4">
+                    {/* EXPENSES — total */}
+                    {tab === 'expenses' && (
+                        <div className="bg-surface-dark text-text-inverse rounded-2xl p-5">
                             <div className="text-accent-light text-xs tracking-widest uppercase">Total spent</div>
                             <div className="font-heading mt-1 text-4xl">{fmt(event.total)}</div>
                             <div className="text-accent-light mt-1 text-sm">
-                                {event.members.length} people · {spends.length} spends
+                                {event.people} {event.people === 1 ? 'person' : 'people'} · {spends.length} {spends.length === 1 ? 'spend' : 'spends'}
                             </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setSharing(true)}
-                                aria-label="Share event"
-                                className="border-text-inverse/25 text-text-inverse flex size-9 items-center justify-center rounded-lg border transition-colors hover:bg-white/10"
-                            >
-                                <UserPlus className="size-4.5" />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setGuestSharing(true)}
-                                aria-label="Guest link"
-                                className="border-text-inverse/25 text-text-inverse relative flex size-9 items-center justify-center rounded-lg border transition-colors hover:bg-white/10"
-                            >
-                                <Link2 className="size-4.5" />
-                                {/* A dot signals the guest link is live. */}
-                                {guestShare?.enabled && <span className="bg-accent-light absolute -top-0.5 -right-0.5 size-2 rounded-full" />}
-                            </button>
-                            <Select value={display} onValueChange={setDisplay}>
-                                <SelectTrigger className="border-text-inverse/25 text-text-inverse h-9 w-[88px] bg-transparent">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {event.currencies.map((c) => (
-                                        <SelectItem key={c} value={c}>
-                                            {c}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                </div>
-                {share && <ShareSheet open={sharing} onOpenChange={setSharing} share={share} eventName={event.name} />}
-                {guestShare && <GuestSheet open={guestSharing} onOpenChange={setGuestSharing} guestShare={guestShare} entityName={event.name} />}
+                    )}
+                    {share && <ShareSheet open={sharing} onOpenChange={setSharing} share={share} eventName={event.name} />}
+                    {guestShare && <GuestSheet open={guestSharing} onOpenChange={setGuestSharing} guestShare={guestShare} entityName={event.name} />}
 
-                {/* New payment source — bottom drawer on mobile, centered overlay on desktop. */}
-                <ResponsiveModal
-                    open={sourceModalOpen}
-                    onOpenChange={setSourceModalOpen}
-                    title="New payment source"
-                    description="A reusable way to record how a spend was paid."
-                >
-                    <div className="flex flex-col gap-4">
-                        <div className="grid gap-1.5">
-                            <Label htmlFor="source-name">Name</Label>
-                            <Input
-                                id="source-name"
-                                autoFocus
-                                value={newSource.name}
-                                onChange={(e) => setNewSource((s) => ({ ...s, name: e.target.value }))}
-                                onKeyDown={(e) => e.key === 'Enter' && createSource()}
-                                placeholder="Wise, cash Oana…"
-                            />
+                    {/* New payment source — bottom drawer on mobile, centered overlay on desktop. */}
+                    <ResponsiveModal
+                        open={sourceModalOpen}
+                        onOpenChange={setSourceModalOpen}
+                        title="New payment source"
+                        description="A reusable way to record how a spend was paid."
+                    >
+                        <div className="flex flex-col gap-4">
+                            <div className="grid gap-1.5">
+                                <Label htmlFor="source-name">Name</Label>
+                                <Input
+                                    id="source-name"
+                                    autoFocus
+                                    value={newSource.name}
+                                    onChange={(e) => setNewSource((s) => ({ ...s, name: e.target.value }))}
+                                    onKeyDown={(e) => e.key === 'Enter' && createSource()}
+                                    placeholder="Wise, cash Oana…"
+                                />
+                            </div>
+                            <div className="grid gap-1.5">
+                                <Label>Type</Label>
+                                <div className="grid grid-cols-4 gap-2">
+                                    {SOURCE_TYPE_META.map((t) => {
+                                        const active = newSource.type === t.key;
+                                        return (
+                                            <button
+                                                key={t.key}
+                                                type="button"
+                                                onClick={() => setNewSource((s) => ({ ...s, type: t.key }))}
+                                                className={`flex flex-col items-center gap-1.5 rounded-xl border p-2.5 text-xs font-medium transition-colors ${
+                                                    active
+                                                        ? 'border-primary bg-primary text-primary-foreground'
+                                                        : 'bg-surface-card text-text-secondary hover:border-accent'
+                                                }`}
+                                            >
+                                                <t.icon className="size-5" />
+                                                {t.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                            <Button type="button" onClick={createSource} disabled={!newSource.name.trim() || savingSource} className="mt-1 w-full">
+                                {savingSource ? 'Adding…' : 'Add source'}
+                            </Button>
                         </div>
-                        <div className="grid gap-1.5">
-                            <Label>Type</Label>
-                            <div className="grid grid-cols-4 gap-2">
-                                {SOURCE_TYPE_META.map((t) => {
-                                    const active = newSource.type === t.key;
-                                    return (
-                                        <button
-                                            key={t.key}
-                                            type="button"
-                                            onClick={() => setNewSource((s) => ({ ...s, type: t.key }))}
-                                            className={`flex flex-col items-center gap-1.5 rounded-xl border p-2.5 text-xs font-medium transition-colors ${
-                                                active
-                                                    ? 'border-primary bg-primary text-primary-foreground'
-                                                    : 'bg-surface-card text-text-secondary hover:border-accent'
-                                            }`}
+                    </ResponsiveModal>
+
+                    {/* TRANSFERS — recorded settle-up payments */}
+                    {tab === 'transfers' && (
+                        <section className="flex flex-col gap-2">
+                            <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Transfers</h2>
+                            {transfers.length === 0 && (
+                                <div className="bg-surface-card text-muted-foreground rounded-xl border p-6 text-center text-sm">
+                                    No transfers yet. Record one by marking a suggested payment paid on the Balances tab.
+                                </div>
+                            )}
+                            {transfers.map((t) => (
+                                <div key={t.id} className="bg-surface-card flex items-center gap-3 rounded-xl border p-3">
+                                    <PersonAvatar name={t.from} />
+                                    <div className="min-w-0 flex-1 text-sm">
+                                        <div className="text-primary truncate">
+                                            <span className="font-medium">{t.from}</span> <span className="text-muted-foreground">paid</span>{' '}
+                                            <span className="font-medium">{t.to}</span>
+                                        </div>
+                                        <div className="text-muted-foreground text-xs">{dayLabel(t.date)}</div>
+                                    </div>
+                                    <span className="text-primary font-mono text-sm font-semibold tabular-nums">{fmt(t.amount)}</span>
+                                </div>
+                            ))}
+                        </section>
+                    )}
+
+                    {/* BALANCES + suggested settle-up */}
+                    {tab === 'balances' && (
+                        <>
+                            <section className="flex flex-col gap-2">
+                                <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Balances</h2>
+                                {balances.map((b) => (
+                                    <div key={b.id} className="bg-surface-card flex items-center justify-between rounded-xl border p-3">
+                                        <div className="flex items-center gap-3">
+                                            <PersonAvatar name={b.name} className="size-8 text-sm" />
+                                            <div>
+                                                <div className="text-primary text-sm font-medium">{b.name}</div>
+                                                <div className="text-muted-foreground text-xs">
+                                                    {b.net > 0 ? 'gets back' : b.net < 0 ? 'owes' : 'settled up'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div
+                                            className={`font-mono text-sm font-semibold tabular-nums ${b.net > 0 ? 'text-primary' : b.net < 0 ? 'text-[var(--warning)]' : 'text-muted-foreground'}`}
                                         >
-                                            <t.icon className="size-5" />
-                                            {t.label}
-                                        </button>
+                                            {b.net > 0 ? '+' : ''}
+                                            {fmt(b.net)}
+                                        </div>
+                                    </div>
+                                ))}
+                            </section>
+
+                            {suggestions.length > 0 && (
+                                <section className="flex flex-col gap-2">
+                                    <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Suggested payments</h2>
+                                    {suggestions.map((s, i) => (
+                                        <div key={i} className="bg-surface-card flex items-center justify-between rounded-xl border p-3">
+                                            <div className="text-sm">
+                                                <span className="text-primary font-medium">{s.from.name}</span>
+                                                <span className="text-muted-foreground"> pays </span>
+                                                <span className="text-primary font-medium">{s.to.name}</span>
+                                                <span className="text-primary ml-2 font-mono font-semibold tabular-nums">{fmt(s.amount)}</span>
+                                            </div>
+                                            {s.canSettle && (
+                                                <Button size="sm" variant="outline" onClick={() => markPaid(s)}>
+                                                    <Check className="size-4" /> Mark paid
+                                                </Button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </section>
+                            )}
+                        </>
+                    )}
+
+                    {/* SETTINGS — headcount, covered-by, sharing, stats */}
+                    {tab === 'settings' && (
+                        <section className="flex flex-col gap-5">
+                            <div className="flex flex-col gap-2">
+                                <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">People &amp; split</h2>
+                                <p className="text-muted-foreground -mt-0.5 text-xs">
+                                    Headcount is how many people each one pays for. "Covered by" moves someone's share onto another person.
+                                </p>
+                                {participants.map((p) => {
+                                    const coversOthers = participants.some((o) => o.coveredBy === p.key);
+                                    const coverName = p.coveredBy ? (participants.find((o) => o.key === p.coveredBy)?.name ?? '?') : null;
+                                    return (
+                                        <div key={p.key} className="bg-surface-card flex flex-col gap-3 rounded-xl border p-3">
+                                            <div className="flex items-center gap-3">
+                                                <PersonAvatar name={p.name} />
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="text-primary truncate text-sm font-medium">{p.name}</div>
+                                                    <div className="text-muted-foreground truncate text-xs">
+                                                        {p.kind === 'guest' ? 'Guest' : 'Member'}
+                                                        {coverName && ` · covered by ${coverName}`}
+                                                    </div>
+                                                </div>
+                                                {canManageSettings ? (
+                                                    <div className="flex items-center gap-1">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setWeight(p, p.weight - 1)}
+                                                            disabled={p.weight <= 1}
+                                                            aria-label={`Fewer people for ${p.name}`}
+                                                            className="border-border text-primary flex size-8 items-center justify-center rounded-lg border text-lg leading-none disabled:opacity-40"
+                                                        >
+                                                            −
+                                                        </button>
+                                                        <span className="text-primary w-6 text-center text-sm font-semibold tabular-nums">
+                                                            {p.weight}
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setWeight(p, p.weight + 1)}
+                                                            aria-label={`More people for ${p.name}`}
+                                                            className="border-border text-primary flex size-8 items-center justify-center rounded-lg border text-lg leading-none"
+                                                        >
+                                                            +
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-muted-foreground text-sm tabular-nums">×{p.weight}</span>
+                                                )}
+                                            </div>
+                                            {canManageSettings && participants.length > 1 && (
+                                                <div className="border-border/50 flex items-center justify-between gap-2 border-t pt-2.5">
+                                                    <span className="text-muted-foreground text-xs">Pays</span>
+                                                    <select
+                                                        value={p.coveredBy ?? ''}
+                                                        disabled={coversOthers}
+                                                        onChange={(e) => setCover(p, e.target.value || null)}
+                                                        className="border-border bg-surface-card text-primary rounded-lg border py-1.5 pr-7 pl-3 text-base disabled:opacity-50 md:text-sm"
+                                                        title={coversOthers ? 'Covers someone else, so can’t be covered' : undefined}
+                                                    >
+                                                        <option value="">their own share</option>
+                                                        {participants
+                                                            .filter((o) => o.key !== p.key && !o.coveredBy)
+                                                            .map((o) => (
+                                                                <option key={o.key} value={o.key}>
+                                                                    covered by {o.name}
+                                                                </option>
+                                                            ))}
+                                                    </select>
+                                                </div>
+                                            )}
+                                        </div>
                                     );
                                 })}
                             </div>
-                        </div>
-                        <Button type="button" onClick={createSource} disabled={!newSource.name.trim() || savingSource} className="mt-1 w-full">
-                            {savingSource ? 'Adding…' : 'Add source'}
-                        </Button>
-                    </div>
-                </ResponsiveModal>
 
-                <Link
-                    href={route('spending.stats', event.id)}
-                    prefetch
-                    className="bg-surface-card hover:border-accent flex items-center justify-between rounded-xl border p-3 transition-colors"
-                >
-                    <span className="text-primary flex items-center gap-2.5 font-medium">
-                        <BarChart3 className="size-5" /> See stats
-                    </span>
-                    <ChevronRight className="text-muted-foreground size-4" />
-                </Link>
-
-                {/* Balances */}
-                <section className="flex flex-col gap-2">
-                    <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Balances</h2>
-                    {balances.map((b) => (
-                        <div key={b.id} className="bg-surface-card flex items-center justify-between rounded-xl border p-3">
-                            <div className="flex items-center gap-3">
-                                <span className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-full text-sm font-medium">
-                                    {b.name.charAt(0).toUpperCase()}
-                                </span>
-                                <div>
-                                    <div className="text-primary text-sm font-medium">{b.name}</div>
-                                    <div className="text-muted-foreground text-xs">{b.net > 0 ? 'gets back' : b.net < 0 ? 'owes' : 'settled up'}</div>
-                                </div>
+                            <div className="flex flex-col gap-2">
+                                <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Event</h2>
+                                <button
+                                    type="button"
+                                    onClick={() => setSharing(true)}
+                                    className="bg-surface-card hover:border-accent flex items-center justify-between rounded-xl border p-3 transition-colors"
+                                >
+                                    <span className="text-primary flex items-center gap-2.5 font-medium">
+                                        <UserPlus className="size-5" /> Share with family
+                                    </span>
+                                    <ChevronRight className="text-muted-foreground size-4" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setGuestSharing(true)}
+                                    className="bg-surface-card hover:border-accent flex items-center justify-between rounded-xl border p-3 transition-colors"
+                                >
+                                    <span className="text-primary flex items-center gap-2.5 font-medium">
+                                        <Link2 className="size-5" /> Guest link
+                                        {guestShare?.enabled && <span className="bg-accent-light size-2 rounded-full" />}
+                                    </span>
+                                    <ChevronRight className="text-muted-foreground size-4" />
+                                </button>
+                                <Link
+                                    href={route('spending.stats', event.id)}
+                                    prefetch
+                                    className="bg-surface-card hover:border-accent flex items-center justify-between rounded-xl border p-3 transition-colors"
+                                >
+                                    <span className="text-primary flex items-center gap-2.5 font-medium">
+                                        <BarChart3 className="size-5" /> See stats
+                                    </span>
+                                    <ChevronRight className="text-muted-foreground size-4" />
+                                </Link>
                             </div>
-                            <div
-                                className={`font-mono text-sm font-semibold tabular-nums ${b.net > 0 ? 'text-primary' : b.net < 0 ? 'text-[var(--warning)]' : 'text-muted-foreground'}`}
-                            >
-                                {b.net > 0 ? '+' : ''}
-                                {fmt(b.net)}
-                            </div>
-                        </div>
-                    ))}
-                </section>
-
-                {/* Suggested settle-up */}
-                {suggestions.length > 0 && (
-                    <section className="flex flex-col gap-2">
-                        <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Suggested payments</h2>
-                        {suggestions.map((s, i) => (
-                            <div key={i} className="bg-surface-card flex items-center justify-between rounded-xl border p-3">
-                                <div className="text-sm">
-                                    <span className="text-primary font-medium">{s.from.name}</span>
-                                    <span className="text-muted-foreground"> pays </span>
-                                    <span className="text-primary font-medium">{s.to.name}</span>
-                                    <span className="text-primary ml-2 font-mono font-semibold tabular-nums">{fmt(s.amount)}</span>
-                                </div>
-                                {s.canSettle && (
-                                    <Button size="sm" variant="outline" onClick={() => markPaid(s)}>
-                                        <Check className="size-4" /> Mark paid
-                                    </Button>
-                                )}
-                            </div>
-                        ))}
-                    </section>
-                )}
-
-                {/* Add / edit spend. Scan is only offered when the server has a Gemini key configured. */}
-                <div className="flex flex-col gap-2">
-                    {scanEnabled && (
-                        <>
-                            <Button variant="outline" onClick={() => scanInputRef.current?.click()} disabled={scanning} className="w-full">
-                                {scanning ? (
-                                    <>
-                                        <Loader2 className="size-4 animate-spin" /> Reading receipt…
-                                    </>
-                                ) : (
-                                    <>
-                                        <Camera className="size-4" /> Scan receipt
-                                    </>
-                                )}
-                            </Button>
-                            {/* capture=environment opens the rear camera on mobile; a normal picker on desktop. */}
-                            <input ref={scanInputRef} type="file" accept="image/*" capture="environment" hidden onChange={handleScanFile} />
-                            {scanError && <p className="text-destructive text-center text-sm">{scanError}</p>}
-                        </>
+                        </section>
                     )}
-                    <Button onClick={startAdd} className="w-full">
-                        <Plus className="size-4" /> Add spend
-                    </Button>
-                </div>
 
-                {/* Add / edit a spend in a bottom drawer on mobile, a centered overlay on desktop.
+                    {/* EXPENSES — add / scan. Scan is only offered when the server has a Gemini key configured. */}
+                    {tab === 'expenses' && (
+                        <div className="flex flex-col gap-2">
+                            {scanEnabled && (
+                                <>
+                                    <Button variant="outline" onClick={() => scanInputRef.current?.click()} disabled={scanning} className="w-full">
+                                        {scanning ? (
+                                            <>
+                                                <Loader2 className="size-4 animate-spin" /> Reading receipt…
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Camera className="size-4" /> Scan receipt
+                                            </>
+                                        )}
+                                    </Button>
+                                    {/* capture=environment opens the rear camera on mobile; a normal picker on desktop. */}
+                                    <input ref={scanInputRef} type="file" accept="image/*" capture="environment" hidden onChange={handleScanFile} />
+                                    {scanError && <p className="text-destructive text-center text-sm">{scanError}</p>}
+                                </>
+                            )}
+                            <Button onClick={startAdd} className="w-full">
+                                <Plus className="size-4" /> Add spend
+                            </Button>
+                        </div>
+                    )}
+
+                    {/* Add / edit a spend in a bottom drawer on mobile, a centered overlay on desktop.
                     Closing the drawer cancels. */}
-                <ResponsiveModal
-                    open={adding}
-                    onOpenChange={(o) => !o && closeForm()}
-                    title={editing ? 'Edit spend' : 'New spend'}
-                    className="sm:max-w-lg"
-                    autoFocusRef={amountRef}
-                    footer={
-                        <Button type="submit" form="spend-form" disabled={form.processing} className="w-full">
-                            Save
-                        </Button>
-                    }
-                >
-                    {/* The <form> holds no fields directly; the text inputs join it via form="spend-form" and
+                    <ResponsiveModal
+                        open={adding}
+                        onOpenChange={(o) => !o && closeForm()}
+                        title={editing ? 'Edit spend' : 'New spend'}
+                        className="sm:max-w-lg"
+                        autoFocusRef={amountRef}
+                        footer={
+                            <Button type="submit" form="spend-form" disabled={form.processing} className="w-full">
+                                Save
+                            </Button>
+                        }
+                    >
+                        {/* The <form> holds no fields directly; the text inputs join it via form="spend-form" and
                         the dropdowns stay outside it. That keeps Radix's hidden native <select>s out of the
                         form's field set, so iOS enables the keyboard's prev/next arrows across Amount/Date/Note. */}
-                    <form id="spend-form" onSubmit={submitSpend} className="hidden" />
-                    <div className="flex flex-col gap-3">
-                        {/* minmax(0,1fr) lets the amount input shrink below its intrinsic ~20ch width so the
+                        <form id="spend-form" onSubmit={submitSpend} className="hidden" />
+                        <div className="flex flex-col gap-3">
+                            {/* minmax(0,1fr) lets the amount input shrink below its intrinsic ~20ch width so the
                             row never overflows the drawer horizontally. */}
-                        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
-                            <div className="grid gap-2">
-                                <Label htmlFor="amount">Amount</Label>
-                                {/* type=text (not number) so iOS honours inputMode=decimal and shows the real
+                            <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="amount">Amount</Label>
+                                    {/* type=text (not number) so iOS honours inputMode=decimal and shows the real
                                     decimal pad. In comma-locales the separator key is a comma, so we normalise
                                     it to a dot (and strip stray chars) since the backend wants a plain number. */}
-                                <Input
-                                    id="amount"
-                                    form="spend-form"
-                                    ref={amountRef}
-                                    type="text"
-                                    inputMode="decimal"
-                                    value={form.data.amount}
-                                    onChange={(e) => form.setData('amount', e.target.value.replace(/,/g, '.').replace(/[^\d.]/g, ''))}
-                                    placeholder="0.00"
-                                />
-                                <InputError message={form.errors.amount} />
+                                    <Input
+                                        id="amount"
+                                        form="spend-form"
+                                        ref={amountRef}
+                                        type="text"
+                                        inputMode="decimal"
+                                        value={form.data.amount}
+                                        onChange={(e) => form.setData('amount', e.target.value.replace(/,/g, '.').replace(/[^\d.]/g, ''))}
+                                        placeholder="0.00"
+                                    />
+                                    <InputError message={form.errors.amount} />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Currency</Label>
+                                    <Select value={form.data.currency} onValueChange={(v) => form.setData('currency', v)}>
+                                        <SelectTrigger className="w-[92px]">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {event.currencies.map((c) => (
+                                                <SelectItem key={c} value={c}>
+                                                    {c}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="grid gap-2">
+                                    <Label>Category</Label>
+                                    <Select value={form.data.category} onValueChange={(v) => form.setData('category', v)}>
+                                        <SelectTrigger className="w-full capitalize">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {event.categories.map((c) => (
+                                                <SelectItem key={c} value={c} className="capitalize">
+                                                    {CATEGORY[c]} {c}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Paid by</Label>
+                                    <Select value={String(form.data.payer_id)} onValueChange={(v) => form.setData('payer_id', Number(v))}>
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {event.members.map((m) => (
+                                                <SelectItem key={m.id} value={String(m.id)}>
+                                                    {m.name}
+                                                    {m.id === authId ? ' (You)' : ''}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
                             <div className="grid gap-2">
-                                <Label>Currency</Label>
-                                <Select value={form.data.currency} onValueChange={(v) => form.setData('currency', v)}>
-                                    <SelectTrigger className="w-[92px]">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {event.currencies.map((c) => (
-                                            <SelectItem key={c} value={c}>
-                                                {c}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="grid gap-2">
-                                <Label>Category</Label>
-                                <Select value={form.data.category} onValueChange={(v) => form.setData('category', v)}>
-                                    <SelectTrigger className="w-full capitalize">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {event.categories.map((c) => (
-                                            <SelectItem key={c} value={c} className="capitalize">
-                                                {CATEGORY[c]} {c}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>Paid by</Label>
-                                <Select value={String(form.data.payer_id)} onValueChange={(v) => form.setData('payer_id', Number(v))}>
+                                <Label>Paid with</Label>
+                                <Select
+                                    value={form.data.source_id ? String(form.data.source_id) : 'none'}
+                                    onValueChange={(v) => {
+                                        // The last item opens the new-source modal instead of selecting a value.
+                                        if (v === '__new__') setSourceModalOpen(true);
+                                        else form.setData('source_id', v === 'none' ? null : Number(v));
+                                    }}
+                                >
                                     <SelectTrigger className="w-full">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {event.members.map((m) => (
-                                            <SelectItem key={m.id} value={String(m.id)}>
-                                                {m.name}
-                                                {m.id === authId ? ' (You)' : ''}
+                                        <SelectItem value="none">Not specified</SelectItem>
+                                        {sources.map((s) => (
+                                            <SelectItem key={s.id} value={String(s.id)}>
+                                                {s.name} <span className="text-muted-foreground">· {s.type}</span>
                                             </SelectItem>
                                         ))}
+                                        <SelectItem value="__new__" className="text-primary font-medium">
+                                            <span className="flex items-center gap-1.5">
+                                                <Plus className="size-3.5" /> New source
+                                            </span>
+                                        </SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Paid with</Label>
-                            <Select
-                                value={form.data.source_id ? String(form.data.source_id) : 'none'}
-                                onValueChange={(v) => {
-                                    // The last item opens the new-source modal instead of selecting a value.
-                                    if (v === '__new__') setSourceModalOpen(true);
-                                    else form.setData('source_id', v === 'none' ? null : Number(v));
-                                }}
-                            >
-                                <SelectTrigger className="w-full">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="none">Not specified</SelectItem>
-                                    {sources.map((s) => (
-                                        <SelectItem key={s.id} value={String(s.id)}>
-                                            {s.name} <span className="text-muted-foreground">· {s.type}</span>
-                                        </SelectItem>
-                                    ))}
-                                    <SelectItem value="__new__" className="text-primary font-medium">
-                                        <span className="flex items-center gap-1.5">
-                                            <Plus className="size-3.5" /> New source
-                                        </span>
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="date">Date</Label>
-                            {/* appearance-none strips iOS's native date chrome so it keeps the shared h-10 sizing. */}
-                            <Input
-                                id="date"
-                                form="spend-form"
-                                type="date"
-                                className="appearance-none"
-                                value={form.data.spent_at}
-                                onChange={(e) => form.setData('spent_at', e.target.value)}
-                            />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="note">Note (optional)</Label>
-                            <Input
-                                id="note"
-                                form="spend-form"
-                                value={form.data.note}
-                                onChange={(e) => form.setData('note', e.target.value)}
-                                placeholder="Dinner at the taverna"
-                            />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="receipts">Receipt photos (optional)</Label>
-                            <div className="flex flex-wrap items-center gap-2">
-                                {/* Existing photos on the spend, each removable (queued for deletion on save). */}
-                                {existingReceipts.map((r) => (
-                                    <div key={r.id} className="relative shrink-0">
-                                        <img src={r.url} alt="Receipt" className="border-border size-14 rounded-md border object-cover" />
-                                        <button
-                                            type="button"
-                                            onClick={() => form.setData('remove_receipt_ids', [...form.data.remove_receipt_ids, r.id])}
-                                            aria-label="Remove photo"
-                                            className="bg-background text-muted-foreground hover:text-destructive border-border absolute -top-2 -right-2 flex size-5 items-center justify-center rounded-full border shadow-sm"
-                                        >
-                                            <X className="size-3" />
-                                        </button>
-                                    </div>
-                                ))}
-                                {/* Newly picked files (previewed locally), each removable before saving. */}
-                                {form.data.receipts.map((file, i) => (
-                                    <div key={i} className="relative shrink-0">
-                                        <img
-                                            src={URL.createObjectURL(file)}
-                                            alt="New photo"
-                                            className="border-border size-14 rounded-md border object-cover"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                form.setData(
-                                                    'receipts',
-                                                    form.data.receipts.filter((_, k) => k !== i),
-                                                )
-                                            }
-                                            aria-label="Remove photo"
-                                            className="bg-background text-muted-foreground hover:text-destructive border-border absolute -top-2 -right-2 flex size-5 items-center justify-center rounded-full border shadow-sm"
-                                        >
-                                            <X className="size-3" />
-                                        </button>
-                                    </div>
-                                ))}
-                                <label
-                                    htmlFor="receipts"
-                                    className="border-border text-muted-foreground hover:border-accent hover:text-primary flex size-14 shrink-0 cursor-pointer items-center justify-center rounded-md border border-dashed transition-colors"
-                                >
-                                    <Plus className="size-5" />
-                                </label>
-                                <input
-                                    id="receipts"
-                                    type="file"
-                                    accept="image/*"
-                                    multiple
-                                    className="hidden"
-                                    onChange={async (e) => {
-                                        const files = Array.from(e.target.files ?? []);
-                                        const compressed = await Promise.all(files.map((f) => compressImage(f)));
-                                        form.setData('receipts', [...form.data.receipts, ...compressed]);
-                                        e.target.value = ''; // let the same file be picked again after removal
-                                    }}
+                            <div className="grid gap-2">
+                                <Label htmlFor="date">Date</Label>
+                                {/* appearance-none strips iOS's native date chrome so it keeps the shared h-10 sizing. */}
+                                <Input
+                                    id="date"
+                                    form="spend-form"
+                                    type="date"
+                                    className="appearance-none"
+                                    value={form.data.spent_at}
+                                    onChange={(e) => form.setData('spent_at', e.target.value)}
                                 />
                             </div>
-                            {form.progress && <progress value={form.progress.percentage} max="100" className="h-1 w-full" />}
-                            <InputError message={form.errors.receipts} />
-                        </div>
-                    </div>
-                </ResponsiveModal>
-
-                {/* Spend log — grouped by day, newest first, with a per-day subtotal */}
-                <section className="flex flex-col gap-4">
-                    <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Spend log</h2>
-                    {dayGroups.map((group) => (
-                        <div key={group.date} className="flex flex-col gap-2">
-                            <div className="flex items-center justify-between px-1">
-                                <span className="text-text-secondary text-sm font-medium">{dayLabel(group.date)}</span>
-                                <span className="text-muted-foreground font-mono text-sm tabular-nums">{fmt(group.total)}</span>
+                            <div className="grid gap-2">
+                                <Label htmlFor="note">Note (optional)</Label>
+                                <Input
+                                    id="note"
+                                    form="spend-form"
+                                    value={form.data.note}
+                                    onChange={(e) => form.setData('note', e.target.value)}
+                                    placeholder="Dinner at the taverna"
+                                />
                             </div>
-                            {group.spends.map((s) => (
-                                // Tapping the row edits the spend; the receipt thumbnail and the kebab
-                                // menu stop propagation so they keep their own actions.
-                                <div
-                                    key={s.id}
-                                    role="button"
-                                    tabIndex={0}
-                                    onClick={() => startEdit(s)}
-                                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && startEdit(s)}
-                                    className="bg-surface-card hover:border-accent/60 flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors"
-                                >
-                                    <div className="flex min-w-0 flex-1 items-center gap-3">
-                                        {s.receipts.length > 0 ? (
+                            <div className="grid gap-2">
+                                <Label htmlFor="receipts">Receipt photos (optional)</Label>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    {/* Existing photos on the spend, each removable (queued for deletion on save). */}
+                                    {existingReceipts.map((r) => (
+                                        <div key={r.id} className="relative shrink-0">
+                                            <img src={r.url} alt="Receipt" className="border-border size-14 rounded-md border object-cover" />
                                             <button
                                                 type="button"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    openLightbox(s.receipts.map((r) => r.url));
-                                                }}
-                                                className="relative shrink-0"
-                                                aria-label={`View ${s.receipts.length} receipt photo${s.receipts.length > 1 ? 's' : ''}`}
+                                                onClick={() => form.setData('remove_receipt_ids', [...form.data.remove_receipt_ids, r.id])}
+                                                aria-label="Remove photo"
+                                                className="bg-background text-muted-foreground hover:text-destructive border-border absolute -top-2 -right-2 flex size-5 items-center justify-center rounded-full border shadow-sm"
                                             >
-                                                <img
-                                                    src={s.receipts[0].url}
-                                                    alt="Receipt"
-                                                    className="border-border size-9 rounded-lg border object-cover"
-                                                />
-                                                {s.receipts.length > 1 && (
-                                                    <span className="bg-primary text-primary-foreground absolute -top-1.5 -right-1.5 flex min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold tabular-nums">
-                                                        {s.receipts.length}
-                                                    </span>
-                                                )}
+                                                <X className="size-3" />
                                             </button>
-                                        ) : (
-                                            <span className="bg-accent-subtle flex size-9 items-center justify-center rounded-lg text-base">
-                                                {CATEGORY[s.category]}
-                                            </span>
-                                        )}
-                                        <div className="min-w-0 flex-1">
-                                            <div className="text-primary line-clamp-2 text-sm font-medium">{s.note || s.category}</div>
-                                            <div className="text-muted-foreground truncate text-xs capitalize">
-                                                {(s.payer.name ?? 'Guest').split(' ')[0]} · {s.category}
-                                                {s.source && <span className="normal-case"> · {s.source.name}</span>}
+                                        </div>
+                                    ))}
+                                    {/* Newly picked files (previewed locally), each removable before saving. */}
+                                    {form.data.receipts.map((file, i) => (
+                                        <div key={i} className="relative shrink-0">
+                                            <img
+                                                src={URL.createObjectURL(file)}
+                                                alt="New photo"
+                                                className="border-border size-14 rounded-md border object-cover"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    form.setData(
+                                                        'receipts',
+                                                        form.data.receipts.filter((_, k) => k !== i),
+                                                    )
+                                                }
+                                                aria-label="Remove photo"
+                                                className="bg-background text-muted-foreground hover:text-destructive border-border absolute -top-2 -right-2 flex size-5 items-center justify-center rounded-full border shadow-sm"
+                                            >
+                                                <X className="size-3" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    <label
+                                        htmlFor="receipts"
+                                        className="border-border text-muted-foreground hover:border-accent hover:text-primary flex size-14 shrink-0 cursor-pointer items-center justify-center rounded-md border border-dashed transition-colors"
+                                    >
+                                        <Plus className="size-5" />
+                                    </label>
+                                    <input
+                                        id="receipts"
+                                        type="file"
+                                        accept="image/*"
+                                        multiple
+                                        className="hidden"
+                                        onChange={async (e) => {
+                                            const files = Array.from(e.target.files ?? []);
+                                            const compressed = await Promise.all(files.map((f) => compressImage(f)));
+                                            form.setData('receipts', [...form.data.receipts, ...compressed]);
+                                            e.target.value = ''; // let the same file be picked again after removal
+                                        }}
+                                    />
+                                </div>
+                                {form.progress && <progress value={form.progress.percentage} max="100" className="h-1 w-full" />}
+                                <InputError message={form.errors.receipts} />
+                            </div>
+                        </div>
+                    </ResponsiveModal>
+
+                    {/* EXPENSES — spend log, grouped by day, newest first, with a per-day subtotal */}
+                    {tab === 'expenses' && (
+                        <section className="flex flex-col gap-4">
+                            <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Spend log</h2>
+                            {dayGroups.map((group) => (
+                                <div key={group.date} className="flex flex-col gap-2">
+                                    <div className="flex items-center justify-between px-1">
+                                        <span className="text-text-secondary text-sm font-medium">{dayLabel(group.date)}</span>
+                                        <span className="text-muted-foreground font-mono text-sm tabular-nums">{fmt(group.total)}</span>
+                                    </div>
+                                    {group.spends.map((s) => (
+                                        // Tapping the row edits the spend; the receipt thumbnail and the kebab
+                                        // menu stop propagation so they keep their own actions.
+                                        <div
+                                            key={s.id}
+                                            role="button"
+                                            tabIndex={0}
+                                            onClick={() => startEdit(s)}
+                                            onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && startEdit(s)}
+                                            className="bg-surface-card hover:border-accent/60 flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors"
+                                        >
+                                            <div className="flex min-w-0 flex-1 items-center gap-3">
+                                                {s.receipts.length > 0 ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            openLightbox(s.receipts.map((r) => r.url));
+                                                        }}
+                                                        className="relative shrink-0"
+                                                        aria-label={`View ${s.receipts.length} receipt photo${s.receipts.length > 1 ? 's' : ''}`}
+                                                    >
+                                                        <img
+                                                            src={s.receipts[0].url}
+                                                            alt="Receipt"
+                                                            className="border-border size-9 rounded-lg border object-cover"
+                                                        />
+                                                        {s.receipts.length > 1 && (
+                                                            <span className="bg-primary text-primary-foreground absolute -top-1.5 -right-1.5 flex min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold tabular-nums">
+                                                                {s.receipts.length}
+                                                            </span>
+                                                        )}
+                                                    </button>
+                                                ) : (
+                                                    <PersonAvatar name={s.payer.name ?? 'Guest'} />
+                                                )}
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="text-primary line-clamp-2 text-sm font-medium">{s.note || s.category}</div>
+                                                    <div className="text-muted-foreground truncate text-xs capitalize">
+                                                        {(s.payer.name ?? 'Guest').split(' ')[0]} · {s.category}
+                                                        {s.source && <span className="normal-case"> · {s.source.name}</span>}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex shrink-0 items-center gap-1">
+                                                <div className="text-right">
+                                                    <div className="text-primary font-mono text-sm font-semibold tabular-nums">
+                                                        {money(s.amount, s.currency)}
+                                                    </div>
+                                                    {s.currency !== display && (
+                                                        <div className="text-muted-foreground font-mono text-xs tabular-nums">
+                                                            {fmt(s.base_amount)}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="text-muted-foreground size-8"
+                                                            aria-label="Spend actions"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            <MoreVertical className="size-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem onClick={() => startEdit(s)}>
+                                                            <Pencil className="size-4" /> Edit
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => duplicate(s)}>
+                                                            <Copy className="size-4" /> Duplicate
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem
+                                                            className="text-destructive focus:text-destructive"
+                                                            onClick={() => remove(s)}
+                                                        >
+                                                            <Trash2 className="size-4" /> Delete
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div className="flex shrink-0 items-center gap-1">
-                                        <div className="text-right">
-                                            <div className="text-primary font-mono text-sm font-semibold tabular-nums">
-                                                {money(s.amount, s.currency)}
-                                            </div>
-                                            {s.currency !== display && (
-                                                <div className="text-muted-foreground font-mono text-xs tabular-nums">{fmt(s.base_amount)}</div>
-                                            )}
-                                        </div>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="text-muted-foreground size-8"
-                                                    aria-label="Spend actions"
-                                                    onClick={(e) => e.stopPropagation()}
-                                                >
-                                                    <MoreVertical className="size-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => startEdit(s)}>
-                                                    <Pencil className="size-4" /> Edit
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => duplicate(s)}>
-                                                    <Copy className="size-4" /> Duplicate
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => remove(s)}>
-                                                    <Trash2 className="size-4" /> Delete
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </div>
+                                    ))}
                                 </div>
                             ))}
-                        </div>
-                    ))}
-                </section>
+                        </section>
+                    )}
+                </div>
             </div>
 
             {/* Receipt lightbox — swipe/click through a spend's photos */}
