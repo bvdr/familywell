@@ -69,9 +69,20 @@ class SpendEvent extends Model implements ProvidesGuestView, ProvidesPublicShare
      */
     public function participantNames(): array
     {
+        // Split participants = family members who can actually reach the event (either `family`
+        // visibility, or an explicit share) plus guests. A member whose access is revoked drops out of
+        // the split — EXCEPT one who fronted money for a spend, who stays so their payment is still
+        // attributed and can be settled. Mirrors ShareAccess::roleFor for members.
+        $visibility = $this->visibility();
+        $shared = $this->shares()->pluck('user_id')->all();
+        $paidBy = $this->spends()->whereNotNull('payer_id')->distinct()->pluck('payer_id')->all();
+
         $names = [];
         foreach ($this->members()->get(['users.id', 'name']) as $m) {
-            $names['u'.$m->id] = $m->name;
+            $hasAccess = $visibility === 'family' || in_array($m->id, $shared, true);
+            if ($hasAccess || in_array($m->id, $paidBy, true)) {
+                $names['u'.$m->id] = $m->name;
+            }
         }
         foreach ($this->guests as $g) {
             $names['g'.$g->id] = $g->name;
