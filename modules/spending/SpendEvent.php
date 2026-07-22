@@ -3,6 +3,8 @@
 namespace Modules\Spending;
 
 use App\Models\User;
+use App\Support\Guests\GuestShareable;
+use App\Support\Guests\ProvidesGuestView;
 use App\Support\Sharing\ProvidesPublicShareView;
 use App\Support\Sharing\Shareable;
 use App\Support\Tenancy\BelongsToFamily;
@@ -10,9 +12,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class SpendEvent extends Model implements ProvidesPublicShareView
+class SpendEvent extends Model implements ProvidesGuestView, ProvidesPublicShareView
 {
     use BelongsToFamily;
+    use GuestShareable; // guests() + guestLink() come from here
     use Shareable;
 
     protected $table = 'spending_events';
@@ -23,6 +26,48 @@ class SpendEvent extends Model implements ProvidesPublicShareView
     public function members(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'spending_event_user', 'spend_event_id', 'user_id');
+    }
+
+    /**
+     * Every participant's balance key => display name, across family members ('u{id}') and guests
+     * ('g{id}'). Namespaced so a user id and a guest id can never collide in the balance sheet.
+     *
+     * @return array<string, string>
+     */
+    public function participantNames(): array
+    {
+        $names = [];
+        foreach ($this->members()->get(['users.id', 'name']) as $m) {
+            $names['u'.$m->id] = $m->name;
+        }
+        foreach ($this->guests as $g) {
+            $names['g'.$g->id] = $g->name;
+        }
+
+        return $names;
+    }
+
+    /**
+     * Build the stored spend columns from validated input, freezing the FX conversion at the spend's
+     * date. Payer + created_by are added by the caller (differs for user vs guest spends). Single
+     * source of the money math so owner and guest write paths can never drift.
+     */
+    public function buildSpend(array $data): array
+    {
+        // Decimal major units in, integer minor units stored. round() so 48.00 -> 4800 exactly.
+        $amount = (int) round($data['amount'] * 100);
+        $baseAmount = Fx::convert($amount, $data['currency'], $this->currency, $data['spent_at']);
+
+        return [
+            'source_id' => $data['source_id'] ?? null,
+            'amount' => $amount,
+            'currency' => $data['currency'],
+            'base_amount' => $baseAmount,
+            'rate' => $amount ? $baseAmount / $amount : 1,
+            'category' => $data['category'],
+            'note' => $data['note'] ?? null,
+            'spent_at' => $data['spent_at'],
+        ];
     }
 
     public function spends(): HasMany
@@ -60,6 +105,50 @@ class SpendEvent extends Model implements ProvidesPublicShareView
                     'payer' => $s->payer?->name,
                     'spent_at' => $s->spent_at->toDateString(),
                 ])->values(),
+            ],
+        ];
+    }
+
+    /**
+     * Guest page (reached via the guest link, after any password gate). Shows the full split across
+     * family members and guests; the client picks "who am I" from the guest list (remembered locally)
+     * and gets the add-expense form only if that guest's role is editor. Writes post to the spending
+     * guest routes, authorized server-side by GuestAccess.
+     */
+    public function guestView(): array
+    {
+        $spends = $this->spends()
+            ->with(['payer:id,name', 'payerGuest:id,name', 'source:id,name,type'])
+            ->latest('spent_at')->latest('id')->get();
+        $settlements = $this->settlements()->get();
+        $balances = EventBalances::of($this, $spends, $settlements);
+
+        return [
+            'component' => 'spending/guest-event',
+            'props' => [
+                'token' => $this->guestLink?->token,
+                'event' => [
+                    'name' => $this->name,
+                    'currency' => $this->currency,
+                    'total' => (int) $spends->sum('base_amount'),
+                    'categories' => SpendingController::CATEGORIES,
+                    'currencies' => SpendingController::CURRENCIES,
+                ],
+                'guests' => $this->guests->map(fn ($g) => [
+                    'id' => $g->id, 'name' => $g->name, 'role' => $g->role,
+                ])->values(),
+                'spends' => $spends->map(fn (Spend $s) => [
+                    'id' => $s->id,
+                    'amount' => $s->amount,
+                    'currency' => $s->currency,
+                    'base_amount' => $s->base_amount,
+                    'category' => $s->category,
+                    'note' => $s->note,
+                    'payer' => ['name' => $s->payer?->name ?? $s->payerGuest?->name, 'guestId' => $s->payer_guest_id],
+                    'spent_at' => $s->spent_at->toDateString(),
+                ])->values(),
+                'balances' => $balances['balances'],
+                'suggestions' => $balances['suggestions'],
             ],
         ];
     }
