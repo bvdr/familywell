@@ -51,4 +51,10 @@ class Spend extends Model
     {
         return $this->hasMany(SpendReceipt::class, 'spend_id');
     }
+
+    /** Per-spend split override rows (which participants share it, optional exact amounts). */
+    public function shares(): HasMany
+    {
+        return $this->hasMany(SpendShare::class, 'spend_id');
+    }
 }
