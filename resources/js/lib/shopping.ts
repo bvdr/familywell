@@ -56,3 +56,20 @@ export const LIST_COLORS: Record<string, string> = {
 };
 
 export const listColor = (slug: string) => LIST_COLORS[slug] ?? LIST_COLORS.green;
+
+// Voice dictation language. The Web Speech API can't auto-detect the spoken language, so the user
+// picks one on the module Settings page. Stored per-device (it's a mic/input preference), default
+// Romanian. Shared here so both the Settings page and the voice screen agree on the key + options.
+export const VOICE_LANGS = [
+    { code: 'ro-RO', label: 'Română' },
+    { code: 'en-US', label: 'English' },
+];
+const VOICE_LANG_KEY = 'familywell:voiceLang';
+export const getVoiceLang = (): string => (typeof window === 'undefined' ? 'ro-RO' : localStorage.getItem(VOICE_LANG_KEY) || 'ro-RO');
+export const setVoiceLang = (code: string): void => {
+    try {
+        localStorage.setItem(VOICE_LANG_KEY, code);
+    } catch {
+        /* private mode: fall back to session default */
+    }
+};

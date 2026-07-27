@@ -1,5 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Archive, Check, ChevronRight, Lock, Plus, RotateCcw, ShoppingCart, Store, UserCheck, Users } from 'lucide-react';
+import { Archive, Check, ChevronRight, Lock, Plus, RotateCcw, Settings, ShoppingCart, Store, UserCheck, Users } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 import InputError from '@/components/input-error';
@@ -119,9 +119,18 @@ export default function Lists({ lists, stores }: { lists: List[]; stores: string
             <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
                     <h1 className="font-heading text-primary text-2xl">Grocery Lists</h1>
-                    <Button size="icon" className="rounded-full" onClick={() => setCreating((v) => !v)} aria-label="New list">
-                        <Plus className="size-5" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Link
+                            href={route('shopping.settings')}
+                            aria-label="Shopping settings"
+                            className="border-border text-primary hover:bg-surface flex size-10 items-center justify-center rounded-full border transition-colors"
+                        >
+                            <Settings className="size-5" />
+                        </Link>
+                        <Button size="icon" className="rounded-full" onClick={() => setCreating((v) => !v)} aria-label="New list">
+                            <Plus className="size-5" />
+                        </Button>
+                    </div>
                 </div>
 
                 <ResponsiveModal
