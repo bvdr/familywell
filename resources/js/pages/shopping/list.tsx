@@ -72,6 +72,12 @@ function AssigneeBadge({ member }: { member?: Member }) {
 
 type Parsed = { name: string; quantity: string; department: string; note: string };
 
+// Dictation languages offered on the voice screen (the Web Speech API needs an explicit language).
+const VOICE_LANGS = [
+    { code: 'ro-RO', label: 'Română' },
+    { code: 'en-US', label: 'English' },
+];
+
 // Minimal shape of the native SpeechRecognition API (not in the TS DOM lib; Chrome/Safari incl. iOS).
 type SpeechResultEvent = { results: ArrayLike<ArrayLike<{ transcript: string }>> };
 type SpeechRec = {
@@ -119,6 +125,10 @@ export default function ListDetail({
     const [stage, setStage] = useState<'voice' | 'review'>('voice');
     const [transcript, setTranscript] = useState('');
     const [listening, setListening] = useState(false);
+    // Dictation language (no browser auto-detect); default Romanian, remembered across sessions.
+    const [voiceLang, setVoiceLang] = useState(() =>
+        typeof window === 'undefined' ? 'ro-RO' : localStorage.getItem('familywell:voiceLang') || 'ro-RO',
+    );
     const [parsing, setParsing] = useState(false);
     const [parsed, setParsed] = useState<Parsed[]>([]);
     const recRef = useRef<{ stop: () => void } | null>(null);
@@ -228,21 +238,16 @@ export default function ListDetail({
         setVoiceOpen(false);
     };
 
-    // Toggle dictation via the native SpeechRecognition API; interim results stream into the transcript.
-    const toggleListening = () => {
-        if (listening) {
-            recRef.current?.stop();
-            return;
-        }
+    // Start dictation in a specific language. The Web Speech API can't auto-detect the spoken language,
+    // it needs a BCP-47 code up front, so the user picks via the chips (default Romanian, remembered).
+    const startListening = (lang: string) => {
         const w = window as unknown as { SpeechRecognition?: SpeechCtor; webkitSpeechRecognition?: SpeechCtor };
         const SR = w.SpeechRecognition ?? w.webkitSpeechRecognition;
         if (!SR) return;
         const rec = new SR();
         rec.continuous = true;
         rec.interimResults = true;
-        // FamilyWell is a Romanian-first app, and a Romanian device with an English UI reports
-        // navigator.language as "en-RO", which mis-hears Romanian words. Recognise Romanian dictation.
-        rec.lang = 'ro-RO';
+        rec.lang = lang;
         rec.onresult = (e: SpeechResultEvent) => {
             let text = '';
             for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript;
@@ -252,6 +257,23 @@ export default function ListDetail({
         rec.start();
         recRef.current = rec;
         setListening(true);
+    };
+    const toggleListening = () => {
+        if (listening) recRef.current?.stop();
+        else startListening(voiceLang);
+    };
+    // Switch language; if already listening, restart recognition so the new acoustic model takes effect.
+    const changeVoiceLang = (code: string) => {
+        setVoiceLang(code);
+        try {
+            localStorage.setItem('familywell:voiceLang', code);
+        } catch {
+            /* private mode: fall back to session-only */
+        }
+        if (listening) {
+            recRef.current?.stop();
+            setTimeout(() => startListening(code), 60); // let onend fire before restarting
+        }
     };
 
     // Offline fallback: split a run-on list on commas / "and" / newlines. No aisle guessing (all 'other').
@@ -575,7 +597,27 @@ export default function ListDetail({
                     <div className="bg-primary text-primary-foreground fixed inset-0 z-[60] flex flex-col">
                         {stage === 'voice' ? (
                             <>
-                                <div className="flex justify-end px-5 pt-[calc(1rem+env(safe-area-inset-top))]">
+                                <div className="flex items-center justify-between px-5 pt-[calc(1rem+env(safe-area-inset-top))]">
+                                    {speechSupported ? (
+                                        <div className="flex gap-1.5">
+                                            {VOICE_LANGS.map((l) => (
+                                                <button
+                                                    key={l.code}
+                                                    type="button"
+                                                    onClick={() => changeVoiceLang(l.code)}
+                                                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                                                        voiceLang === l.code
+                                                            ? 'bg-primary-foreground text-primary'
+                                                            : 'bg-primary-foreground/15 text-primary-foreground/80'
+                                                    }`}
+                                                >
+                                                    {l.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <span />
+                                    )}
                                     <button
                                         type="button"
                                         onClick={closeVoice}
