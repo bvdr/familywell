@@ -1,6 +1,6 @@
 import { type NavItem } from '@/types';
 import { Link, router, usePage } from '@inertiajs/react';
-import { Blocks, LayoutGrid, Loader2, Users, Wallet } from 'lucide-react';
+import { Blocks, LayoutGrid, Loader2, ShoppingCart, Users, Wallet } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 // The DS floating mobile navigation: a translucent, blurred pill that sits above the
@@ -14,6 +14,7 @@ const baseItems: NavItem[] = [
 
 const moduleItems: Record<string, NavItem> = {
     spending: { title: 'Spending', url: '/m/spending', icon: Wallet },
+    shopping: { title: 'Shopping', url: '/m/shopping', icon: ShoppingCart },
 };
 
 export function MobileTabBar() {

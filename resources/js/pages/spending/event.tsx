@@ -33,6 +33,7 @@ import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { categoryIcon } from '@/lib/categories';
 import { compressImage } from '@/lib/compress-image';
 import { money } from '@/lib/money';
 import { type BreadcrumbItem } from '@/types';
@@ -126,14 +127,6 @@ const TABS = [
 ] as const;
 type TabKey = (typeof TABS)[number]['key'];
 
-const CATEGORY: Record<string, string> = {
-    food: '🍽️',
-    transport: '🚗',
-    lodging: '🏨',
-    activities: '🎟️',
-    other: '•',
-};
-
 const today = () => new Date().toISOString().slice(0, 10);
 
 // Relative day header for the spend log: Today / Yesterday / a dated label.
@@ -223,6 +216,29 @@ export default function Event({
         { title: 'Spending', href: '/m/spending' },
         { title: event.name, href: route('spending.show', event.id) },
     ];
+
+    // Share + guest-link controls live in the global header (right of the breadcrumbs) for every entity.
+    const headerActions = (
+        <>
+            <button
+                type="button"
+                onClick={() => setSharing(true)}
+                aria-label="Share with family"
+                className="border-border text-primary hover:bg-surface flex size-9 items-center justify-center rounded-lg border transition-colors"
+            >
+                <UserPlus className="size-4.5" />
+            </button>
+            <button
+                type="button"
+                onClick={() => setGuestSharing(true)}
+                aria-label="Guest link"
+                className="border-border text-primary hover:bg-surface relative flex size-9 items-center justify-center rounded-lg border transition-colors"
+            >
+                <Link2 className="size-4.5" />
+                {guestShare?.enabled && <span className="bg-primary absolute -top-0.5 -right-0.5 size-2 rounded-full" />}
+            </button>
+        </>
+    );
 
     // Live sync: a change from anyone in the family reloads this page's data. Best-effort.
     useEffect(() => {
@@ -487,7 +503,7 @@ export default function Event({
 
     return (
         <AvatarColorContext.Provider value={avatarColors}>
-            <AppLayout breadcrumbs={breadcrumbs}>
+            <AppLayout breadcrumbs={breadcrumbs} actions={headerActions}>
                 <Head title={event.name} />
                 <div className="mx-auto w-full max-w-2xl">
                     {/* Sticky editorial header: the serif title, the display currency, and the tab bar that
@@ -522,24 +538,6 @@ export default function Event({
                                 </button>
                             )}
                             <div className="flex shrink-0 items-center gap-2">
-                                {/* Quick access to sharing; full controls also live in the Settings tab. */}
-                                <button
-                                    type="button"
-                                    onClick={() => setSharing(true)}
-                                    aria-label="Share with family"
-                                    className="border-border text-primary hover:bg-surface flex size-9 items-center justify-center rounded-lg border transition-colors"
-                                >
-                                    <UserPlus className="size-4.5" />
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setGuestSharing(true)}
-                                    aria-label="Guest link"
-                                    className="border-border text-primary hover:bg-surface relative flex size-9 items-center justify-center rounded-lg border transition-colors"
-                                >
-                                    <Link2 className="size-4.5" />
-                                    {guestShare?.enabled && <span className="bg-primary absolute -top-0.5 -right-0.5 size-2 rounded-full" />}
-                                </button>
                                 <Select value={display} onValueChange={setDisplay}>
                                     <SelectTrigger className="border-border text-primary h-9 w-[76px] shrink-0">
                                         <SelectValue />
@@ -1058,21 +1056,31 @@ export default function Event({
                                         </Select>
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid gap-3">
                                     <div className="grid gap-2">
                                         <Label>Category</Label>
-                                        <Select value={form.data.category} onValueChange={(v) => form.setData('category', v)}>
-                                            <SelectTrigger className="w-full capitalize">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {event.categories.map((c) => (
-                                                    <SelectItem key={c} value={c} className="capitalize">
-                                                        {CATEGORY[c]} {c}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        <div className="flex flex-wrap gap-2">
+                                            {event.categories.map((c) => {
+                                                const Icon = categoryIcon(c);
+                                                const active = form.data.category === c;
+                                                return (
+                                                    <button
+                                                        key={c}
+                                                        type="button"
+                                                        onClick={() => form.setData('category', c)}
+                                                        aria-pressed={active}
+                                                        className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium capitalize transition-colors ${
+                                                            active
+                                                                ? 'border-primary bg-primary text-primary-foreground'
+                                                                : 'border-border text-primary hover:bg-surface'
+                                                        }`}
+                                                    >
+                                                        <Icon className="size-4 shrink-0" />
+                                                        {c}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                     <div className="grid gap-2">
                                         <Label>Paid by</Label>
