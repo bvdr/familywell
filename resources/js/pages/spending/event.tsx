@@ -32,6 +32,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { categoryIcon } from '@/lib/categories';
 import { compressImage } from '@/lib/compress-image';
@@ -200,8 +201,14 @@ export default function Event({
         }
     };
 
-    // Spends arrive newest-first, so a sequential pass groups them into contiguous days.
-    const dayGroups = spends.reduce<{ date: string; spends: Spend[]; total: number }[]>((groups, s) => {
+    // Optimistically removed spends: the row vanishes on tap, before the server confirms the delete.
+    const removedSpends = useOptimistic<boolean>();
+
+    // Spends arrive newest-first, so a sequential pass groups them into contiguous days. Optimistically
+    // deleted rows are filtered out first so they disappear immediately (per-day subtotals and the
+    // header count follow); server-computed aggregates (event.total, balances) reconcile on reload.
+    const visibleSpends = spends.filter((s) => !removedSpends.get(s.id, false));
+    const dayGroups = visibleSpends.reduce<{ date: string; spends: Spend[]; total: number }[]>((groups, s) => {
         const last = groups[groups.length - 1];
         if (last && last.date === s.spent_at) {
             last.spends.push(s);
@@ -445,7 +452,14 @@ export default function Event({
     };
 
     const duplicate = (s: Spend) => router.post(route('spending.spends.duplicate', s.id), {}, { preserveScroll: true });
-    const remove = (s: Spend) => router.delete(route('spending.spends.destroy', s.id), { preserveScroll: true });
+    const remove = (s: Spend) => {
+        removedSpends.set(s.id, true); // hide the row now; server response reconciles totals/balances
+        router.delete(route('spending.spends.destroy', s.id), {
+            preserveScroll: true,
+            preserveState: true, // keep the override alive across the prop reload the delete triggers
+            onError: () => removedSpends.clear(s.id),
+        });
+    };
 
     // Settle-up records a user-to-user payment; the ids are 'u{id}' so strip the prefix. Suggestions
     // that involve a guest aren't one-click settleable (canSettle=false) and hide the button.
@@ -582,8 +596,8 @@ export default function Event({
                                 <div className="text-accent-light text-xs tracking-widest uppercase">Total spent</div>
                                 <div className="font-heading mt-1 text-4xl">{fmt(event.total)}</div>
                                 <div className="text-accent-light mt-1 text-sm">
-                                    {event.people} {event.people === 1 ? 'person' : 'people'} · {spends.length}{' '}
-                                    {spends.length === 1 ? 'spend' : 'spends'}
+                                    {event.people} {event.people === 1 ? 'person' : 'people'} · {visibleSpends.length}{' '}
+                                    {visibleSpends.length === 1 ? 'spend' : 'spends'}
                                 </div>
                             </div>
                         )}
