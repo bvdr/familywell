@@ -34,6 +34,11 @@ it('404s when the module is not enabled', function () {
     actingAs($user)->get('/m/shopping')->assertNotFound();
 });
 
+it('renders the module settings page', function () {
+    [, $users] = shoppingFamily();
+    actingAs($users[0])->get('/m/shopping/settings')->assertOk();
+});
+
 it('creates a list, adds an item, toggles it, and deletes it', function () {
     [, $users] = shoppingFamily();
 
