@@ -22,6 +22,13 @@ class ShoppingController extends Controller
 
     public function __construct(private ShareAccess $access) {}
 
+    // Module-level settings (e.g. the voice dictation language). The settings themselves are a
+    // per-device client preference (localStorage), so the page needs no server payload today.
+    public function settings(): Response
+    {
+        return Inertia::render('shopping/settings');
+    }
+
     public function index(Request $request): Response
     {
         $userId = $request->user()->id;
