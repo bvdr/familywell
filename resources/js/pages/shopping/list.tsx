@@ -4,6 +4,7 @@ import {
     Check,
     ChevronLeft,
     Copy,
+    LayoutList,
     Loader2,
     Lock,
     Mic,
@@ -23,6 +24,7 @@ import {
 import { useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
+import { AisleEditor } from '@/components/aisle-editor';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,7 +42,7 @@ import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
-import { aisle, getVoiceLang } from '@/lib/shopping';
+import { aisleIcon, getVoiceLang } from '@/lib/shopping';
 import { type BreadcrumbItem } from '@/types';
 
 type Member = { id: number; name: string };
@@ -71,6 +73,9 @@ function AssigneeBadge({ member }: { member?: Member }) {
 }
 
 type Parsed = { name: string; quantity: string; department: string; note: string };
+// An aisle of the list's shop (custom per store, or the default Grocery set). `slug` is the value
+// stored on an item's `department`; `icon` is a slug from the AISLE_ICONS pack.
+type Aisle = { slug: string; name: string; icon: string };
 
 // Minimal shape of the native SpeechRecognition API (not in the TS DOM lib; Chrome/Safari incl. iOS).
 type SpeechResultEvent = { results: ArrayLike<ArrayLike<{ transcript: string }>> };
@@ -89,7 +94,7 @@ export default function ListDetail({
     list,
     items,
     members,
-    departments,
+    aisles,
     share,
     stores,
     aiEnabled,
@@ -97,7 +102,7 @@ export default function ListDetail({
     list: List;
     items: Item[];
     members: Member[];
-    departments: string[];
+    aisles: Aisle[];
     share: ShareState;
     stores: string[];
     aiEnabled: boolean;
@@ -109,6 +114,7 @@ export default function ListDetail({
     const [editingTitle, setEditingTitle] = useState(false);
     const [title, setTitle] = useState(list.name);
     const [storeOpen, setStoreOpen] = useState(false);
+    const [aislesOpen, setAislesOpen] = useState(false);
     const [storeDraft, setStoreDraft] = useState(list.store ?? '');
     const [editingId, setEditingId] = useState<number | null>(null); // null = closed; 0 = new item; >0 = editing
     const [draft, setDraft] = useState<Draft>(emptyDraft);
@@ -145,21 +151,33 @@ export default function ListDetail({
     const boughtCount = liveItems.filter((i) => isBought(i)).length;
     const pct = liveItems.length ? Math.round((boughtCount / liveItems.length) * 100) : 0;
 
+    const aisleBySlug = useMemo(() => new Map(aisles.map((a) => [a.slug, a])), [aisles]);
+    // Group items into the shop's aisles (in walk order). Items whose department isn't a current
+    // aisle (e.g. an aisle was deleted) fall into the shop's "other" aisle, or a trailing Other bucket.
+    const groupByAisle = (list: Item[]): { aisle: Aisle; items: Item[] }[] => {
+        const otherSlug = aisleBySlug.has('other') ? 'other' : '__other__';
+        const buckets = new Map<string, Item[]>();
+        for (const it of list) {
+            const slug = aisleBySlug.has(it.department) ? it.department : otherSlug;
+            (buckets.get(slug) ?? buckets.set(slug, []).get(slug)!).push(it);
+        }
+        const out = aisles.filter((a) => buckets.has(a.slug)).map((a) => ({ aisle: a, items: buckets.get(a.slug)! }));
+        if (buckets.has('__other__')) out.push({ aisle: { slug: '__other__', name: 'Other', icon: 'basket' }, items: buckets.get('__other__')! });
+        return out;
+    };
+
     const groups = useMemo(() => {
         let visible = liveItems.filter((i) => (hideCompleted ? !isBought(i) : true));
         if (sortAz) visible = [...visible].sort((a, b) => a.name.localeCompare(b.name));
-        return departments.map((d) => ({ department: d, items: visible.filter((i) => i.department === d) })).filter((g) => g.items.length > 0);
+        return groupByAisle(visible);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [items, departments, hideCompleted, sortAz, bought, removed]);
+    }, [items, aisles, hideCompleted, sortAz, bought, removed]);
 
     // Focus mode splits the list into still-to-get (grouped by aisle) and an already-in-cart pile.
     const focusGroups = useMemo(
-        () =>
-            departments
-                .map((d) => ({ department: d, items: liveItems.filter((i) => !isBought(i) && i.department === d) }))
-                .filter((g) => g.items.length > 0),
+        () => groupByAisle(liveItems.filter((i) => !isBought(i))),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [items, departments, bought, removed],
+        [items, aisles, bought, removed],
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const doneItems = useMemo(() => liveItems.filter((i) => isBought(i)), [items, bought, removed]);
@@ -322,6 +340,9 @@ export default function ListDetail({
                     <DropdownMenuItem onSelect={() => setStoreOpen(true)}>
                         <Store className="size-4" /> Change store
                     </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setAislesOpen(true)}>
+                        <LayoutList className="size-4" /> Edit aisles
+                    </DropdownMenuItem>
                     <DropdownMenuSub>
                         <DropdownMenuSubTrigger>
                             <UnfoldVertical className="size-4" /> Sort items
@@ -422,12 +443,11 @@ export default function ListDetail({
                     </button>
 
                     {groups.map((group) => {
-                        const meta = aisle(group.department);
-                        const AisleIcon = meta.icon;
+                        const AisleIcon = aisleIcon(group.aisle.icon);
                         return (
-                            <section key={group.department} className="flex flex-col gap-2">
+                            <section key={group.aisle.slug} className="flex flex-col gap-2">
                                 <h2 className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
-                                    <AisleIcon className="size-3.5" /> {meta.label}
+                                    <AisleIcon className="size-3.5" /> {group.aisle.name}
                                 </h2>
                                 {group.items.map((item) => (
                                     <div key={item.id} className="bg-surface-card group flex items-center gap-3 rounded-xl border p-3">
@@ -518,12 +538,11 @@ export default function ListDetail({
 
                         <div className="flex-1 space-y-6 overflow-y-auto px-5 pb-[calc(2rem+env(safe-area-inset-bottom))]">
                             {focusGroups.map((group) => {
-                                const meta = aisle(group.department);
-                                const AisleIcon = meta.icon;
+                                const AisleIcon = aisleIcon(group.aisle.icon);
                                 return (
-                                    <section key={group.department} className="space-y-2">
+                                    <section key={group.aisle.slug} className="space-y-2">
                                         <h3 className="text-primary-foreground/60 flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
-                                            <AisleIcon className="size-3.5" /> {meta.label}
+                                            <AisleIcon className="size-3.5" /> {group.aisle.name}
                                         </h3>
                                         {group.items.map((item) => (
                                             <button
@@ -672,19 +691,18 @@ export default function ListDetail({
                                             {parsed.length} item{parsed.length === 1 ? '' : 's'} sorted into aisles. Edit or remove any.
                                         </p>
                                     </div>
-                                    {departments
-                                        .map((d) => ({
-                                            department: d,
-                                            entries: parsed.map((it, idx) => ({ it, idx })).filter((e) => e.it.department === d),
+                                    {aisles
+                                        .map((a) => ({
+                                            aisle: a,
+                                            entries: parsed.map((it, idx) => ({ it, idx })).filter((e) => e.it.department === a.slug),
                                         }))
                                         .filter((g) => g.entries.length > 0)
                                         .map((group) => {
-                                            const meta = aisle(group.department);
-                                            const AisleIcon = meta.icon;
+                                            const AisleIcon = aisleIcon(group.aisle.icon);
                                             return (
-                                                <section key={group.department} className="space-y-2">
+                                                <section key={group.aisle.slug} className="space-y-2">
                                                     <h3 className="text-primary-foreground/60 flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
-                                                        <AisleIcon className="size-3.5" /> {meta.label}
+                                                        <AisleIcon className="size-3.5" /> {group.aisle.name}
                                                     </h3>
                                                     {group.entries.map(({ it, idx }) => (
                                                         <div
@@ -758,6 +776,8 @@ export default function ListDetail({
                 )}
 
             {share && <ShareSheet open={sharing} onOpenChange={setSharing} share={share} eventName={list.name} />}
+
+            <AisleEditor open={aislesOpen} onOpenChange={setAislesOpen} listId={list.id} storeName={list.store} />
 
             {/* Change store */}
             <ResponsiveModal
@@ -849,20 +869,19 @@ export default function ListDetail({
                     <div className="grid gap-2">
                         <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Department</Label>
                         <div className="flex flex-wrap gap-2">
-                            {departments.map((d) => {
-                                const meta = aisle(d);
-                                const Icon = meta.icon;
-                                const active = draft.department === d;
+                            {aisles.map((a) => {
+                                const Icon = aisleIcon(a.icon);
+                                const active = draft.department === a.slug;
                                 return (
                                     <button
-                                        key={d}
+                                        key={a.slug}
                                         type="button"
-                                        onClick={() => setDraft((dr) => ({ ...dr, department: d }))}
+                                        onClick={() => setDraft((dr) => ({ ...dr, department: a.slug }))}
                                         className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors ${
                                             active ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-primary'
                                         }`}
                                     >
-                                        <Icon className="size-3.5" /> {meta.label}
+                                        <Icon className="size-3.5" /> {a.name}
                                     </button>
                                 );
                             })}
