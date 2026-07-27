@@ -48,6 +48,7 @@ class ShoppingServiceProvider extends ServiceProvider
             ->name('shopping.')
             ->group(function () {
                 Route::get('/', [ShoppingController::class, 'index'])->name('index');
+                Route::get('/settings', [ShoppingController::class, 'settings'])->name('settings');
                 Route::post('/lists', [ShoppingController::class, 'storeList'])->name('lists.store');
                 Route::get('/lists/{list}', [ShoppingController::class, 'show'])->name('show');
                 Route::patch('/lists/{list}', [ShoppingController::class, 'updateList'])->name('lists.update');
