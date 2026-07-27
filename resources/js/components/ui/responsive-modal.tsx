@@ -111,7 +111,21 @@ export function ResponsiveModal({
                     </div>
                     {/* Only this region scrolls. min-h-0 lets it shrink inside the flex column so it actually
                         scrolls (and lets vaul tell a scroll from a dismiss drag); overflow-x-hidden keeps it vertical. */}
-                    <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-5 pb-2">{children}</div>
+                    <div
+                        className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-5 pb-2"
+                        // iOS standalone PWA ignores interactive-widget=resizes-content, so the browser never
+                        // scrolls a focused field out from behind the keyboard. For tall forms the lower fields
+                        // (e.g. Note) stay hidden, so we bring the tapped field to the middle of the keyboard-
+                        // capped body ourselves, after the keyboard has animated in. Skip the autofocused field:
+                        // it opens with preventScroll on purpose, and scrolling it would yank the pinned header off.
+                        onFocus={(e) => {
+                            const t = e.target as HTMLElement;
+                            if (t === autoFocusRef?.current || !t.matches('input, textarea, select, [contenteditable="true"]')) return;
+                            setTimeout(() => t.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300);
+                        }}
+                    >
+                        {children}
+                    </div>
                     {footer && (
                         <div
                             className={cn(
