@@ -38,6 +38,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
+import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { aisle } from '@/lib/shopping';
 import { type BreadcrumbItem } from '@/types';
@@ -126,32 +127,57 @@ export default function ListDetail({
 
     const memberById = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
 
+    // Optimistic overlays: apply bought-toggle / remove locally so taps feel instant, then let the
+    // background request + prop reload become authoritative. render THESE, not the raw server fields.
+    const bought = useOptimistic<boolean>();
+    const removed = useOptimistic<boolean>();
+    const isBought = (i: Item) => bought.get(i.id, i.bought);
+    const isGone = (i: Item) => removed.get(i.id, false);
+
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Shopping', href: '/m/shopping' },
         { title: list.name, href: route('shopping.show', list.id) },
     ];
 
-    const boughtCount = items.filter((i) => i.bought).length;
-    const pct = items.length ? Math.round((boughtCount / items.length) * 100) : 0;
+    const liveItems = items.filter((i) => !isGone(i));
+    const boughtCount = liveItems.filter((i) => isBought(i)).length;
+    const pct = liveItems.length ? Math.round((boughtCount / liveItems.length) * 100) : 0;
 
     const groups = useMemo(() => {
-        let visible = hideCompleted ? items.filter((i) => !i.bought) : items;
+        let visible = liveItems.filter((i) => (hideCompleted ? !isBought(i) : true));
         if (sortAz) visible = [...visible].sort((a, b) => a.name.localeCompare(b.name));
         return departments.map((d) => ({ department: d, items: visible.filter((i) => i.department === d) })).filter((g) => g.items.length > 0);
-    }, [items, departments, hideCompleted, sortAz]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [items, departments, hideCompleted, sortAz, bought, removed]);
 
     // Focus mode splits the list into still-to-get (grouped by aisle) and an already-in-cart pile.
     const focusGroups = useMemo(
         () =>
             departments
-                .map((d) => ({ department: d, items: items.filter((i) => !i.bought && i.department === d) }))
+                .map((d) => ({ department: d, items: liveItems.filter((i) => !isBought(i) && i.department === d) }))
                 .filter((g) => g.items.length > 0),
-        [items, departments],
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [items, departments, bought, removed],
     );
-    const doneItems = useMemo(() => items.filter((i) => i.bought), [items]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const doneItems = useMemo(() => liveItems.filter((i) => isBought(i)), [items, bought, removed]);
 
-    const toggle = (item: Item) => router.patch(route('shopping.items.update', item.id), {}, { preserveScroll: true });
-    const remove = (item: Item) => router.delete(route('shopping.items.destroy', item.id), { preserveScroll: true });
+    const toggle = (item: Item) => {
+        bought.set(item.id, !isBought(item));
+        router.patch(
+            route('shopping.items.update', item.id),
+            {},
+            { preserveScroll: true, preserveState: true, onSuccess: () => bought.clear(item.id), onError: () => bought.clear(item.id) },
+        );
+    };
+    const remove = (item: Item) => {
+        removed.set(item.id, true);
+        router.delete(route('shopping.items.destroy', item.id), {
+            preserveScroll: true,
+            preserveState: true,
+            onError: () => removed.clear(item.id),
+        });
+    };
 
     const patchList = (data: Record<string, string | number | boolean | null>) =>
         router.patch(route('shopping.lists.update', list.id), data, { preserveScroll: true });
@@ -368,7 +394,7 @@ export default function ListDetail({
                             )}
                         </div>
                         <div className="text-muted-foreground text-sm tabular-nums">
-                            {boughtCount} / {items.length} done
+                            {boughtCount} / {liveItems.length} done
                         </div>
                     </div>
                     <div className="bg-surface mt-2 h-1.5 overflow-hidden rounded-full">
@@ -405,16 +431,16 @@ export default function ListDetail({
                                         <button
                                             type="button"
                                             onClick={() => toggle(item)}
-                                            aria-label={item.bought ? 'Mark not bought' : 'Mark bought'}
+                                            aria-label={isBought(item) ? 'Mark not bought' : 'Mark bought'}
                                             className={`flex size-6 shrink-0 items-center justify-center rounded-md border transition-colors ${
-                                                item.bought ? 'border-primary bg-primary text-primary-foreground' : 'border-border'
+                                                isBought(item) ? 'border-primary bg-primary text-primary-foreground' : 'border-border'
                                             }`}
                                         >
-                                            {item.bought && <Check className="size-4" />}
+                                            {isBought(item) && <Check className="size-4" />}
                                         </button>
                                         <button type="button" onClick={() => openEdit(item)} className="min-w-0 flex-1 text-left">
                                             <div
-                                                className={`text-primary text-sm font-medium ${item.bought ? 'text-muted-foreground line-through' : ''}`}
+                                                className={`text-primary text-sm font-medium ${isBought(item) ? 'text-muted-foreground line-through' : ''}`}
                                             >
                                                 {item.name}
                                             </div>
@@ -435,7 +461,7 @@ export default function ListDetail({
                         );
                     })}
 
-                    {items.length === 0 && <p className="text-muted-foreground py-6 text-center text-sm">No items yet. Add your first below.</p>}
+                    {liveItems.length === 0 && <p className="text-muted-foreground py-6 text-center text-sm">No items yet. Add your first below.</p>}
 
                     <div className="sticky bottom-4 flex flex-col gap-2">
                         <div className="flex gap-2">
@@ -446,7 +472,7 @@ export default function ListDetail({
                                 <Mic className="size-4" />
                             </Button>
                         </div>
-                        {items.some((i) => !i.bought) && (
+                        {liveItems.some((i) => !isBought(i)) && (
                             <Button type="button" onClick={() => setFocus(true)} className="w-full shadow-[var(--shadow-fw-md)]">
                                 <ShoppingCart className="size-4" /> Start Shopping
                             </Button>
@@ -474,7 +500,7 @@ export default function ListDetail({
                             </div>
                             <div className="flex items-center gap-3">
                                 <span className="text-primary-foreground/80 text-sm tabular-nums">
-                                    {boughtCount}/{items.length}
+                                    {boughtCount}/{liveItems.length}
                                 </span>
                                 <button
                                     type="button"

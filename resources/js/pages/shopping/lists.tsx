@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
+import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { LIST_COLORS, LIST_ICONS, listColor, listIcon } from '@/lib/shopping';
 import { type BreadcrumbItem } from '@/types';
@@ -97,8 +98,10 @@ export default function Lists({ lists, stores }: { lists: List[]; stores: string
         visibility: 'family',
     });
 
-    const active = lists.filter((l) => !l.archived);
-    const archived = lists.filter((l) => l.archived);
+    const archivedOpt = useOptimistic<boolean>();
+    const isArchived = (l: List) => archivedOpt.get(l.id, l.archived);
+    const active = lists.filter((l) => !isArchived(l));
+    const archived = lists.filter((l) => isArchived(l));
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -266,9 +269,19 @@ export default function Lists({ lists, stores }: { lists: List[]; stores: string
                                     </div>
                                     <button
                                         type="button"
-                                        onClick={() =>
-                                            router.patch(route('shopping.lists.update', l.id), { archived: false }, { preserveScroll: true })
-                                        }
+                                        onClick={() => {
+                                            archivedOpt.set(l.id, false);
+                                            router.patch(
+                                                route('shopping.lists.update', l.id),
+                                                { archived: false },
+                                                {
+                                                    preserveScroll: true,
+                                                    preserveState: true,
+                                                    onSuccess: () => archivedOpt.clear(l.id),
+                                                    onError: () => archivedOpt.clear(l.id),
+                                                },
+                                            );
+                                        }}
                                         aria-label="Restore list"
                                         className="text-muted-foreground hover:text-primary flex size-8 items-center justify-center rounded-lg transition-colors"
                                     >

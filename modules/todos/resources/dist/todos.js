@@ -39,9 +39,16 @@ function TodosWidget() {
         setTitle('');
         load();
     }
-    async function toggle(id) {
-        await api('PATCH', '/m/todos/items/' + id);
-        load();
+    function toggle(id) {
+        // Flip locally first so the checkbox responds instantly, then sync in the background.
+        setItems((prev) => prev.map((it) => (it.id === id ? { ...it, done: !it.done } : it)));
+        // Revert to server truth on failure: api() resolves null on an HTTP error and rejects on a
+        // network error, so cover both (.then reload + .catch reload) or the flip stays fake-toggled.
+        api('PATCH', '/m/todos/items/' + id)
+            .then((r) => {
+                if (!r) load();
+            })
+            .catch(load);
     }
 
     return React.createElement(
