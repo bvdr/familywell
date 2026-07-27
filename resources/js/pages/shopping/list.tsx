@@ -240,7 +240,9 @@ export default function ListDetail({
         const rec = new SR();
         rec.continuous = true;
         rec.interimResults = true;
-        rec.lang = navigator.language || 'en-US';
+        // FamilyWell is a Romanian-first app, and a Romanian device with an English UI reports
+        // navigator.language as "en-RO", which mis-hears Romanian words. Recognise Romanian dictation.
+        rec.lang = 'ro-RO';
         rec.onresult = (e: SpeechResultEvent) => {
             let text = '';
             for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript;
