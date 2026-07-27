@@ -3,6 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { categoryIcon } from '@/lib/categories';
 import { money } from '@/lib/money';
 import { Head, router, useForm } from '@inertiajs/react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
@@ -25,7 +26,6 @@ type EventT = { name: string; currency: string; total: number; categories: strin
 
 type Props = { token: string; event: EventT; guests: Guest[]; spends: Spend[]; balances: Balance[]; suggestions: Suggestion[] };
 
-const CATEGORY: Record<string, string> = { food: '🍽️', transport: '🚗', lodging: '🏨', activities: '🎟️', other: '•' };
 const today = () => new Date().toISOString().slice(0, 10);
 const dayLabel = (date: string) => new Date(date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 
@@ -163,10 +163,11 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
                 <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Spends</h2>
                 {spends.map((s) => {
                     const mine = s.payer.guestId === me.id;
+                    const Icon = categoryIcon(s.category);
                     return (
                         <div key={s.id} className="bg-surface-card flex items-center gap-3 rounded-xl border p-3">
-                            <span className="bg-accent-subtle flex size-9 shrink-0 items-center justify-center rounded-lg text-base">
-                                {CATEGORY[s.category] ?? '•'}
+                            <span className="bg-accent-subtle text-primary flex size-9 shrink-0 items-center justify-center rounded-lg">
+                                <Icon className="size-4.5" />
                             </span>
                             <div className="min-w-0 flex-1">
                                 <div className="text-primary line-clamp-2 text-sm font-medium">{s.note || s.category}</div>
@@ -328,21 +329,21 @@ function SpendForm({ token, me, event, editing, onClose }: { token: string; me: 
 
                 <div className="grid gap-1.5">
                     <Label>Category</Label>
-                    <div className="grid grid-cols-5 gap-2">
+                    <div className="flex flex-wrap gap-2">
                         {event.categories.map((c) => {
+                            const Icon = categoryIcon(c);
                             const active = form.data.category === c;
                             return (
                                 <button
                                     key={c}
                                     type="button"
                                     onClick={() => form.setData('category', c)}
-                                    className={`flex flex-col items-center gap-1 rounded-xl border p-2 text-xs font-medium capitalize transition-colors ${
-                                        active
-                                            ? 'border-primary bg-primary text-primary-foreground'
-                                            : 'bg-surface-card text-text-secondary hover:border-accent'
+                                    aria-pressed={active}
+                                    className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium capitalize transition-colors ${
+                                        active ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-primary hover:bg-surface'
                                     }`}
                                 >
-                                    <span className="text-base">{CATEGORY[c] ?? '•'}</span>
+                                    <Icon className="size-4 shrink-0" />
                                     {c}
                                 </button>
                             );
