@@ -4,6 +4,7 @@ use App\Models\Family;
 use App\Models\User;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareAccess;
+use Modules\Shopping\ShoppingAisle;
 use Modules\Shopping\ShoppingItem;
 use Modules\Shopping\ShoppingList;
 
@@ -37,6 +38,55 @@ it('404s when the module is not enabled', function () {
 it('renders the module settings page', function () {
     [, $users] = shoppingFamily();
     actingAs($users[0])->get('/m/shopping/settings')->assertOk();
+});
+
+it('materializes default aisles, then adds and deletes a custom one', function () {
+    [, $users] = shoppingFamily();
+    actingAs($users[0])->post('/m/shopping/lists', ['name' => 'Groceries', 'store' => 'Metro']);
+    $list = ShoppingList::withoutGlobalScopes()->first();
+
+    $res = actingAs($users[0])->postJson("/m/shopping/lists/{$list->id}/aisles/ensure")->assertOk();
+    expect(collect($res->json('aisles'))->pluck('slug'))->toContain('produce', 'other')
+        ->and($res->json('templates'))->not->toBeEmpty();
+
+    $res = actingAs($users[0])->postJson("/m/shopping/lists/{$list->id}/aisles", ['name' => 'Deli', 'icon' => 'ham'])->assertOk();
+    $deli = collect($res->json('aisles'))->firstWhere('name', 'Deli');
+    expect($deli['slug'])->toBe('deli')->and($deli['icon'])->toBe('ham');
+
+    actingAs($users[0])->deleteJson("/m/shopping/aisles/{$deli['id']}")->assertOk();
+    expect(ShoppingAisle::withoutGlobalScopes()->where('slug', 'deli')->exists())->toBeFalse();
+});
+
+it('applies a shop template, replacing the aisles', function () {
+    [, $users] = shoppingFamily();
+    actingAs($users[0])->post('/m/shopping/lists', ['name' => 'DIY', 'store' => 'Dedeman']);
+    $list = ShoppingList::withoutGlobalScopes()->first();
+
+    $res = actingAs($users[0])->postJson("/m/shopping/lists/{$list->id}/aisles/template", ['template' => 'bricolage'])->assertOk();
+    $slugs = collect($res->json('aisles'))->pluck('slug');
+    expect($slugs)->toContain('hand-tools', 'plumbing')->and($slugs)->not->toContain('dairy');
+});
+
+it('accepts a custom aisle slug on an item and groups under it', function () {
+    [, $users] = shoppingFamily();
+    actingAs($users[0])->post('/m/shopping/lists', ['name' => 'DIY', 'store' => 'Dedeman']);
+    $list = ShoppingList::withoutGlobalScopes()->first();
+    actingAs($users[0])->postJson("/m/shopping/lists/{$list->id}/aisles/template", ['template' => 'bricolage']);
+
+    actingAs($users[0])->post("/m/shopping/lists/{$list->id}/items", ['name' => 'Hammer', 'department' => 'hand-tools'])->assertRedirect();
+    expect(ShoppingItem::withoutGlobalScopes()->where('name', 'Hammer')->value('department'))->toBe('hand-tools');
+});
+
+it('scopes aisles to the family (another family cannot touch them)', function () {
+    [, $users] = shoppingFamily();
+    actingAs($users[0])->post('/m/shopping/lists', ['name' => 'G', 'store' => 'Metro']);
+    $list = ShoppingList::withoutGlobalScopes()->first();
+    $res = actingAs($users[0])->postJson("/m/shopping/lists/{$list->id}/aisles/ensure")->assertOk();
+    $aisleId = $res->json('aisles.0.id');
+
+    // A user from a different family gets a 404 on the family-scoped aisle model binding.
+    [, $others] = shoppingFamily();
+    actingAs($others[0])->deleteJson("/m/shopping/aisles/{$aisleId}")->assertNotFound();
 });
 
 it('creates a list, adds an item, toggles it, and deletes it', function () {

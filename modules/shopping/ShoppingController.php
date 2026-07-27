@@ -11,15 +11,13 @@ use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ShoppingController extends Controller
 {
-    // Aisles items are grouped into. Fixed set (mirrors the spend categories pattern): the frontend
-    // owns the icons, the backend only validates and orders. 'other' is the catch-all bucket.
-    public const DEPARTMENTS = ['produce', 'dairy', 'bakery', 'pantry', 'household', 'frozen', 'meat', 'beverages', 'other'];
-
     public function __construct(private ShareAccess $access) {}
 
     // Module-level settings (e.g. the voice dictation language). The settings themselves are a
@@ -193,7 +191,9 @@ class ShoppingController extends Controller
                     'assignedTo' => $i->assigned_to,
                 ])->values(),
             'members' => $members,
-            'departments' => self::DEPARTMENTS,
+            // This shop's aisles (custom rows, or the default Grocery set as a fallback) drive the
+            // department chips and the grouping. Replaces the old fixed DEPARTMENTS constant.
+            'aisles' => $this->resolveAisles($list->store),
             // Drives the "Add by voice" entry + the "Organized by AI" badge; false falls back to a naive split.
             'aiEnabled' => GroceryParser::configured(),
         ]);
@@ -242,7 +242,9 @@ class ShoppingController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'quantity' => ['nullable', 'string', 'max:60'],
-            'department' => ['nullable', 'in:'.implode(',', self::DEPARTMENTS)],
+            // Aisles are per-shop and dynamic now, so accept any slug; the client only offers the
+            // shop's aisles, and the list groups unknown slugs under a catch-all "Other".
+            'department' => ['nullable', 'string', 'max:60'],
             'note' => ['nullable', 'string', 'max:255'],
             'assigned_to' => ['nullable', 'integer'],
         ]);
@@ -271,7 +273,8 @@ class ShoppingController extends Controller
         $data = $request->validate(['transcript' => ['required', 'string', 'max:2000']]);
 
         try {
-            $items = (new GroceryParser(self::DEPARTMENTS))->parse($data['transcript']);
+            // Sort into THIS shop's aisles (e.g. plumbing/electrical for a bricolage run), not the default.
+            $items = (new GroceryParser($this->aisleSlugs($list->store)))->parse($data['transcript']);
         } catch (\RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
@@ -288,7 +291,7 @@ class ShoppingController extends Controller
             'items' => ['required', 'array', 'min:1', 'max:100'],
             'items.*.name' => ['required', 'string', 'max:255'],
             'items.*.quantity' => ['nullable', 'string', 'max:60'],
-            'items.*.department' => ['nullable', 'in:'.implode(',', self::DEPARTMENTS)],
+            'items.*.department' => ['nullable', 'string', 'max:60'],
             'items.*.note' => ['nullable', 'string', 'max:255'],
         ]);
 
@@ -319,7 +322,7 @@ class ShoppingController extends Controller
             $data = $request->validate([
                 'name' => ['sometimes', 'string', 'max:255'],
                 'quantity' => ['sometimes', 'nullable', 'string', 'max:60'],
-                'department' => ['sometimes', 'in:'.implode(',', self::DEPARTMENTS)],
+                'department' => ['sometimes', 'string', 'max:60'],
                 'note' => ['sometimes', 'nullable', 'string', 'max:255'],
                 'assigned_to' => ['sometimes', 'nullable', 'integer'],
                 'bought' => ['sometimes', 'boolean'],
@@ -339,5 +342,152 @@ class ShoppingController extends Controller
         Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
 
         return back();
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Aisles: per-shop, keyed by the list's free-text store name. Shared family config (behind the
+    // `family` + `module:shopping` middleware), so any family member may edit; the BelongsToFamily
+    // scope keeps other families out. The editor opens from a list, so endpoints take the list and
+    // derive its store. A shop with no rows uses the default Grocery set until it is edited.
+    // ---------------------------------------------------------------------------------------------
+
+    /** @return Collection<int, ShoppingAisle> */
+    private function aisleRows(?string $store)
+    {
+        return ShoppingAisle::where('store', (string) $store)->orderBy('position')->orderBy('id')->get();
+    }
+
+    /** This shop's aisles as {slug,name,icon}, falling back to the default Grocery set. */
+    private function resolveAisles(?string $store): array
+    {
+        $rows = $this->aisleRows($store);
+        if ($rows->isNotEmpty()) {
+            return $rows->map(fn (ShoppingAisle $a) => ['slug' => $a->slug, 'name' => $a->name, 'icon' => $a->icon])->all();
+        }
+
+        return array_map(fn ($t) => ['slug' => $t[0], 'name' => $t[1], 'icon' => $t[2]], StoreTemplates::default());
+    }
+
+    private function aisleSlugs(?string $store): array
+    {
+        return array_column($this->resolveAisles($store), 'slug');
+    }
+
+    // Persist the default set for a shop that only has the virtual fallback, so its aisles become
+    // editable rows. No-op once the shop has custom rows.
+    private function materializeAisles(?string $store): void
+    {
+        if ($this->aisleRows($store)->isNotEmpty()) {
+            return;
+        }
+        foreach (StoreTemplates::default() as $i => [$slug, $name, $icon]) {
+            ShoppingAisle::create(['store' => (string) $store, 'slug' => $slug, 'name' => $name, 'icon' => $icon, 'position' => $i]);
+        }
+    }
+
+    private function uniqueSlug(?string $store, string $name): string
+    {
+        $base = Str::slug($name) ?: 'aisle';
+        $slug = $base;
+        $taken = $this->aisleRows($store)->pluck('slug')->all();
+        $n = 2;
+        while (in_array($slug, $taken, true)) {
+            $slug = $base.'-'.$n++;
+        }
+
+        return $slug;
+    }
+
+    private function aisleListJson(?string $store): array
+    {
+        return $this->aisleRows($store)
+            ->map(fn (ShoppingAisle $a) => ['id' => $a->id, 'slug' => $a->slug, 'name' => $a->name, 'icon' => $a->icon, 'position' => $a->position])
+            ->values()->all();
+    }
+
+    // Editor opens: materialize the fallback into editable rows, then return them + template options.
+    public function ensureAisles(Request $request, ShoppingList $list): JsonResponse
+    {
+        abort_unless($this->access->roleFor($request->user(), $list) !== null, 403);
+        $this->materializeAisles($list->store);
+
+        return response()->json([
+            'store' => $list->store,
+            'aisles' => $this->aisleListJson($list->store),
+            'templates' => StoreTemplates::options(),
+        ]);
+    }
+
+    public function storeAisle(Request $request, ShoppingList $list): JsonResponse
+    {
+        abort_unless($this->access->roleFor($request->user(), $list) !== null, 403);
+        $data = $request->validate(['name' => ['required', 'string', 'max:60'], 'icon' => ['required', 'string', 'max:40']]);
+        $this->materializeAisles($list->store);
+
+        ShoppingAisle::create([
+            'store' => (string) $list->store,
+            'slug' => $this->uniqueSlug($list->store, $data['name']),
+            'name' => $data['name'],
+            'icon' => $data['icon'],
+            'position' => (int) $this->aisleRows($list->store)->max('position') + 1,
+        ]);
+        Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
+
+        return response()->json(['aisles' => $this->aisleListJson($list->store)]);
+    }
+
+    public function updateAisle(Request $request, ShoppingAisle $aisle): JsonResponse
+    {
+        // Route-model binding runs before the `family` middleware sets the tenant, so it is not
+        // family-scoped. Guard explicitly: the aisle must belong to the caller's active family.
+        abort_unless((int) $aisle->family_id === (int) CurrentFamily::id(), 404);
+
+        $data = $request->validate([
+            'name' => ['sometimes', 'string', 'max:60'],
+            'icon' => ['sometimes', 'string', 'max:40'],
+        ]);
+        $aisle->update($data);
+        Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
+
+        return response()->json(['aisles' => $this->aisleListJson($aisle->store)]);
+    }
+
+    public function destroyAisle(Request $request, ShoppingAisle $aisle): JsonResponse
+    {
+        abort_unless((int) $aisle->family_id === (int) CurrentFamily::id(), 404);
+        $store = $aisle->store;
+        $aisle->delete();
+        Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
+
+        return response()->json(['aisles' => $this->aisleListJson($store)]);
+    }
+
+    // Reorder a shop's aisles to the given slug order (drives the walk order in the list + focus mode).
+    public function reorderAisles(Request $request, ShoppingList $list): JsonResponse
+    {
+        abort_unless($this->access->roleFor($request->user(), $list) !== null, 403);
+        $data = $request->validate(['slugs' => ['required', 'array'], 'slugs.*' => ['string']]);
+
+        foreach (array_values($data['slugs']) as $i => $slug) {
+            ShoppingAisle::where('store', (string) $list->store)->where('slug', $slug)->update(['position' => $i]);
+        }
+        Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
+
+        return response()->json(['aisles' => $this->aisleListJson($list->store)]);
+    }
+
+    // Replace this shop's aisles with a starter template.
+    public function applyTemplate(Request $request, ShoppingList $list): JsonResponse
+    {
+        abort_unless($this->access->roleFor($request->user(), $list) !== null, 403);
+        $data = $request->validate(['template' => ['required', 'in:'.implode(',', array_keys(StoreTemplates::TEMPLATES))]]);
+
+        ShoppingAisle::where('store', (string) $list->store)->delete();
+        foreach (StoreTemplates::TEMPLATES[$data['template']] as $i => [$slug, $name, $icon]) {
+            ShoppingAisle::create(['store' => (string) $list->store, 'slug' => $slug, 'name' => $name, 'icon' => $icon, 'position' => $i]);
+        }
+        Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
+
+        return response()->json(['aisles' => $this->aisleListJson($list->store)]);
     }
 }

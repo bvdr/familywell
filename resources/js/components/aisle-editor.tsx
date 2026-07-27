@@ -1,0 +1,229 @@
+import { router } from '@inertiajs/react';
+import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { ResponsiveModal } from '@/components/ui/responsive-modal';
+import { AISLE_ICON_KEYS, aisleIcon } from '@/lib/shopping';
+
+type Aisle = { id: number; slug: string; name: string; icon: string; position: number };
+type Template = { key: string; label: string };
+
+const csrf = () => decodeURIComponent(document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]+)/)?.[1] ?? '');
+async function api(method: string, url: string, body?: unknown) {
+    const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', 'X-XSRF-TOKEN': csrf(), Accept: 'application/json' },
+        credentials: 'same-origin',
+        body: body ? JSON.stringify(body) : undefined,
+    });
+    return res.ok ? res.json() : null;
+}
+
+// Per-shop aisle editor. Opens from a list's ⋯ menu; edits the aisles for that list's store. All
+// changes hit the JSON aisle endpoints; on close (if anything changed) the list page reloads its
+// `aisles` + `items` so the chips and grouping reflect the new set.
+export function AisleEditor({
+    open,
+    onOpenChange,
+    listId,
+    storeName,
+}: {
+    open: boolean;
+    onOpenChange: (v: boolean) => void;
+    listId: number;
+    storeName: string | null;
+}) {
+    const [aisles, setAisles] = useState<Aisle[]>([]);
+    const [templates, setTemplates] = useState<Template[]>([]);
+    const [newName, setNewName] = useState('');
+    const [newIcon, setNewIcon] = useState('basket');
+    const [picker, setPicker] = useState<'new' | number | null>(null); // icon picker target
+    const [dirty, setDirty] = useState(false);
+
+    useEffect(() => {
+        if (!open) return;
+        // Ensure the shop has editable rows (materializes the fallback), then load them + templates.
+        api('POST', route('shopping.aisles.ensure', listId)).then((d) => {
+            if (d) {
+                setAisles(d.aisles);
+                setTemplates(d.templates);
+            }
+        });
+    }, [open, listId]);
+
+    const apply = (d: { aisles?: Aisle[] } | null) => {
+        if (d?.aisles) {
+            setAisles(d.aisles);
+            setDirty(true);
+        }
+    };
+
+    const addAisle = async () => {
+        if (!newName.trim()) return;
+        apply(await api('POST', route('shopping.aisles.store', listId), { name: newName.trim(), icon: newIcon }));
+        setNewName('');
+        setNewIcon('basket');
+    };
+    const removeAisle = async (a: Aisle) => apply(await api('DELETE', route('shopping.aisles.destroy', a.id)));
+    const renameAisle = async (a: Aisle) => apply(await api('PATCH', route('shopping.aisles.update', a.id), { name: a.name }));
+    const editNameLocal = (id: number, name: string) => setAisles((prev) => prev.map((a) => (a.id === id ? { ...a, name } : a)));
+    const move = async (idx: number, dir: -1 | 1) => {
+        const j = idx + dir;
+        if (j < 0 || j >= aisles.length) return;
+        const next = [...aisles];
+        [next[idx], next[j]] = [next[j], next[idx]];
+        setAisles(next);
+        setDirty(true);
+        await api('POST', route('shopping.aisles.reorder', listId), { slugs: next.map((a) => a.slug) });
+    };
+    const setIcon = async (target: 'new' | number, icon: string) => {
+        if (target === 'new') setNewIcon(icon);
+        else apply(await api('PATCH', route('shopping.aisles.update', target), { icon }));
+        setPicker(null);
+    };
+    const applyTemplate = async (t: Template) => {
+        if (!confirm(`Replace this shop's aisles with the ${t.label} template? Existing aisles are removed.`)) return;
+        apply(await api('POST', route('shopping.aisles.template', listId), { template: t.key }));
+    };
+
+    const handleOpenChange = (v: boolean) => {
+        if (!v && dirty) {
+            router.reload({ only: ['aisles', 'items'] }); // refresh chips + grouping on the list page
+            setDirty(false);
+        }
+        onOpenChange(v);
+    };
+
+    return (
+        <ResponsiveModal
+            open={open}
+            onOpenChange={handleOpenChange}
+            title="Edit aisles"
+            description={storeName ? `Aisles for ${storeName}` : 'Aisles for this shop'}
+            footer={
+                <Button className="w-full" onClick={() => handleOpenChange(false)}>
+                    Done
+                </Button>
+            }
+        >
+            {picker !== null ? (
+                <div className="flex flex-col gap-3">
+                    <button type="button" onClick={() => setPicker(null)} className="text-muted-foreground self-start text-sm">
+                        ← Back
+                    </button>
+                    <div className="grid grid-cols-6 gap-2">
+                        {AISLE_ICON_KEYS.map((key) => {
+                            const Icon = aisleIcon(key);
+                            return (
+                                <button
+                                    key={key}
+                                    type="button"
+                                    onClick={() => setIcon(picker, key)}
+                                    aria-label={key}
+                                    className="border-border text-primary hover:bg-surface flex aspect-square items-center justify-center rounded-lg border transition-colors"
+                                >
+                                    <Icon className="size-5" />
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            ) : (
+                <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-2">
+                        {aisles.map((a, idx) => {
+                            const Icon = aisleIcon(a.icon);
+                            return (
+                                <div key={a.id} className="border-border flex items-center gap-2 rounded-xl border p-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setPicker(a.id)}
+                                        aria-label="Change icon"
+                                        className="bg-accent-subtle text-primary flex size-9 shrink-0 items-center justify-center rounded-lg"
+                                    >
+                                        <Icon className="size-4.5" />
+                                    </button>
+                                    <input
+                                        value={a.name}
+                                        onChange={(e) => editNameLocal(a.id, e.target.value)}
+                                        onBlur={() => renameAisle(a)}
+                                        aria-label="Aisle name"
+                                        className="text-primary min-w-0 flex-1 bg-transparent text-sm font-medium outline-none"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => move(idx, -1)}
+                                        disabled={idx === 0}
+                                        aria-label="Move up"
+                                        className="text-muted-foreground hover:text-primary flex size-7 items-center justify-center rounded-lg disabled:opacity-30"
+                                    >
+                                        <ChevronUp className="size-4" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => move(idx, 1)}
+                                        disabled={idx === aisles.length - 1}
+                                        aria-label="Move down"
+                                        className="text-muted-foreground hover:text-primary flex size-7 items-center justify-center rounded-lg disabled:opacity-30"
+                                    >
+                                        <ChevronDown className="size-4" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => removeAisle(a)}
+                                        aria-label="Delete aisle"
+                                        className="text-muted-foreground hover:text-destructive flex size-7 items-center justify-center rounded-lg"
+                                    >
+                                        <Trash2 className="size-4" />
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setPicker('new')}
+                            aria-label="Pick icon"
+                            className="border-border text-primary hover:bg-surface flex size-9 shrink-0 items-center justify-center rounded-lg border"
+                        >
+                            {(() => {
+                                const Icon = aisleIcon(newIcon);
+                                return <Icon className="size-4.5" />;
+                            })()}
+                        </button>
+                        <Input
+                            value={newName}
+                            onChange={(e) => setNewName(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && addAisle()}
+                            placeholder="New aisle"
+                        />
+                        <Button type="button" size="icon" onClick={addAisle} disabled={!newName.trim()} aria-label="Add aisle">
+                            <Plus className="size-4" />
+                        </Button>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Start from a template</Label>
+                        <div className="flex flex-wrap gap-2">
+                            {templates.map((t) => (
+                                <button
+                                    key={t.key}
+                                    type="button"
+                                    onClick={() => applyTemplate(t)}
+                                    className="border-border text-primary hover:bg-surface rounded-full border px-3 py-1.5 text-sm transition-colors"
+                                >
+                                    {t.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </ResponsiveModal>
+    );
+}
