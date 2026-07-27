@@ -59,6 +59,14 @@ class ShoppingServiceProvider extends ServiceProvider
                 Route::post('/lists/{list}/parse', [ShoppingController::class, 'parseVoice'])->middleware('throttle:20,1')->name('parse');
                 Route::patch('/items/{item}', [ShoppingController::class, 'updateItem'])->name('items.update');
                 Route::delete('/items/{item}', [ShoppingController::class, 'destroyItem'])->name('items.destroy');
+
+                // Per-shop aisle editor (JSON). Keyed on the list so we derive the store name.
+                Route::post('/lists/{list}/aisles/ensure', [ShoppingController::class, 'ensureAisles'])->name('aisles.ensure');
+                Route::post('/lists/{list}/aisles/reorder', [ShoppingController::class, 'reorderAisles'])->name('aisles.reorder');
+                Route::post('/lists/{list}/aisles/template', [ShoppingController::class, 'applyTemplate'])->name('aisles.template');
+                Route::post('/lists/{list}/aisles', [ShoppingController::class, 'storeAisle'])->name('aisles.store');
+                Route::patch('/aisles/{aisle}', [ShoppingController::class, 'updateAisle'])->name('aisles.update');
+                Route::delete('/aisles/{aisle}', [ShoppingController::class, 'destroyAisle'])->name('aisles.destroy');
             });
     }
 }
