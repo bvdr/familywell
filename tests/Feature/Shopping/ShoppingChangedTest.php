@@ -23,6 +23,6 @@ it('dispatches on create', function () {
     app(ModuleRegistry::class)->enable('shopping', $family->id);
 
     Event::fake([ShoppingChanged::class]);
-    $this->actingAs($user)->postJson('/m/shopping/items', ['name' => 'x', 'visibility' => 'shared'])->assertCreated();
+    $this->actingAs($user)->post('/m/shopping/lists', ['name' => 'Weekly'])->assertRedirect();
     Event::assertDispatched(ShoppingChanged::class, fn ($e) => $e->familyId === $family->id);
 });

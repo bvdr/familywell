@@ -2,7 +2,7 @@ import AppLayout from '@/layouts/app-layout';
 import { Slot } from '@/lib/modules';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { Blocks, type LucideIcon, Plus, UserPlus, Users, Wallet } from 'lucide-react';
+import { Blocks, type LucideIcon, Plus, ShoppingCart, UserPlus, Users, Wallet } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' }];
 
@@ -10,7 +10,7 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' 
 type DashItem = { title: string; subtitle: string; href: string; icon: string };
 
 // Map a provider's icon key to a lucide icon; fall back to a neutral one.
-const ICONS: Record<string, LucideIcon> = { wallet: Wallet };
+const ICONS: Record<string, LucideIcon> = { wallet: Wallet, 'shopping-cart': ShoppingCart };
 const iconFor = (key: string) => ICONS[key] ?? Blocks;
 
 // Time-of-day greeting, resolved on the client so it matches the viewer's clock.
