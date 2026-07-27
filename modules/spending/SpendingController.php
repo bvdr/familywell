@@ -19,7 +19,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class SpendingController extends Controller
 {
     // Public so the guest view (SpendEvent::guestView) can reuse the same option lists.
-    public const CATEGORIES = ['food', 'transport', 'lodging', 'activities', 'other'];
+    public const CATEGORIES = ['food', 'transport', 'lodging', 'activities', 'shopping', 'other'];
 
     public const CURRENCIES = ['EUR', 'RON', 'USD', 'GBP'];
 
