@@ -2,9 +2,10 @@
 
 namespace Modules\Shopping;
 
+use App\Models\User;
 use App\Support\Tenancy\BelongsToFamily;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ShoppingItem extends Model
 {
@@ -12,13 +13,17 @@ class ShoppingItem extends Model
 
     protected $table = 'shopping_items';
 
-    protected $fillable = ['name', 'quantity', 'bought', 'visibility', 'created_by'];
+    protected $fillable = ['shopping_list_id', 'name', 'quantity', 'department', 'bought', 'note', 'assigned_to', 'position', 'created_by'];
 
     protected $casts = ['bought' => 'boolean'];
 
-    // Shared items are visible to everyone in the family; private items only to their creator.
-    public function scopeVisibleTo(Builder $query, int $userId): Builder
+    public function list(): BelongsTo
     {
-        return $query->where(fn ($q) => $q->where('visibility', 'shared')->orWhere('created_by', $userId));
+        return $this->belongsTo(ShoppingList::class, 'shopping_list_id');
+    }
+
+    public function assignee(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
     }
 }

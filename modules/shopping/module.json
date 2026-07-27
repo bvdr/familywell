@@ -3,6 +3,6 @@
     "name": "Shopping",
     "version": "1.0.0",
     "provider": "Modules\\Shopping\\ShoppingServiceProvider",
-    "frontend": "resources/dist/shopping.js",
+    "frontend": "",
     "requires": []
 }
