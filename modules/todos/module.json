@@ -1,8 +1,0 @@
-{
-    "id": "todos",
-    "name": "Todos",
-    "version": "1.0.0",
-    "provider": "Modules\\Todos\\TodosServiceProvider",
-    "frontend": "resources/dist/todos.js",
-    "requires": []
-}

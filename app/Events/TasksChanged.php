@@ -8,7 +8,7 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class TodosChanged implements ShouldBroadcastNow
+class TasksChanged implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
@@ -21,6 +21,6 @@ class TodosChanged implements ShouldBroadcastNow
 
     public function broadcastAs(): string
     {
-        return 'TodosChanged';
+        return 'TasksChanged';
     }
 }

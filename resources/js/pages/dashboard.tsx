@@ -2,7 +2,7 @@ import AppLayout from '@/layouts/app-layout';
 import { Slot } from '@/lib/modules';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { Blocks, FolderKanban, type LucideIcon, Plus, ShoppingCart, UserPlus, Users, Wallet } from 'lucide-react';
+import { Blocks, FolderKanban, ListChecks, type LucideIcon, Plus, ShoppingCart, UserPlus, Users, Wallet } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' }];
 
@@ -10,7 +10,7 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' 
 type DashItem = { title: string; subtitle: string; href: string; icon: string };
 
 // Map a provider's icon key to a lucide icon; fall back to a neutral one.
-const ICONS: Record<string, LucideIcon> = { wallet: Wallet, 'shopping-cart': ShoppingCart, 'folder-kanban': FolderKanban };
+const ICONS: Record<string, LucideIcon> = { wallet: Wallet, 'shopping-cart': ShoppingCart, 'folder-kanban': FolderKanban, 'list-checks': ListChecks };
 const iconFor = (key: string) => ICONS[key] ?? Blocks;
 
 // Time-of-day greeting, resolved on the client so it matches the viewer's clock.
@@ -115,7 +115,7 @@ export default function Dashboard({ items = [] }: { items?: DashItem[] }) {
                                     </span>
                                     <span className="font-heading text-primary text-xl">A calm start</span>
                                     <span className="text-muted-foreground max-w-xs text-sm">
-                                        Turn on a module like Todos or Shopping and its widgets will gather here.
+                                        Turn on a module like Tasks or Shopping and its widgets will gather here.
                                     </span>
                                 </Link>
                             }
