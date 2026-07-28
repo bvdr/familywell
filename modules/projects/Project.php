@@ -16,7 +16,7 @@ class Project extends Model
 
     protected $table = 'projects_projects';
 
-    protected $fillable = ['name', 'description', 'status', 'progress', 'color', 'owner_id', 'target_start', 'waiting_on', 'archived_at', 'position', 'created_by'];
+    protected $fillable = ['name', 'description', 'status', 'progress', 'color', 'owner_id', 'target_start', 'waiting_on', 'archived_at', 'position', 'created_by', 'cover_path'];
 
     protected $casts = ['target_start' => 'date', 'archived_at' => 'datetime'];
 

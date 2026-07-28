@@ -2,6 +2,8 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
     Archive,
     Ban,
+    Calendar,
+    Camera,
     Check,
     ChevronRight,
     Copy,
@@ -16,7 +18,7 @@ import {
     UserPlus,
     X,
 } from 'lucide-react';
-import { FormEventHandler, useEffect, useMemo, useState } from 'react';
+import { FormEventHandler, useEffect, useMemo, useRef, useState } from 'react';
 
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
 import { Button } from '@/components/ui/button';
@@ -26,6 +28,7 @@ import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
+import { compressImage } from '@/lib/compress-image';
 import { avatarColor, DEP_STATUS_KEYS, depStatus, PROJECT_STATUS_KEYS, projectStatus, shortDate } from '@/lib/projects';
 import { type BreadcrumbItem } from '@/types';
 
@@ -47,6 +50,7 @@ type Project = {
     archived: boolean;
     visibility: string;
     updated: string | null;
+    coverUrl: string | null;
 };
 
 export default function ProjectDetail({
@@ -70,6 +74,11 @@ export default function ProjectDetail({
     const [linking, setLinking] = useState(false);
     const [taskName, setTaskName] = useState('');
     const [depName, setDepName] = useState('');
+    const coverInput = useRef<HTMLInputElement>(null);
+    const uploadCover = async (file: File) => {
+        const img = await compressImage(file, 1_200_000);
+        router.post(route('projects.cover.upload', project.id), { photo: img }, { forceFormData: true, preserveScroll: true });
+    };
 
     const done = useOptimistic<boolean>();
     const isDone = (t: Task) => done.get(t.id, t.done);
@@ -154,22 +163,51 @@ export default function ProjectDetail({
         <AppLayout breadcrumbs={breadcrumbs} actions={headerActions}>
             <Head title={project.name} />
             <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 p-4">
-                {/* Hero: a cover-photo band (photo upload deferred — shows the placeholder for now). */}
+                {/* Hero: a cover photo (tap to add/change), with the status pill and title over a gradient. */}
                 <div className="bg-accent-subtle relative h-56 overflow-hidden rounded-2xl">
-                    <div className="text-primary/45 absolute inset-0 flex flex-col items-center justify-center gap-1.5 pb-14">
-                        <ImageIcon className="size-7" />
-                        <span className="text-sm font-medium">Add a project photo</span>
-                    </div>
+                    {project.coverUrl ? (
+                        <img src={project.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => coverInput.current?.click()}
+                            className="text-primary/45 hover:text-primary/60 absolute inset-0 flex flex-col items-center justify-center gap-1.5 pb-14 transition-colors"
+                        >
+                            <ImageIcon className="size-7" />
+                            <span className="text-sm font-medium">Add a project photo</span>
+                        </button>
+                    )}
                     <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-[#142218] via-[#142218]/60 to-transparent" />
                     <span
                         className={`absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${st.hero}`}
                     >
                         <span className="size-1.5 rounded-full bg-current opacity-60" /> {st.label}
                     </span>
-                    <div className="absolute inset-x-0 bottom-0 p-4">
+                    {project.coverUrl && (
+                        <button
+                            type="button"
+                            onClick={() => coverInput.current?.click()}
+                            aria-label="Change photo"
+                            className="absolute top-4 right-4 flex size-9 items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-sm transition-colors hover:bg-black/45"
+                        >
+                            <Camera className="size-4.5" />
+                        </button>
+                    )}
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 p-4">
                         <div className="text-[11px] font-semibold tracking-widest text-white/70 uppercase">Family project</div>
                         <h1 className="font-heading mt-1 text-3xl leading-tight text-white">{project.name}</h1>
                     </div>
+                    <input
+                        ref={coverInput}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) uploadCover(f);
+                            e.target.value = '';
+                        }}
+                    />
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -487,26 +525,33 @@ function EditModal({
                         className="accent-primary w-full"
                     />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                    <div className="grid gap-2">
-                        <Label>Target start</Label>
-                        <Input type="date" value={data.target_start} onChange={(e) => setData('target_start', e.target.value)} />
+                <div className="grid gap-2">
+                    <Label>Target start</Label>
+                    {/* Wrap the native date input so it can't grow past its box (iOS date inputs won't shrink). */}
+                    <div className="border-border flex h-9 w-full items-center gap-2 rounded-lg border px-3">
+                        <Calendar className="text-muted-foreground size-4 shrink-0" />
+                        <input
+                            type="date"
+                            value={data.target_start}
+                            onChange={(e) => setData('target_start', e.target.value)}
+                            className="text-primary w-full min-w-0 bg-transparent text-sm outline-none"
+                        />
                     </div>
-                    <div className="grid gap-2">
-                        <Label>Owner</Label>
-                        <select
-                            value={data.owner_id ?? ''}
-                            onChange={(e) => setData('owner_id', e.target.value ? Number(e.target.value) : null)}
-                            className="border-border h-9 rounded-lg border bg-transparent px-2 text-sm outline-none"
-                        >
-                            <option value="">Unassigned</option>
-                            {members.map((m) => (
-                                <option key={m.id} value={m.id}>
-                                    {m.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                </div>
+                <div className="grid gap-2">
+                    <Label>Owner</Label>
+                    <select
+                        value={data.owner_id ?? ''}
+                        onChange={(e) => setData('owner_id', e.target.value ? Number(e.target.value) : null)}
+                        className="border-border text-primary h-9 w-full rounded-lg border bg-transparent px-3 text-sm outline-none"
+                    >
+                        <option value="">Unassigned</option>
+                        {members.map((m) => (
+                            <option key={m.id} value={m.id}>
+                                {m.name}
+                            </option>
+                        ))}
+                    </select>
                 </div>
             </form>
         </ResponsiveModal>
