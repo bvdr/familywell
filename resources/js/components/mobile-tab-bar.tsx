@@ -1,6 +1,19 @@
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { Link, router, usePage } from '@inertiajs/react';
-import { Blocks, FolderKanban, LayoutGrid, Loader2, type LucideIcon, MoreHorizontal, Pin, Settings, ShoppingCart, Users, Wallet } from 'lucide-react';
+import {
+    Blocks,
+    FolderKanban,
+    LayoutGrid,
+    ListChecks,
+    Loader2,
+    type LucideIcon,
+    MoreHorizontal,
+    Pin,
+    Settings,
+    ShoppingCart,
+    Users,
+    Wallet,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 // The DS floating mobile navigation: a translucent, blurred pill above the content. It shows up to
@@ -12,6 +25,7 @@ const HOME: Item = { key: 'dashboard', title: 'Home', url: '/dashboard', icon: L
 // Page-modules earn a nav entry when the family has enabled them (order = preferred display order).
 const MODULE_ITEMS: Item[] = [
     { key: 'projects', title: 'Projects', url: '/m/projects', icon: FolderKanban },
+    { key: 'tasks', title: 'Tasks', url: '/m/tasks', icon: ListChecks },
     { key: 'shopping', title: 'Shopping', url: '/m/shopping', icon: ShoppingCart },
     { key: 'spending', title: 'Spending', url: '/m/spending', icon: Wallet },
 ];

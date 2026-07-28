@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Shopping\ShoppingList;
+use Modules\Tasks\Task;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProjectsController extends Controller
@@ -98,9 +99,13 @@ class ProjectsController extends Controller
         $family = Family::findOrFail(CurrentFamily::id());
         $members = $family->members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values();
 
-        $tasks = $project->tasks()->orderBy('position')->orderBy('id')->get();
+        // Unified Tasks section: powered by the tasks module. A project's tasks are listless
+        // tasks-module tasks (task_list_id null) linked via `task` rows; sub-tasks ride along.
+        $taskIds = $project->links()->where('linkable_type', 'task')->pluck('linkable_id');
+        $projectTasks = Task::whereIn('id', $taskIds)->whereNull('parent_id')
+            ->with('subtasks')->orderBy('position')->orderBy('id')->get();
 
-        // Linked shopping lists (v1's only linkable type): show each with its bought/total progress.
+        // Linked shopping lists: show each with its bought/total progress.
         $listIds = $project->links()->where('linkable_type', 'shopping_list')->pluck('linkable_id');
         $lists = ShoppingList::whereIn('id', $listIds)->withCount([
             'items', 'items as bought_count' => fn ($q) => $q->where('bought', true),
@@ -125,8 +130,17 @@ class ProjectsController extends Controller
             ],
             'share' => $this->shareState($project, $family),
             'members' => $members,
-            'tasks' => $tasks->map(fn (ProjectTask $t) => [
-                'id' => $t->id, 'name' => $t->name, 'done' => $t->done, 'assignedTo' => $t->assigned_to,
+            'tasks' => $projectTasks->map(fn (Task $t) => [
+                'id' => $t->id,
+                'title' => $t->title,
+                'note' => $t->note,
+                'done' => $t->done,
+                'dueDate' => optional($t->due_date)->toDateString(),
+                'assignedTo' => $t->assigned_to,
+                'subtasks' => $t->subtasks->map(fn (Task $s) => [
+                    'id' => $s->id, 'title' => $s->title, 'note' => $s->note, 'done' => $s->done,
+                    'dueDate' => optional($s->due_date)->toDateString(), 'assignedTo' => $s->assigned_to,
+                ])->values(),
             ])->values(),
             'dependencies' => $project->dependencies()->orderBy('position')->orderBy('id')->get()
                 ->map(fn (ProjectDependency $d) => ['id' => $d->id, 'name' => $d->name, 'note' => $d->note, 'status' => $d->status])->values(),
@@ -183,8 +197,23 @@ class ProjectsController extends Controller
         $copy->owner_id = $request->user()->id;
         $copy->save();
         $copy->shares()->create(['user_id' => $request->user()->id, 'role' => 'owner']);
-        foreach ($project->tasks as $t) {
-            $copy->tasks()->create(['name' => $t->name, 'assigned_to' => $t->assigned_to, 'done' => false, 'position' => $t->position, 'created_by' => $request->user()->id]);
+
+        // Copy the project's tasks (listless tasks-module tasks + their sub-tasks, reset to not-done)
+        // and re-link the top-level ones to the copy.
+        $taskIds = $project->links()->where('linkable_type', 'task')->pluck('linkable_id');
+        $tops = Task::whereIn('id', $taskIds)->whereNull('parent_id')->with('subtasks')->orderBy('position')->get();
+        foreach ($tops as $t) {
+            $newTop = Task::create([
+                'task_list_id' => null, 'title' => $t->title, 'note' => $t->note, 'due_date' => $t->due_date,
+                'assigned_to' => $t->assigned_to, 'position' => $t->position, 'created_by' => $request->user()->id,
+            ]);
+            $copy->links()->create(['linkable_type' => 'task', 'linkable_id' => $newTop->id]);
+            foreach ($t->subtasks as $s) {
+                Task::create([
+                    'task_list_id' => null, 'parent_id' => $newTop->id, 'title' => $s->title, 'note' => $s->note,
+                    'due_date' => $s->due_date, 'assigned_to' => $s->assigned_to, 'position' => $s->position, 'created_by' => $request->user()->id,
+                ]);
+            }
         }
         foreach ($project->dependencies as $d) {
             $copy->dependencies()->create(['name' => $d->name, 'note' => $d->note, 'status' => 'pending', 'position' => $d->position, 'created_by' => $request->user()->id]);
@@ -229,28 +258,72 @@ class ProjectsController extends Controller
         return back();
     }
 
-    // ---- Tasks ----
+    // ---- Tasks (unified: tasks-module tasks living directly in the project, task_list_id null) ----
+
+    // Resolve the project a tasks-module task belongs to (via its top-level `task` link) and guard
+    // that the caller may manage it. Route-model binding runs before the family scope is set, so we
+    // check family_id explicitly. A sub-task inherits its parent's project link.
+    private function projectForTask(Request $request, Task $task): Project
+    {
+        abort_unless((int) $task->family_id === (int) CurrentFamily::id(), 404);
+        $topId = $task->parent_id ?? $task->id;
+        $link = ProjectLink::where(['linkable_type' => 'task', 'linkable_id' => $topId])->first();
+        abort_unless($link, 404);
+        $project = Project::findOrFail($link->project_id);
+        abort_unless($this->access->roleFor($request->user(), $project) !== null, 403);
+
+        return $project;
+    }
+
     public function storeTask(Request $request, Project $project): RedirectResponse
     {
         abort_unless($this->access->roleFor($request->user(), $project) !== null, 403);
-        $data = $request->validate(['name' => ['required', 'string', 'max:255'], 'assigned_to' => ['nullable', 'integer']]);
-        $project->tasks()->create([
-            'name' => $data['name'], 'assigned_to' => $data['assigned_to'] ?? null,
-            'position' => (int) $project->tasks()->max('position') + 1, 'created_by' => $request->user()->id,
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'note' => ['nullable', 'string', 'max:255'],
+            'due_date' => ['nullable', 'date'],
+            'assigned_to' => ['nullable', 'integer'],
+            'parent_id' => ['nullable', 'integer'],
         ]);
+
+        // Sub-task: parent must be one of this project's top-level tasks (one level deep only).
+        if (! empty($data['parent_id'])) {
+            $parent = Task::whereKey($data['parent_id'])->whereNull('parent_id')->firstOrFail();
+            abort_unless($project->links()->where(['linkable_type' => 'task', 'linkable_id' => $parent->id])->exists(), 404);
+        }
+
+        $siblingScope = Task::whereNull('task_list_id')->where('parent_id', $data['parent_id'] ?? null);
+        $task = Task::create([
+            'task_list_id' => null,
+            'parent_id' => $data['parent_id'] ?? null,
+            'title' => $data['title'],
+            'note' => $data['note'] ?? null,
+            'due_date' => $data['due_date'] ?? null,
+            'assigned_to' => $data['assigned_to'] ?? null,
+            'position' => (int) $siblingScope->max('position') + 1,
+            'created_by' => $request->user()->id,
+        ]);
+
+        // Only top-level tasks carry the project link; sub-tasks are reached through their parent.
+        if (empty($data['parent_id'])) {
+            $project->links()->firstOrCreate(['linkable_type' => 'task', 'linkable_id' => $task->id]);
+        }
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
 
         return back();
     }
 
-    public function updateTask(Request $request, ProjectTask $task): RedirectResponse
+    public function updateTask(Request $request, Task $task): RedirectResponse
     {
-        abort_unless($this->access->roleFor($request->user(), $task->project) !== null, 403);
-        if (! $request->hasAny(['name', 'assigned_to', 'done'])) {
+        $this->projectForTask($request, $task);
+
+        if (! $request->hasAny(['title', 'note', 'due_date', 'assigned_to', 'done'])) {
             $task->update(['done' => ! $task->done]);
         } else {
             $task->update($request->validate([
-                'name' => ['sometimes', 'string', 'max:255'],
+                'title' => ['sometimes', 'string', 'max:255'],
+                'note' => ['sometimes', 'nullable', 'string', 'max:255'],
+                'due_date' => ['sometimes', 'nullable', 'date'],
                 'assigned_to' => ['sometimes', 'nullable', 'integer'],
                 'done' => ['sometimes', 'boolean'],
             ]));
@@ -260,10 +333,14 @@ class ProjectsController extends Controller
         return back();
     }
 
-    public function destroyTask(Request $request, ProjectTask $task): RedirectResponse
+    public function destroyTask(Request $request, Task $task): RedirectResponse
     {
-        abort_unless($this->access->roleFor($request->user(), $task->project) !== null, 403);
-        $task->delete();
+        $this->projectForTask($request, $task);
+        // Remove the project link for a top-level task; sub-tasks cascade with their parent.
+        if ($task->parent_id === null) {
+            ProjectLink::where(['linkable_type' => 'task', 'linkable_id' => $task->id])->delete();
+        }
+        $task->delete(); // cascades to sub-tasks
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
 
         return back();
