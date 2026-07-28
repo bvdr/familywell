@@ -25,6 +25,7 @@ import { useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { AisleEditor } from '@/components/aisle-editor';
+import { MemberAvatar } from '@/components/member-avatar';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
 import { Button } from '@/components/ui/button';
 import {
@@ -64,14 +65,7 @@ const emptyDraft: Draft = { name: '', quantity: '', department: 'other', assigne
 
 function AssigneeBadge({ member }: { member?: Member }) {
     if (!member) return null;
-    return (
-        <span
-            title={member.name}
-            className="bg-accent-subtle text-primary flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold"
-        >
-            {member.name.charAt(0).toUpperCase()}
-        </span>
-    );
+    return <MemberAvatar userId={member.id} name={member.name} className="size-6 text-[10px]" />;
 }
 
 type Parsed = { name: string; quantity: string; department: string; note: string };
