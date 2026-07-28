@@ -5,6 +5,7 @@ import {
     Calendar,
     Camera,
     Check,
+    ChevronLeft,
     ChevronRight,
     Copy,
     Image as ImageIcon,
@@ -12,6 +13,7 @@ import {
     type LucideIcon,
     Pencil,
     Plus,
+    Search,
     ShoppingCart,
     Trash2,
     Unlink,
@@ -375,7 +377,7 @@ export default function ProjectDetail({
 
             {share && <ShareSheet open={sharing} onOpenChange={setSharing} share={share} eventName={project.name} />}
             <EditModal open={editing} onOpenChange={setEditing} project={project} members={members} />
-            <LinkListModal open={linking} onOpenChange={setLinking} projectId={project.id} />
+            <LinkListModal open={linking} onOpenChange={setLinking} projectId={project.id} projectName={project.name} />
         </AppLayout>
     );
 }
@@ -558,45 +560,195 @@ function EditModal({
     );
 }
 
-function LinkListModal({ open, onOpenChange, projectId }: { open: boolean; onOpenChange: (v: boolean) => void; projectId: number }) {
-    const [lists, setLists] = useState<{ id: number; name: string; store: string | null }[]>([]);
+type Linkable = { id: number; name: string; store: string | null; count: number; sharedWith: string };
+type NewItem = { name: string; quantity: string };
+
+function LinkListModal({
+    open,
+    onOpenChange,
+    projectId,
+    projectName,
+}: {
+    open: boolean;
+    onOpenChange: (v: boolean) => void;
+    projectId: number;
+    projectName: string;
+}) {
+    const [view, setView] = useState<'pick' | 'new'>('pick');
+    const [lists, setLists] = useState<Linkable[]>([]);
+    const [selected, setSelected] = useState<Set<number>>(new Set());
+    const [q, setQ] = useState('');
+    const [newName, setNewName] = useState('');
+    const [items, setItems] = useState<NewItem[]>([{ name: '', quantity: '' }]);
+
     useEffect(() => {
         if (!open) return;
+        setView('pick');
+        setSelected(new Set());
+        setQ('');
+        setNewName('');
+        setItems([{ name: '', quantity: '' }]);
         fetch(route('projects.lists.linkable', projectId), { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
             .then((r) => (r.ok ? r.json() : { lists: [] }))
             .then((d) => setLists(d.lists));
     }, [open, projectId]);
 
-    const link = (id: number) =>
-        router.post(route('projects.lists.link', projectId), { list_id: id }, { preserveScroll: true, onSuccess: () => onOpenChange(false) });
+    const filtered = lists.filter((l) => l.name.toLowerCase().includes(q.toLowerCase()));
+    const toggle = (id: number) =>
+        setSelected((s) => {
+            const n = new Set(s);
+            if (n.has(id)) n.delete(id);
+            else n.add(id);
+            return n;
+        });
+    const addSelected = () => {
+        if (!selected.size) return;
+        router.post(
+            route('projects.lists.link', projectId),
+            { list_ids: [...selected] },
+            { preserveScroll: true, onSuccess: () => onOpenChange(false) },
+        );
+    };
+    const createList = () => {
+        if (!newName.trim()) return;
+        const payload = {
+            name: newName.trim(),
+            items: items.filter((i) => i.name.trim()).map((i) => ({ name: i.name.trim(), quantity: i.quantity.trim() || null })),
+        };
+        router.post(route('projects.lists.create', projectId), payload, { preserveScroll: true, onSuccess: () => onOpenChange(false) });
+    };
 
     return (
         <ResponsiveModal
             open={open}
             onOpenChange={onOpenChange}
-            title="Link a shopping list"
-            description="Point this project at a list you already have"
+            title={view === 'pick' ? 'Shopping list' : 'New shopping list'}
+            description={view === 'pick' ? `Add to ${projectName}` : `It will be added to ${projectName}`}
+            footer={
+                view === 'pick' ? (
+                    <Button className="w-full" disabled={!selected.size} onClick={addSelected}>
+                        {selected.size ? `Add ${selected.size} list${selected.size > 1 ? 's' : ''}` : 'Select a list to add'}
+                    </Button>
+                ) : (
+                    <Button className="w-full" disabled={!newName.trim()} onClick={createList}>
+                        Create &amp; add to project
+                    </Button>
+                )
+            }
         >
-            <div className="flex flex-col gap-2">
-                {lists.length === 0 && <p className="text-muted-foreground py-4 text-center text-sm">No lists to link.</p>}
-                {lists.map((l) => (
+            {view === 'pick' ? (
+                <div className="flex flex-col gap-3">
                     <button
-                        key={l.id}
                         type="button"
-                        onClick={() => link(l.id)}
-                        className="bg-surface-card hover:border-accent flex items-center gap-3 rounded-xl border p-3 text-left transition-colors"
+                        onClick={() => setView('new')}
+                        className="border-primary/40 bg-accent-subtle flex items-center gap-3 rounded-xl border border-dashed p-3 text-left"
                     >
-                        <span className="bg-accent-subtle text-primary flex size-9 shrink-0 items-center justify-center rounded-lg">
-                            <ShoppingCart className="size-4.5" />
+                        <span className="bg-primary text-primary-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
+                            <Plus className="size-5" />
                         </span>
                         <div className="min-w-0 flex-1">
-                            <div className="text-primary text-sm font-medium">{l.name}</div>
-                            {l.store && <div className="text-muted-foreground text-xs">{l.store}</div>}
+                            <div className="text-primary text-sm font-semibold">Create a new list</div>
+                            <div className="text-muted-foreground text-xs">Starts empty, lives inside this project</div>
                         </div>
-                        <ChevronRight className="text-muted-foreground size-4" />
+                        <ChevronRight className="text-primary size-4" />
                     </button>
-                ))}
-            </div>
+
+                    <div className="text-text-muted text-[11px] font-semibold tracking-widest uppercase">Or link a list you already have</div>
+                    <div className="bg-surface flex items-center gap-2 rounded-lg px-3 py-2">
+                        <Search className="text-muted-foreground size-4" />
+                        <input
+                            value={q}
+                            onChange={(e) => setQ(e.target.value)}
+                            placeholder="Search your lists..."
+                            className="text-primary w-full bg-transparent text-sm outline-none"
+                        />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                        {filtered.length === 0 && <p className="text-muted-foreground py-4 text-center text-sm">No lists to link.</p>}
+                        {filtered.map((l) => {
+                            const on = selected.has(l.id);
+                            return (
+                                <button
+                                    key={l.id}
+                                    type="button"
+                                    onClick={() => toggle(l.id)}
+                                    className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${on ? 'border-primary bg-accent-subtle' : 'bg-surface-card'}`}
+                                >
+                                    <span className="bg-accent-subtle text-primary flex size-9 shrink-0 items-center justify-center rounded-lg">
+                                        <ShoppingCart className="size-4.5" />
+                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="text-primary text-sm font-medium">{l.name}</div>
+                                        <div className="text-muted-foreground text-xs">
+                                            {l.count} items · {l.sharedWith}
+                                        </div>
+                                    </div>
+                                    <span
+                                        className={`flex size-6 shrink-0 items-center justify-center rounded-md border ${on ? 'border-primary bg-primary text-primary-foreground' : 'border-border'}`}
+                                    >
+                                        {on && <Check className="size-4" />}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <p className="text-muted-foreground text-xs leading-relaxed">
+                        Linked lists stay in your Lists tab too, the project just points at them.
+                    </p>
+                </div>
+            ) : (
+                <div className="flex flex-col gap-4">
+                    <button
+                        type="button"
+                        onClick={() => setView('pick')}
+                        className="text-primary flex items-center gap-1 self-start text-sm font-medium"
+                    >
+                        <ChevronLeft className="size-4" /> Back
+                    </button>
+                    <div className="grid gap-2">
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">List name</Label>
+                        <Input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Patio materials" />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Start it off with</Label>
+                        <div className="flex flex-col gap-2">
+                            {items.map((it, i) => (
+                                <div key={i} className="flex items-center gap-2">
+                                    <Input
+                                        value={it.name}
+                                        onChange={(e) => setItems((a) => a.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
+                                        placeholder="Item"
+                                        className="flex-1"
+                                    />
+                                    <Input
+                                        value={it.quantity}
+                                        onChange={(e) => setItems((a) => a.map((x, j) => (j === i ? { ...x, quantity: e.target.value } : x)))}
+                                        placeholder="Qty"
+                                        className="w-20 shrink-0"
+                                    />
+                                    {items.length > 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setItems((a) => a.filter((_, j) => j !== i))}
+                                            aria-label="Remove item"
+                                            className="text-muted-foreground hover:text-destructive flex size-8 shrink-0 items-center justify-center"
+                                        >
+                                            <X className="size-4" />
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                            <button
+                                type="button"
+                                onClick={() => setItems((a) => [...a, { name: '', quantity: '' }])}
+                                className="border-border text-muted-foreground hover:text-primary flex items-center justify-center gap-2 rounded-lg border border-dashed py-2.5 text-sm transition-colors"
+                            >
+                                <Plus className="size-4" /> Add another item
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </ResponsiveModal>
     );
 }
