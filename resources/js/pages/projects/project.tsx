@@ -9,7 +9,6 @@ import {
     Copy,
     Image as ImageIcon,
     ListChecks,
-    type LucideIcon,
     Pencil,
     Plus,
     Search,
@@ -18,23 +17,23 @@ import {
     Unlink,
     UserPlus,
     X,
+    type LucideIcon,
 } from 'lucide-react';
-import { FormEventHandler, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEventHandler, useEffect, useRef, useState } from 'react';
 
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
+import { TaskTree, type TaskNode } from '@/components/tasks/task-tree';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
-import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { compressImage } from '@/lib/compress-image';
 import { avatarColor, DEP_STATUS_KEYS, depStatus, PROJECT_STATUS_KEYS, projectStatus, shortDate } from '@/lib/projects';
 import { type BreadcrumbItem } from '@/types';
 
 type Member = { id: number; name: string };
-type Task = { id: number; name: string; done: boolean; assignedTo: number | null };
 type Dep = { id: number; name: string; note: string | null; status: string };
 type LinkedList = { id: number; name: string; store: string | null; bought: number; total: number };
 type Project = {
@@ -64,16 +63,14 @@ export default function ProjectDetail({
 }: {
     project: Project;
     members: Member[];
-    tasks: Task[];
+    tasks: TaskNode[];
     dependencies: Dep[];
     lists: LinkedList[];
     share: ShareState;
 }) {
-    const memberById = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
     const [sharing, setSharing] = useState(false);
     const [editing, setEditing] = useState(false);
     const [linking, setLinking] = useState(false);
-    const [taskName, setTaskName] = useState('');
     const [depName, setDepName] = useState('');
     const coverInput = useRef<HTMLInputElement>(null);
     const uploadCover = async (file: File) => {
@@ -81,10 +78,11 @@ export default function ProjectDetail({
         router.post(route('projects.cover.upload', project.id), { photo: img }, { forceFormData: true, preserveScroll: true });
     };
 
-    const done = useOptimistic<boolean>();
-    const isDone = (t: Task) => done.get(t.id, t.done);
-    const taskDone = tasks.filter(isDone).length;
-    const taskPct = tasks.length ? Math.round((taskDone / tasks.length) * 100) : 0;
+    // Task progress counts top-level tasks + their sub-tasks (header summary only; live toggles are
+    // handled optimistically inside <TaskTree>).
+    const taskTotal = tasks.reduce((n, t) => n + 1 + t.subtasks.length, 0);
+    const taskDone = tasks.reduce((n, t) => n + (t.done ? 1 : 0) + t.subtasks.filter((s) => s.done).length, 0);
+    const taskPct = taskTotal ? Math.round((taskDone / taskTotal) * 100) : 0;
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Projects', href: '/m/projects' },
@@ -95,18 +93,6 @@ export default function ProjectDetail({
     const patch = (data: Record<string, string | number | boolean | null>) =>
         router.patch(route('projects.update', project.id), data, { preserveScroll: true });
 
-    const toggleTask = (t: Task) => {
-        done.set(t.id, !isDone(t));
-        router.patch(
-            route('projects.tasks.update', t.id),
-            {},
-            { preserveScroll: true, preserveState: true, onSuccess: () => done.clear(t.id), onError: () => done.clear(t.id) },
-        );
-    };
-    const addTask = () => {
-        if (!taskName.trim()) return;
-        router.post(route('projects.tasks.store', project.id), { name: taskName.trim() }, { preserveScroll: true, onSuccess: () => setTaskName('') });
-    };
     const cycleDep = (d: Dep) => {
         const next = DEP_STATUS_KEYS[(DEP_STATUS_KEYS.indexOf(d.status) + 1) % DEP_STATUS_KEYS.length];
         router.patch(route('projects.deps.update', d.id), { status: next }, { preserveScroll: true });
@@ -295,47 +281,22 @@ export default function ProjectDetail({
                 <Section
                     icon={ListChecks}
                     title="Tasks"
-                    sub={tasks.length ? `${taskDone} of ${tasks.length} done` : undefined}
-                    pct={tasks.length ? taskPct : undefined}
+                    sub={taskTotal ? `${taskDone} of ${taskTotal} done` : undefined}
+                    pct={taskTotal ? taskPct : undefined}
                 >
-                    {tasks.length > 0 && (
+                    {taskTotal > 0 && (
                         <div className="bg-surface mb-2 h-1.5 overflow-hidden rounded-full">
                             <div className="bg-primary h-full rounded-full" style={{ width: `${taskPct}%` }} />
                         </div>
                     )}
-                    <div className="flex flex-col gap-2">
-                        {tasks.map((t) => (
-                            <div key={t.id} className="bg-surface-card group flex items-center gap-3 rounded-xl border p-3">
-                                <button
-                                    type="button"
-                                    onClick={() => toggleTask(t)}
-                                    aria-label={isDone(t) ? 'Mark not done' : 'Mark done'}
-                                    className={`flex size-6 shrink-0 items-center justify-center rounded-md border transition-colors ${
-                                        isDone(t) ? 'border-primary bg-primary text-primary-foreground' : 'border-border'
-                                    }`}
-                                >
-                                    {isDone(t) && <Check className="size-4" />}
-                                </button>
-                                <div className="min-w-0 flex-1">
-                                    <div className={`text-sm font-medium ${isDone(t) ? 'text-muted-foreground line-through' : 'text-primary'}`}>
-                                        {t.name}
-                                    </div>
-                                    <div className="text-muted-foreground text-xs">
-                                        {t.assignedTo ? (memberById.get(t.assignedTo)?.name ?? '?') : 'Unassigned'}
-                                    </div>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => router.delete(route('projects.tasks.destroy', t.id), { preserveScroll: true })}
-                                    aria-label="Remove task"
-                                    className="text-muted-foreground hover:text-destructive flex size-6 items-center justify-center opacity-0 transition-opacity group-hover:opacity-100"
-                                >
-                                    <Trash2 className="size-4" />
-                                </button>
-                            </div>
-                        ))}
-                        <InlineAdd value={taskName} onChange={setTaskName} onAdd={addTask} placeholder="Add a task..." />
-                    </div>
+                    <TaskTree
+                        tasks={tasks}
+                        members={members}
+                        canEdit
+                        addUrl={route('projects.tasks.store', project.id)}
+                        taskUrl={(id) => route('projects.tasks.update', id)}
+                        emptyHint="No tasks yet. Add the first one below."
+                    />
                 </Section>
 
                 {/* Materials — linked shopping lists */}

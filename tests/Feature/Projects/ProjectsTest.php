@@ -6,7 +6,7 @@ use App\Support\Modules\ModuleRegistry;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Modules\Projects\Project;
-use Modules\Projects\ProjectTask;
+use Modules\Tasks\Task;
 
 use function Pest\Laravel\actingAs;
 
@@ -49,20 +49,28 @@ it('creates a project with an owner share and lists it', function () {
     actingAs($users[0])->get('/m/projects')->assertOk();
 });
 
-it('adds, toggles, and deletes a task', function () {
+it('adds, toggles, and deletes a task (unified tasks-module tasks)', function () {
     [, $users] = projectsFamily();
     actingAs($users[0])->post('/m/projects', ['name' => 'Reno']);
     $project = Project::withoutGlobalScopes()->first();
 
-    actingAs($users[0])->post("/m/projects/{$project->id}/tasks", ['name' => 'Measure area', 'assigned_to' => $users[0]->id])->assertRedirect();
-    $task = ProjectTask::withoutGlobalScopes()->first();
-    expect($task->done)->toBeFalse();
+    // A project task is a listless tasks-module task, linked to the project.
+    actingAs($users[0])->post("/m/projects/{$project->id}/tasks", ['title' => 'Measure area', 'assigned_to' => $users[0]->id])->assertRedirect();
+    $task = Task::withoutGlobalScopes()->first();
+    expect($task->done)->toBeFalse()
+        ->and($task->task_list_id)->toBeNull()
+        ->and($project->links()->where(['linkable_type' => 'task', 'linkable_id' => $task->id])->exists())->toBeTrue();
+
+    // Sub-task rides along under the same project link (no link of its own).
+    actingAs($users[0])->post("/m/projects/{$project->id}/tasks", ['title' => 'Grab tape', 'parent_id' => $task->id])->assertRedirect();
+    expect(Task::withoutGlobalScopes()->where('parent_id', $task->id)->count())->toBe(1);
 
     actingAs($users[0])->patch("/m/projects/tasks/{$task->id}")->assertRedirect(); // empty body toggles
     expect($task->fresh()->done)->toBeTrue();
 
     actingAs($users[0])->delete("/m/projects/tasks/{$task->id}")->assertRedirect();
-    expect(ProjectTask::withoutGlobalScopes()->count())->toBe(0);
+    expect(Task::withoutGlobalScopes()->count())->toBe(0) // parent delete cascades the sub-task
+        ->and($project->links()->where('linkable_type', 'task')->count())->toBe(0);
 });
 
 it('adds a dependency and cycles its status', function () {
