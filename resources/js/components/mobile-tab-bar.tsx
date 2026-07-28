@@ -1,30 +1,65 @@
-import { type NavItem } from '@/types';
+import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { Link, router, usePage } from '@inertiajs/react';
-import { Blocks, LayoutGrid, Loader2, ShoppingCart, Users, Wallet } from 'lucide-react';
+import { Blocks, FolderKanban, LayoutGrid, Loader2, type LucideIcon, MoreHorizontal, Pin, Settings, ShoppingCart, Users, Wallet } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-// The DS floating mobile navigation: a translucent, blurred pill that sits above the
-// content with a soft shadow. Active tab gets an accent-subtle well + forest icon/label.
-// Desktop uses the sidebar instead, so this is md:hidden.
-const baseItems: NavItem[] = [
-    { title: 'Home', url: '/dashboard', icon: LayoutGrid },
-    { title: 'Members', url: '/family/members', icon: Users },
-    { title: 'Modules', url: '/family/modules', icon: Blocks },
+// The DS floating mobile navigation: a translucent, blurred pill above the content. It shows up to
+// four PINNED destinations plus a "More" button that opens a drawer with everything else; the pinned
+// set is user-selectable (pin/unpin in the More drawer, saved per device). Desktop uses the sidebar.
+type Item = { key: string; title: string; url: string; icon: LucideIcon };
+
+const HOME: Item = { key: 'dashboard', title: 'Home', url: '/dashboard', icon: LayoutGrid };
+// Page-modules earn a nav entry when the family has enabled them (order = preferred display order).
+const MODULE_ITEMS: Item[] = [
+    { key: 'projects', title: 'Projects', url: '/m/projects', icon: FolderKanban },
+    { key: 'shopping', title: 'Shopping', url: '/m/shopping', icon: ShoppingCart },
+    { key: 'spending', title: 'Spending', url: '/m/spending', icon: Wallet },
+];
+const SECONDARY: Item[] = [
+    { key: 'members', title: 'Members', url: '/family/members', icon: Users },
+    { key: 'modules', title: 'Modules', url: '/family/modules', icon: Blocks },
+    { key: 'settings', title: 'Settings', url: '/settings/profile', icon: Settings },
 ];
 
-const moduleItems: Record<string, NavItem> = {
-    spending: { title: 'Spending', url: '/m/spending', icon: Wallet },
-    shopping: { title: 'Shopping', url: '/m/shopping', icon: ShoppingCart },
-};
+const PINS_KEY = 'familywell:navPins';
+const MAX_PINS = 4;
+// Default pins: this preferred order, intersected with what's actually available, first four.
+const DEFAULT_ORDER = ['dashboard', 'projects', 'shopping', 'spending', 'members', 'modules', 'settings'];
 
 export function MobileTabBar() {
     const page = usePage<{ modules?: { enabled?: string[] } }>();
     const enabled = page.props.modules?.enabled ?? [];
-    const items = [...baseItems, ...enabled.map((id) => moduleItems[id]).filter(Boolean)];
 
-    // The tab the user just tapped. Set synchronously on click so it lights up and spins instantly,
-    // even while Inertia is still waiting on an in-flight prefetch (where no 'start' event fires).
-    // Cleared when a real navigation finishes (prefetch warming is ignored).
+    // Everything reachable from the mobile nav, in display order.
+    const allItems: Item[] = [HOME, ...MODULE_ITEMS.filter((m) => enabled.includes(m.key)), ...SECONDARY];
+    const byKey = new Map(allItems.map((i) => [i.key, i]));
+
+    const [pins, setPins] = useState<string[]>(() => {
+        if (typeof window !== 'undefined') {
+            try {
+                const saved = JSON.parse(localStorage.getItem(PINS_KEY) || 'null');
+                if (Array.isArray(saved)) return saved;
+            } catch {
+                /* fall through to default */
+            }
+        }
+        return [];
+    });
+    const savePins = (next: string[]) => {
+        setPins(next);
+        try {
+            localStorage.setItem(PINS_KEY, JSON.stringify(next));
+        } catch {
+            /* private mode: session-only */
+        }
+    };
+
+    // Resolve the pinned bar items: saved pins (that still exist), else the default set.
+    const savedPinned = pins.map((k) => byKey.get(k)).filter((i): i is Item => !!i);
+    const pinned = (savedPinned.length ? savedPinned : DEFAULT_ORDER.map((k) => byKey.get(k)).filter((i): i is Item => !!i)).slice(0, MAX_PINS);
+    const pinnedKeys = new Set(pinned.map((i) => i.key));
+
+    const [moreOpen, setMoreOpen] = useState(false);
     const [pending, setPending] = useState<string | null>(null);
     useEffect(() => {
         const offFinish = router.on('finish', (e) => {
@@ -33,37 +68,91 @@ export function MobileTabBar() {
         return offFinish;
     }, []);
 
-    // While navigating, treat the target as current so the right tab is active during the load.
     const currentPath = pending ?? page.url;
+    const isActive = (url: string) => currentPath === url || currentPath.startsWith(url + '/');
+    // "More" lights up when the current page is a destination that isn't pinned to the bar.
+    const moreActive = allItems.some((i) => !pinnedKeys.has(i.key) && isActive(i.url));
+
+    const togglePin = (key: string) => {
+        if (pins.length === 0) savePins([...pinned.map((i) => i.key)]); // materialize defaults before first edit
+        if (pinnedKeys.has(key)) {
+            savePins((pins.length ? pins : pinned.map((i) => i.key)).filter((k) => k !== key));
+        } else if (pinned.length < MAX_PINS) {
+            savePins([...(pins.length ? pins : pinned.map((i) => i.key)), key]);
+        }
+    };
+
+    const cell = 'flex flex-1 flex-col items-center gap-0.5 rounded-full py-1.5 text-[10px] font-medium transition-colors';
 
     return (
-        <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden">
-            <div className="border-border/60 pointer-events-auto flex w-full max-w-md items-center justify-around gap-1 rounded-full border bg-white/75 p-1.5 shadow-[var(--shadow-fw-md)] backdrop-blur-xl">
-                {items.map((item) => {
-                    // Prefix match so a sub-page (e.g. a single spend event) keeps its tab lit.
-                    const active = currentPath === item.url || currentPath.startsWith(item.url + '/');
-                    const loading = pending === item.url;
-                    return (
-                        <Link
-                            key={item.url}
-                            href={item.url}
-                            onClick={() => setPending(item.url)}
-                            // Warm the destination on mount (during this page) so the tap is served
-                            // from cache. Each page re-prefetches fresh, so a short cacheFor keeps taps
-                            // instant without showing stale data.
-                            prefetch="mount"
-                            cacheFor="30s"
-                            className={`flex flex-1 flex-col items-center gap-0.5 rounded-full py-1.5 text-[10px] font-medium transition-colors ${
-                                // --accent is the pale hover-green in this app; the forest green is --primary.
-                                active ? 'bg-accent-subtle text-primary font-semibold' : 'text-text-muted'
-                            }`}
-                        >
-                            {loading ? <Loader2 className="size-5.5 animate-spin" /> : item.icon && <item.icon className="size-5.5" />}
-                            {item.title}
-                        </Link>
-                    );
-                })}
-            </div>
-        </nav>
+        <>
+            <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden">
+                <div className="border-border/60 pointer-events-auto flex w-full max-w-md items-center justify-around gap-1 rounded-full border bg-white/75 p-1.5 shadow-[var(--shadow-fw-md)] backdrop-blur-xl">
+                    {pinned.map((item) => {
+                        const active = isActive(item.url);
+                        const loading = pending === item.url;
+                        return (
+                            <Link
+                                key={item.key}
+                                href={item.url}
+                                onClick={() => setPending(item.url)}
+                                prefetch="mount"
+                                cacheFor="30s"
+                                className={`${cell} ${active ? 'bg-accent-subtle text-primary font-semibold' : 'text-text-muted'}`}
+                            >
+                                {loading ? <Loader2 className="size-5.5 animate-spin" /> : <item.icon className="size-5.5" />}
+                                {item.title}
+                            </Link>
+                        );
+                    })}
+                    <button
+                        type="button"
+                        onClick={() => setMoreOpen(true)}
+                        className={`${cell} ${moreActive ? 'bg-accent-subtle text-primary font-semibold' : 'text-text-muted'}`}
+                    >
+                        <MoreHorizontal className="size-5.5" />
+                        More
+                    </button>
+                </div>
+            </nav>
+
+            <ResponsiveModal open={moreOpen} onOpenChange={setMoreOpen} title="More" description="Tap a pin to choose your four bottom-bar shortcuts">
+                <div className="flex flex-col gap-1">
+                    {allItems.map((item) => {
+                        const isPinned = pinnedKeys.has(item.key);
+                        const atMax = !isPinned && pinned.length >= MAX_PINS;
+                        return (
+                            <div key={item.key} className="flex items-center gap-1">
+                                <Link
+                                    href={item.url}
+                                    onClick={() => {
+                                        setMoreOpen(false);
+                                        setPending(item.url);
+                                    }}
+                                    className={`flex flex-1 items-center gap-3 rounded-xl p-3 transition-colors ${
+                                        isActive(item.url) ? 'bg-accent-subtle text-primary' : 'text-primary hover:bg-surface'
+                                    }`}
+                                >
+                                    <item.icon className="size-5" />
+                                    <span className="text-sm font-medium">{item.title}</span>
+                                </Link>
+                                <button
+                                    type="button"
+                                    onClick={() => togglePin(item.key)}
+                                    disabled={atMax}
+                                    aria-label={isPinned ? `Unpin ${item.title}` : `Pin ${item.title} to the bar`}
+                                    aria-pressed={isPinned}
+                                    className={`flex size-9 items-center justify-center rounded-lg transition-colors ${
+                                        isPinned ? 'text-primary' : atMax ? 'text-text-muted/40' : 'text-muted-foreground hover:bg-surface'
+                                    }`}
+                                >
+                                    <Pin className={`size-4.5 ${isPinned ? 'fill-current' : ''}`} />
+                                </button>
+                            </div>
+                        );
+                    })}
+                </div>
+            </ResponsiveModal>
+        </>
     );
 }
