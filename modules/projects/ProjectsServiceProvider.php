@@ -49,6 +49,10 @@ class ProjectsServiceProvider extends ServiceProvider
                 Route::delete('/{project}', [ProjectsController::class, 'destroyProject'])->name('destroy');
                 Route::post('/{project}/duplicate', [ProjectsController::class, 'duplicateProject'])->name('duplicate');
 
+                Route::post('/{project}/cover', [ProjectsController::class, 'uploadCover'])->name('cover.upload');
+                Route::get('/{project}/cover', [ProjectsController::class, 'coverFile'])->name('cover.show');
+                Route::delete('/{project}/cover', [ProjectsController::class, 'deleteCover'])->name('cover.delete');
+
                 Route::post('/{project}/tasks', [ProjectsController::class, 'storeTask'])->name('tasks.store');
                 Route::patch('/tasks/{task}', [ProjectsController::class, 'updateTask'])->name('tasks.update');
                 Route::delete('/tasks/{task}', [ProjectsController::class, 'destroyTask'])->name('tasks.destroy');
