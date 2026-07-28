@@ -13,7 +13,7 @@ import {
 } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Calendar, Check, GripVertical, Plus, Trash2, UserCircle2 } from 'lucide-react';
+import { Calendar, Check, Plus, Trash2, UserCircle2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -82,8 +82,10 @@ export function TaskTree({ tasks, members, canEdit, addUrl, taskUrl, reorderUrl,
     const [overId, setOverId] = useState<number | null>(null);
     const [offsetLeft, setOffsetLeft] = useState(0);
 
+    // No drag handle: press-and-hold anywhere on a row to drag it (Apple Reminders style). The delay
+    // lets a quick tap toggle/edit and a fast horizontal swipe reveal delete without starting a drag.
     const sensors = useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+        useSensor(PointerSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
     );
 
@@ -188,8 +190,8 @@ export function TaskTree({ tasks, members, canEdit, addUrl, taskUrl, reorderUrl,
                 </SortableContext>
                 <DragOverlay>
                     {activeItem ? (
-                        <div className="bg-surface-card flex items-center gap-2 rounded-lg border px-2 py-2 shadow-lg">
-                            <GripVertical className="text-muted-foreground size-4" />
+                        <div className="bg-surface-card flex items-center gap-2 rounded-lg border px-3 py-2.5 shadow-lg">
+                            <span className="border-border size-5 shrink-0 rounded-full border" />
                             <span className="text-primary text-[15px]">{activeItem.title}</span>
                         </div>
                     ) : null}
@@ -241,37 +243,52 @@ function SortableRow({
     swipeOpen: boolean;
     onSwipeOpen: (v: boolean) => void;
 }) {
-    const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+    // Only the drag `listeners` are spread (not `attributes`): attributes would put role="button" on the
+    // row, nesting the real buttons (toggle/title) inside a button. Keyboard-drag a11y is traded away.
+    const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
     const due = dueLabel(item.dueDate);
     const sub = depth > 0;
 
-    // Swipe-left to reveal Delete. Tracked on the content row; ignores gestures that begin on the grip
-    // (that's the drag handle) so the two never fight.
+    // Swipe-left to reveal Delete, on the inner content row. A press-and-hold instead starts a drag
+    // (dnd-kit's delay sensor owns the whole row), and while dragging the swipe is suppressed.
     const [swipeX, setSwipeX] = useState(0);
-    const start = useRef<{ x: number; y: number; onHandle: boolean } | null>(null);
+    const start = useRef<{ x: number; y: number } | null>(null);
+    const moved = useRef(false); // did this gesture swipe? then the trailing click shouldn't open edit
     const REVEAL = 76;
     useEffect(() => {
         if (!swipeOpen && swipeX !== 0) setSwipeX(0);
     }, [swipeOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(() => {
+        if (isDragging) setSwipeX(0);
+    }, [isDragging]);
 
     const onPointerDown = (e: React.PointerEvent) => {
-        if (!canEdit || isDragging) return;
-        const onHandle = !!(e.target as HTMLElement).closest('[data-drag-handle]');
-        start.current = { x: e.clientX, y: e.clientY, onHandle };
+        if (!canEdit) return;
+        start.current = { x: e.clientX, y: e.clientY };
+        moved.current = false;
     };
     const onPointerMove = (e: React.PointerEvent) => {
         const s = start.current;
-        if (!s || s.onHandle) return;
+        if (!s || isDragging) return;
         const dx = e.clientX - s.x;
         const dy = e.clientY - s.y;
-        if (Math.abs(dx) < Math.abs(dy)) return; // vertical => let it scroll
+        if (Math.abs(dx) < Math.abs(dy)) return; // vertical => let it scroll / start a drag
+        if (Math.abs(dx) > 4) moved.current = true;
         const base = swipeOpen ? -REVEAL : 0;
         setSwipeX(Math.max(-REVEAL, Math.min(0, base + dx)));
     };
+    // Tap anywhere on the row (except the toggle circle) opens the edit drawer — unless the gesture was
+    // a swipe or the delete action is showing.
+    const handleEdit = () => {
+        if (moved.current || swipeOpen) {
+            onSwipeOpen(false);
+            return;
+        }
+        onEdit();
+    };
     const onPointerUp = () => {
-        const s = start.current;
+        if (!start.current) return;
         start.current = null;
-        if (!s || s.onHandle) return;
         if (swipeX < -REVEAL / 2) {
             setSwipeX(-REVEAL);
             onSwipeOpen(true);
@@ -284,8 +301,9 @@ function SortableRow({
     return (
         <div
             ref={setNodeRef}
+            {...(canEdit ? listeners : {})}
             style={{ transform: CSS.Translate.toString(transform), transition, paddingLeft: sub ? INDENT : 0 }}
-            className={`relative ${isDragging ? 'opacity-40' : ''}`}
+            className={`relative ${isDragging ? 'z-10 opacity-40' : ''}`}
         >
             {/* Delete action revealed behind the row on swipe. */}
             <button
@@ -303,20 +321,8 @@ function SortableRow({
                 onPointerUp={onPointerUp}
                 onPointerCancel={onPointerUp}
                 style={{ transform: `translateX(${swipeX}px)` }}
-                className={`border-border/60 bg-surface-card relative flex items-center gap-2 border-b py-2.5 ${sub ? 'pr-1 pl-1' : 'px-1'}`}
+                className={`border-border/60 bg-surface-card relative flex items-center gap-2.5 border-b py-2.5 ${sub ? 'pr-1 pl-1' : 'px-1'}`}
             >
-                {canEdit && (
-                    <button
-                        ref={setActivatorNodeRef}
-                        data-drag-handle
-                        {...attributes}
-                        {...listeners}
-                        aria-label="Reorder"
-                        className="text-muted-foreground/60 hover:text-muted-foreground -ml-1 flex size-6 shrink-0 cursor-grab touch-none items-center justify-center active:cursor-grabbing"
-                    >
-                        <GripVertical className="size-4" />
-                    </button>
-                )}
                 <button
                     type="button"
                     onClick={onToggle}
@@ -327,14 +333,17 @@ function SortableRow({
                 >
                     {done && <Check className={sub ? 'size-3' : 'size-3.5'} />}
                 </button>
-                <button type="button" onClick={onEdit} className="min-w-0 flex-1 text-left">
-                    <div className={`truncate ${sub ? 'text-sm' : 'text-[15px]'} ${done ? 'text-muted-foreground line-through' : 'text-primary'}`}>
-                        {item.title}
-                    </div>
-                    {item.note && <div className="text-muted-foreground truncate text-xs">{item.note}</div>}
+                {/* The rest of the row is one tap target that opens the edit drawer. */}
+                <button type="button" onClick={handleEdit} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
+                    <span className="min-w-0 flex-1">
+                        <span className={`block truncate ${sub ? 'text-sm' : 'text-[15px]'} ${done ? 'text-muted-foreground line-through' : 'text-primary'}`}>
+                            {item.title}
+                        </span>
+                        {item.note && <span className="text-muted-foreground block truncate text-xs">{item.note}</span>}
+                    </span>
+                    {due && <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${due.tone}`}>{due.label}</span>}
+                    <AssigneeDot members={members} id={item.assignedTo} />
                 </button>
-                {due && <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${due.tone}`}>{due.label}</span>}
-                <AssigneeDot members={members} id={item.assignedTo} />
             </div>
         </div>
     );
