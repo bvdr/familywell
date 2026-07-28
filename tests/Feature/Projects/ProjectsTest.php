@@ -3,6 +3,8 @@
 use App\Models\Family;
 use App\Models\User;
 use App\Support\Modules\ModuleRegistry;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Modules\Projects\Project;
 use Modules\Projects\ProjectTask;
 
@@ -89,6 +91,24 @@ it('links and unlinks a shopping list', function () {
 
     actingAs($users[0])->delete("/m/projects/{$project->id}/lists/{$list->id}")->assertRedirect();
     expect($project->links()->count())->toBe(0);
+});
+
+it('uploads, serves, and deletes a project cover photo', function () {
+    Storage::fake('r2');
+    [, $users] = projectsFamily();
+    actingAs($users[0])->post('/m/projects', ['name' => 'Reno']);
+    $project = Project::withoutGlobalScopes()->first();
+
+    // fake()->image() needs GD (absent in CI); a fake file with an image mime satisfies the `image` rule.
+    actingAs($users[0])->post("/m/projects/{$project->id}/cover", ['photo' => UploadedFile::fake()->create('cover.jpg', 200, 'image/jpeg')])->assertRedirect();
+    $project->refresh();
+    expect($project->cover_path)->not->toBeNull();
+    Storage::disk('r2')->assertExists($project->cover_path);
+
+    actingAs($users[0])->get("/m/projects/{$project->id}/cover")->assertOk();
+
+    actingAs($users[0])->delete("/m/projects/{$project->id}/cover")->assertRedirect();
+    expect($project->fresh()->cover_path)->toBeNull();
 });
 
 it('hides a private project from a member who was not shared', function () {
