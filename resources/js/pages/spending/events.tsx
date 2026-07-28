@@ -1,6 +1,8 @@
-import { Head, Link, useForm } from '@inertiajs/react';
-import { Plus, Wallet } from 'lucide-react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Archive, Plus, RotateCcw, Wallet } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
+
+import { useOptimistic } from '@/hooks/use-optimistic';
 
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -12,7 +14,7 @@ import { money } from '@/lib/money';
 import { type BreadcrumbItem } from '@/types';
 
 type Member = { id: number; name: string };
-type Event = { id: number; name: string; currency: string; total: number; members: Member[] };
+type Event = { id: number; name: string; currency: string; total: number; archived: boolean; members: Member[] };
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Spending', href: '/m/spending' }];
 
@@ -36,6 +38,11 @@ function Avatars({ members }: { members: Member[] }) {
 export default function Events({ events, currencies }: { events: Event[]; currencies: string[] }) {
     const [creating, setCreating] = useState(false);
     const { data, setData, post, processing, errors, reset } = useForm({ name: '', currency: currencies[0] });
+
+    const archivedOpt = useOptimistic<boolean>();
+    const isArchived = (ev: Event) => archivedOpt.get(ev.id, ev.archived);
+    const active = events.filter((ev) => !isArchived(ev));
+    const archived = events.filter((ev) => isArchived(ev));
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -95,7 +102,7 @@ export default function Events({ events, currencies }: { events: Event[]; curren
                     </form>
                 )}
 
-                {events.length === 0 && !creating && (
+                {active.length === 0 && !creating && (
                     <div className="text-muted-foreground flex flex-col items-center gap-2 rounded-xl border border-dashed p-10 text-center">
                         <Wallet className="size-6" />
                         <p className="text-sm">No spend events yet. Create one to start tracking shared costs.</p>
@@ -103,7 +110,7 @@ export default function Events({ events, currencies }: { events: Event[]; curren
                 )}
 
                 <div className="flex flex-col gap-3">
-                    {events.map((ev) => (
+                    {active.map((ev) => (
                         <Link
                             key={ev.id}
                             href={route('spending.show', ev.id)}
@@ -123,6 +130,45 @@ export default function Events({ events, currencies }: { events: Event[]; curren
                         </Link>
                     ))}
                 </div>
+
+                {archived.length > 0 && (
+                    <div className="mt-2 flex flex-col gap-2">
+                        <h2 className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
+                            <Archive className="size-3.5" /> Archived
+                        </h2>
+                        {archived.map((ev) => (
+                            <div key={ev.id} className="bg-surface flex items-center gap-3 rounded-xl border p-3 opacity-70">
+                                <span className="text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-lg border">
+                                    <Wallet className="size-4.5" />
+                                </span>
+                                <Link href={route('spending.show', ev.id)} className="min-w-0 flex-1">
+                                    <div className="text-primary truncate text-sm font-medium">{ev.name}</div>
+                                    <div className="text-muted-foreground font-mono text-xs tabular-nums">{money(ev.total, ev.currency)}</div>
+                                </Link>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        archivedOpt.set(ev.id, false);
+                                        router.patch(
+                                            route('spending.events.update', ev.id),
+                                            { archived: false },
+                                            {
+                                                preserveScroll: true,
+                                                preserveState: true,
+                                                onSuccess: () => archivedOpt.clear(ev.id),
+                                                onError: () => archivedOpt.clear(ev.id),
+                                            },
+                                        );
+                                    }}
+                                    aria-label="Restore event"
+                                    className="text-muted-foreground hover:text-primary flex size-8 items-center justify-center rounded-lg transition-colors"
+                                >
+                                    <RotateCcw className="size-4" />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </AppLayout>
     );
