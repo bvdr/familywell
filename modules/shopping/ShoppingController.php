@@ -166,11 +166,27 @@ class ShoppingController extends Controller
         $family = Family::findOrFail(CurrentFamily::id());
         $members = $family->members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values();
 
+        $items = $list->items()->orderBy('position')->orderBy('id')->get();
+        $familyStores = ShoppingList::whereNotNull('store')->distinct()->orderBy('store')->pluck('store')->values();
+
+        // Every shop this list touches (default + item primaries + item alternatives) plus the family's
+        // known shops, so grouping and the item store picker have each shop's aisles on hand. Keyed by
+        // shop name; a brand-new store the client types falls back to `defaultAisles`.
+        $storeNames = collect([$list->store])
+            ->merge($items->pluck('store'))
+            ->merge($items->pluck('alt_stores')->flatten())
+            ->merge($familyStores)
+            ->filter()->unique()->values();
+        $aislesByStore = [];
+        foreach ($storeNames as $s) {
+            $aislesByStore[$s] = $this->resolveAisles($s);
+        }
+
         return Inertia::render('shopping/list', [
             'list' => [
                 'id' => $list->id,
                 'name' => $list->name,
-                'store' => $list->store,
+                'store' => $list->store, // the list's default store, pre-selected for new items
                 'color' => $list->color,
                 'icon' => $list->icon,
                 'archived' => $list->archived_at !== null,
@@ -178,22 +194,24 @@ class ShoppingController extends Controller
             ],
             // Reuse the core sharing UI (ShareSheet); shopping lists are registered as `shopping_list`.
             'share' => $this->shareState($list, $family),
-            // Distinct stores the family already uses, for the "Change store" picker chips.
-            'stores' => ShoppingList::whereNotNull('store')->distinct()->orderBy('store')->pluck('store')->values(),
-            'items' => $list->items()->orderBy('position')->orderBy('id')->get()
-                ->map(fn (ShoppingItem $i) => [
-                    'id' => $i->id,
-                    'name' => $i->name,
-                    'quantity' => $i->quantity,
-                    'department' => $i->department,
-                    'bought' => $i->bought,
-                    'note' => $i->note,
-                    'assignedTo' => $i->assigned_to,
-                ])->values(),
+            // Distinct stores the family already uses, for the store pickers.
+            'stores' => $familyStores,
+            'items' => $items->map(fn (ShoppingItem $i) => [
+                'id' => $i->id,
+                'name' => $i->name,
+                'quantity' => $i->quantity,
+                'department' => $i->department,
+                'bought' => $i->bought,
+                'note' => $i->note,
+                'assignedTo' => $i->assigned_to,
+                'store' => $i->store,                 // primary shop (null => inherits the list store)
+                'altStores' => $i->alt_stores ?? [],  // also-available-at shops
+            ])->values(),
             'members' => $members,
-            // This shop's aisles (custom rows, or the default Grocery set as a fallback) drive the
-            // department chips and the grouping. Replaces the old fixed DEPARTMENTS constant.
-            'aisles' => $this->resolveAisles($list->store),
+            // Each shop's aisles (custom rows or the default Grocery fallback) drive the grouping and the
+            // item's department chips. Grouping is store -> aisle now that items can span shops.
+            'aislesByStore' => $aislesByStore,
+            'defaultAisles' => $this->resolveAisles(null),
             // Drives the "Add by voice" entry + the "Organized by AI" badge; false falls back to a naive split.
             'aiEnabled' => GroceryParser::configured(),
         ]);
@@ -247,6 +265,9 @@ class ShoppingController extends Controller
             'department' => ['nullable', 'string', 'max:60'],
             'note' => ['nullable', 'string', 'max:255'],
             'assigned_to' => ['nullable', 'integer'],
+            'store' => ['nullable', 'string', 'max:120'],           // primary shop; null => inherit list store
+            'alt_stores' => ['nullable', 'array'],                  // also-available-at shops
+            'alt_stores.*' => ['string', 'max:120'],
         ]);
 
         $list->items()->create([
@@ -255,6 +276,8 @@ class ShoppingController extends Controller
             'department' => $data['department'] ?? 'other',
             'note' => $data['note'] ?? null,
             'assigned_to' => $data['assigned_to'] ?? null,
+            'store' => $data['store'] ?? null,
+            'alt_stores' => $data['alt_stores'] ?? null,
             'created_by' => $request->user()->id,
         ]);
 
@@ -316,7 +339,7 @@ class ShoppingController extends Controller
         abort_unless($this->access->roleFor($request->user(), $item->list) !== null, 403);
 
         // No body => a plain check/uncheck toggle (the common case, one tap in the list).
-        if (! $request->hasAny(['name', 'quantity', 'department', 'note', 'assigned_to', 'bought'])) {
+        if (! $request->hasAny(['name', 'quantity', 'department', 'note', 'assigned_to', 'bought', 'store', 'alt_stores'])) {
             $item->update(['bought' => ! $item->bought]);
         } else {
             $data = $request->validate([
@@ -326,6 +349,9 @@ class ShoppingController extends Controller
                 'note' => ['sometimes', 'nullable', 'string', 'max:255'],
                 'assigned_to' => ['sometimes', 'nullable', 'integer'],
                 'bought' => ['sometimes', 'boolean'],
+                'store' => ['sometimes', 'nullable', 'string', 'max:120'],
+                'alt_stores' => ['sometimes', 'nullable', 'array'],
+                'alt_stores.*' => ['string', 'max:120'],
             ]);
             $item->update($data);
         }
@@ -405,15 +431,23 @@ class ShoppingController extends Controller
             ->values()->all();
     }
 
+    // Which shop's aisles an editor request targets. A list spans several shops now, so the client
+    // says which one; falls back to the list's default store.
+    private function aisleStore(Request $request, ShoppingList $list): ?string
+    {
+        return $request->filled('store') ? (string) $request->input('store') : $list->store;
+    }
+
     // Editor opens: materialize the fallback into editable rows, then return them + template options.
     public function ensureAisles(Request $request, ShoppingList $list): JsonResponse
     {
         abort_unless($this->access->roleFor($request->user(), $list) !== null, 403);
-        $this->materializeAisles($list->store);
+        $store = $this->aisleStore($request, $list);
+        $this->materializeAisles($store);
 
         return response()->json([
-            'store' => $list->store,
-            'aisles' => $this->aisleListJson($list->store),
+            'store' => $store,
+            'aisles' => $this->aisleListJson($store),
             'templates' => StoreTemplates::options(),
         ]);
     }
@@ -422,18 +456,19 @@ class ShoppingController extends Controller
     {
         abort_unless($this->access->roleFor($request->user(), $list) !== null, 403);
         $data = $request->validate(['name' => ['required', 'string', 'max:60'], 'icon' => ['required', 'string', 'max:40']]);
-        $this->materializeAisles($list->store);
+        $store = $this->aisleStore($request, $list);
+        $this->materializeAisles($store);
 
         ShoppingAisle::create([
-            'store' => (string) $list->store,
-            'slug' => $this->uniqueSlug($list->store, $data['name']),
+            'store' => (string) $store,
+            'slug' => $this->uniqueSlug($store, $data['name']),
             'name' => $data['name'],
             'icon' => $data['icon'],
-            'position' => (int) $this->aisleRows($list->store)->max('position') + 1,
+            'position' => (int) $this->aisleRows($store)->max('position') + 1,
         ]);
         Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
 
-        return response()->json(['aisles' => $this->aisleListJson($list->store)]);
+        return response()->json(['aisles' => $this->aisleListJson($store)]);
     }
 
     public function updateAisle(Request $request, ShoppingAisle $aisle): JsonResponse
@@ -467,13 +502,14 @@ class ShoppingController extends Controller
     {
         abort_unless($this->access->roleFor($request->user(), $list) !== null, 403);
         $data = $request->validate(['slugs' => ['required', 'array'], 'slugs.*' => ['string']]);
+        $store = $this->aisleStore($request, $list);
 
         foreach (array_values($data['slugs']) as $i => $slug) {
-            ShoppingAisle::where('store', (string) $list->store)->where('slug', $slug)->update(['position' => $i]);
+            ShoppingAisle::where('store', (string) $store)->where('slug', $slug)->update(['position' => $i]);
         }
         Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
 
-        return response()->json(['aisles' => $this->aisleListJson($list->store)]);
+        return response()->json(['aisles' => $this->aisleListJson($store)]);
     }
 
     // Replace this shop's aisles with a starter template.
@@ -481,13 +517,14 @@ class ShoppingController extends Controller
     {
         abort_unless($this->access->roleFor($request->user(), $list) !== null, 403);
         $data = $request->validate(['template' => ['required', 'in:'.implode(',', array_keys(StoreTemplates::TEMPLATES))]]);
+        $store = $this->aisleStore($request, $list);
 
-        ShoppingAisle::where('store', (string) $list->store)->delete();
+        ShoppingAisle::where('store', (string) $store)->delete();
         foreach (StoreTemplates::TEMPLATES[$data['template']] as $i => [$slug, $name, $icon]) {
-            ShoppingAisle::create(['store' => (string) $list->store, 'slug' => $slug, 'name' => $name, 'icon' => $icon, 'position' => $i]);
+            ShoppingAisle::create(['store' => (string) $store, 'slug' => $slug, 'name' => $name, 'icon' => $icon, 'position' => $i]);
         }
         Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
 
-        return response()->json(['aisles' => $this->aisleListJson($list->store)]);
+        return response()->json(['aisles' => $this->aisleListJson($store)]);
     }
 }
