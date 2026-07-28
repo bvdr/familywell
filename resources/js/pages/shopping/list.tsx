@@ -54,11 +54,13 @@ type Item = {
     bought: boolean;
     note: string | null;
     assignedTo: number | null;
+    store: string | null; // primary shop; null => inherits the list's store
+    altStores: string[]; // also-available-at shops
 };
 type List = { id: number; name: string; store: string | null; color: string; icon: string; archived: boolean; visibility: string };
 
-type Draft = { name: string; quantity: string; department: string; assigned_to: number | null; note: string };
-const emptyDraft: Draft = { name: '', quantity: '', department: 'other', assigned_to: null, note: '' };
+type Draft = { name: string; quantity: string; department: string; assigned_to: number | null; note: string; store: string; alt_stores: string[] };
+const emptyDraft: Draft = { name: '', quantity: '', department: 'other', assigned_to: null, note: '', store: '', alt_stores: [] };
 
 function AssigneeBadge({ member }: { member?: Member }) {
     if (!member) return null;
@@ -94,7 +96,8 @@ export default function ListDetail({
     list,
     items,
     members,
-    aisles,
+    aislesByStore,
+    defaultAisles,
     share,
     stores,
     aiEnabled,
@@ -102,7 +105,8 @@ export default function ListDetail({
     list: List;
     items: Item[];
     members: Member[];
-    aisles: Aisle[];
+    aislesByStore: Record<string, Aisle[]>;
+    defaultAisles: Aisle[];
     share: ShareState;
     stores: string[];
     aiEnabled: boolean;
@@ -110,6 +114,7 @@ export default function ListDetail({
     const [hideCompleted, setHideCompleted] = useState(false);
     const [sortAz, setSortAz] = useState(false);
     const [focus, setFocus] = useState(false); // full-screen "shopping mode" overlay
+    const [focusStore, setFocusStore] = useState(''); // which shop the focus run is for
     const [sharing, setSharing] = useState(false);
     const [editingTitle, setEditingTitle] = useState(false);
     const [title, setTitle] = useState(list.name);
@@ -151,14 +156,20 @@ export default function ListDetail({
     const boughtCount = liveItems.filter((i) => isBought(i)).length;
     const pct = liveItems.length ? Math.round((boughtCount / liveItems.length) * 100) : 0;
 
-    const aisleBySlug = useMemo(() => new Map(aisles.map((a) => [a.slug, a])), [aisles]);
-    // Group items into the shop's aisles (in walk order). Items whose department isn't a current
-    // aisle (e.g. an aisle was deleted) fall into the shop's "other" aisle, or a trailing Other bucket.
-    const groupByAisle = (list: Item[]): { aisle: Aisle; items: Item[] }[] => {
-        const otherSlug = aisleBySlug.has('other') ? 'other' : '__other__';
+    // A shop's aisles (custom or default). Null/unknown shop uses the default Grocery set.
+    const aislesFor = (store: string | null): Aisle[] => (store ? (aislesByStore[store] ?? defaultAisles) : defaultAisles);
+    // The shop an item belongs to for grouping: its own store, else the list's default store.
+    const itemStore = (i: Item): string => i.store || list.store || '';
+    // An item can be picked up at its primary shop or any alternative.
+    const availableAt = (i: Item, store: string): boolean => itemStore(i) === store || i.altStores.includes(store);
+
+    // Group items into a shop's aisles (walk order). Unknown departments fall into that shop's "other".
+    const groupByAisle = (list: Item[], aisles: Aisle[]): { aisle: Aisle; items: Item[] }[] => {
+        const bySlug = new Map(aisles.map((a) => [a.slug, a]));
+        const otherSlug = bySlug.has('other') ? 'other' : '__other__';
         const buckets = new Map<string, Item[]>();
         for (const it of list) {
-            const slug = aisleBySlug.has(it.department) ? it.department : otherSlug;
+            const slug = bySlug.has(it.department) ? it.department : otherSlug;
             (buckets.get(slug) ?? buckets.set(slug, []).get(slug)!).push(it);
         }
         const out = aisles.filter((a) => buckets.has(a.slug)).map((a) => ({ aisle: a, items: buckets.get(a.slug)! }));
@@ -166,21 +177,47 @@ export default function ListDetail({
         return out;
     };
 
-    const groups = useMemo(() => {
+    const list0Store = list.store || ''; // the list's default store, sorted first
+    // Order shops with the list's default first, "No store" last, the rest alphabetical.
+    const storeOrder = (a: string, b: string) => (a === list0Store ? -1 : b === list0Store ? 1 : a === '' ? 1 : b === '' ? -1 : a.localeCompare(b));
+
+    // Top-level grouping is by shop, then aisle.
+    const groupByStore = (list: Item[]): { store: string; aisles: { aisle: Aisle; items: Item[] }[] }[] => {
+        const byStore = new Map<string, Item[]>();
+        for (const it of list) {
+            const s = itemStore(it);
+            (byStore.get(s) ?? byStore.set(s, []).get(s)!).push(it);
+        }
+        return [...byStore.keys()].sort(storeOrder).map((s) => ({ store: s, aisles: groupByAisle(byStore.get(s)!, aislesFor(s || null)) }));
+    };
+
+    const storeGroups = useMemo(() => {
         let visible = liveItems.filter((i) => (hideCompleted ? !isBought(i) : true));
         if (sortAz) visible = [...visible].sort((a, b) => a.name.localeCompare(b.name));
-        return groupByAisle(visible);
+        return groupByStore(visible);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [items, aisles, hideCompleted, sortAz, bought, removed]);
+    }, [items, aislesByStore, defaultAisles, hideCompleted, sortAz, bought, removed]);
+    const multiStore = storeGroups.length > 1;
 
-    // Focus mode splits the list into still-to-get (grouped by aisle) and an already-in-cart pile.
-    const focusGroups = useMemo(
-        () => groupByAisle(liveItems.filter((i) => !isBought(i))),
+    // Focus mode is per shop: the store chips are every shop with something still to get (primary or
+    // alternative); the selected shop's run shows the items available there, grouped by its aisles.
+    const focusStores = useMemo(() => {
+        const set = new Set<string>();
+        for (const i of liveItems) {
+            if (isBought(i)) continue;
+            set.add(itemStore(i));
+            for (const s of i.altStores) set.add(s);
+        }
+        const arr = [...set];
+        arr.sort(storeOrder);
+        return arr;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [items, aisles, bought, removed],
+    }, [items, bought, removed]);
+    const focusGroups = groupByAisle(
+        liveItems.filter((i) => !isBought(i) && availableAt(i, focusStore)),
+        aislesFor(focusStore || null),
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    const doneItems = useMemo(() => liveItems.filter((i) => isBought(i)), [items, bought, removed]);
+    const doneItems = liveItems.filter((i) => isBought(i) && availableAt(i, focusStore));
 
     const toggle = (item: Item) => {
         bought.set(item.id, !isBought(item));
@@ -208,7 +245,9 @@ export default function ListDetail({
     };
 
     const openNew = () => {
-        setDraft(emptyDraft);
+        // Default a new item to the list's store (or the shop you're focused on) so single-store lists
+        // need no store tap; the aisle chips then come from that shop.
+        setDraft({ ...emptyDraft, store: (focus ? focusStore : list.store) || '' });
         setEditingId(0);
     };
     const openEdit = (item: Item) => {
@@ -218,16 +257,20 @@ export default function ListDetail({
             department: item.department,
             assigned_to: item.assignedTo,
             note: item.note ?? '',
+            store: item.store ?? list.store ?? '',
+            alt_stores: item.altStores,
         });
         setEditingId(item.id);
     };
     const saveItem = () => {
         if (!draft.name.trim()) return;
-        const payload = { ...draft, name: draft.name.trim() };
+        const payload = { ...draft, name: draft.name.trim(), store: draft.store || null };
         const done = { preserveScroll: true, onSuccess: () => setEditingId(null) };
         if (editingId) router.patch(route('shopping.items.update', editingId), payload, done);
         else router.post(route('shopping.items.store', list.id), payload, done);
     };
+    // Shops offered in the item sheet: the family's known stores plus the list's store, deduped.
+    const storeOptions = [...new Set([list.store, ...stores].filter(Boolean) as string[])];
 
     // Numeric stepper that no-ops on free-text quantities like "1 gallon".
     const bump = (delta: number) =>
@@ -442,47 +485,60 @@ export default function ListDetail({
                         </span>
                     </button>
 
-                    {groups.map((group) => {
-                        const AisleIcon = aisleIcon(group.aisle.icon);
-                        return (
-                            <section key={group.aisle.slug} className="flex flex-col gap-2">
-                                <h2 className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
-                                    <AisleIcon className="size-3.5" /> {group.aisle.name}
-                                </h2>
-                                {group.items.map((item) => (
-                                    <div key={item.id} className="bg-surface-card group flex items-center gap-3 rounded-xl border p-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => toggle(item)}
-                                            aria-label={isBought(item) ? 'Mark not bought' : 'Mark bought'}
-                                            className={`flex size-6 shrink-0 items-center justify-center rounded-md border transition-colors ${
-                                                isBought(item) ? 'border-primary bg-primary text-primary-foreground' : 'border-border'
-                                            }`}
-                                        >
-                                            {isBought(item) && <Check className="size-4" />}
-                                        </button>
-                                        <button type="button" onClick={() => openEdit(item)} className="min-w-0 flex-1 text-left">
-                                            <div
-                                                className={`text-primary text-sm font-medium ${isBought(item) ? 'text-muted-foreground line-through' : ''}`}
-                                            >
-                                                {item.name}
+                    {storeGroups.map((sg) => (
+                        <div key={sg.store || '__none__'} className="flex flex-col gap-2">
+                            {/* Store header only when the list actually spans shops, so single-store lists stay clean. */}
+                            {multiStore && (
+                                <div className="text-primary border-border/60 mt-1 flex items-center gap-1.5 border-b pb-1 text-sm font-semibold">
+                                    <Store className="size-4" /> {sg.store || 'No store'}
+                                </div>
+                            )}
+                            {sg.aisles.map((group) => {
+                                const AisleIcon = aisleIcon(group.aisle.icon);
+                                return (
+                                    <section key={group.aisle.slug} className="flex flex-col gap-2">
+                                        <h2 className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
+                                            <AisleIcon className="size-3.5" /> {group.aisle.name}
+                                        </h2>
+                                        {group.items.map((item) => (
+                                            <div key={item.id} className="bg-surface-card group flex items-center gap-3 rounded-xl border p-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggle(item)}
+                                                    aria-label={isBought(item) ? 'Mark not bought' : 'Mark bought'}
+                                                    className={`flex size-6 shrink-0 items-center justify-center rounded-md border transition-colors ${
+                                                        isBought(item) ? 'border-primary bg-primary text-primary-foreground' : 'border-border'
+                                                    }`}
+                                                >
+                                                    {isBought(item) && <Check className="size-4" />}
+                                                </button>
+                                                <button type="button" onClick={() => openEdit(item)} className="min-w-0 flex-1 text-left">
+                                                    <div
+                                                        className={`text-primary text-sm font-medium ${isBought(item) ? 'text-muted-foreground line-through' : ''}`}
+                                                    >
+                                                        {item.name}
+                                                    </div>
+                                                    {item.quantity && <div className="text-muted-foreground text-xs">{item.quantity}</div>}
+                                                    {item.altStores.length > 0 && (
+                                                        <div className="text-text-muted mt-0.5 text-[11px]">also: {item.altStores.join(', ')}</div>
+                                                    )}
+                                                </button>
+                                                {item.assignedTo != null && <AssigneeBadge member={memberById.get(item.assignedTo)} />}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => remove(item)}
+                                                    aria-label="Remove item"
+                                                    className="text-muted-foreground hover:text-destructive flex size-7 items-center justify-center rounded-lg opacity-0 transition-opacity group-hover:opacity-100"
+                                                >
+                                                    <Trash2 className="size-4" />
+                                                </button>
                                             </div>
-                                            {item.quantity && <div className="text-muted-foreground text-xs">{item.quantity}</div>}
-                                        </button>
-                                        {item.assignedTo != null && <AssigneeBadge member={memberById.get(item.assignedTo)} />}
-                                        <button
-                                            type="button"
-                                            onClick={() => remove(item)}
-                                            aria-label="Remove item"
-                                            className="text-muted-foreground hover:text-destructive flex size-7 items-center justify-center rounded-lg opacity-0 transition-opacity group-hover:opacity-100"
-                                        >
-                                            <Trash2 className="size-4" />
-                                        </button>
-                                    </div>
-                                ))}
-                            </section>
-                        );
-                    })}
+                                        ))}
+                                    </section>
+                                );
+                            })}
+                        </div>
+                    ))}
 
                     {liveItems.length === 0 && <p className="text-muted-foreground py-6 text-center text-sm">No items yet. Add your first below.</p>}
 
@@ -496,7 +552,14 @@ export default function ListDetail({
                             </Button>
                         </div>
                         {liveItems.some((i) => !isBought(i)) && (
-                            <Button type="button" onClick={() => setFocus(true)} className="w-full shadow-[var(--shadow-fw-md)]">
+                            <Button
+                                type="button"
+                                onClick={() => {
+                                    setFocusStore(focusStores[0] ?? '');
+                                    setFocus(true);
+                                }}
+                                className="w-full shadow-[var(--shadow-fw-md)]"
+                            >
                                 <ShoppingCart className="size-4" /> Start Shopping
                             </Button>
                         )}
@@ -509,31 +572,45 @@ export default function ListDetail({
             {focus &&
                 createPortal(
                     <div className="bg-primary text-primary-foreground fixed inset-0 z-[60] flex flex-col">
-                        <div className="flex items-start justify-between gap-3 px-5 pt-[calc(1rem+env(safe-area-inset-top))] pb-4">
-                            <div className="min-w-0">
-                                <div className="text-primary-foreground/60 flex items-center gap-1.5 text-[11px] font-semibold tracking-widest uppercase">
-                                    Focus Mode · Shopping
-                                </div>
-                                {list.store && (
-                                    <div className="text-primary-foreground/80 mt-1 flex items-center gap-1.5 text-sm">
-                                        <Store className="size-4" /> {list.store}
+                        <div className="px-5 pt-[calc(1rem+env(safe-area-inset-top))] pb-4">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                    <div className="text-primary-foreground/60 flex items-center gap-1.5 text-[11px] font-semibold tracking-widest uppercase">
+                                        Focus Mode · Shopping
                                     </div>
-                                )}
-                                <h2 className="font-heading mt-1 truncate text-2xl">{list.name}</h2>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <span className="text-primary-foreground/80 text-sm tabular-nums">
-                                    {boughtCount}/{liveItems.length}
-                                </span>
+                                    <div className="text-primary-foreground/80 mt-1 flex items-center gap-1.5 text-sm">
+                                        <Store className="size-4" /> {focusStore || list.store || 'No store'}
+                                    </div>
+                                    <h2 className="font-heading mt-1 truncate text-2xl">{list.name}</h2>
+                                </div>
                                 <button
                                     type="button"
                                     onClick={() => setFocus(false)}
                                     aria-label="Exit shopping mode"
-                                    className="hover:bg-primary-foreground/10 flex size-9 items-center justify-center rounded-lg transition-colors"
+                                    className="hover:bg-primary-foreground/10 flex size-9 shrink-0 items-center justify-center rounded-lg transition-colors"
                                 >
                                     <X className="size-5" />
                                 </button>
                             </div>
+                            {/* Switch which shop you're at; each shows the items you can grab there (primary or alt). */}
+                            {focusStores.length > 1 && (
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    {focusStores.map((s) => (
+                                        <button
+                                            key={s || '__none__'}
+                                            type="button"
+                                            onClick={() => setFocusStore(s)}
+                                            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                                                focusStore === s
+                                                    ? 'bg-primary-foreground text-primary'
+                                                    : 'bg-primary-foreground/15 text-primary-foreground/80'
+                                            }`}
+                                        >
+                                            {s || 'No store'}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         <div className="flex-1 space-y-6 overflow-y-auto px-5 pb-[calc(2rem+env(safe-area-inset-bottom))]">
@@ -691,7 +768,7 @@ export default function ListDetail({
                                             {parsed.length} item{parsed.length === 1 ? '' : 's'} sorted into aisles. Edit or remove any.
                                         </p>
                                     </div>
-                                    {aisles
+                                    {aislesFor(list.store)
                                         .map((a) => ({
                                             aisle: a,
                                             entries: parsed.map((it, idx) => ({ it, idx })).filter((e) => e.it.department === a.slug),
@@ -777,7 +854,7 @@ export default function ListDetail({
 
             {share && <ShareSheet open={sharing} onOpenChange={setSharing} share={share} eventName={list.name} />}
 
-            <AisleEditor open={aislesOpen} onOpenChange={setAislesOpen} listId={list.id} storeName={list.store} />
+            <AisleEditor open={aislesOpen} onOpenChange={setAislesOpen} listId={list.id} stores={storeOptions} initialStore={list.store ?? ''} />
 
             {/* Change store */}
             <ResponsiveModal
@@ -867,9 +944,62 @@ export default function ListDetail({
                     </div>
 
                     <div className="grid gap-2">
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Store</Label>
+                        <div className="flex flex-wrap gap-2">
+                            {storeOptions.map((s) => (
+                                <button
+                                    key={s}
+                                    type="button"
+                                    onClick={() => setDraft((d) => ({ ...d, store: s, alt_stores: d.alt_stores.filter((x) => x !== s) }))}
+                                    className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                                        draft.store === s ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-primary'
+                                    }`}
+                                >
+                                    <Store className="size-3.5" /> {s}
+                                </button>
+                            ))}
+                        </div>
+                        <Input
+                            value={draft.store}
+                            onChange={(e) => setDraft((d) => ({ ...d, store: e.target.value }))}
+                            placeholder="Or type a store..."
+                        />
+                    </div>
+
+                    {storeOptions.filter((s) => s !== draft.store).length > 0 && (
+                        <div className="grid gap-2">
+                            <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Also available at</Label>
+                            <div className="flex flex-wrap gap-2">
+                                {storeOptions
+                                    .filter((s) => s !== draft.store)
+                                    .map((s) => {
+                                        const on = draft.alt_stores.includes(s);
+                                        return (
+                                            <button
+                                                key={s}
+                                                type="button"
+                                                onClick={() =>
+                                                    setDraft((d) => ({
+                                                        ...d,
+                                                        alt_stores: on ? d.alt_stores.filter((x) => x !== s) : [...d.alt_stores, s],
+                                                    }))
+                                                }
+                                                className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                                                    on ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-primary'
+                                                }`}
+                                            >
+                                                {s}
+                                            </button>
+                                        );
+                                    })}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="grid gap-2">
                         <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Department</Label>
                         <div className="flex flex-wrap gap-2">
-                            {aisles.map((a) => {
+                            {aislesFor(draft.store || list.store).map((a) => {
                                 const Icon = aisleIcon(a.icon);
                                 const active = draft.department === a.slug;
                                 return (
