@@ -57,6 +57,30 @@ it('materializes default aisles, then adds and deletes a custom one', function (
     expect(ShoppingAisle::withoutGlobalScopes()->where('slug', 'deli')->exists())->toBeFalse();
 });
 
+it('stores an item with a primary store and alternatives', function () {
+    [, $users] = shoppingFamily();
+    actingAs($users[0])->post('/m/shopping/lists', ['name' => 'Weekend', 'store' => 'Metro']);
+    $list = ShoppingList::withoutGlobalScopes()->first();
+
+    actingAs($users[0])->post("/m/shopping/lists/{$list->id}/items", [
+        'name' => 'Milk', 'store' => 'Metro', 'alt_stores' => ['Dedeman', 'Kaufland'],
+    ])->assertRedirect();
+
+    $item = ShoppingItem::withoutGlobalScopes()->where('name', 'Milk')->first();
+    expect($item->store)->toBe('Metro')->and($item->alt_stores)->toBe(['Dedeman', 'Kaufland']);
+});
+
+it('edits aisles for a chosen store, not just the list default', function () {
+    [, $users] = shoppingFamily();
+    actingAs($users[0])->post('/m/shopping/lists', ['name' => 'Weekend', 'store' => 'Metro']);
+    $list = ShoppingList::withoutGlobalScopes()->first();
+
+    $res = actingAs($users[0])->postJson("/m/shopping/lists/{$list->id}/aisles/ensure", ['store' => 'Dedeman'])->assertOk();
+    expect($res->json('store'))->toBe('Dedeman')
+        ->and(ShoppingAisle::withoutGlobalScopes()->where('store', 'Dedeman')->exists())->toBeTrue()
+        ->and(ShoppingAisle::withoutGlobalScopes()->where('store', 'Metro')->exists())->toBeFalse();
+});
+
 it('applies a shop template, replacing the aisles', function () {
     [, $users] = shoppingFamily();
     actingAs($users[0])->post('/m/shopping/lists', ['name' => 'DIY', 'store' => 'Dedeman']);
