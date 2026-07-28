@@ -1,5 +1,5 @@
-import { Head, Link, useForm } from '@inertiajs/react';
-import { Archive, FolderKanban, Link2, Plus } from 'lucide-react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Archive, FolderKanban, Link2, Plus, RotateCcw } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 import InputError from '@/components/input-error';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
+import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { PROJECT_STATUS_KEYS, projectStatus } from '@/lib/projects';
 import { type BreadcrumbItem } from '@/types';
@@ -89,8 +90,10 @@ export default function ProjectsIndex({ projects }: { projects: Project[] }) {
         progress: 0,
     });
 
-    const active = projects.filter((p) => !p.archived);
-    const archived = projects.filter((p) => p.archived);
+    const archivedOpt = useOptimistic<boolean>();
+    const isArchived = (p: Project) => archivedOpt.get(p.id, p.archived);
+    const active = projects.filter((p) => !isArchived(p));
+    const archived = projects.filter((p) => isArchived(p));
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -130,13 +133,44 @@ export default function ProjectsIndex({ projects }: { projects: Project[] }) {
                 </div>
 
                 {archived.length > 0 && (
-                    <div className="mt-2 flex flex-col gap-3">
+                    <div className="mt-2 flex flex-col gap-2">
                         <h2 className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
                             <Archive className="size-3.5" /> Archived
                         </h2>
-                        {archived.map((p) => (
-                            <Card key={p.id} p={p} />
-                        ))}
+                        {archived.map((p) => {
+                            const st = projectStatus(p.status);
+                            return (
+                                <div key={p.id} className="bg-surface flex items-center gap-3 rounded-xl border p-3 opacity-70">
+                                    <span className="text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-lg border">
+                                        <FolderKanban className="size-4.5" />
+                                    </span>
+                                    <Link href={route('projects.show', p.id)} className="min-w-0 flex-1">
+                                        <div className="text-primary truncate text-sm font-medium">{p.name}</div>
+                                        <div className="text-muted-foreground text-xs">{st.label}</div>
+                                    </Link>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            archivedOpt.set(p.id, false);
+                                            router.patch(
+                                                route('projects.update', p.id),
+                                                { archived: false },
+                                                {
+                                                    preserveScroll: true,
+                                                    preserveState: true,
+                                                    onSuccess: () => archivedOpt.clear(p.id),
+                                                    onError: () => archivedOpt.clear(p.id),
+                                                },
+                                            );
+                                        }}
+                                        aria-label="Restore project"
+                                        className="text-muted-foreground hover:text-primary flex size-8 items-center justify-center rounded-lg transition-colors"
+                                    >
+                                        <RotateCcw className="size-4" />
+                                    </button>
+                                </div>
+                            );
+                        })}
                     </div>
                 )}
             </div>
