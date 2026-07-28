@@ -29,11 +29,11 @@ it('lets an admin enable and disable a module', function () {
     [$admin, $family] = moduleAdmin();
     $registry = app(ModuleRegistry::class);
 
-    $this->actingAs($admin)->post('/family/modules/todos/enable')->assertRedirect();
-    expect($registry->isEnabled('todos', $family->id))->toBeTrue();
+    $this->actingAs($admin)->post('/family/modules/tasks/enable')->assertRedirect();
+    expect($registry->isEnabled('tasks', $family->id))->toBeTrue();
 
-    $this->actingAs($admin)->delete('/family/modules/todos')->assertRedirect();
-    expect($registry->isEnabled('todos', $family->id))->toBeFalse();
+    $this->actingAs($admin)->delete('/family/modules/tasks')->assertRedirect();
+    expect($registry->isEnabled('tasks', $family->id))->toBeFalse();
 });
 
 it('forbids a non-admin from managing modules', function () {
@@ -41,7 +41,7 @@ it('forbids a non-admin from managing modules', function () {
     $member = User::factory()->create();
     $family->members()->attach($member, ['role' => 'member']);
 
-    $this->actingAs($member)->post('/family/modules/todos/enable')->assertForbidden();
+    $this->actingAs($member)->post('/family/modules/tasks/enable')->assertForbidden();
 });
 
 it('404s enabling a module that is not installed', function () {
