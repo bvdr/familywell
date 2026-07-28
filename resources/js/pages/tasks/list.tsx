@@ -114,6 +114,7 @@ export default function ListDetail({ list, share, members, tasks }: { list: List
                         canEdit
                         addUrl={route('tasks.tasks.store', list.id)}
                         taskUrl={(id) => route('tasks.tasks.update', id)}
+                        reorderUrl={route('tasks.tasks.reorder', list.id)}
                         emptyHint="No tasks yet. Add your first one below."
                     />
                 </div>
