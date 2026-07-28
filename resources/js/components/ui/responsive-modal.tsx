@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerTitle } from '@/components/ui/drawer';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
-import { X } from 'lucide-react';
+import { ChevronLeft, X } from 'lucide-react';
 import * as React from 'react';
 
 // Drag stops like the Google Maps sheet: a peek (drag down to glance at what's behind) and full. Opens full.
@@ -51,6 +51,7 @@ export function ResponsiveModal({
     footer,
     className,
     autoFocusRef,
+    onBack,
 }: {
     open: boolean;
     onOpenChange: (v: boolean) => void;
@@ -60,6 +61,9 @@ export function ResponsiveModal({
     footer?: React.ReactNode; // pinned to the bottom (stays above the keyboard); e.g. a Save button
     className?: string; // extra classes for the content (e.g. a wider desktop max-width)
     autoFocusRef?: React.RefObject<HTMLElement | null>; // field to focus on open (else the container gets focus)
+    // When set, the header-left shows a "< Back" button instead of the title (title stays for a11y only);
+    // the caller renders the visible title in the body. For sub-view sheets where Back sits above the title.
+    onBack?: () => void;
 }) {
     const isMobile = useIsMobile();
     const keyboardOffset = useKeyboardOffset(isMobile && open);
@@ -119,9 +123,24 @@ export function ResponsiveModal({
                     style={keyboardOffset ? { bottom: keyboardOffset, maxHeight: `calc(100dvh - ${keyboardOffset}px - 0.5rem)` } : undefined}
                 >
                     <div className="mb-3 flex shrink-0 items-start justify-between gap-3 px-5 pt-1">
-                        <div className="flex flex-col gap-1 text-left">
-                            <DrawerTitle>{title}</DrawerTitle>
-                            {description && <DrawerDescription>{description}</DrawerDescription>}
+                        <div className="flex min-w-0 flex-col gap-1 text-left">
+                            {onBack ? (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={onBack}
+                                        className="text-primary -ml-1 flex items-center gap-0.5 text-sm font-medium"
+                                    >
+                                        <ChevronLeft className="size-4" /> Back
+                                    </button>
+                                    <DrawerTitle className="sr-only">{title}</DrawerTitle>
+                                </>
+                            ) : (
+                                <>
+                                    <DrawerTitle>{title}</DrawerTitle>
+                                    {description && <DrawerDescription>{description}</DrawerDescription>}
+                                </>
+                            )}
                         </div>
                         <DrawerClose
                             aria-label="Close"
@@ -163,8 +182,23 @@ export function ResponsiveModal({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className={cn('flex max-h-[90vh] flex-col sm:max-w-md', className)} onOpenAutoFocus={onOpenAutoFocus}>
                 <DialogHeader>
-                    <DialogTitle className="font-heading text-primary text-xl">{title}</DialogTitle>
-                    {description && <DialogDescription className="text-muted-foreground text-sm">{description}</DialogDescription>}
+                    {onBack ? (
+                        <>
+                            <button
+                                type="button"
+                                onClick={onBack}
+                                className="text-primary -ml-1 flex items-center gap-0.5 self-start text-sm font-medium"
+                            >
+                                <ChevronLeft className="size-4" /> Back
+                            </button>
+                            <DialogTitle className="sr-only">{title}</DialogTitle>
+                        </>
+                    ) : (
+                        <>
+                            <DialogTitle className="font-heading text-primary text-xl">{title}</DialogTitle>
+                            {description && <DialogDescription className="text-muted-foreground text-sm">{description}</DialogDescription>}
+                        </>
+                    )}
                 </DialogHeader>
                 <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
                 {footer && <div className="mt-2 shrink-0">{footer}</div>}

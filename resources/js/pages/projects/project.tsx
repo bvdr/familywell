@@ -5,7 +5,6 @@ import {
     Calendar,
     Camera,
     Check,
-    ChevronLeft,
     ChevronRight,
     Copy,
     Image as ImageIcon,
@@ -623,7 +622,8 @@ function LinkListModal({
             open={open}
             onOpenChange={onOpenChange}
             title={view === 'pick' ? 'Shopping list' : 'New shopping list'}
-            description={view === 'pick' ? `Add to ${projectName}` : `It will be added to ${projectName}`}
+            description={view === 'pick' ? `Add to ${projectName}` : undefined}
+            onBack={view === 'new' ? () => setView('pick') : undefined}
             footer={
                 view === 'pick' ? (
                     <Button className="w-full" disabled={!selected.size} onClick={addSelected}>
@@ -680,7 +680,7 @@ function LinkListModal({
                                     <div className="min-w-0 flex-1">
                                         <div className="text-primary text-sm font-medium">{l.name}</div>
                                         <div className="text-muted-foreground text-xs">
-                                            {l.count} items · {l.sharedWith}
+                                            {l.count} item{l.count === 1 ? '' : 's'} · {l.sharedWith}
                                         </div>
                                     </div>
                                     <span
@@ -698,13 +698,11 @@ function LinkListModal({
                 </div>
             ) : (
                 <div className="flex flex-col gap-4">
-                    <button
-                        type="button"
-                        onClick={() => setView('pick')}
-                        className="text-primary flex items-center gap-1 self-start text-sm font-medium"
-                    >
-                        <ChevronLeft className="size-4" /> Back
-                    </button>
+                    {/* Back lives in the sheet header (above this title); here we render the visible title + subtitle. */}
+                    <div>
+                        <h2 className="font-heading text-primary text-2xl">New shopping list</h2>
+                        <p className="text-muted-foreground text-sm">It will be added to {projectName}</p>
+                    </div>
                     <div className="grid gap-2">
                         <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">List name</Label>
                         <Input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Patio materials" />
