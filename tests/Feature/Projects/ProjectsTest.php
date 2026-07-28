@@ -86,11 +86,28 @@ it('links and unlinks a shopping list', function () {
     actingAs($users[0])->post('/m/shopping/lists', ['name' => 'Materials']);
     $list = \Modules\Shopping\ShoppingList::withoutGlobalScopes()->first();
 
-    actingAs($users[0])->post("/m/projects/{$project->id}/lists", ['list_id' => $list->id])->assertRedirect();
+    actingAs($users[0])->post("/m/projects/{$project->id}/lists", ['list_ids' => [$list->id]])->assertRedirect();
     expect($project->links()->where('linkable_id', $list->id)->exists())->toBeTrue();
 
     actingAs($users[0])->delete("/m/projects/{$project->id}/lists/{$list->id}")->assertRedirect();
     expect($project->links()->count())->toBe(0);
+});
+
+it('creates a new shopping list with items and links it', function () {
+    [$family, $users] = projectsFamily();
+    app(ModuleRegistry::class)->enable('shopping', $family->id);
+    actingAs($users[0])->post('/m/projects', ['name' => 'Reno']);
+    $project = Project::withoutGlobalScopes()->first();
+
+    actingAs($users[0])->post("/m/projects/{$project->id}/lists/new", [
+        'name' => 'Patio materials',
+        'items' => [['name' => 'Paver sealer', 'quantity' => '2 tins'], ['name' => 'Landscape fabric']],
+    ])->assertRedirect();
+
+    $list = \Modules\Shopping\ShoppingList::withoutGlobalScopes()->where('name', 'Patio materials')->first();
+    expect($list)->not->toBeNull()
+        ->and($list->items()->count())->toBe(2)
+        ->and($project->links()->where('linkable_id', $list->id)->exists())->toBeTrue();
 });
 
 it('uploads, serves, and deletes a project cover photo', function () {

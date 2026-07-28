@@ -313,10 +313,35 @@ class ProjectsController extends Controller
     public function linkList(Request $request, Project $project): RedirectResponse
     {
         abort_unless($this->access->roleFor($request->user(), $project) !== null, 403);
-        $data = $request->validate(['list_id' => ['required', 'integer']]);
-        // Family scope on both models keeps cross-family links out.
-        abort_unless(ShoppingList::whereKey($data['list_id'])->exists(), 404);
-        $project->links()->firstOrCreate(['linkable_type' => 'shopping_list', 'linkable_id' => $data['list_id']]);
+        $data = $request->validate(['list_ids' => ['required', 'array'], 'list_ids.*' => ['integer']]);
+        foreach ($data['list_ids'] as $id) {
+            // Family scope on both models keeps cross-family links out.
+            if (ShoppingList::whereKey($id)->exists()) {
+                $project->links()->firstOrCreate(['linkable_type' => 'shopping_list', 'linkable_id' => $id]);
+            }
+        }
+        Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
+
+        return back();
+    }
+
+    // Create a brand-new shopping list (optionally seeded with items) and link it to the project.
+    public function createList(Request $request, Project $project): RedirectResponse
+    {
+        abort_unless($this->access->roleFor($request->user(), $project) !== null, 403);
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'items' => ['nullable', 'array', 'max:100'],
+            'items.*.name' => ['required', 'string', 'max:255'],
+            'items.*.quantity' => ['nullable', 'string', 'max:60'],
+        ]);
+
+        $list = ShoppingList::create(['name' => $data['name'], 'color' => 'green', 'icon' => 'cart', 'created_by' => $request->user()->id]);
+        $list->shares()->create(['user_id' => $request->user()->id, 'role' => 'owner']);
+        foreach ($data['items'] ?? [] as $i => $item) {
+            $list->items()->create(['name' => $item['name'], 'quantity' => $item['quantity'] ?? null, 'position' => $i, 'created_by' => $request->user()->id]);
+        }
+        $project->links()->firstOrCreate(['linkable_type' => 'shopping_list', 'linkable_id' => $list->id]);
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
 
         return back();
@@ -332,14 +357,27 @@ class ProjectsController extends Controller
     }
 
     // Shopping lists the family has, for the "link a list" picker (excludes already-linked ones).
+    // Each carries its item count and a short "shared with" label for the row subtitle.
     public function linkableLists(Request $request, Project $project)
     {
         abort_unless($this->access->roleFor($request->user(), $project) !== null, 403);
         $linked = $project->links()->where('linkable_type', 'shopping_list')->pluck('linkable_id')->all();
+        $memberNames = Family::findOrFail(CurrentFamily::id())->members->pluck('name', 'id');
+
+        $lists = ShoppingList::whereNull('archived_at')->whereNotIn('id', $linked)
+            ->withCount('items')->with(['shareSetting', 'shares'])->latest()->get();
 
         return response()->json([
-            'lists' => ShoppingList::whereNull('archived_at')->whereNotIn('id', $linked)->latest()->get()
-                ->map(fn (ShoppingList $l) => ['id' => $l->id, 'name' => $l->name, 'store' => $l->store])->values(),
+            'lists' => $lists->map(function (ShoppingList $l) use ($memberNames) {
+                $vis = $l->visibility();
+                $sharedWith = $vis === 'private'
+                    ? 'only you'
+                    : ($vis === 'family'
+                        ? 'shared with family'
+                        : 'shared with '.$l->shares->where('role', '!=', 'owner')->pluck('user_id')->map(fn ($id) => $memberNames[$id] ?? '?')->join(', '));
+
+                return ['id' => $l->id, 'name' => $l->name, 'store' => $l->store, 'count' => $l->items_count, 'sharedWith' => $sharedWith];
+            })->values(),
         ]);
     }
 
