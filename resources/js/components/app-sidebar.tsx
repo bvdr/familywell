@@ -3,7 +3,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { Blocks, FolderKanban, LayoutGrid, ShoppingCart, Users, Wallet } from 'lucide-react';
+import { Blocks, FolderKanban, LayoutGrid, ListChecks, ShoppingCart, Users, Wallet } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const baseNavItems: NavItem[] = [
@@ -28,6 +28,7 @@ const baseNavItems: NavItem[] = [
 const moduleNavItems: Record<string, NavItem> = {
     spending: { title: 'Spending', url: '/m/spending', icon: Wallet },
     shopping: { title: 'Shopping', url: '/m/shopping', icon: ShoppingCart },
+    tasks: { title: 'Tasks', url: '/m/tasks', icon: ListChecks },
     projects: { title: 'Projects', url: '/m/projects', icon: FolderKanban },
 };
 
