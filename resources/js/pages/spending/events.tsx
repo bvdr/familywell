@@ -5,6 +5,7 @@ import { FormEventHandler, useState } from 'react';
 import { useOptimistic } from '@/hooks/use-optimistic';
 
 import InputError from '@/components/input-error';
+import { MemberAvatar } from '@/components/member-avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,13 +23,7 @@ function Avatars({ members }: { members: Member[] }) {
     return (
         <div className="flex -space-x-2">
             {members.slice(0, 4).map((m) => (
-                <span
-                    key={m.id}
-                    title={m.name}
-                    className="bg-primary text-primary-foreground ring-background flex size-7 items-center justify-center rounded-full text-xs font-medium ring-2"
-                >
-                    {m.name.charAt(0).toUpperCase()}
-                </span>
+                <MemberAvatar key={m.id} userId={m.id} name={m.name} ring className="size-7 text-xs" />
             ))}
             {members.length > 4 && <span className="text-muted-foreground ml-3 self-center text-xs">+{members.length - 4}</span>}
         </div>

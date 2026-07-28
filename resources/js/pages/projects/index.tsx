@@ -3,6 +3,7 @@ import { Archive, FolderKanban, Link2, Plus, RotateCcw } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 import InputError from '@/components/input-error';
+import { MemberAvatar } from '@/components/member-avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,13 +36,7 @@ function Avatars({ members }: { members: Member[] }) {
     return (
         <div className="flex -space-x-1.5">
             {members.slice(0, 4).map((m) => (
-                <span
-                    key={m.id}
-                    title={m.name}
-                    className="bg-primary text-primary-foreground ring-background flex size-6 items-center justify-center rounded-full text-[10px] font-semibold ring-2"
-                >
-                    {m.name.charAt(0).toUpperCase()}
-                </span>
+                <MemberAvatar key={m.id} userId={m.id} name={m.name} ring className="size-6 text-[10px]" />
             ))}
         </div>
     );
