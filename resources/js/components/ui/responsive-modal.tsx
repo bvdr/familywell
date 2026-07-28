@@ -80,6 +80,27 @@ export function ResponsiveModal({
           }
         : undefined;
 
+    // Keep the focused field clear of the keyboard. iOS standalone PWA ignores
+    // interactive-widget=resizes-content, so the browser won't scroll a focused input out from behind
+    // the keyboard, and the lift is short by the input accessory bar (~44px, not in visualViewport).
+    // We track the focused field and centre it in the scroll body — the large bottom padding below gives
+    // the room to centre even the LAST field (otherwise it can't scroll past the bottom). We re-centre
+    // once the keyboard's lift settles (keyboardOffset changes).
+    const focusedRef = React.useRef<HTMLElement | null>(null);
+    const centreFocused = React.useCallback(() => {
+        const el = focusedRef.current;
+        if (el) requestAnimationFrame(() => el.scrollIntoView({ block: 'center' }));
+    }, []);
+    React.useEffect(() => {
+        if (keyboardOffset) centreFocused();
+    }, [keyboardOffset, centreFocused]);
+    const onBodyFocus = (e: React.FocusEvent) => {
+        const t = e.target as HTMLElement;
+        if (t === autoFocusRef?.current || !t.matches('input, textarea, select, [contenteditable="true"]')) return;
+        focusedRef.current = t;
+        setTimeout(centreFocused, 300); // after the keyboard animates in
+    };
+
     if (isMobile) {
         return (
             <Drawer
@@ -112,17 +133,12 @@ export function ResponsiveModal({
                     {/* Only this region scrolls. min-h-0 lets it shrink inside the flex column so it actually
                         scrolls (and lets vaul tell a scroll from a dismiss drag); overflow-x-hidden keeps it vertical. */}
                     <div
-                        className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-5 pb-2"
-                        // iOS standalone PWA ignores interactive-widget=resizes-content, so the browser never
-                        // scrolls a focused field out from behind the keyboard. For tall forms the lower fields
-                        // (e.g. Note) stay hidden, so we bring the tapped field to the middle of the keyboard-
-                        // capped body ourselves, after the keyboard has animated in. Skip the autofocused field:
-                        // it opens with preventScroll on purpose, and scrolling it would yank the pinned header off.
-                        onFocus={(e) => {
-                            const t = e.target as HTMLElement;
-                            if (t === autoFocusRef?.current || !t.matches('input, textarea, select, [contenteditable="true"]')) return;
-                            setTimeout(() => t.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300);
-                        }}
+                        className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-5"
+                        // Big bottom padding while the keyboard is open so ANY field (even the last one) has
+                        // room to scroll up to centre, clear of the keyboard + its accessory bar. It's empty
+                        // scroll space behind the keyboard, so it's invisible; collapses to a hair when closed.
+                        style={{ paddingBottom: keyboardOffset ? '55vh' : '0.5rem' }}
+                        onFocus={onBodyFocus}
                     >
                         {children}
                     </div>
