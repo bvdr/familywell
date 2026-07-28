@@ -13,9 +13,9 @@ class ShoppingItem extends Model
 
     protected $table = 'shopping_items';
 
-    protected $fillable = ['shopping_list_id', 'name', 'quantity', 'department', 'bought', 'note', 'assigned_to', 'position', 'created_by'];
+    protected $fillable = ['shopping_list_id', 'name', 'quantity', 'department', 'bought', 'note', 'assigned_to', 'position', 'created_by', 'store', 'alt_stores'];
 
-    protected $casts = ['bought' => 'boolean'];
+    protected $casts = ['bought' => 'boolean', 'alt_stores' => 'array'];
 
     public function list(): BelongsTo
     {

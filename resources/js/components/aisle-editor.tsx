@@ -29,13 +29,16 @@ export function AisleEditor({
     open,
     onOpenChange,
     listId,
-    storeName,
+    stores,
+    initialStore,
 }: {
     open: boolean;
     onOpenChange: (v: boolean) => void;
     listId: number;
-    storeName: string | null;
+    stores: string[]; // the shops you can edit aisles for (the list's stores)
+    initialStore: string; // '' = the list's default/no store
 }) {
+    const [store, setStore] = useState(initialStore);
     const [aisles, setAisles] = useState<Aisle[]>([]);
     const [templates, setTemplates] = useState<Template[]>([]);
     const [newName, setNewName] = useState('');
@@ -44,15 +47,20 @@ export function AisleEditor({
     const [dirty, setDirty] = useState(false);
 
     useEffect(() => {
+        if (open) setStore(initialStore);
+    }, [open, initialStore]);
+
+    useEffect(() => {
         if (!open) return;
+        setPicker(null);
         // Ensure the shop has editable rows (materializes the fallback), then load them + templates.
-        api('POST', route('shopping.aisles.ensure', listId)).then((d) => {
+        api('POST', route('shopping.aisles.ensure', listId), { store }).then((d) => {
             if (d) {
                 setAisles(d.aisles);
                 setTemplates(d.templates);
             }
         });
-    }, [open, listId]);
+    }, [open, listId, store]);
 
     const apply = (d: { aisles?: Aisle[] } | null) => {
         if (d?.aisles) {
@@ -63,7 +71,7 @@ export function AisleEditor({
 
     const addAisle = async () => {
         if (!newName.trim()) return;
-        apply(await api('POST', route('shopping.aisles.store', listId), { name: newName.trim(), icon: newIcon }));
+        apply(await api('POST', route('shopping.aisles.store', listId), { name: newName.trim(), icon: newIcon, store }));
         setNewName('');
         setNewIcon('basket');
     };
@@ -77,7 +85,7 @@ export function AisleEditor({
         [next[idx], next[j]] = [next[j], next[idx]];
         setAisles(next);
         setDirty(true);
-        await api('POST', route('shopping.aisles.reorder', listId), { slugs: next.map((a) => a.slug) });
+        await api('POST', route('shopping.aisles.reorder', listId), { slugs: next.map((a) => a.slug), store });
     };
     const setIcon = async (target: 'new' | number, icon: string) => {
         if (target === 'new') setNewIcon(icon);
@@ -86,12 +94,12 @@ export function AisleEditor({
     };
     const applyTemplate = async (t: Template) => {
         if (!confirm(`Replace this shop's aisles with the ${t.label} template? Existing aisles are removed.`)) return;
-        apply(await api('POST', route('shopping.aisles.template', listId), { template: t.key }));
+        apply(await api('POST', route('shopping.aisles.template', listId), { template: t.key, store }));
     };
 
     const handleOpenChange = (v: boolean) => {
         if (!v && dirty) {
-            router.reload({ only: ['aisles', 'items'] }); // refresh chips + grouping on the list page
+            router.reload({ only: ['aislesByStore', 'items'] }); // refresh chips + grouping on the list page
             setDirty(false);
         }
         onOpenChange(v);
@@ -102,13 +110,29 @@ export function AisleEditor({
             open={open}
             onOpenChange={handleOpenChange}
             title="Edit aisles"
-            description={storeName ? `Aisles for ${storeName}` : 'Aisles for this shop'}
+            description={stores.length > 1 ? 'Pick a shop, then edit its aisles' : `Aisles for ${store || 'this shop'}`}
             footer={
                 <Button className="w-full" onClick={() => handleOpenChange(false)}>
                     Done
                 </Button>
             }
         >
+            {stores.length > 1 && picker === null && (
+                <div className="mb-4 flex flex-wrap gap-2">
+                    {stores.map((s) => (
+                        <button
+                            key={s}
+                            type="button"
+                            onClick={() => setStore(s)}
+                            className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                                store === s ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-primary'
+                            }`}
+                        >
+                            {s}
+                        </button>
+                    ))}
+                </div>
+            )}
             {picker !== null ? (
                 <div className="flex flex-col gap-3">
                     <button type="button" onClick={() => setPicker(null)} className="text-muted-foreground self-start text-sm">
