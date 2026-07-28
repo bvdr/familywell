@@ -33,6 +33,7 @@ class SpendingServiceProvider extends ServiceProvider
             return SpendEvent::query()
                 ->withSum('spends', 'base_amount')
                 ->with(['shareSetting', 'shares'])
+                ->whereNull('archived_at') // archived events drop off the dashboard
                 ->latest()
                 ->get()
                 ->filter(fn (SpendEvent $e) => $e->visibility() === 'family' || $e->shares->contains('user_id', $userId))

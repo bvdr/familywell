@@ -43,6 +43,7 @@ class SpendingController extends Controller
                 'name' => $e->name,
                 'currency' => $e->currency,
                 'total' => (int) $e->spends_sum_amount,
+                'archived' => $e->archived_at !== null,
                 'members' => $e->members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),
             ])->values();
 
@@ -126,7 +127,17 @@ class SpendingController extends Controller
     {
         $event = $this->event($event);
         abort_unless($this->access->canEdit($request->user(), $event), 403);
-        $event->update($request->validate(['name' => ['required', 'string', 'max:255']]));
+        $data = $request->validate([
+            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'archived' => ['sometimes', 'boolean'],
+        ]);
+        if (array_key_exists('archived', $data)) {
+            $event->archived_at = $data['archived'] ? now() : null;
+        }
+        if (array_key_exists('name', $data)) {
+            $event->name = $data['name'];
+        }
+        $event->save();
         Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
 
         return back();
@@ -485,6 +496,7 @@ class SpendingController extends Controller
                 'name' => $event->name,
                 'currency' => $event->currency,
                 'total' => (int) $spends->sum('base_amount'),
+                'archived' => $event->archived_at !== null,
                 'members' => $members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),
                 'people' => array_sum($split['weights']), // total headcount, not participant rows
                 'categories' => self::CATEGORIES,

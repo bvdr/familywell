@@ -1,5 +1,6 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
+    Archive,
     ArrowRight,
     Banknote,
     BarChart3,
@@ -12,6 +13,7 @@ import {
     Landmark,
     Link2,
     Loader2,
+    MoreHorizontal,
     MoreVertical,
     Pencil,
     Plus,
@@ -45,6 +47,7 @@ type EventT = {
     name: string;
     currency: string;
     total: number;
+    archived: boolean;
     people: number; // total headcount (sum of participant weights), not row count
     members: Member[];
     categories: string[];
@@ -244,6 +247,30 @@ export default function Event({
                 <Link2 className="size-4.5" />
                 {guestShare?.enabled && <span className="bg-primary absolute -top-0.5 -right-0.5 size-2 rounded-full" />}
             </button>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <button
+                        type="button"
+                        aria-label="Event options"
+                        className="border-border text-primary hover:bg-surface flex size-9 items-center justify-center rounded-lg border transition-colors"
+                    >
+                        <MoreHorizontal className="size-4.5" />
+                    </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                    <DropdownMenuItem onSelect={() => setTimeout(() => setEditingTitle(true), 0)}>
+                        <Pencil className="size-4" /> Rename event
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                        onSelect={() =>
+                            router.patch(route('spending.events.update', event.id), { archived: !event.archived }, { preserveScroll: true })
+                        }
+                    >
+                        <Archive className="size-4" /> {event.archived ? 'Unarchive event' : 'Archive event'}
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
         </>
     );
 
