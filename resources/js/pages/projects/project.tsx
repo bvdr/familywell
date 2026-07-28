@@ -72,7 +72,22 @@ export default function ProjectDetail({
     const [sharing, setSharing] = useState(false);
     const [editing, setEditing] = useState(false);
     const [linking, setLinking] = useState(false);
+    const [linkView, setLinkView] = useState<'pick' | 'new'>('pick'); // which view the link-list sheet opens to
+    const [adding, setAdding] = useState(false); // the "Add to project" sheet
+    // Sections stay hidden until they have content; choosing to add one reveals it (with its input).
+    const [reveal, setReveal] = useState<Set<string>>(new Set());
     const [depName, setDepName] = useState('');
+
+    const revealSection = (key: string) => {
+        setAdding(false);
+        setReveal((s) => new Set(s).add(key));
+        setTimeout(() => document.getElementById(`section-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60);
+    };
+    const openLink = (view: 'pick' | 'new') => {
+        setAdding(false);
+        setLinkView(view);
+        setLinking(true);
+    };
     const coverInput = useRef<HTMLInputElement>(null);
     const uploadCover = async (file: File) => {
         const img = await compressImage(file, 1_200_000);
@@ -84,6 +99,11 @@ export default function ProjectDetail({
     const taskTotal = tasks.reduce((n, t) => n + 1 + t.subtasks.length, 0);
     const taskDone = tasks.reduce((n, t) => n + (t.done ? 1 : 0) + t.subtasks.filter((s) => s.done).length, 0);
     const taskPct = taskTotal ? Math.round((taskDone / taskTotal) * 100) : 0;
+
+    // A section shows once it has content, or right after the user chooses to add it from the sheet.
+    const showDeps = dependencies.length > 0 || reveal.has('deps');
+    const showTasks = taskTotal > 0 || reveal.has('tasks');
+    const showLists = lists.length > 0;
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Projects', href: '/m/projects' },
@@ -235,106 +255,138 @@ export default function ProjectDetail({
                 </div>
 
                 {/* Blocked by */}
-                <Section icon={Ban} tone="red" title="Blocked by" count={dependencies.length}>
-                    <div className="flex flex-col gap-2">
-                        {dependencies.map((d) => {
-                            const ds = depStatus(d.status);
-                            return (
-                                <div key={d.id} className="bg-surface-card flex items-center gap-3 rounded-xl border p-3">
-                                    <span className={`size-2 shrink-0 rounded-full ${ds.dot}`} />
-                                    <div className="min-w-0 flex-1">
-                                        <div className="text-primary text-sm font-medium">{d.name}</div>
-                                        {d.note && <div className="text-muted-foreground text-xs">{d.note}</div>}
+                {showDeps && (
+                    <Section id="section-deps" icon={Ban} tone="red" title="Blocked by" count={dependencies.length}>
+                        <div className="flex flex-col gap-2">
+                            {dependencies.map((d) => {
+                                const ds = depStatus(d.status);
+                                return (
+                                    <div key={d.id} className="bg-surface-card flex items-center gap-3 rounded-xl border p-3">
+                                        <span className={`size-2 shrink-0 rounded-full ${ds.dot}`} />
+                                        <div className="min-w-0 flex-1">
+                                            <div className="text-primary text-sm font-medium">{d.name}</div>
+                                            {d.note && <div className="text-muted-foreground text-xs">{d.note}</div>}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => cycleDep(d)}
+                                            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${ds.chip}`}
+                                        >
+                                            {ds.label}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => router.delete(route('projects.deps.destroy', d.id), { preserveScroll: true })}
+                                            aria-label="Remove"
+                                            className="text-muted-foreground hover:text-destructive flex size-6 items-center justify-center"
+                                        >
+                                            <X className="size-4" />
+                                        </button>
                                     </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => cycleDep(d)}
-                                        className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${ds.chip}`}
-                                    >
-                                        {ds.label}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => router.delete(route('projects.deps.destroy', d.id), { preserveScroll: true })}
-                                        aria-label="Remove"
-                                        className="text-muted-foreground hover:text-destructive flex size-6 items-center justify-center"
-                                    >
-                                        <X className="size-4" />
-                                    </button>
-                                </div>
-                            );
-                        })}
-                        <InlineAdd value={depName} onChange={setDepName} onAdd={addDep} placeholder="Add a blocker..." />
-                    </div>
-                </Section>
+                                );
+                            })}
+                            <InlineAdd
+                                value={depName}
+                                onChange={setDepName}
+                                onAdd={addDep}
+                                placeholder="Add a blocker..."
+                                autoFocus={reveal.has('deps') && dependencies.length === 0}
+                            />
+                        </div>
+                    </Section>
+                )}
 
                 {/* Tasks */}
-                <Section
-                    icon={ListChecks}
-                    title="Tasks"
-                    sub={taskTotal ? `${taskDone} of ${taskTotal} done` : undefined}
-                    pct={taskTotal ? taskPct : undefined}
-                >
-                    {taskTotal > 0 && (
-                        <div className="bg-surface mb-2 h-1.5 overflow-hidden rounded-full">
-                            <div className="bg-primary h-full rounded-full" style={{ width: `${taskPct}%` }} />
-                        </div>
-                    )}
-                    <TaskTree
-                        tasks={tasks}
-                        members={members}
-                        canEdit
-                        addUrl={route('projects.tasks.store', project.id)}
-                        taskUrl={(id) => route('projects.tasks.update', id)}
-                        reorderUrl={route('projects.tasks.reorder', project.id)}
-                        emptyHint="No tasks yet. Add the first one below."
-                    />
-                </Section>
+                {showTasks && (
+                    <Section
+                        id="section-tasks"
+                        icon={ListChecks}
+                        title="Tasks"
+                        sub={taskTotal ? `${taskDone} of ${taskTotal} done` : undefined}
+                        pct={taskTotal ? taskPct : undefined}
+                    >
+                        {taskTotal > 0 && (
+                            <div className="bg-surface mb-2 h-1.5 overflow-hidden rounded-full">
+                                <div className="bg-primary h-full rounded-full" style={{ width: `${taskPct}%` }} />
+                            </div>
+                        )}
+                        <TaskTree
+                            tasks={tasks}
+                            members={members}
+                            canEdit
+                            addUrl={route('projects.tasks.store', project.id)}
+                            taskUrl={(id) => route('projects.tasks.update', id)}
+                            reorderUrl={route('projects.tasks.reorder', project.id)}
+                            emptyHint="No tasks yet. Add the first one below."
+                        />
+                    </Section>
+                )}
 
                 {/* Materials — linked shopping lists */}
-                <Section icon={ShoppingCart} title="Shopping lists" count={lists.length}>
-                    <div className="flex flex-col gap-2">
-                        {lists.map((l) => (
-                            <div key={l.id} className="bg-surface-card flex items-center gap-3 rounded-xl border p-3">
-                                <span className="bg-accent-subtle text-primary flex size-9 shrink-0 items-center justify-center rounded-lg">
-                                    <ShoppingCart className="size-4.5" />
-                                </span>
-                                <Link href={`/m/shopping/lists/${l.id}`} className="min-w-0 flex-1">
-                                    <div className="text-primary text-sm font-medium">{l.name}</div>
-                                    <div className="text-muted-foreground text-xs">
-                                        {l.store ? `${l.store} · ` : ''}
-                                        {l.bought} of {l.total} bought
-                                    </div>
-                                </Link>
-                                <button
-                                    type="button"
-                                    onClick={() => router.delete(route('projects.lists.unlink', [project.id, l.id]), { preserveScroll: true })}
-                                    aria-label="Unlink list"
-                                    className="text-muted-foreground hover:text-destructive flex size-6 items-center justify-center"
-                                >
-                                    <Unlink className="size-4" />
-                                </button>
-                            </div>
-                        ))}
-                        <button
-                            type="button"
-                            onClick={() => setLinking(true)}
-                            className="border-accent text-primary hover:bg-surface flex items-center justify-center gap-2 rounded-xl border border-dashed py-3 text-sm font-medium transition-colors"
-                        >
-                            <Plus className="size-4" /> Link a shopping list
-                        </button>
-                    </div>
-                </Section>
+                {showLists && (
+                    <Section id="section-lists" icon={ShoppingCart} title="Shopping lists" count={lists.length}>
+                        <div className="flex flex-col gap-2">
+                            {lists.map((l) => (
+                                <div key={l.id} className="bg-surface-card flex items-center gap-3 rounded-xl border p-3">
+                                    <span className="bg-accent-subtle text-primary flex size-9 shrink-0 items-center justify-center rounded-lg">
+                                        <ShoppingCart className="size-4.5" />
+                                    </span>
+                                    <Link href={`/m/shopping/lists/${l.id}`} className="min-w-0 flex-1">
+                                        <div className="text-primary text-sm font-medium">{l.name}</div>
+                                        <div className="text-muted-foreground text-xs">
+                                            {l.store ? `${l.store} · ` : ''}
+                                            {l.bought} of {l.total} bought
+                                        </div>
+                                    </Link>
+                                    <button
+                                        type="button"
+                                        onClick={() => router.delete(route('projects.lists.unlink', [project.id, l.id]), { preserveScroll: true })}
+                                        aria-label="Unlink list"
+                                        className="text-muted-foreground hover:text-destructive flex size-6 items-center justify-center"
+                                    >
+                                        <Unlink className="size-4" />
+                                    </button>
+                                </div>
+                            ))}
+                            <button
+                                type="button"
+                                onClick={() => openLink('pick')}
+                                className="border-accent text-primary hover:bg-surface flex items-center justify-center gap-2 rounded-xl border border-dashed py-3 text-sm font-medium transition-colors"
+                            >
+                                <Plus className="size-4" /> Link a shopping list
+                            </button>
+                        </div>
+                    </Section>
+                )}
+
+                {/* Compose the project: add a section / piece of content. Sections appear once they have content. */}
+                <button
+                    type="button"
+                    onClick={() => setAdding(true)}
+                    className="border-accent text-primary hover:bg-surface flex items-center justify-center gap-2 rounded-xl border border-dashed py-3.5 text-sm font-semibold transition-colors"
+                >
+                    <Plus className="size-4.5" /> Add something to this project
+                </button>
             </div>
 
             {share && <ShareSheet open={sharing} onOpenChange={setSharing} share={share} eventName={project.name} />}
             <EditModal open={editing} onOpenChange={setEditing} project={project} members={members} />
-            <LinkListModal open={linking} onOpenChange={setLinking} projectId={project.id} projectName={project.name} />
+            <LinkListModal open={linking} onOpenChange={setLinking} projectId={project.id} projectName={project.name} initialView={linkView} />
+            <AddToProjectSheet
+                open={adding}
+                onOpenChange={setAdding}
+                projectName={project.name}
+                onTaskList={() => revealSection('tasks')}
+                onDependency={() => revealSection('deps')}
+                onShoppingNew={() => openLink('new')}
+                onShoppingLink={() => openLink('pick')}
+            />
         </AppLayout>
     );
 }
 
 function Section({
+    id,
     icon: Icon,
     tone = 'green',
     title,
@@ -343,6 +395,7 @@ function Section({
     pct,
     children,
 }: {
+    id?: string;
     icon: LucideIcon;
     tone?: 'green' | 'red';
     title: string;
@@ -352,7 +405,7 @@ function Section({
     children: React.ReactNode;
 }) {
     return (
-        <section>
+        <section id={id} className="scroll-mt-20">
             <div className="mb-3 flex items-center gap-2.5">
                 <span
                     className={`flex size-8 items-center justify-center rounded-lg ${tone === 'red' ? 'bg-red-100 text-red-600' : 'bg-accent-subtle text-primary'}`}
@@ -374,15 +427,18 @@ function InlineAdd({
     onChange,
     onAdd,
     placeholder,
+    autoFocus,
 }: {
     value: string;
     onChange: (v: string) => void;
     onAdd: () => void;
     placeholder: string;
+    autoFocus?: boolean;
 }) {
     return (
         <div className="flex items-center gap-2">
             <Input
+                autoFocus={autoFocus}
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && onAdd()}
@@ -392,6 +448,61 @@ function InlineAdd({
                 <Plus className="size-4" />
             </Button>
         </div>
+    );
+}
+
+// The "Add to project" sheet: pick what to add. New content-type modules (Note, File, Contact, etc.)
+// will slot in here as they are built; for now it composes the sections the project already supports.
+function AddToProjectSheet({
+    open,
+    onOpenChange,
+    projectName,
+    onTaskList,
+    onDependency,
+    onShoppingNew,
+    onShoppingLink,
+}: {
+    open: boolean;
+    onOpenChange: (v: boolean) => void;
+    projectName: string;
+    onTaskList: () => void;
+    onDependency: () => void;
+    onShoppingNew: () => void;
+    onShoppingLink: () => void;
+}) {
+    const Row = ({ icon: Icon, title, sub, onClick }: { icon: LucideIcon; title: string; sub: string; onClick: () => void }) => (
+        <button
+            type="button"
+            onClick={onClick}
+            className="bg-surface-card hover:border-accent flex items-center gap-3 rounded-2xl border p-3 text-left transition-colors"
+        >
+            <span className="bg-accent-subtle text-primary flex size-11 shrink-0 items-center justify-center rounded-xl">
+                <Icon className="size-5.5" />
+            </span>
+            <div className="min-w-0 flex-1">
+                <div className="text-primary font-semibold">{title}</div>
+                <div className="text-muted-foreground text-xs">{sub}</div>
+            </div>
+            <ChevronRight className="text-muted-foreground size-4 shrink-0" />
+        </button>
+    );
+
+    return (
+        <ResponsiveModal open={open} onOpenChange={onOpenChange} title="Add to project" description={projectName}>
+            <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-2">
+                    <div className="text-text-muted text-[11px] font-semibold tracking-widest uppercase">Create new</div>
+                    <Row icon={ListChecks} title="Task list" sub="To-dos with assignees" onClick={onTaskList} />
+                    <Row icon={ShoppingCart} title="Shopping list" sub="Things to buy" onClick={onShoppingNew} />
+                    <Row icon={Ban} title="Dependency" sub="Blocked by another thing" onClick={onDependency} />
+                </div>
+                <div className="flex flex-col gap-2">
+                    <div className="text-text-muted text-[11px] font-semibold tracking-widest uppercase">Link something existing</div>
+                    <Row icon={ShoppingCart} title="Shopping list" sub="A list you already have" onClick={onShoppingLink} />
+                </div>
+                <p className="text-muted-foreground text-xs leading-relaxed">Notes, files, contacts and calendar events are coming soon.</p>
+            </div>
+        </ResponsiveModal>
     );
 }
 
@@ -520,13 +631,15 @@ function LinkListModal({
     onOpenChange,
     projectId,
     projectName,
+    initialView = 'pick',
 }: {
     open: boolean;
     onOpenChange: (v: boolean) => void;
     projectId: number;
     projectName: string;
+    initialView?: 'pick' | 'new';
 }) {
-    const [view, setView] = useState<'pick' | 'new'>('pick');
+    const [view, setView] = useState<'pick' | 'new'>(initialView);
     const [lists, setLists] = useState<Linkable[]>([]);
     const [selected, setSelected] = useState<Set<number>>(new Set());
     const [q, setQ] = useState('');
@@ -535,7 +648,7 @@ function LinkListModal({
 
     useEffect(() => {
         if (!open) return;
-        setView('pick');
+        setView(initialView);
         setSelected(new Set());
         setQ('');
         setNewName('');
@@ -543,7 +656,7 @@ function LinkListModal({
         fetch(route('projects.lists.linkable', projectId), { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
             .then((r) => (r.ok ? r.json() : { lists: [] }))
             .then((d) => setLists(d.lists));
-    }, [open, projectId]);
+    }, [open, projectId, initialView]);
 
     const filtered = lists.filter((l) => l.name.toLowerCase().includes(q.toLowerCase()));
     const toggle = (id: number) =>
