@@ -25,6 +25,8 @@ import {
 import { createContext, FormEventHandler, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { GuestSheet, type GuestShareState } from '@/components/guest-sheet';
+import { useMemberColors } from '@/components/member-avatar';
+import { avatarColorFor } from '@/lib/avatar';
 import InputError from '@/components/input-error';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
 import { Button } from '@/components/ui/button';
@@ -509,14 +511,23 @@ export default function Event({
     const setWeight = (p: Participant, w: number) => patchParticipant(p, Math.max(1, w), p.coveredBy);
     const setCover = (p: Participant, key: string | null) => patchParticipant(p, p.weight, key);
 
-    // Distinct avatar colour per participant (by position), so no two people share a colour.
+    // Avatar colour per participant. Family members use their global family colour (same everywhere in
+    // the app); guests, who aren't family members, get a distinct colour from the warm fallback palette.
+    const memberColorsMap = useMemberColors();
     const avatarColors = useMemo(() => {
         const m = new Map<string, { bg: string; fg: string }>();
-        participants.forEach((p, i) => {
-            if (!m.has(p.name)) m.set(p.name, PERSON_COLORS[i % PERSON_COLORS.length]);
+        let guestI = 0;
+        participants.forEach((p) => {
+            if (m.has(p.name)) return;
+            if (p.kind === 'member') {
+                const [bg, fg] = avatarColorFor(memberColorsMap, Number(p.key.slice(1)), p.name);
+                m.set(p.name, { bg, fg });
+            } else {
+                m.set(p.name, PERSON_COLORS[guestI++ % PERSON_COLORS.length]);
+            }
         });
         return m;
-    }, [participants]);
+    }, [participants, memberColorsMap]);
 
     // Record a transfer (settle-up payment) straight from the Transfers tab. Settlements are between
     // family members (they have accounts), so from/to are members; amounts are in the event's currency.

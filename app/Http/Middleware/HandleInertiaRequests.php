@@ -52,7 +52,23 @@ class HandleInertiaRequests extends Middleware
             // share() at the START of the middleware chain, before SetActiveFamily sets the family
             // context, so this must defer to render time when CurrentFamily::id() is available.
             'modules' => fn () => ['enabled' => $this->enabledModuleIds()],
+            // Each family member's avatar colour, as userId => palette index assigned by member order,
+            // so every member gets a different (and consistent, app-wide) colour. Lazy: needs the
+            // family context that SetActiveFamily fills in later in the chain.
+            'memberColors' => fn () => $this->memberColors(),
         ]);
+    }
+
+    /** @return array<int,int> userId => avatar palette index (assigned by member order) */
+    private function memberColors(): array
+    {
+        if (! $familyId = CurrentFamily::id()) {
+            return [];
+        }
+
+        return \App\Models\Family::find($familyId)
+            ?->members()->orderBy('users.id')->pluck('users.id')
+            ->values()->flip()->all() ?? [];
     }
 
     /** @return list<string> */
