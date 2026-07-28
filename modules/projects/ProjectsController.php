@@ -313,6 +313,51 @@ class ProjectsController extends Controller
         return back();
     }
 
+    // Drag-and-drop reorder + re-nest for a project's tasks. Tasks in new visual order, each with its
+    // parent (null = top level). Positions re-numbered per group; project links reconciled so top-level
+    // tasks stay linked and nested tasks (reached via their parent) do not.
+    public function reorderTasks(Request $request, Project $project): RedirectResponse
+    {
+        abort_unless($this->access->roleFor($request->user(), $project) !== null, 403);
+        $data = $request->validate([
+            'order' => ['present', 'array'],
+            'order.*.id' => ['required', 'integer'],
+            'order.*.parent_id' => ['nullable', 'integer'],
+        ]);
+
+        // The tasks that belong to this project: its linked top-level tasks plus their sub-tasks.
+        $topIds = $project->links()->where('linkable_type', 'task')->pluck('linkable_id');
+        $tasks = Task::where(fn ($q) => $q->whereIn('id', $topIds)->orWhereIn('parent_id', $topIds))->get()->keyBy('id');
+
+        $ids = collect($data['order'])->pluck('id');
+        abort_unless($ids->every(fn ($id) => $tasks->has($id)), 422);
+
+        $parentIds = collect($data['order'])->pluck('parent_id')->filter()->unique();
+        foreach ($data['order'] as $row) {
+            if ($row['parent_id'] !== null) {
+                abort_unless($tasks->has($row['parent_id']), 422);
+                abort_if($parentIds->contains($row['id']), 422, 'Only one level of nesting is allowed.');
+            }
+        }
+
+        $counters = [];
+        foreach ($data['order'] as $row) {
+            $key = $row['parent_id'] ?? 'root';
+            $pos = $counters[$key] = ($counters[$key] ?? -1) + 1;
+            $tasks[$row['id']]->update(['parent_id' => $row['parent_id'], 'position' => $pos]);
+
+            if ($row['parent_id'] === null) {
+                $project->links()->firstOrCreate(['linkable_type' => 'task', 'linkable_id' => $row['id']]);
+            } else {
+                $project->links()->where(['linkable_type' => 'task', 'linkable_id' => $row['id']])->delete();
+            }
+        }
+
+        Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
+
+        return back();
+    }
+
     public function updateTask(Request $request, Task $task): RedirectResponse
     {
         $this->projectForTask($request, $task);
