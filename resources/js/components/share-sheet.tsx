@@ -1,3 +1,4 @@
+import { MemberAvatar } from '@/components/member-avatar';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { router } from '@inertiajs/react';
 import { Check, Copy, Link2, Lock, UserCheck, Users } from 'lucide-react';
@@ -19,8 +20,6 @@ const VISIBILITY = [
     { key: 'private', icon: Lock, title: 'Private', sub: 'Visible only to you' },
 ] as const;
 
-// initials helper kept local so the sheet has no external deps beyond the router.
-const initial = (name: string) => name.charAt(0).toUpperCase();
 
 export function ShareSheet({
     open,
@@ -117,9 +116,7 @@ export function ShareSheet({
                         const excluded = state.visibility === 'private' && !m.isOwner;
                         return (
                             <div key={m.id} className={`flex items-center gap-3 py-2 transition-opacity ${excluded ? 'opacity-40' : ''}`}>
-                                <span className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-full text-sm font-medium">
-                                    {initial(m.name)}
-                                </span>
+                                <MemberAvatar userId={m.id} name={m.name} className="size-9 text-sm" />
                                 <div className="flex-1">
                                     <div className="text-primary text-sm font-medium">{m.name}</div>
                                     {m.isOwner && <div className="text-muted-foreground text-xs">Owner</div>}
