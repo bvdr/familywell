@@ -266,6 +266,42 @@ class TasksController extends Controller
         return back();
     }
 
+    // Drag-and-drop reorder + re-nest. Accepts the tasks in their new visual order, each with the
+    // parent it now belongs to (null = top level). Positions are re-numbered per parent group.
+    public function reorderTasks(Request $request, TaskList $list): RedirectResponse
+    {
+        abort_unless($this->access->roleFor($request->user(), $list) !== null, 403);
+        $data = $request->validate([
+            'order' => ['present', 'array'],
+            'order.*.id' => ['required', 'integer'],
+            'order.*.parent_id' => ['nullable', 'integer'],
+        ]);
+
+        $ids = collect($data['order'])->pluck('id')->all();
+        $tasks = $list->tasks()->whereIn('id', $ids)->get()->keyBy('id');
+        abort_unless($tasks->count() === count($ids), 422);
+
+        // Enforce a single level of nesting: an id used as someone's parent may not itself be nested.
+        $parentIds = collect($data['order'])->pluck('parent_id')->filter()->unique();
+        foreach ($data['order'] as $row) {
+            if ($row['parent_id'] !== null) {
+                abort_unless($tasks->has($row['parent_id']), 422);
+                abort_if($parentIds->contains($row['id']), 422, 'Only one level of nesting is allowed.');
+            }
+        }
+
+        $counters = [];
+        foreach ($data['order'] as $row) {
+            $key = $row['parent_id'] ?? 'root';
+            $pos = $counters[$key] = ($counters[$key] ?? -1) + 1;
+            $tasks[$row['id']]->update(['parent_id' => $row['parent_id'], 'position' => $pos]);
+        }
+
+        Realtime::broadcast(new TasksChanged((int) CurrentFamily::id()));
+
+        return back();
+    }
+
     public function updateTask(Request $request, Task $task): RedirectResponse
     {
         // Only list tasks are managed here; project (listless) tasks go through the projects module.

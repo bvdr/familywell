@@ -93,6 +93,26 @@ it('duplicates a list with its tasks and sub-tasks, reset to not-done', function
         ->and($copy->tasks()->where('done', true)->count())->toBe(0);
 });
 
+it('reorders and nests tasks, rejecting a second level', function () {
+    [, $users] = tasksFamily();
+    actingAs($users[0])->post('/m/tasks/lists', ['name' => 'Chores']);
+    $list = TaskList::withoutGlobalScopes()->first();
+    actingAs($users[0])->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'A']);
+    actingAs($users[0])->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'B']);
+    $a = Task::withoutGlobalScopes()->where('title', 'A')->first();
+    $b = Task::withoutGlobalScopes()->where('title', 'B')->first();
+
+    actingAs($users[0])->post("/m/tasks/lists/{$list->id}/tasks/reorder", [
+        'order' => [['id' => $a->id, 'parent_id' => null], ['id' => $b->id, 'parent_id' => $a->id]],
+    ])->assertRedirect();
+    expect($b->fresh()->parent_id)->toBe($a->id);
+
+    // A may not nest under B, because B is itself nested (one level only).
+    actingAs($users[0])->post("/m/tasks/lists/{$list->id}/tasks/reorder", [
+        'order' => [['id' => $b->id, 'parent_id' => $a->id], ['id' => $a->id, 'parent_id' => $b->id]],
+    ])->assertStatus(422);
+});
+
 it('hides a private list from a member who was not shared', function () {
     [, $users] = tasksFamily();
     [$alice, $bob] = $users;
