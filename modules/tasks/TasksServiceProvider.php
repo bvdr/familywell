@@ -55,6 +55,7 @@ class TasksServiceProvider extends ServiceProvider
                 Route::delete('/lists/{list}', [TasksController::class, 'destroyList'])->name('lists.destroy');
 
                 Route::post('/lists/{list}/tasks', [TasksController::class, 'storeTask'])->name('tasks.store');
+                Route::post('/lists/{list}/tasks/reorder', [TasksController::class, 'reorderTasks'])->name('tasks.reorder');
                 Route::patch('/tasks/{task}', [TasksController::class, 'updateTask'])->name('tasks.update');
                 Route::delete('/tasks/{task}', [TasksController::class, 'destroyTask'])->name('tasks.destroy');
             });

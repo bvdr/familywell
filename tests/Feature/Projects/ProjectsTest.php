@@ -73,6 +73,31 @@ it('adds, toggles, and deletes a task (unified tasks-module tasks)', function ()
         ->and($project->links()->where('linkable_type', 'task')->count())->toBe(0);
 });
 
+it('reorders project tasks and reconciles links when nesting/un-nesting', function () {
+    [, $users] = projectsFamily();
+    actingAs($users[0])->post('/m/projects', ['name' => 'Reno']);
+    $project = Project::withoutGlobalScopes()->first();
+    actingAs($users[0])->post("/m/projects/{$project->id}/tasks", ['title' => 'A']);
+    actingAs($users[0])->post("/m/projects/{$project->id}/tasks", ['title' => 'B']);
+    $a = Task::withoutGlobalScopes()->where('title', 'A')->first();
+    $b = Task::withoutGlobalScopes()->where('title', 'B')->first();
+    expect($project->links()->where('linkable_type', 'task')->count())->toBe(2);
+
+    // Nest B under A: B is now reached via A, so it loses its own project link.
+    actingAs($users[0])->post("/m/projects/{$project->id}/tasks/reorder", [
+        'order' => [['id' => $a->id, 'parent_id' => null], ['id' => $b->id, 'parent_id' => $a->id]],
+    ])->assertRedirect();
+    expect($b->fresh()->parent_id)->toBe($a->id)
+        ->and($project->links()->where(['linkable_type' => 'task', 'linkable_id' => $b->id])->exists())->toBeFalse()
+        ->and($project->links()->where('linkable_type', 'task')->count())->toBe(1);
+
+    // Un-nest B: it becomes top-level again and regains a link.
+    actingAs($users[0])->post("/m/projects/{$project->id}/tasks/reorder", [
+        'order' => [['id' => $a->id, 'parent_id' => null], ['id' => $b->id, 'parent_id' => null]],
+    ])->assertRedirect();
+    expect($project->links()->where('linkable_type', 'task')->count())->toBe(2);
+});
+
 it('adds a dependency and cycles its status', function () {
     [, $users] = projectsFamily();
     actingAs($users[0])->post('/m/projects', ['name' => 'Reno']);
