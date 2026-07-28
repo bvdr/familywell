@@ -22,6 +22,8 @@ class SpendEvent extends Model implements ProvidesGuestView, ProvidesPublicShare
 
     protected $fillable = ['name', 'currency', 'created_by'];
 
+    protected $casts = ['archived_at' => 'datetime'];
+
     /** Participants the spends are split among (snapshot of the family at creation). */
     public function members(): BelongsToMany
     {

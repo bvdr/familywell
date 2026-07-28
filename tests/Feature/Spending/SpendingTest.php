@@ -28,6 +28,24 @@ function spendingFamily(int $members = 3): array
     return [$family, $users];
 }
 
+it('archives and unarchives an event', function () {
+    [, $users] = spendingFamily();
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Old Trip', 'currency' => 'EUR']);
+    $event = SpendEvent::withoutGlobalScopes()->first();
+    expect($event->archived_at)->toBeNull();
+
+    actingAs($users[0])->patch("/m/spending/events/{$event->id}", ['archived' => true])->assertRedirect();
+    expect($event->fresh()->archived_at)->not->toBeNull();
+
+    // Renaming still works and leaves the archived state untouched.
+    actingAs($users[0])->patch("/m/spending/events/{$event->id}", ['name' => 'Old Trip 2023'])->assertRedirect();
+    expect($event->fresh()->name)->toBe('Old Trip 2023')
+        ->and($event->fresh()->archived_at)->not->toBeNull();
+
+    actingAs($users[0])->patch("/m/spending/events/{$event->id}", ['archived' => false])->assertRedirect();
+    expect($event->fresh()->archived_at)->toBeNull();
+});
+
 it('404s when the module is not enabled', function () {
     $user = User::factory()->create();
     $family = Family::factory()->create(['owner_id' => $user->id]);
