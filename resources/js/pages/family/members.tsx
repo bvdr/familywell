@@ -3,6 +3,7 @@ import { Check, Mail, Plus, Trash2, X } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 import InputError from '@/components/input-error';
+import { MemberAvatar } from '@/components/member-avatar';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -271,9 +272,7 @@ export default function Members({ family, members, invitations, canManage, palet
                                         <TableRow key={m.id}>
                                             <TableCell>
                                                 <div className="flex items-center gap-3">
-                                                    <span className="bg-primary text-primary-foreground flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-medium">
-                                                        {m.name.charAt(0).toUpperCase()}
-                                                    </span>
+                                                    <MemberAvatar userId={m.id} name={m.name} className="size-9 text-sm" />
                                                     <div>
                                                         <div className="text-primary font-medium">
                                                             {m.name}

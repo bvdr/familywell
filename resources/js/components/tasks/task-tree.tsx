@@ -21,7 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
-import { avatarColor } from '@/lib/projects';
+import { MemberAvatar } from '@/components/member-avatar';
 import { dueLabel } from '@/lib/tasks';
 import { buildTree, type FlatTask, flatten, getProjection, INDENT, removeChildrenOf } from './tree-utils';
 
@@ -53,12 +53,7 @@ function memberName(members: TaskMember[], id: number | null) {
 function AssigneeDot({ members, id }: { members: TaskMember[]; id: number | null }) {
     const name = memberName(members, id);
     if (!name) return null;
-    const [bg, fg] = avatarColor(name);
-    return (
-        <span title={name} className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${bg} ${fg}`}>
-            {name.charAt(0).toUpperCase()}
-        </span>
-    );
+    return <MemberAvatar userId={id} name={name} className="size-5 text-[10px]" />;
 }
 
 export function TaskTree({ tasks, members, canEdit, addUrl, taskUrl, reorderUrl, emptyHint }: Props) {

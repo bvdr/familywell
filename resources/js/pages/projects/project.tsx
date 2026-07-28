@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { FormEventHandler, useEffect, useRef, useState } from 'react';
 
+import { MemberAvatar } from '@/components/member-avatar';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
 import { TaskTree, type TaskNode } from '@/components/tasks/task-tree';
 import { Button } from '@/components/ui/button';
@@ -30,7 +31,7 @@ import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import AppLayout from '@/layouts/app-layout';
 import { compressImage } from '@/lib/compress-image';
-import { avatarColor, DEP_STATUS_KEYS, depStatus, PROJECT_STATUS_KEYS, projectStatus, shortDate } from '@/lib/projects';
+import { DEP_STATUS_KEYS, depStatus, PROJECT_STATUS_KEYS, projectStatus, shortDate } from '@/lib/projects';
 import { type BreadcrumbItem } from '@/types';
 
 type Member = { id: number; name: string };
@@ -200,19 +201,9 @@ export default function ProjectDetail({
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
                         <div className="flex -space-x-1.5">
-                            {members.slice(0, 3).map((m) => {
-                                const [bg, fg] = avatarColor(m.name);
-                                return (
-                                    <span
-                                        key={m.id}
-                                        title={m.name}
-                                        style={{ background: bg, color: fg }}
-                                        className="ring-background flex size-6 items-center justify-center rounded-full text-[10px] font-semibold ring-2"
-                                    >
-                                        {m.name.charAt(0).toUpperCase()}
-                                    </span>
-                                );
-                            })}
+                            {members.slice(0, 3).map((m) => (
+                                <MemberAvatar key={m.id} userId={m.id} name={m.name} ring className="size-6 text-[10px]" />
+                            ))}
                         </div>
                         <span className="text-muted-foreground text-sm">Shared with family</span>
                     </div>
