@@ -1,30 +1,48 @@
 import { router } from '@inertiajs/react';
-import { Calendar, Check, ChevronDown, MoreVertical, Plus, Trash2, UserCircle2 } from 'lucide-react';
-import { useState } from 'react';
+import {
+    closestCenter,
+    DndContext,
+    type DragEndEvent,
+    DragOverlay,
+    type DragMoveEvent,
+    type DragStartEvent,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+} from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { Calendar, Check, GripVertical, Plus, Trash2, UserCircle2 } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import { avatarColor } from '@/lib/projects';
 import { dueLabel } from '@/lib/tasks';
+import { buildTree, type FlatTask, flatten, getProjection, INDENT, removeChildrenOf } from './tree-utils';
 
 export type TaskMember = { id: number; name: string };
 export type SubTask = { id: number; title: string; note: string | null; done: boolean; dueDate: string | null; assignedTo: number | null };
 export type TaskNode = SubTask & { subtasks: SubTask[] };
 
-// Shared task list UI, used both by the tasks module (list detail) and the project detail's unified
-// Tasks section. The two contexts differ only in their endpoints, passed in as `addUrl` (POST a new
-// task, body {title, parent_id?}) and `taskUrl(id)` (PATCH to edit/toggle, DELETE to remove — same
-// path). All toggles are optimistic so a tap feels instant.
+// Shared task list, used by the tasks module and the project detail's unified Tasks section. The two
+// contexts differ only in their endpoints: `addUrl` (POST {title, parent_id?}), `taskUrl(id)` (PATCH
+// edit/toggle, DELETE), and `reorderUrl` (POST {order:[{id,parent_id}]}).
+//
+// Gestures (Apple Reminders style): tap the circle to toggle, tap the title to edit, swipe a row left
+// to delete, and drag the grip to reorder — dragging right nests a task under the one above (one level
+// only), dragging left un-nests it.
 type Props = {
     tasks: TaskNode[];
     members: TaskMember[];
     canEdit: boolean;
     addUrl: string;
     taskUrl: (id: number) => string;
+    reorderUrl: string;
     emptyHint?: string;
 };
 
@@ -32,7 +50,6 @@ function memberName(members: TaskMember[], id: number | null) {
     return members.find((m) => m.id === id)?.name ?? null;
 }
 
-// Small round initial for an assignee.
 function AssigneeDot({ members, id }: { members: TaskMember[]; id: number | null }) {
     const name = memberName(members, id);
     if (!name) return null;
@@ -44,13 +61,37 @@ function AssigneeDot({ members, id }: { members: TaskMember[]; id: number | null
     );
 }
 
-export function TaskTree({ tasks, members, canEdit, addUrl, taskUrl, emptyHint }: Props) {
+export function TaskTree({ tasks, members, canEdit, addUrl, taskUrl, reorderUrl, emptyHint }: Props) {
     const doneOpt = useOptimistic<boolean>();
-    const [expanded, setExpanded] = useState<Set<number>>(new Set());
     const [newTitle, setNewTitle] = useState('');
-    const [subFor, setSubFor] = useState<number | null>(null); // which task's add-subtask input is open
-    const [subTitle, setSubTitle] = useState('');
     const [editing, setEditing] = useState<SubTask | null>(null);
+    const [openSwipe, setOpenSwipe] = useState<number | null>(null); // row whose delete action is revealed
+
+    // Local mirror of the server tree so drags feel instant; re-sync whenever the server sends new props.
+    const [items, setItems] = useState<FlatTask[]>(() => flatten(tasks));
+    const serverKey = useMemo(() => JSON.stringify(tasks.map((t) => [t.id, t.subtasks.map((s) => s.id)])), [tasks]);
+    const lastKey = useRef(serverKey);
+    useEffect(() => {
+        if (lastKey.current !== serverKey) {
+            lastKey.current = serverKey;
+            setItems(flatten(tasks));
+        }
+    }, [serverKey, tasks]);
+
+    const [activeId, setActiveId] = useState<number | null>(null);
+    const [overId, setOverId] = useState<number | null>(null);
+    const [offsetLeft, setOffsetLeft] = useState(0);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    );
+
+    // While dragging a parent, hide its sub-tasks so the parent moves as one unit.
+    const flattened = useMemo(() => (activeId != null ? removeChildrenOf(items, [activeId]) : items), [items, activeId]);
+    const sortedIds = useMemo(() => flattened.map((i) => i.id), [flattened]);
+    const projection = activeId != null && overId != null ? getProjection(flattened, activeId, overId, offsetLeft, INDENT) : null;
+    const activeItem = activeId != null ? flattened.find((i) => i.id === activeId) : null;
 
     const isDone = (t: SubTask) => doneOpt.get(t.id, t.done);
     const toggle = (t: SubTask) => {
@@ -62,153 +103,98 @@ export function TaskTree({ tasks, members, canEdit, addUrl, taskUrl, emptyHint }
             { preserveScroll: true, preserveState: true, onSuccess: () => doneOpt.clear(t.id), onError: () => doneOpt.clear(t.id) },
         );
     };
-
     const addTask = () => {
         if (!newTitle.trim()) return;
         router.post(addUrl, { title: newTitle.trim() }, { preserveScroll: true, onSuccess: () => setNewTitle('') });
     };
-    const addSub = (parentId: number) => {
-        if (!subTitle.trim()) return;
-        router.post(
-            addUrl,
-            { title: subTitle.trim(), parent_id: parentId },
-            {
-                preserveScroll: true,
-                onSuccess: () => {
-                    setSubTitle('');
-                    setExpanded((s) => new Set(s).add(parentId));
-                },
-            },
-        );
+    const del = (id: number) => {
+        setOpenSwipe(null);
+        router.delete(taskUrl(id), { preserveScroll: true });
     };
-    const toggleExpand = (id: number) =>
-        setExpanded((s) => {
-            const next = new Set(s);
-            if (next.has(id)) next.delete(id);
-            else next.add(id);
-            return next;
-        });
 
-    const Row = ({ t, sub }: { t: SubTask; sub?: boolean }) => {
-        const due = dueLabel(t.dueDate);
-        return (
-            <div className={`flex items-center gap-3 ${sub ? 'py-1.5' : 'py-2'}`}>
-                <button
-                    type="button"
-                    onClick={() => toggle(t)}
-                    aria-label={isDone(t) ? 'Mark not done' : 'Mark done'}
-                    className={`flex ${sub ? 'size-5' : 'size-6'} shrink-0 items-center justify-center rounded-full border transition-colors ${
-                        isDone(t) ? 'border-primary bg-primary text-primary-foreground' : 'border-border'
-                    }`}
-                >
-                    {isDone(t) && <Check className={sub ? 'size-3' : 'size-3.5'} />}
-                </button>
-                <div className="min-w-0 flex-1">
-                    <div
-                        className={`truncate ${sub ? 'text-sm' : 'text-[15px]'} ${isDone(t) ? 'text-muted-foreground line-through' : 'text-primary'}`}
-                    >
-                        {t.title}
-                    </div>
-                    {t.note && <div className="text-muted-foreground truncate text-xs">{t.note}</div>}
-                </div>
-                {due && <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${due.tone}`}>{due.label}</span>}
-                <AssigneeDot members={members} id={t.assignedTo} />
-                {canEdit && (
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <button
-                                type="button"
-                                aria-label="Task actions"
-                                className="text-muted-foreground hover:text-primary flex size-7 shrink-0 items-center justify-center rounded-lg"
-                            >
-                                <MoreVertical className="size-4" />
-                            </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-44">
-                            <DropdownMenuItem onSelect={() => setEditing(t)}>Edit</DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                                className="text-destructive focus:text-destructive"
-                                onSelect={() => router.delete(taskUrl(t.id), { preserveScroll: true })}
-                            >
-                                <Trash2 className="size-4" /> Delete
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                )}
-            </div>
+    function resetDrag() {
+        setActiveId(null);
+        setOverId(null);
+        setOffsetLeft(0);
+    }
+    function onDragStart({ active }: DragStartEvent) {
+        setOpenSwipe(null);
+        setActiveId(active.id as number);
+        setOverId(active.id as number);
+    }
+    function onDragMove({ delta }: DragMoveEvent) {
+        setOffsetLeft(delta.x);
+    }
+    function onDragOver({ over }: { over: { id: string | number } | null }) {
+        setOverId((over?.id as number) ?? null);
+    }
+    function onDragEnd({ active, over }: DragEndEvent) {
+        const proj = over ? getProjection(flattened, active.id as number, over.id as number, offsetLeft, INDENT) : null;
+        resetDrag();
+        if (!proj || !over) return;
+
+        const activeIndex = flattened.findIndex((i) => i.id === active.id);
+        const overIndex = flattened.findIndex((i) => i.id === over.id);
+        const moved = arrayMove(flattened, activeIndex, overIndex).map((i) =>
+            i.id === active.id ? { ...i, depth: proj.depth, parentId: proj.parentId } : i,
         );
-    };
+        // Re-attach the dragged parent's sub-tasks right after it (they were hidden during the drag).
+        const children = items.filter((i) => i.parentId === active.id).map((c) => ({ ...c, depth: 1, parentId: active.id as number }));
+        const result: FlatTask[] = [];
+        for (const it of moved) {
+            result.push(it);
+            if (it.id === active.id && children.length) result.push(...children);
+        }
+
+        setItems(result);
+        router.post(
+            reorderUrl,
+            { order: result.map((i) => ({ id: i.id, parent_id: i.parentId })) },
+            { preserveScroll: true, preserveState: true },
+        );
+    }
+
+    const tree = buildTree(items); // for the empty check + counts if needed
 
     return (
         <div className="flex flex-col">
-            {tasks.length === 0 && <p className="text-muted-foreground py-3 text-sm">{emptyHint ?? 'No tasks yet.'}</p>}
+            {tree.length === 0 && <p className="text-muted-foreground py-3 text-sm">{emptyHint ?? 'No tasks yet.'}</p>}
 
-            {tasks.map((t) => {
-                const subs = t.subtasks ?? [];
-                const doneSubs = subs.filter((s) => isDone(s)).length;
-                const isOpen = expanded.has(t.id);
-                return (
-                    <div key={t.id} className="border-border/60 border-b last:border-b-0">
-                        <div className="flex items-center gap-1">
-                            <div className="min-w-0 flex-1">
-                                <Row t={t} />
-                            </div>
-                            {subs.length > 0 && (
-                                <button
-                                    type="button"
-                                    onClick={() => toggleExpand(t.id)}
-                                    aria-label={isOpen ? 'Collapse sub-tasks' : 'Expand sub-tasks'}
-                                    className="text-muted-foreground flex shrink-0 items-center gap-1 rounded-lg px-1.5 py-1 text-xs"
-                                >
-                                    {doneSubs}/{subs.length}
-                                    <ChevronDown className={`size-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-                                </button>
-                            )}
+            <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={onDragStart}
+                onDragMove={onDragMove}
+                onDragOver={onDragOver}
+                onDragEnd={onDragEnd}
+                onDragCancel={resetDrag}
+            >
+                <SortableContext items={sortedIds} strategy={verticalListSortingStrategy}>
+                    {flattened.map((item) => (
+                        <SortableRow
+                            key={item.id}
+                            item={item}
+                            depth={item.id === activeId && projection ? projection.depth : item.depth}
+                            members={members}
+                            canEdit={canEdit}
+                            done={isDone(item)}
+                            onToggle={() => toggle(item)}
+                            onEdit={() => setEditing(item)}
+                            onDelete={() => del(item.id)}
+                            swipeOpen={openSwipe === item.id}
+                            onSwipeOpen={(v) => setOpenSwipe(v ? item.id : null)}
+                        />
+                    ))}
+                </SortableContext>
+                <DragOverlay>
+                    {activeItem ? (
+                        <div className="bg-surface-card flex items-center gap-2 rounded-lg border px-2 py-2 shadow-lg">
+                            <GripVertical className="text-muted-foreground size-4" />
+                            <span className="text-primary text-[15px]">{activeItem.title}</span>
                         </div>
-
-                        {(isOpen || subFor === t.id) && (
-                            <div className="border-border/60 mb-1 ml-4 flex flex-col border-l pl-4">
-                                {isOpen && subs.map((s) => <Row key={s.id} t={s} sub />)}
-                                {canEdit && subFor === t.id && (
-                                    <div className="flex items-center gap-2 py-1.5">
-                                        <Input
-                                            autoFocus
-                                            value={subTitle}
-                                            onChange={(e) => setSubTitle(e.target.value)}
-                                            onKeyDown={(e) => e.key === 'Enter' && addSub(t.id)}
-                                            placeholder="Sub-task"
-                                            className="h-8 text-base md:text-sm"
-                                        />
-                                        <Button
-                                            size="icon"
-                                            className="size-8 shrink-0 rounded-lg"
-                                            onClick={() => addSub(t.id)}
-                                            aria-label="Add sub-task"
-                                        >
-                                            <Plus className="size-4" />
-                                        </Button>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {canEdit && (
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setSubFor(subFor === t.id ? null : t.id);
-                                    setSubTitle('');
-                                    if (subs.length) setExpanded((s) => new Set(s).add(t.id));
-                                }}
-                                className="text-muted-foreground hover:text-primary mb-1.5 ml-4 flex items-center gap-1 pl-4 text-xs"
-                            >
-                                <Plus className="size-3.5" /> Add sub-task
-                            </button>
-                        )}
-                    </div>
-                );
-            })}
+                    ) : null}
+                </DragOverlay>
+            </DndContext>
 
             {canEdit && (
                 <div className="mt-3 flex items-center gap-2">
@@ -225,22 +211,148 @@ export function TaskTree({ tasks, members, canEdit, addUrl, taskUrl, emptyHint }
                 </div>
             )}
 
-            {editing && <EditTaskModal task={editing} members={members} taskUrl={taskUrl} onClose={() => setEditing(null)} />}
+            {editing && (
+                <EditTaskModal task={editing} members={members} taskUrl={taskUrl} onClose={() => setEditing(null)} onDelete={() => del(editing.id)} />
+            )}
         </div>
     );
 }
 
-// Edit a single task: title, note, due date, assignee. Save PATCHes the same task endpoint.
+function SortableRow({
+    item,
+    depth,
+    members,
+    canEdit,
+    done,
+    onToggle,
+    onEdit,
+    onDelete,
+    swipeOpen,
+    onSwipeOpen,
+}: {
+    item: FlatTask;
+    depth: number;
+    members: TaskMember[];
+    canEdit: boolean;
+    done: boolean;
+    onToggle: () => void;
+    onEdit: () => void;
+    onDelete: () => void;
+    swipeOpen: boolean;
+    onSwipeOpen: (v: boolean) => void;
+}) {
+    const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+    const due = dueLabel(item.dueDate);
+    const sub = depth > 0;
+
+    // Swipe-left to reveal Delete. Tracked on the content row; ignores gestures that begin on the grip
+    // (that's the drag handle) so the two never fight.
+    const [swipeX, setSwipeX] = useState(0);
+    const start = useRef<{ x: number; y: number; onHandle: boolean } | null>(null);
+    const REVEAL = 76;
+    useEffect(() => {
+        if (!swipeOpen && swipeX !== 0) setSwipeX(0);
+    }, [swipeOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const onPointerDown = (e: React.PointerEvent) => {
+        if (!canEdit || isDragging) return;
+        const onHandle = !!(e.target as HTMLElement).closest('[data-drag-handle]');
+        start.current = { x: e.clientX, y: e.clientY, onHandle };
+    };
+    const onPointerMove = (e: React.PointerEvent) => {
+        const s = start.current;
+        if (!s || s.onHandle) return;
+        const dx = e.clientX - s.x;
+        const dy = e.clientY - s.y;
+        if (Math.abs(dx) < Math.abs(dy)) return; // vertical => let it scroll
+        const base = swipeOpen ? -REVEAL : 0;
+        setSwipeX(Math.max(-REVEAL, Math.min(0, base + dx)));
+    };
+    const onPointerUp = () => {
+        const s = start.current;
+        start.current = null;
+        if (!s || s.onHandle) return;
+        if (swipeX < -REVEAL / 2) {
+            setSwipeX(-REVEAL);
+            onSwipeOpen(true);
+        } else {
+            setSwipeX(0);
+            onSwipeOpen(false);
+        }
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={{ transform: CSS.Translate.toString(transform), transition, paddingLeft: sub ? INDENT : 0 }}
+            className={`relative ${isDragging ? 'opacity-40' : ''}`}
+        >
+            {/* Delete action revealed behind the row on swipe. */}
+            <button
+                type="button"
+                onClick={onDelete}
+                aria-label="Delete task"
+                className="bg-destructive text-destructive-foreground absolute inset-y-1 right-0 flex w-[76px] items-center justify-center rounded-lg"
+            >
+                <Trash2 className="size-4.5" />
+            </button>
+
+            <div
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerCancel={onPointerUp}
+                style={{ transform: `translateX(${swipeX}px)` }}
+                className={`border-border/60 bg-surface-card relative flex items-center gap-2 border-b py-2.5 ${sub ? 'pr-1 pl-1' : 'px-1'}`}
+            >
+                {canEdit && (
+                    <button
+                        ref={setActivatorNodeRef}
+                        data-drag-handle
+                        {...attributes}
+                        {...listeners}
+                        aria-label="Reorder"
+                        className="text-muted-foreground/60 hover:text-muted-foreground -ml-1 flex size-6 shrink-0 cursor-grab touch-none items-center justify-center active:cursor-grabbing"
+                    >
+                        <GripVertical className="size-4" />
+                    </button>
+                )}
+                <button
+                    type="button"
+                    onClick={onToggle}
+                    aria-label={done ? 'Mark not done' : 'Mark done'}
+                    className={`flex ${sub ? 'size-5' : 'size-6'} shrink-0 items-center justify-center rounded-full border transition-colors ${
+                        done ? 'border-primary bg-primary text-primary-foreground' : 'border-border'
+                    }`}
+                >
+                    {done && <Check className={sub ? 'size-3' : 'size-3.5'} />}
+                </button>
+                <button type="button" onClick={onEdit} className="min-w-0 flex-1 text-left">
+                    <div className={`truncate ${sub ? 'text-sm' : 'text-[15px]'} ${done ? 'text-muted-foreground line-through' : 'text-primary'}`}>
+                        {item.title}
+                    </div>
+                    {item.note && <div className="text-muted-foreground truncate text-xs">{item.note}</div>}
+                </button>
+                {due && <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${due.tone}`}>{due.label}</span>}
+                <AssigneeDot members={members} id={item.assignedTo} />
+            </div>
+        </div>
+    );
+}
+
+// Edit a single task: title, note, due date, assignee, plus a Delete. Save PATCHes the task endpoint.
 function EditTaskModal({
     task,
     members,
     taskUrl,
     onClose,
+    onDelete,
 }: {
     task: SubTask;
     members: TaskMember[];
     taskUrl: (id: number) => string;
     onClose: () => void;
+    onDelete: () => void;
 }) {
     const [title, setTitle] = useState(task.title);
     const [note, setNote] = useState(task.note ?? '');
@@ -277,7 +389,6 @@ function EditTaskModal({
                 </div>
                 <div className="grid gap-2">
                     <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Due date</Label>
-                    {/* Native date input in a bordered box (it won't shrink in a grid cell on its own). */}
                     <div className="border-border flex h-9 w-full items-center gap-2 rounded-lg border px-3">
                         <Calendar className="text-muted-foreground size-4 shrink-0" />
                         <input
@@ -319,6 +430,9 @@ function EditTaskModal({
                         ))}
                     </div>
                 </div>
+                <button type="button" onClick={onDelete} className="text-destructive flex items-center justify-center gap-2 py-1 text-sm font-medium">
+                    <Trash2 className="size-4" /> Delete task
+                </button>
             </div>
         </ResponsiveModal>
     );

@@ -295,6 +295,7 @@ export default function ProjectDetail({
                         canEdit
                         addUrl={route('projects.tasks.store', project.id)}
                         taskUrl={(id) => route('projects.tasks.update', id)}
+                        reorderUrl={route('projects.tasks.reorder', project.id)}
                         emptyHint="No tasks yet. Add the first one below."
                     />
                 </Section>
