@@ -10,9 +10,11 @@ use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Shopping\ShoppingList;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProjectsController extends Controller
 {
@@ -119,6 +121,7 @@ class ProjectsController extends Controller
                 'archived' => $project->archived_at !== null,
                 'visibility' => $project->visibility(),
                 'updated' => $project->updated_at?->diffForHumans(short: true),
+                'coverUrl' => $project->cover_path ? route('projects.cover.show', $project) : null,
             ],
             'share' => $this->shareState($project, $family),
             'members' => $members,
@@ -189,6 +192,41 @@ class ProjectsController extends Controller
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
 
         return to_route('projects.show', $copy);
+    }
+
+    // ---- Cover photo (R2, same pattern as spend receipts) ----
+    public function uploadCover(Request $request, Project $project): RedirectResponse
+    {
+        abort_unless($this->access->roleFor($request->user(), $project) !== null, 403);
+        $request->validate(['photo' => ['required', 'image', 'max:12288']]); // up to 12 MB (client compresses first)
+
+        if ($project->cover_path) {
+            Storage::disk('r2')->delete($project->cover_path);
+        }
+        $project->update(['cover_path' => $request->file('photo')->store('projects/'.CurrentFamily::id(), 'r2')]);
+        Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
+
+        return back();
+    }
+
+    public function coverFile(Request $request, Project $project): StreamedResponse
+    {
+        abort_unless($this->access->canView($request->user(), $project), 403);
+        abort_unless($project->cover_path, 404);
+
+        return Storage::disk('r2')->response($project->cover_path);
+    }
+
+    public function deleteCover(Request $request, Project $project): RedirectResponse
+    {
+        abort_unless($this->access->roleFor($request->user(), $project) !== null, 403);
+        if ($project->cover_path) {
+            Storage::disk('r2')->delete($project->cover_path);
+            $project->update(['cover_path' => null]);
+        }
+        Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
+
+        return back();
     }
 
     // ---- Tasks ----
