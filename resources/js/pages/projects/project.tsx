@@ -660,7 +660,8 @@ function LinkListModal({
                             value={q}
                             onChange={(e) => setQ(e.target.value)}
                             placeholder="Search your lists..."
-                            className="text-primary w-full bg-transparent text-sm outline-none"
+                            // text-base (16px) on mobile so iOS Safari doesn't auto-zoom on focus; text-sm from md up.
+                            className="text-primary w-full bg-transparent text-base outline-none md:text-sm"
                         />
                     </div>
                     <div className="flex flex-col gap-2">
