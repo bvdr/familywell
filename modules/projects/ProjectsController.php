@@ -53,6 +53,7 @@ class ProjectsController extends Controller
                     'done' => $done,
                     'total' => $total,
                     'archived' => $p->archived_at !== null,
+                    'coverUrl' => $p->cover_path ? route('projects.cover.show', $p) : null,
                     'updated' => $p->updated_at?->diffForHumans(short: true),
                     'members' => $memberIds->map(fn ($id) => ['id' => $id, 'name' => $memberNames[$id] ?? '?'])->all(),
                 ];
