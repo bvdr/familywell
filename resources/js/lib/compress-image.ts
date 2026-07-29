@@ -51,3 +51,22 @@ async function loadBitmap(file: File): Promise<HTMLImageElement | null> {
 function toBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob | null> {
     return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
 }
+
+// A small JPEG thumbnail capped to `maxSide` px on the long edge, for list/card use where loading the
+// full image is wasteful. Uploaded alongside the full image so the server can serve the right size per
+// use case. Returns null for non-images or on any failure (the caller just skips the thumb).
+export async function makeThumbnail(file: File, maxSide = 640, quality = 0.8): Promise<File | null> {
+    if (!file.type.startsWith('image/')) return null;
+    const bitmap = await loadBitmap(file);
+    if (!bitmap) return null;
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const blob = await toBlob(canvas, quality);
+    if (!blob) return null;
+    return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.thumb.jpg', { type: 'image/jpeg' });
+}
