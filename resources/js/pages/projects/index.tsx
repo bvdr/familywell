@@ -51,7 +51,11 @@ function Card({ p }: { p: Project }) {
             prefetch
             className="bg-surface-card hover:border-accent block overflow-hidden rounded-2xl border p-4 text-left transition-colors"
         >
-            {p.coverUrl && <img src={p.coverUrl} alt="" className="-mx-4 -mt-4 mb-3 h-28 w-full object-cover" />}
+            {/* Full-bleed banner: the card is p-4, so pull out by 1rem each side and widen by 2rem so it
+                spans edge-to-edge (w-full would stop short because the negative margins only shift it). */}
+            {p.coverUrl && (
+                <img src={p.coverUrl} alt="" className="-mt-4 -ml-4 mb-3 block h-28 w-[calc(100%+2rem)] max-w-none object-cover" />
+            )}
             <div className="flex items-start justify-between gap-2.5">
                 <div className="font-heading text-primary text-lg leading-tight font-semibold">{p.name}</div>
                 <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${st.chip}`}>{st.label}</span>
