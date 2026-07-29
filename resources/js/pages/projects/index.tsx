@@ -25,6 +25,7 @@ type Project = {
     done: number;
     total: number;
     archived: boolean;
+    coverUrl: string | null;
     updated: string | null;
     members: Member[];
 };
@@ -44,13 +45,13 @@ function Avatars({ members }: { members: Member[] }) {
 
 function Card({ p }: { p: Project }) {
     const st = projectStatus(p.status);
-    const pct = p.total ? Math.round((p.done / p.total) * 100) : p.progress;
     return (
         <Link
             href={route('projects.show', p.id)}
             prefetch
-            className="bg-surface-card hover:border-accent block rounded-2xl border p-4 text-left transition-colors"
+            className="bg-surface-card hover:border-accent block overflow-hidden rounded-2xl border p-4 text-left transition-colors"
         >
+            {p.coverUrl && <img src={p.coverUrl} alt="" className="-mx-4 -mt-4 mb-3 h-28 w-full object-cover" />}
             <div className="flex items-start justify-between gap-2.5">
                 <div className="font-heading text-primary text-lg leading-tight font-semibold">{p.name}</div>
                 <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${st.chip}`}>{st.label}</span>
@@ -61,12 +62,8 @@ function Card({ p }: { p: Project }) {
                     <Link2 className="size-3.5 shrink-0" /> {p.waitingOn}
                 </div>
             )}
-            <div className="bg-surface mt-3 h-1.5 overflow-hidden rounded-full">
-                <div className="bg-primary h-full rounded-full" style={{ width: `${p.progress}%` }} />
-            </div>
-            <div className="mt-2 flex items-center justify-between text-xs">
+            <div className="mt-3 text-xs">
                 <span className="text-muted-foreground">{p.total ? `${p.done} of ${p.total} done` : 'No tasks yet'}</span>
-                <span className="text-text-secondary font-mono font-semibold tabular-nums">{pct}%</span>
             </div>
             <div className="mt-3 flex items-center justify-between border-t pt-3">
                 <Avatars members={p.members} />
