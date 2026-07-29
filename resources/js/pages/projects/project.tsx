@@ -30,7 +30,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import AppLayout from '@/layouts/app-layout';
-import { compressImage } from '@/lib/compress-image';
+import { compressImage, makeThumbnail } from '@/lib/compress-image';
 import { DEP_STATUS_KEYS, depStatus, PROJECT_STATUS_KEYS, projectStatus, shortDate } from '@/lib/projects';
 import { type BreadcrumbItem } from '@/types';
 
@@ -90,8 +90,14 @@ export default function ProjectDetail({
     };
     const coverInput = useRef<HTMLInputElement>(null);
     const uploadCover = async (file: File) => {
+        // Upload the compressed full image plus a small thumbnail, so list cards can load the thumb.
         const img = await compressImage(file, 1_200_000);
-        router.post(route('projects.cover.upload', project.id), { photo: img }, { forceFormData: true, preserveScroll: true });
+        const thumb = await makeThumbnail(file, 640);
+        router.post(
+            route('projects.cover.upload', project.id),
+            { photo: img, photo_thumb: thumb ?? undefined },
+            { forceFormData: true, preserveScroll: true },
+        );
     };
 
     // Task progress counts top-level tasks + their sub-tasks (header summary only; live toggles are
