@@ -1081,6 +1081,26 @@ export default function ListDetail({
                             placeholder="Add a note (optional)"
                         />
                     </div>
+
+                    {/* Delete lives here so it's reachable on touch (the row's trash is hover-only, desktop). */}
+                    {!!editingId && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const id = editingId;
+                                removed.set(id, true);
+                                setEditingId(null);
+                                router.delete(route('shopping.items.destroy', id), {
+                                    preserveScroll: true,
+                                    preserveState: true,
+                                    onError: () => removed.clear(id),
+                                });
+                            }}
+                            className="text-destructive flex items-center justify-center gap-2 py-1 text-sm font-medium"
+                        >
+                            <Trash2 className="size-4" /> Delete item
+                        </button>
+                    )}
                 </div>
             </ResponsiveModal>
         </AppLayout>
