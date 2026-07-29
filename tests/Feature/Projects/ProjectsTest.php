@@ -150,12 +150,17 @@ it('uploads, serves, and deletes a project cover photo', function () {
     $project = Project::withoutGlobalScopes()->first();
 
     // fake()->image() needs GD (absent in CI); a fake file with an image mime satisfies the `image` rule.
-    actingAs($users[0])->post("/m/projects/{$project->id}/cover", ['photo' => UploadedFile::fake()->create('cover.jpg', 200, 'image/jpeg')])->assertRedirect();
+    actingAs($users[0])->post("/m/projects/{$project->id}/cover", [
+        'photo' => UploadedFile::fake()->create('cover.jpg', 200, 'image/jpeg'),
+        'photo_thumb' => UploadedFile::fake()->create('cover.thumb.jpg', 20, 'image/jpeg'),
+    ])->assertRedirect();
     $project->refresh();
     expect($project->cover_path)->not->toBeNull();
     Storage::disk('r2')->assertExists($project->cover_path);
+    Storage::disk('r2')->assertExists($project->cover_path.'.thumb.jpg'); // the small variant is stored too
 
     actingAs($users[0])->get("/m/projects/{$project->id}/cover")->assertOk();
+    actingAs($users[0])->get("/m/projects/{$project->id}/cover?v=thumb")->assertOk(); // serves the thumb variant
 
     actingAs($users[0])->delete("/m/projects/{$project->id}/cover")->assertRedirect();
     expect($project->fresh()->cover_path)->toBeNull();

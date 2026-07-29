@@ -5,12 +5,12 @@ namespace Modules\Projects;
 use App\Events\ProjectsChanged;
 use App\Http\Controllers\Controller;
 use App\Models\Family;
+use App\Support\Media\StoredImage;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Shopping\ShoppingList;
@@ -53,7 +53,7 @@ class ProjectsController extends Controller
                     'done' => $done,
                     'total' => $total,
                     'archived' => $p->archived_at !== null,
-                    'coverUrl' => $p->cover_path ? route('projects.cover.show', $p) : null,
+                    'coverUrl' => $p->cover_path ? route('projects.cover.show', $p).'?v=thumb' : null,
                     'updated' => $p->updated_at?->diffForHumans(short: true),
                     'members' => $memberIds->map(fn ($id) => ['id' => $id, 'name' => $memberNames[$id] ?? '?'])->all(),
                 ];
@@ -228,12 +228,15 @@ class ProjectsController extends Controller
     public function uploadCover(Request $request, Project $project): RedirectResponse
     {
         abort_unless($this->access->roleFor($request->user(), $project) !== null, 403);
-        $request->validate(['photo' => ['required', 'image', 'max:12288']]); // up to 12 MB (client compresses first)
+        $request->validate([
+            'photo' => ['required', 'image', 'max:12288'],   // full image, up to 12 MB (client compresses first)
+            'photo_thumb' => ['nullable', 'image', 'max:4096'], // small client-generated variant for cards
+        ]);
 
-        if ($project->cover_path) {
-            Storage::disk('r2')->delete($project->cover_path);
-        }
-        $project->update(['cover_path' => $request->file('photo')->store('projects/'.CurrentFamily::id(), 'r2')]);
+        StoredImage::delete($project->cover_path);
+        $project->update([
+            'cover_path' => StoredImage::store($request->file('photo'), $request->file('photo_thumb'), 'projects/'.CurrentFamily::id()),
+        ]);
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
 
         return back();
@@ -244,16 +247,15 @@ class ProjectsController extends Controller
         abort_unless($this->access->canView($request->user(), $project), 403);
         abort_unless($project->cover_path, 404);
 
-        return Storage::disk('r2')->response($project->cover_path);
+        // ?v=thumb serves the small variant (used by list cards); default serves the full image.
+        return StoredImage::response($project->cover_path, $request->query('v'));
     }
 
     public function deleteCover(Request $request, Project $project): RedirectResponse
     {
         abort_unless($this->access->roleFor($request->user(), $project) !== null, 403);
-        if ($project->cover_path) {
-            Storage::disk('r2')->delete($project->cover_path);
-            $project->update(['cover_path' => null]);
-        }
+        StoredImage::delete($project->cover_path);
+        $project->update(['cover_path' => null]);
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
 
         return back();
