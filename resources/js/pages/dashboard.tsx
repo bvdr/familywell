@@ -2,7 +2,7 @@ import AppLayout from '@/layouts/app-layout';
 import { Slot } from '@/lib/modules';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { Blocks, FolderKanban, ListChecks, type LucideIcon, Plus, ShoppingCart, UserPlus, Users, Wallet } from 'lucide-react';
+import { Blocks, FolderKanban, ListChecks, type LucideIcon, Settings, ShoppingCart, Users, Wallet } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' }];
 
@@ -56,21 +56,19 @@ export default function Dashboard({ items = [] }: { items?: DashItem[] }) {
                     </div>
                     <div className="flex gap-2">
                         <Link
-                            href="/family/invite"
+                            href="/family/members"
                             className="bg-surface-card text-primary hover:border-accent inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-colors"
                         >
-                            <UserPlus className="size-4" />
-                            Invite
+                            <Users className="size-4" />
+                            Members
                         </Link>
-                        {spendingOn && (
-                            <Link
-                                href="/m/spending"
-                                className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors"
-                            >
-                                <Plus className="size-4" />
-                                Spending
-                            </Link>
-                        )}
+                        <Link
+                            href="/settings/profile"
+                            className="bg-surface-card text-primary hover:border-accent inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-colors"
+                        >
+                            <Settings className="size-4" />
+                            Settings
+                        </Link>
                     </div>
                 </div>
 
