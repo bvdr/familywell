@@ -107,17 +107,15 @@ export default function ListDetail({ list, share, members, tasks }: { list: List
                     </div>
                 </div>
 
-                <div className="bg-surface-card rounded-2xl border p-2 px-4">
-                    <TaskTree
-                        tasks={tasks}
-                        members={members}
-                        canEdit
-                        addUrl={route('tasks.tasks.store', list.id)}
-                        taskUrl={(id) => route('tasks.tasks.update', id)}
-                        reorderUrl={route('tasks.tasks.reorder', list.id)}
-                        emptyHint="No tasks yet. Add your first one below."
-                    />
-                </div>
+                <TaskTree
+                    tasks={tasks}
+                    members={members}
+                    canEdit
+                    addUrl={route('tasks.tasks.store', list.id)}
+                    taskUrl={(id) => route('tasks.tasks.update', id)}
+                    reorderUrl={route('tasks.tasks.reorder', list.id)}
+                    emptyHint="No tasks yet. Add your first one below."
+                />
             </div>
 
             <EditListModal open={editing} onOpenChange={setEditing} list={list} />
