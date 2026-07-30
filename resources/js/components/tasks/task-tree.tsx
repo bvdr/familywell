@@ -154,7 +154,7 @@ export function TaskTree({ tasks, members, canEdit, addUrl, taskUrl, reorderUrl,
     const tree = buildTree(items); // for the empty check + counts if needed
 
     return (
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-2">
             {tree.length === 0 && <p className="text-muted-foreground py-3 text-sm">{emptyHint ?? 'No tasks yet.'}</p>}
 
             <DndContext
@@ -194,7 +194,7 @@ export function TaskTree({ tasks, members, canEdit, addUrl, taskUrl, reorderUrl,
             </DndContext>
 
             {canEdit && (
-                <div className="mt-3 flex items-center gap-2">
+                <div className="mt-1 flex items-center gap-2">
                     <Input
                         value={newTitle}
                         onChange={(e) => setNewTitle(e.target.value)}
@@ -305,7 +305,7 @@ function SortableRow({
                 type="button"
                 onClick={onDelete}
                 aria-label="Delete task"
-                className="bg-destructive text-destructive-foreground absolute inset-y-1 right-0 flex w-[76px] items-center justify-center rounded-lg"
+                className="bg-destructive text-destructive-foreground absolute inset-y-0 right-0 flex w-[76px] items-center justify-center rounded-xl"
             >
                 <Trash2 className="size-4.5" />
             </button>
@@ -316,7 +316,7 @@ function SortableRow({
                 onPointerUp={onPointerUp}
                 onPointerCancel={onPointerUp}
                 style={{ transform: `translateX(${swipeX}px)` }}
-                className={`border-border/60 bg-surface-card relative flex items-center gap-2.5 border-b py-2.5 ${sub ? 'pr-1 pl-1' : 'px-1'}`}
+                className={`bg-surface-card relative flex items-center gap-2.5 rounded-xl border py-2.5 ${sub ? 'px-2' : 'px-3'}`}
             >
                 <button
                     type="button"
