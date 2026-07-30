@@ -39,7 +39,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { categoryIcon } from '@/lib/categories';
-import { compressImage } from '@/lib/compress-image';
+import { compressImage, makeThumbnail } from '@/lib/compress-image';
 import { money } from '@/lib/money';
 import { type BreadcrumbItem } from '@/types';
 
@@ -63,7 +63,7 @@ type Spend = {
     base_amount: number; // converted to the event currency
     category: string;
     note: string | null;
-    receipts: { id: number; url: string }[];
+    receipts: { id: number; url: string; thumbUrl: string }[];
     source: Source | null;
     // A user paid (id set) or a guest did (isGuest, no user id to prefill the payer select with).
     payer: { id: number | null; name: string | null; isGuest: boolean };
@@ -294,6 +294,7 @@ export default function Event({
         note: string;
         spent_at: string;
         receipts: File[];
+        receipts_thumb: File[];
         remove_receipt_ids: number[];
         split: 'all' | 'some' | 'exact';
         share_keys: string[];
@@ -307,6 +308,7 @@ export default function Event({
         note: '',
         spent_at: today(),
         receipts: [],
+        receipts_thumb: [],
         remove_receipt_ids: [],
         split: 'all',
         share_keys: allKeys,
@@ -415,6 +417,7 @@ export default function Event({
             note: s.note ?? '',
             spent_at: s.spent_at,
             receipts: [],
+            receipts_thumb: [],
             remove_receipt_ids: [],
             split: s.split,
             share_keys: s.split === 'some' ? s.shares.map((x) => x.key) : allKeys,
@@ -444,6 +447,7 @@ export default function Event({
         setScanning(true);
         try {
             const photo = await compressImage(file, 800_000);
+            const photoThumb = await makeThumbnail(file, 640);
             const body = new FormData();
             body.append('photo', photo);
             // Laravel validates the XSRF-TOKEN cookie via this header (no axios in this app).
@@ -466,6 +470,7 @@ export default function Event({
                 note: data.note ?? '',
                 spent_at: data.date ?? today(),
                 receipts: [photo], // keep the scanned photo attached to the spend
+                receipts_thumb: photoThumb ? [photoThumb] : [],
                 remove_receipt_ids: [],
                 split: 'all',
                 share_keys: allKeys,
@@ -1316,10 +1321,11 @@ export default function Event({
                                                 <button
                                                     type="button"
                                                     onClick={() =>
-                                                        form.setData(
-                                                            'receipts',
-                                                            form.data.receipts.filter((_, k) => k !== i),
-                                                        )
+                                                        form.setData({
+                                                            ...form.data,
+                                                            receipts: form.data.receipts.filter((_, k) => k !== i),
+                                                            receipts_thumb: form.data.receipts_thumb.filter((_, k) => k !== i),
+                                                        })
                                                     }
                                                     aria-label="Remove photo"
                                                     className="bg-background text-muted-foreground hover:text-destructive border-border absolute -top-2 -right-2 flex size-5 items-center justify-center rounded-full border shadow-sm"
@@ -1343,7 +1349,14 @@ export default function Event({
                                             onChange={async (e) => {
                                                 const files = Array.from(e.target.files ?? []);
                                                 const compressed = await Promise.all(files.map((f) => compressImage(f)));
-                                                form.setData('receipts', [...form.data.receipts, ...compressed]);
+                                                // A thumbnail per receipt (fall back to the full image if it can't be made),
+                                                // kept index-aligned with `receipts`.
+                                                const thumbs = await Promise.all(files.map((f) => makeThumbnail(f, 640)));
+                                                form.setData({
+                                                    ...form.data,
+                                                    receipts: [...form.data.receipts, ...compressed],
+                                                    receipts_thumb: [...form.data.receipts_thumb, ...thumbs.map((t, k) => t ?? compressed[k])],
+                                                });
                                                 e.target.value = ''; // let the same file be picked again after removal
                                             }}
                                         />
@@ -1387,7 +1400,7 @@ export default function Event({
                                                             aria-label={`View ${s.receipts.length} receipt photo${s.receipts.length > 1 ? 's' : ''}`}
                                                         >
                                                             <img
-                                                                src={s.receipts[0].url}
+                                                                src={s.receipts[0].thumbUrl}
                                                                 alt="Receipt"
                                                                 className="border-border size-9 rounded-lg border object-cover"
                                                             />
