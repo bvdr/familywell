@@ -283,10 +283,14 @@ it('adds a receipt on edit via POST method-spoofing (the file-edit path)', funct
         '_method' => 'patch',
         'amount' => '22.00', 'currency' => 'EUR', 'category' => 'transport', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
         'receipts' => [UploadedFile::fake()->create('r.jpg', 100, 'image/jpeg')],
+        'receipts_thumb' => [UploadedFile::fake()->create('r.thumb.jpg', 10, 'image/jpeg')],
     ])->assertRedirect();
 
     $spend->refresh();
     expect($spend->amount)->toBe(2200)->and($spend->receipts()->count())->toBe(1);
+    $receipt = $spend->receipts()->first();
+    Storage::disk('r2')->assertExists($receipt->path.'.thumb.jpg'); // thumbnail stored alongside the receipt
+    actingAs($users[0])->get("/m/spending/spends/receipts/{$receipt->id}?v=thumb")->assertOk(); // serves the thumb
 });
 
 it('removes only the selected receipts on edit', function () {
