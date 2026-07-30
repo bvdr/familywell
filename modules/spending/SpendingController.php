@@ -5,6 +5,7 @@ namespace Modules\Spending;
 use App\Events\SpendingChanged;
 use App\Http\Controllers\Controller;
 use App\Models\Family;
+use App\Support\Media\StoredImage;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
@@ -286,7 +287,8 @@ class SpendingController extends Controller
         $spend = Spend::findOrFail($receipt->spend_id);
         abort_unless($this->access->canView(request()->user(), $this->event($spend->spend_event_id)), 403);
 
-        return Storage::disk('r2')->response($receipt->path);
+        // ?v=thumb serves the small variant (previews/library); default serves the full image.
+        return StoredImage::response($receipt->path, request()->query('v'));
     }
 
     public function duplicateSpend(int $spend): RedirectResponse
@@ -333,7 +335,7 @@ class SpendingController extends Controller
         abort_unless($this->access->canEdit(request()->user(), $this->event($spend->spend_event_id)), 403);
         // Remove each receipt's R2 object; the rows cascade-delete with the spend.
         foreach ($spend->receipts as $r) {
-            Storage::disk('r2')->delete($r->path);
+            StoredImage::delete($r->path); // removes the original + its thumb
         }
         if ($spend->receipt_path) {
             Storage::disk('r2')->delete($spend->receipt_path); // legacy single receipt, if present
@@ -344,11 +346,13 @@ class SpendingController extends Controller
         return back();
     }
 
-    // Store any newly uploaded receipt photos (receipts[]) in private R2 as their own rows.
+    // Store any newly uploaded receipt photos (receipts[]) in private R2 as their own rows, each with
+    // its client-generated thumbnail (receipts_thumb[], aligned by index) so previews load small.
     private function attachReceipts(Request $request, Spend $spend): void
     {
-        foreach ((array) $request->file('receipts', []) as $file) {
-            $spend->receipts()->create(['path' => $file->store('receipts/'.CurrentFamily::id(), 'r2')]);
+        $thumbs = (array) $request->file('receipts_thumb', []);
+        foreach ((array) $request->file('receipts', []) as $i => $file) {
+            $spend->receipts()->create(['path' => StoredImage::store($file, $thumbs[$i] ?? null, 'receipts/'.CurrentFamily::id())]);
         }
     }
 
@@ -360,7 +364,7 @@ class SpendingController extends Controller
             return;
         }
         foreach ($spend->receipts()->whereIn('id', $ids)->get() as $r) {
-            Storage::disk('r2')->delete($r->path);
+            StoredImage::delete($r->path);
             $r->delete();
         }
     }
@@ -389,6 +393,8 @@ class SpendingController extends Controller
             'spent_at' => ['required', 'date'],
             'receipts' => ['nullable', 'array', 'max:10'], // up to 10 photos per spend
             'receipts.*' => ['image', 'max:12288'], // up to 12 MB each (PHP allows 16M, see Dockerfile)
+            'receipts_thumb' => ['nullable', 'array', 'max:10'],   // small client-generated variants, aligned by index
+            'receipts_thumb.*' => ['image', 'max:4096'],
             'remove_receipt_ids' => ['nullable', 'array'], // ids of existing receipts to detach (on edit)
             'remove_receipt_ids.*' => ['integer'],
             // How the spend splits: all (everyone), some (a subset), exact (per-person amounts).
@@ -514,7 +520,8 @@ class SpendingController extends Controller
                 'note' => $s->note,
                 'receipts' => $s->receipts->map(fn (SpendReceipt $r) => [
                     'id' => $r->id,
-                    'url' => route('spending.receipts.show', $r->id),
+                    'url' => route('spending.receipts.show', $r->id),                 // full image (lightbox)
+                    'thumbUrl' => route('spending.receipts.show', $r->id).'?v=thumb', // small variant (previews)
                 ])->values(),
                 'source' => $s->source ? ['id' => $s->source->id, 'name' => $s->source->name, 'type' => $s->source->type] : null,
                 // A user paid (payer.id set) or a guest did (isGuest, no user id to prefill the form with).

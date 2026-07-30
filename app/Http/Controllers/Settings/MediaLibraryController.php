@@ -68,7 +68,7 @@ class MediaLibraryController extends Controller
                     'id' => $r->id,
                     'name' => $names[$r->spend->spend_event_id] ?? 'Receipt',
                     'kind' => 'Receipt',
-                    'thumbUrl' => route('spending.receipts.show', $r->id),
+                    'thumbUrl' => route('spending.receipts.show', $r->id).'?v=thumb',
                     'fullUrl' => route('spending.receipts.show', $r->id),
                 ];
             }
