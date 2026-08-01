@@ -83,3 +83,8 @@ export async function unsubscribeFromPush(): Promise<void> {
 export async function sendTestPush(): Promise<boolean> {
     return api(route('push.test'), 'POST');
 }
+
+// Save which categories the user wants pushed (account-level, all their devices).
+export async function savePushPrefs(prefs: Record<string, boolean>): Promise<boolean> {
+    return api(route('push.prefs'), 'PATCH', { prefs });
+}

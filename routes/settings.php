@@ -27,6 +27,6 @@ Route::middleware('auth')->group(function () {
     })->name('appearance');
 
     Route::get('settings/notifications', function () {
-        return Inertia::render('settings/notifications');
+        return Inertia::render('settings/notifications', ['prefs' => auth()->user()->pushPrefs()]);
     })->name('notifications');
 });

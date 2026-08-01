@@ -31,6 +31,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'notification_prefs',
     ];
 
     /**
@@ -53,6 +54,24 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'notification_prefs' => 'array',
         ];
+    }
+
+    // Push notification categories the user can toggle (Settings > Notifications). All default on.
+    public const PUSH_CATEGORIES = ['tasks', 'shopping', 'spending', 'projects', 'sharing'];
+
+    /** Does this user want pushes for the given category? (missing/unset = yes). */
+    public function wantsPush(string $category): bool
+    {
+        return (bool) ($this->notification_prefs[$category] ?? true);
+    }
+
+    /** The full {category => bool} preference map, with defaults filled in. @return array<string,bool> */
+    public function pushPrefs(): array
+    {
+        $saved = $this->notification_prefs ?? [];
+
+        return collect(self::PUSH_CATEGORIES)->mapWithKeys(fn ($c) => [$c => (bool) ($saved[$c] ?? true)])->all();
     }
 }
