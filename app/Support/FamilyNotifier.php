@@ -49,7 +49,7 @@ class FamilyNotifier
         // A push failure (bad VAPID, unreachable push service, expired sub) must never break the user's
         // action — notifications are best-effort. Swallow and log.
         try {
-            Notification::send($recipients, new PushAlert($title, $body, $url));
+            Notification::send($recipients, new PushAlert($title, $body, $url, $category));
         } catch (\Throwable $e) {
             report($e);
         }
