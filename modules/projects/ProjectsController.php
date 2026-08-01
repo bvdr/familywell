@@ -5,6 +5,8 @@ namespace Modules\Projects;
 use App\Events\ProjectsChanged;
 use App\Http\Controllers\Controller;
 use App\Models\Family;
+use App\Models\User;
+use App\Notifications\PushAlert;
 use App\Support\Media\StoredImage;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
@@ -311,9 +313,23 @@ class ProjectsController extends Controller
         if (empty($data['parent_id'])) {
             $project->links()->firstOrCreate(['linkable_type' => 'task', 'linkable_id' => $task->id]);
         }
+        $this->pingAssignee($request, $data['assigned_to'] ?? null, $data['title'], $project);
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
 
         return back();
+    }
+
+    // Push the assignee when a project task is assigned to someone other than the assigner.
+    private function pingAssignee(Request $request, ?int $assigneeId, string $title, Project $project): void
+    {
+        if (! $assigneeId || $assigneeId === $request->user()->id) {
+            return;
+        }
+        User::find($assigneeId)?->notify(new PushAlert(
+            'New task for you',
+            "{$request->user()->name} assigned you: {$title}",
+            route('projects.show', $project, false),
+        ));
     }
 
     // Drag-and-drop reorder + re-nest for a project's tasks. Tasks in new visual order, each with its
@@ -363,18 +379,23 @@ class ProjectsController extends Controller
 
     public function updateTask(Request $request, Task $task): RedirectResponse
     {
-        $this->projectForTask($request, $task);
+        $project = $this->projectForTask($request, $task);
 
         if (! $request->hasAny(['title', 'note', 'due_date', 'assigned_to', 'done'])) {
             $task->update(['done' => ! $task->done]);
         } else {
-            $task->update($request->validate([
+            $data = $request->validate([
                 'title' => ['sometimes', 'string', 'max:255'],
                 'note' => ['sometimes', 'nullable', 'string', 'max:255'],
                 'due_date' => ['sometimes', 'nullable', 'date'],
                 'assigned_to' => ['sometimes', 'nullable', 'integer'],
                 'done' => ['sometimes', 'boolean'],
-            ]));
+            ]);
+            $before = $task->assigned_to;
+            $task->update($data);
+            if (array_key_exists('assigned_to', $data) && $data['assigned_to'] !== $before) {
+                $this->pingAssignee($request, $data['assigned_to'], $task->title, $project);
+            }
         }
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
 

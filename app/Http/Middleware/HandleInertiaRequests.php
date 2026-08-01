@@ -52,6 +52,8 @@ class HandleInertiaRequests extends Middleware
             // share() at the START of the middleware chain, before SetActiveFamily sets the family
             // context, so this must defer to render time when CurrentFamily::id() is available.
             'modules' => fn () => ['enabled' => $this->enabledModuleIds()],
+            // Web Push public (VAPID) key, so the client can subscribe the browser to push. Public by design.
+            'vapidPublicKey' => config('webpush.vapid.public_key'),
             // Each family member's avatar colour, as userId => palette index assigned by member order,
             // so every member gets a different (and consistent, app-wide) colour. Lazy: needs the
             // family context that SetActiveFamily fills in later in the chain.
