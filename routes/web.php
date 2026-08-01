@@ -40,6 +40,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('push/subscribe', [PushController::class, 'subscribe'])->name('push.subscribe');
     Route::delete('push/subscribe', [PushController::class, 'unsubscribe'])->name('push.unsubscribe');
     Route::post('push/test', [PushController::class, 'test'])->name('push.test');
+    Route::patch('push/prefs', [PushController::class, 'prefs'])->name('push.prefs');
 });
 
 // Public read-only view of a shared entity via its invite-link token. No auth by design; the token
