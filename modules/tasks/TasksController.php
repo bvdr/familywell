@@ -6,7 +6,7 @@ use App\Events\TasksChanged;
 use App\Http\Controllers\Controller;
 use App\Models\Family;
 use App\Models\User;
-use App\Notifications\PushAlert;
+use App\Support\FamilyNotifier;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
@@ -263,23 +263,10 @@ class TasksController extends Controller
             'created_by' => $request->user()->id,
         ]);
 
-        $this->pingAssignee($request, $data['assigned_to'] ?? null, $data['title'], route('tasks.show', $list, false));
+        FamilyNotifier::toAccessOf($list, 'tasks', $request->user()->id, 'New task', "{$request->user()->name} added: {$data['title']}", route('tasks.show', $list, false));
         Realtime::broadcast(new TasksChanged((int) CurrentFamily::id()));
 
         return back();
-    }
-
-    // Push the assignee when a task is assigned to someone other than the person doing the assigning.
-    private function pingAssignee(Request $request, ?int $assigneeId, string $title, string $url): void
-    {
-        if (! $assigneeId || $assigneeId === $request->user()->id) {
-            return;
-        }
-        User::find($assigneeId)?->notify(new PushAlert(
-            'New task for you',
-            "{$request->user()->name} assigned you: {$title}",
-            $url,
-        ));
     }
 
     // Drag-and-drop reorder + re-nest. Accepts the tasks in their new visual order, each with the
@@ -323,9 +310,15 @@ class TasksController extends Controller
         // Only list tasks are managed here; project (listless) tasks go through the projects module.
         abort_unless($task->list && $this->access->roleFor($request->user(), $task->list) !== null, 403);
 
+        $actor = $request->user();
+        $url = route('tasks.show', $task->list, false);
+
         // No body => a plain check/uncheck toggle (the common case, one tap in the list).
         if (! $request->hasAny(['title', 'note', 'due_date', 'assigned_to', 'done'])) {
             $task->update(['done' => ! $task->done]);
+            if ($task->done) {
+                FamilyNotifier::toAccessOf($task->list, 'tasks', $actor->id, 'Task done', "{$actor->name} completed: {$task->title}", $url);
+            }
         } else {
             $data = $request->validate([
                 'title' => ['sometimes', 'string', 'max:255'],
@@ -335,10 +328,14 @@ class TasksController extends Controller
                 'done' => ['sometimes', 'boolean'],
             ]);
             $before = $task->assigned_to;
+            $wasDone = $task->done;
             $task->update($data);
-            // Only ping on a genuine (re)assignment, not an unrelated edit that resends the same assignee.
-            if (array_key_exists('assigned_to', $data) && $data['assigned_to'] !== $before) {
-                $this->pingAssignee($request, $data['assigned_to'], $task->title, route('tasks.show', $task->list, false));
+            // Ping the new assignee only on a genuine (re)assignment.
+            if (array_key_exists('assigned_to', $data) && $data['assigned_to'] && $data['assigned_to'] !== $before) {
+                FamilyNotifier::push(User::whereKey($data['assigned_to'])->get(), 'tasks', $actor->id, 'Assigned to you', "{$actor->name} assigned you: {$task->title}", $url);
+            }
+            if (array_key_exists('done', $data) && $data['done'] && ! $wasDone) {
+                FamilyNotifier::toAccessOf($task->list, 'tasks', $actor->id, 'Task done', "{$actor->name} completed: {$task->title}", $url);
             }
         }
 

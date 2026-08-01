@@ -6,13 +6,36 @@ import HeadingSmall from '@/components/heading-small';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
-import { iosNeedsInstall, isSubscribed, pushSupported, sendTestPush, subscribeToPush, unsubscribeFromPush } from '@/lib/push';
+import {
+    iosNeedsInstall,
+    isSubscribed,
+    pushSupported,
+    savePushPrefs,
+    sendTestPush,
+    subscribeToPush,
+    unsubscribeFromPush,
+} from '@/lib/push';
 import { type BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Notifications', href: '/settings/notifications' }];
 
-export default function Notifications() {
+const CATEGORY_LABELS: Record<string, string> = {
+    tasks: 'Tasks',
+    shopping: 'Shopping',
+    spending: 'Spending',
+    projects: 'Projects',
+    sharing: 'Shared with me',
+};
+
+export default function Notifications({ prefs: initialPrefs }: { prefs: Record<string, boolean> }) {
     const vapidPublicKey = (usePage().props as { vapidPublicKey?: string }).vapidPublicKey ?? '';
+    const [prefs, setPrefs] = useState<Record<string, boolean>>(initialPrefs);
+
+    const togglePref = (key: string) => {
+        const next = { ...prefs, [key]: !prefs[key] };
+        setPrefs(next);
+        void savePushPrefs(next);
+    };
     const [supported, setSupported] = useState(true);
     const [needsInstall, setNeedsInstall] = useState(false);
     const [on, setOn] = useState(false);
@@ -88,11 +111,33 @@ export default function Notifications() {
                             )}
 
                             <p className="text-muted-foreground text-xs leading-relaxed">
-                                Notifications are per-device: turn them on wherever you want to be alerted. You'll get a push when a task
-                                is assigned to you or something is shared with you.
+                                Push is per-device: turn it on wherever you want to be alerted. What you're notified about (below) is
+                                account-wide.
                             </p>
                         </>
                     )}
+
+                    <div className="space-y-3 pt-2">
+                        <div className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Notify me about</div>
+                        <div className="bg-surface-card divide-border/60 divide-y rounded-xl border">
+                            {Object.keys(CATEGORY_LABELS).map((key) => (
+                                <div key={key} className="flex items-center justify-between px-4 py-3">
+                                    <span className="text-primary text-sm font-medium">{CATEGORY_LABELS[key]}</span>
+                                    <button
+                                        type="button"
+                                        role="switch"
+                                        aria-checked={prefs[key]}
+                                        onClick={() => togglePref(key)}
+                                        className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${prefs[key] ? 'bg-primary' : 'bg-border'}`}
+                                    >
+                                        <span
+                                            className={`absolute top-0.5 size-5 rounded-full bg-white shadow-sm transition-all ${prefs[key] ? 'left-[18px]' : 'left-0.5'}`}
+                                        />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             </SettingsLayout>
         </AppLayout>
