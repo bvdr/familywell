@@ -17,6 +17,7 @@
     "require": {
         "php": "^8.2",
         "inertiajs/inertia-laravel": "^2.0",
+        "laravel-notification-channels/webpush": "^11.0",
         "laravel/framework": "^12.0",
         "laravel/octane": "^2.17",
         "laravel/reverb": "^1.10",
