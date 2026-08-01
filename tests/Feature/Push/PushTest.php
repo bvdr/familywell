@@ -19,6 +19,21 @@ it('stores and removes a push subscription', function () {
     expect($user->pushSubscriptions()->count())->toBe(0);
 });
 
+it('tags a categorised push so the client can stack them', function () {
+    $user = User::factory()->create();
+    $msg = (new PushAlert('Shopping', 'added milk', '/m/shopping/lists/1', 'shopping'))->toWebPush($user, new PushAlert('x', 'y'));
+
+    expect($msg->toArray()['tag'])->toBe('shopping')
+        ->and($msg->toArray()['data']['categoryLabel'])->toBe('Shopping');
+});
+
+it('leaves an uncategorised push untagged', function () {
+    $user = User::factory()->create();
+    $msg = (new PushAlert('FamilyWell', 'hi'))->toWebPush($user, new PushAlert('x', 'y'));
+
+    expect($msg->toArray()['tag'] ?? null)->toBeNull();
+});
+
 it('sends a test push to the current user', function () {
     Notification::fake();
     $user = User::factory()->create();
