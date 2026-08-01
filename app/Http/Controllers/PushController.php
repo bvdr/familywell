@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use App\Notifications\PushAlert;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -34,6 +35,18 @@ class PushController extends Controller
     public function test(Request $request): Response
     {
         $request->user()->notify(new PushAlert('FamilyWell', 'Push notifications are on for this device 🎉'));
+
+        return response()->noContent();
+    }
+
+    // Save which categories the user wants pushes for (account-level, applies to all their devices).
+    public function prefs(Request $request): Response
+    {
+        $request->validate(['prefs' => ['required', 'array'], 'prefs.*' => ['boolean']]);
+        $prefs = collect(User::PUSH_CATEGORIES)
+            ->mapWithKeys(fn ($c) => [$c => (bool) ($request->input("prefs.$c", true))])
+            ->all();
+        $request->user()->update(['notification_prefs' => $prefs]);
 
         return response()->noContent();
     }
