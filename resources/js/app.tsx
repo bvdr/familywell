@@ -17,6 +17,7 @@ import { createRoot } from 'react-dom/client';
 import { route as routeFn } from 'ziggy-js';
 import { initializeTheme } from './hooks/use-appearance';
 import { loadModules, registerSlot } from './lib/modules';
+import { registerServiceWorker } from './lib/push';
 
 declare global {
     const route: typeof routeFn;
@@ -47,3 +48,6 @@ createInertiaApp({
 
 // This will set light / dark mode on load...
 initializeTheme();
+
+// Register the service worker so push notifications are received + clickable (no-op where unsupported).
+void registerServiceWorker();

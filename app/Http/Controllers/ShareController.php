@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Notifications\PushAlert;
 use App\Support\Sharing\ShareableRegistry;
 use App\Support\Sharing\ShareAccess;
 use Illuminate\Database\Eloquent\Model;
@@ -32,9 +33,27 @@ class ShareController extends Controller
         abort_if($this->access->roleFor($user, $entity) === 'owner', 422, 'Cannot change the owner.');
         abort_unless($user->families()->whereKey($entity->sharingFamilyId())->exists(), 422, 'User is not in this family.');
 
-        $entity->shares()->updateOrCreate(['user_id' => $user->id], ['role' => $role, 'invited_by' => $request->user()->id]);
+        $share = $entity->shares()->updateOrCreate(['user_id' => $user->id], ['role' => $role, 'invited_by' => $request->user()->id]);
+
+        // Push the newly-granted person (not on a mere role change, not yourself).
+        if ($share->wasRecentlyCreated && $user->id !== $request->user()->id) {
+            $name = $entity->name ?? 'something';
+            $user->notify(new PushAlert("{$request->user()->name} shared with you", $name, self::entityUrl($type, $id)));
+        }
 
         return back();
+    }
+
+    // Deep link to a shared entity by its share type. Falls back to the dashboard for unknown types.
+    private static function entityUrl(string $type, int $id): string
+    {
+        return match ($type) {
+            'project' => "/m/projects/{$id}",
+            'shopping_list' => "/m/shopping/lists/{$id}",
+            'task_list' => "/m/tasks/lists/{$id}",
+            'spend_event' => "/m/spending/events/{$id}",
+            default => '/dashboard',
+        };
     }
 
     public function removeMember(string $type, int $id, User $user)
