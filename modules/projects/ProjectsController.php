@@ -6,7 +6,7 @@ use App\Events\ProjectsChanged;
 use App\Http\Controllers\Controller;
 use App\Models\Family;
 use App\Models\User;
-use App\Notifications\PushAlert;
+use App\Support\FamilyNotifier;
 use App\Support\Media\StoredImage;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
@@ -87,6 +87,7 @@ class ProjectsController extends Controller
         ]);
         $project->shares()->create(['user_id' => $request->user()->id, 'role' => 'owner']);
 
+        FamilyNotifier::toAccessOf($project, 'projects', $request->user()->id, 'New project', "{$request->user()->name} started: {$project->name}", route('projects.show', $project, false));
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
 
         return to_route('projects.show', $project);
@@ -173,9 +174,14 @@ class ProjectsController extends Controller
         if (array_key_exists('archived', $data)) {
             $project->archived_at = $data['archived'] ? now() : null;
         }
+        $statusBefore = $project->status;
         $project->fill(array_intersect_key($data, array_flip(['name', 'description', 'status', 'progress', 'color', 'owner_id', 'target_start', 'waiting_on'])))->save();
         if (array_key_exists('visibility', $data)) {
             $project->setVisibility($data['visibility']);
+        }
+        if (array_key_exists('status', $data) && $data['status'] !== $statusBefore) {
+            $label = str_replace('_', ' ', $project->status);
+            FamilyNotifier::toAccessOf($project, 'projects', $request->user()->id, 'Project updated', "{$request->user()->name} set {$project->name} to {$label}", route('projects.show', $project, false));
         }
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
 
@@ -313,23 +319,10 @@ class ProjectsController extends Controller
         if (empty($data['parent_id'])) {
             $project->links()->firstOrCreate(['linkable_type' => 'task', 'linkable_id' => $task->id]);
         }
-        $this->pingAssignee($request, $data['assigned_to'] ?? null, $data['title'], $project);
+        FamilyNotifier::toAccessOf($project, 'tasks', $request->user()->id, 'New task', "{$request->user()->name} added: {$data['title']}", route('projects.show', $project, false));
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
 
         return back();
-    }
-
-    // Push the assignee when a project task is assigned to someone other than the assigner.
-    private function pingAssignee(Request $request, ?int $assigneeId, string $title, Project $project): void
-    {
-        if (! $assigneeId || $assigneeId === $request->user()->id) {
-            return;
-        }
-        User::find($assigneeId)?->notify(new PushAlert(
-            'New task for you',
-            "{$request->user()->name} assigned you: {$title}",
-            route('projects.show', $project, false),
-        ));
     }
 
     // Drag-and-drop reorder + re-nest for a project's tasks. Tasks in new visual order, each with its
@@ -380,9 +373,14 @@ class ProjectsController extends Controller
     public function updateTask(Request $request, Task $task): RedirectResponse
     {
         $project = $this->projectForTask($request, $task);
+        $actor = $request->user();
+        $url = route('projects.show', $project, false);
 
         if (! $request->hasAny(['title', 'note', 'due_date', 'assigned_to', 'done'])) {
             $task->update(['done' => ! $task->done]);
+            if ($task->done) {
+                FamilyNotifier::toAccessOf($project, 'tasks', $actor->id, 'Task done', "{$actor->name} completed: {$task->title}", $url);
+            }
         } else {
             $data = $request->validate([
                 'title' => ['sometimes', 'string', 'max:255'],
@@ -392,9 +390,13 @@ class ProjectsController extends Controller
                 'done' => ['sometimes', 'boolean'],
             ]);
             $before = $task->assigned_to;
+            $wasDone = $task->done;
             $task->update($data);
-            if (array_key_exists('assigned_to', $data) && $data['assigned_to'] !== $before) {
-                $this->pingAssignee($request, $data['assigned_to'], $task->title, $project);
+            if (array_key_exists('assigned_to', $data) && $data['assigned_to'] && $data['assigned_to'] !== $before) {
+                FamilyNotifier::push(User::whereKey($data['assigned_to'])->get(), 'tasks', $actor->id, 'Assigned to you', "{$actor->name} assigned you: {$task->title}", $url);
+            }
+            if (array_key_exists('done', $data) && $data['done'] && ! $wasDone) {
+                FamilyNotifier::toAccessOf($project, 'tasks', $actor->id, 'Task done', "{$actor->name} completed: {$task->title}", $url);
             }
         }
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
@@ -428,6 +430,7 @@ class ProjectsController extends Controller
             'name' => $data['name'], 'note' => $data['note'] ?? null, 'status' => $data['status'] ?? 'pending',
             'position' => (int) $project->dependencies()->max('position') + 1, 'created_by' => $request->user()->id,
         ]);
+        FamilyNotifier::toAccessOf($project, 'projects', $request->user()->id, 'Blocker added', "{$request->user()->name} flagged: {$data['name']}", route('projects.show', $project, false));
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
 
         return back();
