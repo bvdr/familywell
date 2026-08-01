@@ -8,6 +8,7 @@ use App\Http\Controllers\GuestLinkController;
 use App\Http\Controllers\ModuleAssetController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PublicGuestController;
+use App\Http\Controllers\PushController;
 use App\Http\Controllers\PublicShareController;
 use App\Http\Controllers\ShareController;
 use App\Support\Dashboard\DashboardItems;
@@ -33,6 +34,12 @@ Route::middleware(['auth'])->group(function () {
 
     // Accepting requires a logged-in user, but NOT a family (a new/joining user has none yet).
     Route::post('invite/{token}', [FamilyInviteController::class, 'accept'])->name('invite.accept');
+
+    // Web Push: register/remove this device's subscription and fire a test notification. Auth only
+    // (no family needed — subscriptions are per-user).
+    Route::post('push/subscribe', [PushController::class, 'subscribe'])->name('push.subscribe');
+    Route::delete('push/subscribe', [PushController::class, 'unsubscribe'])->name('push.unsubscribe');
+    Route::post('push/test', [PushController::class, 'test'])->name('push.test');
 });
 
 // Public read-only view of a shared entity via its invite-link token. No auth by design; the token

@@ -5,6 +5,8 @@ namespace Modules\Tasks;
 use App\Events\TasksChanged;
 use App\Http\Controllers\Controller;
 use App\Models\Family;
+use App\Models\User;
+use App\Notifications\PushAlert;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
@@ -261,9 +263,23 @@ class TasksController extends Controller
             'created_by' => $request->user()->id,
         ]);
 
+        $this->pingAssignee($request, $data['assigned_to'] ?? null, $data['title'], route('tasks.show', $list, false));
         Realtime::broadcast(new TasksChanged((int) CurrentFamily::id()));
 
         return back();
+    }
+
+    // Push the assignee when a task is assigned to someone other than the person doing the assigning.
+    private function pingAssignee(Request $request, ?int $assigneeId, string $title, string $url): void
+    {
+        if (! $assigneeId || $assigneeId === $request->user()->id) {
+            return;
+        }
+        User::find($assigneeId)?->notify(new PushAlert(
+            'New task for you',
+            "{$request->user()->name} assigned you: {$title}",
+            $url,
+        ));
     }
 
     // Drag-and-drop reorder + re-nest. Accepts the tasks in their new visual order, each with the
@@ -318,7 +334,12 @@ class TasksController extends Controller
                 'assigned_to' => ['sometimes', 'nullable', 'integer'],
                 'done' => ['sometimes', 'boolean'],
             ]);
+            $before = $task->assigned_to;
             $task->update($data);
+            // Only ping on a genuine (re)assignment, not an unrelated edit that resends the same assignee.
+            if (array_key_exists('assigned_to', $data) && $data['assigned_to'] !== $before) {
+                $this->pingAssignee($request, $data['assigned_to'], $task->title, route('tasks.show', $task->list, false));
+            }
         }
 
         Realtime::broadcast(new TasksChanged((int) CurrentFamily::id()));

@@ -22,6 +22,11 @@ const sidebarNavItems: NavItem[] = [
         icon: null,
     },
     {
+        title: 'Notifications',
+        url: '/settings/notifications',
+        icon: null,
+    },
+    {
         title: 'Media',
         url: '/settings/media',
         icon: null,

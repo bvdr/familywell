@@ -113,6 +113,21 @@ it('reorders and nests tasks, rejecting a second level', function () {
     ])->assertStatus(422);
 });
 
+it('pushes the assignee when a task is assigned to someone else', function () {
+    Illuminate\Support\Facades\Notification::fake();
+    [, $users] = tasksFamily();
+    [$alice, $bob] = $users;
+    actingAs($alice)->post('/m/tasks/lists', ['name' => 'Chores']);
+    $list = TaskList::withoutGlobalScopes()->first();
+
+    actingAs($alice)->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Vacuum', 'assigned_to' => $bob->id]);
+    actingAs($alice)->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Mine', 'assigned_to' => $alice->id]);
+
+    // Bob got pinged once (his task); nobody gets pinged for assigning to themselves.
+    Illuminate\Support\Facades\Notification::assertSentToTimes($bob, App\Notifications\PushAlert::class, 1);
+    Illuminate\Support\Facades\Notification::assertNotSentTo($alice, App\Notifications\PushAlert::class);
+});
+
 it('hides a private list from a member who was not shared', function () {
     [, $users] = tasksFamily();
     [$alice, $bob] = $users;
