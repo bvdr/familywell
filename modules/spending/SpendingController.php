@@ -50,7 +50,13 @@ class SpendingController extends Controller
                 'currency' => $e->currency,
                 'total' => (int) $e->spends_sum_base_amount,
                 'archived' => $e->archived_at !== null,
-                'members' => $e->members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),
+                // Only members who can actually reach the event: everyone for `family` visibility,
+                // otherwise just those with a share. The pivot holds every family member (synced at
+                // creation), so without this filter an invited/private event shows people who have no
+                // access. Mirrors SpendEvent::participantNames().
+                'members' => $e->members
+                    ->filter(fn ($m) => $e->visibility() === 'family' || $e->shares->contains('user_id', $m->id))
+                    ->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),
             ])->values();
 
         return Inertia::render('spending/events', [
