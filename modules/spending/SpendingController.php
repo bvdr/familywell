@@ -33,7 +33,10 @@ class SpendingController extends Controller
         $userId = $request->user()->id;
 
         $events = SpendEvent::query()
-            ->withSum('spends', 'amount')
+            // Sum base_amount (each spend converted to the event currency, frozen at capture), NOT the
+            // raw amount — otherwise a foreign-currency spend (e.g. a RON fill-up in a EUR trip) is added
+            // as if its number were euros, inflating the card total vs the event's real "Total spent".
+            ->withSum('spends', 'base_amount')
             ->with(['members:id,name', 'shareSetting', 'shares'])
             ->latest()
             ->get()
@@ -45,7 +48,7 @@ class SpendingController extends Controller
                 'id' => $e->id,
                 'name' => $e->name,
                 'currency' => $e->currency,
-                'total' => (int) $e->spends_sum_amount,
+                'total' => (int) $e->spends_sum_base_amount,
                 'archived' => $e->archived_at !== null,
                 'members' => $e->members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),
             ])->values();
