@@ -4,6 +4,7 @@ namespace Modules\Projects;
 
 use App\Events\ProjectsChanged;
 use App\Http\Controllers\Controller;
+use App\Models\EntityVisit;
 use App\Models\Family;
 use App\Models\User;
 use App\Support\FamilyNotifier;
@@ -99,6 +100,9 @@ class ProjectsController extends Controller
             $project->shares()->firstOrCreate(['user_id' => $project->created_by], ['role' => 'owner']);
         }
         abort_unless($this->access->canView($request->user(), $project), 403);
+
+        // Mark this project as "just opened" for the dashboard's Pick-up-where-you-left-off.
+        EntityVisit::record('project', $project->id);
 
         $family = Family::findOrFail(CurrentFamily::id());
         $members = $family->members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values();

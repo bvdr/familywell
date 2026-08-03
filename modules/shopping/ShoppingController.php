@@ -4,6 +4,7 @@ namespace Modules\Shopping;
 
 use App\Events\ShoppingChanged;
 use App\Http\Controllers\Controller;
+use App\Models\EntityVisit;
 use App\Models\Family;
 use App\Support\FamilyNotifier;
 use App\Support\Realtime;
@@ -165,6 +166,9 @@ class ShoppingController extends Controller
 
         abort_unless($this->access->canView($request->user(), $list), 403);
 
+        // Mark this list as "just opened" for the dashboard's Pick-up-where-you-left-off.
+        EntityVisit::record('shopping_list', $list->id);
+
         $family = Family::findOrFail(CurrentFamily::id());
         $members = $family->members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values();
 
@@ -206,6 +210,7 @@ class ShoppingController extends Controller
                 'bought' => $i->bought,
                 'note' => $i->note,
                 'assignedTo' => $i->assigned_to,
+                'dueDate' => optional($i->due_date)->toDateString(),
                 'store' => $i->store,                 // primary shop (null => inherits the list store)
                 'altStores' => $i->alt_stores ?? [],  // also-available-at shops
             ])->values(),
@@ -267,6 +272,7 @@ class ShoppingController extends Controller
             'department' => ['nullable', 'string', 'max:60'],
             'note' => ['nullable', 'string', 'max:255'],
             'assigned_to' => ['nullable', 'integer'],
+            'due_date' => ['nullable', 'date'],
             'store' => ['nullable', 'string', 'max:120'],           // primary shop; null => inherit list store
             'alt_stores' => ['nullable', 'array'],                  // also-available-at shops
             'alt_stores.*' => ['string', 'max:120'],
@@ -278,6 +284,7 @@ class ShoppingController extends Controller
             'department' => $data['department'] ?? 'other',
             'note' => $data['note'] ?? null,
             'assigned_to' => $data['assigned_to'] ?? null,
+            'due_date' => $data['due_date'] ?? null,
             'store' => $data['store'] ?? null,
             'alt_stores' => $data['alt_stores'] ?? null,
             'created_by' => $request->user()->id,
@@ -345,7 +352,7 @@ class ShoppingController extends Controller
         abort_unless($this->access->roleFor($request->user(), $item->list) !== null, 403);
 
         // No body => a plain check/uncheck toggle (the common case, one tap in the list).
-        if (! $request->hasAny(['name', 'quantity', 'department', 'note', 'assigned_to', 'bought', 'store', 'alt_stores'])) {
+        if (! $request->hasAny(['name', 'quantity', 'department', 'note', 'assigned_to', 'due_date', 'bought', 'store', 'alt_stores'])) {
             $item->update(['bought' => ! $item->bought]);
         } else {
             $data = $request->validate([
@@ -354,6 +361,7 @@ class ShoppingController extends Controller
                 'department' => ['sometimes', 'string', 'max:60'],
                 'note' => ['sometimes', 'nullable', 'string', 'max:255'],
                 'assigned_to' => ['sometimes', 'nullable', 'integer'],
+                'due_date' => ['sometimes', 'nullable', 'date'],
                 'bought' => ['sometimes', 'boolean'],
                 'store' => ['sometimes', 'nullable', 'string', 'max:120'],
                 'alt_stores' => ['sometimes', 'nullable', 'array'],

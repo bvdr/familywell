@@ -4,6 +4,7 @@ namespace Modules\Tasks;
 
 use App\Events\TasksChanged;
 use App\Http\Controllers\Controller;
+use App\Models\EntityVisit;
 use App\Models\Family;
 use App\Models\User;
 use App\Support\FamilyNotifier;
@@ -116,6 +117,9 @@ class TasksController extends Controller
         }
 
         abort_unless($this->access->canView($request->user(), $list), 403);
+
+        // Mark this list as "just opened" for the dashboard's Pick-up-where-you-left-off.
+        EntityVisit::record('task_list', $list->id);
 
         $family = Family::findOrFail(CurrentFamily::id());
         $members = $family->members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values();

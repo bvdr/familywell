@@ -4,6 +4,7 @@ namespace Modules\Spending;
 
 use App\Events\SpendingChanged;
 use App\Http\Controllers\Controller;
+use App\Models\EntityVisit;
 use App\Models\Family;
 use App\Support\FamilyNotifier;
 use App\Support\Media\StoredImage;
@@ -93,6 +94,9 @@ class SpendingController extends Controller
         }
 
         abort_unless($this->access->canView($request->user(), $event), 403);
+
+        // Mark this event as "just opened" for the dashboard's Pick-up-where-you-left-off.
+        EntityVisit::record('spend_event', $event->id);
 
         return Inertia::render('spending/event', $this->eventPayload($event));
     }
