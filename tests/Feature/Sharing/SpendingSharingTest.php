@@ -122,15 +122,20 @@ it('renders event stats for someone who can view and 403s those who cannot', fun
     actingAs($u[1])->get("/m/spending/events/{$event->id}/stats")->assertForbidden();
 });
 
-it('surfaces accessible spend events as dashboard items and hides private ones', function () {
+it('surfaces recently opened spend events on the dashboard and hides private ones', function () {
     [, $u] = sharingFamily();
     $event = makeEvent($u[0]);
 
-    // family visibility: the event shows for another member
-    actingAs($u[1])->get('/dashboard')->assertInertia(fn ($p) => $p->component('dashboard')->has('items', 1)->where('items.0.title', 'Trip'));
+    // "Pick up where you left off" is recency-based now: opening the event records a visit, and it
+    // then shows under `recent` for that viewer.
+    actingAs($u[1])->get("/m/spending/events/{$event->id}")->assertOk();
+    actingAs($u[1])->get('/dashboard')
+        ->assertInertia(fn ($p) => $p->component('dashboard')->has('recent', 1)->where('recent.0.title', 'Trip'));
 
-    // private: gone for the other member, still there for the owner
+    // The owner who has not opened it sees nothing recent yet.
+    actingAs($u[0])->get('/dashboard')->assertInertia(fn ($p) => $p->has('recent', 0));
+
+    // Made private: gone for the member even though they opened it before (they can no longer view it).
     $event->setVisibility('private');
-    actingAs($u[1])->get('/dashboard')->assertInertia(fn ($p) => $p->has('items', 0));
-    actingAs($u[0])->get('/dashboard')->assertInertia(fn ($p) => $p->has('items', 1));
+    actingAs($u[1])->get('/dashboard')->assertInertia(fn ($p) => $p->has('recent', 0));
 });

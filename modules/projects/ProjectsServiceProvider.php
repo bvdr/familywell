@@ -2,12 +2,15 @@
 
 namespace Modules\Projects;
 
+use App\Models\EntityVisit;
+use App\Support\Dashboard\DashboardAgenda;
 use App\Support\Dashboard\DashboardItems;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\Tasks\Task;
 
 class ProjectsServiceProvider extends ServiceProvider
 {
@@ -16,7 +19,8 @@ class ProjectsServiceProvider extends ServiceProvider
         // Projects opt into the core sharing system (addressable as `project` in share URLs).
         ShareableRegistry::register('project', Project::class);
 
-        // Surface active projects on the dashboard, deep-linked, respecting visibility.
+        // "Pick up where you left off": projects this user opened in the last few days, tagged with
+        // when so the dashboard can order them across modules. Respects visibility.
         DashboardItems::register('projects', function () {
             $userId = auth()->id();
             $familyId = CurrentFamily::id();
@@ -24,18 +28,72 @@ class ProjectsServiceProvider extends ServiceProvider
                 return [];
             }
 
+            $visits = EntityVisit::recentMap('project');
+            if ($visits->isEmpty()) {
+                return [];
+            }
+
             return Project::query()
                 ->with(['shareSetting', 'shares'])
+                ->whereIn('id', $visits->keys())
                 ->whereNull('archived_at')
-                ->orderBy('position')->latest()->get()
+                ->get()
                 ->filter(fn (Project $p) => $p->visibility() === 'family' || $p->shares->contains('user_id', $userId))
-                ->take(4)
                 ->map(fn (Project $p) => [
                     'title' => $p->name,
                     'subtitle' => $p->progress.'% · '.str_replace('_', ' ', $p->status),
                     'href' => "/m/projects/{$p->id}",
                     'icon' => 'folder-kanban',
+                    'visitedAt' => $visits[$p->id]->toIso8601String(),
                 ])->values()->all();
+        });
+
+        // Today / This Week: open, dated project tasks (tasks-module tasks linked to a project),
+        // due through the end of this week, in a non-archived project the user can see.
+        DashboardAgenda::register('projects', function () {
+            $userId = auth()->id();
+            $familyId = CurrentFamily::id();
+            if (! $userId || ! $familyId || ! app(ModuleRegistry::class)->isEnabled('projects', $familyId)) {
+                return [];
+            }
+
+            // Which task is in which viewable project (family-scoped links; keep last if a task ever
+            // links to two projects).
+            $links = ProjectLink::where('linkable_type', 'task')->get();
+            if ($links->isEmpty()) {
+                return [];
+            }
+            $projects = Project::query()
+                ->with(['shareSetting', 'shares'])
+                ->whereIn('id', $links->pluck('project_id')->unique())
+                ->whereNull('archived_at')->get()
+                ->filter(fn (Project $p) => $p->visibility() === 'family' || $p->shares->contains('user_id', $userId))
+                ->keyBy('id');
+            $taskToProject = $links->filter(fn (ProjectLink $l) => $projects->has($l->project_id))
+                ->pluck('project_id', 'linkable_id');
+            if ($taskToProject->isEmpty()) {
+                return [];
+            }
+
+            $weekEnd = now()->endOfWeek()->toDateString();
+
+            return Task::query()
+                ->whereIn('id', $taskToProject->keys())
+                ->whereNotNull('due_date')
+                ->where('done', false)
+                ->whereDate('due_date', '<=', $weekEnd)
+                ->get()
+                ->map(function (Task $t) use ($taskToProject, $projects) {
+                    $project = $projects[$taskToProject[$t->id]];
+
+                    return [
+                        'title' => $t->title,
+                        'subtitle' => $project->name,
+                        'href' => "/m/projects/{$project->id}",
+                        'icon' => 'folder-kanban',
+                        'dueDate' => $t->due_date->toDateString(),
+                    ];
+                })->values()->all();
         });
 
         Route::middleware(['web', 'auth', 'family', 'module:projects'])

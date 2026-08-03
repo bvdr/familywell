@@ -2,6 +2,8 @@
 
 namespace Modules\Tasks;
 
+use App\Models\EntityVisit;
+use App\Support\Dashboard\DashboardAgenda;
 use App\Support\Dashboard\DashboardItems;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareableRegistry;
@@ -16,7 +18,8 @@ class TasksServiceProvider extends ServiceProvider
         // Opt to-do lists into the core sharing system (addressable as `task_list` in share URLs).
         ShareableRegistry::register('task_list', TaskList::class);
 
-        // Surface the family's to-do lists on the dashboard, deep-linked, respecting visibility.
+        // "Pick up where you left off": the to-do lists this user opened in the last few days,
+        // tagged with when so the dashboard can order them across modules. Respects visibility.
         DashboardItems::register('tasks', function () {
             $userId = auth()->id();
             $familyId = CurrentFamily::id();
@@ -24,20 +27,52 @@ class TasksServiceProvider extends ServiceProvider
                 return [];
             }
 
+            $visits = EntityVisit::recentMap('task_list');
+            if ($visits->isEmpty()) {
+                return [];
+            }
+
             return TaskList::query()
                 ->withCount(['tasks', 'tasks as done_count' => fn ($q) => $q->where('done', true)])
                 ->with(['shareSetting', 'shares'])
+                ->whereIn('id', $visits->keys())
                 ->whereNull('archived_at')
-                ->orderBy('position')
-                ->latest()
                 ->get()
                 ->filter(fn (TaskList $l) => $l->visibility() === 'family' || $l->shares->contains('user_id', $userId))
-                ->take(4)
                 ->map(fn (TaskList $l) => [
                     'title' => $l->name,
                     'subtitle' => "{$l->done_count} of {$l->tasks_count} done",
                     'href' => "/m/tasks/lists/{$l->id}",
                     'icon' => 'list-checks',
+                    'visitedAt' => $visits[$l->id]->toIso8601String(),
+                ])->values()->all();
+        });
+
+        // Today / This Week: open, dated tasks living in a to-do list (project tasks come from the
+        // projects provider), due through the end of this week, in a list the user can see.
+        DashboardAgenda::register('tasks', function () {
+            $userId = auth()->id();
+            $familyId = CurrentFamily::id();
+            if (! $userId || ! $familyId || ! app(ModuleRegistry::class)->isEnabled('tasks', $familyId)) {
+                return [];
+            }
+
+            $weekEnd = now()->endOfWeek()->toDateString();
+
+            return Task::query()
+                ->whereNotNull('task_list_id')
+                ->whereNotNull('due_date')
+                ->where('done', false)
+                ->whereDate('due_date', '<=', $weekEnd)
+                ->with(['list.shareSetting', 'list.shares'])
+                ->get()
+                ->filter(fn (Task $t) => $t->list && ($t->list->visibility() === 'family' || $t->list->shares->contains('user_id', $userId)))
+                ->map(fn (Task $t) => [
+                    'title' => $t->title,
+                    'subtitle' => $t->list->name,
+                    'href' => "/m/tasks/lists/{$t->task_list_id}",
+                    'icon' => 'list-checks',
+                    'dueDate' => $t->due_date->toDateString(),
                 ])->values()->all();
         });
 
