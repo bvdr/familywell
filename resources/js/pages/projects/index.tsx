@@ -1,4 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
+import { openNewOnArrival } from '@/lib/create-intent';
 import { Archive, FolderKanban, Link2, Plus, RotateCcw } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
@@ -78,7 +79,7 @@ function Card({ p }: { p: Project }) {
 }
 
 export default function ProjectsIndex({ projects }: { projects: Project[] }) {
-    const [creating, setCreating] = useState(false);
+    const [creating, setCreating] = useState(openNewOnArrival);
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
         description: '',

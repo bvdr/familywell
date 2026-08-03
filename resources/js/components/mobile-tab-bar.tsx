@@ -9,6 +9,7 @@ import {
     type LucideIcon,
     MoreHorizontal,
     Pin,
+    Plus,
     Settings,
     ShoppingCart,
     Users,
@@ -33,6 +34,15 @@ const SECONDARY: Item[] = [
     { key: 'members', title: 'Members', url: '/family/members', icon: Users },
     { key: 'modules', title: 'Modules', url: '/family/modules', icon: Blocks },
     { key: 'settings', title: 'Settings', url: '/settings/profile', icon: Settings },
+];
+
+// The green "+" quick-add: each enabled module's top-level create, deep-linked with ?new=1 so the
+// target index opens its create sheet on arrival. Order mirrors the nav.
+const CREATE: Item[] = [
+    { key: 'shopping', title: 'New shopping list', url: '/m/shopping?new=1', icon: ShoppingCart },
+    { key: 'tasks', title: 'New to-do list', url: '/m/tasks?new=1', icon: ListChecks },
+    { key: 'projects', title: 'New project', url: '/m/projects?new=1', icon: FolderKanban },
+    { key: 'spending', title: 'New event', url: '/m/spending?new=1', icon: Wallet },
 ];
 
 const PINS_KEY = 'familywell:navPins';
@@ -74,6 +84,8 @@ export function MobileTabBar() {
     const pinnedKeys = new Set(pinned.map((i) => i.key));
 
     const [moreOpen, setMoreOpen] = useState(false);
+    const [addOpen, setAddOpen] = useState(false);
+    const createItems = CREATE.filter((c) => enabled.includes(c.key));
     const [pending, setPending] = useState<string | null>(null);
     useEffect(() => {
         const offFinish = router.on('finish', (e) => {
@@ -96,12 +108,13 @@ export function MobileTabBar() {
         }
     };
 
-    const cell = 'flex flex-1 flex-col items-center gap-0.5 rounded-full py-1.5 text-[10px] font-medium transition-colors';
+    // Cells size to their content now (no flex-1) so the pill shrinks and leaves room for the "+".
+    const cell = 'flex flex-col items-center gap-0.5 rounded-full px-2.5 py-1.5 text-[10px] font-medium transition-colors';
 
     return (
         <>
-            <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden">
-                <div className="border-border/60 pointer-events-auto flex w-full max-w-md items-center justify-around gap-1 rounded-full border bg-white/75 p-1.5 shadow-[var(--shadow-fw-md)] backdrop-blur-xl">
+            <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex items-center justify-center gap-2.5 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden">
+                <div className="border-border/60 pointer-events-auto flex items-center gap-0.5 rounded-full border bg-white/75 p-1.5 shadow-[var(--shadow-fw-md)] backdrop-blur-xl">
                     {pinned.map((item) => {
                         const active = isActive(item.url);
                         const loading = pending === item.url;
@@ -128,7 +141,46 @@ export function MobileTabBar() {
                         More
                     </button>
                 </div>
+
+                {/* Detached green add button on the right (Slack-style separate action). */}
+                <button
+                    type="button"
+                    onClick={() => setAddOpen(true)}
+                    aria-label="Add"
+                    className="bg-primary text-primary-foreground pointer-events-auto flex size-14 shrink-0 items-center justify-center rounded-full shadow-[var(--shadow-fw-md)] transition-transform active:scale-95"
+                >
+                    <Plus className="size-6" />
+                </button>
             </nav>
+
+            <ResponsiveModal open={addOpen} onOpenChange={setAddOpen} title="Add" description="Create something new">
+                <div className="flex flex-col gap-1">
+                    {createItems.length === 0 ? (
+                        <Link
+                            href="/family/modules"
+                            onClick={() => setAddOpen(false)}
+                            className="text-primary hover:bg-surface flex items-center gap-3 rounded-xl p-3 transition-colors"
+                        >
+                            <Blocks className="size-5" />
+                            <span className="text-sm font-medium">Turn on a module to add things</span>
+                        </Link>
+                    ) : (
+                        createItems.map((item) => (
+                            <Link
+                                key={item.key}
+                                href={item.url}
+                                onClick={() => setAddOpen(false)}
+                                className="text-primary hover:bg-surface flex items-center gap-3 rounded-xl p-3 transition-colors"
+                            >
+                                <span className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-lg">
+                                    <item.icon className="size-4.5" />
+                                </span>
+                                <span className="text-sm font-medium">{item.title}</span>
+                            </Link>
+                        ))
+                    )}
+                </div>
+            </ResponsiveModal>
 
             <ResponsiveModal open={moreOpen} onOpenChange={setMoreOpen} title="More" description="Tap a pin to choose your four bottom-bar shortcuts">
                 <div className="flex flex-col gap-1">
