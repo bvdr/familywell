@@ -73,6 +73,7 @@ class TasksServiceProvider extends ServiceProvider
                     'href' => "/m/tasks/lists/{$t->task_list_id}",
                     'icon' => 'list-checks',
                     'dueDate' => $t->due_date->toDateString(),
+                    'toggleUrl' => "/m/tasks/tasks/{$t->id}", // empty-body PATCH toggles done
                 ])->values()->all();
         });
 

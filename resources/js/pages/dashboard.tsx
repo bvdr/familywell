@@ -1,15 +1,17 @@
 import AppLayout from '@/layouts/app-layout';
 import { Slot } from '@/lib/modules';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import { Head, Link, usePage } from '@inertiajs/react';
-import { Blocks, FolderKanban, ListChecks, type LucideIcon, Settings, ShoppingCart, Users, Wallet } from 'lucide-react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Blocks, Check, FolderKanban, ListChecks, type LucideIcon, Settings, ShoppingCart, Users, Wallet } from 'lucide-react';
+import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' }];
 
 // A recently-opened entity ("Pick up where you left off"). visitedAt drives the order server-side.
 type DashItem = { title: string; subtitle: string; href: string; icon: string };
 // A dated leaf item (a task / shopping item due on a day) for the Today / This Week sections.
-type AgendaItem = DashItem & { dueDate: string };
+// toggleUrl: empty-body PATCH marks it done/bought (and it drops off on the next dashboard load).
+type AgendaItem = DashItem & { dueDate: string; toggleUrl: string };
 
 // Map a provider's icon key to a lucide icon; fall back to a neutral one.
 const ICONS: Record<string, LucideIcon> = { wallet: Wallet, 'shopping-cart': ShoppingCart, 'folder-kanban': FolderKanban, 'list-checks': ListChecks };
@@ -57,25 +59,36 @@ function Shortcut({ href, icon: Icon, title, sub }: { href: string; icon: typeof
     );
 }
 
-// One dated row inside Today / This Week: icon, title, where it lives, and a due badge.
+// One dated row inside Today / This Week: it IS the task / shopping item, so it renders as a real
+// check-off row. Tapping the circle marks it done/bought (it drops off on the next dashboard load);
+// the rest of the row opens the list it lives in. Due badge on the right.
 function AgendaRow({ item }: { item: AgendaItem }) {
-    const Icon = iconFor(item.icon);
     const badge = dueBadge(item.dueDate);
+    const [done, setDone] = useState(false);
+    const toggle = () => {
+        setDone(true); // optimistic check; the redirect back reloads the dashboard and removes it
+        router.patch(item.toggleUrl, {}, { preserveScroll: true });
+    };
     return (
-        <Link
-            href={item.href}
-            prefetch
-            className="bg-surface-card hover:border-accent flex items-center gap-3 rounded-xl border p-3 transition-colors"
-        >
-            <span className="bg-primary text-primary-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
-                <Icon className="size-4.5" />
-            </span>
-            <span className="min-w-0 flex-1">
-                <span className="text-primary block truncate font-medium">{item.title}</span>
-                <span className="text-muted-foreground block truncate text-sm">{item.subtitle}</span>
-            </span>
-            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${badge.tone}`}>{badge.label}</span>
-        </Link>
+        <div className="bg-surface-card flex items-center gap-2.5 rounded-xl border px-3 py-2.5">
+            <button
+                type="button"
+                onClick={toggle}
+                aria-label={done ? 'Done' : 'Mark done'}
+                className={`flex size-6 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                    done ? 'border-primary bg-primary text-primary-foreground' : 'border-border'
+                }`}
+            >
+                {done && <Check className="size-3.5" />}
+            </button>
+            <Link href={item.href} prefetch className="flex min-w-0 flex-1 items-center gap-2.5">
+                <span className="min-w-0 flex-1">
+                    <span className={`block truncate text-[15px] ${done ? 'text-muted-foreground line-through' : 'text-primary'}`}>{item.title}</span>
+                    <span className="text-muted-foreground block truncate text-sm">{item.subtitle}</span>
+                </span>
+                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${badge.tone}`}>{badge.label}</span>
+            </Link>
+        </div>
     );
 }
 

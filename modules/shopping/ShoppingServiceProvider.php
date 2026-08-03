@@ -73,6 +73,7 @@ class ShoppingServiceProvider extends ServiceProvider
                     'href' => "/m/shopping/lists/{$i->shopping_list_id}",
                     'icon' => 'shopping-cart',
                     'dueDate' => $i->due_date->toDateString(),
+                    'toggleUrl' => "/m/shopping/items/{$i->id}", // empty-body PATCH toggles bought
                 ])->values()->all();
         });
 
