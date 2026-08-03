@@ -151,7 +151,6 @@ export default function ListDetail({
 
     const liveItems = items.filter((i) => !isGone(i));
     const boughtCount = liveItems.filter((i) => isBought(i)).length;
-    const pct = liveItems.length ? Math.round((boughtCount / liveItems.length) * 100) : 0;
 
     // A shop's aisles (custom or default). Null/unknown shop uses the default Grocery set.
     const aislesFor = (store: string | null): Aisle[] => (store ? (aislesByStore[store] ?? defaultAisles) : defaultAisles);
@@ -460,20 +459,17 @@ export default function ListDetail({
                             className="font-heading text-primary border-border focus:border-accent w-full rounded-lg border bg-transparent px-1 text-2xl outline-none"
                         />
                     ) : (
-                        <button type="button" onClick={() => setEditingTitle(true)} className="group flex items-center gap-2 text-left">
-                            <h1 className="font-heading text-primary text-2xl">{list.name}</h1>
-                            {list.visibility === 'private' && <Lock className="text-muted-foreground size-4" />}
-                        </button>
-                    )}
-                    <div className="mt-1 flex items-center justify-end gap-3">
-                        {/* No list-level shop: a list can hold items from several shops (grouped below). */}
-                        <div className="text-muted-foreground text-sm tabular-nums">
-                            {boughtCount} / {liveItems.length} done
+                        <div className="flex items-center justify-between gap-3">
+                            <button type="button" onClick={() => setEditingTitle(true)} className="group flex min-w-0 items-center gap-2 text-left">
+                                <h1 className="font-heading text-primary truncate text-2xl">{list.name}</h1>
+                                {list.visibility === 'private' && <Lock className="text-muted-foreground size-4 shrink-0" />}
+                            </button>
+                            {/* Count sits inline with the title; no progress bar. */}
+                            <div className="text-muted-foreground shrink-0 text-sm tabular-nums">
+                                {boughtCount} / {liveItems.length} done
+                            </div>
                         </div>
-                    </div>
-                    <div className="bg-surface mt-2 h-1.5 overflow-hidden rounded-full">
-                        <div className="bg-primary h-full rounded-full transition-all" style={{ width: `${pct}%` }} />
-                    </div>
+                    )}
                 </header>
 
                 <div className="flex flex-col gap-4 p-4">
