@@ -29,16 +29,32 @@ export function AisleEditor({
     open,
     onOpenChange,
     listId,
-    stores,
-    initialStore,
+    stores = [],
+    initialStore = '',
+    shopId,
+    shopName,
+    reloadKeys = ['aislesByStore', 'items'],
 }: {
     open: boolean;
     onOpenChange: (v: boolean) => void;
-    listId: number;
-    stores: string[]; // the shops you can edit aisles for (the list's stores)
-    initialStore: string; // '' = the list's default/no store
+    // List mode: edit the aisles for a list's store(s).
+    listId?: number;
+    stores?: string[]; // the shops you can edit aisles for (the list's stores)
+    initialStore?: string; // '' = the list's default/no store
+    // Shop mode: edit one shop's aisles directly (no store switcher).
+    shopId?: number;
+    shopName?: string;
+    reloadKeys?: string[]; // page props to reload on close so grouping/chips refresh
 }) {
-    const [store, setStore] = useState(initialStore);
+    // In shop mode the store is fixed to the shop and there's no switcher.
+    const storeList = shopId ? [] : stores;
+    const [store, setStore] = useState(shopId ? (shopName ?? '') : initialStore);
+
+    // Endpoints differ by mode; update/destroy of a single aisle are shared (keyed by aisle id).
+    const ensureUrl = shopId ? route('shopping.shops.aisles.ensure', shopId) : route('shopping.aisles.ensure', listId!);
+    const storeAisleUrl = shopId ? route('shopping.shops.aisles.store', shopId) : route('shopping.aisles.store', listId!);
+    const reorderUrl = shopId ? route('shopping.shops.aisles.reorder', shopId) : route('shopping.aisles.reorder', listId!);
+    const templateUrl = shopId ? route('shopping.shops.aisles.template', shopId) : route('shopping.aisles.template', listId!);
     const [aisles, setAisles] = useState<Aisle[]>([]);
     const [templates, setTemplates] = useState<Template[]>([]);
     const [newName, setNewName] = useState('');
@@ -47,20 +63,20 @@ export function AisleEditor({
     const [dirty, setDirty] = useState(false);
 
     useEffect(() => {
-        if (open) setStore(initialStore);
-    }, [open, initialStore]);
+        if (open) setStore(shopId ? (shopName ?? '') : initialStore);
+    }, [open, initialStore, shopId, shopName]);
 
     useEffect(() => {
         if (!open) return;
         setPicker(null);
         // Ensure the shop has editable rows (materializes the fallback), then load them + templates.
-        api('POST', route('shopping.aisles.ensure', listId), { store }).then((d) => {
+        api('POST', ensureUrl, { store }).then((d) => {
             if (d) {
                 setAisles(d.aisles);
                 setTemplates(d.templates);
             }
         });
-    }, [open, listId, store]);
+    }, [open, ensureUrl, store]);
 
     const apply = (d: { aisles?: Aisle[] } | null) => {
         if (d?.aisles) {
@@ -71,7 +87,7 @@ export function AisleEditor({
 
     const addAisle = async () => {
         if (!newName.trim()) return;
-        apply(await api('POST', route('shopping.aisles.store', listId), { name: newName.trim(), icon: newIcon, store }));
+        apply(await api('POST', storeAisleUrl, { name: newName.trim(), icon: newIcon, store }));
         setNewName('');
         setNewIcon('basket');
     };
@@ -85,7 +101,7 @@ export function AisleEditor({
         [next[idx], next[j]] = [next[j], next[idx]];
         setAisles(next);
         setDirty(true);
-        await api('POST', route('shopping.aisles.reorder', listId), { slugs: next.map((a) => a.slug), store });
+        await api('POST', reorderUrl, { slugs: next.map((a) => a.slug), store });
     };
     const setIcon = async (target: 'new' | number, icon: string) => {
         if (target === 'new') setNewIcon(icon);
@@ -94,12 +110,12 @@ export function AisleEditor({
     };
     const applyTemplate = async (t: Template) => {
         if (!confirm(`Replace this shop's aisles with the ${t.label} template? Existing aisles are removed.`)) return;
-        apply(await api('POST', route('shopping.aisles.template', listId), { template: t.key, store }));
+        apply(await api('POST', templateUrl, { template: t.key, store }));
     };
 
     const handleOpenChange = (v: boolean) => {
         if (!v && dirty) {
-            router.reload({ only: ['aislesByStore', 'items'] }); // refresh chips + grouping on the list page
+            router.reload({ only: reloadKeys }); // refresh chips + grouping on the list page
             setDirty(false);
         }
         onOpenChange(v);
@@ -110,16 +126,16 @@ export function AisleEditor({
             open={open}
             onOpenChange={handleOpenChange}
             title="Edit aisles"
-            description={stores.length > 1 ? 'Pick a shop, then edit its aisles' : `Aisles for ${store || 'this shop'}`}
+            description={storeList.length > 1 ? 'Pick a shop, then edit its aisles' : `Aisles for ${store || 'this shop'}`}
             footer={
                 <Button className="w-full" onClick={() => handleOpenChange(false)}>
                     Done
                 </Button>
             }
         >
-            {stores.length > 1 && picker === null && (
+            {storeList.length > 1 && picker === null && (
                 <div className="mb-4 flex flex-wrap gap-2">
-                    {stores.map((s) => (
+                    {storeList.map((s) => (
                         <button
                             key={s}
                             type="button"

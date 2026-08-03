@@ -29,6 +29,173 @@ class ShoppingController extends Controller
         return Inertia::render('shopping/settings');
     }
 
+    // ---------------------------------------------------------------------------------------------
+    // Shops: a store name promoted to an entity (icon, rename, aisle owner). A shop page aggregates
+    // everything you need at that shop across every list you can reach, grouped by the shop's aisles.
+    // ---------------------------------------------------------------------------------------------
+
+    /** @return array{0: Collection<int,ShoppingList>, 1: Collection<int,ShoppingList>} */
+    private function accessibleLists(int $userId): array
+    {
+        $lists = ShoppingList::with(['shareSetting', 'shares'])
+            ->whereNull('archived_at')->get()
+            ->filter(fn (ShoppingList $l) => $l->visibility() === 'family' || $l->shares->contains('user_id', $userId))
+            ->values();
+
+        return [$lists, $lists->keyBy('id')];
+    }
+
+    // The shop names an item belongs to: its primary shop (own store, else the list's) plus every
+    // "also available at" shop. Deduped, blanks dropped.
+    private function itemShops(ShoppingItem $item, Collection $listById): array
+    {
+        $primary = $item->store ?: ($listById[$item->shopping_list_id]->store ?? null);
+        $names = array_merge($primary ? [$primary] : [], $item->alt_stores ?? []);
+
+        return array_values(array_unique(array_filter($names)));
+    }
+
+    public function shopsIndex(Request $request): Response
+    {
+        [$lists, $listById] = $this->accessibleLists($request->user()->id);
+
+        // Count unbought items per shop across accessible lists (an item counts for each shop it lists).
+        $counts = [];
+        foreach (ShoppingItem::whereIn('shopping_list_id', $lists->pluck('id'))->where('bought', false)->get() as $i) {
+            foreach ($this->itemShops($i, $listById) as $name) {
+                $counts[$name] = ($counts[$name] ?? 0) + 1;
+            }
+        }
+
+        $shops = ShoppingShop::orderBy('name')->get()->map(fn (ShoppingShop $s) => [
+            'id' => $s->id,
+            'name' => $s->name,
+            'icon' => $s->icon,
+            'color' => $s->color,
+            'toBuy' => $counts[$s->name] ?? 0,
+        ])->values();
+
+        return Inertia::render('shopping/shops', ['shops' => $shops]);
+    }
+
+    public function shopShow(Request $request, ShoppingShop $shop): Response
+    {
+        [$lists, $listById] = $this->accessibleLists($request->user()->id);
+        $aisles = $this->resolveAisles($shop->name); // slug/name/icon, in walk order
+        $known = collect($aisles)->pluck('slug')->flip();
+
+        $items = ShoppingItem::whereIn('shopping_list_id', $lists->pluck('id'))
+            ->orderBy('position')->orderBy('id')->get()
+            ->filter(fn (ShoppingItem $i) => in_array($shop->name, $this->itemShops($i, $listById), true))
+            ->map(fn (ShoppingItem $i) => [
+                'id' => $i->id,
+                'name' => $i->name,
+                'quantity' => $i->quantity,
+                'department' => $known->has($i->department) ? $i->department : 'other',
+                'bought' => $i->bought,
+                'listName' => $listById[$i->shopping_list_id]->name ?? '',
+            ])->values();
+
+        return Inertia::render('shopping/shop', [
+            'shop' => ['id' => $shop->id, 'name' => $shop->name, 'icon' => $shop->icon, 'color' => $shop->color],
+            'aisles' => $aisles,
+            'items' => $items,
+        ]);
+    }
+
+    public function updateShop(Request $request, ShoppingShop $shop): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => ['sometimes', 'string', 'max:120'],
+            'icon' => ['sometimes', 'string', 'max:40'],
+            'color' => ['sometimes', 'string', 'max:20'],
+        ]);
+
+        // Rename cascades the store name everywhere it's referenced so items/lists/aisles stay linked;
+        // if a shop with the new name already exists this doubles as a merge (cascade, then delete dup).
+        if (array_key_exists('name', $data) && trim($data['name']) !== '' && trim($data['name']) !== $shop->name) {
+            $old = $shop->name;
+            $new = trim($data['name']);
+            ShoppingList::where('store', $old)->update(['store' => $new]);
+            ShoppingItem::where('store', $old)->update(['store' => $new]);
+            ShoppingAisle::where('store', $old)->update(['store' => $new]);
+            foreach (ShoppingItem::whereNotNull('alt_stores')->get() as $it) {
+                $alts = $it->alt_stores ?? [];
+                if (in_array($old, $alts, true)) {
+                    $it->alt_stores = array_values(array_unique(array_map(fn ($a) => $a === $old ? $new : $a, $alts)));
+                    $it->save();
+                }
+            }
+            $existing = ShoppingShop::where('name', $new)->where('id', '!=', $shop->id)->first();
+            if ($existing) {
+                ShoppingAisle::where('store', $new)->update(['shop_id' => $existing->id]);
+                $shop->delete();
+                $shop = $existing;
+            } else {
+                $shop->name = $new;
+            }
+        }
+        foreach (['icon', 'color'] as $f) {
+            if (array_key_exists($f, $data)) {
+                $shop->{$f} = $data[$f];
+            }
+        }
+        $shop->save();
+        Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
+
+        return back();
+    }
+
+    // Shop-scoped aisle editing (the shop's "settings"). Same store-name-keyed logic as the list
+    // editor, but addressed by shop and stamping shop_id on the rows.
+    public function ensureShopAisles(ShoppingShop $shop): JsonResponse
+    {
+        $this->materializeAisles($shop->name);
+        ShoppingAisle::where('store', $shop->name)->whereNull('shop_id')->update(['shop_id' => $shop->id]);
+
+        return response()->json(['store' => $shop->name, 'aisles' => $this->aisleListJson($shop->name), 'templates' => StoreTemplates::options()]);
+    }
+
+    public function storeShopAisle(Request $request, ShoppingShop $shop): JsonResponse
+    {
+        $data = $request->validate(['name' => ['required', 'string', 'max:60'], 'icon' => ['required', 'string', 'max:40']]);
+        $this->materializeAisles($shop->name);
+        ShoppingAisle::create([
+            'shop_id' => $shop->id,
+            'store' => $shop->name,
+            'slug' => $this->uniqueSlug($shop->name, $data['name']),
+            'name' => $data['name'],
+            'icon' => $data['icon'],
+            'position' => (int) $this->aisleRows($shop->name)->max('position') + 1,
+        ]);
+        Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
+
+        return response()->json(['aisles' => $this->aisleListJson($shop->name)]);
+    }
+
+    public function reorderShopAisles(Request $request, ShoppingShop $shop): JsonResponse
+    {
+        $data = $request->validate(['slugs' => ['required', 'array'], 'slugs.*' => ['string']]);
+        foreach (array_values($data['slugs']) as $i => $slug) {
+            ShoppingAisle::where('store', $shop->name)->where('slug', $slug)->update(['position' => $i]);
+        }
+        Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
+
+        return response()->json(['aisles' => $this->aisleListJson($shop->name)]);
+    }
+
+    public function applyShopTemplate(Request $request, ShoppingShop $shop): JsonResponse
+    {
+        $data = $request->validate(['template' => ['required', 'in:'.implode(',', array_keys(StoreTemplates::TEMPLATES))]]);
+        ShoppingAisle::where('store', $shop->name)->delete();
+        foreach (StoreTemplates::TEMPLATES[$data['template']] as $i => [$slug, $name, $icon]) {
+            ShoppingAisle::create(['shop_id' => $shop->id, 'store' => $shop->name, 'slug' => $slug, 'name' => $name, 'icon' => $icon, 'position' => $i]);
+        }
+        Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
+
+        return response()->json(['aisles' => $this->aisleListJson($shop->name)]);
+    }
+
     public function index(Request $request): Response
     {
         $userId = $request->user()->id;
@@ -296,6 +463,12 @@ class ShoppingController extends Controller
             'created_by' => $request->user()->id,
         ]);
 
+        // Promote any newly-typed store name to a shop so it shows in the Shops list.
+        ShoppingShop::ensure($data['store'] ?? null);
+        foreach ($data['alt_stores'] ?? [] as $alt) {
+            ShoppingShop::ensure($alt);
+        }
+
         FamilyNotifier::toAccessOf($list, 'shopping', $request->user()->id, $list->name, "{$request->user()->name} added: {$data['name']}", route('shopping.show', $list, false));
         Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
 
@@ -374,6 +547,11 @@ class ShoppingController extends Controller
                 'alt_stores.*' => ['string', 'max:120'],
             ]);
             $item->update($data);
+            // Promote any newly-typed store name to a shop so it shows in the Shops list.
+            ShoppingShop::ensure($data['store'] ?? null);
+            foreach ($data['alt_stores'] ?? [] as $alt) {
+                ShoppingShop::ensure($alt);
+            }
         }
 
         // "Shopping done": ping everyone when the last unbought item just got checked off.
