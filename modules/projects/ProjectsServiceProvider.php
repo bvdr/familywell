@@ -92,6 +92,7 @@ class ProjectsServiceProvider extends ServiceProvider
                         'href' => "/m/projects/{$project->id}",
                         'icon' => 'folder-kanban',
                         'dueDate' => $t->due_date->toDateString(),
+                        'toggleUrl' => "/m/projects/tasks/{$t->id}", // empty-body PATCH toggles done
                     ];
                 })->values()->all();
         });
