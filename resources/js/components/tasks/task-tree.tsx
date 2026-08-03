@@ -372,24 +372,34 @@ function EditTaskModal({
     const [due, setDue] = useState(task.dueDate ?? '');
     const [assigned, setAssigned] = useState<number | null>(task.assignedTo);
 
-    const save = () => {
+    const patch = () =>
         router.patch(
             taskUrl(task.id),
             { title: title.trim() || task.title, note: note.trim() || null, due_date: due || null, assigned_to: assigned },
-            { preserveScroll: true, onSuccess: onClose },
+            { preserveScroll: true, preserveState: true },
         );
-    };
+    // Auto-save: debounce field changes; skip the initial mount values; flush on close (below).
+    const first = useRef(true);
+    useEffect(() => {
+        if (first.current) {
+            first.current = false;
+            return;
+        }
+        if (!title.trim()) return;
+        const t = setTimeout(patch, 500);
+        return () => clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [title, note, due, assigned]);
 
     return (
         <ResponsiveModal
             open
-            onOpenChange={(v) => !v && onClose()}
+            onOpenChange={(v) => {
+                if (v) return;
+                if (title.trim()) patch(); // flush the last edit
+                onClose();
+            }}
             title="Edit task"
-            footer={
-                <Button className="w-full" onClick={save} disabled={!title.trim()}>
-                    Save
-                </Button>
-            }
         >
             <div className="flex flex-col gap-4">
                 <div className="grid gap-2">
