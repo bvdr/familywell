@@ -244,9 +244,6 @@ export default function ProjectDetail({
                         <span className="text-muted-foreground text-sm font-medium">Overall progress</span>
                         <span className="text-primary font-mono text-sm font-semibold">{project.progress}%</span>
                     </div>
-                    <div className="bg-surface mt-2.5 h-2 overflow-hidden rounded-full">
-                        <div className="bg-primary h-full rounded-full transition-all" style={{ width: `${project.progress}%` }} />
-                    </div>
                     <div className="mt-3 flex items-center gap-4">
                         <div className="flex flex-col">
                             <span className="text-primary font-mono text-base font-semibold">{shortDate(project.targetStart)}</span>
@@ -311,11 +308,6 @@ export default function ProjectDetail({
                         sub={taskTotal ? `${taskDone} of ${taskTotal} done` : undefined}
                         pct={taskTotal ? taskPct : undefined}
                     >
-                        {taskTotal > 0 && (
-                            <div className="bg-surface mb-2 h-1.5 overflow-hidden rounded-full">
-                                <div className="bg-primary h-full rounded-full" style={{ width: `${taskPct}%` }} />
-                            </div>
-                        )}
                         <TaskTree
                             tasks={tasks}
                             members={members}
