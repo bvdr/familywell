@@ -85,6 +85,15 @@ class ShoppingServiceProvider extends ServiceProvider
             ->group(function () {
                 Route::get('/', [ShoppingController::class, 'index'])->name('index');
                 Route::get('/settings', [ShoppingController::class, 'settings'])->name('settings');
+
+                // Shops: the family's stores as first-class pages (aggregated cross-list view + aisles).
+                Route::get('/shops', [ShoppingController::class, 'shopsIndex'])->name('shops.index');
+                Route::get('/shops/{shop}', [ShoppingController::class, 'shopShow'])->name('shops.show');
+                Route::patch('/shops/{shop}', [ShoppingController::class, 'updateShop'])->name('shops.update');
+                Route::post('/shops/{shop}/aisles/ensure', [ShoppingController::class, 'ensureShopAisles'])->name('shops.aisles.ensure');
+                Route::post('/shops/{shop}/aisles/reorder', [ShoppingController::class, 'reorderShopAisles'])->name('shops.aisles.reorder');
+                Route::post('/shops/{shop}/aisles/template', [ShoppingController::class, 'applyShopTemplate'])->name('shops.aisles.template');
+                Route::post('/shops/{shop}/aisles', [ShoppingController::class, 'storeShopAisle'])->name('shops.aisles.store');
                 Route::post('/lists', [ShoppingController::class, 'storeList'])->name('lists.store');
                 Route::get('/lists/{list}', [ShoppingController::class, 'show'])->name('show');
                 Route::patch('/lists/{list}', [ShoppingController::class, 'updateList'])->name('lists.update');
