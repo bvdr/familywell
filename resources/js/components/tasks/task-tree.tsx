@@ -63,8 +63,13 @@ export function TaskTree({ tasks, members, canEdit, addUrl, taskUrl, reorderUrl,
     const [openSwipe, setOpenSwipe] = useState<number | null>(null); // row whose delete action is revealed
 
     // Local mirror of the server tree so drags feel instant; re-sync whenever the server sends new props.
+    // The key includes `done` (not just ids) so a toggle's fresh value re-syncs the mirror — otherwise
+    // the stale mirror value would fight the optimistic toggle and the checkbox would snap back.
     const [items, setItems] = useState<FlatTask[]>(() => flatten(tasks));
-    const serverKey = useMemo(() => JSON.stringify(tasks.map((t) => [t.id, t.subtasks.map((s) => s.id)])), [tasks]);
+    const serverKey = useMemo(
+        () => JSON.stringify(tasks.map((t) => [t.id, t.done, t.subtasks.map((s) => [s.id, s.done])])),
+        [tasks],
+    );
     const lastKey = useRef(serverKey);
     useEffect(() => {
         if (lastKey.current !== serverKey) {
