@@ -1,6 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { Calendar, Check, ChevronLeft, Minus, Plus, Settings, Store, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { AisleEditor } from '@/components/aisle-editor';
 import { Picker } from '@/components/picker';
@@ -65,11 +65,14 @@ export default function ShopDetail({
     const [editingId, setEditingId] = useState<number | null>(null);
     const emptyDraft = (): Draft => ({ name: '', quantity: '', department: aisles[0]?.slug ?? 'other', note: '', due_date: '', shops: [shop.name], list_id: defaultListId });
     const [draft, setDraft] = useState<Draft>(emptyDraft);
+    const skipAutosave = useRef(true);
     const openNew = () => {
+        skipAutosave.current = true;
         setDraft(emptyDraft());
         setEditingId(0);
     };
     const openEdit = (i: Item) => {
+        skipAutosave.current = true;
         const shopsSel = [...new Set([i.store, ...i.altStores].filter(Boolean) as string[])];
         setDraft({
             name: i.name,
@@ -84,22 +87,35 @@ export default function ShopDetail({
     };
     useAddAction(openNew); // the nav "+" adds an item at this shop
 
-    const saveItem = () => {
-        if (!draft.name.trim()) return;
-        const shopsUniq = [...new Set(draft.shops)];
-        const payload = {
-            name: draft.name.trim(),
-            quantity: draft.quantity || null,
-            department: draft.department,
-            note: draft.note || null,
-            due_date: draft.due_date || null,
+    const buildPayload = (d: Draft) => {
+        const shopsUniq = [...new Set(d.shops)];
+        return {
+            name: d.name.trim(),
+            quantity: d.quantity || null,
+            department: d.department,
+            note: d.note || null,
+            due_date: d.due_date || null,
             store: shopsUniq[0] ?? shop.name,
             alt_stores: shopsUniq.slice(1),
         };
-        const done = { preserveScroll: true, onSuccess: () => setEditingId(null) };
-        if (editingId) router.patch(route('shopping.items.update', editingId), payload, done);
-        else router.post(route('shopping.shops.items.store', shop.id), { ...payload, list_id: draft.list_id }, done);
     };
+    const patchItem = (id: number) => router.patch(route('shopping.items.update', id), buildPayload(draft), { preserveScroll: true, preserveState: true });
+    const addItem = () => {
+        if (!draft.name.trim()) return;
+        router.post(route('shopping.shops.items.store', shop.id), { ...buildPayload(draft), list_id: draft.list_id }, { preserveScroll: true, onSuccess: () => setEditingId(null) });
+    };
+    // Editing auto-saves (debounced); new items commit via the Add button.
+    useEffect(() => {
+        if (!editingId) return;
+        if (skipAutosave.current) {
+            skipAutosave.current = false;
+            return;
+        }
+        if (!draft.name.trim()) return;
+        const t = setTimeout(() => patchItem(editingId), 500);
+        return () => clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [draft, editingId]);
     const deleteItem = () => {
         const id = editingId;
         if (!id) return;
@@ -217,12 +233,18 @@ export default function ShopDetail({
             {/* Item editor (add / edit) */}
             <ResponsiveModal
                 open={editingId !== null}
-                onOpenChange={(v) => !v && setEditingId(null)}
+                onOpenChange={(v) => {
+                    if (v) return;
+                    if (editingId && draft.name.trim()) patchItem(editingId); // flush the last edit
+                    setEditingId(null);
+                }}
                 title={editingId ? 'Edit Item' : 'Add Item'}
                 footer={
-                    <Button className="w-full" disabled={!draft.name.trim()} onClick={saveItem}>
-                        {editingId ? 'Save' : 'Add item'}
-                    </Button>
+                    editingId ? undefined : (
+                        <Button className="w-full" disabled={!draft.name.trim()} onClick={addItem}>
+                            <Plus className="size-4" /> Add item
+                        </Button>
+                    )
                 }
             >
                 <div className="flex flex-col gap-5">

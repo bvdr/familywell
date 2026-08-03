@@ -23,7 +23,7 @@ import {
     Users,
     X,
 } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { AisleEditor } from '@/components/aisle-editor';
@@ -245,11 +245,13 @@ export default function ListDetail({
     const openNew = () => {
         // Default a new item to the list's store (or the shop you're focused on) so single-store lists
         // need no store tap; the aisle chips then come from that shop.
+        skipAutosave.current = true;
         setDraft({ ...emptyDraft, store: (focus ? focusStore : list.store) || '' });
         setEditingId(0);
     };
     useAddAction(() => openNew());
     const openEdit = (item: Item) => {
+        skipAutosave.current = true;
         setDraft({
             name: item.name,
             quantity: item.quantity ?? '',
@@ -262,13 +264,27 @@ export default function ListDetail({
         });
         setEditingId(item.id);
     };
-    const saveItem = () => {
+    const buildPayload = (d: Draft) => ({ ...d, name: d.name.trim(), due_date: d.due_date || null, store: d.store || null });
+    const patchItem = (id: number) => router.patch(route('shopping.items.update', id), buildPayload(draft), { preserveScroll: true, preserveState: true });
+    // Only the "Add item" (new item) button commits; editing an existing item auto-saves (below).
+    const addItem = () => {
         if (!draft.name.trim()) return;
-        const payload = { ...draft, name: draft.name.trim(), due_date: draft.due_date || null, store: draft.store || null };
-        const done = { preserveScroll: true, onSuccess: () => setEditingId(null) };
-        if (editingId) router.patch(route('shopping.items.update', editingId), payload, done);
-        else router.post(route('shopping.items.store', list.id), payload, done);
+        router.post(route('shopping.items.store', list.id), buildPayload(draft), { preserveScroll: true, onSuccess: () => setEditingId(null) });
     };
+    // Auto-save edits: debounce any field change to a PATCH; skip the draft set on open, and never
+    // save an empty name. The modal's close handler flushes the last edit the debounce hasn't sent.
+    const skipAutosave = useRef(true);
+    useEffect(() => {
+        if (!editingId) return; // new items (0) commit via the Add button, not autosave
+        if (skipAutosave.current) {
+            skipAutosave.current = false;
+            return;
+        }
+        if (!draft.name.trim()) return;
+        const t = setTimeout(() => patchItem(editingId), 500);
+        return () => clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [draft, editingId]);
     // Shops offered in the item sheet: the family's known stores plus the list's store, deduped.
     const storeOptions = [...new Set([list.store, ...stores].filter(Boolean) as string[])];
     // Plus any store typed via the "+" this session and the current draft store, so a brand-new store
@@ -854,16 +870,23 @@ export default function ListDetail({
 
             <AisleEditor open={aislesOpen} onOpenChange={setAislesOpen} listId={list.id} stores={storeOptions} initialStore={list.store ?? ''} />
 
-            {/* Add / edit item */}
+            {/* Add / edit item. Editing auto-saves; only new items need a commit button. */}
             <ResponsiveModal
                 open={editingId !== null}
-                onOpenChange={(v) => !v && setEditingId(null)}
+                onOpenChange={(v) => {
+                    if (v) return;
+                    // Flush the latest edit before closing (the debounce may not have fired yet).
+                    if (editingId && draft.name.trim()) patchItem(editingId);
+                    setEditingId(null);
+                }}
                 title={editingId ? 'Edit Item' : 'Add Item'}
                 autoFocusRef={nameRef}
                 footer={
-                    <Button className="w-full" disabled={!draft.name.trim()} onClick={saveItem}>
-                        {editingId ? 'Save' : 'Add item'}
-                    </Button>
+                    editingId ? undefined : (
+                        <Button className="w-full" disabled={!draft.name.trim()} onClick={addItem}>
+                            <Plus className="size-4" /> Add item
+                        </Button>
+                    )
                 }
             >
                 <div className="flex flex-col gap-5">
