@@ -20,7 +20,7 @@ import {
     X,
     type LucideIcon,
 } from 'lucide-react';
-import { FormEventHandler, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { MemberAvatar } from '@/components/member-avatar';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
@@ -517,7 +517,7 @@ function EditModal({
     project: Project;
     members: Member[];
 }) {
-    const { data, setData, patch, processing } = useForm({
+    const { data, setData, patch } = useForm({
         name: project.name,
         description: project.description ?? '',
         status: project.status,
@@ -526,22 +526,30 @@ function EditModal({
         target_start: project.targetStart ?? '',
         waiting_on: project.waitingOn ?? '',
     });
-    const submit: FormEventHandler = (e) => {
-        e.preventDefault();
-        patch(route('projects.update', project.id), { preserveScroll: true, onSuccess: () => onOpenChange(false) });
-    };
+    const patchProject = () => patch(route('projects.update', project.id), { preserveScroll: true, preserveState: true });
+    // Auto-save: debounce edits; skip the initial mount; flush on close. No Save button.
+    const first = useRef(true);
+    useEffect(() => {
+        if (!open) return;
+        if (first.current) {
+            first.current = false;
+            return;
+        }
+        if (!data.name.trim()) return;
+        const t = setTimeout(patchProject, 500);
+        return () => clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [data, open]);
     return (
         <ResponsiveModal
             open={open}
-            onOpenChange={onOpenChange}
+            onOpenChange={(v) => {
+                if (!v && data.name.trim()) patchProject(); // flush the last edit
+                onOpenChange(v);
+            }}
             title="Edit project"
-            footer={
-                <Button type="submit" form="edit-project" disabled={processing} className="w-full">
-                    Save
-                </Button>
-            }
         >
-            <form id="edit-project" onSubmit={submit} className="flex flex-col gap-5">
+            <form id="edit-project" onSubmit={(e) => e.preventDefault()} className="flex flex-col gap-5">
                 <div className="grid gap-2">
                     <Label>Name</Label>
                     <Input value={data.name} onChange={(e) => setData('name', e.target.value)} />
