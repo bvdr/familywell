@@ -122,7 +122,12 @@ class TasksController extends Controller
         EntityVisit::record('task_list', $list->id);
 
         $family = Family::findOrFail(CurrentFamily::id());
-        $members = $family->members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values();
+        // Only members who can reach the list are assignable: everyone for `family` visibility,
+        // otherwise just those with a share. No point assigning a task to someone who can't see it.
+        $shared = $list->shares->pluck('user_id');
+        $members = $family->members
+            ->filter(fn ($m) => $list->visibility() === 'family' || $shared->contains($m->id))
+            ->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values();
 
         // Top-level tasks with their (single level of) sub-tasks.
         $tasks = $list->tasks()->whereNull('parent_id')
