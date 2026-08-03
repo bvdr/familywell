@@ -1,4 +1,5 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { useAddAction } from '@/lib/add-action';
 import {
     Archive,
     ArrowRight,
@@ -176,6 +177,7 @@ export default function Event({
     const authId = (usePage().props as { auth: { user: { id: number } } }).auth.user.id;
     const [tab, setTab] = useState<TabKey>('expenses');
     const [adding, setAdding] = useState(false);
+    useAddAction(() => setAdding(true));
     const [sharing, setSharing] = useState(false);
     const [guestSharing, setGuestSharing] = useState(false);
     // When set, the form is editing this spend id instead of creating a new one.

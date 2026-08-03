@@ -1,4 +1,5 @@
 import { Head, router } from '@inertiajs/react';
+import { useAddAction } from '@/lib/add-action';
 import {
     Archive,
     Calendar,
@@ -246,6 +247,7 @@ export default function ListDetail({
         setDraft({ ...emptyDraft, store: (focus ? focusStore : list.store) || '' });
         setEditingId(0);
     };
+    useAddAction(() => openNew());
     const openEdit = (item: Item) => {
         setDraft({
             name: item.name,
