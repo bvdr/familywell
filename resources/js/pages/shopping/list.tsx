@@ -27,6 +27,7 @@ import { useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { AisleEditor } from '@/components/aisle-editor';
+import { Picker } from '@/components/picker';
 import { MemberAvatar } from '@/components/member-avatar';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
 import { Button } from '@/components/ui/button';
@@ -97,6 +98,7 @@ export default function ListDetail({
     defaultAisles,
     share,
     stores,
+    shops = [],
     aiEnabled,
 }: {
     list: List;
@@ -106,6 +108,7 @@ export default function ListDetail({
     defaultAisles: Aisle[];
     share: ShareState;
     stores: string[];
+    shops?: string[];
     aiEnabled: boolean;
 }) {
     const [hideCompleted, setHideCompleted] = useState(false);
@@ -118,8 +121,6 @@ export default function ListDetail({
     const [aislesOpen, setAislesOpen] = useState(false);
     const [editingId, setEditingId] = useState<number | null>(null); // null = closed; 0 = new item; >0 = editing
     const [draft, setDraft] = useState<Draft>(emptyDraft);
-    const [addingStore, setAddingStore] = useState(false); // inline "add a store" field is open
-    const [newStore, setNewStore] = useState('');
     const [extraStores, setExtraStores] = useState<string[]>([]); // stores typed in the sheet this session
     const nameRef = useRef<HTMLInputElement>(null);
 
@@ -273,14 +274,6 @@ export default function ListDetail({
     // Plus any store typed via the "+" this session and the current draft store, so a brand-new store
     // shows as a selected chip immediately (it becomes a real family store once the item is saved).
     const chipStores = [...new Set([...storeOptions, ...extraStores, draft.store].filter(Boolean))];
-    const commitNewStore = () => {
-        const name = newStore.trim();
-        setAddingStore(false);
-        setNewStore('');
-        if (!name) return;
-        setExtraStores((prev) => (prev.includes(name) ? prev : [...prev, name]));
-        setDraft((d) => ({ ...d, store: name, alt_stores: d.alt_stores.filter((x) => x !== name) }));
-    };
 
     // Numeric stepper that no-ops on free-text quantities like "1 gallon".
     const bump = (delta: number) =>
@@ -398,7 +391,7 @@ export default function ListDetail({
                         <Pencil className="size-4" /> Rename list
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => setAislesOpen(true)}>
-                        <LayoutList className="size-4" /> Edit aisles
+                        <LayoutList className="size-4" /> Edit departments
                     </DropdownMenuItem>
                     <DropdownMenuSub>
                         <DropdownMenuSubTrigger>
@@ -912,103 +905,33 @@ export default function ListDetail({
                         </div>
                     </div>
 
+                    {/* Shops: one searchable multi-pick. The first selected is the item's primary store
+                        (used for grouping in the list); the rest are its "also available at" shops. */}
                     <div className="grid gap-2">
-                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Store</Label>
-                        <div className="flex flex-wrap items-center gap-2">
-                            {chipStores.map((s) => (
-                                <button
-                                    key={s}
-                                    type="button"
-                                    onClick={() => setDraft((d) => ({ ...d, store: s, alt_stores: d.alt_stores.filter((x) => x !== s) }))}
-                                    className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors ${
-                                        draft.store === s ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-primary'
-                                    }`}
-                                >
-                                    <Store className="size-3.5" /> {s}
-                                </button>
-                            ))}
-                            {addingStore ? (
-                                <Input
-                                    autoFocus
-                                    value={newStore}
-                                    onChange={(e) => setNewStore(e.target.value)}
-                                    onBlur={commitNewStore}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            commitNewStore();
-                                        }
-                                        if (e.key === 'Escape') {
-                                            setAddingStore(false);
-                                            setNewStore('');
-                                        }
-                                    }}
-                                    placeholder="New store"
-                                    className="h-9 w-36"
-                                />
-                            ) : (
-                                <button
-                                    type="button"
-                                    onClick={() => setAddingStore(true)}
-                                    aria-label="Add store"
-                                    className="border-border text-primary hover:bg-surface flex size-9 items-center justify-center rounded-full border transition-colors"
-                                >
-                                    <Plus className="size-4" />
-                                </button>
-                            )}
-                        </div>
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Shops</Label>
+                        <Picker
+                            multi
+                            searchable
+                            placeholder="Pick shops"
+                            options={[...new Set([...shops, ...chipStores, draft.store, ...draft.alt_stores].filter(Boolean))].map((s) => ({ value: s, label: s, icon: Store }))}
+                            selected={[...new Set([draft.store, ...draft.alt_stores].filter(Boolean))]}
+                            onChange={(next) => {
+                                const uniq = [...new Set(next)];
+                                setDraft((d) => ({ ...d, store: uniq[0] ?? '', alt_stores: uniq.slice(1) }));
+                            }}
+                            onCreate={(name) => setExtraStores((prev) => [...new Set([...prev, name])])}
+                        />
                     </div>
 
-                    {chipStores.filter((s) => s !== draft.store).length > 0 && (
-                        <div className="grid gap-2">
-                            <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Also available at</Label>
-                            <div className="flex flex-wrap gap-2">
-                                {chipStores
-                                    .filter((s) => s !== draft.store)
-                                    .map((s) => {
-                                        const on = draft.alt_stores.includes(s);
-                                        return (
-                                            <button
-                                                key={s}
-                                                type="button"
-                                                onClick={() =>
-                                                    setDraft((d) => ({
-                                                        ...d,
-                                                        alt_stores: on ? d.alt_stores.filter((x) => x !== s) : [...d.alt_stores, s],
-                                                    }))
-                                                }
-                                                className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
-                                                    on ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-primary'
-                                                }`}
-                                            >
-                                                {s}
-                                            </button>
-                                        );
-                                    })}
-                            </div>
-                        </div>
-                    )}
-
+                    {/* Department: single pick, from the primary shop's departments. */}
                     <div className="grid gap-2">
                         <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Department</Label>
-                        <div className="flex flex-wrap gap-2">
-                            {aislesFor(draft.store || list.store).map((a) => {
-                                const Icon = aisleIcon(a.icon);
-                                const active = draft.department === a.slug;
-                                return (
-                                    <button
-                                        key={a.slug}
-                                        type="button"
-                                        onClick={() => setDraft((dr) => ({ ...dr, department: a.slug }))}
-                                        className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors ${
-                                            active ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-primary'
-                                        }`}
-                                    >
-                                        <Icon className="size-3.5" /> {a.name}
-                                    </button>
-                                );
-                            })}
-                        </div>
+                        <Picker
+                            placeholder="Pick a department"
+                            options={aislesFor(draft.store || list.store).map((a) => ({ value: a.slug, label: a.name, icon: aisleIcon(a.icon) }))}
+                            selected={[draft.department]}
+                            onChange={(next) => setDraft((d) => ({ ...d, department: next[0] ?? 'other' }))}
+                        />
                     </div>
 
                     <div className="grid gap-2">
