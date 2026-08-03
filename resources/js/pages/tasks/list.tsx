@@ -1,7 +1,8 @@
 import { Head, router } from '@inertiajs/react';
 import { Archive, Check, Copy, Lock, MoreHorizontal, Pencil, Trash2, UserPlus, Users } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
+import { useAddAction } from '@/lib/add-action';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
 import { TaskTree, type TaskMember, type TaskNode } from '@/components/tasks/task-tree';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,13 @@ type List = { id: number; name: string; color: string; icon: string; archived: b
 export default function ListDetail({ list, share, members, tasks }: { list: List; share: ShareState; members: TaskMember[]; tasks: TaskNode[] }) {
     const [sharing, setSharing] = useState(false);
     const [editing, setEditing] = useState(false);
+
+    // The nav's "+" focuses the add-a-task input on this page.
+    const addInputRef = useRef<HTMLInputElement>(null);
+    useAddAction(() => {
+        addInputRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        addInputRef.current?.focus();
+    });
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Tasks', href: '/m/tasks' },
@@ -115,6 +123,7 @@ export default function ListDetail({ list, share, members, tasks }: { list: List
                     taskUrl={(id) => route('tasks.tasks.update', id)}
                     reorderUrl={route('tasks.tasks.reorder', list.id)}
                     emptyHint="No tasks yet. Add your first one below."
+                    addInputRef={addInputRef}
                 />
             </div>
 

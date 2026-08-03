@@ -14,7 +14,7 @@ import {
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Calendar, Check, Plus, Trash2, UserCircle2 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { type Ref, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,6 +44,8 @@ type Props = {
     taskUrl: (id: number) => string;
     reorderUrl: string;
     emptyHint?: string;
+    // Lets the page focus the "add a task" input from outside (the nav's context-aware "+").
+    addInputRef?: Ref<HTMLInputElement>;
 };
 
 function memberName(members: TaskMember[], id: number | null) {
@@ -56,7 +58,7 @@ function AssigneeDot({ members, id }: { members: TaskMember[]; id: number | null
     return <MemberAvatar userId={id} name={name} className="size-5 text-[10px]" />;
 }
 
-export function TaskTree({ tasks, members, canEdit, addUrl, taskUrl, reorderUrl, emptyHint }: Props) {
+export function TaskTree({ tasks, members, canEdit, addUrl, taskUrl, reorderUrl, emptyHint, addInputRef }: Props) {
     const doneOpt = useOptimistic<boolean>();
     const [newTitle, setNewTitle] = useState('');
     const [editing, setEditing] = useState<SubTask | null>(null);
@@ -201,6 +203,7 @@ export function TaskTree({ tasks, members, canEdit, addUrl, taskUrl, reorderUrl,
             {canEdit && (
                 <div className="mt-1 flex items-center gap-2">
                     <Input
+                        ref={addInputRef}
                         value={newTitle}
                         onChange={(e) => setNewTitle(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && addTask()}

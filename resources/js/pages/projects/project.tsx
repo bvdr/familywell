@@ -1,4 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
+import { useAddAction } from '@/lib/add-action';
 import {
     Archive,
     Ban,
@@ -74,6 +75,7 @@ export default function ProjectDetail({
     const [linking, setLinking] = useState(false);
     const [linkView, setLinkView] = useState<'pick' | 'new'>('pick'); // which view the link-list sheet opens to
     const [adding, setAdding] = useState(false); // the "Add to project" sheet
+    useAddAction(() => setAdding(true));
     // Sections stay hidden until they have content; choosing to add one reveals it (with its input).
     const [reveal, setReveal] = useState<Set<string>>(new Set());
     const [depName, setDepName] = useState('');
