@@ -437,7 +437,7 @@ export default function ListDetail({
         <AppLayout breadcrumbs={breadcrumbs} actions={headerActions}>
             <Head title={list.name} />
             <div className="mx-auto w-full max-w-2xl">
-                <header className="bg-background/95 border-border/60 sticky top-0 z-20 border-b px-4 pt-3 pb-3 backdrop-blur-sm">
+                <header className="bg-background/95 sticky top-0 z-20 px-4 pt-3 pb-3 backdrop-blur-sm">
                     {editingTitle ? (
                         <input
                             autoFocus
