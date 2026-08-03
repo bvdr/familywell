@@ -565,7 +565,7 @@ export default function Event({
                 <div className="mx-auto w-full max-w-2xl">
                     {/* Sticky editorial header: the serif title, the display currency, and the tab bar that
                     stays put while a tab's content scrolls under it. */}
-                    <header className="bg-background/95 border-border/60 sticky top-0 z-20 border-b px-4 pt-3 backdrop-blur-sm">
+                    <header className="bg-background/95 sticky top-0 z-20 px-4 pt-3 backdrop-blur-sm">
                         <div className="mb-3 flex items-center justify-between gap-3">
                             {editingTitle ? (
                                 <input
