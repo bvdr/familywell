@@ -1,21 +1,52 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Check, ChevronLeft, Settings, Store } from 'lucide-react';
+import { Calendar, Check, ChevronLeft, Minus, Plus, Settings, Store, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
 import { AisleEditor } from '@/components/aisle-editor';
+import { Picker } from '@/components/picker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
+import { useAddAction } from '@/lib/add-action';
 import AppLayout from '@/layouts/app-layout';
 import { aisleIcon } from '@/lib/shopping';
 import { type BreadcrumbItem } from '@/types';
 
 type Aisle = { slug: string; name: string; icon: string };
-type Item = { id: number; name: string; quantity: string | null; department: string; bought: boolean; listName: string };
+type Item = {
+    id: number;
+    name: string;
+    quantity: string | null;
+    department: string;
+    bought: boolean;
+    note: string | null;
+    dueDate: string | null;
+    store: string | null;
+    altStores: string[];
+    listId: number;
+    listName: string;
+};
 type Shop = { id: number; name: string; icon: string; color: string };
+type ListRef = { id: number; name: string };
+type Draft = { name: string; quantity: string; department: string; note: string; due_date: string; shops: string[]; list_id: number | null };
 
-export default function ShopDetail({ shop, aisles, items }: { shop: Shop; aisles: Aisle[]; items: Item[] }) {
+export default function ShopDetail({
+    shop,
+    aisles,
+    items,
+    shops = [],
+    lists = [],
+    defaultListId = null,
+}: {
+    shop: Shop;
+    aisles: Aisle[];
+    items: Item[];
+    shops?: string[];
+    lists?: ListRef[];
+    defaultListId?: number | null;
+}) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Shopping', href: '/m/shopping' },
         { title: 'Shops', href: '/m/shopping/shops' },
@@ -29,6 +60,57 @@ export default function ShopDetail({ shop, aisles, items }: { shop: Shop; aisles
         // Empty-body PATCH flips `bought` on the item in its own list.
         router.patch(route('shopping.items.update', i.id), {}, { preserveScroll: true, preserveState: true, onSuccess: () => boughtOpt.clear(i.id), onError: () => boughtOpt.clear(i.id) });
     };
+
+    // Item editor: null = closed, 0 = new item at this shop, >0 = editing that id.
+    const [editingId, setEditingId] = useState<number | null>(null);
+    const emptyDraft = (): Draft => ({ name: '', quantity: '', department: aisles[0]?.slug ?? 'other', note: '', due_date: '', shops: [shop.name], list_id: defaultListId });
+    const [draft, setDraft] = useState<Draft>(emptyDraft);
+    const openNew = () => {
+        setDraft(emptyDraft());
+        setEditingId(0);
+    };
+    const openEdit = (i: Item) => {
+        const shopsSel = [...new Set([i.store, ...i.altStores].filter(Boolean) as string[])];
+        setDraft({
+            name: i.name,
+            quantity: i.quantity ?? '',
+            department: i.department,
+            note: i.note ?? '',
+            due_date: i.dueDate ?? '',
+            shops: shopsSel.length ? shopsSel : [shop.name],
+            list_id: i.listId,
+        });
+        setEditingId(i.id);
+    };
+    useAddAction(openNew); // the nav "+" adds an item at this shop
+
+    const saveItem = () => {
+        if (!draft.name.trim()) return;
+        const shopsUniq = [...new Set(draft.shops)];
+        const payload = {
+            name: draft.name.trim(),
+            quantity: draft.quantity || null,
+            department: draft.department,
+            note: draft.note || null,
+            due_date: draft.due_date || null,
+            store: shopsUniq[0] ?? shop.name,
+            alt_stores: shopsUniq.slice(1),
+        };
+        const done = { preserveScroll: true, onSuccess: () => setEditingId(null) };
+        if (editingId) router.patch(route('shopping.items.update', editingId), payload, done);
+        else router.post(route('shopping.shops.items.store', shop.id), { ...payload, list_id: draft.list_id }, done);
+    };
+    const deleteItem = () => {
+        const id = editingId;
+        if (!id) return;
+        setEditingId(null);
+        router.delete(route('shopping.items.destroy', id), { preserveScroll: true });
+    };
+    const bump = (delta: number) =>
+        setDraft((d) => {
+            const n = parseInt(d.quantity, 10);
+            return { ...d, quantity: String(Math.max(0, (isNaN(n) ? 0 : n) + delta)) };
+        });
 
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [aislesOpen, setAislesOpen] = useState(false);
@@ -47,8 +129,10 @@ export default function ShopDetail({ shop, aisles, items }: { shop: Shop; aisles
     const groups = aisles
         .map((a) => ({ aisle: a, items: toBuy.filter((i) => (bySlug.has(i.department) ? i.department : otherSlug) === a.slug) }))
         .filter((g) => g.items.length > 0);
-
     const remaining = toBuy.length;
+
+    const departmentOptions = aisles.map((a) => ({ value: a.slug, label: a.name, icon: aisleIcon(a.icon) }));
+    const shopOptions = [...new Set([...shops, ...draft.shops].filter(Boolean))].map((s) => ({ value: s, label: s, icon: Store }));
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -77,7 +161,7 @@ export default function ShopDetail({ shop, aisles, items }: { shop: Shop; aisles
 
                 {items.length === 0 && (
                     <div className="text-muted-foreground rounded-xl border border-dashed p-10 text-center text-sm">
-                        Nothing needed at {shop.name} right now.
+                        Nothing needed at {shop.name} yet. Add the first item below.
                     </div>
                 )}
 
@@ -89,21 +173,17 @@ export default function ShopDetail({ shop, aisles, items }: { shop: Shop; aisles
                                 <Icon className="size-4" /> {g.aisle.name}
                             </div>
                             {g.items.map((i) => (
-                                <button
-                                    key={i.id}
-                                    type="button"
-                                    onClick={() => toggle(i)}
-                                    className="bg-surface-card flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left"
-                                >
-                                    <span className="border-border flex size-6 shrink-0 items-center justify-center rounded-full border" />
-                                    <span className="min-w-0 flex-1">
+                                <div key={i.id} className="bg-surface-card flex items-center gap-3 rounded-xl border px-3 py-2.5">
+                                    <button type="button" onClick={() => toggle(i)} aria-label="Mark bought" className="border-border flex size-6 shrink-0 items-center justify-center rounded-full border" />
+                                    {/* Tap the body to edit the item. */}
+                                    <button type="button" onClick={() => openEdit(i)} className="min-w-0 flex-1 text-left">
                                         <span className="text-primary block truncate text-[15px]">{i.name}</span>
                                         <span className="text-muted-foreground block truncate text-xs">
                                             {i.quantity ? `${i.quantity} · ` : ''}
                                             from {i.listName}
                                         </span>
-                                    </span>
-                                </button>
+                                    </button>
+                                </div>
                             ))}
                         </div>
                     );
@@ -127,7 +207,98 @@ export default function ShopDetail({ shop, aisles, items }: { shop: Shop; aisles
                         ))}
                     </div>
                 )}
+
+                {/* Add an item at this shop (goes to your default list unless you pick another). */}
+                <Button type="button" variant="outline" onClick={openNew} className="mt-1">
+                    <Plus className="size-4" /> Add item
+                </Button>
             </div>
+
+            {/* Item editor (add / edit) */}
+            <ResponsiveModal
+                open={editingId !== null}
+                onOpenChange={(v) => !v && setEditingId(null)}
+                title={editingId ? 'Edit Item' : 'Add Item'}
+                footer={
+                    <Button className="w-full" disabled={!draft.name.trim()} onClick={saveItem}>
+                        {editingId ? 'Save' : 'Add item'}
+                    </Button>
+                }
+            >
+                <div className="flex flex-col gap-5">
+                    <div className="grid gap-2">
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Item</Label>
+                        <Input autoFocus value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} placeholder="What do you need?" />
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Quantity</Label>
+                        <div className="flex items-center gap-2">
+                            <button type="button" onClick={() => bump(-1)} aria-label="Decrease" className="border-border text-primary flex size-9 items-center justify-center rounded-lg border">
+                                <Minus className="size-4" />
+                            </button>
+                            <Input value={draft.quantity} onChange={(e) => setDraft((d) => ({ ...d, quantity: e.target.value }))} placeholder="2 bunches" className="text-center" />
+                            <button type="button" onClick={() => bump(1)} aria-label="Increase" className="border-border text-primary flex size-9 items-center justify-center rounded-lg border">
+                                <Plus className="size-4" />
+                            </button>
+                        </div>
+                    </div>
+
+                    {!editingId && lists.length > 0 && (
+                        <div className="grid gap-2">
+                            <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">List</Label>
+                            <Picker
+                                placeholder="Pick a list"
+                                options={lists.map((l) => ({ value: String(l.id), label: l.name }))}
+                                selected={draft.list_id ? [String(draft.list_id)] : []}
+                                onChange={(next) => setDraft((d) => ({ ...d, list_id: next[0] ? Number(next[0]) : null }))}
+                            />
+                        </div>
+                    )}
+
+                    <div className="grid gap-2">
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Shops</Label>
+                        <Picker
+                            multi
+                            searchable
+                            placeholder="Pick shops"
+                            options={shopOptions}
+                            selected={draft.shops}
+                            onChange={(next) => setDraft((d) => ({ ...d, shops: [...new Set(next)] }))}
+                            onCreate={() => {}}
+                        />
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Department</Label>
+                        <Picker placeholder="Pick a department" options={departmentOptions} selected={[draft.department]} onChange={(next) => setDraft((d) => ({ ...d, department: next[0] ?? 'other' }))} />
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Note</Label>
+                        <Input value={draft.note} onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))} placeholder="Add a note (optional)" />
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Due date</Label>
+                        <div className="border-border flex h-10 w-full items-center gap-2 rounded-md border px-3">
+                            <Calendar className="text-muted-foreground size-4 shrink-0" />
+                            <input type="date" value={draft.due_date} onChange={(e) => setDraft((d) => ({ ...d, due_date: e.target.value }))} className="text-primary w-full min-w-0 bg-transparent text-base outline-none md:text-sm" />
+                            {draft.due_date && (
+                                <button type="button" onClick={() => setDraft((d) => ({ ...d, due_date: '' }))} className="text-muted-foreground hover:text-primary text-xs">
+                                    Clear
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    {!!editingId && (
+                        <button type="button" onClick={deleteItem} className="text-destructive flex items-center justify-center gap-2 py-1 text-sm font-medium">
+                            <Trash2 className="size-4" /> Delete item
+                        </button>
+                    )}
+                </div>
+            </ResponsiveModal>
 
             <ResponsiveModal open={settingsOpen} onOpenChange={setSettingsOpen} title="Shop settings">
                 <div className="flex flex-col gap-4">
