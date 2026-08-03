@@ -48,7 +48,6 @@ function Avatars({ members }: { members: Member[] }) {
 
 function ListCard({ list }: { list: List }) {
     const Icon = listIcon(list.icon);
-    const pct = list.taskCount ? Math.round((list.doneCount / list.taskCount) * 100) : 0;
     return (
         <Link
             href={route('tasks.show', list.id)}
@@ -65,9 +64,6 @@ function ListCard({ list }: { list: List }) {
                 </div>
                 <div className="text-muted-foreground mt-0.5 text-xs">
                     {list.doneCount} of {list.taskCount} done
-                </div>
-                <div className="bg-surface mt-1.5 h-1.5 overflow-hidden rounded-full">
-                    <div className="bg-primary h-full rounded-full" style={{ width: `${pct}%` }} />
                 </div>
             </div>
             <Avatars members={list.members} />
