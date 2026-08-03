@@ -133,6 +133,11 @@ it('records a foreign-currency spend converted to the event currency and frozen'
     // Balances are in the base currency (EUR): payer is owed 2/3 of 20.00.
     actingAs($users[0])->get("/m/spending/events/{$event->id}")
         ->assertInertia(fn ($page) => $page->where('event.total', 2000)->where('balances.0.net', 1333));
+
+    // The index card total must be the base (EUR) sum too — 2000, NOT the raw RON amount 10000.
+    // Otherwise a foreign-currency spend inflates the list card vs the event's real "Total spent".
+    actingAs($users[0])->get('/m/spending')
+        ->assertInertia(fn ($page) => $page->where('events.0.total', 2000));
 });
 
 it('edits a spend and re-freezes the conversion', function () {
