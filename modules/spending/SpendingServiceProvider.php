@@ -2,6 +2,7 @@
 
 namespace Modules\Spending;
 
+use App\Models\EntityVisit;
 use App\Support\Dashboard\DashboardItems;
 use App\Support\Guests\GuestableRegistry;
 use App\Support\Modules\ModuleRegistry;
@@ -30,19 +31,25 @@ class SpendingServiceProvider extends ServiceProvider
                 return [];
             }
 
+            // "Pick up where you left off": events opened in the last few days, tagged with when.
+            $visits = EntityVisit::recentMap('spend_event');
+            if ($visits->isEmpty()) {
+                return [];
+            }
+
             return SpendEvent::query()
                 ->withSum('spends', 'base_amount')
                 ->with(['shareSetting', 'shares'])
+                ->whereIn('id', $visits->keys())
                 ->whereNull('archived_at') // archived events drop off the dashboard
-                ->latest()
                 ->get()
                 ->filter(fn (SpendEvent $e) => $e->visibility() === 'family' || $e->shares->contains('user_id', $userId))
-                ->take(4)
                 ->map(fn (SpendEvent $e) => [
                     'title' => $e->name,
                     'subtitle' => (self::CURRENCY_SYMBOL[$e->currency] ?? $e->currency.' ').number_format((int) $e->spends_sum_base_amount / 100, 2),
                     'href' => "/m/spending/events/{$e->id}",
                     'icon' => 'wallet',
+                    'visitedAt' => $visits[$e->id]->toIso8601String(),
                 ])->values()->all();
         });
 

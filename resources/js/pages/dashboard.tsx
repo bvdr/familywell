@@ -6,12 +6,31 @@ import { Blocks, FolderKanban, ListChecks, type LucideIcon, Settings, ShoppingCa
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' }];
 
-// A concrete entity a module surfaces on the dashboard (a spend event, later a list, etc.).
+// A recently-opened entity ("Pick up where you left off"). visitedAt drives the order server-side.
 type DashItem = { title: string; subtitle: string; href: string; icon: string };
+// A dated leaf item (a task / shopping item due on a day) for the Today / This Week sections.
+type AgendaItem = DashItem & { dueDate: string };
 
 // Map a provider's icon key to a lucide icon; fall back to a neutral one.
 const ICONS: Record<string, LucideIcon> = { wallet: Wallet, 'shopping-cart': ShoppingCart, 'folder-kanban': FolderKanban, 'list-checks': ListChecks };
 const iconFor = (key: string) => ICONS[key] ?? Blocks;
+
+// Local midnight for a Y-m-d string (avoids the UTC day-shift of new Date('2026-08-03')).
+function parseDay(ymd: string) {
+    const [y, m, d] = ymd.split('-').map(Number);
+    return new Date(y, m - 1, d);
+}
+
+// A short due badge relative to today: Overdue / Today / weekday.
+function dueBadge(ymd: string): { label: string; tone: string } {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = parseDay(ymd);
+    const days = Math.round((due.getTime() - today.getTime()) / 86400000);
+    if (days < 0) return { label: 'Overdue', tone: 'bg-destructive/10 text-destructive' };
+    if (days === 0) return { label: 'Today', tone: 'bg-accent-subtle text-primary' };
+    return { label: due.toLocaleDateString(undefined, { weekday: 'short' }), tone: 'bg-surface text-muted-foreground' };
+}
 
 // Time-of-day greeting, resolved on the client so it matches the viewer's clock.
 function greeting() {
@@ -38,7 +57,37 @@ function Shortcut({ href, icon: Icon, title, sub }: { href: string; icon: typeof
     );
 }
 
-export default function Dashboard({ items = [] }: { items?: DashItem[] }) {
+// One dated row inside Today / This Week: icon, title, where it lives, and a due badge.
+function AgendaRow({ item }: { item: AgendaItem }) {
+    const Icon = iconFor(item.icon);
+    const badge = dueBadge(item.dueDate);
+    return (
+        <Link
+            href={item.href}
+            prefetch
+            className="bg-surface-card hover:border-accent flex items-center gap-3 rounded-xl border p-3 transition-colors"
+        >
+            <span className="bg-primary text-primary-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
+                <Icon className="size-4.5" />
+            </span>
+            <span className="min-w-0 flex-1">
+                <span className="text-primary block truncate font-medium">{item.title}</span>
+                <span className="text-muted-foreground block truncate text-sm">{item.subtitle}</span>
+            </span>
+            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${badge.tone}`}>{badge.label}</span>
+        </Link>
+    );
+}
+
+export default function Dashboard({
+    recent = [],
+    today = [],
+    thisWeek = [],
+}: {
+    recent?: DashItem[];
+    today?: AgendaItem[];
+    thisWeek?: AgendaItem[];
+}) {
     const { auth, modules } = usePage<SharedData & { modules?: { enabled?: string[] } }>().props;
     const firstName = auth.user.name.split(' ')[0];
     const spendingOn = (modules?.enabled ?? []).includes('spending');
@@ -72,11 +121,33 @@ export default function Dashboard({ items = [] }: { items?: DashItem[] }) {
                     </div>
                 </div>
 
-                {items.length > 0 && (
+                {today.length > 0 && (
+                    <section className="flex flex-col gap-3">
+                        <h2 className="font-heading text-primary px-1 text-lg">Today</h2>
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            {today.map((it) => (
+                                <AgendaRow key={it.href + it.title} item={it} />
+                            ))}
+                        </div>
+                    </section>
+                )}
+
+                {thisWeek.length > 0 && (
+                    <section className="flex flex-col gap-3">
+                        <h2 className="font-heading text-primary px-1 text-lg">This Week</h2>
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            {thisWeek.map((it) => (
+                                <AgendaRow key={it.href + it.title} item={it} />
+                            ))}
+                        </div>
+                    </section>
+                )}
+
+                {recent.length > 0 && (
                     <section className="flex flex-col gap-3">
                         <h2 className="font-heading text-primary px-1 text-lg">Pick up where you left off</h2>
                         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                            {items.map((it) => {
+                            {recent.map((it) => {
                                 const Icon = iconFor(it.icon);
                                 return (
                                     <Link

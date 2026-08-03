@@ -1,6 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import {
     Archive,
+    Calendar,
     Check,
     ChevronLeft,
     Copy,
@@ -55,13 +56,14 @@ type Item = {
     bought: boolean;
     note: string | null;
     assignedTo: number | null;
+    dueDate: string | null; // optional Y-m-d; surfaces the item in the dashboard Today / This Week
     store: string | null; // primary shop; null => inherits the list's store
     altStores: string[]; // also-available-at shops
 };
 type List = { id: number; name: string; store: string | null; color: string; icon: string; archived: boolean; visibility: string };
 
-type Draft = { name: string; quantity: string; department: string; assigned_to: number | null; note: string; store: string; alt_stores: string[] };
-const emptyDraft: Draft = { name: '', quantity: '', department: 'other', assigned_to: null, note: '', store: '', alt_stores: [] };
+type Draft = { name: string; quantity: string; department: string; assigned_to: number | null; note: string; due_date: string; store: string; alt_stores: string[] };
+const emptyDraft: Draft = { name: '', quantity: '', department: 'other', assigned_to: null, note: '', due_date: '', store: '', alt_stores: [] };
 
 function AssigneeBadge({ member }: { member?: Member }) {
     if (!member) return null;
@@ -252,6 +254,7 @@ export default function ListDetail({
             department: item.department,
             assigned_to: item.assignedTo,
             note: item.note ?? '',
+            due_date: item.dueDate ?? '',
             store: item.store ?? list.store ?? '',
             alt_stores: item.altStores,
         });
@@ -259,7 +262,7 @@ export default function ListDetail({
     };
     const saveItem = () => {
         if (!draft.name.trim()) return;
-        const payload = { ...draft, name: draft.name.trim(), store: draft.store || null };
+        const payload = { ...draft, name: draft.name.trim(), due_date: draft.due_date || null, store: draft.store || null };
         const done = { preserveScroll: true, onSuccess: () => setEditingId(null) };
         if (editingId) router.patch(route('shopping.items.update', editingId), payload, done);
         else router.post(route('shopping.items.store', list.id), payload, done);
@@ -1033,6 +1036,28 @@ export default function ListDetail({
                             onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
                             placeholder="Add a note (optional)"
                         />
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Due date</Label>
+                        <div className="border-border flex h-10 w-full items-center gap-2 rounded-md border px-3">
+                            <Calendar className="text-muted-foreground size-4 shrink-0" />
+                            <input
+                                type="date"
+                                value={draft.due_date}
+                                onChange={(e) => setDraft((d) => ({ ...d, due_date: e.target.value }))}
+                                className="text-primary w-full min-w-0 bg-transparent text-base outline-none md:text-sm"
+                            />
+                            {draft.due_date && (
+                                <button
+                                    type="button"
+                                    onClick={() => setDraft((d) => ({ ...d, due_date: '' }))}
+                                    className="text-muted-foreground hover:text-primary text-xs"
+                                >
+                                    Clear
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     {/* Delete lives here so it's reachable on touch (the row's trash is hover-only, desktop). */}

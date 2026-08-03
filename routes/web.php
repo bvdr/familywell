@@ -8,10 +8,10 @@ use App\Http\Controllers\GuestLinkController;
 use App\Http\Controllers\ModuleAssetController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PublicGuestController;
-use App\Http\Controllers\PushController;
 use App\Http\Controllers\PublicShareController;
+use App\Http\Controllers\PushController;
 use App\Http\Controllers\ShareController;
-use App\Support\Dashboard\DashboardItems;
+use App\Support\Dashboard\DashboardData;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -57,8 +57,8 @@ Route::post('/g/{token}/unlock', [PublicGuestController::class, 'unlock'])->midd
 // The app proper: requires both auth and a family.
 Route::middleware(['auth', 'family'])->group(function () {
     Route::get('dashboard', function () {
-        // Modules surface their own entities here (e.g. spend events), deep-linked, via DashboardItems.
-        return Inertia::render('dashboard', ['items' => DashboardItems::collect()]);
+        // Recent (Pick up where you left off) + Today + This Week, assembled from module providers.
+        return Inertia::render('dashboard', DashboardData::build());
     })->name('dashboard');
 
     // Generic sharing management for any registered shareable entity ({type}/{id}). Owner-only,

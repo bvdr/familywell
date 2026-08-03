@@ -149,3 +149,25 @@ it('hides a private list from a member who was not shared', function () {
     expect($access->canView($alice, $list))->toBeTrue()
         ->and($access->canView($bob, $list))->toBeFalse();
 });
+
+it('buckets dated tasks into the dashboard Today and This Week sections', function () {
+    // Freeze mid-week (a Wednesday) so "this week" is unambiguous regardless of when the suite runs.
+    $this->travelTo(Illuminate\Support\Carbon::parse('2026-08-05 09:00:00'));
+
+    [, $users] = tasksFamily();
+    actingAs($users[0])->post('/m/tasks/lists', ['name' => 'Chores']);
+    $list = TaskList::withoutGlobalScopes()->first();
+
+    // Overdue + due-today land in Today; later-this-week lands in This Week; next week is excluded.
+    actingAs($users[0])->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Overdue', 'due_date' => '2026-08-03']);
+    actingAs($users[0])->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Due today', 'due_date' => '2026-08-05']);
+    actingAs($users[0])->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Friday', 'due_date' => '2026-08-07']);
+    actingAs($users[0])->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Next week', 'due_date' => '2026-08-12']);
+
+    actingAs($users[0])->get('/dashboard')->assertInertia(fn ($p) => $p
+        ->has('today', 2)
+        ->has('thisWeek', 1)
+        ->where('thisWeek.0.title', 'Friday'));
+
+    $this->travelBack();
+});
