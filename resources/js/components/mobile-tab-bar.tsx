@@ -108,13 +108,14 @@ export function MobileTabBar() {
         }
     };
 
-    // Cells size to their content now (no flex-1) so the pill shrinks and leaves room for the "+".
-    const cell = 'flex flex-col items-center gap-0.5 rounded-full px-2.5 py-1.5 text-[10px] font-medium transition-colors';
+    // Cells share the pill width evenly (flex-1) so the bar looks the same regardless of item count.
+    const cell = 'flex flex-1 flex-col items-center gap-0.5 rounded-full py-1.5 text-[10px] font-medium transition-colors';
 
     return (
         <>
-            <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex items-center justify-center gap-2.5 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden">
-                <div className="border-border/60 pointer-events-auto flex items-center gap-0.5 rounded-full border bg-white/75 p-1.5 shadow-[var(--shadow-fw-md)] backdrop-blur-xl">
+            <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex items-center gap-2.5 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden">
+                {/* Pill fills the width; the + stays a fixed circle on the right. */}
+                <div className="border-border/60 pointer-events-auto flex flex-1 items-center justify-around gap-0.5 rounded-full border bg-white/75 p-1.5 shadow-[var(--shadow-fw-md)] backdrop-blur-xl">
                     {pinned.map((item) => {
                         const active = isActive(item.url);
                         const loading = pending === item.url;
