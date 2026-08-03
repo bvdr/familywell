@@ -1,5 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Archive, Check, ChevronRight, Lock, Plus, RotateCcw, Settings, ShoppingCart, Store, UserCheck, Users } from 'lucide-react';
+import { Archive, Check, ChevronRight, Lock, Plus, RotateCcw, Settings, ShoppingCart, UserCheck, Users } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 import InputError from '@/components/input-error';
@@ -64,16 +64,7 @@ function ListCard({ list }: { list: List }) {
                     <span className="truncate">{list.name}</span>
                     {list.visibility === 'private' && <Lock className="text-muted-foreground size-3.5 shrink-0" />}
                 </div>
-                <div className="text-muted-foreground flex items-center gap-1 text-xs">
-                    {list.store ? (
-                        <>
-                            <Store className="size-3.5" /> {list.store}
-                        </>
-                    ) : (
-                        'No store'
-                    )}
-                </div>
-                <div className="text-muted-foreground mt-1 text-xs">
+                <div className="text-muted-foreground mt-0.5 text-xs">
                     {list.boughtCount} of {list.itemCount} items
                 </div>
             </div>
@@ -83,11 +74,10 @@ function ListCard({ list }: { list: List }) {
     );
 }
 
-export default function Lists({ lists, stores }: { lists: List[]; stores: string[] }) {
+export default function Lists({ lists }: { lists: List[] }) {
     const [creating, setCreating] = useState(false);
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
-        store: '',
         color: 'green',
         icon: 'cart',
         visibility: 'family',
@@ -193,24 +183,7 @@ export default function Lists({ lists, stores }: { lists: List[]; stores: string
                             </div>
                         </div>
 
-                        <div className="grid gap-2">
-                            <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Store</Label>
-                            <div className="flex flex-wrap gap-2">
-                                {stores.map((s) => (
-                                    <button
-                                        key={s}
-                                        type="button"
-                                        onClick={() => setData('store', s)}
-                                        className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors ${
-                                            data.store === s ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-primary'
-                                        }`}
-                                    >
-                                        <Store className="size-3.5" /> {s}
-                                    </button>
-                                ))}
-                            </div>
-                            <Input value={data.store} onChange={(e) => setData('store', e.target.value)} placeholder="Or type a store..." />
-                        </div>
+                        {/* No list-level store: items each carry their own shop, so a list can span shops. */}
 
                         <div className="grid gap-2">
                             <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Who can view</Label>

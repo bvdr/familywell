@@ -112,9 +112,7 @@ export default function ListDetail({
     const [sharing, setSharing] = useState(false);
     const [editingTitle, setEditingTitle] = useState(false);
     const [title, setTitle] = useState(list.name);
-    const [storeOpen, setStoreOpen] = useState(false);
     const [aislesOpen, setAislesOpen] = useState(false);
-    const [storeDraft, setStoreDraft] = useState(list.store ?? '');
     const [editingId, setEditingId] = useState<number | null>(null); // null = closed; 0 = new item; >0 = editing
     const [draft, setDraft] = useState<Draft>(emptyDraft);
     const [addingStore, setAddingStore] = useState(false); // inline "add a store" field is open
@@ -388,9 +386,6 @@ export default function ListDetail({
                     <DropdownMenuItem onSelect={() => setTimeout(() => setEditingTitle(true), 0)}>
                         <Pencil className="size-4" /> Rename list
                     </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => setStoreOpen(true)}>
-                        <Store className="size-4" /> Change store
-                    </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => setAislesOpen(true)}>
                         <LayoutList className="size-4" /> Edit aisles
                     </DropdownMenuItem>
@@ -460,14 +455,8 @@ export default function ListDetail({
                             {list.visibility === 'private' && <Lock className="text-muted-foreground size-4" />}
                         </button>
                     )}
-                    <div className="mt-1 flex items-center justify-between gap-3">
-                        <div className="text-muted-foreground flex items-center gap-1 text-sm">
-                            {list.store && (
-                                <>
-                                    <Store className="size-4" /> {list.store}
-                                </>
-                            )}
-                        </div>
+                    <div className="mt-1 flex items-center justify-end gap-3">
+                        {/* No list-level shop: a list can hold items from several shops (grouped below). */}
                         <div className="text-muted-foreground text-sm tabular-nums">
                             {boughtCount} / {liveItems.length} done
                         </div>
@@ -863,42 +852,6 @@ export default function ListDetail({
             {share && <ShareSheet open={sharing} onOpenChange={setSharing} share={share} eventName={list.name} />}
 
             <AisleEditor open={aislesOpen} onOpenChange={setAislesOpen} listId={list.id} stores={storeOptions} initialStore={list.store ?? ''} />
-
-            {/* Change store */}
-            <ResponsiveModal
-                open={storeOpen}
-                onOpenChange={setStoreOpen}
-                title="Change store"
-                footer={
-                    <Button
-                        className="w-full"
-                        onClick={() => {
-                            patchList({ store: storeDraft.trim() || null });
-                            setStoreOpen(false);
-                        }}
-                    >
-                        Save
-                    </Button>
-                }
-            >
-                <div className="flex flex-col gap-3">
-                    <div className="flex flex-wrap gap-2">
-                        {stores.map((s) => (
-                            <button
-                                key={s}
-                                type="button"
-                                onClick={() => setStoreDraft(s)}
-                                className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm ${
-                                    storeDraft === s ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-primary'
-                                }`}
-                            >
-                                <Store className="size-3.5" /> {s}
-                            </button>
-                        ))}
-                    </div>
-                    <Input value={storeDraft} onChange={(e) => setStoreDraft(e.target.value)} placeholder="Store name" />
-                </div>
-            </ResponsiveModal>
 
             {/* Add / edit item */}
             <ResponsiveModal
