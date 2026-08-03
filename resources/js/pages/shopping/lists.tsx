@@ -115,7 +115,8 @@ export default function Lists({ lists }: { lists: List[] }) {
                         >
                             <Settings className="size-5" />
                         </Link>
-                        <Button size="icon" className="rounded-full" onClick={() => setCreating((v) => !v)} aria-label="New list">
+                        {/* Hidden on mobile: the nav's context-aware "+" creates a list there. Desktop has no nav "+". */}
+                        <Button size="icon" className="hidden rounded-full md:inline-flex" onClick={() => setCreating((v) => !v)} aria-label="New list">
                             <Plus className="size-5" />
                         </Button>
                     </div>

@@ -56,7 +56,8 @@ export default function Events({ events, currencies }: { events: Event[]; curren
                         <h1 className="font-heading text-primary text-2xl">Spending</h1>
                         <p className="text-muted-foreground text-sm">Shared expense trackers</p>
                     </div>
-                    <Button onClick={() => setCreating((v) => !v)}>
+                    {/* Hidden on mobile: the nav's context-aware "+" creates an event there. Desktop has no nav "+". */}
+                    <Button className="hidden md:inline-flex" onClick={() => setCreating((v) => !v)}>
                         <Plus className="size-4" /> New event
                     </Button>
                 </div>

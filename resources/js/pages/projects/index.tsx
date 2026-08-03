@@ -113,7 +113,8 @@ export default function ProjectsIndex({ projects }: { projects: Project[] }) {
                         <h1 className="font-heading text-primary text-2xl">Projects</h1>
                         <p className="text-muted-foreground text-sm">The bigger things your family is working on together.</p>
                     </div>
-                    <Button size="icon" className="rounded-full" onClick={() => setCreating(true)} aria-label="New project">
+                    {/* Hidden on mobile: the nav's context-aware "+" creates a project there. Desktop has no nav "+". */}
+                    <Button size="icon" className="hidden rounded-full md:inline-flex" onClick={() => setCreating(true)} aria-label="New project">
                         <Plus className="size-5" />
                     </Button>
                 </div>
