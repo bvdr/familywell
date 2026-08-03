@@ -6,6 +6,7 @@ use App\Events\ShoppingChanged;
 use App\Http\Controllers\Controller;
 use App\Models\EntityVisit;
 use App\Models\Family;
+use App\Models\User;
 use App\Support\FamilyNotifier;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
@@ -63,9 +64,9 @@ class ShoppingController extends Controller
 
     public function shopShow(Request $request, ShoppingShop $shop): Response
     {
-        [$lists, $listById] = $this->accessibleLists($request->user()->id);
+        $user = $request->user();
+        [$lists, $listById] = $this->accessibleLists($user->id);
         $aisles = $this->resolveAisles($shop->name); // slug/name/icon, in walk order
-        $known = collect($aisles)->pluck('slug')->flip();
 
         $items = ShoppingItem::whereIn('shopping_list_id', $lists->pluck('id'))
             ->orderBy('position')->orderBy('id')->get()
@@ -74,15 +75,29 @@ class ShoppingController extends Controller
                 'id' => $i->id,
                 'name' => $i->name,
                 'quantity' => $i->quantity,
-                'department' => $known->has($i->department) ? $i->department : 'other',
+                'department' => $i->department,
                 'bought' => $i->bought,
+                'note' => $i->note,
+                'dueDate' => optional($i->due_date)->toDateString(),
+                'store' => $i->store,
+                'altStores' => $i->alt_stores ?? [],
+                'listId' => $i->shopping_list_id,
                 'listName' => $listById[$i->shopping_list_id]->name ?? '',
             ])->values();
+
+        // Lists the user can add to (edit access), for the "which list" pick when adding here; default
+        // to their own most-recent list.
+        $editable = $lists->filter(fn (ShoppingList $l) => $this->access->roleFor($user, $l) !== null)->sortByDesc('id')->values();
+        $defaultList = $editable->firstWhere('created_by', $user->id) ?? $editable->first();
 
         return Inertia::render('shopping/shop', [
             'shop' => ['id' => $shop->id, 'name' => $shop->name, 'icon' => $shop->icon, 'color' => $shop->color],
             'aisles' => $aisles,
             'items' => $items,
+            // For the item editor here: all shops (Shops picker) + the lists a new item can go to.
+            'shops' => ShoppingShop::orderBy('name')->pluck('name')->values(),
+            'lists' => $editable->map(fn (ShoppingList $l) => ['id' => $l->id, 'name' => $l->name])->values(),
+            'defaultListId' => $defaultList?->id,
         ]);
     }
 
@@ -127,6 +142,65 @@ class ShoppingController extends Controller
         Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
 
         return back();
+    }
+
+    // Add an item straight from a shop page. It still has to live in a list, so it goes to the chosen
+    // list (must be editable) or the user's default list, with this shop preset as its store.
+    public function storeShopItem(Request $request, ShoppingShop $shop): RedirectResponse
+    {
+        $user = $request->user();
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'quantity' => ['nullable', 'string', 'max:60'],
+            'department' => ['nullable', 'string', 'max:60'],
+            'note' => ['nullable', 'string', 'max:255'],
+            'due_date' => ['nullable', 'date'],
+            'list_id' => ['nullable', 'integer'],
+            'alt_stores' => ['nullable', 'array'],
+            'alt_stores.*' => ['string', 'max:120'],
+        ]);
+
+        $list = null;
+        if (! empty($data['list_id'])) {
+            $candidate = ShoppingList::find($data['list_id']);
+            if ($candidate && $this->access->roleFor($user, $candidate) !== null) {
+                $list = $candidate;
+            }
+        }
+        $list ??= $this->defaultList($user);
+
+        $list->items()->create([
+            'name' => $data['name'],
+            'quantity' => $data['quantity'] ?? null,
+            'department' => $data['department'] ?? 'other',
+            'note' => $data['note'] ?? null,
+            'due_date' => $data['due_date'] ?? null,
+            'store' => $shop->name, // the shop you added from is the primary store
+            'alt_stores' => $data['alt_stores'] ?? null,
+            'created_by' => $user->id,
+        ]);
+        ShoppingShop::ensure($shop->name);
+        foreach ($data['alt_stores'] ?? [] as $alt) {
+            ShoppingShop::ensure($alt);
+        }
+        Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
+
+        return back();
+    }
+
+    // The user's default grocery list: their most recent non-archived list, or a personal "My List"
+    // minted on first use so an item added from a shop always has a home.
+    private function defaultList(User $user): ShoppingList
+    {
+        $list = ShoppingList::whereNull('archived_at')->where('created_by', $user->id)->latest('id')->first();
+        if ($list) {
+            return $list;
+        }
+        $list = ShoppingList::create(['name' => 'My List', 'created_by' => $user->id]);
+        $list->shares()->firstOrCreate(['user_id' => $user->id], ['role' => 'owner']);
+        $list->setVisibility('family');
+
+        return $list;
     }
 
     // Shop-scoped aisle editing (the shop's "settings"). Same store-name-keyed logic as the list
