@@ -7,6 +7,7 @@ use App\Support\Sharing\ShareAccess;
 use Modules\Shopping\ShoppingAisle;
 use Modules\Shopping\ShoppingItem;
 use Modules\Shopping\ShoppingList;
+use Modules\Shopping\ShoppingShop;
 
 use function Pest\Laravel\actingAs;
 
@@ -221,4 +222,37 @@ it('only offers members with access as assignees on a private list', function ()
 
     actingAs($users[0])->get("/m/shopping/lists/{$list->id}")
         ->assertInertia(fn ($p) => $p->has('members', 1)->where('members.0.id', $users[0]->id));
+});
+
+it('aggregates a shop\'s items across accessible lists, including "also available at"', function () {
+    [, $users] = shoppingFamily();
+    actingAs($users[0])->post('/m/shopping/lists', ['name' => 'Weekend']);
+    actingAs($users[0])->post('/m/shopping/lists', ['name' => 'Casa']);
+    $lists = ShoppingList::withoutGlobalScopes()->orderBy('id')->get();
+
+    actingAs($users[0])->post("/m/shopping/lists/{$lists[0]->id}/items", ['name' => 'Bananas', 'store' => 'Metro']);
+    actingAs($users[0])->post("/m/shopping/lists/{$lists[1]->id}/items", ['name' => 'Apples', 'store' => 'Metro']);
+    // Primary Kaufland but also available at Metro -> shows under both.
+    actingAs($users[0])->post("/m/shopping/lists/{$lists[0]->id}/items", ['name' => 'Milk', 'store' => 'Kaufland', 'alt_stores' => ['Metro']]);
+
+    $metro = ShoppingShop::withoutGlobalScopes()->where('name', 'Metro')->first();
+    actingAs($users[0])->get("/m/shopping/shops/{$metro->id}")
+        ->assertInertia(fn ($p) => $p->component('shopping/shop')->has('items', 3));
+
+    $kaufland = ShoppingShop::withoutGlobalScopes()->where('name', 'Kaufland')->first();
+    actingAs($users[0])->get("/m/shopping/shops/{$kaufland->id}")
+        ->assertInertia(fn ($p) => $p->has('items', 1)); // only Milk
+});
+
+it('renames a shop and cascades the name across items', function () {
+    [, $users] = shoppingFamily();
+    actingAs($users[0])->post('/m/shopping/lists', ['name' => 'Weekend']);
+    $list = ShoppingList::withoutGlobalScopes()->first();
+    actingAs($users[0])->post("/m/shopping/lists/{$list->id}/items", ['name' => 'Bananas', 'store' => 'Metro']);
+    $shop = ShoppingShop::withoutGlobalScopes()->where('name', 'Metro')->first();
+
+    actingAs($users[0])->patch("/m/shopping/shops/{$shop->id}", ['name' => 'Metro Cash & Carry'])->assertRedirect();
+
+    expect(ShoppingShop::withoutGlobalScopes()->find($shop->id)->name)->toBe('Metro Cash & Carry')
+        ->and(ShoppingItem::withoutGlobalScopes()->where('name', 'Bananas')->first()->store)->toBe('Metro Cash & Carry');
 });

@@ -122,6 +122,14 @@ export default function Lists({ lists }: { lists: List[] }) {
                     </div>
                 </div>
 
+                {/* Switch between grocery lists and the family's shops. */}
+                <div className="border-border bg-surface flex rounded-full border p-1">
+                    <span className="bg-primary text-primary-foreground flex-1 rounded-full px-4 py-1.5 text-center text-sm font-medium">Lists</span>
+                    <Link href="/m/shopping/shops" className="text-primary flex-1 rounded-full px-4 py-1.5 text-center text-sm font-medium">
+                        Shops
+                    </Link>
+                </div>
+
                 <ResponsiveModal
                     open={creating}
                     onOpenChange={setCreating}
