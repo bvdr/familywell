@@ -659,7 +659,7 @@ function LinkListModal({
         setQ('');
         setNewName('');
         setItems([{ name: '', quantity: '' }]);
-        fetch(route('projects.lists.linkable', projectId), { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
+        fetch(route('projects.lists.linkable', projectId, false), { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
             .then((r) => (r.ok ? r.json() : { lists: [] }))
             .then((d) => setLists(d.lists));
     }, [open, projectId, initialView]);

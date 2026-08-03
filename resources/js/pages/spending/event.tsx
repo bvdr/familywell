@@ -452,7 +452,8 @@ export default function Event({
             body.append('photo', photo);
             // Laravel validates the XSRF-TOKEN cookie via this header (no axios in this app).
             const xsrf = decodeURIComponent(document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]+)/)?.[1] ?? '');
-            const res = await fetch(route('spending.scan'), {
+            // Relative URL: same-origin fetch must target the origin the user is on so the session cookie is sent.
+            const res = await fetch(route('spending.scan', undefined, false), {
                 method: 'POST',
                 headers: { 'X-XSRF-TOKEN': xsrf, Accept: 'application/json' },
                 body,
