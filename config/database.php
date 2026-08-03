@@ -97,6 +97,27 @@ return [
             'sslmode' => 'prefer',
         ],
 
+        // Direct (non-pooled) Postgres, used for cache + session in production. The web service runs
+        // its normal queries through the PgBouncer *transaction*-mode pool, but the cache/session
+        // stores do transaction-wrapped read-modify-writes (the rate limiter's counter, session
+        // blocking locks) that transaction pooling aborts with SQLSTATE 25P02. Pinning those stores
+        // here keeps them on a stable connection. Falls back to the same host/port/db as `pgsql`, so
+        // it is a harmless alias everywhere the direct overrides are unset (dev, CI).
+        'pgsql_direct' => [
+            'driver' => 'pgsql',
+            'url' => env('DB_URL'),
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('DB_DIRECT_PORT', env('DB_PORT', '5432')),
+            'database' => env('DB_DIRECT_DATABASE', env('DB_DATABASE', 'laravel')),
+            'username' => env('DB_USERNAME', 'root'),
+            'password' => env('DB_PASSWORD', ''),
+            'charset' => env('DB_CHARSET', 'utf8'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => 'prefer',
+        ],
+
         'sqlsrv' => [
             'driver' => 'sqlsrv',
             'url' => env('DB_URL'),
