@@ -1,7 +1,7 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { openNewOnArrival } from '@/lib/create-intent';
 import { useAddAction } from '@/lib/add-action';
-import { Archive, Check, ChevronRight, Lock, Plus, RotateCcw, Settings, ShoppingCart, UserCheck, Users } from 'lucide-react';
+import { Archive, Check, ChevronRight, Lock, Plus, RotateCcw, Settings, ShoppingCart, Store, UserCheck, Users } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 import InputError from '@/components/input-error';
@@ -76,7 +76,20 @@ function ListCard({ list }: { list: List }) {
     );
 }
 
-export default function Lists({ lists }: { lists: List[] }) {
+type Shop = { id: number; name: string; icon: string; color: string; toBuy: number };
+
+export default function Lists({
+    lists,
+    shops = [],
+    initialView = 'lists',
+}: {
+    lists: List[];
+    shops?: Shop[];
+    initialView?: 'lists' | 'shops';
+}) {
+    // Lists / Shops is a client-side tab (no navigation) so the header, gear and tab bar are identical
+    // across both and switching is instant. The route just picks which tab opens first.
+    const [view, setView] = useState<'lists' | 'shops'>(initialView);
     const [creating, setCreating] = useState(openNewOnArrival);
     useAddAction(() => setCreating(true));
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -122,12 +135,20 @@ export default function Lists({ lists }: { lists: List[] }) {
                     </div>
                 </div>
 
-                {/* Switch between grocery lists and the family's shops. */}
+                {/* Client-side Lists / Shops tab — no page load, same bar in both. */}
                 <div className="border-border bg-surface flex rounded-full border p-1">
-                    <span className="bg-primary text-primary-foreground flex-1 rounded-full px-4 py-1.5 text-center text-sm font-medium">Lists</span>
-                    <Link href="/m/shopping/shops" className="text-primary flex-1 rounded-full px-4 py-1.5 text-center text-sm font-medium">
-                        Shops
-                    </Link>
+                    {(['lists', 'shops'] as const).map((v) => (
+                        <button
+                            key={v}
+                            type="button"
+                            onClick={() => setView(v)}
+                            className={`flex-1 rounded-full px-4 py-1.5 text-sm font-medium capitalize transition-colors ${
+                                view === v ? 'bg-primary text-primary-foreground' : 'text-primary'
+                            }`}
+                        >
+                            {v}
+                        </button>
+                    ))}
                 </div>
 
                 <ResponsiveModal
@@ -225,6 +246,8 @@ export default function Lists({ lists }: { lists: List[] }) {
                     </form>
                 </ResponsiveModal>
 
+                {view === 'lists' && (
+                    <>
                 {active.length === 0 && !creating && (
                     <div className="text-muted-foreground flex flex-col items-center gap-2 rounded-xl border border-dashed p-10 text-center">
                         <ShoppingCart className="size-6" />
@@ -281,6 +304,38 @@ export default function Lists({ lists }: { lists: List[] }) {
                         })}
                     </div>
                 )}
+                    </>
+                )}
+
+                {view === 'shops' &&
+                    (shops.length === 0 ? (
+                        <div className="text-muted-foreground flex flex-col items-center gap-2 rounded-xl border border-dashed p-10 text-center">
+                            <Store className="size-6" />
+                            <p className="text-sm">No shops yet. Set a store on an item and it shows up here.</p>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col gap-3">
+                            {shops.map((s) => (
+                                <Link
+                                    key={s.id}
+                                    href={`/m/shopping/shops/${s.id}`}
+                                    prefetch
+                                    className="bg-surface-card hover:border-accent flex items-center gap-3 rounded-2xl border p-4 text-left transition-colors"
+                                >
+                                    <span className="bg-accent-subtle text-primary flex size-11 shrink-0 items-center justify-center rounded-xl">
+                                        <Store className="size-5.5" />
+                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="text-primary truncate font-medium">{s.name}</div>
+                                        <div className="text-muted-foreground mt-0.5 text-xs">
+                                            {s.toBuy > 0 ? `${s.toBuy} to buy` : 'nothing to buy'}
+                                        </div>
+                                    </div>
+                                    <ChevronRight className="text-muted-foreground size-4 shrink-0" />
+                                </Link>
+                            ))}
+                        </div>
+                    ))}
             </div>
         </AppLayout>
     );
