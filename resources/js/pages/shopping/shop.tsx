@@ -134,7 +134,7 @@ export default function ShopDetail({ shop, aisles, items }: { shop: Shop; aisles
                     <div className="grid gap-2">
                         <label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Name</label>
                         <Input value={name} onChange={(e) => setName(e.target.value)} onBlur={saveName} onKeyDown={(e) => e.key === 'Enter' && saveName()} />
-                        <p className="text-text-muted text-xs">Renaming updates every item, list and aisle that uses this shop.</p>
+                        <p className="text-text-muted text-xs">Renaming updates every item, list and department that uses this shop.</p>
                     </div>
                     <Button
                         type="button"
@@ -144,7 +144,7 @@ export default function ShopDetail({ shop, aisles, items }: { shop: Shop; aisles
                             setAislesOpen(true);
                         }}
                     >
-                        Edit aisles
+                        Edit departments
                     </Button>
                 </div>
             </ResponsiveModal>
