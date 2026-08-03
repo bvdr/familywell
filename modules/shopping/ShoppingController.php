@@ -55,27 +55,10 @@ class ShoppingController extends Controller
         return array_values(array_unique(array_filter($names)));
     }
 
+    // Same index page, opened on the Shops tab (used by deep links / the shop page's back button).
     public function shopsIndex(Request $request): Response
     {
-        [$lists, $listById] = $this->accessibleLists($request->user()->id);
-
-        // Count unbought items per shop across accessible lists (an item counts for each shop it lists).
-        $counts = [];
-        foreach (ShoppingItem::whereIn('shopping_list_id', $lists->pluck('id'))->where('bought', false)->get() as $i) {
-            foreach ($this->itemShops($i, $listById) as $name) {
-                $counts[$name] = ($counts[$name] ?? 0) + 1;
-            }
-        }
-
-        $shops = ShoppingShop::orderBy('name')->get()->map(fn (ShoppingShop $s) => [
-            'id' => $s->id,
-            'name' => $s->name,
-            'icon' => $s->icon,
-            'color' => $s->color,
-            'toBuy' => $counts[$s->name] ?? 0,
-        ])->values();
-
-        return Inertia::render('shopping/shops', ['shops' => $shops]);
+        return Inertia::render('shopping/lists', $this->indexPayload($request->user()->id) + ['initialView' => 'shops']);
     }
 
     public function shopShow(Request $request, ShoppingShop $shop): Response
@@ -196,10 +179,15 @@ class ShoppingController extends Controller
         return response()->json(['aisles' => $this->aisleListJson($shop->name)]);
     }
 
+    // The shopping index is one page with a Lists / Shops tab switched client-side; both routes render
+    // it with the same payload, differing only in which tab opens first.
     public function index(Request $request): Response
     {
-        $userId = $request->user()->id;
+        return Inertia::render('shopping/lists', $this->indexPayload($request->user()->id) + ['initialView' => 'lists']);
+    }
 
+    private function indexPayload(int $userId): array
+    {
         $lists = ShoppingList::query()
             ->withCount([
                 'items',
@@ -217,7 +205,16 @@ class ShoppingController extends Controller
         // Assignee avatars shown on each list card: distinct members items are assigned to.
         $memberNames = Family::findOrFail(CurrentFamily::id())->members->pluck('name', 'id');
 
-        return Inertia::render('shopping/lists', [
+        // Shops + per-shop unbought counts across accessible lists (drives the Shops tab).
+        [$accessible, $listById] = $this->accessibleLists($userId);
+        $counts = [];
+        foreach (ShoppingItem::whereIn('shopping_list_id', $accessible->pluck('id'))->where('bought', false)->get() as $i) {
+            foreach ($this->itemShops($i, $listById) as $name) {
+                $counts[$name] = ($counts[$name] ?? 0) + 1;
+            }
+        }
+
+        return [
             'lists' => $lists->map(fn (ShoppingList $l) => [
                 'id' => $l->id,
                 'name' => $l->name,
@@ -233,7 +230,14 @@ class ShoppingController extends Controller
             ])->values(),
             // Distinct stores already in use, offered as chips on the New List screen.
             'stores' => ShoppingList::whereNotNull('store')->distinct()->orderBy('store')->pluck('store')->values(),
-        ]);
+            'shops' => ShoppingShop::orderBy('name')->get()->map(fn (ShoppingShop $s) => [
+                'id' => $s->id,
+                'name' => $s->name,
+                'icon' => $s->icon,
+                'color' => $s->color,
+                'toBuy' => $counts[$s->name] ?? 0,
+            ])->values(),
+        ];
     }
 
     // Build the ShareState the core ShareSheet expects (visibility, per-member roles, public link).
