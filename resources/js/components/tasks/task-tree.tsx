@@ -336,10 +336,11 @@ function SortableRow({
                 {/* The rest of the row is one tap target that opens the edit drawer. */}
                 <button type="button" onClick={handleEdit} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
                     <span className="min-w-0 flex-1">
-                        <span className={`block truncate ${sub ? 'text-sm' : 'text-[15px]'} ${done ? 'text-muted-foreground line-through' : 'text-primary'}`}>
+                        {/* Wrap long titles instead of truncating so a long to-do never widens the row past the screen. */}
+                        <span className={`block break-words ${sub ? 'text-sm' : 'text-[15px]'} ${done ? 'text-muted-foreground line-through' : 'text-primary'}`}>
                             {item.title}
                         </span>
-                        {item.note && <span className="text-muted-foreground block truncate text-xs">{item.note}</span>}
+                        {item.note && <span className="text-muted-foreground block break-words text-xs">{item.note}</span>}
                     </span>
                     {due && <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${due.tone}`}>{due.label}</span>}
                     <AssigneeDot members={members} id={item.assignedTo} />
