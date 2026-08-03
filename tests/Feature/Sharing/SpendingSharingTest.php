@@ -139,3 +139,15 @@ it('surfaces recently opened spend events on the dashboard and hides private one
     $event->setVisibility('private');
     actingAs($u[1])->get('/dashboard')->assertInertia(fn ($p) => $p->has('recent', 0));
 });
+
+it('lists only members with access on the index card, not every family member', function () {
+    [, $u] = sharingFamily(); // 3 members, all synced into the event pivot when it is created
+    $event = makeEvent($u[0]);
+    $event->setVisibility('invited'); // now only shared users have access; owner keeps their owner share
+
+    // The card must show the owner only — the other two family members are in the pivot but have no
+    // share, so they can't reach this invited event and must not appear as members.
+    actingAs($u[0])->get('/m/spending')->assertInertia(fn ($page) => $page
+        ->has('events.0.members', 1)
+        ->where('events.0.members.0.id', $u[0]->id));
+});
