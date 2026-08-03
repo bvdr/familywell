@@ -256,3 +256,17 @@ it('renames a shop and cascades the name across items', function () {
     expect(ShoppingShop::withoutGlobalScopes()->find($shop->id)->name)->toBe('Metro Cash & Carry')
         ->and(ShoppingItem::withoutGlobalScopes()->where('name', 'Bananas')->first()->store)->toBe('Metro Cash & Carry');
 });
+
+it('adds an item from a shop page into the default list with the shop preset', function () {
+    [, $users] = shoppingFamily();
+    actingAs($users[0])->post('/m/shopping/lists', ['name' => 'Weekend']);
+    $list = ShoppingList::withoutGlobalScopes()->first();
+    actingAs($users[0])->post("/m/shopping/lists/{$list->id}/items", ['name' => 'Milk', 'store' => 'Metro']);
+    $shop = ShoppingShop::withoutGlobalScopes()->where('name', 'Metro')->first();
+
+    // No list_id -> lands in the user's default (most recent) list, with Metro preset as the store.
+    actingAs($users[0])->post("/m/shopping/shops/{$shop->id}/items", ['name' => 'Cheese'])->assertRedirect();
+
+    $item = ShoppingItem::withoutGlobalScopes()->where('name', 'Cheese')->first();
+    expect($item->store)->toBe('Metro')->and($item->shopping_list_id)->toBe($list->id);
+});

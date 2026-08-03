@@ -90,6 +90,7 @@ class ShoppingServiceProvider extends ServiceProvider
                 Route::get('/shops', [ShoppingController::class, 'shopsIndex'])->name('shops.index');
                 Route::get('/shops/{shop}', [ShoppingController::class, 'shopShow'])->name('shops.show');
                 Route::patch('/shops/{shop}', [ShoppingController::class, 'updateShop'])->name('shops.update');
+                Route::post('/shops/{shop}/items', [ShoppingController::class, 'storeShopItem'])->name('shops.items.store');
                 Route::post('/shops/{shop}/aisles/ensure', [ShoppingController::class, 'ensureShopAisles'])->name('shops.aisles.ensure');
                 Route::post('/shops/{shop}/aisles/reorder', [ShoppingController::class, 'reorderShopAisles'])->name('shops.aisles.reorder');
                 Route::post('/shops/{shop}/aisles/template', [ShoppingController::class, 'applyShopTemplate'])->name('shops.aisles.template');
