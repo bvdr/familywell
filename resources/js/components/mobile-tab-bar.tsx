@@ -113,7 +113,7 @@ export function MobileTabBar() {
 
     return (
         <>
-            <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex items-center gap-2.5 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden">
+            <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex items-center gap-2.5 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] [@media(display-mode:standalone)]:pb-[calc(0.125rem+env(safe-area-inset-bottom))] md:hidden">
                 {/* Pill fills the width; the + stays a fixed circle on the right. */}
                 <div className="border-border/60 pointer-events-auto flex flex-1 items-center justify-around gap-0.5 rounded-full border bg-white/75 p-1.5 shadow-[var(--shadow-fw-md)] backdrop-blur-xl">
                     {pinned.map((item) => {
