@@ -373,8 +373,10 @@ class ShoppingController extends Controller
             ],
             // Reuse the core sharing UI (ShareSheet); shopping lists are registered as `shopping_list`.
             'share' => $this->shareState($list, $family),
-            // Distinct stores the family already uses, for the store pickers.
+            // Distinct stores the family already uses (aisle keys, grouping).
             'stores' => $familyStores,
+            // Every shop the family has, for the item editor's Shops picker (superset of `stores`).
+            'shops' => ShoppingShop::orderBy('name')->pluck('name')->values(),
             'items' => $items->map(fn (ShoppingItem $i) => [
                 'id' => $i->id,
                 'name' => $i->name,

@@ -125,8 +125,8 @@ export function AisleEditor({
         <ResponsiveModal
             open={open}
             onOpenChange={handleOpenChange}
-            title="Edit aisles"
-            description={storeList.length > 1 ? 'Pick a shop, then edit its aisles' : `Aisles for ${store || 'this shop'}`}
+            title="Edit departments"
+            description={storeList.length > 1 ? 'Pick a shop, then edit its departments' : `Departments at ${store || 'this shop'}`}
             footer={
                 <Button className="w-full" onClick={() => handleOpenChange(false)}>
                     Done
@@ -190,7 +190,7 @@ export function AisleEditor({
                                         value={a.name}
                                         onChange={(e) => editNameLocal(a.id, e.target.value)}
                                         onBlur={() => renameAisle(a)}
-                                        aria-label="Aisle name"
+                                        aria-label="Department name"
                                         className="text-primary min-w-0 flex-1 bg-transparent text-sm font-medium outline-none"
                                     />
                                     <button
@@ -214,7 +214,7 @@ export function AisleEditor({
                                     <button
                                         type="button"
                                         onClick={() => removeAisle(a)}
-                                        aria-label="Delete aisle"
+                                        aria-label="Delete department"
                                         className="text-muted-foreground hover:text-destructive flex size-7 items-center justify-center rounded-lg"
                                     >
                                         <Trash2 className="size-4" />
@@ -240,9 +240,9 @@ export function AisleEditor({
                             value={newName}
                             onChange={(e) => setNewName(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && addAisle()}
-                            placeholder="New aisle"
+                            placeholder="New department"
                         />
-                        <Button type="button" size="icon" onClick={addAisle} disabled={!newName.trim()} aria-label="Add aisle">
+                        <Button type="button" size="icon" onClick={addAisle} disabled={!newName.trim()} aria-label="Add department">
                             <Plus className="size-4" />
                         </Button>
                     </div>
