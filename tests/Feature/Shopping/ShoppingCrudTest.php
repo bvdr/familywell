@@ -212,3 +212,13 @@ it('duplicates a list with its items reset to unbought', function () {
         ->and($copy->items()->first()->bought)->toBeFalse()  // reset for the next trip
         ->and($copy->shares()->where('role', 'owner')->exists())->toBeTrue();
 });
+
+it('only offers members with access as assignees on a private list', function () {
+    [, $users] = shoppingFamily(); // owner + one other member
+    actingAs($users[0])->post('/m/shopping/lists', ['name' => 'Secret']);
+    $list = ShoppingList::withoutGlobalScopes()->latest('id')->first();
+    $list->setVisibility('private');
+
+    actingAs($users[0])->get("/m/shopping/lists/{$list->id}")
+        ->assertInertia(fn ($p) => $p->has('members', 1)->where('members.0.id', $users[0]->id));
+});

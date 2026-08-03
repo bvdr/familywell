@@ -2,8 +2,11 @@
 
 use App\Models\Family;
 use App\Models\User;
+use App\Notifications\PushAlert;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareAccess;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Notification;
 use Modules\Tasks\Task;
 use Modules\Tasks\TaskList;
 
@@ -114,7 +117,7 @@ it('reorders and nests tasks, rejecting a second level', function () {
 });
 
 it('pushes everyone with access when a task is added, but not the actor', function () {
-    Illuminate\Support\Facades\Notification::fake();
+    Notification::fake();
     [, $users] = tasksFamily();
     [$alice, $bob] = $users;
     actingAs($alice)->post('/m/tasks/lists', ['name' => 'Chores']);
@@ -122,12 +125,12 @@ it('pushes everyone with access when a task is added, but not the actor', functi
 
     actingAs($alice)->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Vacuum']);
 
-    Illuminate\Support\Facades\Notification::assertSentTo($bob, App\Notifications\PushAlert::class);
-    Illuminate\Support\Facades\Notification::assertNotSentTo($alice, App\Notifications\PushAlert::class);
+    Notification::assertSentTo($bob, PushAlert::class);
+    Notification::assertNotSentTo($alice, PushAlert::class);
 });
 
 it('respects a muted category', function () {
-    Illuminate\Support\Facades\Notification::fake();
+    Notification::fake();
     [, $users] = tasksFamily();
     [$alice, $bob] = $users;
     $bob->update(['notification_prefs' => ['tasks' => false]]);
@@ -136,7 +139,7 @@ it('respects a muted category', function () {
 
     actingAs($alice)->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Vacuum']);
 
-    Illuminate\Support\Facades\Notification::assertNotSentTo($bob, App\Notifications\PushAlert::class);
+    Notification::assertNotSentTo($bob, PushAlert::class);
 });
 
 it('hides a private list from a member who was not shared', function () {
@@ -152,7 +155,7 @@ it('hides a private list from a member who was not shared', function () {
 
 it('buckets dated tasks into the dashboard Today and This Week sections', function () {
     // Freeze mid-week (a Wednesday) so "this week" is unambiguous regardless of when the suite runs.
-    $this->travelTo(Illuminate\Support\Carbon::parse('2026-08-05 09:00:00'));
+    $this->travelTo(Carbon::parse('2026-08-05 09:00:00'));
 
     [, $users] = tasksFamily();
     actingAs($users[0])->post('/m/tasks/lists', ['name' => 'Chores']);
@@ -170,4 +173,14 @@ it('buckets dated tasks into the dashboard Today and This Week sections', functi
         ->where('thisWeek.0.title', 'Friday'));
 
     $this->travelBack();
+});
+
+it('only offers members with access as assignees on a private list', function () {
+    [, $users] = tasksFamily(); // owner + one other member
+    actingAs($users[0])->post('/m/tasks/lists', ['name' => 'Secret', 'visibility' => 'private']);
+    $list = TaskList::withoutGlobalScopes()->latest('id')->first();
+
+    // The non-shared member can't reach the list, so they must not be assignable.
+    actingAs($users[0])->get("/m/tasks/lists/{$list->id}")
+        ->assertInertia(fn ($p) => $p->has('members', 1)->where('members.0.id', $users[0]->id));
 });

@@ -170,7 +170,13 @@ class ShoppingController extends Controller
         EntityVisit::record('shopping_list', $list->id);
 
         $family = Family::findOrFail(CurrentFamily::id());
-        $members = $family->members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values();
+        // Only members who can reach the list are assignable ("For"): everyone for `family`
+        // visibility, otherwise just those with a share. No point assigning an item to someone who
+        // can't see the list.
+        $shared = $list->shares->pluck('user_id');
+        $members = $family->members
+            ->filter(fn ($m) => $list->visibility() === 'family' || $shared->contains($m->id))
+            ->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values();
 
         $items = $list->items()->orderBy('position')->orderBy('id')->get();
         $familyStores = ShoppingList::whereNotNull('store')->distinct()->orderBy('store')->pluck('store')->values();
