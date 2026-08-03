@@ -1,5 +1,6 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { openNewOnArrival } from '@/lib/create-intent';
+import { useAddAction } from '@/lib/add-action';
 import { Archive, Check, ChevronRight, ListChecks, Lock, Plus, RotateCcw, UserCheck, Users } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
@@ -75,6 +76,7 @@ function ListCard({ list }: { list: List }) {
 
 export default function Lists({ lists }: { lists: List[] }) {
     const [creating, setCreating] = useState(openNewOnArrival);
+    useAddAction(() => setCreating(true));
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
         color: 'green',

@@ -1,5 +1,6 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { openNewOnArrival } from '@/lib/create-intent';
+import { useAddAction } from '@/lib/add-action';
 import { Archive, Plus, RotateCcw, Wallet } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
@@ -33,6 +34,7 @@ function Avatars({ members }: { members: Member[] }) {
 
 export default function Events({ events, currencies }: { events: Event[]; currencies: string[] }) {
     const [creating, setCreating] = useState(openNewOnArrival);
+    useAddAction(() => setCreating(true));
     const { data, setData, post, processing, errors, reset } = useForm({ name: '', currency: currencies[0] });
 
     const archivedOpt = useOptimistic<boolean>();

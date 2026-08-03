@@ -1,3 +1,4 @@
+import { runAddAction } from '@/lib/add-action';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { Link, router, usePage } from '@inertiajs/react';
 import {
@@ -143,10 +144,13 @@ export function MobileTabBar() {
                     </button>
                 </div>
 
-                {/* Detached green add button on the right (Slack-style separate action). */}
+                {/* Detached green add button on the right (Slack-style separate action). Context-aware:
+                    if the current page claimed it (useAddAction) run that; else open the quick-add sheet. */}
                 <button
                     type="button"
-                    onClick={() => setAddOpen(true)}
+                    onClick={() => {
+                        if (!runAddAction()) setAddOpen(true);
+                    }}
                     aria-label="Add"
                     className="bg-primary text-primary-foreground pointer-events-auto flex size-14 shrink-0 items-center justify-center rounded-full shadow-[var(--shadow-fw-md)] transition-transform active:scale-95"
                 >
