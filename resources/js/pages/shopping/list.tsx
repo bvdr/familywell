@@ -325,11 +325,16 @@ export default function ListDetail({
         else startListening(voiceLang);
     };
 
-    // Offline fallback: split a run-on list on commas / "and" / newlines. No aisle guessing (all 'other').
+    // Offline fallback (used only if the AI parse can't be reached): split a run-on list on commas,
+    // semicolons, newlines and conjunctions in the languages our users actually speak (en "and/then",
+    // ro "și/şi", es "y", de "und", it/pt "e"). No aisle guessing (all 'other'). It can't separate
+    // space-only lists ("milk eggs") the way the AI can, but it beats leaving the whole line as one item.
     const naiveParse = (text: string): Parsed[] =>
         text
-            .split(/,|\band\b|\bthen\b|\n/i)
-            .map((s) => s.replace(/^\s*(a few|some|a|an|the)\s+/i, '').trim())
+            // Drop a leading command verb ("buy", "get", "cumpără", ...) so it isn't glued to the first item.
+            .replace(/^\s*(buy|get|grab|need|cump[ăa]r[ăa]|ia)\b[:,]?\s*/i, '')
+            .split(/[,;\n]|\band\b|\bthen\b|\bplus\b|&|\bși\b|\bşi\b|\by\b|\bund\b|\be\b/giu)
+            .map((s) => s.replace(/^\s*(a few|some|a|an|the|ni[șs]te|un|o)\s+/i, '').trim())
             .filter(Boolean)
             .map((name) => ({ name, quantity: '', department: 'other', note: '' }));
 
@@ -341,7 +346,9 @@ export default function ListDetail({
         setParsing(true);
         try {
             const xsrf = decodeURIComponent(document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]+)/)?.[1] ?? '');
-            const res = await fetch(route('shopping.parse', list.id), {
+            // Relative URL (route(..., false)): a same-origin fetch must hit the exact origin the user is
+            // on, or the session cookie isn't sent and the AI parse silently fails to the naive split.
+            const res = await fetch(route('shopping.parse', list.id, false), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-XSRF-TOKEN': xsrf, Accept: 'application/json' },
                 credentials: 'same-origin',
