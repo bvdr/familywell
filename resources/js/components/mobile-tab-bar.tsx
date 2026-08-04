@@ -13,6 +13,7 @@ import {
     Plus,
     Settings,
     ShoppingCart,
+    StickyNote,
     Users,
     Wallet,
 } from 'lucide-react';
@@ -21,7 +22,9 @@ import { useEffect, useState } from 'react';
 // The DS floating mobile navigation: a translucent, blurred pill above the content. It shows up to
 // four PINNED destinations plus a "More" button that opens a drawer with everything else; the pinned
 // set is user-selectable (pin/unpin in the More drawer, saved per device). Desktop uses the sidebar.
-type Item = { key: string; title: string; url: string; icon: LucideIcon };
+// `method: 'post'` marks a quick-add that creates server-side on click (e.g. a new note is made
+// immediately and you land in its editor) rather than deep-linking to an index that opens a sheet.
+type Item = { key: string; title: string; url: string; icon: LucideIcon; method?: 'post' };
 
 const HOME: Item = { key: 'dashboard', title: 'Home', url: '/dashboard', icon: LayoutGrid };
 // Page-modules earn a nav entry when the family has enabled them (order = preferred display order).
@@ -30,6 +33,7 @@ const MODULE_ITEMS: Item[] = [
     { key: 'tasks', title: 'Tasks', url: '/m/tasks', icon: ListChecks },
     { key: 'shopping', title: 'Shopping', url: '/m/shopping', icon: ShoppingCart },
     { key: 'spending', title: 'Spending', url: '/m/spending', icon: Wallet },
+    { key: 'notes', title: 'Notes', url: '/m/notes', icon: StickyNote },
 ];
 const SECONDARY: Item[] = [
     { key: 'members', title: 'Members', url: '/family/members', icon: Users },
@@ -44,6 +48,8 @@ const CREATE: Item[] = [
     { key: 'tasks', title: 'New to-do list', url: '/m/tasks?new=1', icon: ListChecks },
     { key: 'projects', title: 'New project', url: '/m/projects?new=1', icon: FolderKanban },
     { key: 'spending', title: 'New event', url: '/m/spending?new=1', icon: Wallet },
+    // A note has no create sheet: POST straight to notes.store, which redirects into the new editor.
+    { key: 'notes', title: 'New note', url: '/m/notes', method: 'post', icon: StickyNote },
 ];
 
 const PINS_KEY = 'familywell:navPins';
@@ -176,8 +182,10 @@ export function MobileTabBar() {
                             <Link
                                 key={item.key}
                                 href={item.url}
+                                method={item.method ?? 'get'}
+                                as={item.method === 'post' ? 'button' : undefined}
                                 onClick={() => setAddOpen(false)}
-                                className="text-primary hover:bg-surface flex items-center gap-3 rounded-xl p-3 transition-colors"
+                                className="text-primary hover:bg-surface flex w-full items-center gap-3 rounded-xl p-3 text-left transition-colors"
                             >
                                 <span className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-lg">
                                     <item.icon className="size-4.5" />
