@@ -1,10 +1,11 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { useAddAction } from '@/lib/add-action';
 import {
     Archive,
     Calendar,
     Check,
     ChevronLeft,
+    ChevronRight,
     Copy,
     LayoutList,
     Loader2,
@@ -66,6 +67,7 @@ type List = { id: number; name: string; store: string | null; color: string; ico
 
 type Draft = { name: string; quantity: string; department: string; assigned_to: number | null; note: string; due_date: string; store: string; alt_stores: string[] };
 const emptyDraft: Draft = { name: '', quantity: '', department: 'other', assigned_to: null, note: '', due_date: '', store: '', alt_stores: [] };
+const FOCUS_ALL = '__all__'; // focus-mode sentinel: show every shop's items in one run
 
 function AssigneeBadge({ member }: { member?: Member }) {
     if (!member) return null;
@@ -99,6 +101,7 @@ export default function ListDetail({
     share,
     stores,
     shops = [],
+    shopIds = {},
     aiEnabled,
 }: {
     list: List;
@@ -109,6 +112,7 @@ export default function ListDetail({
     share: ShareState;
     stores: string[];
     shops?: string[];
+    shopIds?: Record<string, number>;
     aiEnabled: boolean;
 }) {
     const [hideCompleted, setHideCompleted] = useState(false);
@@ -208,14 +212,20 @@ export default function ListDetail({
         }
         const arr = [...set];
         arr.sort(storeOrder);
-        return arr;
+        // With more than one shop, lead with an "All shops" run so you see everything to get; the
+        // per-shop chips then narrow to a single store.
+        return arr.length > 1 ? [FOCUS_ALL, ...arr] : arr;
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [items, bought, removed]);
-    const focusGroups = groupByAisle(
-        liveItems.filter((i) => !isBought(i) && availableAt(i, focusStore)),
-        aislesFor(focusStore || null),
-    );
-    const doneItems = liveItems.filter((i) => isBought(i) && availableAt(i, focusStore));
+    // Unbought items for the run, grouped by shop then aisle. "All" shows every shop (each item under
+    // its primary shop); a single shop shows just what you can grab there (primary or alternative).
+    const focusUnbought = liveItems.filter((i) => !isBought(i));
+    const focusStoreGroups =
+        focusStore === FOCUS_ALL
+            ? groupByStore(focusUnbought)
+            : [{ store: focusStore, aisles: groupByAisle(focusUnbought.filter((i) => availableAt(i, focusStore)), aislesFor(focusStore || null)) }];
+    const focusEmpty = focusStoreGroups.every((g) => g.aisles.length === 0);
+    const doneItems = liveItems.filter((i) => isBought(i) && (focusStore === FOCUS_ALL || availableAt(i, focusStore)));
 
     const toggle = (item: Item) => {
         bought.set(item.id, !isBought(item));
@@ -246,7 +256,7 @@ export default function ListDetail({
         // Default a new item to the list's store (or the shop you're focused on) so single-store lists
         // need no store tap; the aisle chips then come from that shop.
         skipAutosave.current = true;
-        setDraft({ ...emptyDraft, store: (focus ? focusStore : list.store) || '' });
+        setDraft({ ...emptyDraft, store: (focus && focusStore !== FOCUS_ALL ? focusStore : list.store) || '' });
         setEditingId(0);
     };
     useAddAction(() => openNew());
@@ -501,12 +511,22 @@ export default function ListDetail({
 
                     {storeGroups.map((sg) => (
                         <div key={sg.store || '__none__'} className="flex flex-col gap-2">
-                            {/* Store header only when the list actually spans shops, so single-store lists stay clean. */}
-                            {multiStore && (
-                                <div className="text-primary border-border/60 mt-1 flex items-center gap-1.5 border-b pb-1 text-sm font-semibold">
-                                    <Store className="size-4" /> {sg.store || 'No store'}
-                                </div>
-                            )}
+                            {/* Store header only when the list actually spans shops, so single-store lists stay clean.
+                                Tapping it opens that shop's page in focus mode (shop everything you need there). */}
+                            {multiStore &&
+                                (sg.store && shopIds[sg.store] ? (
+                                    <Link
+                                        href={`/m/shopping/shops/${shopIds[sg.store]}?focus=1`}
+                                        className="text-primary border-border/60 hover:border-accent mt-1 flex items-center gap-1.5 border-b pb-1 text-sm font-semibold"
+                                    >
+                                        <Store className="size-4" /> {sg.store}
+                                        <ChevronRight className="ml-auto size-4 opacity-50" />
+                                    </Link>
+                                ) : (
+                                    <div className="text-primary border-border/60 mt-1 flex items-center gap-1.5 border-b pb-1 text-sm font-semibold">
+                                        <Store className="size-4" /> {sg.store || 'No store'}
+                                    </div>
+                                ))}
                             {sg.aisles.map((group) => {
                                 const AisleIcon = aisleIcon(group.aisle.icon);
                                 return (
@@ -593,7 +613,7 @@ export default function ListDetail({
                                         Focus Mode · Shopping
                                     </div>
                                     <div className="text-primary-foreground/80 mt-1 flex items-center gap-1.5 text-sm">
-                                        <Store className="size-4" /> {focusStore || list.store || 'No store'}
+                                        <Store className="size-4" /> {focusStore === FOCUS_ALL ? 'All shops' : focusStore || list.store || 'No store'}
                                     </div>
                                     <h2 className="font-heading mt-1 truncate text-2xl">{list.name}</h2>
                                 </div>
@@ -620,7 +640,7 @@ export default function ListDetail({
                                                     : 'bg-primary-foreground/15 text-primary-foreground/80'
                                             }`}
                                         >
-                                            {s || 'No store'}
+                                            {s === FOCUS_ALL ? 'All shops' : s || 'No store'}
                                         </button>
                                     ))}
                                 </div>
@@ -628,34 +648,44 @@ export default function ListDetail({
                         </div>
 
                         <div className="flex-1 space-y-6 overflow-y-auto px-5 pb-[calc(2rem+env(safe-area-inset-bottom))]">
-                            {focusGroups.map((group) => {
-                                const AisleIcon = aisleIcon(group.aisle.icon);
-                                return (
-                                    <section key={group.aisle.slug} className="space-y-2">
-                                        <h3 className="text-primary-foreground/60 flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
-                                            <AisleIcon className="size-3.5" /> {group.aisle.name}
-                                        </h3>
-                                        {group.items.map((item) => (
-                                            <button
-                                                key={item.id}
-                                                type="button"
-                                                onClick={() => toggle(item)}
-                                                className="border-primary-foreground/15 hover:bg-primary-foreground/5 flex w-full items-center gap-3 rounded-2xl border p-4 text-left transition-colors"
-                                            >
-                                                <span className="border-primary-foreground/40 flex size-6 shrink-0 rounded-full border-2" />
-                                                <div className="min-w-0 flex-1">
-                                                    <div className="font-medium">{item.name}</div>
-                                                    {item.quantity && <div className="text-primary-foreground/60 text-sm">{item.quantity}</div>}
-                                                </div>
-                                            </button>
-                                        ))}
-                                    </section>
-                                );
-                            })}
-
-                            {focusGroups.length === 0 && (
-                                <p className="text-primary-foreground/80 py-10 text-center">Everything's in the cart. Nice work! 🎉</p>
+                            {focusStoreGroups.map((sg) =>
+                                sg.aisles.length === 0 ? null : (
+                                    <div key={sg.store || '__none__'} className="space-y-3">
+                                        {/* In the All-shops run, label each shop section. */}
+                                        {focusStore === FOCUS_ALL && (
+                                            <div className="text-primary-foreground flex items-center gap-1.5 text-sm font-semibold">
+                                                <Store className="size-4" /> {sg.store || 'No store'}
+                                            </div>
+                                        )}
+                                        {sg.aisles.map((group) => {
+                                            const AisleIcon = aisleIcon(group.aisle.icon);
+                                            return (
+                                                <section key={group.aisle.slug} className="space-y-2">
+                                                    <h3 className="text-primary-foreground/60 flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
+                                                        <AisleIcon className="size-3.5" /> {group.aisle.name}
+                                                    </h3>
+                                                    {group.items.map((item) => (
+                                                        <button
+                                                            key={item.id}
+                                                            type="button"
+                                                            onClick={() => toggle(item)}
+                                                            className="border-primary-foreground/15 hover:bg-primary-foreground/5 flex w-full items-center gap-3 rounded-2xl border p-4 text-left transition-colors"
+                                                        >
+                                                            <span className="border-primary-foreground/40 flex size-6 shrink-0 rounded-full border-2" />
+                                                            <div className="min-w-0 flex-1">
+                                                                <div className="font-medium">{item.name}</div>
+                                                                {item.quantity && <div className="text-primary-foreground/60 text-sm">{item.quantity}</div>}
+                                                            </div>
+                                                        </button>
+                                                    ))}
+                                                </section>
+                                            );
+                                        })}
+                                    </div>
+                                ),
                             )}
+
+                            {focusEmpty && <p className="text-primary-foreground/80 py-10 text-center">Everything's in the cart. Nice work! 🎉</p>}
 
                             {doneItems.length > 0 && (
                                 <section className="space-y-2">
