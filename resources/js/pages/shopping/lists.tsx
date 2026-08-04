@@ -91,7 +91,21 @@ export default function Lists({
     // across both and switching is instant. The route just picks which tab opens first.
     const [view, setView] = useState<'lists' | 'shops'>(initialView);
     const [creating, setCreating] = useState(openNewOnArrival);
-    useAddAction(() => setCreating(true));
+    const [creatingShop, setCreatingShop] = useState(false);
+    const [shopName, setShopName] = useState('');
+    // The "+" is tab-aware: a new list on Lists, a new shop on Shops.
+    const startCreate = () => (view === 'shops' ? setCreatingShop(true) : setCreating(true));
+    useAddAction(startCreate);
+    const submitShop = () => {
+        if (!shopName.trim()) return;
+        router.post(route('shopping.shops.store'), { name: shopName.trim() }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setShopName('');
+                setCreatingShop(false);
+            },
+        });
+    };
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
         color: 'green',
@@ -128,8 +142,8 @@ export default function Lists({
                         >
                             <Settings className="size-5" />
                         </Link>
-                        {/* Hidden on mobile: the nav's context-aware "+" creates a list there. Desktop has no nav "+". */}
-                        <Button size="icon" className="hidden rounded-full md:inline-flex" onClick={() => setCreating((v) => !v)} aria-label="New list">
+                        {/* Hidden on mobile: the nav's context-aware "+" creates here. Desktop has no nav "+". */}
+                        <Button size="icon" className="hidden rounded-full md:inline-flex" onClick={startCreate} aria-label={view === 'shops' ? 'New shop' : 'New list'}>
                             <Plus className="size-5" />
                         </Button>
                     </div>
@@ -244,6 +258,29 @@ export default function Lists({
                             </div>
                         </div>
                     </form>
+                </ResponsiveModal>
+
+                <ResponsiveModal
+                    open={creatingShop}
+                    onOpenChange={setCreatingShop}
+                    title="New shop"
+                    footer={
+                        <Button disabled={!shopName.trim()} onClick={submitShop} className="w-full">
+                            <Plus className="size-4" /> Add shop
+                        </Button>
+                    }
+                >
+                    <div className="grid gap-2">
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Shop name</Label>
+                        <Input
+                            autoFocus
+                            value={shopName}
+                            onChange={(e) => setShopName(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && submitShop()}
+                            placeholder="e.g. Kaufland"
+                            className="text-base"
+                        />
+                    </div>
                 </ResponsiveModal>
 
                 {view === 'lists' && (
