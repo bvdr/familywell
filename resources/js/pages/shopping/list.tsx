@@ -512,11 +512,11 @@ export default function ListDetail({
                     {storeGroups.map((sg) => (
                         <div key={sg.store || '__none__'} className="flex flex-col gap-2">
                             {/* Store header only when the list actually spans shops, so single-store lists stay clean.
-                                Tapping it opens that shop's page in focus mode (shop everything you need there). */}
+                                Tapping it opens that shop's page (the cross-list view for that shop). */}
                             {multiStore &&
                                 (sg.store && shopIds[sg.store] ? (
                                     <Link
-                                        href={`/m/shopping/shops/${shopIds[sg.store]}?focus=1`}
+                                        href={`/m/shopping/shops/${shopIds[sg.store]}`}
                                         className="text-primary border-border/60 hover:border-accent mt-1 flex items-center gap-1.5 border-b pb-1 text-sm font-semibold"
                                     >
                                         <Store className="size-4" /> {sg.store}
