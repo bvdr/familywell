@@ -101,9 +101,16 @@ export default function ShopDetail({
         };
     };
     const patchItem = (id: number) => router.patch(route('shopping.items.update', id), buildPayload(draft), { preserveScroll: true, preserveState: true });
+    // `adding` guards a double-tap from creating duplicate items.
+    const [adding, setAdding] = useState(false);
     const addItem = () => {
-        if (!draft.name.trim()) return;
-        router.post(route('shopping.shops.items.store', shop.id), { ...buildPayload(draft), list_id: draft.list_id }, { preserveScroll: true, onSuccess: () => setEditingId(null) });
+        if (!draft.name.trim() || adding) return;
+        setAdding(true);
+        router.post(route('shopping.shops.items.store', shop.id), { ...buildPayload(draft), list_id: draft.list_id }, {
+            preserveScroll: true,
+            onSuccess: () => setEditingId(null),
+            onFinish: () => setAdding(false),
+        });
     };
     // Editing auto-saves (debounced); new items commit via the Add button.
     useEffect(() => {
@@ -306,7 +313,7 @@ export default function ShopDetail({
                 title={editingId ? 'Edit Item' : 'Add Item'}
                 footer={
                     editingId ? undefined : (
-                        <Button className="w-full" disabled={!draft.name.trim()} onClick={addItem}>
+                        <Button className="w-full" disabled={!draft.name.trim() || adding} onClick={addItem}>
                             <Plus className="size-4" /> Add item
                         </Button>
                     )
