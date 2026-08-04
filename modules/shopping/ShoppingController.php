@@ -101,6 +101,16 @@ class ShoppingController extends Controller
         ]);
     }
 
+    // Create a shop by name (from the Shops tab's "+"). Idempotent on name within the family.
+    public function storeShop(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['name' => ['required', 'string', 'max:120']]);
+        ShoppingShop::firstOrCreate(['name' => trim($data['name'])]);
+        Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
+
+        return back();
+    }
+
     public function updateShop(Request $request, ShoppingShop $shop): RedirectResponse
     {
         $data = $request->validate([

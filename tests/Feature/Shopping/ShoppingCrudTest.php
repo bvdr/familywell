@@ -270,3 +270,9 @@ it('adds an item from a shop page into the default list with the shop preset', f
     $item = ShoppingItem::withoutGlobalScopes()->where('name', 'Cheese')->first();
     expect($item->store)->toBe('Metro')->and($item->shopping_list_id)->toBe($list->id);
 });
+
+it('creates a shop from the Shops tab', function () {
+    [, $users] = shoppingFamily();
+    actingAs($users[0])->post('/m/shopping/shops', ['name' => 'Lidl'])->assertRedirect();
+    expect(ShoppingShop::withoutGlobalScopes()->where('name', 'Lidl')->exists())->toBeTrue();
+});
