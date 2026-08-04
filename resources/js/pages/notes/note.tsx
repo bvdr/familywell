@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react';
-import { Check, FolderInput, Lock, MoreHorizontal, Palette, Pencil, Pin, PinOff, Trash2, Users } from 'lucide-react';
+import { Bold, Check, CheckSquare, FolderInput, Heading, List, Lock, MoreHorizontal, Palette, Pencil, Pin, Trash2, Users } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
@@ -64,6 +64,68 @@ export default function NoteDetail({ note, folders, share }: { note: Note; folde
         const next = toggleCheckbox(body, line);
         setBody(next);
         save({ body: next });
+    };
+
+    // --- Toolbar + auto-format (operate on the textarea around the caret) ---
+    // Commit a new body and restore the caret after React re-renders the controlled textarea.
+    const applyBody = (next: string, caret: number) => {
+        setBody(next);
+        queue({ body: next });
+        requestAnimationFrame(() => {
+            const el = bodyRef.current;
+            if (el) {
+                el.focus();
+                el.setSelectionRange(caret, caret);
+            }
+        });
+    };
+
+    // Wrap the selection in `mark` on both sides (** for bold); with no selection, drop the caret
+    // between the inserted pair.
+    const wrap = (mark: string) => {
+        const el = bodyRef.current;
+        if (!el) return;
+        const { selectionStart: s, selectionEnd: e } = el;
+        const sel = body.slice(s, e);
+        const next = body.slice(0, s) + mark + sel + mark + body.slice(e);
+        applyBody(next, (sel ? e : s) + mark.length);
+    };
+
+    // Toggle a line prefix (# , - , - [ ] ) on the caret's line; swaps out any existing list/heading
+    // marker so they never stack.
+    const linePrefix = (prefix: string) => {
+        const el = bodyRef.current;
+        if (!el) return;
+        const s = el.selectionStart;
+        const lineStart = body.lastIndexOf('\n', s - 1) + 1;
+        const lineEndRaw = body.indexOf('\n', s);
+        const lineEnd = lineEndRaw === -1 ? body.length : lineEndRaw;
+        const line = body.slice(lineStart, lineEnd);
+        const stripped = line.replace(/^(#{1,3} |- \[[ xX]\] |[-*] )/, '');
+        const newLine = line.startsWith(prefix) ? stripped : prefix + stripped;
+        const next = body.slice(0, lineStart) + newLine + body.slice(lineEnd);
+        applyBody(next, Math.max(lineStart, s + (newLine.length - line.length)));
+    };
+
+    // Enter on a list/checkbox line continues it; Enter on an empty item exits the list.
+    const onBodyKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key !== 'Enter' || e.shiftKey) return;
+        const el = bodyRef.current;
+        if (!el || el.selectionStart !== el.selectionEnd) return;
+        const s = el.selectionStart;
+        const lineStart = body.lastIndexOf('\n', s - 1) + 1;
+        const m = body.slice(lineStart, s).match(/^(\s*)(- \[[ xX]\] |[-*] )(.*)$/);
+        if (!m) return;
+        const [, indent, marker, content] = m;
+        e.preventDefault();
+        if (content.trim() === '') {
+            // Empty item -> clear the marker (leave the indent), exiting the list.
+            applyBody(body.slice(0, lineStart) + indent + body.slice(s), lineStart + indent.length);
+        } else {
+            // A continued checkbox always starts unchecked.
+            const insert = '\n' + indent + (marker.startsWith('- [') ? '- [ ] ' : marker);
+            applyBody(body.slice(0, s) + insert + body.slice(s), s + insert.length);
+        }
     };
 
     const toEdit = () => {
@@ -168,12 +230,28 @@ export default function NoteDetail({ note, folders, share }: { note: Note; folde
         </>
     ) : null;
 
+    // A format button. onMouseDown-preventDefault keeps focus (and the caret) in the textarea so the
+    // command applies where the user was typing instead of losing the selection on click.
+    const ToolBtn = ({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) => (
+        <button
+            type="button"
+            aria-label={label}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={onClick}
+            className="text-primary hover:bg-surface flex size-8 items-center justify-center rounded-lg transition-colors"
+        >
+            {children}
+        </button>
+    );
+
     const folderName = folders.find((f) => f.id === note.folderId)?.name;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs} actions={headerActions}>
             <Head title={title.trim() || 'Note'} />
-            <div className={`min-h-full ${noteColor(note.color)} border-0`}>
+            {/* The tint fills the viewport below the h-16 app header; ancestors don't resolve a
+                height, so min-h-full alone would collapse to the content height. */}
+            <div className={`min-h-[calc(100dvh-4rem)] ${noteColor(note.color)} border-0`}>
                 <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 p-4">
                     <input
                         value={title}
@@ -210,14 +288,33 @@ export default function NoteDetail({ note, folders, share }: { note: Note; folde
                     </div>
 
                     {mode === 'edit' ? (
-                        <textarea
-                            ref={bodyRef}
-                            value={body}
-                            onChange={(e) => onBody(e.target.value)}
-                            onBlur={flush}
-                            placeholder={'Start typing…\n\n# Heading\n**bold**\n- bullet\n- [ ] to-do'}
-                            className="text-primary min-h-[60vh] w-full resize-none bg-transparent text-[15px] leading-relaxed outline-none placeholder:text-muted-foreground/50"
-                        />
+                        <>
+                            {/* Format toolbar: acts on the caret/selection. Auto-continue on Enter is
+                                handled in onBodyKeyDown, so the markdown stays the source of truth. */}
+                            <div className="border-border/60 -mx-1 flex items-center gap-1 border-b pb-2">
+                                <ToolBtn label="Bold" onClick={() => wrap('**')}>
+                                    <Bold className="size-4" />
+                                </ToolBtn>
+                                <ToolBtn label="Heading" onClick={() => linePrefix('# ')}>
+                                    <Heading className="size-4" />
+                                </ToolBtn>
+                                <ToolBtn label="Bullet list" onClick={() => linePrefix('- ')}>
+                                    <List className="size-4" />
+                                </ToolBtn>
+                                <ToolBtn label="Checkbox" onClick={() => linePrefix('- [ ] ')}>
+                                    <CheckSquare className="size-4" />
+                                </ToolBtn>
+                            </div>
+                            <textarea
+                                ref={bodyRef}
+                                value={body}
+                                onChange={(e) => onBody(e.target.value)}
+                                onKeyDown={onBodyKeyDown}
+                                onBlur={flush}
+                                placeholder={'Start typing…\n\n# Heading\n**bold**\n- bullet\n- [ ] to-do'}
+                                className="text-primary min-h-[60vh] w-full resize-none bg-transparent text-[15px] leading-relaxed outline-none placeholder:text-muted-foreground/50"
+                            />
+                        </>
                     ) : (
                         <div onClick={note.canEdit ? toEdit : undefined} className={note.canEdit ? 'cursor-text' : ''}>
                             <NoteBody body={body} onToggle={onToggleCheckbox} />
