@@ -455,6 +455,8 @@ class ShoppingController extends Controller
             'stores' => $familyStores,
             // Every shop the family has, for the item editor's Shops picker (superset of `stores`).
             'shops' => ShoppingShop::orderBy('name')->pluck('name')->values(),
+            // name => id, so a store header can deep-link to that shop's page.
+            'shopIds' => ShoppingShop::pluck('id', 'name'),
             'items' => $items->map(fn (ShoppingItem $i) => [
                 'id' => $i->id,
                 'name' => $i->name,
