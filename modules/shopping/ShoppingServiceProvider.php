@@ -88,6 +88,7 @@ class ShoppingServiceProvider extends ServiceProvider
 
                 // Shops: the family's stores as first-class pages (aggregated cross-list view + aisles).
                 Route::get('/shops', [ShoppingController::class, 'shopsIndex'])->name('shops.index');
+                Route::post('/shops', [ShoppingController::class, 'storeShop'])->name('shops.store');
                 Route::get('/shops/{shop}', [ShoppingController::class, 'shopShow'])->name('shops.show');
                 Route::patch('/shops/{shop}', [ShoppingController::class, 'updateShop'])->name('shops.update');
                 Route::post('/shops/{shop}/items', [ShoppingController::class, 'storeShopItem'])->name('shops.items.store');
