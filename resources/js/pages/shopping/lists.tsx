@@ -2,7 +2,7 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import { openNewOnArrival } from '@/lib/create-intent';
 import { useAddAction } from '@/lib/add-action';
 import { Archive, Check, ChevronRight, Lock, Plus, RotateCcw, Settings, ShoppingCart, Store, UserCheck, Users } from 'lucide-react';
-import { FormEventHandler, useState } from 'react';
+import { FormEventHandler, useRef, useState } from 'react';
 
 import InputError from '@/components/input-error';
 import { MemberAvatar } from '@/components/member-avatar';
@@ -93,6 +93,9 @@ export default function Lists({
     const [creating, setCreating] = useState(openNewOnArrival);
     const [creatingShop, setCreatingShop] = useState(false);
     const [shopName, setShopName] = useState('');
+    // Focus the name field when each create sheet opens (the drawer overrides plain autoFocus).
+    const listNameRef = useRef<HTMLInputElement>(null);
+    const shopNameRef = useRef<HTMLInputElement>(null);
     // The "+" is tab-aware: a new list on Lists, a new shop on Shops.
     const startCreate = () => (view === 'shops' ? setCreatingShop(true) : setCreating(true));
     useAddAction(startCreate);
@@ -169,6 +172,7 @@ export default function Lists({
                     open={creating}
                     onOpenChange={setCreating}
                     title="New List"
+                    autoFocusRef={listNameRef}
                     footer={
                         <Button type="submit" form="new-list" disabled={processing || !data.name.trim()} className="w-full">
                             <Plus className="size-4" /> Create list
@@ -184,7 +188,7 @@ export default function Lists({
                                 })()}
                             </span>
                             <Input
-                                autoFocus
+                                ref={listNameRef}
                                 value={data.name}
                                 onChange={(e) => setData('name', e.target.value)}
                                 placeholder="List name"
@@ -264,6 +268,7 @@ export default function Lists({
                     open={creatingShop}
                     onOpenChange={setCreatingShop}
                     title="New shop"
+                    autoFocusRef={shopNameRef}
                     footer={
                         <Button disabled={!shopName.trim()} onClick={submitShop} className="w-full">
                             <Plus className="size-4" /> Add shop
@@ -273,7 +278,7 @@ export default function Lists({
                     <div className="grid gap-2">
                         <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Shop name</Label>
                         <Input
-                            autoFocus
+                            ref={shopNameRef}
                             value={shopName}
                             onChange={(e) => setShopName(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && submitShop()}
