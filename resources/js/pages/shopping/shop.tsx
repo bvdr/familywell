@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Calendar, Check, ChevronLeft, Minus, Plus, Settings, Store, Trash2 } from 'lucide-react';
+import { Calendar, Check, ChevronLeft, Minus, Plus, Settings, ShoppingCart, Store, Trash2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import { AisleEditor } from '@/components/aisle-editor';
 import { Picker } from '@/components/picker';
@@ -131,6 +132,9 @@ export default function ShopDetail({
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [aislesOpen, setAislesOpen] = useState(false);
     const [name, setName] = useState(shop.name);
+    // Focus (shopping) mode: full-screen run through this shop's items. Auto-opens when arriving via a
+    // store header's ?focus=1 deep link.
+    const [focus, setFocus] = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('focus') === '1');
     const saveName = () => {
         const n = name.trim();
         if (n && n !== shop.name) router.patch(route('shopping.shops.update', shop.id), { name: n }, { preserveScroll: true });
@@ -228,7 +232,68 @@ export default function ShopDetail({
                 <Button type="button" variant="outline" onClick={openNew} className="mt-1">
                     <Plus className="size-4" /> Add item
                 </Button>
+                {remaining > 0 && (
+                    <Button type="button" onClick={() => setFocus(true)}>
+                        <ShoppingCart className="size-4" /> Start Shopping
+                    </Button>
+                )}
             </div>
+
+            {/* Focus (shopping) mode: full-screen run through this shop's unbought items. */}
+            {focus &&
+                createPortal(
+                    <div className="bg-primary text-primary-foreground fixed inset-0 z-[60] flex flex-col">
+                        <div className="px-5 pt-[calc(1rem+env(safe-area-inset-top))] pb-4">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                    <div className="text-primary-foreground/60 text-[11px] font-semibold tracking-widest uppercase">Focus Mode · Shopping</div>
+                                    <h2 className="font-heading mt-1 flex items-center gap-1.5 truncate text-2xl">
+                                        <Store className="size-5" /> {shop.name}
+                                    </h2>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setFocus(false)}
+                                    aria-label="Exit shopping mode"
+                                    className="hover:bg-primary-foreground/10 flex size-9 shrink-0 items-center justify-center rounded-lg transition-colors"
+                                >
+                                    <X className="size-5" />
+                                </button>
+                            </div>
+                        </div>
+                        <div className="flex-1 space-y-6 overflow-y-auto px-5 pb-[calc(2rem+env(safe-area-inset-bottom))]">
+                            {groups.map((g) => {
+                                const AisleIcon = aisleIcon(g.aisle.icon);
+                                return (
+                                    <section key={g.aisle.slug} className="space-y-2">
+                                        <h3 className="text-primary-foreground/60 flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
+                                            <AisleIcon className="size-3.5" /> {g.aisle.name}
+                                        </h3>
+                                        {g.items.map((i) => (
+                                            <button
+                                                key={i.id}
+                                                type="button"
+                                                onClick={() => toggle(i)}
+                                                className="border-primary-foreground/15 hover:bg-primary-foreground/5 flex w-full items-center gap-3 rounded-2xl border p-4 text-left transition-colors"
+                                            >
+                                                <span className="border-primary-foreground/40 flex size-6 shrink-0 rounded-full border-2" />
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="font-medium">{i.name}</div>
+                                                    <div className="text-primary-foreground/60 text-sm">
+                                                        {i.quantity ? `${i.quantity} · ` : ''}
+                                                        from {i.listName}
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </section>
+                                );
+                            })}
+                            {remaining === 0 && <p className="text-primary-foreground/80 py-10 text-center">Everything's in the cart. Nice work! 🎉</p>}
+                        </div>
+                    </div>,
+                    document.body,
+                )}
 
             {/* Item editor (add / edit) */}
             <ResponsiveModal
