@@ -2,7 +2,7 @@ import AppLayout from '@/layouts/app-layout';
 import { Slot } from '@/lib/modules';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Blocks, Check, FolderKanban, ListChecks, type LucideIcon, Settings, ShoppingCart, Users, Wallet } from 'lucide-react';
+import { Blocks, Check, FolderKanban, ListChecks, type LucideIcon, Settings, ShoppingCart, StickyNote, Users, Wallet } from 'lucide-react';
 import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' }];
@@ -14,7 +14,7 @@ type DashItem = { title: string; subtitle: string; href: string; icon: string };
 type AgendaItem = DashItem & { dueDate: string; toggleUrl: string };
 
 // Map a provider's icon key to a lucide icon; fall back to a neutral one.
-const ICONS: Record<string, LucideIcon> = { wallet: Wallet, 'shopping-cart': ShoppingCart, 'folder-kanban': FolderKanban, 'list-checks': ListChecks };
+const ICONS: Record<string, LucideIcon> = { wallet: Wallet, 'shopping-cart': ShoppingCart, 'folder-kanban': FolderKanban, 'list-checks': ListChecks, 'sticky-note': StickyNote };
 const iconFor = (key: string) => ICONS[key] ?? Blocks;
 
 // Local midnight for a Y-m-d string (avoids the UTC day-shift of new Date('2026-08-03')).
