@@ -277,9 +277,16 @@ export default function ListDetail({
     const buildPayload = (d: Draft) => ({ ...d, name: d.name.trim(), due_date: d.due_date || null, store: d.store || null });
     const patchItem = (id: number) => router.patch(route('shopping.items.update', id), buildPayload(draft), { preserveScroll: true, preserveState: true });
     // Only the "Add item" (new item) button commits; editing an existing item auto-saves (below).
+    // `adding` guards against a double-tap creating duplicate items.
+    const [adding, setAdding] = useState(false);
     const addItem = () => {
-        if (!draft.name.trim()) return;
-        router.post(route('shopping.items.store', list.id), buildPayload(draft), { preserveScroll: true, onSuccess: () => setEditingId(null) });
+        if (!draft.name.trim() || adding) return;
+        setAdding(true);
+        router.post(route('shopping.items.store', list.id), buildPayload(draft), {
+            preserveScroll: true,
+            onSuccess: () => setEditingId(null),
+            onFinish: () => setAdding(false),
+        });
     };
     // Auto-save edits: debounce any field change to a PATCH; skip the draft set on open, and never
     // save an empty name. The modal's close handler flushes the last edit the debounce hasn't sent.
@@ -913,7 +920,7 @@ export default function ListDetail({
                 autoFocusRef={nameRef}
                 footer={
                     editingId ? undefined : (
-                        <Button className="w-full" disabled={!draft.name.trim()} onClick={addItem}>
+                        <Button className="w-full" disabled={!draft.name.trim() || adding} onClick={addItem}>
                             <Plus className="size-4" /> Add item
                         </Button>
                     )
