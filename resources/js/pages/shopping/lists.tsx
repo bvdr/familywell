@@ -78,6 +78,26 @@ function ListCard({ list }: { list: List }) {
 
 type Shop = { id: number; name: string; icon: string; color: string; toBuy: number };
 
+function ShopCard({ shop: s, faded = false }: { shop: Shop; faded?: boolean }) {
+    return (
+        <Link
+            key={s.id}
+            href={`/m/shopping/shops/${s.id}`}
+            prefetch
+            className={`bg-surface-card hover:border-accent flex items-center gap-3 rounded-2xl border p-4 text-left transition-colors ${faded ? 'opacity-55' : ''}`}
+        >
+            <span className="bg-accent-subtle text-primary flex size-11 shrink-0 items-center justify-center rounded-xl">
+                <Store className="size-5.5" />
+            </span>
+            <div className="min-w-0 flex-1">
+                <div className="text-primary truncate font-medium">{s.name}</div>
+                <div className="text-muted-foreground mt-0.5 text-xs">{s.toBuy > 0 ? `${s.toBuy} to buy` : 'nothing to buy'}</div>
+            </div>
+            <ChevronRight className="text-muted-foreground size-4 shrink-0" />
+        </Link>
+    );
+}
+
 export default function Lists({
     lists,
     shops = [],
@@ -356,27 +376,27 @@ export default function Lists({
                             <p className="text-sm">No shops yet. Set a store on an item and it shows up here.</p>
                         </div>
                     ) : (
-                        <div className="flex flex-col gap-3">
-                            {shops.map((s) => (
-                                <Link
-                                    key={s.id}
-                                    href={`/m/shopping/shops/${s.id}`}
-                                    prefetch
-                                    className="bg-surface-card hover:border-accent flex items-center gap-3 rounded-2xl border p-4 text-left transition-colors"
-                                >
-                                    <span className="bg-accent-subtle text-primary flex size-11 shrink-0 items-center justify-center rounded-xl">
-                                        <Store className="size-5.5" />
-                                    </span>
-                                    <div className="min-w-0 flex-1">
-                                        <div className="text-primary truncate font-medium">{s.name}</div>
-                                        <div className="text-muted-foreground mt-0.5 text-xs">
-                                            {s.toBuy > 0 ? `${s.toBuy} to buy` : 'nothing to buy'}
+                        // Shops with something to buy come first; the rest ("nothing to buy") are
+                        // faded and grouped below so the active stores are what you scan first.
+                        (() => {
+                            const active = shops.filter((s) => s.toBuy > 0);
+                            const empty = shops.filter((s) => s.toBuy === 0);
+                            return (
+                                <div className="flex flex-col gap-3">
+                                    {active.map((s) => (
+                                        <ShopCard key={s.id} shop={s} />
+                                    ))}
+                                    {empty.length > 0 && active.length > 0 && (
+                                        <div className="text-muted-foreground mt-1 px-1 text-xs font-semibold tracking-widest uppercase">
+                                            Nothing to buy
                                         </div>
-                                    </div>
-                                    <ChevronRight className="text-muted-foreground size-4 shrink-0" />
-                                </Link>
-                            ))}
-                        </div>
+                                    )}
+                                    {empty.map((s) => (
+                                        <ShopCard key={s.id} shop={s} faded />
+                                    ))}
+                                </div>
+                            );
+                        })()
                     ))}
             </div>
         </AppLayout>
