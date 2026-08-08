@@ -51,7 +51,9 @@ export function MarkdownEditor({
         editable,
         editorProps: {
             attributes: {
-                class: 'note-prose min-h-[60vh] outline-none text-[15px] leading-relaxed text-primary',
+                // >=16px on mobile so iOS Safari doesn't auto-zoom when the editor gets focus
+                // (contenteditable follows the same rule as inputs); 15px is fine on desktop.
+                class: 'note-prose min-h-[60vh] outline-none text-base md:text-[15px] leading-relaxed text-primary',
             },
         },
         onCreate: ({ editor }) => {
