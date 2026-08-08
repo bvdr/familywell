@@ -14,8 +14,10 @@ use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Notes\Note;
 use Modules\Shopping\ShoppingList;
 use Modules\Tasks\Task;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -119,6 +121,10 @@ class ProjectsController extends Controller
             'items', 'items as bought_count' => fn ($q) => $q->where('bought', true),
         ])->get();
 
+        // Linked notes.
+        $noteIds = $project->links()->where('linkable_type', 'note')->pluck('linkable_id');
+        $notes = Note::whereIn('id', $noteIds)->get();
+
         return Inertia::render('projects/project', [
             'project' => [
                 'id' => $project->id,
@@ -154,6 +160,12 @@ class ProjectsController extends Controller
                 ->map(fn (ProjectDependency $d) => ['id' => $d->id, 'name' => $d->name, 'note' => $d->note, 'status' => $d->status])->values(),
             'lists' => $lists->map(fn (ShoppingList $l) => [
                 'id' => $l->id, 'name' => $l->name, 'store' => $l->store, 'bought' => $l->bought_count, 'total' => $l->items_count,
+            ])->values(),
+            'notes' => $notes->map(fn (Note $n) => [
+                'id' => $n->id,
+                'title' => $n->title !== '' ? $n->title : 'Untitled note',
+                'body' => Str::limit($n->body, 160),
+                'color' => $n->color,
             ])->values(),
             'statuses' => self::STATUSES,
         ]);
@@ -531,6 +543,67 @@ class ProjectsController extends Controller
 
                 return ['id' => $l->id, 'name' => $l->name, 'store' => $l->store, 'count' => $l->items_count, 'sharedWith' => $sharedWith];
             })->values(),
+        ]);
+    }
+
+    // ---- Linked notes ----
+    public function linkNote(Request $request, Project $project): RedirectResponse
+    {
+        abort_unless($this->access->roleFor($request->user(), $project) !== null, 403);
+        $data = $request->validate(['note_ids' => ['required', 'array'], 'note_ids.*' => ['integer']]);
+        foreach ($data['note_ids'] as $id) {
+            // Family scope keeps cross-family links out.
+            if (Note::whereKey($id)->exists()) {
+                $project->links()->firstOrCreate(['linkable_type' => 'note', 'linkable_id' => $id]);
+            }
+        }
+        Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
+
+        return back();
+    }
+
+    // Create a blank note, link it, and drop the user straight into its editor to write.
+    public function createNote(Request $request, Project $project): RedirectResponse
+    {
+        abort_unless($this->access->roleFor($request->user(), $project) !== null, 403);
+        $data = $request->validate(['title' => ['nullable', 'string', 'max:255']]);
+
+        $note = Note::create(['title' => $data['title'] ?? '', 'created_by' => $request->user()->id]);
+        $note->shares()->create(['user_id' => $request->user()->id, 'role' => 'owner']);
+        $project->links()->firstOrCreate(['linkable_type' => 'note', 'linkable_id' => $note->id]);
+        Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
+
+        return to_route('notes.show', $note);
+    }
+
+    public function unlinkNote(Request $request, Project $project, int $note): RedirectResponse
+    {
+        abort_unless($this->access->roleFor($request->user(), $project) !== null, 403);
+        $project->links()->where(['linkable_type' => 'note', 'linkable_id' => $note])->delete();
+        Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
+
+        return back();
+    }
+
+    // Notes the family has, for the "link a note" picker (excludes already-linked ones).
+    public function linkableNotes(Request $request, Project $project)
+    {
+        abort_unless($this->access->roleFor($request->user(), $project) !== null, 403);
+        $linked = $project->links()->where('linkable_type', 'note')->pluck('linkable_id')->all();
+        $userId = $request->user()->id;
+
+        // Only notes this user can see (family-visible, or explicitly shared with them).
+        $notes = Note::whereNotIn('id', $linked)->with(['shareSetting', 'shares'])->latest('updated_at')->get()
+            ->filter(fn (Note $n) => $n->visibility() === 'family' || $n->shares->contains('user_id', $userId))
+            ->values();
+
+        return response()->json([
+            'notes' => $notes->map(fn (Note $n) => [
+                'id' => $n->id,
+                'name' => $n->title !== '' ? $n->title : 'Untitled note',
+                'preview' => Str::limit(trim(preg_replace('/\s+/', ' ', $n->body)), 60),
+                'sharedWith' => $n->visibility() === 'family' ? 'shared with family' : ($n->visibility() === 'private' ? 'only you' : 'shared'),
+            ])->values(),
         ]);
     }
 

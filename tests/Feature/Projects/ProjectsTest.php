@@ -177,3 +177,49 @@ it('hides a private project from a member who was not shared', function () {
     expect($access->canView($alice, $project))->toBeTrue()
         ->and($access->canView($bob, $project))->toBeFalse();
 });
+
+it('links, creates, and unlinks notes on a project', function () {
+    [$family, $users] = projectsFamily();
+    app(ModuleRegistry::class)->enable('notes', $family->id);
+    actingAs($users[0])->post('/m/projects', ['name' => 'Reno']);
+    $project = Project::withoutGlobalScopes()->first();
+
+    // Link an existing note.
+    $note = \Modules\Notes\Note::create(['title' => 'Specs', 'created_by' => $users[0]->id]);
+    $note->shares()->create(['user_id' => $users[0]->id, 'role' => 'owner']);
+    actingAs($users[0])->post("/m/projects/{$project->id}/notes", ['note_ids' => [$note->id]])->assertRedirect();
+    expect($project->links()->where(['linkable_type' => 'note', 'linkable_id' => $note->id])->exists())->toBeTrue();
+
+    // Create a blank note that lands linked (redirects into its editor).
+    actingAs($users[0])->post("/m/projects/{$project->id}/notes/new")->assertRedirect();
+    expect($project->links()->where('linkable_type', 'note')->count())->toBe(2);
+
+    // Unlink detaches the link but keeps the note.
+    actingAs($users[0])->delete("/m/projects/{$project->id}/notes/{$note->id}")->assertRedirect();
+    expect($project->links()->where(['linkable_type' => 'note', 'linkable_id' => $note->id])->exists())->toBeFalse()
+        ->and(\Modules\Notes\Note::withoutGlobalScopes()->find($note->id))->not->toBeNull();
+});
+
+it('offers only viewable notes as linkable and excludes already-linked ones', function () {
+    [$family, $users] = projectsFamily();
+    app(ModuleRegistry::class)->enable('notes', $family->id);
+    actingAs($users[0])->post('/m/projects', ['name' => 'Reno']);
+    $project = Project::withoutGlobalScopes()->first();
+
+    $mine = \Modules\Notes\Note::create(['title' => 'Mine', 'created_by' => $users[0]->id]);
+    $mine->shares()->create(['user_id' => $users[0]->id, 'role' => 'owner']);
+    $linked = \Modules\Notes\Note::create(['title' => 'Linked', 'created_by' => $users[0]->id]);
+    $linked->shares()->create(['user_id' => $users[0]->id, 'role' => 'owner']);
+    $project->links()->create(['linkable_type' => 'note', 'linkable_id' => $linked->id]);
+
+    // A private note owned by the other member must not be offered.
+    $others = \Modules\Notes\Note::create(['title' => 'Secret', 'created_by' => $users[1]->id]);
+    $others->shares()->create(['user_id' => $users[1]->id, 'role' => 'owner']);
+    $others->setVisibility('private');
+
+    $res = actingAs($users[0])->getJson("/m/projects/{$project->id}/linkable-notes");
+    $titles = collect($res->json('notes'))->pluck('name');
+    expect($titles)->toContain('Mine')
+        ->and($titles)->not->toContain('Linked')
+        ->and($titles)->not->toContain('Secret');
+});
