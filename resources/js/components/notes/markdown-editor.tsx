@@ -1,5 +1,6 @@
 import { EditorContent, useEditor, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import Link from '@tiptap/extension-link';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
 import { Markdown } from 'tiptap-markdown';
@@ -42,6 +43,14 @@ export function MarkdownEditor({
     const editor = useEditor({
         extensions: [
             StarterKit,
+            // Clickable links, auto-detected as you type. rel=nofollow (+ noopener/noreferrer) and
+            // opened in a new tab; family notes are user content, so we don't pass link equity on.
+            Link.configure({
+                openOnClick: true,
+                autolink: true,
+                defaultProtocol: 'https',
+                HTMLAttributes: { rel: 'nofollow noopener noreferrer', target: '_blank' },
+            }),
             TaskList,
             TaskItem.configure({ nested: false }),
             // `-` bullets + tight lists match our markdown-lite dialect (see lib/notes NoteBody).
