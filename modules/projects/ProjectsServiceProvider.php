@@ -125,6 +125,11 @@ class ProjectsServiceProvider extends ServiceProvider
                 Route::post('/{project}/lists', [ProjectsController::class, 'linkList'])->name('lists.link');
                 Route::post('/{project}/lists/new', [ProjectsController::class, 'createList'])->name('lists.create');
                 Route::delete('/{project}/lists/{list}', [ProjectsController::class, 'unlinkList'])->name('lists.unlink');
+
+                Route::get('/{project}/linkable-notes', [ProjectsController::class, 'linkableNotes'])->name('notes.linkable');
+                Route::post('/{project}/notes', [ProjectsController::class, 'linkNote'])->name('notes.link');
+                Route::post('/{project}/notes/new', [ProjectsController::class, 'createNote'])->name('notes.create');
+                Route::delete('/{project}/notes/{note}', [ProjectsController::class, 'unlinkNote'])->name('notes.unlink');
             });
     }
 }
