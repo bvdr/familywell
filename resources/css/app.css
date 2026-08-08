@@ -182,3 +182,77 @@
         font-family: var(--font-heading);
     }
 }
+
+/* Live note editor (TipTap/ProseMirror). Scoped to .note-prose so it never leaks into other UI.
+   Renders markdown-lite as rich text: headings, bold, bullets and tappable task checkboxes. */
+.note-prose:focus {
+    outline: none;
+}
+.note-prose > * + * {
+    margin-top: 0.5rem;
+}
+.note-prose h1 {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+    font-weight: 600;
+    color: var(--primary);
+}
+.note-prose h2 {
+    font-size: 1.125rem;
+    line-height: 1.6rem;
+    font-weight: 600;
+    color: var(--primary);
+}
+.note-prose h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--primary);
+}
+.note-prose strong {
+    font-weight: 600;
+}
+.note-prose a {
+    color: var(--primary);
+    text-decoration: underline;
+}
+.note-prose ul,
+.note-prose ol {
+    padding-left: 1.25rem;
+}
+.note-prose ul {
+    list-style: disc;
+}
+.note-prose ol {
+    list-style: decimal;
+}
+/* Task list: checkbox + text on one row, no bullet. */
+.note-prose ul[data-type='taskList'] {
+    list-style: none;
+    padding-left: 0;
+}
+.note-prose ul[data-type='taskList'] li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+.note-prose ul[data-type='taskList'] li > label {
+    margin-top: 0.15rem;
+    user-select: none;
+}
+.note-prose ul[data-type='taskList'] li > div {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.note-prose ul[data-type='taskList'] input[type='checkbox'] {
+    width: 1.05rem;
+    height: 1.05rem;
+    accent-color: var(--primary);
+}
+.note-prose p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    color: var(--muted-foreground);
+    opacity: 0.6;
+    float: left;
+    height: 0;
+    pointer-events: none;
+}
