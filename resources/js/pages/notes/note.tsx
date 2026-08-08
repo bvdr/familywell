@@ -24,6 +24,17 @@ type Note = {
 export default function NoteDetail({ note, folders, share }: { note: Note; folders: Folder[]; share: ShareState }) {
     const [title, setTitle] = useState(note.title);
     const [sharing, setSharing] = useState(false);
+    const titleRef = useRef<HTMLTextAreaElement>(null);
+
+    // The title is a textarea so a long title wraps to multiple lines; keep its height to content.
+    const growTitle = () => {
+        const el = titleRef.current;
+        if (el) {
+            el.style.height = 'auto';
+            el.style.height = `${el.scrollHeight}px`;
+        }
+    };
+    useEffect(growTitle, []); // size a long title on first load
 
     // Debounced auto-save: accumulate changed fields, flush after a pause / on leave.
     type Payload = Record<string, string | number | boolean | null>;
@@ -50,6 +61,7 @@ export default function NoteDetail({ note, folders, share }: { note: Note; folde
     const onTitle = (v: string) => {
         setTitle(v);
         queue({ title: v });
+        growTitle();
     };
     // The WYSIWYG editor hands us markdown on every change; just debounce-save it.
     const onBody = (markdown: string) => queue({ body: markdown });
@@ -155,13 +167,15 @@ export default function NoteDetail({ note, folders, share }: { note: Note; folde
                 height, so min-h-full alone would collapse to the content height. */}
             <div className={`min-h-[calc(100dvh-4rem)] ${noteColor(note.color)} border-0`}>
                 <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 p-4">
-                    <input
+                    <textarea
+                        ref={titleRef}
                         value={title}
                         onChange={(e) => onTitle(e.target.value)}
                         onBlur={flush}
                         disabled={!note.canEdit}
                         placeholder="Title"
-                        className="font-heading text-primary w-full bg-transparent text-2xl outline-none placeholder:text-muted-foreground/50"
+                        rows={1}
+                        className="font-heading text-primary w-full resize-none overflow-hidden bg-transparent text-2xl leading-tight outline-none placeholder:text-muted-foreground/50"
                     />
                     <div className="text-muted-foreground flex items-center gap-2 text-xs">
                         {folderName && <span className="bg-surface/60 rounded-full px-2 py-0.5">{folderName}</span>}

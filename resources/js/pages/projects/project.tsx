@@ -14,6 +14,7 @@ import {
     Plus,
     Search,
     ShoppingCart,
+    StickyNote,
     Trash2,
     Unlink,
     UserPlus,
@@ -32,12 +33,14 @@ import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import AppLayout from '@/layouts/app-layout';
 import { compressImage, makeThumbnail } from '@/lib/compress-image';
+import { noteColor, snippet } from '@/lib/notes';
 import { DEP_STATUS_KEYS, depStatus, PROJECT_STATUS_KEYS, projectStatus, shortDate } from '@/lib/projects';
 import { type BreadcrumbItem } from '@/types';
 
 type Member = { id: number; name: string };
 type Dep = { id: number; name: string; note: string | null; status: string };
 type LinkedList = { id: number; name: string; store: string | null; bought: number; total: number };
+type LinkedNote = { id: number; title: string; body: string; color: string };
 type Project = {
     id: number;
     name: string;
@@ -61,6 +64,7 @@ export default function ProjectDetail({
     tasks,
     dependencies,
     lists,
+    notes,
     share,
 }: {
     project: Project;
@@ -68,12 +72,14 @@ export default function ProjectDetail({
     tasks: TaskNode[];
     dependencies: Dep[];
     lists: LinkedList[];
+    notes: LinkedNote[];
     share: ShareState;
 }) {
     const [sharing, setSharing] = useState(false);
     const [editing, setEditing] = useState(false);
     const [linking, setLinking] = useState(false);
     const [linkView, setLinkView] = useState<'pick' | 'new'>('pick'); // which view the link-list sheet opens to
+    const [linkingNote, setLinkingNote] = useState(false); // the link-note sheet
     const [adding, setAdding] = useState(false); // the "Add to project" sheet
     useAddAction(() => setAdding(true));
     // Sections stay hidden until they have content; choosing to add one reveals it (with its input).
@@ -112,6 +118,7 @@ export default function ProjectDetail({
     const showDeps = dependencies.length > 0 || reveal.has('deps');
     const showTasks = taskTotal > 0 || reveal.has('tasks');
     const showLists = lists.length > 0;
+    const showNotes = notes.length > 0;
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Projects', href: '/m/projects' },
@@ -359,6 +366,40 @@ export default function ProjectDetail({
                     </Section>
                 )}
 
+                {/* Linked notes */}
+                {showNotes && (
+                    <Section id="section-notes" icon={StickyNote} title="Notes" count={notes.length}>
+                        <div className="flex flex-col gap-2">
+                            {notes.map((n) => (
+                                <div key={n.id} className={`flex items-center gap-3 rounded-xl border p-3 ${noteColor(n.color)}`}>
+                                    <span className="bg-surface/70 text-primary flex size-9 shrink-0 items-center justify-center rounded-lg">
+                                        <StickyNote className="size-4.5" />
+                                    </span>
+                                    <Link href={`/m/notes/${n.id}`} className="min-w-0 flex-1">
+                                        <div className="text-primary truncate text-sm font-medium">{n.title}</div>
+                                        {snippet(n.body, 60) && <div className="text-muted-foreground truncate text-xs">{snippet(n.body, 60)}</div>}
+                                    </Link>
+                                    <button
+                                        type="button"
+                                        onClick={() => router.delete(route('projects.notes.unlink', [project.id, n.id]), { preserveScroll: true })}
+                                        aria-label="Unlink note"
+                                        className="text-muted-foreground hover:text-destructive flex size-6 items-center justify-center"
+                                    >
+                                        <Unlink className="size-4" />
+                                    </button>
+                                </div>
+                            ))}
+                            <button
+                                type="button"
+                                onClick={() => setLinkingNote(true)}
+                                className="border-accent text-primary hover:bg-surface flex items-center justify-center gap-2 rounded-xl border border-dashed py-3 text-sm font-medium transition-colors"
+                            >
+                                <Plus className="size-4" /> Add a note
+                            </button>
+                        </div>
+                    </Section>
+                )}
+
                 {/* Compose the project: add a section / piece of content. Sections appear once they have content. */}
                 <button
                     type="button"
@@ -372,6 +413,7 @@ export default function ProjectDetail({
             {share && <ShareSheet open={sharing} onOpenChange={setSharing} share={share} eventName={project.name} />}
             <EditModal open={editing} onOpenChange={setEditing} project={project} members={members} />
             <LinkListModal open={linking} onOpenChange={setLinking} projectId={project.id} projectName={project.name} initialView={linkView} />
+            <LinkNoteModal open={linkingNote} onOpenChange={setLinkingNote} projectId={project.id} projectName={project.name} />
             <AddToProjectSheet
                 open={adding}
                 onOpenChange={setAdding}
@@ -380,6 +422,14 @@ export default function ProjectDetail({
                 onDependency={() => revealSection('deps')}
                 onShoppingNew={() => openLink('new')}
                 onShoppingLink={() => openLink('pick')}
+                onNoteNew={() => {
+                    setAdding(false);
+                    router.post(route('projects.notes.create', project.id));
+                }}
+                onNoteLink={() => {
+                    setAdding(false);
+                    setLinkingNote(true);
+                }}
             />
         </AppLayout>
     );
@@ -461,6 +511,8 @@ function AddToProjectSheet({
     onDependency,
     onShoppingNew,
     onShoppingLink,
+    onNoteNew,
+    onNoteLink,
 }: {
     open: boolean;
     onOpenChange: (v: boolean) => void;
@@ -469,6 +521,8 @@ function AddToProjectSheet({
     onDependency: () => void;
     onShoppingNew: () => void;
     onShoppingLink: () => void;
+    onNoteNew: () => void;
+    onNoteLink: () => void;
 }) {
     const Row = ({ icon: Icon, title, sub, onClick }: { icon: LucideIcon; title: string; sub: string; onClick: () => void }) => (
         <button
@@ -494,13 +548,15 @@ function AddToProjectSheet({
                     <div className="text-text-muted text-[11px] font-semibold tracking-widest uppercase">Create new</div>
                     <Row icon={ListChecks} title="Task list" sub="To-dos with assignees" onClick={onTaskList} />
                     <Row icon={ShoppingCart} title="Shopping list" sub="Things to buy" onClick={onShoppingNew} />
+                    <Row icon={StickyNote} title="Note" sub="Jot something down" onClick={onNoteNew} />
                     <Row icon={Ban} title="Dependency" sub="Blocked by another thing" onClick={onDependency} />
                 </div>
                 <div className="flex flex-col gap-2">
                     <div className="text-text-muted text-[11px] font-semibold tracking-widest uppercase">Link something existing</div>
                     <Row icon={ShoppingCart} title="Shopping list" sub="A list you already have" onClick={onShoppingLink} />
+                    <Row icon={StickyNote} title="Note" sub="A note you already have" onClick={onNoteLink} />
                 </div>
-                <p className="text-muted-foreground text-xs leading-relaxed">Notes, files, contacts and calendar events are coming soon.</p>
+                <p className="text-muted-foreground text-xs leading-relaxed">Files, contacts and calendar events are coming soon.</p>
             </div>
         </ResponsiveModal>
     );
@@ -822,6 +878,120 @@ function LinkListModal({
                     </div>
                 </div>
             )}
+        </ResponsiveModal>
+    );
+}
+
+type LinkableNote = { id: number; name: string; preview: string; sharedWith: string };
+
+// Pick existing notes to link to the project (multi-select), or jump straight into a new blank note.
+function LinkNoteModal({
+    open,
+    onOpenChange,
+    projectId,
+    projectName,
+}: {
+    open: boolean;
+    onOpenChange: (v: boolean) => void;
+    projectId: number;
+    projectName: string;
+}) {
+    const [notes, setNotes] = useState<LinkableNote[]>([]);
+    const [selected, setSelected] = useState<Set<number>>(new Set());
+    const [q, setQ] = useState('');
+
+    useEffect(() => {
+        if (!open) return;
+        setSelected(new Set());
+        setQ('');
+        fetch(route('projects.notes.linkable', projectId, false), { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
+            .then((r) => (r.ok ? r.json() : { notes: [] }))
+            .then((d) => setNotes(d.notes));
+    }, [open, projectId]);
+
+    const filtered = notes.filter((n) => n.name.toLowerCase().includes(q.toLowerCase()));
+    const toggle = (id: number) =>
+        setSelected((s) => {
+            const n = new Set(s);
+            if (n.has(id)) n.delete(id);
+            else n.add(id);
+            return n;
+        });
+    const addSelected = () => {
+        if (!selected.size) return;
+        router.post(route('projects.notes.link', projectId), { note_ids: [...selected] }, { preserveScroll: true, onSuccess: () => onOpenChange(false) });
+    };
+
+    return (
+        <ResponsiveModal
+            open={open}
+            onOpenChange={onOpenChange}
+            title="Note"
+            description={`Add to ${projectName}`}
+            footer={
+                <Button className="w-full" disabled={!selected.size} onClick={addSelected}>
+                    {selected.size ? `Add ${selected.size} note${selected.size > 1 ? 's' : ''}` : 'Select a note to add'}
+                </Button>
+            }
+        >
+            <div className="flex flex-col gap-3">
+                <button
+                    type="button"
+                    onClick={() => {
+                        onOpenChange(false);
+                        router.post(route('projects.notes.create', projectId));
+                    }}
+                    className="border-primary/40 bg-accent-subtle flex items-center gap-3 rounded-xl border border-dashed p-3 text-left"
+                >
+                    <span className="bg-primary text-primary-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
+                        <Plus className="size-5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                        <div className="text-primary text-sm font-semibold">Create a new note</div>
+                        <div className="text-muted-foreground text-xs">Opens a blank note linked to this project</div>
+                    </div>
+                    <ChevronRight className="text-primary size-4" />
+                </button>
+
+                <div className="text-text-muted text-[11px] font-semibold tracking-widest uppercase">Or link a note you already have</div>
+                <div className="bg-surface flex items-center gap-2 rounded-lg px-3 py-2">
+                    <Search className="text-muted-foreground size-4" />
+                    <input
+                        value={q}
+                        onChange={(e) => setQ(e.target.value)}
+                        placeholder="Search your notes..."
+                        // text-base (16px) on mobile so iOS Safari doesn't auto-zoom on focus; text-sm from md up.
+                        className="text-primary w-full bg-transparent text-base outline-none md:text-sm"
+                    />
+                </div>
+                <div className="flex flex-col gap-2">
+                    {filtered.length === 0 && <p className="text-muted-foreground py-4 text-center text-sm">No notes to link.</p>}
+                    {filtered.map((n) => {
+                        const on = selected.has(n.id);
+                        return (
+                            <button
+                                key={n.id}
+                                type="button"
+                                onClick={() => toggle(n.id)}
+                                className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${on ? 'border-primary bg-accent-subtle' : 'bg-surface-card'}`}
+                            >
+                                <span className="bg-accent-subtle text-primary flex size-9 shrink-0 items-center justify-center rounded-lg">
+                                    <StickyNote className="size-4.5" />
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                    <div className="text-primary truncate text-sm font-medium">{n.name}</div>
+                                    <div className="text-muted-foreground truncate text-xs">{n.preview || n.sharedWith}</div>
+                                </div>
+                                <span
+                                    className={`flex size-6 shrink-0 items-center justify-center rounded-md border ${on ? 'border-primary bg-primary text-primary-foreground' : 'border-border'}`}
+                                >
+                                    {on && <Check className="size-4" />}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
         </ResponsiveModal>
     );
 }
