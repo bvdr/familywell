@@ -66,6 +66,8 @@ export function snippet(body: string, length = 140): string {
         .map((l) => l.replace(/^(#{1,3}) /, '').replace(CHECK_RE, '$2').replace(/^[-*] /, ''))
         .join(' ')
         .replace(/\*\*/g, '')
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // [text](url) -> text
+        .replace(/<(https?:[^>]+)>/g, '$1') // <url> -> url
         .replace(/\s+/g, ' ')
         .trim();
     return text.length > length ? text.slice(0, length).trimEnd() + '…' : text;
