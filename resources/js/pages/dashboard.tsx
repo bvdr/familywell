@@ -2,6 +2,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Blocks, Check, FolderKanban, ListChecks, type LucideIcon, Settings, ShoppingCart, StickyNote, Users, Wallet } from 'lucide-react';
+import { useT, useLocale } from '@/lib/i18n';
 import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' }];
@@ -18,12 +19,13 @@ const iconFor = (key: string) => ICONS[key] ?? Blocks;
 
 // The recent items are grouped by category on the dashboard; the icon key doubles as the category
 // (each module tags its items with a distinct icon).
+// icon key -> nav translation key for the recent-items group headers.
 const CATEGORY: Record<string, string> = {
-    'list-checks': 'Tasks',
-    'shopping-cart': 'Shopping',
-    wallet: 'Spending',
-    'folder-kanban': 'Projects',
-    'sticky-note': 'Notes',
+    'list-checks': 'nav.tasks',
+    'shopping-cart': 'nav.shopping',
+    wallet: 'nav.spending',
+    'folder-kanban': 'nav.projects',
+    'sticky-note': 'nav.notes',
 };
 const categoryOf = (icon: string) => CATEGORY[icon] ?? 'Other';
 
@@ -62,15 +64,13 @@ function dueBadge(ymd: string): { label: string; tone: string } {
     return { label: due.toLocaleDateString(undefined, { weekday: 'short' }), tone: 'bg-surface text-muted-foreground' };
 }
 
-// Time-of-day greeting, resolved on the client so it matches the viewer's clock.
-function greeting() {
+// Time-of-day greeting key, resolved on the client so it matches the viewer's clock.
+function greetingKey() {
     const h = new Date().getHours();
-    if (h < 12) return 'Good morning';
-    if (h < 18) return 'Good afternoon';
-    return 'Good evening';
+    if (h < 12) return 'dashboard.good_morning';
+    if (h < 18) return 'dashboard.good_afternoon';
+    return 'dashboard.good_evening';
 }
-
-const todayLabel = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 
 // Side-rail shortcut into a family area. Solid-green icon well, DS card treatment.
 function Shortcut({ href, icon: Icon, title, sub }: { href: string; icon: typeof Wallet; title: string; sub: string }) {
@@ -130,17 +130,20 @@ export default function Dashboard({
     thisWeek?: AgendaItem[];
 }) {
     const { auth, modules } = usePage<SharedData & { modules?: { enabled?: string[] } }>().props;
+    const t = useT();
+    const locale = useLocale();
     const firstName = auth.user.name.split(' ')[0];
     const spendingOn = (modules?.enabled ?? []).includes('spending');
+    const todayLabel = new Date().toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric' });
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Dashboard" />
+            <Head title={t('nav.dashboard')} />
             <div className="mx-auto flex w-full max-w-6xl flex-col gap-7 p-4 md:p-8">
                 <div className="flex flex-wrap items-end justify-between gap-4">
                     <div>
                         <h1 className="font-heading text-primary text-3xl">
-                            {greeting()}, {firstName}
+                            {t(greetingKey())}, {firstName}
                         </h1>
                         <p className="text-muted-foreground mt-1 text-sm">{todayLabel}</p>
                     </div>
@@ -150,21 +153,21 @@ export default function Dashboard({
                             className="bg-surface-card text-primary hover:border-accent inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-colors"
                         >
                             <Users className="size-4" />
-                            Members
+                            {t('nav.members')}
                         </Link>
                         <Link
                             href="/settings/profile"
                             className="bg-surface-card text-primary hover:border-accent inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-colors"
                         >
                             <Settings className="size-4" />
-                            Settings
+                            {t('nav.settings')}
                         </Link>
                     </div>
                 </div>
 
                 {today.length > 0 && (
                     <section className="flex flex-col gap-3">
-                        <h2 className="font-heading text-primary px-1 text-lg">Today</h2>
+                        <h2 className="font-heading text-primary px-1 text-lg">{t('dashboard.today')}</h2>
                         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                             {today.map((it) => (
                                 <AgendaRow key={it.href + it.title} item={it} />
@@ -175,7 +178,7 @@ export default function Dashboard({
 
                 {thisWeek.length > 0 && (
                     <section className="flex flex-col gap-3">
-                        <h2 className="font-heading text-primary px-1 text-lg">This Week</h2>
+                        <h2 className="font-heading text-primary px-1 text-lg">{t('dashboard.this_week')}</h2>
                         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                             {thisWeek.map((it) => (
                                 <AgendaRow key={it.href + it.title} item={it} />
@@ -186,12 +189,12 @@ export default function Dashboard({
 
                 {recent.length > 0 && (
                     <section className="flex flex-col gap-4">
-                        <h2 className="font-heading text-primary px-1 text-lg">Pick up where you left off</h2>
+                        <h2 className="font-heading text-primary px-1 text-lg">{t('dashboard.pick_up')}</h2>
                         {/* Group the recently-opened entities by category, preserving recency order
                             (the category of the most-recent open comes first). */}
                         {groupRecent(recent).map((group) => (
                             <div key={group.category} className="flex flex-col gap-2">
-                                <h3 className="text-muted-foreground px-1 text-xs font-semibold tracking-widest uppercase">{group.category}</h3>
+                                <h3 className="text-muted-foreground px-1 text-xs font-semibold tracking-widest uppercase">{t(group.category)}</h3>
                                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                                     {group.items.map((it) => {
                                         const Icon = iconFor(it.icon);
@@ -222,11 +225,11 @@ export default function Dashboard({
 
                 {/* Widgets slot removed for now; it will return with customizable dashboard widgets. */}
                 <section className="flex flex-col gap-3">
-                    <h2 className="font-heading text-primary px-1 text-lg">Jump back in</h2>
+                    <h2 className="font-heading text-primary px-1 text-lg">{t('dashboard.jump_back_in')}</h2>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                        <Shortcut href="/family/members" icon={Users} title="Members" sub="Who's in your family" />
-                        <Shortcut href="/family/modules" icon={Blocks} title="Modules" sub="Turn features on or off" />
-                        {spendingOn && <Shortcut href="/m/spending" icon={Wallet} title="Spending" sub="Shared expense trackers" />}
+                        <Shortcut href="/family/members" icon={Users} title={t('nav.members')} sub={t('dashboard.members_sub')} />
+                        <Shortcut href="/family/modules" icon={Blocks} title={t('nav.modules')} sub={t('dashboard.modules_sub')} />
+                        {spendingOn && <Shortcut href="/m/spending" icon={Wallet} title={t('nav.spending')} sub={t('dashboard.spending_sub')} />}
                     </div>
                 </section>
             </div>

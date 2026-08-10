@@ -26,6 +26,22 @@ Route::middleware('auth')->group(function () {
         return Inertia::render('settings/appearance');
     })->name('appearance');
 
+    // Language: pick the app locale (per user). Options come from the Translations registry.
+    Route::get('settings/language', function () {
+        return Inertia::render('settings/language', [
+            'locales' => \App\Support\Translations::options(),
+            'current' => auth()->user()->locale ?? config('app.locale'),
+        ]);
+    })->name('language');
+    Route::patch('settings/language', function (\Illuminate\Http\Request $request) {
+        $data = $request->validate([
+            'locale' => ['required', 'string', \Illuminate\Validation\Rule::in(array_keys(\App\Support\Translations::LOCALES))],
+        ]);
+        $request->user()->update(['locale' => $data['locale']]);
+
+        return back();
+    })->name('language.update');
+
     Route::get('settings/notifications', function () {
         // Categories come from the notifications registry (each module registers its own); merge in
         // the user's saved on/off, defaulting missing ones to on.
