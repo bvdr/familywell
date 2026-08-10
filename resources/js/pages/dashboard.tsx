@@ -17,6 +17,35 @@ type AgendaItem = DashItem & { dueDate: string; toggleUrl: string };
 const ICONS: Record<string, LucideIcon> = { wallet: Wallet, 'shopping-cart': ShoppingCart, 'folder-kanban': FolderKanban, 'list-checks': ListChecks, 'sticky-note': StickyNote };
 const iconFor = (key: string) => ICONS[key] ?? Blocks;
 
+// The recent items are grouped by category on the dashboard; the icon key doubles as the category
+// (each module tags its items with a distinct icon).
+const CATEGORY: Record<string, string> = {
+    'list-checks': 'Tasks',
+    'shopping-cart': 'Shopping',
+    wallet: 'Spending',
+    'folder-kanban': 'Projects',
+    'sticky-note': 'Notes',
+};
+const categoryOf = (icon: string) => CATEGORY[icon] ?? 'Other';
+
+// Group recent items by category, preserving the order the categories first appear. Since `recent`
+// arrives most-recent-first, the category you opened most recently leads.
+function groupRecent(recent: DashItem[]): { category: string; items: DashItem[] }[] {
+    const groups: { category: string; items: DashItem[] }[] = [];
+    const byCat = new Map<string, { category: string; items: DashItem[] }>();
+    for (const it of recent) {
+        const cat = categoryOf(it.icon);
+        let g = byCat.get(cat);
+        if (!g) {
+            g = { category: cat, items: [] };
+            byCat.set(cat, g);
+            groups.push(g);
+        }
+        g.items.push(it);
+    }
+    return groups;
+}
+
 // Local midnight for a Y-m-d string (avoids the UTC day-shift of new Date('2026-08-03')).
 function parseDay(ymd: string) {
     const [y, m, d] = ymd.split('-').map(Number);
@@ -157,29 +186,38 @@ export default function Dashboard({
                 )}
 
                 {recent.length > 0 && (
-                    <section className="flex flex-col gap-3">
+                    <section className="flex flex-col gap-4">
                         <h2 className="font-heading text-primary px-1 text-lg">Pick up where you left off</h2>
-                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                            {recent.map((it) => {
-                                const Icon = iconFor(it.icon);
-                                return (
-                                    <Link
-                                        key={it.href}
-                                        href={it.href}
-                                        prefetch
-                                        className="bg-surface-card hover:border-accent flex items-center gap-3 rounded-xl border p-3 transition-colors"
-                                    >
-                                        <span className="bg-primary text-primary-foreground flex size-10 shrink-0 items-center justify-center rounded-lg">
-                                            <Icon className="size-5" />
-                                        </span>
-                                        <span className="min-w-0">
-                                            <span className="text-primary block truncate font-medium">{it.title}</span>
-                                            <span className="text-muted-foreground block truncate font-mono text-sm tabular-nums">{it.subtitle}</span>
-                                        </span>
-                                    </Link>
-                                );
-                            })}
-                        </div>
+                        {/* Group the recently-opened entities by category, preserving recency order
+                            (the category of the most-recent open comes first). */}
+                        {groupRecent(recent).map((group) => (
+                            <div key={group.category} className="flex flex-col gap-2">
+                                <h3 className="text-muted-foreground px-1 text-xs font-semibold tracking-widest uppercase">{group.category}</h3>
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                    {group.items.map((it) => {
+                                        const Icon = iconFor(it.icon);
+                                        return (
+                                            <Link
+                                                key={it.href}
+                                                href={it.href}
+                                                prefetch
+                                                className="bg-surface-card hover:border-accent flex items-start gap-3 rounded-xl border p-3 transition-colors"
+                                            >
+                                                <span className="bg-primary text-primary-foreground mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-lg">
+                                                    <Icon className="size-5" />
+                                                </span>
+                                                {/* min-w-0 + wrapping so a long title/subtitle wraps to a couple of lines
+                                                    instead of forcing the card super wide. */}
+                                                <span className="min-w-0 flex-1">
+                                                    <span className="text-primary line-clamp-2 font-medium break-words">{it.title}</span>
+                                                    <span className="text-muted-foreground line-clamp-2 text-sm break-words">{it.subtitle}</span>
+                                                </span>
+                                            </Link>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))}
                     </section>
                 )}
 
