@@ -22,7 +22,10 @@ Route::post('/client-error', function (Request $request) {
     Log::warning('client-error', [
         'message' => (string) $request->input('message'),
         'url' => (string) $request->input('url'),
-        'stack' => mb_substr((string) $request->input('stack', ''), 0, 4000),
+        'stack' => mb_substr((string) $request->input('stack', ''), 0, 2000),
+        'storage' => mb_substr((string) $request->input('storage', ''), 0, 2000),
+        'standalone' => (bool) $request->input('standalone'),
+        'ua' => mb_substr((string) $request->input('ua', ''), 0, 300),
         'user' => optional($request->user())->id,
     ]);
 

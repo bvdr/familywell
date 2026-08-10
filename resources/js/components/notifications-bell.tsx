@@ -1,6 +1,6 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { Bell, CheckCheck } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { markAllRead, markRead, notificationIcon, relativeTime, type Notification } from '@/lib/notifications';
@@ -9,28 +9,44 @@ type Shared = { unread: number; items: Notification[] };
 
 export function NotificationsBell() {
     const shared = (usePage().props as { notifications?: Shared }).notifications ?? { unread: 0, items: [] };
+    const serverItems = shared.items ?? [];
     const [open, setOpen] = useState(false);
-    // Local mirror so tapping/mark-all updates the badge instantly; re-sync when the server prop changes.
-    const [items, setItems] = useState<Notification[]>(shared.items ?? []);
-    const [unread, setUnread] = useState(shared.unread ?? 0);
-    useEffect(() => {
-        setItems(shared.items ?? []);
-        setUnread(shared.unread ?? 0);
-    }, [shared.items, shared.unread]);
+
+    // Optimistic read-state is the ONLY local state, and it's mutated exclusively from user actions
+    // (never from an effect syncing props). The previous version synced props -> state in a useEffect;
+    // Inertia hands back a fresh `notifications` object on re-renders, so that effect re-ran every
+    // render and looped forever (React #185, "Maximum update depth exceeded"). Deriving straight from
+    // props removes the sync entirely, so no loop is possible on any browser.
+    const [readIds, setReadIds] = useState<Set<string>>(() => new Set());
+    const [clearedAll, setClearedAll] = useState(false);
+
+    // When the server data actually changes (a primitive signature, not object identity), drop the
+    // optimistic overrides so we mirror the server again. Guarded so it self-terminates (no loop):
+    // after the reset the signature matches and the branch is skipped.
+    const signature = `${shared.unread ?? 0}|${serverItems.map((n) => `${n.id}:${n.read ? 1 : 0}`).join(',')}`;
+    const lastSignature = useRef(signature);
+    if (lastSignature.current !== signature) {
+        lastSignature.current = signature;
+        if (readIds.size) setReadIds(new Set());
+        if (clearedAll) setClearedAll(false);
+    }
+
+    const isRead = (n: Notification) => n.read || clearedAll || readIds.has(n.id);
+    const items = serverItems.map((n) => (isRead(n) ? { ...n, read: true } : n));
+    const locallyRead = serverItems.filter((n) => !n.read && (clearedAll || readIds.has(n.id))).length;
+    const unread = clearedAll ? 0 : Math.max(0, (shared.unread ?? 0) - locallyRead);
 
     const openItem = (n: Notification) => {
-        if (!n.read) {
+        if (!isRead(n)) {
             void markRead(n.id);
-            setItems((list) => list.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
-            setUnread((u) => Math.max(0, u - 1));
+            setReadIds((s) => new Set(s).add(n.id));
         }
         setOpen(false);
         router.visit(n.url);
     };
     const clearAll = () => {
         void markAllRead();
-        setItems((list) => list.map((x) => ({ ...x, read: true })));
-        setUnread(0);
+        setClearedAll(true);
     };
 
     return (
