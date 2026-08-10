@@ -7,7 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\EntityVisit;
 use App\Models\Family;
 use App\Models\User;
-use App\Support\FamilyNotifier;
+use Modules\Notifications\Notify;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
@@ -272,7 +272,7 @@ class TasksController extends Controller
             'created_by' => $request->user()->id,
         ]);
 
-        FamilyNotifier::toAccessOf($list, 'tasks', $request->user()->id, 'New task', "{$request->user()->name} added: {$data['title']}", route('tasks.show', $list, false));
+        Notify::toAccessOf($list, 'tasks', $request->user()->id, 'New task', "{$request->user()->name} added: {$data['title']}", route('tasks.show', $list, false));
         Realtime::broadcast(new TasksChanged((int) CurrentFamily::id()));
 
         return back();
@@ -326,7 +326,7 @@ class TasksController extends Controller
         if (! $request->hasAny(['title', 'note', 'due_date', 'assigned_to', 'done'])) {
             $task->update(['done' => ! $task->done]);
             if ($task->done) {
-                FamilyNotifier::toAccessOf($task->list, 'tasks', $actor->id, 'Task done', "{$actor->name} completed: {$task->title}", $url);
+                Notify::toAccessOf($task->list, 'tasks', $actor->id, 'Task done', "{$actor->name} completed: {$task->title}", $url);
             }
         } else {
             $data = $request->validate([
@@ -341,10 +341,10 @@ class TasksController extends Controller
             $task->update($data);
             // Ping the new assignee only on a genuine (re)assignment.
             if (array_key_exists('assigned_to', $data) && $data['assigned_to'] && $data['assigned_to'] !== $before) {
-                FamilyNotifier::push(User::whereKey($data['assigned_to'])->get(), 'tasks', $actor->id, 'Assigned to you', "{$actor->name} assigned you: {$task->title}", $url);
+                Notify::push(User::whereKey($data['assigned_to'])->get(), 'tasks', $actor->id, 'Assigned to you', "{$actor->name} assigned you: {$task->title}", $url);
             }
             if (array_key_exists('done', $data) && $data['done'] && ! $wasDone) {
-                FamilyNotifier::toAccessOf($task->list, 'tasks', $actor->id, 'Task done', "{$actor->name} completed: {$task->title}", $url);
+                Notify::toAccessOf($task->list, 'tasks', $actor->id, 'Task done', "{$actor->name} completed: {$task->title}", $url);
             }
         }
 

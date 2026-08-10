@@ -2,7 +2,7 @@
 
 use App\Models\Family;
 use App\Models\User;
-use App\Notifications\PushAlert;
+use Modules\Notifications\PushAlert;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareAccess;
 use Illuminate\Support\Carbon;
@@ -129,7 +129,7 @@ it('pushes everyone with access when a task is added, but not the actor', functi
     Notification::assertNotSentTo($alice, PushAlert::class);
 });
 
-it('respects a muted category', function () {
+it('mutes the push for a muted category but still logs it in-app', function () {
     Notification::fake();
     [, $users] = tasksFamily();
     [$alice, $bob] = $users;
@@ -139,7 +139,10 @@ it('respects a muted category', function () {
 
     actingAs($alice)->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Vacuum']);
 
-    Notification::assertNotSentTo($bob, PushAlert::class);
+    // Still delivered to Bob, but only on the in-app log channel, no web push.
+    Notification::assertSentTo($bob, PushAlert::class, function ($notification, $channels) {
+        return in_array('database', $channels, true) && ! in_array(\NotificationChannels\WebPush\WebPushChannel::class, $channels, true);
+    });
 });
 
 it('hides a private list from a member who was not shared', function () {

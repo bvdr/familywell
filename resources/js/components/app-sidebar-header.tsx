@@ -1,4 +1,5 @@
 import { Breadcrumbs } from '@/components/breadcrumbs';
+import { NotificationsBell } from '@/components/notifications-bell';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { type BreadcrumbItem as BreadcrumbItemType } from '@/types';
 
@@ -16,7 +17,11 @@ export function AppSidebarHeader({
                 <SidebarTrigger className="-ml-1 shrink-0" />
                 <Breadcrumbs breadcrumbs={breadcrumbs} />
             </div>
-            {actions && <div className="flex shrink-0 items-center gap-2 pl-2">{actions}</div>}
+            {/* Global notifications bell + any per-page actions, pinned to the right. */}
+            <div className="flex shrink-0 items-center gap-2 pl-2">
+                {actions}
+                <NotificationsBell />
+            </div>
         </header>
     );
 }
