@@ -22,12 +22,20 @@ class NotificationsServiceProvider extends ServiceProvider
             if (! $user) {
                 return ['unread' => 0, 'items' => []];
             }
+            // This prop is shared on EVERY page (the header bell). If the notifications query ever
+            // fails (e.g. table not migrated yet right after a deploy), fall back to empty rather
+            // than throw, which would blank the whole app.
+            try {
+                return [
+                    'unread' => $user->unreadNotifications()->count(),
+                    'items' => $user->notifications()->latest()->limit(12)->get()
+                        ->map(fn (DatabaseNotification $n) => NotificationsController::present($n))->values(),
+                ];
+            } catch (\Throwable $e) {
+                report($e);
 
-            return [
-                'unread' => $user->unreadNotifications()->count(),
-                'items' => $user->notifications()->latest()->limit(12)->get()
-                    ->map(fn (DatabaseNotification $n) => NotificationsController::present($n))->values(),
-            ];
+                return ['unread' => 0, 'items' => []];
+            }
         });
 
         // Always-on infrastructure: unlike feature modules these routes are not gated by
