@@ -11,12 +11,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import AppLayout from '@/layouts/app-layout';
+import { useT } from '@/lib/i18n';
 import { LIST_COLORS, LIST_ICONS, listColor, listIcon } from '@/lib/tasks';
 import { type BreadcrumbItem } from '@/types';
 
 type List = { id: number; name: string; color: string; icon: string; archived: boolean; visibility: string };
 
 export default function ListDetail({ list, share, members, tasks }: { list: List; share: ShareState; members: TaskMember[]; tasks: TaskNode[] }) {
+    const t = useT();
     const [sharing, setSharing] = useState(false);
     const [editing, setEditing] = useState(false);
 
@@ -28,7 +30,7 @@ export default function ListDetail({ list, share, members, tasks }: { list: List
     });
 
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Tasks', href: '/m/tasks' },
+        { title: t('nav.tasks'), href: '/m/tasks' },
         { title: list.name, href: route('tasks.show', list.id) },
     ];
 
@@ -44,7 +46,7 @@ export default function ListDetail({ list, share, members, tasks }: { list: List
             <button
                 type="button"
                 onClick={() => setSharing(true)}
-                aria-label="Share list"
+                aria-label={t('tasks.share_list')}
                 className="border-border text-primary hover:bg-surface flex size-9 items-center justify-center rounded-lg border transition-colors"
             >
                 <UserPlus className="size-4.5" />
@@ -53,7 +55,7 @@ export default function ListDetail({ list, share, members, tasks }: { list: List
                 <DropdownMenuTrigger asChild>
                     <button
                         type="button"
-                        aria-label="List options"
+                        aria-label={t('tasks.list_options')}
                         className="border-border text-primary hover:bg-surface flex size-9 items-center justify-center rounded-lg border transition-colors"
                     >
                         <MoreHorizontal className="size-4.5" />
@@ -61,35 +63,35 @@ export default function ListDetail({ list, share, members, tasks }: { list: List
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-52">
                     <DropdownMenuItem onSelect={() => setSharing(true)}>
-                        <UserPlus className="size-4" /> Share list
+                        <UserPlus className="size-4" /> {t('tasks.share_list')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => setTimeout(() => setEditing(true), 0)}>
-                        <Pencil className="size-4" /> Edit list
+                        <Pencil className="size-4" /> {t('tasks.edit_list')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     {list.visibility === 'family' ? (
                         <DropdownMenuItem onSelect={() => patchList({ visibility: 'private' })}>
-                            <Lock className="size-4" /> Make private
+                            <Lock className="size-4" /> {t('tasks.make_private')}
                         </DropdownMenuItem>
                     ) : (
                         <DropdownMenuItem onSelect={() => patchList({ visibility: 'family' })}>
-                            <Users className="size-4" /> Share with family
+                            <Users className="size-4" /> {t('tasks.share_with_family')}
                         </DropdownMenuItem>
                     )}
                     <DropdownMenuItem onSelect={() => router.post(route('tasks.lists.duplicate', list.id))}>
-                        <Copy className="size-4" /> Duplicate list
+                        <Copy className="size-4" /> {t('tasks.duplicate_list')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => patchList({ archived: true })}>
-                        <Archive className="size-4" /> Archive list
+                        <Archive className="size-4" /> {t('tasks.archive_list')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
                         onSelect={() => {
-                            if (confirm('Delete this list and all its tasks?')) router.delete(route('tasks.lists.destroy', list.id));
+                            if (confirm(t('tasks.confirm_delete_list'))) router.delete(route('tasks.lists.destroy', list.id));
                         }}
                     >
-                        <Trash2 className="size-4" /> Delete list
+                        <Trash2 className="size-4" /> {t('tasks.delete_list')}
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
@@ -109,9 +111,7 @@ export default function ListDetail({ list, share, members, tasks }: { list: List
                             {list.name}
                             {list.visibility === 'private' && <Lock className="text-muted-foreground size-4 shrink-0" />}
                         </h1>
-                        <p className="text-muted-foreground text-sm">
-                            {done} of {total} done
-                        </p>
+                        <p className="text-muted-foreground text-sm">{t('tasks.progress', { done, total })}</p>
                     </div>
                 </div>
 
@@ -122,7 +122,7 @@ export default function ListDetail({ list, share, members, tasks }: { list: List
                     addUrl={route('tasks.tasks.store', list.id)}
                     taskUrl={(id) => route('tasks.tasks.update', id)}
                     reorderUrl={route('tasks.tasks.reorder', list.id)}
-                    emptyHint="No tasks yet. Add your first one below."
+                    emptyHint={t('tasks.empty_tasks')}
                     addInputRef={addInputRef}
                 />
             </div>
@@ -134,6 +134,7 @@ export default function ListDetail({ list, share, members, tasks }: { list: List
 }
 
 function EditListModal({ open, onOpenChange, list }: { open: boolean; onOpenChange: (v: boolean) => void; list: List }) {
+    const t = useT();
     const [name, setName] = useState(list.name);
     const [color, setColor] = useState(list.color);
     const [icon, setIcon] = useState(list.icon);
@@ -150,10 +151,10 @@ function EditListModal({ open, onOpenChange, list }: { open: boolean; onOpenChan
         <ResponsiveModal
             open={open}
             onOpenChange={onOpenChange}
-            title="Edit list"
+            title={t('tasks.edit_list')}
             footer={
                 <Button className="w-full" onClick={save} disabled={!name.trim()}>
-                    Save
+                    {t('common.save')}
                 </Button>
             }
         >
@@ -165,17 +166,23 @@ function EditListModal({ open, onOpenChange, list }: { open: boolean; onOpenChan
                             return <Icon className="size-6" />;
                         })()}
                     </span>
-                    <Input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="List name" className="text-base" />
+                    <Input
+                        autoFocus
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder={t('tasks.list_name_placeholder')}
+                        className="text-base"
+                    />
                 </div>
                 <div className="grid gap-2">
-                    <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Color &amp; icon</Label>
+                    <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('tasks.color_icon')}</Label>
                     <div className="flex flex-wrap gap-2">
                         {Object.keys(LIST_COLORS).map((c) => (
                             <button
                                 key={c}
                                 type="button"
                                 onClick={() => setColor(c)}
-                                aria-label={`${c} color`}
+                                aria-label={t('tasks.color_aria', { color: c })}
                                 className={`flex size-9 items-center justify-center rounded-full ${listColor(c)} ${color === c ? 'ring-primary ring-2 ring-offset-2' : ''}`}
                             >
                                 {color === c && <Check className="size-4" />}
@@ -190,7 +197,7 @@ function EditListModal({ open, onOpenChange, list }: { open: boolean; onOpenChan
                                     key={ic}
                                     type="button"
                                     onClick={() => setIcon(ic)}
-                                    aria-label={`${ic} icon`}
+                                    aria-label={t('tasks.icon_aria', { icon: ic })}
                                     className={`flex size-9 items-center justify-center rounded-lg border transition-colors ${
                                         icon === ic ? 'border-primary bg-accent-subtle text-primary' : 'border-border text-muted-foreground'
                                     }`}

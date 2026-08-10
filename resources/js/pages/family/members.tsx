@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import { useT } from '@/lib/i18n';
 import { type BreadcrumbItem } from '@/types';
 
 type Member = { id: number; name: string; email: string; role: string };
@@ -23,8 +24,6 @@ type Props = {
     canManage: boolean;
     palette: { colors: string[]; emojis: string[] };
 };
-
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Members', href: '/family/members' }];
 
 // Keep only the last emoji the user typed (one grapheme, so ZWJ sequences like 👨‍👩‍👧‍👦 stay intact).
 const lastEmoji = (v: string): string => {
@@ -51,6 +50,8 @@ function RoleBadge({ role }: { role: string }) {
 }
 
 export default function Members({ family, members, invitations, canManage, palette }: Props) {
+    const t = useT();
+    const breadcrumbs: BreadcrumbItem[] = [{ title: t('nav.members'), href: '/family/members' }];
     const authId = (usePage().props as { auth: { user: { id: number } } }).auth.user.id;
     const [inviteOpen, setInviteOpen] = useState(false);
 
@@ -78,7 +79,7 @@ export default function Members({ family, members, invitations, canManage, palet
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`${family.name} · Members`} />
+            <Head title={`${family.name} · ${t('nav.members')}`} />
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 p-4 md:p-6">
                 {/* Family identity + settings */}
                 {canManage ? (
@@ -91,35 +92,35 @@ export default function Members({ family, members, invitations, canManage, palet
                                 {settings.data.emoji}
                             </span>
                             <div className="flex-1">
-                                <h1 className="font-heading text-primary text-2xl leading-tight">Family settings</h1>
-                                <p className="text-muted-foreground text-sm">The name and look everyone in your family sees.</p>
+                                <h1 className="font-heading text-primary text-2xl leading-tight">{t('family.settings_title')}</h1>
+                                <p className="text-muted-foreground text-sm">{t('family.settings_desc')}</p>
                             </div>
                         </div>
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div className="grid gap-2">
-                                <Label htmlFor="name">Family name</Label>
+                                <Label htmlFor="name">{t('family.name_label')}</Label>
                                 <Input id="name" value={settings.data.name} onChange={(e) => settings.setData('name', e.target.value)} />
                                 <InputError message={settings.errors.name} />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="description">Short description</Label>
+                                <Label htmlFor="description">{t('family.description_label')}</Label>
                                 <Input
                                     id="description"
                                     value={settings.data.description}
                                     onChange={(e) => settings.setData('description', e.target.value)}
-                                    placeholder="e.g. Home base for the Riveras"
+                                    placeholder={t('family.description_placeholder')}
                                 />
                             </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-6">
                             <div className="flex flex-col gap-2">
-                                <span className="text-xs font-medium">Color</span>
+                                <span className="text-xs font-medium">{t('family.color')}</span>
                                 <div className="flex flex-wrap items-center gap-2">
                                     {palette.colors.map((c) => (
                                         <button
                                             key={c}
                                             type="button"
-                                            aria-label={`Color ${c}`}
+                                            aria-label={t('family.color_aria', { color: c })}
                                             onClick={() => settings.setData('color', c)}
                                             className="flex size-7 items-center justify-center rounded-md transition-transform hover:scale-110"
                                             style={{ backgroundColor: c }}
@@ -129,7 +130,7 @@ export default function Members({ family, members, invitations, canManage, palet
                                     ))}
                                     {/* Any color: the native OS color picker, styled as a swatch. */}
                                     <label
-                                        title="Pick any color"
+                                        title={t('family.pick_any_color')}
                                         className="relative flex size-7 cursor-pointer items-center justify-center overflow-hidden rounded-md"
                                         style={
                                             customColor
@@ -141,7 +142,7 @@ export default function Members({ family, members, invitations, canManage, palet
                                             type="color"
                                             value={settings.data.color}
                                             onChange={(e) => settings.setData('color', e.target.value)}
-                                            aria-label="Custom color"
+                                            aria-label={t('family.custom_color')}
                                             className="absolute inset-0 size-full cursor-pointer opacity-0"
                                         />
                                         {customColor ? <Check className="text-text-inverse size-4" /> : <Plus className="size-3.5 text-white" />}
@@ -150,13 +151,13 @@ export default function Members({ family, members, invitations, canManage, palet
                                 <InputError message={settings.errors.color} />
                             </div>
                             <div className="flex flex-col gap-2">
-                                <span className="text-xs font-medium">Emoji</span>
+                                <span className="text-xs font-medium">{t('family.emoji')}</span>
                                 <div className="flex flex-wrap items-center gap-2">
                                     {palette.emojis.map((em) => (
                                         <button
                                             key={em}
                                             type="button"
-                                            aria-label={`Emoji ${em}`}
+                                            aria-label={t('family.emoji_aria', { emoji: em })}
                                             onClick={() => settings.setData('emoji', em)}
                                             className={`flex size-7 items-center justify-center rounded-md border text-base transition-transform hover:scale-110 ${
                                                 settings.data.emoji === em ? 'border-accent bg-accent-subtle' : 'border-border bg-surface-card'
@@ -170,24 +171,22 @@ export default function Members({ family, members, invitations, canManage, palet
                                         type="text"
                                         value={settings.data.emoji}
                                         onChange={(e) => settings.setData('emoji', lastEmoji(e.target.value))}
-                                        aria-label="Type any emoji"
-                                        title="Tap and use your keyboard's emoji key"
+                                        aria-label={t('family.type_any_emoji')}
+                                        title={t('family.type_any_emoji_title')}
                                         className={`flex size-7 items-center justify-center rounded-md border border-dashed text-center text-base ${
                                             customEmoji ? 'border-accent bg-accent-subtle' : 'border-border bg-surface-card'
                                         }`}
                                     />
                                 </div>
-                                <p className="text-muted-foreground text-xs">
-                                    Pick one above, or tap the dashed box and use your keyboard's emoji key.
-                                </p>
+                                <p className="text-muted-foreground text-xs">{t('family.emoji_hint')}</p>
                                 <InputError message={settings.errors.emoji} />
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
                             <Button type="submit" disabled={settings.processing}>
-                                Save changes
+                                {t('family.save_changes')}
                             </Button>
-                            {settings.recentlySuccessful && <span className="text-accent text-sm">Saved</span>}
+                            {settings.recentlySuccessful && <span className="text-accent text-sm">{t('family.saved')}</span>}
                         </div>
                     </form>
                 ) : (
@@ -206,48 +205,48 @@ export default function Members({ family, members, invitations, canManage, palet
                 <section className="flex flex-col gap-4">
                     <div className="flex items-end justify-between">
                         <div>
-                            <h2 className="font-heading text-primary text-xl">Members</h2>
-                            <p className="text-muted-foreground text-sm">Manage who belongs to your family space.</p>
+                            <h2 className="font-heading text-primary text-xl">{t('nav.members')}</h2>
+                            <p className="text-muted-foreground text-sm">{t('family.members_desc')}</p>
                         </div>
                         {canManage && (
                             <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
                                 <DialogTrigger asChild>
                                     <Button>
-                                        <Plus className="size-4" /> Invite member
+                                        <Plus className="size-4" /> {t('family.invite_member')}
                                     </Button>
                                 </DialogTrigger>
                                 <DialogContent>
                                     <DialogHeader>
-                                        <DialogTitle className="font-heading text-xl">Invite to {family.name}</DialogTitle>
-                                        <DialogDescription>We'll email them a link to join. They can accept from any device.</DialogDescription>
+                                        <DialogTitle className="font-heading text-xl">{t('family.invite_to', { name: family.name })}</DialogTitle>
+                                        <DialogDescription>{t('family.invite_desc')}</DialogDescription>
                                     </DialogHeader>
                                     <form onSubmit={sendInvite} className="flex flex-col gap-4">
                                         <div className="grid gap-2">
-                                            <Label htmlFor="email">Email</Label>
+                                            <Label htmlFor="email">{t('family.email')}</Label>
                                             <Input
                                                 id="email"
                                                 type="email"
                                                 autoFocus
                                                 value={invite.data.email}
                                                 onChange={(e) => invite.setData('email', e.target.value)}
-                                                placeholder="name@email.com"
+                                                placeholder={t('family.email_placeholder')}
                                             />
                                             <InputError message={invite.errors.email} />
                                         </div>
                                         <div className="grid gap-2">
-                                            <Label>Role</Label>
+                                            <Label>{t('family.role')}</Label>
                                             <Select value={invite.data.role} onValueChange={(v) => invite.setData('role', v)}>
                                                 <SelectTrigger>
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="member">Member</SelectItem>
-                                                    <SelectItem value="admin">Admin</SelectItem>
+                                                    <SelectItem value="member">{t('family.role_member')}</SelectItem>
+                                                    <SelectItem value="admin">{t('family.role_admin')}</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </div>
                                         <Button type="submit" disabled={invite.processing} className="w-full">
-                                            <Mail className="size-4" /> Send invite
+                                            <Mail className="size-4" /> {t('family.send_invite')}
                                         </Button>
                                     </form>
                                 </DialogContent>
@@ -259,9 +258,11 @@ export default function Members({ family, members, invitations, canManage, palet
                         <Table>
                             <TableHeader>
                                 <TableRow className="bg-surface hover:bg-surface">
-                                    <TableHead className="text-text-muted text-xs tracking-wider uppercase">Name</TableHead>
-                                    <TableHead className="text-text-muted hidden text-xs tracking-wider uppercase sm:table-cell">Email</TableHead>
-                                    <TableHead className="text-text-muted text-xs tracking-wider uppercase">Role</TableHead>
+                                    <TableHead className="text-text-muted text-xs tracking-wider uppercase">{t('family.name_header')}</TableHead>
+                                    <TableHead className="text-text-muted hidden text-xs tracking-wider uppercase sm:table-cell">
+                                        {t('family.email')}
+                                    </TableHead>
+                                    <TableHead className="text-text-muted text-xs tracking-wider uppercase">{t('family.role')}</TableHead>
                                     {canManage && <TableHead className="w-10"></TableHead>}
                                 </TableRow>
                             </TableHeader>
@@ -276,7 +277,9 @@ export default function Members({ family, members, invitations, canManage, palet
                                                     <div>
                                                         <div className="text-primary font-medium">
                                                             {m.name}
-                                                            {m.id === authId && <span className="text-muted-foreground font-normal"> · You</span>}
+                                                            {m.id === authId && (
+                                                                <span className="text-muted-foreground font-normal"> · {t('family.you_suffix')}</span>
+                                                            )}
                                                         </div>
                                                         <div className="text-muted-foreground text-xs sm:hidden">{m.email}</div>
                                                     </div>
@@ -293,7 +296,7 @@ export default function Members({ family, members, invitations, canManage, palet
                                                             variant="ghost"
                                                             size="icon"
                                                             className="text-muted-foreground hover:text-destructive size-8"
-                                                            aria-label={`Remove ${m.name}`}
+                                                            aria-label={t('family.remove_member', { name: m.name })}
                                                             onClick={() => removeMember(m.id)}
                                                         >
                                                             <Trash2 className="size-4" />
@@ -311,7 +314,9 @@ export default function Members({ family, members, invitations, canManage, palet
                     {/* Pending invitations */}
                     {canManage && invitations.length > 0 && (
                         <div className="flex flex-col gap-2">
-                            <h3 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Pending invitations</h3>
+                            <h3 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
+                                {t('family.pending_invitations')}
+                            </h3>
                             {invitations.map((i) => (
                                 <div key={i.id} className="flex items-center justify-between rounded-xl border border-dashed p-3">
                                     <div className="flex items-center gap-3">
@@ -320,14 +325,14 @@ export default function Members({ family, members, invitations, canManage, palet
                                         </span>
                                         <div className="text-sm">
                                             <div className="text-primary">{i.email}</div>
-                                            <div className="text-muted-foreground text-xs">Invited as {i.role}</div>
+                                            <div className="text-muted-foreground text-xs">{t('family.invited_as', { role: i.role })}</div>
                                         </div>
                                     </div>
                                     <Button
                                         variant="ghost"
                                         size="icon"
                                         className="text-muted-foreground hover:text-destructive size-8"
-                                        aria-label={`Revoke invite to ${i.email}`}
+                                        aria-label={t('family.revoke_invite', { email: i.email })}
                                         onClick={() => revokeInvite(i.id)}
                                     >
                                         <X className="size-4" />

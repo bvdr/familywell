@@ -8,7 +8,10 @@
         "edit": "Editează",
         "search": "Caută",
         "done": "Gata",
-        "loading": "Se încarcă…"
+        "loading": "Se încarcă…",
+        "copy": "Copiază",
+        "copied": "Copiat",
+        "no_matches": "Niciun rezultat"
     },
     "nav": {
         "dashboard": "Acasă",
@@ -36,7 +39,10 @@
         "jump_back_in": "Reia rapid",
         "members_sub": "Cine face parte din familie",
         "modules_sub": "Activează sau dezactivează funcții",
-        "spending_sub": "Bugete de cheltuieli comune"
+        "spending_sub": "Bugete de cheltuieli comune",
+        "overdue": "Restant",
+        "mark_done": "Marchează gata",
+        "is_done": "Gata"
     },
     "settings": {
         "title": "Setări",

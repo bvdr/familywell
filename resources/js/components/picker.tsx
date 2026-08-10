@@ -1,4 +1,5 @@
 import { Check, ChevronDown, Plus, Search, X } from 'lucide-react';
+import { useT } from '@/lib/i18n';
 import { type LucideIcon, Store } from 'lucide-react';
 import { useState } from 'react';
 
@@ -26,6 +27,7 @@ export function Picker({
     placeholder?: string;
     fallbackIcon?: LucideIcon;
 }) {
+    const t = useT();
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
 
@@ -111,7 +113,7 @@ export function Picker({
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && canCreate && create()}
-                                placeholder="Search…"
+                                placeholder={t('common.search') + '…'}
                                 className="text-primary w-full min-w-0 bg-transparent text-base outline-none md:text-sm"
                             />
                         </div>
@@ -141,7 +143,7 @@ export function Picker({
                                 </span>
                             </button>
                         )}
-                        {shown.length === 0 && !canCreate && <div className="text-muted-foreground px-3 py-3 text-sm">No matches</div>}
+                        {shown.length === 0 && !canCreate && <div className="text-muted-foreground px-3 py-3 text-sm">{t('common.no_matches')}</div>}
                     </div>
                 </div>
             )}

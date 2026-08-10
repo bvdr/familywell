@@ -1,0 +1,12 @@
+{
+    "title": "Notifications",
+    "aria": "Notifications",
+    "aria_unread": "Notifications, :n unread",
+    "mark_all_read": "Mark all read",
+    "caught_up": "You're all caught up.",
+    "see_all": "See all",
+    "empty": "Nothing yet. Family activity you can see will show up here.",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "now": "now"
+}
