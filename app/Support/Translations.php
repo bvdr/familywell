@@ -13,9 +13,31 @@ class Translations
     /** @return array<string, mixed> full nested map for $locale, English-filled. */
     public static function for(string $locale): array
     {
-        $en = self::load('en');
+        $en = self::all('en');
 
-        return $locale === 'en' ? $en : array_replace_recursive($en, self::load($locale));
+        return $locale === 'en' ? $en : array_replace_recursive($en, self::all($locale));
+    }
+
+    /**
+     * The whole map for a locale: the base lang/{locale}.json (nav/common/dashboard/...) plus each
+     * per-module group file lang/{locale}/{group}.json merged under its filename namespace (so a
+     * `lang/en/shopping.json` of {"add_item": "..."} resolves as `shopping.add_item`). Splitting by
+     * module keeps files small and lets features own their strings without touching a shared file.
+     *
+     * @return array<string, mixed>
+     */
+    private static function all(string $locale): array
+    {
+        $map = self::load($locale);
+        $dir = lang_path($locale);
+        if (is_dir($dir)) {
+            foreach (glob($dir.'/*.json') as $file) {
+                $ns = pathinfo($file, PATHINFO_FILENAME);
+                $map[$ns] = array_replace_recursive($map[$ns] ?? [], json_decode((string) file_get_contents($file), true) ?: []);
+            }
+        }
+
+        return $map;
     }
 
     /** @return array<int, array{code: string, label: string}> for the language picker. */

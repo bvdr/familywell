@@ -1,0 +1,19 @@
+{
+    "title": "Share",
+    "access_title": "Who can access",
+    "people_title": "People",
+    "owner": "Owner",
+    "no_access": "No access",
+    "can_edit": "Can edit",
+    "can_view": "Can view",
+    "invite_link": "Invite link",
+    "link_view_desc": "Anyone with the link can view this.",
+    "create_link": "Create a view-only link",
+    "no_link": "No invite link.",
+    "vis_family_title": "Anyone in the family",
+    "vis_family_sub": "All family members can access",
+    "vis_invited_title": "Only invited people",
+    "vis_invited_sub": "Just the people you add below",
+    "vis_private_title": "Private",
+    "vis_private_sub": "Visible only to you"
+}

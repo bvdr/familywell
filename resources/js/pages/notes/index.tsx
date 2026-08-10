@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Input } from '@/components/ui/input';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import AppLayout from '@/layouts/app-layout';
+import { useT, type TFn } from '@/lib/i18n';
 import { noteColor, snippet } from '@/lib/notes';
 import { type BreadcrumbItem } from '@/types';
 
@@ -24,22 +25,21 @@ type Note = {
     updatedAt: string;
 };
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Notes', href: '/m/notes' }];
 const ALL = '__all__';
 
-function relDate(iso: string): string {
+function relDate(iso: string, t: TFn): string {
     const then = new Date(iso);
     const now = new Date();
     const days = Math.floor((now.getTime() - then.getTime()) / 86400000);
-    if (days <= 0) return 'Today';
-    if (days === 1) return 'Yesterday';
-    if (days < 7) return `${days}d ago`;
+    if (days <= 0) return t('notes.today');
+    if (days === 1) return t('notes.yesterday');
+    if (days < 7) return t('notes.days_ago', { days });
     return then.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-function NoteCard({ note, folders, grid }: { note: Note; folders: Folder[]; grid: boolean }) {
+function NoteCard({ note, folders, grid, t }: { note: Note; folders: Folder[]; grid: boolean; t: TFn }) {
     const folder = folders.find((f) => f.id === note.folderId);
-    const title = note.title.trim() || 'Untitled note';
+    const title = note.title.trim() || t('notes.untitled');
     return (
         <button
             type="button"
@@ -51,9 +51,9 @@ function NoteCard({ note, folders, grid }: { note: Note; folders: Folder[]; grid
                 {note.pinned && <Pin className="text-muted-foreground size-3.5 shrink-0 fill-current" />}
                 {note.visibility === 'private' && <Lock className="text-muted-foreground size-3.5 shrink-0" />}
             </div>
-            <p className={`text-muted-foreground mt-1 text-sm ${grid ? 'line-clamp-4' : 'line-clamp-2'}`}>{snippet(note.body) || 'No text'}</p>
+            <p className={`text-muted-foreground mt-1 text-sm ${grid ? 'line-clamp-4' : 'line-clamp-2'}`}>{snippet(note.body) || t('notes.no_text')}</p>
             <div className="text-muted-foreground mt-3 flex items-center gap-1.5 text-xs">
-                <span>{relDate(note.updatedAt)}</span>
+                <span>{relDate(note.updatedAt, t)}</span>
                 {folder && (
                     <>
                         <span>·</span>
@@ -66,6 +66,8 @@ function NoteCard({ note, folders, grid }: { note: Note; folders: Folder[]; grid
 }
 
 export default function NotesIndex({ notes, folders }: { notes: Note[]; folders: Folder[] }) {
+    const t = useT();
+    const breadcrumbs: BreadcrumbItem[] = [{ title: t('nav.notes'), href: '/m/notes' }];
     const [activeFolder, setActiveFolder] = useState<string>(ALL);
     const [grid, setGrid] = useState(true);
     const [query, setQuery] = useState('');
@@ -95,17 +97,17 @@ export default function NotesIndex({ notes, folders }: { notes: Note[]; folders:
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Notes" />
+            <Head title={t('nav.notes')} />
             <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
-                    <h1 className="font-heading text-primary text-2xl">Notes</h1>
+                    <h1 className="font-heading text-primary text-2xl">{t('nav.notes')}</h1>
                     <div className="flex items-center gap-2">
                         {/* Grid / list toggle. */}
                         <div className="border-border flex items-center rounded-lg border p-0.5">
                             <button
                                 type="button"
                                 onClick={() => setGrid(true)}
-                                aria-label="Grid view"
+                                aria-label={t('notes.grid_view')}
                                 className={`flex size-7 items-center justify-center rounded-md ${grid ? 'bg-accent-subtle text-primary' : 'text-muted-foreground'}`}
                             >
                                 <LayoutGrid className="size-4" />
@@ -113,14 +115,14 @@ export default function NotesIndex({ notes, folders }: { notes: Note[]; folders:
                             <button
                                 type="button"
                                 onClick={() => setGrid(false)}
-                                aria-label="List view"
+                                aria-label={t('notes.list_view')}
                                 className={`flex size-7 items-center justify-center rounded-md ${!grid ? 'bg-accent-subtle text-primary' : 'text-muted-foreground'}`}
                             >
                                 <ListIcon className="size-4" />
                             </button>
                         </div>
                         {/* Hidden on mobile: the nav's context-aware "+" creates a note there. */}
-                        <Button size="icon" className="hidden rounded-full md:inline-flex" onClick={createNote} aria-label="New note">
+                        <Button size="icon" className="hidden rounded-full md:inline-flex" onClick={createNote} aria-label={t('notes.new_note')}>
                             <Plus className="size-5" />
                         </Button>
                     </div>
@@ -129,12 +131,12 @@ export default function NotesIndex({ notes, folders }: { notes: Note[]; folders:
                 {/* Search. */}
                 <div className="relative">
                     <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-                    <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search notes" className="pl-9 text-base" />
+                    <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('notes.search_placeholder')} className="pl-9 text-base" />
                 </div>
 
                 {/* Folder filter chips. */}
                 <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    {[{ id: ALL, name: 'All notes', count: notes.length }, ...folders].map((f) => {
+                    {[{ id: ALL, name: t('notes.all_notes'), count: notes.length }, ...folders].map((f) => {
                         const on = String(f.id) === activeFolder;
                         const isReal = f.id !== ALL;
                         return (
@@ -155,31 +157,31 @@ export default function NotesIndex({ notes, folders }: { notes: Note[]; folders:
                     <button
                         type="button"
                         onClick={() => setCreatingFolder(true)}
-                        aria-label="New folder"
+                        aria-label={t('notes.new_folder')}
                         className="border-border text-muted-foreground hover:text-primary flex shrink-0 items-center gap-1 rounded-full border border-dashed px-3 py-1.5 text-sm"
                     >
-                        <Plus className="size-3.5" /> Folder
+                        <Plus className="size-3.5" /> {t('notes.folder')}
                     </button>
                     {activeFolder !== ALL && (
-                        <FolderMenu folder={folders.find((f) => String(f.id) === activeFolder)} onEdit={setEditingFolder} />
+                        <FolderMenu folder={folders.find((f) => String(f.id) === activeFolder)} onEdit={setEditingFolder} t={t} />
                     )}
                 </div>
 
                 {visible.length === 0 && (
                     <div className="text-muted-foreground flex flex-col items-center gap-2 rounded-xl border border-dashed p-10 text-center">
                         <StickyNote className="size-6" />
-                        <p className="text-sm">{query ? 'No notes match your search.' : 'No notes yet. Tap + to jot one down.'}</p>
+                        <p className="text-sm">{query ? t('notes.no_search_results') : t('notes.empty_state')}</p>
                     </div>
                 )}
 
                 {pinned.length > 0 && (
                     <div className="flex flex-col gap-2">
                         <h2 className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
-                            <Pin className="size-3.5" /> Pinned
+                            <Pin className="size-3.5" /> {t('notes.pinned')}
                         </h2>
                         <div className={gridClass}>
                             {pinned.map((n) => (
-                                <NoteCard key={n.id} note={n} folders={folders} grid={grid} />
+                                <NoteCard key={n.id} note={n} folders={folders} grid={grid} t={t} />
                             ))}
                         </div>
                     </div>
@@ -188,48 +190,48 @@ export default function NotesIndex({ notes, folders }: { notes: Note[]; folders:
                 {rest.length > 0 && (
                     <div className="flex flex-col gap-2">
                         {pinned.length > 0 && (
-                            <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Notes</h2>
+                            <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('nav.notes')}</h2>
                         )}
                         <div className={gridClass}>
                             {rest.map((n) => (
-                                <NoteCard key={n.id} note={n} folders={folders} grid={grid} />
+                                <NoteCard key={n.id} note={n} folders={folders} grid={grid} t={t} />
                             ))}
                         </div>
                     </div>
                 )}
             </div>
 
-            <FolderModal open={creatingFolder} onOpenChange={setCreatingFolder} />
-            <FolderModal open={!!editingFolder} onOpenChange={(v) => !v && setEditingFolder(null)} folder={editingFolder} />
+            <FolderModal open={creatingFolder} onOpenChange={setCreatingFolder} t={t} />
+            <FolderModal open={!!editingFolder} onOpenChange={(v) => !v && setEditingFolder(null)} folder={editingFolder} t={t} />
         </AppLayout>
     );
 }
 
 // Small ⋯ menu shown when a real folder is the active filter: rename or delete it.
-function FolderMenu({ folder, onEdit }: { folder?: Folder; onEdit: (f: Folder) => void }) {
+function FolderMenu({ folder, onEdit, t }: { folder?: Folder; onEdit: (f: Folder) => void; t: TFn }) {
     if (!folder) return null;
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <button
                     type="button"
-                    aria-label="Folder options"
+                    aria-label={t('notes.folder_options')}
                     className="border-border text-muted-foreground hover:text-primary flex size-8 shrink-0 items-center justify-center rounded-full border"
                 >
                     <MoreHorizontal className="size-4" />
                 </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuItem onSelect={() => setTimeout(() => onEdit(folder), 0)}>Rename folder</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setTimeout(() => onEdit(folder), 0)}>{t('notes.rename_folder')}</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
                     onSelect={() => {
-                        if (confirm('Delete this folder? Notes inside will move to All notes.'))
+                        if (confirm(t('notes.confirm_delete_folder')))
                             router.delete(route('notes.folders.destroy', folder.id), { preserveScroll: true });
                     }}
                 >
-                    <Trash2 className="size-4" /> Delete folder
+                    <Trash2 className="size-4" /> {t('notes.delete_folder')}
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
@@ -237,7 +239,7 @@ function FolderMenu({ folder, onEdit }: { folder?: Folder; onEdit: (f: Folder) =
 }
 
 // Create or rename a folder (same form; `folder` set => rename).
-function FolderModal({ open, onOpenChange, folder }: { open: boolean; onOpenChange: (v: boolean) => void; folder?: Folder | null }) {
+function FolderModal({ open, onOpenChange, folder, t }: { open: boolean; onOpenChange: (v: boolean) => void; folder?: Folder | null; t: TFn }) {
     const { data, setData, post, patch, processing, errors, reset } = useForm({ name: folder?.name ?? '' });
 
     const submit: FormEventHandler = (e) => {
@@ -254,15 +256,15 @@ function FolderModal({ open, onOpenChange, folder }: { open: boolean; onOpenChan
         <ResponsiveModal
             open={open}
             onOpenChange={onOpenChange}
-            title={folder ? 'Rename folder' : 'New folder'}
+            title={folder ? t('notes.rename_folder') : t('notes.new_folder')}
             footer={
                 <Button type="submit" form="folder-form" disabled={processing || !data.name.trim()} className="w-full">
-                    <Check className="size-4" /> {folder ? 'Save' : 'Create folder'}
+                    <Check className="size-4" /> {folder ? t('common.save') : t('notes.create_folder')}
                 </Button>
             }
         >
             <form id="folder-form" onSubmit={submit}>
-                <Input autoFocus value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="Folder name" className="text-base" />
+                <Input autoFocus value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder={t('notes.folder_name_placeholder')} className="text-base" />
                 <InputError message={errors.name} className="mt-2" />
             </form>
         </ResponsiveModal>

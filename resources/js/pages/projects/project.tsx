@@ -33,6 +33,7 @@ import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import AppLayout from '@/layouts/app-layout';
 import { compressImage, makeThumbnail } from '@/lib/compress-image';
+import { useT } from '@/lib/i18n';
 import { noteColor, snippet } from '@/lib/notes';
 import { DEP_STATUS_KEYS, depStatus, PROJECT_STATUS_KEYS, projectStatus, shortDate } from '@/lib/projects';
 import { type BreadcrumbItem } from '@/types';
@@ -75,6 +76,7 @@ export default function ProjectDetail({
     notes: LinkedNote[];
     share: ShareState;
 }) {
+    const t = useT();
     const [sharing, setSharing] = useState(false);
     const [editing, setEditing] = useState(false);
     const [linking, setLinking] = useState(false);
@@ -121,7 +123,7 @@ export default function ProjectDetail({
     const showNotes = notes.length > 0;
 
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Projects', href: '/m/projects' },
+        { title: t('nav.projects'), href: '/m/projects' },
         { title: project.name, href: route('projects.show', project.id) },
     ];
     const st = projectStatus(project.status);
@@ -143,7 +145,7 @@ export default function ProjectDetail({
             <button
                 type="button"
                 onClick={() => setSharing(true)}
-                aria-label="Share project"
+                aria-label={t('projects.share_project')}
                 className="border-border text-primary hover:bg-surface flex size-9 items-center justify-center rounded-lg border transition-colors"
             >
                 <UserPlus className="size-4.5" />
@@ -152,7 +154,7 @@ export default function ProjectDetail({
                 <DropdownMenuTrigger asChild>
                     <button
                         type="button"
-                        aria-label="Project options"
+                        aria-label={t('projects.project_options')}
                         className="border-border text-primary hover:bg-surface flex size-9 items-center justify-center rounded-lg border transition-colors"
                     >
                         <span className="text-lg leading-none">⋯</span>
@@ -160,22 +162,22 @@ export default function ProjectDetail({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-52">
                     <DropdownMenuItem onSelect={() => setEditing(true)}>
-                        <Pencil className="size-4" /> Edit project
+                        <Pencil className="size-4" /> {t('projects.edit_project')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => router.post(route('projects.duplicate', project.id))}>
-                        <Copy className="size-4" /> Duplicate
+                        <Copy className="size-4" /> {t('projects.duplicate')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => patch({ archived: !project.archived })}>
-                        <Archive className="size-4" /> {project.archived ? 'Unarchive' : 'Archive'}
+                        <Archive className="size-4" /> {t(project.archived ? 'projects.unarchive' : 'projects.archive')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
                         onSelect={() => {
-                            if (confirm('Delete this project and everything in it?')) router.delete(route('projects.destroy', project.id));
+                            if (confirm(t('projects.confirm_delete'))) router.delete(route('projects.destroy', project.id));
                         }}
                     >
-                        <Trash2 className="size-4" /> Delete
+                        <Trash2 className="size-4" /> {t('common.delete')}
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
@@ -197,27 +199,27 @@ export default function ProjectDetail({
                             className="text-primary/45 hover:text-primary/60 absolute inset-0 flex flex-col items-center justify-center gap-1.5 pb-14 transition-colors"
                         >
                             <ImageIcon className="size-7" />
-                            <span className="text-sm font-medium">Add a project photo</span>
+                            <span className="text-sm font-medium">{t('projects.add_photo')}</span>
                         </button>
                     )}
                     <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-[#142218] via-[#142218]/60 to-transparent" />
                     <span
                         className={`absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${st.hero}`}
                     >
-                        <span className="size-1.5 rounded-full bg-current opacity-60" /> {st.label}
+                        <span className="size-1.5 rounded-full bg-current opacity-60" /> {t(`projects.status_${project.status}`)}
                     </span>
                     {project.coverUrl && (
                         <button
                             type="button"
                             onClick={() => coverInput.current?.click()}
-                            aria-label="Change photo"
+                            aria-label={t('projects.change_photo')}
                             className="absolute top-4 right-4 flex size-9 items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-sm transition-colors hover:bg-black/45"
                         >
                             <Camera className="size-4.5" />
                         </button>
                     )}
                     <div className="pointer-events-none absolute inset-x-0 bottom-0 p-4">
-                        <div className="text-[11px] font-semibold tracking-widest text-white/70 uppercase">Family project</div>
+                        <div className="text-[11px] font-semibold tracking-widest text-white/70 uppercase">{t('projects.family_project')}</div>
                         <h1 className="font-heading mt-1 text-3xl leading-tight text-white">{project.name}</h1>
                     </div>
                     <input
@@ -240,9 +242,9 @@ export default function ProjectDetail({
                                 <MemberAvatar key={m.id} userId={m.id} name={m.name} ring className="size-6 text-[10px]" />
                             ))}
                         </div>
-                        <span className="text-muted-foreground text-sm">Shared with family</span>
+                        <span className="text-muted-foreground text-sm">{t('projects.shared_with_family')}</span>
                     </div>
-                    {project.updated && <span className="text-text-muted font-mono text-xs">Updated {project.updated}</span>}
+                    {project.updated && <span className="text-text-muted font-mono text-xs">{t('projects.updated', { date: project.updated })}</span>}
                 </div>
 
                 {project.description && <p className="text-text-secondary text-sm leading-relaxed">{project.description}</p>}
@@ -250,25 +252,25 @@ export default function ProjectDetail({
                 {/* Overall progress */}
                 <div className="bg-surface-card rounded-2xl border p-4">
                     <div className="flex items-baseline justify-between">
-                        <span className="text-muted-foreground text-sm font-medium">Overall progress</span>
+                        <span className="text-muted-foreground text-sm font-medium">{t('projects.overall_progress')}</span>
                         <span className="text-primary font-mono text-sm font-semibold">{project.progress}%</span>
                     </div>
                     <div className="mt-3 flex items-center gap-4">
                         <div className="flex flex-col">
                             <span className="text-primary font-mono text-base font-semibold">{shortDate(project.targetStart)}</span>
-                            <span className="text-text-muted text-[11px]">Target start</span>
+                            <span className="text-text-muted text-[11px]">{t('projects.target_start')}</span>
                         </div>
                         <div className="bg-border h-6 w-px" />
                         <div className="flex flex-col">
                             <span className="text-primary font-mono text-base font-semibold">{project.ownerName ?? '—'}</span>
-                            <span className="text-text-muted text-[11px]">Owner</span>
+                            <span className="text-text-muted text-[11px]">{t('projects.owner')}</span>
                         </div>
                     </div>
                 </div>
 
                 {/* Blocked by */}
                 {showDeps && (
-                    <Section id="section-deps" icon={Ban} tone="red" title="Blocked by" count={dependencies.length}>
+                    <Section id="section-deps" icon={Ban} tone="red" title={t('projects.blocked_by')} count={dependencies.length}>
                         <div className="flex flex-col gap-2">
                             {dependencies.map((d) => {
                                 const ds = depStatus(d.status);
@@ -284,12 +286,12 @@ export default function ProjectDetail({
                                             onClick={() => cycleDep(d)}
                                             className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${ds.chip}`}
                                         >
-                                            {ds.label}
+                                            {t(`projects.dep_status_${d.status}`)}
                                         </button>
                                         <button
                                             type="button"
                                             onClick={() => router.delete(route('projects.deps.destroy', d.id), { preserveScroll: true })}
-                                            aria-label="Remove"
+                                            aria-label={t('projects.remove')}
                                             className="text-muted-foreground hover:text-destructive flex size-6 items-center justify-center"
                                         >
                                             <X className="size-4" />
@@ -301,7 +303,7 @@ export default function ProjectDetail({
                                 value={depName}
                                 onChange={setDepName}
                                 onAdd={addDep}
-                                placeholder="Add a blocker..."
+                                placeholder={t('projects.add_blocker_placeholder')}
                                 autoFocus={reveal.has('deps') && dependencies.length === 0}
                             />
                         </div>
@@ -313,8 +315,8 @@ export default function ProjectDetail({
                     <Section
                         id="section-tasks"
                         icon={ListChecks}
-                        title="Tasks"
-                        sub={taskTotal ? `${taskDone} of ${taskTotal} done` : undefined}
+                        title={t('nav.tasks')}
+                        sub={taskTotal ? t('projects.tasks_done', { done: taskDone, total: taskTotal }) : undefined}
                         pct={taskTotal ? taskPct : undefined}
                     >
                         <TaskTree
@@ -324,14 +326,14 @@ export default function ProjectDetail({
                             addUrl={route('projects.tasks.store', project.id)}
                             taskUrl={(id) => route('projects.tasks.update', id)}
                             reorderUrl={route('projects.tasks.reorder', project.id)}
-                            emptyHint="No tasks yet. Add the first one below."
+                            emptyHint={t('projects.no_tasks_hint')}
                         />
                     </Section>
                 )}
 
                 {/* Materials — linked shopping lists */}
                 {showLists && (
-                    <Section id="section-lists" icon={ShoppingCart} title="Shopping lists" count={lists.length}>
+                    <Section id="section-lists" icon={ShoppingCart} title={t('projects.shopping_lists')} count={lists.length}>
                         <div className="flex flex-col gap-2">
                             {lists.map((l) => (
                                 <div key={l.id} className="bg-surface-card flex items-center gap-3 rounded-xl border p-3">
@@ -342,13 +344,13 @@ export default function ProjectDetail({
                                         <div className="text-primary text-sm font-medium">{l.name}</div>
                                         <div className="text-muted-foreground text-xs">
                                             {l.store ? `${l.store} · ` : ''}
-                                            {l.bought} of {l.total} bought
+                                            {t('projects.items_bought', { done: l.bought, total: l.total })}
                                         </div>
                                     </Link>
                                     <button
                                         type="button"
                                         onClick={() => router.delete(route('projects.lists.unlink', [project.id, l.id]), { preserveScroll: true })}
-                                        aria-label="Unlink list"
+                                        aria-label={t('projects.unlink_list')}
                                         className="text-muted-foreground hover:text-destructive flex size-6 items-center justify-center"
                                     >
                                         <Unlink className="size-4" />
@@ -360,7 +362,7 @@ export default function ProjectDetail({
                                 onClick={() => openLink('pick')}
                                 className="border-accent text-primary hover:bg-surface flex items-center justify-center gap-2 rounded-xl border border-dashed py-3 text-sm font-medium transition-colors"
                             >
-                                <Plus className="size-4" /> Link a shopping list
+                                <Plus className="size-4" /> {t('projects.link_shopping_list')}
                             </button>
                         </div>
                     </Section>
@@ -368,7 +370,7 @@ export default function ProjectDetail({
 
                 {/* Linked notes */}
                 {showNotes && (
-                    <Section id="section-notes" icon={StickyNote} title="Notes" count={notes.length}>
+                    <Section id="section-notes" icon={StickyNote} title={t('nav.notes')} count={notes.length}>
                         <div className="flex flex-col gap-2">
                             {notes.map((n) => (
                                 <div key={n.id} className={`flex items-center gap-3 rounded-xl border p-3 ${noteColor(n.color)}`}>
@@ -382,7 +384,7 @@ export default function ProjectDetail({
                                     <button
                                         type="button"
                                         onClick={() => router.delete(route('projects.notes.unlink', [project.id, n.id]), { preserveScroll: true })}
-                                        aria-label="Unlink note"
+                                        aria-label={t('projects.unlink_note')}
                                         className="text-muted-foreground hover:text-destructive flex size-6 items-center justify-center"
                                     >
                                         <Unlink className="size-4" />
@@ -394,7 +396,7 @@ export default function ProjectDetail({
                                 onClick={() => setLinkingNote(true)}
                                 className="border-accent text-primary hover:bg-surface flex items-center justify-center gap-2 rounded-xl border border-dashed py-3 text-sm font-medium transition-colors"
                             >
-                                <Plus className="size-4" /> Add a note
+                                <Plus className="size-4" /> {t('projects.add_note_button')}
                             </button>
                         </div>
                     </Section>
@@ -406,7 +408,7 @@ export default function ProjectDetail({
                     onClick={() => setAdding(true)}
                     className="border-accent text-primary hover:bg-surface flex items-center justify-center gap-2 rounded-xl border border-dashed py-3.5 text-sm font-semibold transition-colors"
                 >
-                    <Plus className="size-4.5" /> Add something to this project
+                    <Plus className="size-4.5" /> {t('projects.add_something')}
                 </button>
             </div>
 
@@ -485,6 +487,7 @@ function InlineAdd({
     placeholder: string;
     autoFocus?: boolean;
 }) {
+    const t = useT();
     return (
         <div className="flex items-center gap-2">
             <Input
@@ -494,7 +497,7 @@ function InlineAdd({
                 onKeyDown={(e) => e.key === 'Enter' && onAdd()}
                 placeholder={placeholder}
             />
-            <Button type="button" size="icon" onClick={onAdd} disabled={!value.trim()} aria-label="Add">
+            <Button type="button" size="icon" onClick={onAdd} disabled={!value.trim()} aria-label={t('common.add')}>
                 <Plus className="size-4" />
             </Button>
         </div>
@@ -524,6 +527,7 @@ function AddToProjectSheet({
     onNoteNew: () => void;
     onNoteLink: () => void;
 }) {
+    const t = useT();
     const Row = ({ icon: Icon, title, sub, onClick }: { icon: LucideIcon; title: string; sub: string; onClick: () => void }) => (
         <button
             type="button"
@@ -542,21 +546,31 @@ function AddToProjectSheet({
     );
 
     return (
-        <ResponsiveModal open={open} onOpenChange={onOpenChange} title="Add to project" description={projectName}>
+        <ResponsiveModal open={open} onOpenChange={onOpenChange} title={t('projects.add_to_project')} description={projectName}>
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
-                    <div className="text-text-muted text-[11px] font-semibold tracking-widest uppercase">Create new</div>
-                    <Row icon={ListChecks} title="Task list" sub="To-dos with assignees" onClick={onTaskList} />
-                    <Row icon={ShoppingCart} title="Shopping list" sub="Things to buy" onClick={onShoppingNew} />
-                    <Row icon={StickyNote} title="Note" sub="Jot something down" onClick={onNoteNew} />
-                    <Row icon={Ban} title="Dependency" sub="Blocked by another thing" onClick={onDependency} />
+                    <div className="text-text-muted text-[11px] font-semibold tracking-widest uppercase">{t('projects.create_new')}</div>
+                    <Row icon={ListChecks} title={t('projects.task_list_title')} sub={t('projects.task_list_sub')} onClick={onTaskList} />
+                    <Row
+                        icon={ShoppingCart}
+                        title={t('projects.shopping_list_title')}
+                        sub={t('projects.shopping_list_sub')}
+                        onClick={onShoppingNew}
+                    />
+                    <Row icon={StickyNote} title={t('projects.note_title')} sub={t('projects.note_sub')} onClick={onNoteNew} />
+                    <Row icon={Ban} title={t('projects.dependency_title')} sub={t('projects.dependency_sub')} onClick={onDependency} />
                 </div>
                 <div className="flex flex-col gap-2">
-                    <div className="text-text-muted text-[11px] font-semibold tracking-widest uppercase">Link something existing</div>
-                    <Row icon={ShoppingCart} title="Shopping list" sub="A list you already have" onClick={onShoppingLink} />
-                    <Row icon={StickyNote} title="Note" sub="A note you already have" onClick={onNoteLink} />
+                    <div className="text-text-muted text-[11px] font-semibold tracking-widest uppercase">{t('projects.link_existing')}</div>
+                    <Row
+                        icon={ShoppingCart}
+                        title={t('projects.shopping_list_title')}
+                        sub={t('projects.link_shopping_sub')}
+                        onClick={onShoppingLink}
+                    />
+                    <Row icon={StickyNote} title={t('projects.note_title')} sub={t('projects.link_note_sub')} onClick={onNoteLink} />
                 </div>
-                <p className="text-muted-foreground text-xs leading-relaxed">Files, contacts and calendar events are coming soon.</p>
+                <p className="text-muted-foreground text-xs leading-relaxed">{t('projects.coming_soon')}</p>
             </div>
         </ResponsiveModal>
     );
@@ -573,6 +587,7 @@ function EditModal({
     project: Project;
     members: Member[];
 }) {
+    const t = useT();
     const { data, setData, patch } = useForm({
         name: project.name,
         description: project.description ?? '',
@@ -592,8 +607,8 @@ function EditModal({
             return;
         }
         if (!data.name.trim()) return;
-        const t = setTimeout(patchProject, 500);
-        return () => clearTimeout(t);
+        const timer = setTimeout(patchProject, 500);
+        return () => clearTimeout(timer);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [data, open]);
     return (
@@ -603,15 +618,15 @@ function EditModal({
                 if (!v && data.name.trim()) patchProject(); // flush the last edit
                 onOpenChange(v);
             }}
-            title="Edit project"
+            title={t('projects.edit_project')}
         >
             <form id="edit-project" onSubmit={(e) => e.preventDefault()} className="flex flex-col gap-5">
                 <div className="grid gap-2">
-                    <Label>Name</Label>
+                    <Label>{t('projects.name')}</Label>
                     <Input value={data.name} onChange={(e) => setData('name', e.target.value)} />
                 </div>
                 <div className="grid gap-2">
-                    <Label>Description</Label>
+                    <Label>{t('projects.description')}</Label>
                     <textarea
                         value={data.description}
                         onChange={(e) => setData('description', e.target.value)}
@@ -619,7 +634,7 @@ function EditModal({
                     />
                 </div>
                 <div className="grid gap-2">
-                    <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Status</Label>
+                    <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('projects.status')}</Label>
                     <div className="bg-surface grid grid-cols-4 gap-1 rounded-lg border p-1">
                         {PROJECT_STATUS_KEYS.map((s) => (
                             <button
@@ -628,20 +643,24 @@ function EditModal({
                                 onClick={() => setData('status', s)}
                                 className={`rounded-md py-1.5 text-xs font-medium transition-colors ${data.status === s ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
                             >
-                                {projectStatus(s).label}
+                                {t(`projects.status_${s}`)}
                             </button>
                         ))}
                     </div>
                 </div>
                 {data.status === 'blocked' && (
                     <div className="grid gap-2">
-                        <Label>Waiting on</Label>
-                        <Input value={data.waiting_on} onChange={(e) => setData('waiting_on', e.target.value)} placeholder="Contractor quote #218" />
+                        <Label>{t('projects.waiting_on')}</Label>
+                        <Input
+                            value={data.waiting_on}
+                            onChange={(e) => setData('waiting_on', e.target.value)}
+                            placeholder={t('projects.waiting_on_placeholder')}
+                        />
                     </div>
                 )}
                 <div className="grid gap-2">
                     <div className="flex items-baseline justify-between">
-                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Progress</Label>
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('projects.progress')}</Label>
                         <span className="text-primary font-mono text-sm font-semibold">{data.progress}%</span>
                     </div>
                     <input
@@ -655,7 +674,7 @@ function EditModal({
                     />
                 </div>
                 <div className="grid gap-2">
-                    <Label>Target start</Label>
+                    <Label>{t('projects.target_start')}</Label>
                     {/* Wrap the native date input so it can't grow past its box (iOS date inputs won't shrink). */}
                     <div className="border-border flex h-9 w-full items-center gap-2 rounded-lg border px-3">
                         <Calendar className="text-muted-foreground size-4 shrink-0" />
@@ -668,13 +687,13 @@ function EditModal({
                     </div>
                 </div>
                 <div className="grid gap-2">
-                    <Label>Owner</Label>
+                    <Label>{t('projects.owner')}</Label>
                     <select
                         value={data.owner_id ?? ''}
                         onChange={(e) => setData('owner_id', e.target.value ? Number(e.target.value) : null)}
                         className="border-border text-primary h-9 w-full rounded-lg border bg-transparent px-3 text-sm outline-none"
                     >
-                        <option value="">Unassigned</option>
+                        <option value="">{t('projects.unassigned')}</option>
                         {members.map((m) => (
                             <option key={m.id} value={m.id}>
                                 {m.name}
@@ -703,6 +722,7 @@ function LinkListModal({
     projectName: string;
     initialView?: 'pick' | 'new';
 }) {
+    const t = useT();
     const [view, setView] = useState<'pick' | 'new'>(initialView);
     const [lists, setLists] = useState<Linkable[]>([]);
     const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -751,17 +771,19 @@ function LinkListModal({
         <ResponsiveModal
             open={open}
             onOpenChange={onOpenChange}
-            title={view === 'pick' ? 'Shopping list' : 'New shopping list'}
-            description={view === 'pick' ? `Add to ${projectName}` : undefined}
+            title={view === 'pick' ? t('projects.shopping_list_title') : t('projects.new_shopping_list')}
+            description={view === 'pick' ? t('projects.add_to', { name: projectName }) : undefined}
             onBack={view === 'new' ? () => setView('pick') : undefined}
             footer={
                 view === 'pick' ? (
                     <Button className="w-full" disabled={!selected.size} onClick={addSelected}>
-                        {selected.size ? `Add ${selected.size} list${selected.size > 1 ? 's' : ''}` : 'Select a list to add'}
+                        {selected.size
+                            ? t(selected.size === 1 ? 'projects.add_list_one' : 'projects.add_list_other', { count: selected.size })
+                            : t('projects.select_list_to_add')}
                     </Button>
                 ) : (
                     <Button className="w-full" disabled={!newName.trim()} onClick={createList}>
-                        Create &amp; add to project
+                        {t('projects.create_and_add')}
                     </Button>
                 )
             }
@@ -777,25 +799,27 @@ function LinkListModal({
                             <Plus className="size-5" />
                         </span>
                         <div className="min-w-0 flex-1">
-                            <div className="text-primary text-sm font-semibold">Create a new list</div>
-                            <div className="text-muted-foreground text-xs">Starts empty, lives inside this project</div>
+                            <div className="text-primary text-sm font-semibold">{t('projects.create_new_list')}</div>
+                            <div className="text-muted-foreground text-xs">{t('projects.create_new_list_sub')}</div>
                         </div>
                         <ChevronRight className="text-primary size-4" />
                     </button>
 
-                    <div className="text-text-muted text-[11px] font-semibold tracking-widest uppercase">Or link a list you already have</div>
+                    <div className="text-text-muted text-[11px] font-semibold tracking-widest uppercase">
+                        {t('projects.or_link_existing_list')}
+                    </div>
                     <div className="bg-surface flex items-center gap-2 rounded-lg px-3 py-2">
                         <Search className="text-muted-foreground size-4" />
                         <input
                             value={q}
                             onChange={(e) => setQ(e.target.value)}
-                            placeholder="Search your lists..."
+                            placeholder={t('projects.search_lists_placeholder')}
                             // text-base (16px) on mobile so iOS Safari doesn't auto-zoom on focus; text-sm from md up.
                             className="text-primary w-full bg-transparent text-base outline-none md:text-sm"
                         />
                     </div>
                     <div className="flex flex-col gap-2">
-                        {filtered.length === 0 && <p className="text-muted-foreground py-4 text-center text-sm">No lists to link.</p>}
+                        {filtered.length === 0 && <p className="text-muted-foreground py-4 text-center text-sm">{t('projects.no_lists_to_link')}</p>}
                         {filtered.map((l) => {
                             const on = selected.has(l.id);
                             return (
@@ -811,7 +835,7 @@ function LinkListModal({
                                     <div className="min-w-0 flex-1">
                                         <div className="text-primary text-sm font-medium">{l.name}</div>
                                         <div className="text-muted-foreground text-xs">
-                                            {l.count} item{l.count === 1 ? '' : 's'} · {l.sharedWith}
+                                            {t(l.count === 1 ? 'projects.item_one' : 'projects.item_other', { count: l.count })} · {l.sharedWith}
                                         </div>
                                     </div>
                                     <span
@@ -823,43 +847,48 @@ function LinkListModal({
                             );
                         })}
                     </div>
-                    <p className="text-muted-foreground text-xs leading-relaxed">
-                        Linked lists stay in your Lists tab too, the project just points at them.
-                    </p>
+                    <p className="text-muted-foreground text-xs leading-relaxed">{t('projects.linked_lists_note')}</p>
                 </div>
             ) : (
                 <div className="flex flex-col gap-4">
                     {/* Back lives in the sheet header (above this title); here we render the visible title + subtitle. */}
                     <div>
-                        <h2 className="font-heading text-primary text-2xl">New shopping list</h2>
-                        <p className="text-muted-foreground text-sm">It will be added to {projectName}</p>
+                        <h2 className="font-heading text-primary text-2xl">{t('projects.new_shopping_list')}</h2>
+                        <p className="text-muted-foreground text-sm">{t('projects.new_shopping_list_sub', { name: projectName })}</p>
                     </div>
                     <div className="grid gap-2">
-                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">List name</Label>
-                        <Input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Patio materials" />
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('projects.list_name')}</Label>
+                        <Input
+                            autoFocus
+                            value={newName}
+                            onChange={(e) => setNewName(e.target.value)}
+                            placeholder={t('projects.list_name_placeholder')}
+                        />
                     </div>
                     <div className="grid gap-2">
-                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Start it off with</Label>
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
+                            {t('projects.start_it_off_with')}
+                        </Label>
                         <div className="flex flex-col gap-2">
                             {items.map((it, i) => (
                                 <div key={i} className="flex items-center gap-2">
                                     <Input
                                         value={it.name}
                                         onChange={(e) => setItems((a) => a.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
-                                        placeholder="Item"
+                                        placeholder={t('projects.item_placeholder')}
                                         className="flex-1"
                                     />
                                     <Input
                                         value={it.quantity}
                                         onChange={(e) => setItems((a) => a.map((x, j) => (j === i ? { ...x, quantity: e.target.value } : x)))}
-                                        placeholder="Qty"
+                                        placeholder={t('projects.qty_placeholder')}
                                         className="w-20 shrink-0"
                                     />
                                     {items.length > 1 && (
                                         <button
                                             type="button"
                                             onClick={() => setItems((a) => a.filter((_, j) => j !== i))}
-                                            aria-label="Remove item"
+                                            aria-label={t('projects.remove_item')}
                                             className="text-muted-foreground hover:text-destructive flex size-8 shrink-0 items-center justify-center"
                                         >
                                             <X className="size-4" />
@@ -872,7 +901,7 @@ function LinkListModal({
                                 onClick={() => setItems((a) => [...a, { name: '', quantity: '' }])}
                                 className="border-border text-muted-foreground hover:text-primary flex items-center justify-center gap-2 rounded-lg border border-dashed py-2.5 text-sm transition-colors"
                             >
-                                <Plus className="size-4" /> Add another item
+                                <Plus className="size-4" /> {t('projects.add_another_item')}
                             </button>
                         </div>
                     </div>
@@ -896,6 +925,7 @@ function LinkNoteModal({
     projectId: number;
     projectName: string;
 }) {
+    const t = useT();
     const [notes, setNotes] = useState<LinkableNote[]>([]);
     const [selected, setSelected] = useState<Set<number>>(new Set());
     const [q, setQ] = useState('');
@@ -926,11 +956,13 @@ function LinkNoteModal({
         <ResponsiveModal
             open={open}
             onOpenChange={onOpenChange}
-            title="Note"
-            description={`Add to ${projectName}`}
+            title={t('projects.note_title')}
+            description={t('projects.add_to', { name: projectName })}
             footer={
                 <Button className="w-full" disabled={!selected.size} onClick={addSelected}>
-                    {selected.size ? `Add ${selected.size} note${selected.size > 1 ? 's' : ''}` : 'Select a note to add'}
+                    {selected.size
+                        ? t(selected.size === 1 ? 'projects.add_note_one' : 'projects.add_note_other', { count: selected.size })
+                        : t('projects.select_note_to_add')}
                 </Button>
             }
         >
@@ -947,25 +979,25 @@ function LinkNoteModal({
                         <Plus className="size-5" />
                     </span>
                     <div className="min-w-0 flex-1">
-                        <div className="text-primary text-sm font-semibold">Create a new note</div>
-                        <div className="text-muted-foreground text-xs">Opens a blank note linked to this project</div>
+                        <div className="text-primary text-sm font-semibold">{t('projects.create_new_note')}</div>
+                        <div className="text-muted-foreground text-xs">{t('projects.create_new_note_sub')}</div>
                     </div>
                     <ChevronRight className="text-primary size-4" />
                 </button>
 
-                <div className="text-text-muted text-[11px] font-semibold tracking-widest uppercase">Or link a note you already have</div>
+                <div className="text-text-muted text-[11px] font-semibold tracking-widest uppercase">{t('projects.or_link_existing_note')}</div>
                 <div className="bg-surface flex items-center gap-2 rounded-lg px-3 py-2">
                     <Search className="text-muted-foreground size-4" />
                     <input
                         value={q}
                         onChange={(e) => setQ(e.target.value)}
-                        placeholder="Search your notes..."
+                        placeholder={t('projects.search_notes_placeholder')}
                         // text-base (16px) on mobile so iOS Safari doesn't auto-zoom on focus; text-sm from md up.
                         className="text-primary w-full bg-transparent text-base outline-none md:text-sm"
                     />
                 </div>
                 <div className="flex flex-col gap-2">
-                    {filtered.length === 0 && <p className="text-muted-foreground py-4 text-center text-sm">No notes to link.</p>}
+                    {filtered.length === 0 && <p className="text-muted-foreground py-4 text-center text-sm">{t('projects.no_notes_to_link')}</p>}
                     {filtered.map((n) => {
                         const on = selected.has(n.id);
                         return (

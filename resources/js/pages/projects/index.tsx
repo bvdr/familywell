@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
+import { useT, type TFn } from '@/lib/i18n';
 import { PROJECT_STATUS_KEYS, projectStatus } from '@/lib/projects';
 import { type BreadcrumbItem } from '@/types';
 
@@ -32,8 +33,6 @@ type Project = {
     members: Member[];
 };
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Projects', href: '/m/projects' }];
-
 function Avatars({ members }: { members: Member[] }) {
     if (members.length === 0) return null;
     return (
@@ -45,7 +44,7 @@ function Avatars({ members }: { members: Member[] }) {
     );
 }
 
-function Card({ p }: { p: Project }) {
+function Card({ p, t }: { p: Project; t: TFn }) {
     const st = projectStatus(p.status);
     return (
         <Link
@@ -60,7 +59,7 @@ function Card({ p }: { p: Project }) {
             )}
             <div className="flex items-start justify-between gap-2.5">
                 <div className="font-heading text-primary text-lg leading-tight font-semibold">{p.name}</div>
-                <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${st.chip}`}>{st.label}</span>
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${st.chip}`}>{t(`projects.status_${p.status}`)}</span>
             </div>
             {p.description && <div className="text-muted-foreground mt-1.5 line-clamp-2 text-sm">{p.description}</div>}
             {p.status === 'blocked' && p.waitingOn && (
@@ -69,7 +68,7 @@ function Card({ p }: { p: Project }) {
                 </div>
             )}
             <div className="mt-3 text-xs">
-                <span className="text-muted-foreground">{p.total ? `${p.done} of ${p.total} done` : 'No tasks yet'}</span>
+                <span className="text-muted-foreground">{p.total ? t('projects.tasks_done', { done: p.done, total: p.total }) : t('projects.no_tasks_yet')}</span>
             </div>
             <div className="mt-3 flex items-center justify-between border-t pt-3">
                 <Avatars members={p.members} />
@@ -80,6 +79,8 @@ function Card({ p }: { p: Project }) {
 }
 
 export default function ProjectsIndex({ projects }: { projects: Project[] }) {
+    const t = useT();
+    const breadcrumbs: BreadcrumbItem[] = [{ title: t('nav.projects'), href: '/m/projects' }];
     const [creating, setCreating] = useState(openNewOnArrival);
     useAddAction(() => setCreating(true));
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -106,15 +107,20 @@ export default function ProjectsIndex({ projects }: { projects: Project[] }) {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Projects" />
+            <Head title={t('nav.projects')} />
             <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
                 <div className="flex items-start justify-between">
                     <div>
-                        <h1 className="font-heading text-primary text-2xl">Projects</h1>
-                        <p className="text-muted-foreground text-sm">The bigger things your family is working on together.</p>
+                        <h1 className="font-heading text-primary text-2xl">{t('nav.projects')}</h1>
+                        <p className="text-muted-foreground text-sm">{t('projects.subtitle')}</p>
                     </div>
                     {/* Hidden on mobile: the nav's context-aware "+" creates a project there. Desktop has no nav "+". */}
-                    <Button size="icon" className="hidden rounded-full md:inline-flex" onClick={() => setCreating(true)} aria-label="New project">
+                    <Button
+                        size="icon"
+                        className="hidden rounded-full md:inline-flex"
+                        onClick={() => setCreating(true)}
+                        aria-label={t('projects.new_project')}
+                    >
                         <Plus className="size-5" />
                     </Button>
                 </div>
@@ -122,23 +128,22 @@ export default function ProjectsIndex({ projects }: { projects: Project[] }) {
                 {active.length === 0 && (
                     <div className="text-muted-foreground flex flex-col items-center gap-2 rounded-xl border border-dashed p-10 text-center">
                         <FolderKanban className="size-6" />
-                        <p className="text-sm">No projects yet. Start one to plan something together.</p>
+                        <p className="text-sm">{t('projects.empty_state')}</p>
                     </div>
                 )}
 
                 <div className="flex flex-col gap-3">
                     {active.map((p) => (
-                        <Card key={p.id} p={p} />
+                        <Card key={p.id} p={p} t={t} />
                     ))}
                 </div>
 
                 {archived.length > 0 && (
                     <div className="mt-2 flex flex-col gap-2">
                         <h2 className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
-                            <Archive className="size-3.5" /> Archived
+                            <Archive className="size-3.5" /> {t('projects.archived')}
                         </h2>
                         {archived.map((p) => {
-                            const st = projectStatus(p.status);
                             return (
                                 <div key={p.id} className="bg-surface flex items-center gap-3 rounded-xl border p-3 opacity-70">
                                     <span className="text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-lg border">
@@ -146,7 +151,7 @@ export default function ProjectsIndex({ projects }: { projects: Project[] }) {
                                     </span>
                                     <Link href={route('projects.show', p.id)} className="min-w-0 flex-1">
                                         <div className="text-primary truncate text-sm font-medium">{p.name}</div>
-                                        <div className="text-muted-foreground text-xs">{st.label}</div>
+                                        <div className="text-muted-foreground text-xs">{t(`projects.status_${p.status}`)}</div>
                                     </Link>
                                     <button
                                         type="button"
@@ -163,7 +168,7 @@ export default function ProjectsIndex({ projects }: { projects: Project[] }) {
                                                 },
                                             );
                                         }}
-                                        aria-label="Restore project"
+                                        aria-label={t('projects.restore_project')}
                                         className="text-muted-foreground hover:text-primary flex size-8 items-center justify-center rounded-lg transition-colors"
                                     >
                                         <RotateCcw className="size-4" />
@@ -178,37 +183,37 @@ export default function ProjectsIndex({ projects }: { projects: Project[] }) {
             <ResponsiveModal
                 open={creating}
                 onOpenChange={setCreating}
-                title="New project"
+                title={t('projects.new_project')}
                 footer={
                     <Button type="submit" form="new-project" disabled={processing || !data.name.trim()} className="w-full">
-                        <Plus className="size-4" /> Create project
+                        <Plus className="size-4" /> {t('projects.create_project')}
                     </Button>
                 }
             >
                 <form id="new-project" onSubmit={submit} className="flex flex-col gap-5">
                     <div className="grid gap-2">
-                        <Label htmlFor="name">Project name</Label>
+                        <Label htmlFor="name">{t('projects.project_name')}</Label>
                         <Input
                             id="name"
                             autoFocus
                             value={data.name}
                             onChange={(e) => setData('name', e.target.value)}
-                            placeholder="Backyard Paving"
+                            placeholder={t('projects.name_placeholder')}
                         />
                         <InputError message={errors.name} />
                     </div>
                     <div className="grid gap-2">
-                        <Label htmlFor="desc">Description</Label>
+                        <Label htmlFor="desc">{t('projects.description')}</Label>
                         <textarea
                             id="desc"
                             value={data.description}
                             onChange={(e) => setData('description', e.target.value)}
-                            placeholder="What are you trying to get done, and by when?"
+                            placeholder={t('projects.description_placeholder')}
                             className="border-border focus:border-accent min-h-24 w-full resize-none rounded-lg border bg-transparent p-3 text-base outline-none md:text-sm"
                         />
                     </div>
                     <div className="grid gap-2">
-                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Status</Label>
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('projects.status')}</Label>
                         <div className="bg-surface grid grid-cols-4 gap-1 rounded-lg border p-1">
                             {PROJECT_STATUS_KEYS.map((s) => (
                                 <button
@@ -219,14 +224,14 @@ export default function ProjectsIndex({ projects }: { projects: Project[] }) {
                                         data.status === s ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
                                     }`}
                                 >
-                                    {projectStatus(s).label}
+                                    {t(`projects.status_${s}`)}
                                 </button>
                             ))}
                         </div>
                     </div>
                     <div className="grid gap-2">
                         <div className="flex items-baseline justify-between">
-                            <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Progress</Label>
+                            <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('projects.progress')}</Label>
                             <span className="text-primary font-mono text-sm font-semibold">{data.progress}%</span>
                         </div>
                         <input

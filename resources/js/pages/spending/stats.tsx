@@ -1,4 +1,5 @@
 import AppLayout from '@/layouts/app-layout';
+import { useT, type TFn } from '@/lib/i18n';
 import { money } from '@/lib/money';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
@@ -24,14 +25,17 @@ type Props = {
 };
 
 // An earthy categorical palette, harmonized with the forest/cream brand rather than a stock rainbow.
-const CATEGORY_META: Record<string, { label: string; color: string }> = {
-    food: { label: 'Food', color: '#B5623C' }, // terracotta
-    transport: { label: 'Transport', color: '#2F6B44' }, // forest
-    lodging: { label: 'Lodging', color: '#C99A3A' }, // gold
-    activities: { label: 'Activities', color: '#4F7A6B' }, // muted teal-green
-    other: { label: 'Other', color: '#9A8C7A' }, // taupe
+// Only the color is static data; the label is a translation key resolved with t() at render time
+// (module-level consts can't call hooks). Unknown categories fall back to the raw key, capitalized.
+const CATEGORY_META: Record<string, { labelKey: string; color: string }> = {
+    food: { labelKey: 'spending.category_food', color: '#B5623C' }, // terracotta
+    transport: { labelKey: 'spending.category_transport', color: '#2F6B44' }, // forest
+    lodging: { labelKey: 'spending.category_lodging', color: '#C99A3A' }, // gold
+    activities: { labelKey: 'spending.category_activities', color: '#4F7A6B' }, // muted teal-green
+    other: { labelKey: 'spending.category_other', color: '#9A8C7A' }, // taupe
 };
-const catMeta = (k: string) => CATEGORY_META[k] ?? { label: k.charAt(0).toUpperCase() + k.slice(1), color: '#9A8C7A' };
+const catColor = (k: string) => CATEGORY_META[k]?.color ?? '#9A8C7A';
+const catLabel = (t: TFn, k: string) => (CATEGORY_META[k] ? t(CATEGORY_META[k].labelKey) : k.charAt(0).toUpperCase() + k.slice(1));
 
 // Payment methods share the same earthy palette, keyed by source type; unspecified is the neutral taupe.
 const SOURCE_COLOR: Record<string, string> = {
@@ -41,6 +45,14 @@ const SOURCE_COLOR: Record<string, string> = {
     other: '#4F7A6B', // muted teal-green
     none: '#9A8C7A', // taupe
 };
+// Same source-type vocabulary as the "paid with" picker on the event page (lang/*/spending.json).
+const SOURCE_TYPE_LABEL_KEY: Record<string, string> = {
+    cash: 'spending.source_cash',
+    card: 'spending.source_card',
+    bank: 'spending.source_bank',
+    other: 'spending.source_other',
+};
+const sourceTypeLabel = (t: TFn, type: string) => (SOURCE_TYPE_LABEL_KEY[type] ? t(SOURCE_TYPE_LABEL_KEY[type]) : type);
 
 const shortDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
@@ -57,9 +69,9 @@ function Bar({ pct, color, grown }: { pct: number; color: string; grown: boolean
 }
 
 // Cumulative-spend curve, drawn by hand so we add no chart dependency.
-function TrendCurve({ points, currency }: { points: Point[]; currency: string }) {
+function TrendCurve({ points, currency, t }: { points: Point[]; currency: string; t: TFn }) {
     if (points.length < 2) {
-        return <p className="text-muted-foreground py-6 text-center text-sm">A trend appears once there are spends on two or more days.</p>;
+        return <p className="text-muted-foreground py-6 text-center text-sm">{t('spending.trend_empty')}</p>;
     }
     const w = 600;
     const h = 170;
@@ -73,7 +85,7 @@ function TrendCurve({ points, currency }: { points: Point[]; currency: string })
 
     return (
         <div className="flex flex-col gap-2">
-            <svg viewBox={`0 0 ${w} ${h}`} className="h-40 w-full" role="img" aria-label="Cumulative spending over time">
+            <svg viewBox={`0 0 ${w} ${h}`} className="h-40 w-full" role="img" aria-label={t('spending.cumulative_chart_aria')}>
                 <defs>
                     <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.22" />
@@ -86,7 +98,9 @@ function TrendCurve({ points, currency }: { points: Point[]; currency: string })
             </svg>
             <div className="text-muted-foreground flex justify-between px-1 font-mono text-xs tabular-nums">
                 <span>{shortDate(points[0].date)}</span>
-                <span className="text-primary font-semibold">{money(last.cumulative, currency)} total</span>
+                <span className="text-primary font-semibold">
+                    {money(last.cumulative, currency)} {t('spending.total')}
+                </span>
                 <span>{shortDate(last.date)}</span>
             </div>
         </div>
@@ -104,26 +118,27 @@ function Fact({ label, value, sub, mono }: { label: string; value: string; sub?:
 }
 
 export default function Stats({ event, byCategory, bySource, overTime, facts }: Props) {
+    const t = useT();
     const [grown, setGrown] = useState(false);
     useEffect(() => {
-        const t = setTimeout(() => setGrown(true), 60);
-        return () => clearTimeout(t);
+        const timer = setTimeout(() => setGrown(true), 60);
+        return () => clearTimeout(timer);
     }, []);
 
     const fmt = (c: number) => money(c, event.currency);
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Spending', href: '/m/spending' },
+        { title: t('nav.spending'), href: '/m/spending' },
         { title: event.name, href: route('spending.show', event.id) },
-        { title: 'Stats', href: route('spending.stats', event.id) },
+        { title: t('spending.stats'), href: route('spending.stats', event.id) },
     ];
 
     if (facts.count === 0) {
         return (
             <AppLayout breadcrumbs={breadcrumbs}>
-                <Head title={`${event.name} · Stats`} />
+                <Head title={`${event.name} · ${t('spending.stats')}`} />
                 <div className="mx-auto max-w-3xl p-4">
                     <h1 className="font-heading text-primary text-3xl">{event.name}</h1>
-                    <p className="text-muted-foreground mt-6">No spends yet, add a few and the numbers will tell their story here.</p>
+                    <p className="text-muted-foreground mt-6">{t('spending.stats_empty')}</p>
                 </div>
             </AppLayout>
         );
@@ -133,41 +148,41 @@ export default function Stats({ event, byCategory, bySource, overTime, facts }: 
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`${event.name} · Stats`} />
+            <Head title={`${event.name} · ${t('spending.stats')}`} />
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 p-4 md:p-6">
                 {/* Editorial summary: the total woven into a sentence, not a hero tile. */}
                 <header>
                     <h1 className="font-heading text-primary text-3xl">{event.name}</h1>
                     <p className="text-text-secondary mt-3 text-lg leading-relaxed">
-                        <span className="font-heading text-primary text-2xl">{fmt(event.total)}</span> across {facts.count}{' '}
-                        {facts.count === 1 ? 'spend' : 'spends'} over {facts.days} {facts.days === 1 ? 'day' : 'days'}
-                        {facts.people > 1 && (
-                            <>
-                                , about <span className="text-primary font-medium">{fmt(facts.perPerson)}</span> each
-                            </>
-                        )}
-                        .
+                        <span className="font-heading text-primary text-2xl">{fmt(event.total)}</span>{' '}
+                        {t('spending.stats_summary', {
+                            count: facts.count,
+                            spendNoun: t(facts.count === 1 ? 'spending.spend_one' : 'spending.spend_other'),
+                            days: facts.days,
+                            dayNoun: t(facts.days === 1 ? 'spending.day_one' : 'spending.day_other'),
+                        })}
+                        {facts.people > 1 && t('spending.stats_summary_each', { amount: fmt(facts.perPerson) })}.
                     </p>
                 </header>
 
                 {/* Where it went — the lead visualization. */}
                 <section className="flex flex-col gap-4">
-                    <h2 className="font-heading text-primary text-lg">Where it went</h2>
+                    <h2 className="font-heading text-primary text-lg">{t('spending.where_it_went')}</h2>
                     <div className="flex flex-col gap-4">
                         {byCategory.map((c) => {
-                            const meta = catMeta(c.key);
+                            const color = catColor(c.key);
                             return (
                                 <div key={c.key} className="flex flex-col gap-1.5">
                                     <div className="flex items-baseline justify-between gap-3">
                                         <span className="text-primary flex items-center gap-2 text-sm font-medium">
-                                            <span className="size-2.5 rounded-full" style={{ background: meta.color }} />
-                                            {meta.label}
+                                            <span className="size-2.5 rounded-full" style={{ background: color }} />
+                                            {catLabel(t, c.key)}
                                         </span>
                                         <span className="text-text-secondary font-mono text-sm tabular-nums">
                                             {fmt(c.amount)} <span className="text-muted-foreground">· {c.pct}%</span>
                                         </span>
                                     </div>
-                                    <Bar pct={c.pct} color={meta.color} grown={grown} />
+                                    <Bar pct={c.pct} color={color} grown={grown} />
                                 </div>
                             );
                         })}
@@ -177,7 +192,7 @@ export default function Stats({ event, byCategory, bySource, overTime, facts }: 
                 {/* By payment method — only worth showing once a spend actually names a source. */}
                 {bySource.some((s) => s.key !== 'none') && (
                     <section className="flex flex-col gap-4">
-                        <h2 className="font-heading text-primary text-lg">By payment method</h2>
+                        <h2 className="font-heading text-primary text-lg">{t('spending.by_payment_method')}</h2>
                         <div className="flex flex-col gap-4">
                             {bySource.map((s) => {
                                 const color = SOURCE_COLOR[s.type] ?? SOURCE_COLOR.none;
@@ -187,7 +202,9 @@ export default function Stats({ event, byCategory, bySource, overTime, facts }: 
                                             <span className="text-primary flex items-center gap-2 text-sm font-medium">
                                                 <span className="size-2.5 rounded-full" style={{ background: color }} />
                                                 {s.label}
-                                                {s.type !== 'none' && <span className="text-muted-foreground text-xs font-normal">· {s.type}</span>}
+                                                {s.type !== 'none' && (
+                                                    <span className="text-muted-foreground text-xs font-normal">· {sourceTypeLabel(t, s.type)}</span>
+                                                )}
                                             </span>
                                             <span className="text-text-secondary font-mono text-sm tabular-nums">
                                                 {fmt(s.amount)} <span className="text-muted-foreground">· {s.pct}%</span>
@@ -203,16 +220,18 @@ export default function Stats({ event, byCategory, bySource, overTime, facts }: 
 
                 {/* Over the trip */}
                 <section className="flex flex-col gap-4">
-                    <h2 className="font-heading text-primary text-lg">Over the trip</h2>
-                    <TrendCurve points={overTime} currency={event.currency} />
+                    <h2 className="font-heading text-primary text-lg">{t('spending.over_the_trip')}</h2>
+                    <TrendCurve points={overTime} currency={event.currency} t={t} />
                 </section>
 
                 {/* Quick facts — one panel, hairline-separated via a 1px gap over the border color. */}
                 <section className="bg-border grid grid-cols-2 gap-px overflow-hidden rounded-2xl border sm:grid-cols-4">
-                    <Fact label="Average spend" value={fmt(facts.average)} mono />
-                    <Fact label="Daily average" value={fmt(facts.dailyAverage)} mono />
-                    {facts.biggest && <Fact label="Biggest spend" value={fmt(facts.biggest.amount)} sub={facts.biggest.label} mono />}
-                    {top && <Fact label="Top category" value={catMeta(top.key).label} sub={`${top.pct}% of spend`} />}
+                    <Fact label={t('spending.average_spend')} value={fmt(facts.average)} mono />
+                    <Fact label={t('spending.daily_average')} value={fmt(facts.dailyAverage)} mono />
+                    {facts.biggest && <Fact label={t('spending.biggest_spend')} value={fmt(facts.biggest.amount)} sub={facts.biggest.label} mono />}
+                    {top && (
+                        <Fact label={t('spending.top_category')} value={catLabel(t, top.key)} sub={t('spending.pct_of_spend', { pct: top.pct })} />
+                    )}
                 </section>
             </div>
         </AppLayout>
