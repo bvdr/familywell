@@ -15,6 +15,7 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import * as React from 'react';
 import { createRoot } from 'react-dom/client';
 import { route as routeFn } from 'ziggy-js';
+import { armCrashRecovery, ErrorBoundary } from './components/error-boundary';
 import { initializeTheme } from './hooks/use-appearance';
 import { loadModules, registerSlot } from './lib/modules';
 import { registerServiceWorker } from './lib/push';
@@ -33,13 +34,21 @@ const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 window.Familywell = { React, registerSlot };
 void loadModules(window.__familywellModules ?? []);
 
+// Catch stale-chunk failures after a deploy and auto-reload once, so an installed PWA never gets
+// stuck on a blank white screen.
+armCrashRecovery();
+
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
     resolve: (name) => resolvePageComponent(`./pages/${name}.tsx`, import.meta.glob('./pages/**/*.tsx')),
     setup({ el, App, props }) {
         const root = createRoot(el);
 
-        root.render(<App {...props} />);
+        root.render(
+            <ErrorBoundary>
+                <App {...props} />
+            </ErrorBoundary>,
+        );
     },
     progress: {
         color: '#2D5E3A',
