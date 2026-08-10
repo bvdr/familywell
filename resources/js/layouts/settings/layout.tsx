@@ -1,44 +1,27 @@
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
 
-const sidebarNavItems: NavItem[] = [
-    {
-        title: 'Profile',
-        url: '/settings/profile',
-        icon: null,
-    },
-    {
-        title: 'Password',
-        url: '/settings/password',
-        icon: null,
-    },
-    {
-        title: 'Appearance',
-        url: '/settings/appearance',
-        icon: null,
-    },
-    {
-        title: 'Notifications',
-        url: '/settings/notifications',
-        icon: null,
-    },
-    {
-        title: 'Media',
-        url: '/settings/media',
-        icon: null,
-    },
+// key is a translation key resolved at render (so the nav is localized).
+const sidebarNavItems: { key: string; url: string }[] = [
+    { key: 'settings.profile', url: '/settings/profile' },
+    { key: 'settings.password', url: '/settings/password' },
+    { key: 'settings.appearance', url: '/settings/appearance' },
+    { key: 'settings.language', url: '/settings/language' },
+    { key: 'settings.notifications', url: '/settings/notifications' },
+    { key: 'settings.media', url: '/settings/media' },
 ];
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
     const currentPath = window.location.pathname;
+    const t = useT();
 
     return (
         <div className="px-4 py-6">
-            <Heading title="Settings" description="Manage your profile and account settings" />
+            <Heading title={t('settings.title')} description={t('settings.manage')} />
 
             <div className="flex flex-col space-y-8 lg:flex-row lg:space-y-0 lg:space-x-12">
                 <aside className="w-full max-w-xl lg:w-48">
@@ -54,7 +37,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                                 })}
                             >
                                 <Link href={item.url} prefetch>
-                                    {item.title}
+                                    {t(item.key)}
                                 </Link>
                             </Button>
                         ))}

@@ -1,0 +1,62 @@
+{
+    "common": {
+        "save": "Save",
+        "cancel": "Cancel",
+        "delete": "Delete",
+        "create": "Create",
+        "add": "Add",
+        "edit": "Edit",
+        "search": "Search",
+        "done": "Done",
+        "loading": "Loading…"
+    },
+    "nav": {
+        "dashboard": "Dashboard",
+        "members": "Members",
+        "modules": "Modules",
+        "projects": "Projects",
+        "shopping": "Shopping",
+        "spending": "Spending",
+        "tasks": "Tasks",
+        "notes": "Notes",
+        "notifications": "Notifications",
+        "settings": "Settings",
+        "more": "More",
+        "home": "Home",
+        "more_desc": "Tap a pin to choose your four bottom-bar shortcuts"
+    },
+    "dashboard": {
+        "good_morning": "Good morning",
+        "good_afternoon": "Good afternoon",
+        "good_evening": "Good evening",
+        "greeting": ":greeting, :name",
+        "today": "Today",
+        "this_week": "This Week",
+        "pick_up": "Pick up where you left off",
+        "jump_back_in": "Jump back in",
+        "members_sub": "Who's in your family",
+        "modules_sub": "Turn features on or off",
+        "spending_sub": "Shared expense trackers"
+    },
+    "settings": {
+        "title": "Settings",
+        "profile": "Profile",
+        "password": "Password",
+        "appearance": "Appearance",
+        "language": "Language",
+        "language_desc": "Choose the language you'd like to use across FamilyWell.",
+        "notifications": "Notifications",
+        "manage": "Manage your profile and account settings",
+        "media": "Media"
+    },
+    "create": {
+        "title": "Add",
+        "desc": "Create something new",
+        "turn_on": "Turn on a module to add things",
+        "shopping": "New shopping list",
+        "tasks": "New to-do list",
+        "projects": "New project",
+        "spending": "New event",
+        "notes": "New note"
+    }
+}
