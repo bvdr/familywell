@@ -34,15 +34,54 @@ export function armCrashRecovery(): void {
 function reportClientError(message: string, stack: string): void {
     try {
         const xsrf = decodeURIComponent(document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]+)/)?.[1] ?? '');
+        // Snapshot the app's own localStorage (theme, nav pins, sidebar, etc. — non-sensitive) so we
+        // can diagnose crashes that only reproduce with a specific device's stored state.
+        let storage = '';
+        try {
+            storage = JSON.stringify({ ...localStorage });
+        } catch {
+            /* ignore */
+        }
         void fetch('/client-error', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-XSRF-TOKEN': xsrf, Accept: 'application/json' },
             credentials: 'same-origin',
-            body: JSON.stringify({ message, stack, url: window.location.pathname }),
+            body: JSON.stringify({
+                message,
+                stack,
+                url: window.location.pathname,
+                storage,
+                ua: navigator.userAgent,
+                standalone: window.matchMedia('(display-mode: standalone)').matches,
+            }),
         }).catch(() => {});
     } catch {
         /* ignore */
     }
+}
+
+// Wipe client-side state that could be keeping the app stuck (a poison localStorage value, a stale
+// service worker / cache), then reload fresh.
+async function resetAppData() {
+    try {
+        localStorage.clear();
+        sessionStorage.clear();
+    } catch {
+        /* ignore */
+    }
+    try {
+        if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map((r) => r.unregister()));
+        }
+        if ('caches' in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((k) => caches.delete(k)));
+        }
+    } catch {
+        /* ignore */
+    }
+    window.location.reload();
 }
 
 export class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { failed: boolean; message: string }> {
@@ -66,16 +105,22 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
             <div className="bg-background flex min-h-dvh flex-col items-center justify-center gap-4 p-8 text-center">
                 <p className="font-heading text-primary text-xl">Something went wrong</p>
                 <p className="text-muted-foreground max-w-xs text-sm">The app hit a snag. Reloading usually fixes it.</p>
-                <button
-                    type="button"
-                    onClick={() => {
-                        sessionStorage.removeItem(RELOAD_FLAG);
-                        window.location.reload();
-                    }}
-                    className="bg-primary text-primary-foreground rounded-full px-5 py-2 text-sm font-medium"
-                >
-                    Reload
-                </button>
+                <div className="flex flex-col items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            sessionStorage.removeItem(RELOAD_FLAG);
+                            window.location.reload();
+                        }}
+                        className="bg-primary text-primary-foreground rounded-full px-5 py-2 text-sm font-medium"
+                    >
+                        Reload
+                    </button>
+                    {/* If a reload keeps landing back here, this clears any stuck local state and reloads. */}
+                    <button type="button" onClick={() => void resetAppData()} className="text-muted-foreground text-xs underline">
+                        Still stuck? Reset app data
+                    </button>
+                </div>
                 {/* Small diagnostic line so a screenshot tells us the page + error. */}
                 {this.state.message && (
                     <p className="text-muted-foreground/70 mt-4 max-w-xs font-mono text-[11px] break-words">
