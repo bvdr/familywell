@@ -19,8 +19,9 @@ function dayLabel(iso: string): string {
     return d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 }
 
-export default function NotificationsIndex({ feed }: { feed: Notification[] }) {
-    const [items, setItems] = useState<Notification[]>(feed);
+export default function NotificationsIndex({ feed = [] }: { feed?: Notification[] }) {
+    // Default to [] so a missing/older prop shape shows the empty state instead of crashing to blank.
+    const [items, setItems] = useState<Notification[]>(feed ?? []);
     const unread = items.filter((n) => !n.read).length;
 
     const openItem = (n: Notification) => {
