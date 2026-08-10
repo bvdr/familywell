@@ -29,15 +29,35 @@ export function armCrashRecovery(): void {
     setTimeout(() => sessionStorage.removeItem(RELOAD_FLAG), 4000);
 }
 
-export class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { failed: boolean }> {
-    state = { failed: false };
+// Best-effort: log the crash server-side so we can diagnose issues that only reproduce on a
+// particular account/device (they never reach our test accounts otherwise).
+function reportClientError(message: string, stack: string): void {
+    try {
+        const xsrf = decodeURIComponent(document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]+)/)?.[1] ?? '');
+        void fetch('/client-error', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-XSRF-TOKEN': xsrf, Accept: 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ message, stack, url: window.location.pathname }),
+        }).catch(() => {});
+    } catch {
+        /* ignore */
+    }
+}
 
-    static getDerivedStateFromError() {
-        return { failed: true };
+export class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { failed: boolean; message: string }> {
+    state = { failed: false, message: '' };
+
+    static getDerivedStateFromError(error: unknown) {
+        return { failed: true, message: error instanceof Error ? error.message : String(error) };
     }
 
-    componentDidCatch(error: unknown) {
-        reloadOnceOnChunkError(error instanceof Error ? error.message : String(error));
+    componentDidCatch(error: unknown, info: React.ErrorInfo) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (reloadOnceOnChunkError(message)) return;
+        // eslint-disable-next-line no-console
+        console.error('App crash:', error, info.componentStack);
+        reportClientError(message, ((error as Error)?.stack ?? '') + '\n' + (info.componentStack ?? ''));
     }
 
     render() {
@@ -56,6 +76,12 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
                 >
                     Reload
                 </button>
+                {/* Small diagnostic line so a screenshot tells us the page + error. */}
+                {this.state.message && (
+                    <p className="text-muted-foreground/70 mt-4 max-w-xs font-mono text-[11px] break-words">
+                        {window.location.pathname}: {this.state.message}
+                    </p>
+                )}
             </div>
         );
     }
