@@ -54,6 +54,11 @@ class HandleInertiaRequests extends Middleware
             'modules' => fn () => ['enabled' => $this->enabledModuleIds()],
             // Web Push public (VAPID) key, so the client can subscribe the browser to push. Public by design.
             'vapidPublicKey' => config('webpush.vapid.public_key'),
+            // i18n: the current locale + the picker options + the full translation map for that locale
+            // (English-filled). Lazy so it resolves after SetLocale has applied the user's preference.
+            'locale' => fn () => app()->getLocale(),
+            'locales' => \App\Support\Translations::options(),
+            'translations' => fn () => \App\Support\Translations::for(app()->getLocale()),
             // Each family member's avatar colour, as userId => palette index assigned by member order,
             // so every member gets a different (and consistent, app-wide) colour. Lazy: needs the
             // family context that SetActiveFamily fills in later in the chain.

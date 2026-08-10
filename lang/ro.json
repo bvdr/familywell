@@ -1,0 +1,62 @@
+{
+    "common": {
+        "save": "Salvează",
+        "cancel": "Anulează",
+        "delete": "Șterge",
+        "create": "Creează",
+        "add": "Adaugă",
+        "edit": "Editează",
+        "search": "Caută",
+        "done": "Gata",
+        "loading": "Se încarcă…"
+    },
+    "nav": {
+        "dashboard": "Acasă",
+        "members": "Membri",
+        "modules": "Module",
+        "projects": "Proiecte",
+        "shopping": "Cumpărături",
+        "spending": "Cheltuieli",
+        "tasks": "Sarcini",
+        "notes": "Notițe",
+        "notifications": "Notificări",
+        "settings": "Setări",
+        "more": "Mai mult",
+        "home": "Acasă",
+        "more_desc": "Apasă un ac pentru a-ți alege cele patru scurtături din bară"
+    },
+    "dashboard": {
+        "good_morning": "Bună dimineața",
+        "good_afternoon": "Bună ziua",
+        "good_evening": "Bună seara",
+        "greeting": ":greeting, :name",
+        "today": "Astăzi",
+        "this_week": "Săptămâna aceasta",
+        "pick_up": "Continuă de unde ai rămas",
+        "jump_back_in": "Reia rapid",
+        "members_sub": "Cine face parte din familie",
+        "modules_sub": "Activează sau dezactivează funcții",
+        "spending_sub": "Bugete de cheltuieli comune"
+    },
+    "settings": {
+        "title": "Setări",
+        "profile": "Profil",
+        "password": "Parolă",
+        "appearance": "Aspect",
+        "language": "Limbă",
+        "language_desc": "Alege limba pe care vrei să o folosești în FamilyWell.",
+        "notifications": "Notificări",
+        "manage": "Gestionează profilul și setările contului",
+        "media": "Media"
+    },
+    "create": {
+        "title": "Adaugă",
+        "desc": "Creează ceva nou",
+        "turn_on": "Activează un modul pentru a adăuga lucruri",
+        "shopping": "Listă de cumpărături nouă",
+        "tasks": "Listă de sarcini nouă",
+        "projects": "Proiect nou",
+        "spending": "Eveniment nou",
+        "notes": "Notiță nouă"
+    }
+}

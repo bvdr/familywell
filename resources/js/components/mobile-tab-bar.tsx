@@ -1,4 +1,5 @@
 import { runAddAction } from '@/lib/add-action';
+import { useT } from '@/lib/i18n';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { Link, router, usePage } from '@inertiajs/react';
 import {
@@ -24,32 +25,33 @@ import { useEffect, useState } from 'react';
 // set is user-selectable (pin/unpin in the More drawer, saved per device). Desktop uses the sidebar.
 // `method: 'post'` marks a quick-add that creates server-side on click (e.g. a new note is made
 // immediately and you land in its editor) rather than deep-linking to an index that opens a sheet.
-type Item = { key: string; title: string; url: string; icon: LucideIcon; method?: 'post' };
+// labelKey is a translation key resolved at render (localized nav labels).
+type Item = { key: string; labelKey: string; url: string; icon: LucideIcon; method?: 'post' };
 
-const HOME: Item = { key: 'dashboard', title: 'Home', url: '/dashboard', icon: LayoutGrid };
+const HOME: Item = { key: 'dashboard', labelKey: 'nav.home', url: '/dashboard', icon: LayoutGrid };
 // Page-modules earn a nav entry when the family has enabled them (order = preferred display order).
 const MODULE_ITEMS: Item[] = [
-    { key: 'projects', title: 'Projects', url: '/m/projects', icon: FolderKanban },
-    { key: 'tasks', title: 'Tasks', url: '/m/tasks', icon: ListChecks },
-    { key: 'shopping', title: 'Shopping', url: '/m/shopping', icon: ShoppingCart },
-    { key: 'spending', title: 'Spending', url: '/m/spending', icon: Wallet },
-    { key: 'notes', title: 'Notes', url: '/m/notes', icon: StickyNote },
+    { key: 'projects', labelKey: 'nav.projects', url: '/m/projects', icon: FolderKanban },
+    { key: 'tasks', labelKey: 'nav.tasks', url: '/m/tasks', icon: ListChecks },
+    { key: 'shopping', labelKey: 'nav.shopping', url: '/m/shopping', icon: ShoppingCart },
+    { key: 'spending', labelKey: 'nav.spending', url: '/m/spending', icon: Wallet },
+    { key: 'notes', labelKey: 'nav.notes', url: '/m/notes', icon: StickyNote },
 ];
 const SECONDARY: Item[] = [
-    { key: 'members', title: 'Members', url: '/family/members', icon: Users },
-    { key: 'modules', title: 'Modules', url: '/family/modules', icon: Blocks },
-    { key: 'settings', title: 'Settings', url: '/settings/profile', icon: Settings },
+    { key: 'members', labelKey: 'nav.members', url: '/family/members', icon: Users },
+    { key: 'modules', labelKey: 'nav.modules', url: '/family/modules', icon: Blocks },
+    { key: 'settings', labelKey: 'nav.settings', url: '/settings/profile', icon: Settings },
 ];
 
 // The green "+" quick-add: each enabled module's top-level create, deep-linked with ?new=1 so the
 // target index opens its create sheet on arrival. Order mirrors the nav.
 const CREATE: Item[] = [
-    { key: 'shopping', title: 'New shopping list', url: '/m/shopping?new=1', icon: ShoppingCart },
-    { key: 'tasks', title: 'New to-do list', url: '/m/tasks?new=1', icon: ListChecks },
-    { key: 'projects', title: 'New project', url: '/m/projects?new=1', icon: FolderKanban },
-    { key: 'spending', title: 'New event', url: '/m/spending?new=1', icon: Wallet },
+    { key: 'shopping', labelKey: 'create.shopping', url: '/m/shopping?new=1', icon: ShoppingCart },
+    { key: 'tasks', labelKey: 'create.tasks', url: '/m/tasks?new=1', icon: ListChecks },
+    { key: 'projects', labelKey: 'create.projects', url: '/m/projects?new=1', icon: FolderKanban },
+    { key: 'spending', labelKey: 'create.spending', url: '/m/spending?new=1', icon: Wallet },
     // A note has no create sheet: POST straight to notes.store, which redirects into the new editor.
-    { key: 'notes', title: 'New note', url: '/m/notes', method: 'post', icon: StickyNote },
+    { key: 'notes', labelKey: 'create.notes', url: '/m/notes', method: 'post', icon: StickyNote },
 ];
 
 const PINS_KEY = 'familywell:navPins';
@@ -59,6 +61,7 @@ const DEFAULT_ORDER = ['dashboard', 'projects', 'shopping', 'spending', 'members
 
 export function MobileTabBar() {
     const page = usePage<{ modules?: { enabled?: string[] } }>();
+    const t = useT();
     const enabled = page.props.modules?.enabled ?? [];
 
     // Everything reachable from the mobile nav, in display order.
@@ -138,7 +141,7 @@ export function MobileTabBar() {
                                 className={`${cell} ${active ? 'bg-accent-subtle text-primary font-semibold' : 'text-text-muted'}`}
                             >
                                 {loading ? <Loader2 className="size-5.5 animate-spin" /> : <item.icon className="size-5.5" />}
-                                {item.title}
+                                {t(item.labelKey)}
                             </Link>
                         );
                     })}
@@ -148,7 +151,7 @@ export function MobileTabBar() {
                         className={`${cell} ${moreActive ? 'bg-accent-subtle text-primary font-semibold' : 'text-text-muted'}`}
                     >
                         <MoreHorizontal className="size-5.5" />
-                        More
+                        {t('nav.more')}
                     </button>
                 </div>
 
@@ -166,7 +169,7 @@ export function MobileTabBar() {
                 </button>
             </nav>
 
-            <ResponsiveModal open={addOpen} onOpenChange={setAddOpen} title="Add" description="Create something new">
+            <ResponsiveModal open={addOpen} onOpenChange={setAddOpen} title={t('create.title')} description={t('create.desc')}>
                 <div className="flex flex-col gap-1">
                     {createItems.length === 0 ? (
                         <Link
@@ -175,7 +178,7 @@ export function MobileTabBar() {
                             className="text-primary hover:bg-surface flex items-center gap-3 rounded-xl p-3 transition-colors"
                         >
                             <Blocks className="size-5" />
-                            <span className="text-sm font-medium">Turn on a module to add things</span>
+                            <span className="text-sm font-medium">{t('create.turn_on')}</span>
                         </Link>
                     ) : (
                         createItems.map((item) => (
@@ -190,14 +193,14 @@ export function MobileTabBar() {
                                 <span className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-lg">
                                     <item.icon className="size-4.5" />
                                 </span>
-                                <span className="text-sm font-medium">{item.title}</span>
+                                <span className="text-sm font-medium">{t(item.labelKey)}</span>
                             </Link>
                         ))
                     )}
                 </div>
             </ResponsiveModal>
 
-            <ResponsiveModal open={moreOpen} onOpenChange={setMoreOpen} title="More" description="Tap a pin to choose your four bottom-bar shortcuts">
+            <ResponsiveModal open={moreOpen} onOpenChange={setMoreOpen} title={t('nav.more')} description={t('nav.more_desc')}>
                 <div className="flex flex-col gap-1">
                     {allItems.map((item) => {
                         const isPinned = pinnedKeys.has(item.key);
@@ -215,13 +218,13 @@ export function MobileTabBar() {
                                     }`}
                                 >
                                     <item.icon className="size-5" />
-                                    <span className="text-sm font-medium">{item.title}</span>
+                                    <span className="text-sm font-medium">{t(item.labelKey)}</span>
                                 </Link>
                                 <button
                                     type="button"
                                     onClick={() => togglePin(item.key)}
                                     disabled={atMax}
-                                    aria-label={isPinned ? `Unpin ${item.title}` : `Pin ${item.title} to the bar`}
+                                    aria-label={isPinned ? `Unpin ${t(item.labelKey)}` : `Pin ${t(item.labelKey)}`}
                                     aria-pressed={isPinned}
                                     className={`flex size-9 items-center justify-center rounded-lg transition-colors ${
                                         isPinned ? 'text-primary' : atMax ? 'text-text-muted/40' : 'text-muted-foreground hover:bg-surface'
