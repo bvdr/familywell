@@ -7,6 +7,7 @@ use App\Support\Dashboard\DashboardAgenda;
 use App\Support\Dashboard\DashboardItems;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareableRegistry;
+use Modules\Notifications\NotificationCategories;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -17,6 +18,9 @@ class TasksServiceProvider extends ServiceProvider
     {
         // Opt to-do lists into the core sharing system (addressable as `task_list` in share URLs).
         ShareableRegistry::register('task_list', TaskList::class);
+
+        // Notifications category for this module (drives the Settings toggle + stacked-push label).
+        NotificationCategories::register('tasks', 'Tasks', 'list-checks');
 
         // "Pick up where you left off": the to-do lists this user opened in the last few days,
         // tagged with when so the dashboard can order them across modules. Respects visibility.

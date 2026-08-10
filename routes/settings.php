@@ -27,6 +27,17 @@ Route::middleware('auth')->group(function () {
     })->name('appearance');
 
     Route::get('settings/notifications', function () {
-        return Inertia::render('settings/notifications', ['prefs' => auth()->user()->pushPrefs()]);
+        // Categories come from the notifications registry (each module registers its own); merge in
+        // the user's saved on/off, defaulting missing ones to on.
+        $saved = auth()->user()->notification_prefs ?? [];
+        $categories = collect(\Modules\Notifications\NotificationCategories::all())
+            ->map(fn ($meta, $id) => [
+                'id' => $id,
+                'label' => $meta['label'],
+                'icon' => $meta['icon'],
+                'on' => (bool) ($saved[$id] ?? true),
+            ])->values();
+
+        return Inertia::render('settings/notifications', ['categories' => $categories]);
     })->name('notifications');
 });

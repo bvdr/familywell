@@ -7,6 +7,7 @@ use App\Support\Dashboard\DashboardAgenda;
 use App\Support\Dashboard\DashboardItems;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareableRegistry;
+use Modules\Notifications\NotificationCategories;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -17,6 +18,8 @@ class ShoppingServiceProvider extends ServiceProvider
     {
         // Opt shopping lists into the core sharing system (addressable as `shopping_list` in share URLs).
         ShareableRegistry::register('shopping_list', ShoppingList::class);
+
+        NotificationCategories::register('shopping', 'Shopping', 'shopping-cart');
 
         // "Pick up where you left off": grocery lists this user opened in the last few days, tagged
         // with when so the dashboard can order them across modules. Respects visibility.

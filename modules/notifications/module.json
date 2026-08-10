@@ -1,0 +1,8 @@
+{
+    "id": "notifications",
+    "name": "Notifications",
+    "version": "1.0.0",
+    "provider": "Modules\\Notifications\\NotificationsServiceProvider",
+    "frontend": "",
+    "requires": []
+}

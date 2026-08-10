@@ -7,7 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\EntityVisit;
 use App\Models\Family;
 use App\Models\User;
-use App\Support\FamilyNotifier;
+use Modules\Notifications\Notify;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
@@ -406,7 +406,7 @@ class ShoppingController extends Controller
             $list->setVisibility($data['visibility']);
         }
 
-        FamilyNotifier::toAccessOf($list, 'shopping', $request->user()->id, 'New shopping list', "{$request->user()->name} started: {$list->name}", route('shopping.show', $list, false));
+        Notify::toAccessOf($list, 'shopping', $request->user()->id, 'New shopping list', "{$request->user()->name} started: {$list->name}", route('shopping.show', $list, false));
         Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
 
         return to_route('shopping.show', $list);
@@ -561,7 +561,7 @@ class ShoppingController extends Controller
             ShoppingShop::ensure($alt);
         }
 
-        FamilyNotifier::toAccessOf($list, 'shopping', $request->user()->id, $list->name, "{$request->user()->name} added: {$data['name']}", route('shopping.show', $list, false));
+        Notify::toAccessOf($list, 'shopping', $request->user()->id, $list->name, "{$request->user()->name} added: {$data['name']}", route('shopping.show', $list, false));
         Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
 
         return back();
@@ -612,7 +612,7 @@ class ShoppingController extends Controller
 
         // One summary push for the batch (not one per item).
         $n = count($data['items']);
-        FamilyNotifier::toAccessOf($list, 'shopping', $request->user()->id, $list->name, "{$request->user()->name} added {$n} items", route('shopping.show', $list, false));
+        Notify::toAccessOf($list, 'shopping', $request->user()->id, $list->name, "{$request->user()->name} added {$n} items", route('shopping.show', $list, false));
         Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
 
         return back();
@@ -650,7 +650,7 @@ class ShoppingController extends Controller
         if ($item->bought) {
             $list = $item->list;
             if ($list && $list->items()->where('bought', false)->doesntExist() && $list->items()->count() > 0) {
-                FamilyNotifier::toAccessOf($list, 'shopping', $request->user()->id, 'Shopping done', "{$request->user()->name} finished {$list->name}", route('shopping.show', $list, false));
+                Notify::toAccessOf($list, 'shopping', $request->user()->id, 'Shopping done', "{$request->user()->name} finished {$list->name}", route('shopping.show', $list, false));
             }
         }
         Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));

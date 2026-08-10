@@ -1,14 +1,14 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace Modules\Notifications;
 
-use App\Models\User;
-use App\Notifications\PushAlert;
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 // Stores/removes a browser's Web Push subscription for the current user (one row per device/endpoint),
-// and fires a test notification. The actual keys come from the browser's PushManager.subscribe().
+// saves per-category preferences, and fires a test notification. Works on any browser with the Web
+// Push API (Android Chrome/Firefox, desktop, and iOS 16.4+ when installed to the Home Screen).
 class PushController extends Controller
 {
     public function subscribe(Request $request): Response
@@ -39,11 +39,12 @@ class PushController extends Controller
         return response()->noContent();
     }
 
-    // Save which categories the user wants pushes for (account-level, applies to all their devices).
+    // Save which categories the user wants pushed (account-level, applies to all their devices).
+    // Validated against the registered category ids, so it stays in sync as modules add categories.
     public function prefs(Request $request): Response
     {
         $request->validate(['prefs' => ['required', 'array'], 'prefs.*' => ['boolean']]);
-        $prefs = collect(User::PUSH_CATEGORIES)
+        $prefs = collect(NotificationCategories::ids())
             ->mapWithKeys(fn ($c) => [$c => (bool) ($request->input("prefs.$c", true))])
             ->all();
         $request->user()->update(['notification_prefs' => $prefs]);

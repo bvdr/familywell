@@ -7,7 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\EntityVisit;
 use App\Models\Family;
 use App\Models\User;
-use App\Support\FamilyNotifier;
+use Modules\Notifications\Notify;
 use App\Support\Media\StoredImage;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
@@ -90,7 +90,7 @@ class ProjectsController extends Controller
         ]);
         $project->shares()->create(['user_id' => $request->user()->id, 'role' => 'owner']);
 
-        FamilyNotifier::toAccessOf($project, 'projects', $request->user()->id, 'New project', "{$request->user()->name} started: {$project->name}", route('projects.show', $project, false));
+        Notify::toAccessOf($project, 'projects', $request->user()->id, 'New project', "{$request->user()->name} started: {$project->name}", route('projects.show', $project, false));
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
 
         return to_route('projects.show', $project);
@@ -197,7 +197,7 @@ class ProjectsController extends Controller
         }
         if (array_key_exists('status', $data) && $data['status'] !== $statusBefore) {
             $label = str_replace('_', ' ', $project->status);
-            FamilyNotifier::toAccessOf($project, 'projects', $request->user()->id, 'Project updated', "{$request->user()->name} set {$project->name} to {$label}", route('projects.show', $project, false));
+            Notify::toAccessOf($project, 'projects', $request->user()->id, 'Project updated', "{$request->user()->name} set {$project->name} to {$label}", route('projects.show', $project, false));
         }
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
 
@@ -335,7 +335,7 @@ class ProjectsController extends Controller
         if (empty($data['parent_id'])) {
             $project->links()->firstOrCreate(['linkable_type' => 'task', 'linkable_id' => $task->id]);
         }
-        FamilyNotifier::toAccessOf($project, 'tasks', $request->user()->id, 'New task', "{$request->user()->name} added: {$data['title']}", route('projects.show', $project, false));
+        Notify::toAccessOf($project, 'tasks', $request->user()->id, 'New task', "{$request->user()->name} added: {$data['title']}", route('projects.show', $project, false));
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
 
         return back();
@@ -395,7 +395,7 @@ class ProjectsController extends Controller
         if (! $request->hasAny(['title', 'note', 'due_date', 'assigned_to', 'done'])) {
             $task->update(['done' => ! $task->done]);
             if ($task->done) {
-                FamilyNotifier::toAccessOf($project, 'tasks', $actor->id, 'Task done', "{$actor->name} completed: {$task->title}", $url);
+                Notify::toAccessOf($project, 'tasks', $actor->id, 'Task done', "{$actor->name} completed: {$task->title}", $url);
             }
         } else {
             $data = $request->validate([
@@ -409,10 +409,10 @@ class ProjectsController extends Controller
             $wasDone = $task->done;
             $task->update($data);
             if (array_key_exists('assigned_to', $data) && $data['assigned_to'] && $data['assigned_to'] !== $before) {
-                FamilyNotifier::push(User::whereKey($data['assigned_to'])->get(), 'tasks', $actor->id, 'Assigned to you', "{$actor->name} assigned you: {$task->title}", $url);
+                Notify::push(User::whereKey($data['assigned_to'])->get(), 'tasks', $actor->id, 'Assigned to you', "{$actor->name} assigned you: {$task->title}", $url);
             }
             if (array_key_exists('done', $data) && $data['done'] && ! $wasDone) {
-                FamilyNotifier::toAccessOf($project, 'tasks', $actor->id, 'Task done', "{$actor->name} completed: {$task->title}", $url);
+                Notify::toAccessOf($project, 'tasks', $actor->id, 'Task done', "{$actor->name} completed: {$task->title}", $url);
             }
         }
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
@@ -446,7 +446,7 @@ class ProjectsController extends Controller
             'name' => $data['name'], 'note' => $data['note'] ?? null, 'status' => $data['status'] ?? 'pending',
             'position' => (int) $project->dependencies()->max('position') + 1, 'created_by' => $request->user()->id,
         ]);
-        FamilyNotifier::toAccessOf($project, 'projects', $request->user()->id, 'Blocker added', "{$request->user()->name} flagged: {$data['name']}", route('projects.show', $project, false));
+        Notify::toAccessOf($project, 'projects', $request->user()->id, 'Blocker added', "{$request->user()->name} flagged: {$data['name']}", route('projects.show', $project, false));
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
 
         return back();
