@@ -1,7 +1,7 @@
 <?php
 
 use App\Models\User;
-use App\Notifications\PushAlert;
+use Modules\Notifications\PushAlert;
 use Illuminate\Support\Facades\Notification;
 
 use function Pest\Laravel\actingAs;

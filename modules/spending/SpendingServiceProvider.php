@@ -7,6 +7,7 @@ use App\Support\Dashboard\DashboardItems;
 use App\Support\Guests\GuestableRegistry;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareableRegistry;
+use Modules\Notifications\NotificationCategories;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -19,6 +20,8 @@ class SpendingServiceProvider extends ServiceProvider
     {
         // Opt spend events into the core sharing system (addressable as `spend_event` in share URLs).
         ShareableRegistry::register('spend_event', SpendEvent::class);
+
+        NotificationCategories::register('spending', 'Spending', 'wallet');
         // Opt them into the core guest-sharing system too (named participants + unguessable link).
         GuestableRegistry::register('spend_event', SpendEvent::class);
 

@@ -19,17 +19,12 @@ import { type BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Notifications', href: '/settings/notifications' }];
 
-const CATEGORY_LABELS: Record<string, string> = {
-    tasks: 'Tasks',
-    shopping: 'Shopping',
-    spending: 'Spending',
-    projects: 'Projects',
-    sharing: 'Shared with me',
-};
+type Category = { id: string; label: string; icon: string; on: boolean };
 
-export default function Notifications({ prefs: initialPrefs }: { prefs: Record<string, boolean> }) {
+export default function Notifications({ categories }: { categories: Category[] }) {
     const vapidPublicKey = (usePage().props as { vapidPublicKey?: string }).vapidPublicKey ?? '';
-    const [prefs, setPrefs] = useState<Record<string, boolean>>(initialPrefs);
+    // Category list + labels come from the server (each module registers its own).
+    const [prefs, setPrefs] = useState<Record<string, boolean>>(() => Object.fromEntries(categories.map((c) => [c.id, c.on])));
 
     const togglePref = (key: string) => {
         const next = { ...prefs, [key]: !prefs[key] };
@@ -75,7 +70,7 @@ export default function Notifications({ prefs: initialPrefs }: { prefs: Record<s
             <Head title="Notifications" />
             <SettingsLayout>
                 <div className="space-y-6">
-                    <HeadingSmall title="Notifications" description="Get a push on this device when things happen in your family." />
+                    <HeadingSmall title="Notifications" description="Get a push on this device (Android, desktop, or an installed iPhone app) when things happen in your family." />
 
                     {!supported ? (
                         <div className="text-muted-foreground rounded-xl border border-dashed p-4 text-sm">
@@ -119,19 +114,20 @@ export default function Notifications({ prefs: initialPrefs }: { prefs: Record<s
 
                     <div className="space-y-3 pt-2">
                         <div className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Notify me about</div>
+                        <p className="text-muted-foreground text-xs">Turning one off stops the phone push, but it still shows in your in-app notifications.</p>
                         <div className="bg-surface-card divide-border/60 divide-y rounded-xl border">
-                            {Object.keys(CATEGORY_LABELS).map((key) => (
-                                <div key={key} className="flex items-center justify-between px-4 py-3">
-                                    <span className="text-primary text-sm font-medium">{CATEGORY_LABELS[key]}</span>
+                            {categories.map((c) => (
+                                <div key={c.id} className="flex items-center justify-between px-4 py-3">
+                                    <span className="text-primary text-sm font-medium">{c.label}</span>
                                     <button
                                         type="button"
                                         role="switch"
-                                        aria-checked={prefs[key]}
-                                        onClick={() => togglePref(key)}
-                                        className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${prefs[key] ? 'bg-primary' : 'bg-border'}`}
+                                        aria-checked={prefs[c.id]}
+                                        onClick={() => togglePref(c.id)}
+                                        className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${prefs[c.id] ? 'bg-primary' : 'bg-border'}`}
                                     >
                                         <span
-                                            className={`absolute top-0.5 size-5 rounded-full bg-white shadow-sm transition-all ${prefs[key] ? 'left-[18px]' : 'left-0.5'}`}
+                                            className={`absolute top-0.5 size-5 rounded-full bg-white shadow-sm transition-all ${prefs[c.id] ? 'left-[18px]' : 'left-0.5'}`}
                                         />
                                     </button>
                                 </div>

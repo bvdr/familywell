@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Support\FamilyNotifier;
 use App\Support\Sharing\ShareableRegistry;
+use Modules\Notifications\Notify;
 use App\Support\Sharing\ShareAccess;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -38,7 +38,7 @@ class ShareController extends Controller
         // Push the newly-granted person (not on a mere role change, not yourself), if they allow it.
         if ($share->wasRecentlyCreated) {
             $name = $entity->name ?? 'something';
-            FamilyNotifier::push([$user], 'sharing', $request->user()->id, "{$request->user()->name} shared with you", $name, self::entityUrl($type, $id));
+            Notify::push([$user], 'sharing', $request->user()->id, "{$request->user()->name} shared with you", $name, self::entityUrl($type, $id));
         }
 
         return back();

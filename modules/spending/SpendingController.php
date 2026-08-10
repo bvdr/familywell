@@ -6,7 +6,7 @@ use App\Events\SpendingChanged;
 use App\Http\Controllers\Controller;
 use App\Models\EntityVisit;
 use App\Models\Family;
-use App\Support\FamilyNotifier;
+use Modules\Notifications\Notify;
 use App\Support\Media\StoredImage;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
@@ -86,7 +86,7 @@ class SpendingController extends Controller
         // `family`, so all members can add spends until the owner narrows it.
         $event->shares()->create(['user_id' => $request->user()->id, 'role' => 'owner']);
 
-        FamilyNotifier::toAccessOf($event, 'spending', $request->user()->id, 'New spend tracker', "{$request->user()->name} started: {$event->name}", route('spending.show', $event, false));
+        Notify::toAccessOf($event, 'spending', $request->user()->id, 'New spend tracker', "{$request->user()->name} started: {$event->name}", route('spending.show', $event, false));
         Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
 
         return to_route('spending.show', $event);
@@ -272,7 +272,7 @@ class SpendingController extends Controller
 
         $amount = $data['currency'].' '.number_format((float) $data['amount'], 2);
         $body = "{$request->user()->name} added {$amount}".(! empty($data['note']) ? " · {$data['note']}" : '');
-        FamilyNotifier::toAccessOf($event, 'spending', $request->user()->id, $event->name, $body, route('spending.show', $event, false));
+        Notify::toAccessOf($event, 'spending', $request->user()->id, $event->name, $body, route('spending.show', $event, false));
         Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
 
         return back();
@@ -340,7 +340,7 @@ class SpendingController extends Controller
         ]);
 
         $amount = $event->currency.' '.number_format($data['amount'] / 100, 2);
-        FamilyNotifier::toAccessOf($event, 'spending', $request->user()->id, 'Settle-up', "{$request->user()->name} recorded a {$amount} payment", route('spending.show', $event, false));
+        Notify::toAccessOf($event, 'spending', $request->user()->id, 'Settle-up', "{$request->user()->name} recorded a {$amount} payment", route('spending.show', $event, false));
         Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
 
         return back();
