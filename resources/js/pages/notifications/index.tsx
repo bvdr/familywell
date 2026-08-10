@@ -4,23 +4,25 @@ import { useState } from 'react';
 
 import AppLayout from '@/layouts/app-layout';
 import { markAllRead, markRead, notificationIcon, relativeTime, type Notification } from '@/lib/notifications';
+import { useLocale, useT, type TFn } from '@/lib/i18n';
 import { type BreadcrumbItem } from '@/types';
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Notifications', href: '/notifications' }];
-
 // Group by calendar day for readable section headers.
-function dayLabel(iso: string): string {
+function dayLabel(iso: string, t: TFn, locale: string): string {
     const d = new Date(iso);
     const today = new Date();
     const y = new Date();
     y.setDate(today.getDate() - 1);
-    if (d.toDateString() === today.toDateString()) return 'Today';
-    if (d.toDateString() === y.toDateString()) return 'Yesterday';
-    return d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+    if (d.toDateString() === today.toDateString()) return t('notifications.today');
+    if (d.toDateString() === y.toDateString()) return t('notifications.yesterday');
+    return d.toLocaleDateString(locale, { weekday: 'long', month: 'short', day: 'numeric' });
 }
 
 export default function NotificationsIndex({ feed = [] }: { feed?: Notification[] }) {
     // Default to [] so a missing/older prop shape shows the empty state instead of crashing to blank.
+    const t = useT();
+    const locale = useLocale();
+    const breadcrumbs: BreadcrumbItem[] = [{ title: t('notifications.title'), href: '/notifications' }];
     const [items, setItems] = useState<Notification[]>(feed ?? []);
     const unread = items.filter((n) => !n.read).length;
 
@@ -39,7 +41,7 @@ export default function NotificationsIndex({ feed = [] }: { feed?: Notification[
     // Preserve order (already newest-first) while grouping by day.
     const groups: { label: string; rows: Notification[] }[] = [];
     for (const n of items) {
-        const label = dayLabel(n.at);
+        const label = dayLabel(n.at, t, locale);
         const last = groups[groups.length - 1];
         if (last && last.label === label) last.rows.push(n);
         else groups.push({ label, rows: [n] });
@@ -47,17 +49,17 @@ export default function NotificationsIndex({ feed = [] }: { feed?: Notification[
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Notifications" />
+            <Head title={t('notifications.title')} />
             <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
-                    <h1 className="font-heading text-primary text-2xl">Notifications</h1>
+                    <h1 className="font-heading text-primary text-2xl">{t('notifications.title')}</h1>
                     {unread > 0 && (
                         <button
                             type="button"
                             onClick={clearAll}
                             className="text-muted-foreground hover:text-primary flex items-center gap-1.5 text-sm font-medium"
                         >
-                            <CheckCheck className="size-4" /> Mark all read
+                            <CheckCheck className="size-4" /> {t('notifications.mark_all_read')}
                         </button>
                     )}
                 </div>
@@ -65,7 +67,7 @@ export default function NotificationsIndex({ feed = [] }: { feed?: Notification[
                 {items.length === 0 && (
                     <div className="text-muted-foreground flex flex-col items-center gap-2 rounded-xl border border-dashed p-10 text-center">
                         <Bell className="size-6" />
-                        <p className="text-sm">Nothing yet. Family activity you can see will show up here.</p>
+                        <p className="text-sm">{t('notifications.empty')}</p>
                     </div>
                 )}
 

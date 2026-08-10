@@ -8,7 +8,10 @@
         "edit": "Edit",
         "search": "Search",
         "done": "Done",
-        "loading": "Loading…"
+        "loading": "Loading…",
+        "copy": "Copy",
+        "copied": "Copied",
+        "no_matches": "No matches"
     },
     "nav": {
         "dashboard": "Dashboard",
@@ -36,7 +39,10 @@
         "jump_back_in": "Jump back in",
         "members_sub": "Who's in your family",
         "modules_sub": "Turn features on or off",
-        "spending_sub": "Shared expense trackers"
+        "spending_sub": "Shared expense trackers",
+        "overdue": "Overdue",
+        "mark_done": "Mark done",
+        "is_done": "Done"
     },
     "settings": {
         "title": "Settings",

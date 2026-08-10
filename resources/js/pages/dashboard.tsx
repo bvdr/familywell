@@ -2,7 +2,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Blocks, Check, FolderKanban, ListChecks, type LucideIcon, Settings, ShoppingCart, StickyNote, Users, Wallet } from 'lucide-react';
-import { useT, useLocale } from '@/lib/i18n';
+import { useLocale, useT, type TFn } from '@/lib/i18n';
 import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' }];
@@ -54,14 +54,14 @@ function parseDay(ymd: string) {
 }
 
 // A short due badge relative to today: Overdue / Today / weekday.
-function dueBadge(ymd: string): { label: string; tone: string } {
+function dueBadge(ymd: string, t: TFn, locale: string): { label: string; tone: string } {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const due = parseDay(ymd);
     const days = Math.round((due.getTime() - today.getTime()) / 86400000);
-    if (days < 0) return { label: 'Overdue', tone: 'bg-destructive/10 text-destructive' };
-    if (days === 0) return { label: 'Today', tone: 'bg-accent-subtle text-primary' };
-    return { label: due.toLocaleDateString(undefined, { weekday: 'short' }), tone: 'bg-surface text-muted-foreground' };
+    if (days < 0) return { label: t('dashboard.overdue'), tone: 'bg-destructive/10 text-destructive' };
+    if (days === 0) return { label: t('dashboard.today'), tone: 'bg-accent-subtle text-primary' };
+    return { label: due.toLocaleDateString(locale, { weekday: 'short' }), tone: 'bg-surface text-muted-foreground' };
 }
 
 // Time-of-day greeting key, resolved on the client so it matches the viewer's clock.
@@ -91,7 +91,9 @@ function Shortcut({ href, icon: Icon, title, sub }: { href: string; icon: typeof
 // check-off row. Tapping the circle marks it done/bought (it drops off on the next dashboard load);
 // the rest of the row opens the list it lives in. Due badge on the right.
 function AgendaRow({ item }: { item: AgendaItem }) {
-    const badge = dueBadge(item.dueDate);
+    const t = useT();
+    const locale = useLocale();
+    const badge = dueBadge(item.dueDate, t, locale);
     const [done, setDone] = useState(false);
     const toggle = () => {
         setDone(true); // optimistic check; the redirect back reloads the dashboard and removes it
@@ -102,7 +104,7 @@ function AgendaRow({ item }: { item: AgendaItem }) {
             <button
                 type="button"
                 onClick={toggle}
-                aria-label={done ? 'Done' : 'Mark done'}
+                aria-label={done ? t('dashboard.is_done') : t('dashboard.mark_done')}
                 className={`flex size-6 shrink-0 items-center justify-center rounded-full border transition-colors ${
                     done ? 'border-primary bg-primary text-primary-foreground' : 'border-border'
                 }`}

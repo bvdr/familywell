@@ -13,6 +13,7 @@ import { useOptimistic } from '@/hooks/use-optimistic';
 import { useAddAction } from '@/lib/add-action';
 import AppLayout from '@/layouts/app-layout';
 import { aisleIcon } from '@/lib/shopping';
+import { useT } from '@/lib/i18n';
 import { type BreadcrumbItem } from '@/types';
 
 type Aisle = { slug: string; name: string; icon: string };
@@ -48,9 +49,10 @@ export default function ShopDetail({
     lists?: ListRef[];
     defaultListId?: number | null;
 }) {
+    const t = useT();
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Shopping', href: '/m/shopping' },
-        { title: 'Shops', href: '/m/shopping/shops' },
+        { title: t('nav.shopping'), href: '/m/shopping' },
+        { title: t('shopping.tab_shops'), href: '/m/shopping/shops' },
         { title: shop.name, href: `/m/shopping/shops/${shop.id}` },
     ];
 
@@ -166,7 +168,7 @@ export default function ShopDetail({
             <Head title={shop.name} />
             <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
                 <div className="flex items-center gap-2">
-                    <Link href="/m/shopping/shops" aria-label="Back to shops" className="text-muted-foreground hover:text-primary -ml-1 flex size-8 items-center justify-center">
+                    <Link href="/m/shopping/shops" aria-label={t('shopping.back_to_shops')} className="text-muted-foreground hover:text-primary -ml-1 flex size-8 items-center justify-center">
                         <ChevronLeft className="size-5" />
                     </Link>
                     <span className="bg-accent-subtle text-primary flex size-9 shrink-0 items-center justify-center rounded-xl">
@@ -174,12 +176,12 @@ export default function ShopDetail({
                     </span>
                     <div className="min-w-0 flex-1">
                         <h1 className="font-heading text-primary truncate text-2xl">{shop.name}</h1>
-                        <p className="text-muted-foreground text-sm">{remaining} to buy</p>
+                        <p className="text-muted-foreground text-sm">{t('shopping.to_buy', { n: remaining })}</p>
                     </div>
                     <button
                         type="button"
                         onClick={() => setSettingsOpen(true)}
-                        aria-label="Shop settings"
+                        aria-label={t('shopping.shop_settings')}
                         className="border-border text-primary hover:bg-surface flex size-10 items-center justify-center rounded-full border"
                     >
                         <Settings className="size-5" />
@@ -188,7 +190,7 @@ export default function ShopDetail({
 
                 {items.length === 0 && (
                     <div className="text-muted-foreground rounded-xl border border-dashed p-10 text-center text-sm">
-                        Nothing needed at {shop.name} yet. Add the first item below.
+                        {t('shopping.nothing_needed_at', { store: shop.name })}
                     </div>
                 )}
 
@@ -201,13 +203,13 @@ export default function ShopDetail({
                             </div>
                             {g.items.map((i) => (
                                 <div key={i.id} className="bg-surface-card flex items-center gap-3 rounded-xl border px-3 py-2.5">
-                                    <button type="button" onClick={() => toggle(i)} aria-label="Mark bought" className="border-border flex size-6 shrink-0 items-center justify-center rounded-full border" />
+                                    <button type="button" onClick={() => toggle(i)} aria-label={t('shopping.mark_bought')} className="border-border flex size-6 shrink-0 items-center justify-center rounded-full border" />
                                     {/* Tap the body to edit the item. */}
                                     <button type="button" onClick={() => openEdit(i)} className="min-w-0 flex-1 text-left">
                                         <span className="text-primary block truncate text-[15px]">{i.name}</span>
                                         <span className="text-muted-foreground block truncate text-xs">
                                             {i.quantity ? `${i.quantity} · ` : ''}
-                                            from {i.listName}
+                                            {t('shopping.from_list', { list: i.listName })}
                                         </span>
                                     </button>
                                 </div>
@@ -218,7 +220,7 @@ export default function ShopDetail({
 
                 {done.length > 0 && (
                     <div className="mt-2 flex flex-col gap-2">
-                        <div className="text-muted-foreground px-1 text-xs font-semibold tracking-widest uppercase">In the cart</div>
+                        <div className="text-muted-foreground px-1 text-xs font-semibold tracking-widest uppercase">{t('shopping.in_cart')}</div>
                         {done.map((i) => (
                             <button
                                 key={i.id}
@@ -237,11 +239,11 @@ export default function ShopDetail({
 
                 {/* Add an item at this shop (goes to your default list unless you pick another). */}
                 <Button type="button" variant="outline" onClick={openNew} className="mt-1">
-                    <Plus className="size-4" /> Add item
+                    <Plus className="size-4" /> {t('shopping.add_item')}
                 </Button>
                 {remaining > 0 && (
                     <Button type="button" onClick={() => setFocus(true)}>
-                        <ShoppingCart className="size-4" /> Start Shopping
+                        <ShoppingCart className="size-4" /> {t('shopping.start_shopping')}
                     </Button>
                 )}
             </div>
@@ -253,7 +255,7 @@ export default function ShopDetail({
                         <div className="px-5 pt-[calc(1rem+env(safe-area-inset-top))] pb-4">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
-                                    <div className="text-primary-foreground/60 text-[11px] font-semibold tracking-widest uppercase">Focus Mode · Shopping</div>
+                                    <div className="text-primary-foreground/60 text-[11px] font-semibold tracking-widest uppercase">{t('shopping.focus_mode')}</div>
                                     <h2 className="font-heading mt-1 flex items-center gap-1.5 truncate text-2xl">
                                         <Store className="size-5" /> {shop.name}
                                     </h2>
@@ -261,7 +263,7 @@ export default function ShopDetail({
                                 <button
                                     type="button"
                                     onClick={() => setFocus(false)}
-                                    aria-label="Exit shopping mode"
+                                    aria-label={t('shopping.exit_shopping_mode')}
                                     className="hover:bg-primary-foreground/10 flex size-9 shrink-0 items-center justify-center rounded-lg transition-colors"
                                 >
                                     <X className="size-5" />
@@ -288,7 +290,7 @@ export default function ShopDetail({
                                                     <div className="font-medium">{i.name}</div>
                                                     <div className="text-primary-foreground/60 text-sm">
                                                         {i.quantity ? `${i.quantity} · ` : ''}
-                                                        from {i.listName}
+                                                        {t('shopping.from_list', { list: i.listName })}
                                                     </div>
                                                 </div>
                                             </button>
@@ -296,7 +298,7 @@ export default function ShopDetail({
                                     </section>
                                 );
                             })}
-                            {remaining === 0 && <p className="text-primary-foreground/80 py-10 text-center">Everything's in the cart. Nice work! 🎉</p>}
+                            {remaining === 0 && <p className="text-primary-foreground/80 py-10 text-center">{t('shopping.everything_done')}</p>}
                         </div>
                     </div>,
                     document.body,
@@ -310,29 +312,29 @@ export default function ShopDetail({
                     if (editingId && draft.name.trim()) patchItem(editingId); // flush the last edit
                     setEditingId(null);
                 }}
-                title={editingId ? 'Edit Item' : 'Add Item'}
+                title={editingId ? t('shopping.edit_item') : t('shopping.add_item_title')}
                 footer={
                     editingId ? undefined : (
                         <Button className="w-full" disabled={!draft.name.trim() || adding} onClick={addItem}>
-                            <Plus className="size-4" /> Add item
+                            <Plus className="size-4" /> {t('shopping.add_item')}
                         </Button>
                     )
                 }
             >
                 <div className="flex flex-col gap-5">
                     <div className="grid gap-2">
-                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Item</Label>
-                        <Input autoFocus value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} placeholder="What do you need?" />
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.item_label')}</Label>
+                        <Input autoFocus value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} placeholder={t('shopping.item_placeholder_shop')} />
                     </div>
 
                     <div className="grid gap-2">
-                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Quantity</Label>
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.quantity')}</Label>
                         <div className="flex items-center gap-2">
-                            <button type="button" onClick={() => bump(-1)} aria-label="Decrease" className="border-border text-primary flex size-9 items-center justify-center rounded-lg border">
+                            <button type="button" onClick={() => bump(-1)} aria-label={t('shopping.decrease')} className="border-border text-primary flex size-9 items-center justify-center rounded-lg border">
                                 <Minus className="size-4" />
                             </button>
-                            <Input value={draft.quantity} onChange={(e) => setDraft((d) => ({ ...d, quantity: e.target.value }))} placeholder="2 bunches" className="text-center" />
-                            <button type="button" onClick={() => bump(1)} aria-label="Increase" className="border-border text-primary flex size-9 items-center justify-center rounded-lg border">
+                            <Input value={draft.quantity} onChange={(e) => setDraft((d) => ({ ...d, quantity: e.target.value }))} placeholder={t('shopping.quantity_placeholder')} className="text-center" />
+                            <button type="button" onClick={() => bump(1)} aria-label={t('shopping.increase')} className="border-border text-primary flex size-9 items-center justify-center rounded-lg border">
                                 <Plus className="size-4" />
                             </button>
                         </div>
@@ -340,9 +342,9 @@ export default function ShopDetail({
 
                     {!editingId && lists.length > 0 && (
                         <div className="grid gap-2">
-                            <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">List</Label>
+                            <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.list_label')}</Label>
                             <Picker
-                                placeholder="Pick a list"
+                                placeholder={t('shopping.pick_list')}
                                 options={lists.map((l) => ({ value: String(l.id), label: l.name }))}
                                 selected={draft.list_id ? [String(draft.list_id)] : []}
                                 onChange={(next) => setDraft((d) => ({ ...d, list_id: next[0] ? Number(next[0]) : null }))}
@@ -351,11 +353,11 @@ export default function ShopDetail({
                     )}
 
                     <div className="grid gap-2">
-                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Shops</Label>
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.tab_shops')}</Label>
                         <Picker
                             multi
                             searchable
-                            placeholder="Pick shops"
+                            placeholder={t('shopping.pick_shops')}
                             options={shopOptions}
                             selected={draft.shops}
                             onChange={(next) => setDraft((d) => ({ ...d, shops: [...new Set(next)] }))}
@@ -364,23 +366,23 @@ export default function ShopDetail({
                     </div>
 
                     <div className="grid gap-2">
-                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Department</Label>
-                        <Picker placeholder="Pick a department" options={departmentOptions} selected={[draft.department]} onChange={(next) => setDraft((d) => ({ ...d, department: next[0] ?? 'other' }))} />
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.department_label')}</Label>
+                        <Picker placeholder={t('shopping.pick_department')} options={departmentOptions} selected={[draft.department]} onChange={(next) => setDraft((d) => ({ ...d, department: next[0] ?? 'other' }))} />
                     </div>
 
                     <div className="grid gap-2">
-                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Note</Label>
-                        <Input value={draft.note} onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))} placeholder="Add a note (optional)" />
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.note_label')}</Label>
+                        <Input value={draft.note} onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))} placeholder={t('shopping.note_placeholder')} />
                     </div>
 
                     <div className="grid gap-2">
-                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Due date</Label>
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.due_date_label')}</Label>
                         <div className="border-border flex h-10 w-full items-center gap-2 rounded-md border px-3">
                             <Calendar className="text-muted-foreground size-4 shrink-0" />
                             <input type="date" value={draft.due_date} onChange={(e) => setDraft((d) => ({ ...d, due_date: e.target.value }))} className="text-primary w-full min-w-0 bg-transparent text-base outline-none md:text-sm" />
                             {draft.due_date && (
                                 <button type="button" onClick={() => setDraft((d) => ({ ...d, due_date: '' }))} className="text-muted-foreground hover:text-primary text-xs">
-                                    Clear
+                                    {t('shopping.clear')}
                                 </button>
                             )}
                         </div>
@@ -388,18 +390,18 @@ export default function ShopDetail({
 
                     {!!editingId && (
                         <button type="button" onClick={deleteItem} className="text-destructive flex items-center justify-center gap-2 py-1 text-sm font-medium">
-                            <Trash2 className="size-4" /> Delete item
+                            <Trash2 className="size-4" /> {t('shopping.delete_item')}
                         </button>
                     )}
                 </div>
             </ResponsiveModal>
 
-            <ResponsiveModal open={settingsOpen} onOpenChange={setSettingsOpen} title="Shop settings">
+            <ResponsiveModal open={settingsOpen} onOpenChange={setSettingsOpen} title={t('shopping.shop_settings')}>
                 <div className="flex flex-col gap-4">
                     <div className="grid gap-2">
-                        <label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Name</label>
+                        <label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.name_label')}</label>
                         <Input value={name} onChange={(e) => setName(e.target.value)} onBlur={saveName} onKeyDown={(e) => e.key === 'Enter' && saveName()} />
-                        <p className="text-text-muted text-xs">Renaming updates every item, list and department that uses this shop.</p>
+                        <p className="text-text-muted text-xs">{t('shopping.rename_hint')}</p>
                     </div>
                     <Button
                         type="button"
@@ -409,7 +411,7 @@ export default function ShopDetail({
                             setAislesOpen(true);
                         }}
                     >
-                        Edit departments
+                        {t('shopping.edit_departments')}
                     </Button>
                 </div>
             </ResponsiveModal>

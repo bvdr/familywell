@@ -3,6 +3,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { router } from '@inertiajs/react';
 import { Check, Copy, Link2, Lock, UserCheck, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useT } from '@/lib/i18n';
 
 export type ShareMember = { id: number; name: string; role: 'owner' | 'editor' | 'viewer' | null; isOwner: boolean };
 export type ShareState = {
@@ -15,9 +16,9 @@ export type ShareState = {
 };
 
 const VISIBILITY = [
-    { key: 'family', icon: Users, title: 'Anyone in the family', sub: 'All family members can add spends' },
-    { key: 'invited', icon: UserCheck, title: 'Only invited people', sub: 'Just the people you add below' },
-    { key: 'private', icon: Lock, title: 'Private', sub: 'Visible only to you' },
+    { key: 'family', icon: Users, titleKey: 'sharing.vis_family_title', subKey: 'sharing.vis_family_sub' },
+    { key: 'invited', icon: UserCheck, titleKey: 'sharing.vis_invited_title', subKey: 'sharing.vis_invited_sub' },
+    { key: 'private', icon: Lock, titleKey: 'sharing.vis_private_title', subKey: 'sharing.vis_private_sub' },
 ] as const;
 
 
@@ -33,6 +34,7 @@ export function ShareSheet({
     eventName: string;
 }) {
     const [copied, setCopied] = useState(false);
+    const t = useT();
     // Mirror the server prop locally so toggles react instantly. The effect re-syncs whenever the
     // server confirms (props change) or, if the request fails, reverts to the unchanged prop.
     const [state, setState] = useState(share);
@@ -70,13 +72,13 @@ export function ShareSheet({
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent side="bottom" className="max-h-[88vh] overflow-y-auto rounded-t-2xl px-4 pb-8 sm:mx-auto sm:max-w-md">
                 <SheetHeader className="px-0 text-left">
-                    <SheetTitle className="font-heading text-primary text-2xl">Share event</SheetTitle>
+                    <SheetTitle className="font-heading text-primary text-2xl">{t('sharing.title')}</SheetTitle>
                     <p className="text-muted-foreground -mt-1 text-sm">{eventName}</p>
                 </SheetHeader>
 
                 {/* Visibility */}
                 <div className="mt-2 flex flex-col gap-2">
-                    <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Who can add spends</p>
+                    <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('sharing.access_title')}</p>
                     {VISIBILITY.map((v) => {
                         const active = state.visibility === v.key;
                         return (
@@ -95,8 +97,8 @@ export function ShareSheet({
                                     <v.icon className="size-4.5" />
                                 </span>
                                 <span className="flex-1">
-                                    <span className="text-primary block font-medium">{v.title}</span>
-                                    <span className="text-muted-foreground block text-xs">{v.sub}</span>
+                                    <span className="text-primary block font-medium">{t(v.titleKey)}</span>
+                                    <span className="text-muted-foreground block text-xs">{t(v.subKey)}</span>
                                 </span>
                                 <span
                                     className={`flex size-5 items-center justify-center rounded-full border ${active ? 'border-primary bg-primary text-primary-foreground' : 'border-border'}`}
@@ -110,7 +112,7 @@ export function ShareSheet({
 
                 {/* People */}
                 <div className="mt-5 flex flex-col gap-1">
-                    <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Can add spends</p>
+                    <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('sharing.people_title')}</p>
                     {state.members.map((m) => {
                         // Private = owner only, so everyone else is dimmed and locked out.
                         const excluded = state.visibility === 'private' && !m.isOwner;
@@ -119,12 +121,12 @@ export function ShareSheet({
                                 <MemberAvatar userId={m.id} name={m.name} className="size-9 text-sm" />
                                 <div className="flex-1">
                                     <div className="text-primary text-sm font-medium">{m.name}</div>
-                                    {m.isOwner && <div className="text-muted-foreground text-xs">Owner</div>}
+                                    {m.isOwner && <div className="text-muted-foreground text-xs">{t('sharing.owner')}</div>}
                                 </div>
                                 {m.isOwner ? (
-                                    <span className="text-muted-foreground text-sm">Owner</span>
+                                    <span className="text-muted-foreground text-sm">{t('sharing.owner')}</span>
                                 ) : excluded ? (
-                                    <span className="text-muted-foreground text-sm">No access</span>
+                                    <span className="text-muted-foreground text-sm">{t('sharing.no_access')}</span>
                                 ) : state.canManage ? (
                                     <select
                                         value={m.role ?? 'none'}
@@ -133,15 +135,15 @@ export function ShareSheet({
                                         }
                                         className="border-border bg-surface-card text-primary rounded-lg border py-1.5 pr-7 pl-3 text-sm"
                                     >
-                                        <option value="editor">Can add</option>
-                                        <option value="viewer">Can view</option>
+                                        <option value="editor">{t('sharing.can_edit')}</option>
+                                        <option value="viewer">{t('sharing.can_view')}</option>
                                         {/* Removing a person only sticks once visibility is narrowed; in
                                         "family" mode everyone can add regardless. */}
-                                        {state.visibility !== 'family' && <option value="none">No access</option>}
+                                        {state.visibility !== 'family' && <option value="none">{t('sharing.no_access')}</option>}
                                     </select>
                                 ) : (
                                     <span className="text-muted-foreground text-sm">
-                                        {m.role === 'editor' ? 'Can add' : m.role === 'viewer' ? 'Can view' : 'No access'}
+                                        {m.role === 'editor' ? t('sharing.can_edit') : m.role === 'viewer' ? t('sharing.can_view') : t('sharing.no_access')}
                                     </span>
                                 )}
                             </div>
@@ -151,7 +153,7 @@ export function ShareSheet({
 
                 {/* Invite link */}
                 <div className="mt-5 flex flex-col gap-2">
-                    <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Invite link</p>
+                    <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('sharing.invite_link')}</p>
                     {state.link ? (
                         <>
                             <div className="bg-surface flex items-center gap-2 rounded-xl border p-2 pl-3">
@@ -162,20 +164,20 @@ export function ShareSheet({
                                     className="bg-primary text-primary-foreground inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium"
                                 >
                                     {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-                                    {copied ? 'Copied' : 'Copy'}
+                                    {copied ? t('common.copied') : t('common.copy')}
                                 </button>
                             </div>
-                            <p className="text-muted-foreground text-xs">Anyone with the link can view this event.</p>
+                            <p className="text-muted-foreground text-xs">{t('sharing.link_view_desc')}</p>
                         </>
                     ) : state.canManage ? (
                         <button
                             onClick={createLink}
                             className="bg-surface-card hover:border-accent text-primary inline-flex items-center justify-center gap-2 rounded-xl border p-3 text-sm font-medium transition-colors"
                         >
-                            <Link2 className="size-4" /> Create a view-only link
+                            <Link2 className="size-4" /> {t('sharing.create_link')}
                         </button>
                     ) : (
-                        <p className="text-muted-foreground text-sm">No invite link.</p>
+                        <p className="text-muted-foreground text-sm">{t('sharing.no_link')}</p>
                     )}
                 </div>
 

@@ -22,6 +22,7 @@ import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import { MemberAvatar } from '@/components/member-avatar';
+import { useT } from '@/lib/i18n';
 import { dueLabel } from '@/lib/tasks';
 import { buildTree, type FlatTask, flatten, getProjection, INDENT, removeChildrenOf } from './tree-utils';
 
@@ -59,6 +60,7 @@ function AssigneeDot({ members, id }: { members: TaskMember[]; id: number | null
 }
 
 export function TaskTree({ tasks, members, canEdit, addUrl, taskUrl, reorderUrl, emptyHint, addInputRef }: Props) {
+    const t = useT();
     const doneOpt = useOptimistic<boolean>();
     const [newTitle, setNewTitle] = useState('');
     const [editing, setEditing] = useState<SubTask | null>(null);
@@ -162,7 +164,7 @@ export function TaskTree({ tasks, members, canEdit, addUrl, taskUrl, reorderUrl,
 
     return (
         <div className="flex flex-col gap-2">
-            {tree.length === 0 && <p className="text-muted-foreground py-3 text-sm">{emptyHint ?? 'No tasks yet.'}</p>}
+            {tree.length === 0 && <p className="text-muted-foreground py-3 text-sm">{emptyHint ?? t('tasks.empty_tasks_short')}</p>}
 
             <DndContext
                 sensors={sensors}
@@ -207,10 +209,10 @@ export function TaskTree({ tasks, members, canEdit, addUrl, taskUrl, reorderUrl,
                         value={newTitle}
                         onChange={(e) => setNewTitle(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && addTask()}
-                        placeholder="Add a task..."
+                        placeholder={t('tasks.add_task_placeholder')}
                         className="text-base md:text-sm"
                     />
-                    <Button size="icon" className="shrink-0 rounded-lg" onClick={addTask} aria-label="Add task">
+                    <Button size="icon" className="shrink-0 rounded-lg" onClick={addTask} aria-label={t('tasks.add_task')}>
                         <Plus className="size-5" />
                     </Button>
                 </div>
@@ -246,6 +248,7 @@ function SortableRow({
     swipeOpen: boolean;
     onSwipeOpen: (v: boolean) => void;
 }) {
+    const t = useT();
     // Only the drag `listeners` are spread (not `attributes`): attributes would put role="button" on the
     // row, nesting the real buttons (toggle/title) inside a button. Keyboard-drag a11y is traded away.
     const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
@@ -312,7 +315,7 @@ function SortableRow({
             <button
                 type="button"
                 onClick={onDelete}
-                aria-label="Delete task"
+                aria-label={t('tasks.delete_task')}
                 className="bg-destructive text-destructive-foreground absolute inset-y-0 right-0 flex w-[76px] items-center justify-center rounded-xl"
             >
                 <Trash2 className="size-4.5" />
@@ -329,7 +332,7 @@ function SortableRow({
                 <button
                     type="button"
                     onClick={onToggle}
-                    aria-label={done ? 'Mark not done' : 'Mark done'}
+                    aria-label={done ? t('tasks.mark_not_done') : t('tasks.mark_done')}
                     className={`flex ${sub ? 'size-5' : 'size-6'} shrink-0 items-center justify-center rounded-full border transition-colors ${
                         done ? 'border-primary bg-primary text-primary-foreground' : 'border-border'
                     }`}
@@ -367,6 +370,7 @@ function EditTaskModal({
     onClose: () => void;
     onDelete: () => void;
 }) {
+    const t = useT();
     const [title, setTitle] = useState(task.title);
     const [note, setNote] = useState(task.note ?? '');
     const [due, setDue] = useState(task.dueDate ?? '');
@@ -399,19 +403,24 @@ function EditTaskModal({
                 if (title.trim()) patch(); // flush the last edit
                 onClose();
             }}
-            title="Edit task"
+            title={t('tasks.edit_task')}
         >
             <div className="flex flex-col gap-4">
                 <div className="grid gap-2">
-                    <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Title</Label>
+                    <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('tasks.field_title')}</Label>
                     <Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} className="text-base md:text-sm" />
                 </div>
                 <div className="grid gap-2">
-                    <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Note</Label>
-                    <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional" className="text-base md:text-sm" />
+                    <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('tasks.field_note')}</Label>
+                    <Input
+                        value={note}
+                        onChange={(e) => setNote(e.target.value)}
+                        placeholder={t('tasks.optional_placeholder')}
+                        className="text-base md:text-sm"
+                    />
                 </div>
                 <div className="grid gap-2">
-                    <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Due date</Label>
+                    <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('tasks.due_date')}</Label>
                     <div className="border-border flex h-9 w-full items-center gap-2 rounded-lg border px-3">
                         <Calendar className="text-muted-foreground size-4 shrink-0" />
                         <input
@@ -422,13 +431,13 @@ function EditTaskModal({
                         />
                         {due && (
                             <button type="button" onClick={() => setDue('')} className="text-muted-foreground hover:text-primary text-xs">
-                                Clear
+                                {t('tasks.clear')}
                             </button>
                         )}
                     </div>
                 </div>
                 <div className="grid gap-2">
-                    <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Assign to</Label>
+                    <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('tasks.assign_to')}</Label>
                     <div className="flex flex-wrap gap-2">
                         <button
                             type="button"
@@ -437,7 +446,7 @@ function EditTaskModal({
                                 assigned === null ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-primary'
                             }`}
                         >
-                            <UserCircle2 className="size-4" /> Anyone
+                            <UserCircle2 className="size-4" /> {t('tasks.anyone')}
                         </button>
                         {members.map((m) => (
                             <button
@@ -454,7 +463,7 @@ function EditTaskModal({
                     </div>
                 </div>
                 <button type="button" onClick={onDelete} className="text-destructive flex items-center justify-center gap-2 py-1 text-sm font-medium">
-                    <Trash2 className="size-4" /> Delete task
+                    <Trash2 className="size-4" /> {t('tasks.delete_task')}
                 </button>
             </div>
         </ResponsiveModal>

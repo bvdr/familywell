@@ -6,6 +6,7 @@ import TaskList from '@tiptap/extension-task-list';
 import { Markdown } from 'tiptap-markdown';
 import { Bold, CheckSquare, Heading, List } from 'lucide-react';
 import { useRef } from 'react';
+import { useT } from '@/lib/i18n';
 
 // tiptap-markdown injects a phantom empty task list when a note mixes a bullet list and a task list.
 // The stored markdown is clean, so we strip any empty list node once, right after parsing on load.
@@ -38,6 +39,7 @@ export function MarkdownEditor({
     onChange?: (markdown: string) => void;
     onBlur?: () => void;
 }) {
+    const t = useT();
     // Stays false until the initial parse + cleanup finishes, so opening a note never fires a save.
     const hydrated = useRef(false);
     const editor = useEditor({
@@ -98,20 +100,20 @@ export function MarkdownEditor({
         <div className="flex flex-col gap-3">
             {editable && (
                 <div className="border-border/60 -mx-1 flex items-center gap-1 border-b pb-2">
-                    <Btn label="Bold" active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()}>
+                    <Btn label={t('notes.bold')} active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()}>
                         <Bold className="size-4" />
                     </Btn>
                     <Btn
-                        label="Heading"
+                        label={t('notes.heading')}
                         active={editor.isActive('heading', { level: 1 })}
                         onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
                     >
                         <Heading className="size-4" />
                     </Btn>
-                    <Btn label="Bullet list" active={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()}>
+                    <Btn label={t('notes.bullet_list')} active={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()}>
                         <List className="size-4" />
                     </Btn>
-                    <Btn label="Checkbox" active={editor.isActive('taskList')} onClick={() => editor.chain().focus().toggleTaskList().run()}>
+                    <Btn label={t('notes.checkbox')} active={editor.isActive('taskList')} onClick={() => editor.chain().focus().toggleTaskList().run()}>
                         <CheckSquare className="size-4" />
                     </Btn>
                 </div>

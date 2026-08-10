@@ -6,6 +6,7 @@ import { MarkdownEditor } from '@/components/notes/markdown-editor';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import AppLayout from '@/layouts/app-layout';
+import { useT } from '@/lib/i18n';
 import { NOTE_COLOR_KEYS, NOTE_SWATCHES, noteColor } from '@/lib/notes';
 import { type BreadcrumbItem } from '@/types';
 
@@ -22,6 +23,7 @@ type Note = {
 };
 
 export default function NoteDetail({ note, folders, share }: { note: Note; folders: Folder[]; share: ShareState }) {
+    const t = useT();
     const [title, setTitle] = useState(note.title);
     const [sharing, setSharing] = useState(false);
     const titleRef = useRef<HTMLTextAreaElement>(null);
@@ -67,8 +69,8 @@ export default function NoteDetail({ note, folders, share }: { note: Note; folde
     const onBody = (markdown: string) => queue({ body: markdown });
 
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Notes', href: '/m/notes' },
-        { title: title.trim() || 'Note', href: route('notes.show', note.id) },
+        { title: t('nav.notes'), href: '/m/notes' },
+        { title: title.trim() || t('notes.untitled'), href: route('notes.show', note.id) },
     ];
 
     const headerActions = note.canEdit ? (
@@ -76,7 +78,7 @@ export default function NoteDetail({ note, folders, share }: { note: Note; folde
             <button
                 type="button"
                 onClick={() => save({ pinned: !note.pinned })}
-                aria-label={note.pinned ? 'Unpin note' : 'Pin note'}
+                aria-label={note.pinned ? t('notes.unpin') : t('notes.pin')}
                 className={`flex size-9 items-center justify-center rounded-lg border transition-colors ${
                     note.pinned ? 'border-primary bg-accent-subtle text-primary' : 'border-border text-primary hover:bg-surface'
                 }`}
@@ -86,7 +88,7 @@ export default function NoteDetail({ note, folders, share }: { note: Note; folde
             <button
                 type="button"
                 onClick={() => setSharing(true)}
-                aria-label="Share note"
+                aria-label={t('notes.share_note')}
                 className="border-border text-primary hover:bg-surface flex size-9 items-center justify-center rounded-lg border transition-colors"
             >
                 <Users className="size-4.5" />
@@ -95,7 +97,7 @@ export default function NoteDetail({ note, folders, share }: { note: Note; folde
                 <DropdownMenuTrigger asChild>
                     <button
                         type="button"
-                        aria-label="Note options"
+                        aria-label={t('notes.note_options')}
                         className="border-border text-primary hover:bg-surface flex size-9 items-center justify-center rounded-lg border transition-colors"
                     >
                         <MoreHorizontal className="size-4.5" />
@@ -104,7 +106,7 @@ export default function NoteDetail({ note, folders, share }: { note: Note; folde
                 <DropdownMenuContent align="end" className="w-56">
                     {/* Color swatches. */}
                     <DropdownMenuLabel className="flex items-center gap-1.5 text-xs">
-                        <Palette className="size-3.5" /> Color
+                        <Palette className="size-3.5" /> {t('notes.color')}
                     </DropdownMenuLabel>
                     <div className="flex flex-wrap gap-1.5 px-2 pb-1.5">
                         {NOTE_COLOR_KEYS.map((c) => (
@@ -124,10 +126,10 @@ export default function NoteDetail({ note, folders, share }: { note: Note; folde
                     <DropdownMenuSeparator />
                     {/* Move to folder. */}
                     <DropdownMenuLabel className="flex items-center gap-1.5 text-xs">
-                        <FolderInput className="size-3.5" /> Folder
+                        <FolderInput className="size-3.5" /> {t('notes.folder')}
                     </DropdownMenuLabel>
                     <DropdownMenuItem onSelect={() => save({ folder_id: null })}>
-                        {note.folderId === null && <Check className="size-4" />} No folder
+                        {note.folderId === null && <Check className="size-4" />} {t('notes.no_folder')}
                     </DropdownMenuItem>
                     {folders.map((f) => (
                         <DropdownMenuItem key={f.id} onSelect={() => save({ folder_id: f.id })}>
@@ -137,21 +139,21 @@ export default function NoteDetail({ note, folders, share }: { note: Note; folde
                     <DropdownMenuSeparator />
                     {note.visibility === 'family' ? (
                         <DropdownMenuItem onSelect={() => save({ visibility: 'private' })}>
-                            <Lock className="size-4" /> Make private
+                            <Lock className="size-4" /> {t('notes.make_private')}
                         </DropdownMenuItem>
                     ) : (
                         <DropdownMenuItem onSelect={() => save({ visibility: 'family' })}>
-                            <Users className="size-4" /> Share with family
+                            <Users className="size-4" /> {t('notes.share_with_family')}
                         </DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
                         onSelect={() => {
-                            if (confirm('Delete this note?')) router.delete(route('notes.destroy', note.id));
+                            if (confirm(t('notes.confirm_delete_note'))) router.delete(route('notes.destroy', note.id));
                         }}
                     >
-                        <Trash2 className="size-4" /> Delete note
+                        <Trash2 className="size-4" /> {t('notes.delete_note')}
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
@@ -162,7 +164,7 @@ export default function NoteDetail({ note, folders, share }: { note: Note; folde
 
     return (
         <AppLayout breadcrumbs={breadcrumbs} actions={headerActions}>
-            <Head title={title.trim() || 'Note'} />
+            <Head title={title.trim() || t('notes.untitled')} />
             {/* The tint fills the viewport below the h-16 app header; ancestors don't resolve a
                 height, so min-h-full alone would collapse to the content height. */}
             <div className={`min-h-[calc(100dvh-4rem)] ${noteColor(note.color)} border-0`}>
@@ -173,7 +175,7 @@ export default function NoteDetail({ note, folders, share }: { note: Note; folde
                         onChange={(e) => onTitle(e.target.value)}
                         onBlur={flush}
                         disabled={!note.canEdit}
-                        placeholder="Title"
+                        placeholder={t('notes.title_placeholder')}
                         rows={1}
                         className="font-heading text-primary w-full resize-none overflow-hidden bg-transparent text-2xl leading-tight outline-none placeholder:text-muted-foreground/50"
                     />
@@ -181,7 +183,7 @@ export default function NoteDetail({ note, folders, share }: { note: Note; folde
                         {folderName && <span className="bg-surface/60 rounded-full px-2 py-0.5">{folderName}</span>}
                         {note.visibility === 'private' && (
                             <span className="flex items-center gap-1">
-                                <Lock className="size-3" /> Private
+                                <Lock className="size-3" /> {t('notes.private')}
                             </span>
                         )}
                     </div>
@@ -191,7 +193,7 @@ export default function NoteDetail({ note, folders, share }: { note: Note; folde
                 </div>
             </div>
 
-            {share && <ShareSheet open={sharing} onOpenChange={setSharing} share={share} eventName={title.trim() || 'Note'} />}
+            {share && <ShareSheet open={sharing} onOpenChange={setSharing} share={share} eventName={title.trim() || t('notes.untitled')} />}
         </AppLayout>
     );
 }

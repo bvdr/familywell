@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { AISLE_ICON_KEYS, aisleIcon } from '@/lib/shopping';
+import { useT } from '@/lib/i18n';
 
 type Aisle = { id: number; slug: string; name: string; icon: string; position: number };
 type Template = { key: string; label: string };
@@ -46,6 +47,7 @@ export function AisleEditor({
     shopName?: string;
     reloadKeys?: string[]; // page props to reload on close so grouping/chips refresh
 }) {
+    const t = useT();
     // In shop mode the store is fixed to the shop and there's no switcher.
     const storeList = shopId ? [] : stores;
     const [store, setStore] = useState(shopId ? (shopName ?? '') : initialStore);
@@ -108,9 +110,9 @@ export function AisleEditor({
         else apply(await api('PATCH', route('shopping.aisles.update', target), { icon }));
         setPicker(null);
     };
-    const applyTemplate = async (t: Template) => {
-        if (!confirm(`Replace this shop's aisles with the ${t.label} template? Existing aisles are removed.`)) return;
-        apply(await api('POST', templateUrl, { template: t.key, store }));
+    const applyTemplate = async (tpl: Template) => {
+        if (!confirm(t('shopping.replace_template_confirm', { template: tpl.label }))) return;
+        apply(await api('POST', templateUrl, { template: tpl.key, store }));
     };
 
     const handleOpenChange = (v: boolean) => {
@@ -125,11 +127,11 @@ export function AisleEditor({
         <ResponsiveModal
             open={open}
             onOpenChange={handleOpenChange}
-            title="Edit departments"
-            description={storeList.length > 1 ? 'Pick a shop, then edit its departments' : `Departments at ${store || 'this shop'}`}
+            title={t('shopping.edit_departments')}
+            description={storeList.length > 1 ? t('shopping.pick_shop_then_edit') : t('shopping.departments_at', { store: store || t('shopping.this_shop') })}
             footer={
                 <Button className="w-full" onClick={() => handleOpenChange(false)}>
-                    Done
+                    {t('shopping.done_button')}
                 </Button>
             }
         >
@@ -152,7 +154,7 @@ export function AisleEditor({
             {picker !== null ? (
                 <div className="flex flex-col gap-3">
                     <button type="button" onClick={() => setPicker(null)} className="text-muted-foreground self-start text-sm">
-                        ← Back
+                        {t('shopping.back')}
                     </button>
                     <div className="grid grid-cols-6 gap-2">
                         {AISLE_ICON_KEYS.map((key) => {
@@ -181,7 +183,7 @@ export function AisleEditor({
                                     <button
                                         type="button"
                                         onClick={() => setPicker(a.id)}
-                                        aria-label="Change icon"
+                                        aria-label={t('shopping.change_icon')}
                                         className="bg-accent-subtle text-primary flex size-9 shrink-0 items-center justify-center rounded-lg"
                                     >
                                         <Icon className="size-4.5" />
@@ -190,14 +192,14 @@ export function AisleEditor({
                                         value={a.name}
                                         onChange={(e) => editNameLocal(a.id, e.target.value)}
                                         onBlur={() => renameAisle(a)}
-                                        aria-label="Department name"
+                                        aria-label={t('shopping.department_name')}
                                         className="text-primary min-w-0 flex-1 bg-transparent text-sm font-medium outline-none"
                                     />
                                     <button
                                         type="button"
                                         onClick={() => move(idx, -1)}
                                         disabled={idx === 0}
-                                        aria-label="Move up"
+                                        aria-label={t('shopping.move_up')}
                                         className="text-muted-foreground hover:text-primary flex size-7 items-center justify-center rounded-lg disabled:opacity-30"
                                     >
                                         <ChevronUp className="size-4" />
@@ -206,7 +208,7 @@ export function AisleEditor({
                                         type="button"
                                         onClick={() => move(idx, 1)}
                                         disabled={idx === aisles.length - 1}
-                                        aria-label="Move down"
+                                        aria-label={t('shopping.move_down')}
                                         className="text-muted-foreground hover:text-primary flex size-7 items-center justify-center rounded-lg disabled:opacity-30"
                                     >
                                         <ChevronDown className="size-4" />
@@ -214,7 +216,7 @@ export function AisleEditor({
                                     <button
                                         type="button"
                                         onClick={() => removeAisle(a)}
-                                        aria-label="Delete department"
+                                        aria-label={t('shopping.delete_department')}
                                         className="text-muted-foreground hover:text-destructive flex size-7 items-center justify-center rounded-lg"
                                     >
                                         <Trash2 className="size-4" />
@@ -228,7 +230,7 @@ export function AisleEditor({
                         <button
                             type="button"
                             onClick={() => setPicker('new')}
-                            aria-label="Pick icon"
+                            aria-label={t('shopping.pick_icon')}
                             className="border-border text-primary hover:bg-surface flex size-9 shrink-0 items-center justify-center rounded-lg border"
                         >
                             {(() => {
@@ -240,24 +242,24 @@ export function AisleEditor({
                             value={newName}
                             onChange={(e) => setNewName(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && addAisle()}
-                            placeholder="New department"
+                            placeholder={t('shopping.new_department_placeholder')}
                         />
-                        <Button type="button" size="icon" onClick={addAisle} disabled={!newName.trim()} aria-label="Add department">
+                        <Button type="button" size="icon" onClick={addAisle} disabled={!newName.trim()} aria-label={t('shopping.add_department')}>
                             <Plus className="size-4" />
                         </Button>
                     </div>
 
                     <div className="grid gap-2">
-                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Start from a template</Label>
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.start_from_template')}</Label>
                         <div className="flex flex-wrap gap-2">
-                            {templates.map((t) => (
+                            {templates.map((tpl) => (
                                 <button
-                                    key={t.key}
+                                    key={tpl.key}
                                     type="button"
-                                    onClick={() => applyTemplate(t)}
+                                    onClick={() => applyTemplate(tpl)}
                                     className="border-border text-primary hover:bg-surface rounded-full border px-3 py-1.5 text-sm transition-colors"
                                 >
-                                    {t.label}
+                                    {tpl.label}
                                 </button>
                             ))}
                         </div>

@@ -4,6 +4,7 @@ import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { categoryIcon } from '@/lib/categories';
+import { useT } from '@/lib/i18n';
 import { money } from '@/lib/money';
 import { Head, router, useForm } from '@inertiajs/react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
@@ -33,6 +34,7 @@ const dayLabel = (date: string) => new Date(date + 'T00:00:00').toLocaleDateStri
 // who they are from the guest list; that choice is remembered in localStorage per token. Editors get
 // an add-expense form and can edit/delete the spends they added.
 export default function GuestEvent({ token, event, guests, spends, balances, suggestions }: Props) {
+    const t = useT();
     const storageKey = `familywell:guest:${token}`;
     const [meId, setMeId] = useState<number | null>(null);
     // Read the saved identity after mount (no SSR window), and drop it if that guest was removed.
@@ -62,11 +64,11 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
                 <div className="bg-surface-dark text-text-inverse rounded-2xl p-5">
                     <div className="text-accent-light text-xs tracking-widest uppercase">{event.name}</div>
                     <div className="font-heading mt-1 text-3xl">{money(event.total, event.currency)}</div>
-                    <div className="text-accent-light mt-1 text-sm">shared with you</div>
+                    <div className="text-accent-light mt-1 text-sm">{t('spending.shared_with_you')}</div>
                 </div>
                 <section className="mt-2 flex flex-col gap-2">
-                    <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Who are you?</h2>
-                    {guests.length === 0 && <p className="text-muted-foreground text-sm">No guests have been added yet.</p>}
+                    <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('spending.who_are_you')}</h2>
+                    {guests.length === 0 && <p className="text-muted-foreground text-sm">{t('spending.no_guests_yet')}</p>}
                     {guests.map((g) => (
                         <button
                             key={g.id}
@@ -77,7 +79,9 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
                                 {g.name.charAt(0).toUpperCase()}
                             </span>
                             <span className="text-primary flex-1 font-medium">{g.name}</span>
-                            <span className="text-muted-foreground text-xs">{g.role === 'editor' ? 'Can add' : 'View only'}</span>
+                            <span className="text-muted-foreground text-xs">
+                                {t(g.role === 'editor' ? 'spending.can_add' : 'spending.view_only')}
+                            </span>
                         </button>
                     ))}
                 </section>
@@ -95,22 +99,22 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
                 <span className="bg-primary text-primary-foreground flex size-7 items-center justify-center rounded-full text-xs font-medium">
                     {me.name.charAt(0).toUpperCase()}
                 </span>
-                <span className="text-primary font-medium">You are {me.name}</span>
+                <span className="text-primary font-medium">{t('spending.you_are', { name: me.name })}</span>
                 <button onClick={forget} className="text-muted-foreground hover:text-primary ml-1 underline">
-                    change
+                    {t('spending.change')}
                 </button>
             </div>
 
             {/* Total + my standing */}
             <div className="bg-surface-dark text-text-inverse rounded-2xl p-5">
-                <div className="text-accent-light text-xs tracking-widest uppercase">Total spent</div>
+                <div className="text-accent-light text-xs tracking-widest uppercase">{t('spending.total_spent')}</div>
                 <div className="font-heading mt-1 text-4xl">{money(event.total, event.currency)}</div>
                 <div className="text-accent-light mt-1 text-sm">
-                    {event.name} · {guests.length} people · {spends.length} spends
+                    {event.name} · {guests.length} {t('spending.person_other')} · {spends.length} {t('spending.spend_other')}
                 </div>
                 {myBalance && myBalance.net !== 0 && (
                     <div className="border-text-inverse/15 mt-3 border-t pt-3 text-sm">
-                        You {myBalance.net > 0 ? 'get back' : 'owe'}{' '}
+                        {t(myBalance.net > 0 ? 'spending.you_get_back' : 'spending.you_owe')}{' '}
                         <span className="font-mono font-semibold tabular-nums">{money(Math.abs(myBalance.net), event.currency)}</span>
                     </div>
                 )}
@@ -118,7 +122,7 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
 
             {/* Balances */}
             <section className="flex flex-col gap-2">
-                <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Balances</h2>
+                <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('spending.balances')}</h2>
                 {balances.map((b) => (
                     <div
                         key={b.id}
@@ -130,7 +134,9 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
                             </span>
                             <div>
                                 <div className="text-primary text-sm font-medium">{b.name}</div>
-                                <div className="text-muted-foreground text-xs">{b.net > 0 ? 'gets back' : b.net < 0 ? 'owes' : 'settled up'}</div>
+                                <div className="text-muted-foreground text-xs">
+                                    {t(b.net > 0 ? 'spending.gets_back' : b.net < 0 ? 'spending.owes' : 'spending.settled_up')}
+                                </div>
                             </div>
                         </div>
                         <div
@@ -146,11 +152,11 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
             {/* Suggested settle-up (informational on the guest page) */}
             {suggestions.length > 0 && (
                 <section className="flex flex-col gap-2">
-                    <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Suggested payments</h2>
+                    <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('spending.suggested_payments')}</h2>
                     {suggestions.map((s, i) => (
                         <div key={i} className="bg-surface-card rounded-xl border p-3 text-sm">
                             <span className="text-primary font-medium">{s.from.name}</span>
-                            <span className="text-muted-foreground"> pays </span>
+                            <span className="text-muted-foreground"> {t('spending.pays')} </span>
                             <span className="text-primary font-medium">{s.to.name}</span>
                             <span className="text-primary ml-2 font-mono font-semibold tabular-nums">{money(s.amount, event.currency)}</span>
                         </div>
@@ -160,7 +166,7 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
 
             {/* Spends */}
             <section className="flex flex-col gap-2 pb-24">
-                <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Spends</h2>
+                <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('spending.spends_heading')}</h2>
                 {spends.map((s) => {
                     const mine = s.payer.guestId === me.id;
                     const Icon = categoryIcon(s.category);
@@ -172,7 +178,7 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
                             <div className="min-w-0 flex-1">
                                 <div className="text-primary line-clamp-2 text-sm font-medium">{s.note || s.category}</div>
                                 <div className="text-muted-foreground truncate text-xs capitalize">
-                                    {(s.payer.name ?? 'Guest').split(' ')[0]} · {dayLabel(s.spent_at)}
+                                    {(s.payer.name ?? t('spending.guest_word')).split(' ')[0]} · {dayLabel(s.spent_at)}
                                 </div>
                             </div>
                             <div className="shrink-0 text-right">
@@ -186,7 +192,7 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
                                 <div className="flex flex-col gap-1">
                                     <button
                                         onClick={() => setEditing(s)}
-                                        aria-label="Edit"
+                                        aria-label={t('common.edit')}
                                         className="text-muted-foreground hover:text-primary flex size-7 items-center justify-center"
                                     >
                                         <Pencil className="size-4" />
@@ -198,7 +204,7 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
                                                 preserveScroll: true,
                                             })
                                         }
-                                        aria-label="Delete"
+                                        aria-label={t('common.delete')}
                                         className="text-muted-foreground flex size-7 items-center justify-center hover:text-[var(--warning)]"
                                     >
                                         <Trash2 className="size-4" />
@@ -208,7 +214,7 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
                         </div>
                     );
                 })}
-                {spends.length === 0 && <p className="text-muted-foreground text-sm">No spends yet.</p>}
+                {spends.length === 0 && <p className="text-muted-foreground text-sm">{t('spending.no_spends_yet')}</p>}
             </section>
 
             {/* Editor add button */}
@@ -220,7 +226,7 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
                     }}
                     className="bg-primary text-primary-foreground fixed right-4 bottom-6 z-10 flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold shadow-lg sm:right-[calc(50%-20rem)]"
                 >
-                    <Plus className="size-5" /> Add expense
+                    <Plus className="size-5" /> {t('spending.add_expense')}
                 </button>
             )}
 
@@ -242,6 +248,7 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
 
 // Shared page chrome: no app shell, no auth. Same visual language as the read-only public view.
 function Shell({ title, children }: { title: string; children: React.ReactNode }) {
+    const t = useT();
     return (
         <div className="bg-background min-h-screen">
             <Head title={`${title} · FamilyWell`} />
@@ -250,7 +257,7 @@ function Shell({ title, children }: { title: string; children: React.ReactNode }
                     <span className="bg-primary text-primary-foreground flex size-7 items-center justify-center rounded-lg text-xs font-bold">
                         FW
                     </span>
-                    <span className="text-muted-foreground text-sm">FamilyWell · shared with you</span>
+                    <span className="text-muted-foreground text-sm">FamilyWell · {t('spending.shared_with_you')}</span>
                 </div>
                 {children}
             </div>
@@ -259,6 +266,7 @@ function Shell({ title, children }: { title: string; children: React.ReactNode }
 }
 
 function SpendForm({ token, me, event, editing, onClose }: { token: string; me: Guest; event: EventT; editing: Spend | null; onClose: () => void }) {
+    const t = useT();
     const amountRef = useRef<HTMLInputElement>(null); // focused on open so the numeric pad shows
     const form = useForm({
         guest_id: me.id,
@@ -284,12 +292,12 @@ function SpendForm({ token, me, event, editing, onClose }: { token: string; me: 
         <ResponsiveModal
             open
             onOpenChange={(v) => !v && onClose()}
-            title={editing ? 'Edit expense' : 'Add expense'}
-            description={`Paid by ${me.name}`}
+            title={t(editing ? 'spending.edit_expense' : 'spending.add_expense')}
+            description={t('spending.paid_by', { name: me.name })}
             autoFocusRef={amountRef}
             footer={
                 <Button type="submit" form="guest-spend-form" disabled={!form.data.amount.trim() || form.processing} className="w-full">
-                    {form.processing ? 'Saving…' : editing ? 'Save changes' : 'Add expense'}
+                    {form.processing ? t('spending.saving') : t(editing ? 'spending.save_changes' : 'spending.add_expense')}
                 </Button>
             }
         >
@@ -299,7 +307,7 @@ function SpendForm({ token, me, event, editing, onClose }: { token: string; me: 
             <div className="flex flex-col gap-4 pt-1">
                 <div className="flex gap-2">
                     <div className="grid flex-1 gap-1.5">
-                        <Label htmlFor="amount">Amount</Label>
+                        <Label htmlFor="amount">{t('spending.amount')}</Label>
                         <Input
                             id="amount"
                             ref={amountRef}
@@ -311,7 +319,7 @@ function SpendForm({ token, me, event, editing, onClose }: { token: string; me: 
                         />
                     </div>
                     <div className="grid w-28 gap-1.5">
-                        <Label>Currency</Label>
+                        <Label>{t('spending.currency')}</Label>
                         <Select value={form.data.currency} onValueChange={(v) => form.setData('currency', v)}>
                             <SelectTrigger>
                                 <SelectValue />
@@ -328,7 +336,7 @@ function SpendForm({ token, me, event, editing, onClose }: { token: string; me: 
                 </div>
 
                 <div className="grid gap-1.5">
-                    <Label>Category</Label>
+                    <Label>{t('spending.category')}</Label>
                     <div className="flex flex-wrap gap-2">
                         {event.categories.map((c) => {
                             const Icon = categoryIcon(c);
@@ -352,18 +360,18 @@ function SpendForm({ token, me, event, editing, onClose }: { token: string; me: 
                 </div>
 
                 <div className="grid gap-1.5">
-                    <Label htmlFor="note">Note</Label>
+                    <Label htmlFor="note">{t('spending.note')}</Label>
                     <Input
                         id="note"
                         form="guest-spend-form"
                         value={form.data.note}
                         onChange={(e) => form.setData('note', e.target.value)}
-                        placeholder="Optional"
+                        placeholder={t('spending.optional_placeholder')}
                     />
                 </div>
 
                 <div className="grid gap-1.5">
-                    <Label htmlFor="spent_at">Date</Label>
+                    <Label htmlFor="spent_at">{t('spending.date')}</Label>
                     <Input
                         id="spent_at"
                         form="guest-spend-form"

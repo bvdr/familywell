@@ -12,14 +12,9 @@ import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
+import { useT } from '@/lib/i18n';
 import { LIST_COLORS, LIST_ICONS, listColor, listIcon } from '@/lib/tasks';
 import { type BreadcrumbItem } from '@/types';
-
-const VISIBILITY = [
-    { key: 'family', icon: Users, title: 'Anyone in the family', sub: 'All family members can view' },
-    { key: 'invited', icon: UserCheck, title: 'Only invited people', sub: 'Just the people you add' },
-    { key: 'private', icon: Lock, title: 'Private', sub: 'Visible only to you' },
-] as const;
 
 type Member = { id: number; name: string };
 type List = {
@@ -34,8 +29,6 @@ type List = {
     members: Member[];
 };
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Tasks', href: '/m/tasks' }];
-
 function Avatars({ members }: { members: Member[] }) {
     if (members.length === 0) return null;
     return (
@@ -49,6 +42,7 @@ function Avatars({ members }: { members: Member[] }) {
 }
 
 function ListCard({ list }: { list: List }) {
+    const t = useT();
     const Icon = listIcon(list.icon);
     return (
         <Link
@@ -64,9 +58,7 @@ function ListCard({ list }: { list: List }) {
                     <span className="truncate">{list.name}</span>
                     {list.visibility === 'private' && <Lock className="text-muted-foreground size-3.5 shrink-0" />}
                 </div>
-                <div className="text-muted-foreground mt-0.5 text-xs">
-                    {list.doneCount} of {list.taskCount} done
-                </div>
+                <div className="text-muted-foreground mt-0.5 text-xs">{t('tasks.progress', { done: list.doneCount, total: list.taskCount })}</div>
             </div>
             <Avatars members={list.members} />
             <ChevronRight className="text-muted-foreground size-4 shrink-0" />
@@ -75,6 +67,13 @@ function ListCard({ list }: { list: List }) {
 }
 
 export default function Lists({ lists }: { lists: List[] }) {
+    const t = useT();
+    const breadcrumbs: BreadcrumbItem[] = [{ title: t('nav.tasks'), href: '/m/tasks' }];
+    const VISIBILITY = [
+        { key: 'family', icon: Users, title: t('tasks.visibility_family_title'), sub: t('tasks.visibility_family_sub') },
+        { key: 'invited', icon: UserCheck, title: t('tasks.visibility_invited_title'), sub: t('tasks.visibility_invited_sub') },
+        { key: 'private', icon: Lock, title: t('tasks.visibility_private_title'), sub: t('tasks.visibility_private_sub') },
+    ] as const;
     const [creating, setCreating] = useState(openNewOnArrival);
     useAddAction(() => setCreating(true));
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -101,12 +100,17 @@ export default function Lists({ lists }: { lists: List[] }) {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Tasks" />
+            <Head title={t('nav.tasks')} />
             <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
-                    <h1 className="font-heading text-primary text-2xl">To-do Lists</h1>
+                    <h1 className="font-heading text-primary text-2xl">{t('tasks.title')}</h1>
                     {/* Hidden on mobile: the nav's context-aware "+" creates a list there. Desktop has no nav "+". */}
-                    <Button size="icon" className="hidden rounded-full md:inline-flex" onClick={() => setCreating((v) => !v)} aria-label="New list">
+                    <Button
+                        size="icon"
+                        className="hidden rounded-full md:inline-flex"
+                        onClick={() => setCreating((v) => !v)}
+                        aria-label={t('tasks.new_list')}
+                    >
                         <Plus className="size-5" />
                     </Button>
                 </div>
@@ -114,10 +118,10 @@ export default function Lists({ lists }: { lists: List[] }) {
                 <ResponsiveModal
                     open={creating}
                     onOpenChange={setCreating}
-                    title="New List"
+                    title={t('tasks.new_list')}
                     footer={
                         <Button type="submit" form="new-list" disabled={processing || !data.name.trim()} className="w-full">
-                            <Plus className="size-4" /> Create list
+                            <Plus className="size-4" /> {t('tasks.create_list')}
                         </Button>
                     }
                 >
@@ -133,21 +137,21 @@ export default function Lists({ lists }: { lists: List[] }) {
                                 autoFocus
                                 value={data.name}
                                 onChange={(e) => setData('name', e.target.value)}
-                                placeholder="List name"
+                                placeholder={t('tasks.list_name_placeholder')}
                                 className="text-base"
                             />
                         </div>
                         <InputError message={errors.name} />
 
                         <div className="grid gap-2">
-                            <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Color &amp; icon</Label>
+                            <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('tasks.color_icon')}</Label>
                             <div className="flex flex-wrap gap-2">
                                 {Object.keys(LIST_COLORS).map((c) => (
                                     <button
                                         key={c}
                                         type="button"
                                         onClick={() => setData('color', c)}
-                                        aria-label={`${c} color`}
+                                        aria-label={t('tasks.color_aria', { color: c })}
                                         className={`flex size-9 items-center justify-center rounded-full ${listColor(c)} ${data.color === c ? 'ring-primary ring-2 ring-offset-2' : ''}`}
                                     >
                                         {data.color === c && <Check className="size-4" />}
@@ -162,7 +166,7 @@ export default function Lists({ lists }: { lists: List[] }) {
                                             key={ic}
                                             type="button"
                                             onClick={() => setData('icon', ic)}
-                                            aria-label={`${ic} icon`}
+                                            aria-label={t('tasks.icon_aria', { icon: ic })}
                                             className={`flex size-9 items-center justify-center rounded-lg border transition-colors ${
                                                 data.icon === ic
                                                     ? 'border-primary bg-accent-subtle text-primary'
@@ -177,7 +181,9 @@ export default function Lists({ lists }: { lists: List[] }) {
                         </div>
 
                         <div className="grid gap-2">
-                            <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Who can view</Label>
+                            <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
+                                {t('tasks.who_can_view')}
+                            </Label>
                             <div className="flex flex-col gap-2">
                                 {VISIBILITY.map((v) => {
                                     const on = data.visibility === v.key;
@@ -207,7 +213,7 @@ export default function Lists({ lists }: { lists: List[] }) {
                 {active.length === 0 && !creating && (
                     <div className="text-muted-foreground flex flex-col items-center gap-2 rounded-xl border border-dashed p-10 text-center">
                         <ListChecks className="size-6" />
-                        <p className="text-sm">No lists yet. Create one to start organizing to-dos.</p>
+                        <p className="text-sm">{t('tasks.empty_lists')}</p>
                     </div>
                 )}
 
@@ -220,7 +226,7 @@ export default function Lists({ lists }: { lists: List[] }) {
                 {archived.length > 0 && (
                     <div className="mt-2 flex flex-col gap-2">
                         <h2 className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
-                            <Archive className="size-3.5" /> Archived
+                            <Archive className="size-3.5" /> {t('tasks.archived')}
                         </h2>
                         {archived.map((l) => {
                             const Icon = listIcon(l.icon);
@@ -231,9 +237,7 @@ export default function Lists({ lists }: { lists: List[] }) {
                                     </span>
                                     <div className="min-w-0 flex-1">
                                         <div className="text-primary truncate text-sm font-medium">{l.name}</div>
-                                        <div className="text-muted-foreground text-xs">
-                                            {l.doneCount} of {l.taskCount} done
-                                        </div>
+                                        <div className="text-muted-foreground text-xs">{t('tasks.progress', { done: l.doneCount, total: l.taskCount })}</div>
                                     </div>
                                     <button
                                         type="button"
@@ -250,7 +254,7 @@ export default function Lists({ lists }: { lists: List[] }) {
                                                 },
                                             );
                                         }}
-                                        aria-label="Restore list"
+                                        aria-label={t('tasks.restore_list')}
                                         className="text-muted-foreground hover:text-primary flex size-8 items-center justify-center rounded-lg transition-colors"
                                     >
                                         <RotateCcw className="size-4" />

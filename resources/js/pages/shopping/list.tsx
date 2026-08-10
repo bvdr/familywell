@@ -48,6 +48,7 @@ import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { aisleIcon, getVoiceLang } from '@/lib/shopping';
+import { useT } from '@/lib/i18n';
 import { type BreadcrumbItem } from '@/types';
 
 type Member = { id: number; name: string };
@@ -115,6 +116,7 @@ export default function ListDetail({
     shopIds?: Record<string, number>;
     aiEnabled: boolean;
 }) {
+    const t = useT();
     const [hideCompleted, setHideCompleted] = useState(false);
     const [sortAz, setSortAz] = useState(false);
     const [focus, setFocus] = useState(false); // full-screen "shopping mode" overlay
@@ -151,7 +153,7 @@ export default function ListDetail({
     const isGone = (i: Item) => removed.get(i.id, false);
 
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Shopping', href: '/m/shopping' },
+        { title: t('nav.shopping'), href: '/m/shopping' },
         { title: list.name, href: route('shopping.show', list.id) },
     ];
 
@@ -175,7 +177,7 @@ export default function ListDetail({
             (buckets.get(slug) ?? buckets.set(slug, []).get(slug)!).push(it);
         }
         const out = aisles.filter((a) => buckets.has(a.slug)).map((a) => ({ aisle: a, items: buckets.get(a.slug)! }));
-        if (buckets.has('__other__')) out.push({ aisle: { slug: '__other__', name: 'Other', icon: 'basket' }, items: buckets.get('__other__')! });
+        if (buckets.has('__other__')) out.push({ aisle: { slug: '__other__', name: t('shopping.other'), icon: 'basket' }, items: buckets.get('__other__')! });
         return out;
     };
 
@@ -401,7 +403,7 @@ export default function ListDetail({
             <button
                 type="button"
                 onClick={() => setSharing(true)}
-                aria-label="Share list"
+                aria-label={t('shopping.share_list')}
                 className="border-border text-primary hover:bg-surface flex size-9 items-center justify-center rounded-lg border transition-colors"
             >
                 <UserPlus className="size-4.5" />
@@ -410,7 +412,7 @@ export default function ListDetail({
                 <DropdownMenuTrigger asChild>
                     <button
                         type="button"
-                        aria-label="List options"
+                        aria-label={t('shopping.list_options')}
                         className="border-border text-primary hover:bg-surface flex size-9 items-center justify-center rounded-lg border transition-colors"
                     >
                         <MoreHorizontal className="size-4.5" />
@@ -418,47 +420,47 @@ export default function ListDetail({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-52">
                     <DropdownMenuItem onSelect={() => setSharing(true)}>
-                        <UserPlus className="size-4" /> Share list
+                        <UserPlus className="size-4" /> {t('shopping.share_list')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => setTimeout(() => setEditingTitle(true), 0)}>
-                        <Pencil className="size-4" /> Rename list
+                        <Pencil className="size-4" /> {t('shopping.rename_list')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => setAislesOpen(true)}>
-                        <LayoutList className="size-4" /> Edit departments
+                        <LayoutList className="size-4" /> {t('shopping.edit_departments')}
                     </DropdownMenuItem>
                     <DropdownMenuSub>
                         <DropdownMenuSubTrigger>
-                            <UnfoldVertical className="size-4" /> Sort items
+                            <UnfoldVertical className="size-4" /> {t('shopping.sort_items')}
                         </DropdownMenuSubTrigger>
                         <DropdownMenuSubContent>
-                            <DropdownMenuItem onSelect={() => setSortAz(false)}>{!sortAz && <Check className="size-4" />} By aisle</DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => setSortAz(true)}>{sortAz && <Check className="size-4" />} A to Z</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => setSortAz(false)}>{!sortAz && <Check className="size-4" />} {t('shopping.by_aisle')}</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => setSortAz(true)}>{sortAz && <Check className="size-4" />} {t('shopping.a_to_z')}</DropdownMenuItem>
                         </DropdownMenuSubContent>
                     </DropdownMenuSub>
                     <DropdownMenuSeparator />
                     {list.visibility === 'family' ? (
                         <DropdownMenuItem onSelect={() => patchList({ visibility: 'private' })}>
-                            <Lock className="size-4" /> Make private
+                            <Lock className="size-4" /> {t('shopping.make_private')}
                         </DropdownMenuItem>
                     ) : (
                         <DropdownMenuItem onSelect={() => patchList({ visibility: 'family' })}>
-                            <Users className="size-4" /> Share with family
+                            <Users className="size-4" /> {t('shopping.share_with_family')}
                         </DropdownMenuItem>
                     )}
                     <DropdownMenuItem onSelect={() => router.post(route('shopping.lists.duplicate', list.id))}>
-                        <Copy className="size-4" /> Duplicate list
+                        <Copy className="size-4" /> {t('shopping.duplicate_list')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => patchList({ archived: true })}>
-                        <Archive className="size-4" /> Archive list
+                        <Archive className="size-4" /> {t('shopping.archive_list')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
                         onSelect={() => {
-                            if (confirm('Delete this list and all its items?')) router.delete(route('shopping.lists.destroy', list.id));
+                            if (confirm(t('shopping.confirm_delete_list'))) router.delete(route('shopping.lists.destroy', list.id));
                         }}
                     >
-                        <Trash2 className="size-4" /> Delete list
+                        <Trash2 className="size-4" /> {t('shopping.delete_list')}
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
@@ -483,7 +485,7 @@ export default function ListDetail({
                                     setEditingTitle(false);
                                 }
                             }}
-                            aria-label="List name"
+                            aria-label={t('shopping.list_name')}
                             className="font-heading text-primary border-border focus:border-accent w-full rounded-lg border bg-transparent px-1 text-2xl outline-none"
                         />
                     ) : (
@@ -494,7 +496,7 @@ export default function ListDetail({
                             </button>
                             {/* Count sits inline with the title; no progress bar. */}
                             <div className="text-muted-foreground shrink-0 text-sm tabular-nums">
-                                {boughtCount} / {liveItems.length} done
+                                {t('shopping.done_count', { bought: boughtCount, total: liveItems.length })}
                             </div>
                         </div>
                     )}
@@ -508,7 +510,7 @@ export default function ListDetail({
                         onClick={() => setHideCompleted((v) => !v)}
                         className="text-muted-foreground flex items-center justify-between text-sm"
                     >
-                        <span>Hide completed</span>
+                        <span>{t('shopping.hide_completed')}</span>
                         <span className={`relative h-6 w-10 rounded-full transition-colors ${hideCompleted ? 'bg-primary' : 'bg-border'}`}>
                             <span
                                 className={`bg-background absolute top-0.5 size-5 rounded-full shadow transition-all ${hideCompleted ? 'left-[1.125rem]' : 'left-0.5'}`}
@@ -531,7 +533,7 @@ export default function ListDetail({
                                     </Link>
                                 ) : (
                                     <div className="text-primary border-border/60 mt-1 flex items-center gap-1.5 border-b pb-1 text-sm font-semibold">
-                                        <Store className="size-4" /> {sg.store || 'No store'}
+                                        <Store className="size-4" /> {sg.store || t('shopping.no_store')}
                                     </div>
                                 ))}
                             {sg.aisles.map((group) => {
@@ -546,7 +548,7 @@ export default function ListDetail({
                                                 <button
                                                     type="button"
                                                     onClick={() => toggle(item)}
-                                                    aria-label={isBought(item) ? 'Mark not bought' : 'Mark bought'}
+                                                    aria-label={isBought(item) ? t('shopping.mark_not_bought') : t('shopping.mark_bought')}
                                                     className={`flex size-6 shrink-0 items-center justify-center rounded-md border transition-colors ${
                                                         isBought(item) ? 'border-primary bg-primary text-primary-foreground' : 'border-border'
                                                     }`}
@@ -561,14 +563,16 @@ export default function ListDetail({
                                                     </div>
                                                     {item.quantity && <div className="text-muted-foreground text-xs">{item.quantity}</div>}
                                                     {item.altStores.length > 0 && (
-                                                        <div className="text-text-muted mt-0.5 text-[11px]">also: {item.altStores.join(', ')}</div>
+                                                        <div className="text-text-muted mt-0.5 text-[11px]">
+                                                            {t('shopping.also_at', { stores: item.altStores.join(', ') })}
+                                                        </div>
                                                     )}
                                                 </button>
                                                 {item.assignedTo != null && <AssigneeBadge member={memberById.get(item.assignedTo)} />}
                                                 <button
                                                     type="button"
                                                     onClick={() => remove(item)}
-                                                    aria-label="Remove item"
+                                                    aria-label={t('shopping.remove_item')}
                                                     className="text-muted-foreground hover:text-destructive flex size-7 items-center justify-center rounded-lg opacity-0 transition-opacity group-hover:opacity-100"
                                                 >
                                                     <Trash2 className="size-4" />
@@ -581,14 +585,14 @@ export default function ListDetail({
                         </div>
                     ))}
 
-                    {liveItems.length === 0 && <p className="text-muted-foreground py-6 text-center text-sm">No items yet. Add your first below.</p>}
+                    {liveItems.length === 0 && <p className="text-muted-foreground py-6 text-center text-sm">{t('shopping.no_items_yet')}</p>}
 
                     <div className="sticky bottom-4 flex flex-col gap-2">
                         <div className="flex gap-2">
                             <Button type="button" variant="outline" onClick={openNew} className="flex-1">
-                                <Plus className="size-4" /> Add item
+                                <Plus className="size-4" /> {t('shopping.add_item')}
                             </Button>
-                            <Button type="button" variant="outline" size="icon" onClick={openVoice} aria-label="Add by voice">
+                            <Button type="button" variant="outline" size="icon" onClick={openVoice} aria-label={t('shopping.add_by_voice')}>
                                 <Mic className="size-4" />
                             </Button>
                         </div>
@@ -601,7 +605,7 @@ export default function ListDetail({
                                 }}
                                 className="w-full shadow-[var(--shadow-fw-md)]"
                             >
-                                <ShoppingCart className="size-4" /> Start Shopping
+                                <ShoppingCart className="size-4" /> {t('shopping.start_shopping')}
                             </Button>
                         )}
                     </div>
@@ -617,17 +621,18 @@ export default function ListDetail({
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
                                     <div className="text-primary-foreground/60 flex items-center gap-1.5 text-[11px] font-semibold tracking-widest uppercase">
-                                        Focus Mode · Shopping
+                                        {t('shopping.focus_mode')}
                                     </div>
                                     <div className="text-primary-foreground/80 mt-1 flex items-center gap-1.5 text-sm">
-                                        <Store className="size-4" /> {focusStore === FOCUS_ALL ? 'All shops' : focusStore || list.store || 'No store'}
+                                        <Store className="size-4" />{' '}
+                                        {focusStore === FOCUS_ALL ? t('shopping.all_shops') : focusStore || list.store || t('shopping.no_store')}
                                     </div>
                                     <h2 className="font-heading mt-1 truncate text-2xl">{list.name}</h2>
                                 </div>
                                 <button
                                     type="button"
                                     onClick={() => setFocus(false)}
-                                    aria-label="Exit shopping mode"
+                                    aria-label={t('shopping.exit_shopping_mode')}
                                     className="hover:bg-primary-foreground/10 flex size-9 shrink-0 items-center justify-center rounded-lg transition-colors"
                                 >
                                     <X className="size-5" />
@@ -647,7 +652,7 @@ export default function ListDetail({
                                                     : 'bg-primary-foreground/15 text-primary-foreground/80'
                                             }`}
                                         >
-                                            {s === FOCUS_ALL ? 'All shops' : s || 'No store'}
+                                            {s === FOCUS_ALL ? t('shopping.all_shops') : s || t('shopping.no_store')}
                                         </button>
                                     ))}
                                 </div>
@@ -661,7 +666,7 @@ export default function ListDetail({
                                         {/* In the All-shops run, label each shop section. */}
                                         {focusStore === FOCUS_ALL && (
                                             <div className="text-primary-foreground flex items-center gap-1.5 text-sm font-semibold">
-                                                <Store className="size-4" /> {sg.store || 'No store'}
+                                                <Store className="size-4" /> {sg.store || t('shopping.no_store')}
                                             </div>
                                         )}
                                         {sg.aisles.map((group) => {
@@ -692,11 +697,11 @@ export default function ListDetail({
                                 ),
                             )}
 
-                            {focusEmpty && <p className="text-primary-foreground/80 py-10 text-center">Everything's in the cart. Nice work! 🎉</p>}
+                            {focusEmpty && <p className="text-primary-foreground/80 py-10 text-center">{t('shopping.everything_done')}</p>}
 
                             {doneItems.length > 0 && (
                                 <section className="space-y-2">
-                                    <h3 className="text-primary-foreground/50 text-xs font-semibold tracking-widest uppercase">Done</h3>
+                                    <h3 className="text-primary-foreground/50 text-xs font-semibold tracking-widest uppercase">{t('shopping.done_heading')}</h3>
                                     {doneItems.map((item) => (
                                         <button
                                             key={item.id}
@@ -727,7 +732,7 @@ export default function ListDetail({
                                     <button
                                         type="button"
                                         onClick={closeVoice}
-                                        aria-label="Close"
+                                        aria-label={t('shopping.close')}
                                         className="hover:bg-primary-foreground/10 flex size-9 items-center justify-center rounded-lg"
                                     >
                                         <X className="size-5" />
@@ -738,7 +743,7 @@ export default function ListDetail({
                                         <button
                                             type="button"
                                             onClick={toggleListening}
-                                            aria-label={listening ? 'Stop' : 'Start listening'}
+                                            aria-label={listening ? t('shopping.stop_listening') : t('shopping.start_listening')}
                                             className="bg-primary-foreground/15 relative flex size-28 items-center justify-center rounded-full"
                                         >
                                             {listening && <span className="bg-primary-foreground/20 absolute inset-0 animate-ping rounded-full" />}
@@ -761,19 +766,19 @@ export default function ListDetail({
                                             <p className="text-lg leading-relaxed">{transcript}</p>
                                         ) : (
                                             <p className="text-primary-foreground/70 text-sm">
-                                                Just say everything you need, I'll sort it into your list.
+                                                {t('shopping.voice_prompt')}
                                             </p>
                                         )
                                     ) : (
                                         <>
                                             <p className="text-primary-foreground/70 text-sm">
-                                                Type everything you need, I'll sort it into your list.
+                                                {t('shopping.type_prompt')}
                                             </p>
                                             <textarea
                                                 autoFocus
                                                 value={transcript}
                                                 onChange={(e) => setTranscript(e.target.value)}
-                                                placeholder="milk, eggs, a few bananas for the kids..."
+                                                placeholder={t('shopping.voice_placeholder')}
                                                 className="border-primary-foreground/20 placeholder:text-primary-foreground/40 min-h-28 w-full rounded-xl border bg-transparent p-3 text-base outline-none"
                                             />
                                         </>
@@ -787,7 +792,7 @@ export default function ListDetail({
                                         className="bg-primary-foreground text-primary flex w-full items-center justify-center gap-2 rounded-xl py-3.5 font-medium disabled:opacity-50"
                                     >
                                         {parsing ? <Loader2 className="size-5 animate-spin" /> : <Check className="size-5" />}
-                                        {parsing ? 'Sorting...' : 'Done'}
+                                        {parsing ? t('shopping.sorting') : t('shopping.done_button')}
                                     </button>
                                 </div>
                             </>
@@ -803,20 +808,20 @@ export default function ListDetail({
                                         }}
                                         className="text-primary-foreground/80 flex items-center gap-1 text-sm"
                                     >
-                                        <ChevronLeft className="size-4" /> Redo
+                                        <ChevronLeft className="size-4" /> {t('shopping.redo')}
                                     </button>
                                     {aiEnabled && (
                                         <span className="bg-primary-foreground/15 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium">
-                                            <Sparkles className="size-3.5" /> Organized by AI
+                                            <Sparkles className="size-3.5" /> {t('shopping.organized_by_ai')}
                                         </span>
                                     )}
                                 </div>
                                 <div className="flex-1 space-y-4 overflow-y-auto px-5 pb-[calc(9rem+env(safe-area-inset-bottom))]">
                                     <div>
-                                        <h2 className="font-heading text-2xl">Here's what I heard</h2>
+                                        <h2 className="font-heading text-2xl">{t('shopping.heard_heading')}</h2>
                                         {transcript && <p className="text-primary-foreground/70 mt-2 text-sm italic">"{transcript}"</p>}
                                         <p className="text-primary-foreground/70 mt-2 text-sm">
-                                            {parsed.length} item{parsed.length === 1 ? '' : 's'} sorted into aisles. Edit or remove any.
+                                            {t(parsed.length === 1 ? 'shopping.items_sorted_one' : 'shopping.items_sorted_other', { n: parsed.length })}
                                         </p>
                                     </div>
                                     {aislesFor(list.store)
@@ -856,14 +861,14 @@ export default function ListDetail({
                                                                             ),
                                                                         )
                                                                     }
-                                                                    placeholder="Quantity"
+                                                                    placeholder={t('shopping.quantity')}
                                                                     className="text-primary-foreground/60 w-full bg-transparent text-sm outline-none"
                                                                 />
                                                             </div>
                                                             <button
                                                                 type="button"
                                                                 onClick={() => setParsed((p) => p.filter((_, i) => i !== idx))}
-                                                                aria-label="Remove"
+                                                                aria-label={t('shopping.remove')}
                                                                 className="hover:bg-primary-foreground/10 flex size-8 shrink-0 items-center justify-center rounded-lg"
                                                             >
                                                                 <X className="size-4" />
@@ -874,7 +879,7 @@ export default function ListDetail({
                                             );
                                         })}
                                     {parsed.length === 0 && (
-                                        <p className="text-primary-foreground/70 py-8 text-center text-sm">Nothing left. Redo to try again.</p>
+                                        <p className="text-primary-foreground/70 py-8 text-center text-sm">{t('shopping.nothing_left')}</p>
                                     )}
                                 </div>
                                 <div className="bg-primary absolute inset-x-0 bottom-0 space-y-2 px-5 pt-2 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
@@ -886,7 +891,7 @@ export default function ListDetail({
                                         }}
                                         className="border-primary-foreground/25 flex w-full items-center justify-center gap-2 rounded-xl border py-3 text-sm font-medium"
                                     >
-                                        <Mic className="size-4" /> Add more by voice
+                                        <Mic className="size-4" /> {t('shopping.add_more_by_voice')}
                                     </button>
                                     <button
                                         type="button"
@@ -894,7 +899,8 @@ export default function ListDetail({
                                         disabled={parsed.length === 0}
                                         className="bg-primary-foreground text-primary flex w-full items-center justify-center gap-2 rounded-xl py-3.5 font-medium disabled:opacity-50"
                                     >
-                                        <Check className="size-5" /> Add {parsed.length} item{parsed.length === 1 ? '' : 's'} to list
+                                        <Check className="size-5" />{' '}
+                                        {t(parsed.length === 1 ? 'shopping.add_n_items_one' : 'shopping.add_n_items_other', { n: parsed.length })}
                                     </button>
                                 </div>
                             </>
@@ -916,34 +922,34 @@ export default function ListDetail({
                     if (editingId && draft.name.trim()) patchItem(editingId);
                     setEditingId(null);
                 }}
-                title={editingId ? 'Edit Item' : 'Add Item'}
+                title={editingId ? t('shopping.edit_item') : t('shopping.add_item_title')}
                 autoFocusRef={nameRef}
                 footer={
                     editingId ? undefined : (
                         <Button className="w-full" disabled={!draft.name.trim() || adding} onClick={addItem}>
-                            <Plus className="size-4" /> Add item
+                            <Plus className="size-4" /> {t('shopping.add_item')}
                         </Button>
                     )
                 }
             >
                 <div className="flex flex-col gap-5">
                     <div className="grid gap-2">
-                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Item</Label>
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.item_label')}</Label>
                         <Input
                             ref={nameRef}
                             value={draft.name}
                             onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
-                            placeholder="Organic bananas"
+                            placeholder={t('shopping.item_placeholder_list')}
                         />
                     </div>
 
                     <div className="grid gap-2">
-                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Quantity</Label>
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.quantity')}</Label>
                         <div className="flex items-center gap-2">
                             <button
                                 type="button"
                                 onClick={() => bump(-1)}
-                                aria-label="Decrease"
+                                aria-label={t('shopping.decrease')}
                                 className="border-border text-primary flex size-9 items-center justify-center rounded-lg border"
                             >
                                 <Minus className="size-4" />
@@ -951,13 +957,13 @@ export default function ListDetail({
                             <Input
                                 value={draft.quantity}
                                 onChange={(e) => setDraft((d) => ({ ...d, quantity: e.target.value }))}
-                                placeholder="2 bunches"
+                                placeholder={t('shopping.quantity_placeholder')}
                                 className="text-center"
                             />
                             <button
                                 type="button"
                                 onClick={() => bump(1)}
-                                aria-label="Increase"
+                                aria-label={t('shopping.increase')}
                                 className="border-border text-primary flex size-9 items-center justify-center rounded-lg border"
                             >
                                 <Plus className="size-4" />
@@ -968,11 +974,11 @@ export default function ListDetail({
                     {/* Shops: one searchable multi-pick. The first selected is the item's primary store
                         (used for grouping in the list); the rest are its "also available at" shops. */}
                     <div className="grid gap-2">
-                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Shops</Label>
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.tab_shops')}</Label>
                         <Picker
                             multi
                             searchable
-                            placeholder="Pick shops"
+                            placeholder={t('shopping.pick_shops')}
                             options={[...new Set([...shops, ...chipStores, draft.store, ...draft.alt_stores].filter(Boolean))].map((s) => ({ value: s, label: s, icon: Store }))}
                             selected={[...new Set([draft.store, ...draft.alt_stores].filter(Boolean))]}
                             onChange={(next) => {
@@ -985,9 +991,9 @@ export default function ListDetail({
 
                     {/* Department: single pick, from the primary shop's departments. */}
                     <div className="grid gap-2">
-                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Department</Label>
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.department_label')}</Label>
                         <Picker
-                            placeholder="Pick a department"
+                            placeholder={t('shopping.pick_department')}
                             options={aislesFor(draft.store || list.store).map((a) => ({ value: a.slug, label: a.name, icon: aisleIcon(a.icon) }))}
                             selected={[draft.department]}
                             onChange={(next) => setDraft((d) => ({ ...d, department: next[0] ?? 'other' }))}
@@ -995,14 +1001,14 @@ export default function ListDetail({
                     </div>
 
                     <div className="grid gap-2">
-                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">For</Label>
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.for_label')}</Label>
                         <div className="flex flex-wrap gap-2">
                             <button
                                 type="button"
                                 onClick={() => setDraft((d) => ({ ...d, assigned_to: null }))}
                                 className={`rounded-full border px-3 py-1.5 text-sm ${draft.assigned_to === null ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-primary'}`}
                             >
-                                Anyone
+                                {t('shopping.anyone')}
                             </button>
                             {members.map((m) => (
                                 <button
@@ -1018,16 +1024,16 @@ export default function ListDetail({
                     </div>
 
                     <div className="grid gap-2">
-                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Note</Label>
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.note_label')}</Label>
                         <Input
                             value={draft.note}
                             onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
-                            placeholder="Add a note (optional)"
+                            placeholder={t('shopping.note_placeholder')}
                         />
                     </div>
 
                     <div className="grid gap-2">
-                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Due date</Label>
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.due_date_label')}</Label>
                         <div className="border-border flex h-10 w-full items-center gap-2 rounded-md border px-3">
                             <Calendar className="text-muted-foreground size-4 shrink-0" />
                             <input
@@ -1042,7 +1048,7 @@ export default function ListDetail({
                                     onClick={() => setDraft((d) => ({ ...d, due_date: '' }))}
                                     className="text-muted-foreground hover:text-primary text-xs"
                                 >
-                                    Clear
+                                    {t('shopping.clear')}
                                 </button>
                             )}
                         </div>
@@ -1064,7 +1070,7 @@ export default function ListDetail({
                             }}
                             className="text-destructive flex items-center justify-center gap-2 py-1 text-sm font-medium"
                         >
-                            <Trash2 className="size-4" /> Delete item
+                            <Trash2 className="size-4" /> {t('shopping.delete_item')}
                         </button>
                     )}
                 </div>

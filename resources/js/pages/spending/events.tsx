@@ -1,6 +1,6 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
-import { openNewOnArrival } from '@/lib/create-intent';
 import { useAddAction } from '@/lib/add-action';
+import { openNewOnArrival } from '@/lib/create-intent';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Archive, Plus, RotateCcw, Wallet } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
@@ -13,13 +13,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { useT } from '@/lib/i18n';
 import { money } from '@/lib/money';
 import { type BreadcrumbItem } from '@/types';
 
 type Member = { id: number; name: string };
 type Event = { id: number; name: string; currency: string; total: number; archived: boolean; members: Member[] };
-
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Spending', href: '/m/spending' }];
 
 function Avatars({ members }: { members: Member[] }) {
     return (
@@ -33,6 +32,8 @@ function Avatars({ members }: { members: Member[] }) {
 }
 
 export default function Events({ events, currencies }: { events: Event[]; currencies: string[] }) {
+    const t = useT();
+    const breadcrumbs: BreadcrumbItem[] = [{ title: t('nav.spending'), href: '/m/spending' }];
     const [creating, setCreating] = useState(openNewOnArrival);
     useAddAction(() => setCreating(true));
     const { data, setData, post, processing, errors, reset } = useForm({ name: '', currency: currencies[0] });
@@ -49,34 +50,34 @@ export default function Events({ events, currencies }: { events: Event[]; curren
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Spending" />
+            <Head title={t('nav.spending')} />
             <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="font-heading text-primary text-2xl">Spending</h1>
-                        <p className="text-muted-foreground text-sm">Shared expense trackers</p>
+                        <h1 className="font-heading text-primary text-2xl">{t('nav.spending')}</h1>
+                        <p className="text-muted-foreground text-sm">{t('dashboard.spending_sub')}</p>
                     </div>
                     {/* Hidden on mobile: the nav's context-aware "+" creates an event there. Desktop has no nav "+". */}
                     <Button className="hidden md:inline-flex" onClick={() => setCreating((v) => !v)}>
-                        <Plus className="size-4" /> New event
+                        <Plus className="size-4" /> {t('create.spending')}
                     </Button>
                 </div>
 
                 {creating && (
                     <form onSubmit={submit} className="bg-surface-card flex flex-col gap-3 rounded-xl border p-4">
                         <div className="grid gap-2">
-                            <Label htmlFor="name">Event name</Label>
+                            <Label htmlFor="name">{t('spending.event_name')}</Label>
                             <Input
                                 id="name"
                                 autoFocus
                                 value={data.name}
                                 onChange={(e) => setData('name', e.target.value)}
-                                placeholder="Greece Vacation 2026"
+                                placeholder={t('spending.event_name_placeholder')}
                             />
                             <InputError message={errors.name} />
                         </div>
                         <div className="grid gap-2">
-                            <Label>Home currency</Label>
+                            <Label>{t('spending.home_currency')}</Label>
                             <Select value={data.currency} onValueChange={(v) => setData('currency', v)}>
                                 <SelectTrigger className="w-full">
                                     <SelectValue />
@@ -92,10 +93,10 @@ export default function Events({ events, currencies }: { events: Event[]; curren
                         </div>
                         <div className="flex gap-2">
                             <Button type="submit" disabled={processing}>
-                                Create event
+                                {t('spending.create_event')}
                             </Button>
                             <Button type="button" variant="ghost" onClick={() => setCreating(false)}>
-                                Cancel
+                                {t('common.cancel')}
                             </Button>
                         </div>
                     </form>
@@ -104,7 +105,7 @@ export default function Events({ events, currencies }: { events: Event[]; curren
                 {active.length === 0 && !creating && (
                     <div className="text-muted-foreground flex flex-col items-center gap-2 rounded-xl border border-dashed p-10 text-center">
                         <Wallet className="size-6" />
-                        <p className="text-sm">No spend events yet. Create one to start tracking shared costs.</p>
+                        <p className="text-sm">{t('spending.no_events_empty')}</p>
                     </div>
                 )}
 
@@ -133,7 +134,7 @@ export default function Events({ events, currencies }: { events: Event[]; curren
                 {archived.length > 0 && (
                     <div className="mt-2 flex flex-col gap-2">
                         <h2 className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
-                            <Archive className="size-3.5" /> Archived
+                            <Archive className="size-3.5" /> {t('spending.archived')}
                         </h2>
                         {archived.map((ev) => (
                             <div key={ev.id} className="bg-surface flex items-center gap-3 rounded-xl border p-3 opacity-70">
@@ -159,7 +160,7 @@ export default function Events({ events, currencies }: { events: Event[]; curren
                                             },
                                         );
                                     }}
-                                    aria-label="Restore event"
+                                    aria-label={t('spending.restore_event')}
                                     className="text-muted-foreground hover:text-primary flex size-8 items-center justify-center rounded-lg transition-colors"
                                 >
                                     <RotateCcw className="size-4" />

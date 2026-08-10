@@ -4,11 +4,13 @@ import { useRef, useState } from 'react';
 
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { markAllRead, markRead, notificationIcon, relativeTime, type Notification } from '@/lib/notifications';
+import { useT } from '@/lib/i18n';
 
 type Shared = { unread: number; items: Notification[] };
 
 export function NotificationsBell() {
     const shared = (usePage().props as { notifications?: Shared }).notifications ?? { unread: 0, items: [] };
+    const t = useT();
     const serverItems = shared.items ?? [];
     const [open, setOpen] = useState(false);
 
@@ -54,7 +56,7 @@ export function NotificationsBell() {
             <button
                 type="button"
                 onClick={() => setOpen(true)}
-                aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
+                aria-label={unread > 0 ? t('notifications.aria_unread', { n: unread }) : t('notifications.aria')}
                 className="border-border text-primary hover:bg-surface relative flex size-9 items-center justify-center rounded-lg border transition-colors"
             >
                 <Bell className="size-4.5" />
@@ -68,14 +70,14 @@ export function NotificationsBell() {
             <ResponsiveModal
                 open={open}
                 onOpenChange={setOpen}
-                title="Notifications"
+                title={t('notifications.title')}
                 footer={
                     <Link
                         href={route('notifications.index')}
                         onClick={() => setOpen(false)}
                         className="text-primary block w-full rounded-lg py-2 text-center text-sm font-medium"
                     >
-                        See all
+                        {t('notifications.see_all')}
                     </Link>
                 }
             >
@@ -86,13 +88,13 @@ export function NotificationsBell() {
                             onClick={clearAll}
                             className="text-muted-foreground hover:text-primary mb-1 ml-auto flex items-center gap-1.5 text-xs font-medium"
                         >
-                            <CheckCheck className="size-3.5" /> Mark all read
+                            <CheckCheck className="size-3.5" /> {t('notifications.mark_all_read')}
                         </button>
                     )}
                     {items.length === 0 ? (
                         <div className="text-muted-foreground flex flex-col items-center gap-2 py-10 text-center">
                             <Bell className="size-6" />
-                            <p className="text-sm">You're all caught up.</p>
+                            <p className="text-sm">{t('notifications.caught_up')}</p>
                         </div>
                     ) : (
                         <div className="-mx-2 flex flex-col">

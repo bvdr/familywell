@@ -1,0 +1,12 @@
+{
+    "title": "Notificări",
+    "aria": "Notificări",
+    "aria_unread": "Notificări, :n necitite",
+    "mark_all_read": "Marchează toate ca citite",
+    "caught_up": "Ești la zi.",
+    "see_all": "Vezi toate",
+    "empty": "Nimic încă. Activitatea familiei pe care o poți vedea va apărea aici.",
+    "today": "Astăzi",
+    "yesterday": "Ieri",
+    "now": "acum"
+}
