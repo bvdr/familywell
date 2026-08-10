@@ -11,8 +11,23 @@ use App\Http\Controllers\PublicGuestController;
 use App\Http\Controllers\PublicShareController;
 use App\Http\Controllers\ShareController;
 use App\Support\Dashboard\DashboardData;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+
+// Client-side crash reporter: the frontend ErrorBoundary POSTs here so account/device-specific
+// render errors (that never reach our test accounts) land in the server logs with the page + stack.
+Route::post('/client-error', function (Request $request) {
+    Log::warning('client-error', [
+        'message' => (string) $request->input('message'),
+        'url' => (string) $request->input('url'),
+        'stack' => mb_substr((string) $request->input('stack', ''), 0, 4000),
+        'user' => optional($request->user())->id,
+    ]);
+
+    return response()->noContent();
+})->middleware('throttle:60,1')->name('client.error');
 
 Route::get('/', function () {
     // Root goes straight to the app. Unauthenticated visitors get bounced to /login by the
