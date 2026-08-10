@@ -1,5 +1,4 @@
 import AppLayout from '@/layouts/app-layout';
-import { Slot } from '@/lib/modules';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Blocks, Check, FolderKanban, ListChecks, type LucideIcon, Settings, ShoppingCart, StickyNote, Users, Wallet } from 'lucide-react';
@@ -221,34 +220,15 @@ export default function Dashboard({
                     </section>
                 )}
 
-                <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-                    <div className="grid auto-rows-min gap-4 sm:grid-cols-2">
-                        <Slot
-                            name="dashboard.widgets"
-                            fallback={
-                                <Link
-                                    href="/family/modules"
-                                    className="bg-surface-card hover:border-accent flex min-h-56 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed p-8 text-center transition-colors sm:col-span-2"
-                                >
-                                    <span className="bg-accent-subtle text-primary flex size-12 items-center justify-center rounded-2xl">
-                                        <Blocks className="size-6" />
-                                    </span>
-                                    <span className="font-heading text-primary text-xl">A calm start</span>
-                                    <span className="text-muted-foreground max-w-xs text-sm">
-                                        Turn on a module like Tasks or Shopping and its widgets will gather here.
-                                    </span>
-                                </Link>
-                            }
-                        />
-                    </div>
-
-                    <aside className="flex flex-col gap-3">
-                        <h2 className="font-heading text-primary px-1 text-lg">Jump back in</h2>
+                {/* Widgets slot removed for now; it will return with customizable dashboard widgets. */}
+                <section className="flex flex-col gap-3">
+                    <h2 className="font-heading text-primary px-1 text-lg">Jump back in</h2>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         <Shortcut href="/family/members" icon={Users} title="Members" sub="Who's in your family" />
                         <Shortcut href="/family/modules" icon={Blocks} title="Modules" sub="Turn features on or off" />
                         {spendingOn && <Shortcut href="/m/spending" icon={Wallet} title="Spending" sub="Shared expense trackers" />}
-                    </aside>
-                </div>
+                    </div>
+                </section>
             </div>
         </AppLayout>
     );
