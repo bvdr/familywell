@@ -5,7 +5,7 @@ import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { categoryIcon } from '@/lib/categories';
 import { useT } from '@/lib/i18n';
-import { money } from '@/lib/money';
+import { money, selectAllOnFocus } from '@/lib/money';
 import { Head, router, useForm } from '@inertiajs/react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { FormEventHandler, useEffect, useMemo, useRef, useState } from 'react';
@@ -313,6 +313,7 @@ function SpendForm({ token, me, event, editing, onClose }: { token: string; me: 
                             ref={amountRef}
                             form="guest-spend-form"
                             inputMode="decimal"
+                            onFocus={selectAllOnFocus}
                             value={form.data.amount}
                             onChange={(e) => form.setData('amount', e.target.value)}
                             placeholder="0.00"

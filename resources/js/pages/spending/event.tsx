@@ -42,7 +42,7 @@ import { avatarColorFor } from '@/lib/avatar';
 import { categoryIcon } from '@/lib/categories';
 import { compressImage, makeThumbnail } from '@/lib/compress-image';
 import { useT, type TFn } from '@/lib/i18n';
-import { money } from '@/lib/money';
+import { money, selectAllOnFocus } from '@/lib/money';
 import { type BreadcrumbItem } from '@/types';
 
 type Member = { id: number; name: string };
@@ -791,6 +791,7 @@ export default function Event({
                                     <Input
                                         id="transfer-amount"
                                         inputMode="decimal"
+                                        onFocus={selectAllOnFocus}
                                         value={transferForm.data.amount}
                                         onChange={(e) => transferForm.setData('amount', e.target.value.replace(/,/g, '.').replace(/[^\d.]/g, ''))}
                                         placeholder="0.00"
@@ -1133,6 +1134,7 @@ export default function Event({
                                             ref={amountRef}
                                             type="text"
                                             inputMode="decimal"
+                                            onFocus={selectAllOnFocus}
                                             value={form.data.amount}
                                             onChange={(e) => form.setData('amount', e.target.value.replace(/,/g, '.').replace(/[^\d.]/g, ''))}
                                             placeholder="0.00"
@@ -1264,6 +1266,7 @@ export default function Event({
                                                     <Input
                                                         form="spend-form"
                                                         inputMode="decimal"
+                                                        onFocus={selectAllOnFocus}
                                                         value={form.data.share_amounts[p.key] ?? ''}
                                                         onChange={(e) => setShareAmount(p.key, e.target.value)}
                                                         placeholder="0.00"
