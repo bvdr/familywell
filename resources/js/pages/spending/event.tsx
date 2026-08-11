@@ -328,8 +328,25 @@ export default function Event({
             'share_keys',
             form.data.share_keys.includes(key) ? form.data.share_keys.filter((k) => k !== key) : [...form.data.share_keys, key],
         );
-    const setShareAmount = (key: string, val: string) =>
-        form.setData('share_amounts', { ...form.data.share_amounts, [key]: val.replace(/,/g, '.').replace(/[^\d.]/g, '') });
+    // Keys the user typed into by hand. Their values are pinned; everyone else's
+    // share is auto-recomputed so the leftover always splits equally among the untouched.
+    const [lockedKeys, setLockedKeys] = useState<string[]>([]);
+    const setShareAmount = (key: string, val: string) => {
+        const clean = val.replace(/,/g, '.').replace(/[^\d.]/g, '');
+        const locked = lockedKeys.includes(key) ? lockedKeys : [...lockedKeys, key];
+        const amounts: Record<string, string> = { ...form.data.share_amounts, [key]: clean };
+        const total = Math.round(Number(form.data.amount || 0) * 100);
+        const lockedCents = locked.reduce((s, k) => s + Math.round(Number(amounts[k] || 0) * 100), 0);
+        const rest = participants.filter((p) => !locked.includes(p.key));
+        if (rest.length > 0) {
+            const leftover = Math.max(0, total - lockedCents); // overspent -> untouched owe 0, remaining shows "over"
+            const base = Math.floor(leftover / rest.length);
+            const rem = leftover - base * rest.length;
+            rest.forEach((p, i) => (amounts[p.key] = ((base + (i < rem ? 1 : 0)) / 100).toFixed(2)));
+        }
+        setLockedKeys(locked);
+        form.setData('share_amounts', amounts);
+    };
     // Fill exact amounts by splitting the total equally (cents distributed to the first people).
     const splitEqually = () => {
         const total = Math.round(Number(form.data.amount || 0) * 100);
@@ -339,6 +356,7 @@ export default function Event({
         const rem = total - base * n;
         const amounts: Record<string, string> = {};
         participants.forEach((p, i) => (amounts[p.key] = ((base + (i < rem ? 1 : 0)) / 100).toFixed(2)));
+        setLockedKeys([]); // back to a clean equal split; nothing pinned
         form.setData('share_amounts', amounts);
     };
     const amountCents = Math.round(Number(form.data.amount || 0) * 100);
