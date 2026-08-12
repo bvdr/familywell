@@ -399,14 +399,15 @@ class SpendingController extends Controller
 
     private function validateSpend(Request $request, SpendEvent $event): array
     {
-        $memberIds = $event->members()->pluck('users.id')->all();
+        // Payer can be any participant on the event: a family member ('u{id}') OR a guest we shared
+        // with ('g{id}'). Same namespaced keys as the split, so guests are payable just like members.
         $participantKeys = array_keys($event->participantNames());
 
         return $request->validate([
             'amount' => ['required', 'numeric', 'gt:0'],
             'currency' => ['required', 'in:'.implode(',', self::CURRENCIES)],
             'category' => ['required', 'in:'.implode(',', self::CATEGORIES)],
-            'payer_id' => ['required', 'integer', 'in:'.implode(',', $memberIds)],
+            'payer_key' => ['required', 'string', 'in:'.implode(',', $participantKeys)],
             // Optional payment source; must be one of the family's (SpendSource is family-scoped).
             'source_id' => ['nullable', 'integer', 'in:'.implode(',', SpendSource::pluck('id')->all() ?: [0])],
             'note' => ['nullable', 'string', 'max:255'],
@@ -447,7 +448,15 @@ class SpendingController extends Controller
     /** Build the stored columns from validated input, freezing the FX conversion at the spend's date. */
     private function spendAttributes(array $data, SpendEvent $event): array
     {
-        return ['payer_id' => $data['payer_id'], ...$event->buildSpend($data)];
+        // 'u{id}' -> member payer, 'g{id}' -> guest payer. Exactly one column is set; the other stays null.
+        $isGuest = str_starts_with($data['payer_key'], 'g');
+        $payerId = (int) substr($data['payer_key'], 1);
+
+        return [
+            'payer_id' => $isGuest ? null : $payerId,
+            'payer_guest_id' => $isGuest ? $payerId : null,
+            ...$event->buildSpend($data),
+        ];
     }
 
     private function eventPayload(SpendEvent $event): array
@@ -550,7 +559,7 @@ class SpendingController extends Controller
                 ])->values(),
                 'source' => $s->source ? ['id' => $s->source->id, 'name' => $s->source->name, 'type' => $s->source->type] : null,
                 // A user paid (payer.id set) or a guest did (isGuest, no user id to prefill the form with).
-                'payer' => ['id' => $s->payer_id, 'name' => $s->payer?->name ?? $s->payerGuest?->name, 'isGuest' => $s->payer_guest_id !== null],
+                'payer' => ['key' => $s->participantKey(), 'id' => $s->payer_id, 'name' => $s->payer?->name ?? $s->payerGuest?->name, 'isGuest' => $s->payer_guest_id !== null],
                 // How this spend splits, for prefilling the edit form. Exact amounts are in the spend's
                 // own currency (major units); 'some' rows carry no amount.
                 'split' => $s->shares->isEmpty() ? 'all' : ($s->shares->whereNotNull('amount')->isNotEmpty() ? 'exact' : 'some'),
