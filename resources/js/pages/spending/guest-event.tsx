@@ -22,10 +22,19 @@ type Spend = {
     spent_at: string;
 };
 type Balance = { id: string; name: string; net: number };
-type Suggestion = { from: { id: string; name: string }; to: { id: string; name: string }; amount: number; canSettle: boolean };
+type Suggestion = { from: { id: string; name: string }; to: { id: string; name: string }; amount: number };
+type Transfer = { id: number; from: string; to: string; amount: number; note: string | null; date: string };
 type EventT = { name: string; currency: string; total: number; categories: string[]; currencies: string[] };
 
-type Props = { token: string; event: EventT; guests: Guest[]; spends: Spend[]; balances: Balance[]; suggestions: Suggestion[] };
+type Props = {
+    token: string;
+    event: EventT;
+    guests: Guest[];
+    spends: Spend[];
+    balances: Balance[];
+    suggestions: Suggestion[];
+    transfers: Transfer[];
+};
 
 const today = () => new Date().toISOString().slice(0, 10);
 const dayLabel = (date: string) => new Date(date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
@@ -33,7 +42,7 @@ const dayLabel = (date: string) => new Date(date + 'T00:00:00').toLocaleDateStri
 // Public guest page reached via the link (after any password gate). No account: the visitor picks
 // who they are from the guest list; that choice is remembered in localStorage per token. Editors get
 // an add-expense form and can edit/delete the spends they added.
-export default function GuestEvent({ token, event, guests, spends, balances, suggestions }: Props) {
+export default function GuestEvent({ token, event, guests, spends, balances, suggestions, transfers }: Props) {
     const t = useT();
     const storageKey = `familywell:guest:${token}`;
     const [meId, setMeId] = useState<number | null>(null);
@@ -55,6 +64,7 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
 
     const [editing, setEditing] = useState<Spend | null>(null);
     const [adding, setAdding] = useState(false);
+    const [settling, setSettling] = useState(false); // hooks must run before the identity-gate early return
     const showForm = adding || editing !== null;
 
     // Identity gate: until the visitor says who they are, show only the picker.
@@ -91,6 +101,14 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
 
     const myKey = `g${me.id}`;
     const myBalance = balances.find((b) => b.id === myKey);
+
+    // One-click record of a suggested payment (records the exact suggested amount, no note).
+    const markPaid = (s: Suggestion) =>
+        router.post(
+            `/m/spending/guest/${token}/settle`,
+            { guest_id: me.id, from_key: s.from.id, to_key: s.to.id, amount: s.amount },
+            { preserveScroll: true },
+        );
 
     return (
         <Shell title={event.name}>
@@ -149,20 +167,55 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
                 ))}
             </section>
 
-            {/* Suggested settle-up (informational on the guest page) */}
+            {/* Suggested settle-up. A guest can one-click record a suggestion that involves them. */}
             {suggestions.length > 0 && (
                 <section className="flex flex-col gap-2">
                     <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('spending.suggested_payments')}</h2>
-                    {suggestions.map((s, i) => (
-                        <div key={i} className="bg-surface-card rounded-xl border p-3 text-sm">
-                            <span className="text-primary font-medium">{s.from.name}</span>
-                            <span className="text-muted-foreground"> {t('spending.pays')} </span>
-                            <span className="text-primary font-medium">{s.to.name}</span>
-                            <span className="text-primary ml-2 font-mono font-semibold tabular-nums">{money(s.amount, event.currency)}</span>
-                        </div>
-                    ))}
+                    {suggestions.map((s, i) => {
+                        const involvesMe = s.from.id === myKey || s.to.id === myKey;
+                        return (
+                            <div key={i} className="bg-surface-card flex items-center justify-between gap-2 rounded-xl border p-3 text-sm">
+                                <div>
+                                    <span className="text-primary font-medium">{s.from.name}</span>
+                                    <span className="text-muted-foreground"> {t('spending.pays')} </span>
+                                    <span className="text-primary font-medium">{s.to.name}</span>
+                                    <span className="text-primary ml-2 font-mono font-semibold tabular-nums">{money(s.amount, event.currency)}</span>
+                                </div>
+                                {me.role === 'editor' && involvesMe && (
+                                    <Button size="sm" variant="outline" onClick={() => markPaid(s)} className="shrink-0">
+                                        {t('spending.mark_paid')}
+                                    </Button>
+                                )}
+                            </div>
+                        );
+                    })}
                 </section>
             )}
+
+            {/* Recorded transfers + a free-form record button (editors only). */}
+            <section className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('spending.transfers')}</h2>
+                    {me.role === 'editor' && balances.length >= 2 && (
+                        <button type="button" onClick={() => setSettling(true)} className="text-primary flex items-center gap-1 text-sm font-medium">
+                            <Plus className="size-4" /> {t('spending.record')}
+                        </button>
+                    )}
+                </div>
+                {transfers.length === 0 && <p className="text-muted-foreground text-sm">{t('spending.no_transfers_yet')}</p>}
+                {transfers.map((tr) => (
+                    <div key={tr.id} className="bg-surface-card flex items-center gap-3 rounded-xl border p-3 text-sm">
+                        <div className="min-w-0 flex-1">
+                            <div className="text-primary font-medium">
+                                {tr.from} → {tr.to}
+                            </div>
+                            {tr.note && <div className="text-primary/80 truncate text-xs">{tr.note}</div>}
+                            <div className="text-muted-foreground text-xs">{dayLabel(tr.date)}</div>
+                        </div>
+                        <span className="text-primary shrink-0 font-mono font-semibold tabular-nums">{money(tr.amount, event.currency)}</span>
+                    </div>
+                ))}
+            </section>
 
             {/* Spends */}
             <section className="flex flex-col gap-2 pb-24">
@@ -240,6 +293,16 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
                         setAdding(false);
                         setEditing(null);
                     }}
+                />
+            )}
+
+            {settling && (
+                <SettleForm
+                    token={token}
+                    me={me}
+                    event={event}
+                    others={balances.filter((b) => b.id !== myKey)}
+                    onClose={() => setSettling(false)}
                 />
             )}
         </Shell>
@@ -379,6 +442,115 @@ function SpendForm({ token, me, event, editing, onClose }: { token: string; me: 
                         type="date"
                         value={form.data.spent_at}
                         onChange={(e) => form.setData('spent_at', e.target.value)}
+                    />
+                </div>
+            </div>
+        </ResponsiveModal>
+    );
+}
+
+// A guest records a settle-up they are part of: a direction toggle (I paid / I was paid) puts them on
+// the right side, and the counterparty is any other participant. The server re-checks own-involvement.
+function SettleForm({
+    token,
+    me,
+    event,
+    others,
+    onClose,
+}: {
+    token: string;
+    me: Guest;
+    event: EventT;
+    others: Balance[];
+    onClose: () => void;
+}) {
+    const t = useT();
+    const myKey = `g${me.id}`;
+    const [paid, setPaid] = useState(true); // true = I paid them; false = they paid me
+    const [otherKey, setOtherKey] = useState(others[0]?.id ?? '');
+    const form = useForm({ guest_id: me.id, from_key: '', to_key: '', amount: '', note: '' });
+
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
+        form.transform((d) => ({
+            ...d,
+            from_key: paid ? myKey : otherKey,
+            to_key: paid ? otherKey : myKey,
+            amount: Math.round(Number(d.amount) * 100),
+        }));
+        form.post(`/m/spending/guest/${token}/settle`, { preserveScroll: true, onSuccess: onClose });
+    };
+
+    const valid = !!otherKey && Number(form.data.amount) > 0;
+
+    return (
+        <ResponsiveModal
+            open
+            onOpenChange={(v) => !v && onClose()}
+            title={t('spending.record_payment')}
+            footer={
+                <Button type="submit" form="guest-settle-form" disabled={!valid || form.processing} className="w-full">
+                    {form.processing ? t('spending.saving') : t('common.save')}
+                </Button>
+            }
+        >
+            <form id="guest-settle-form" onSubmit={submit} className="hidden" />
+            <div className="flex flex-col gap-4 pt-1">
+                {/* Direction: which side of the transfer the guest is on. */}
+                <div className="bg-surface grid grid-cols-2 gap-1 rounded-lg border p-1">
+                    {[
+                        [true, t('spending.i_paid')],
+                        [false, t('spending.i_was_paid')],
+                    ].map(([v, label]) => (
+                        <button
+                            key={String(v)}
+                            type="button"
+                            onClick={() => setPaid(v as boolean)}
+                            className={`rounded-md py-1.5 text-sm font-medium transition-colors ${paid === v ? 'bg-primary text-primary-foreground' : 'text-text-secondary'}`}
+                        >
+                            {label as string}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="grid gap-1.5">
+                    <Label>{paid ? t('spending.to') : t('spending.from')}</Label>
+                    <Select value={otherKey} onValueChange={setOtherKey}>
+                        <SelectTrigger>
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {others.map((o) => (
+                                <SelectItem key={o.id} value={o.id}>
+                                    {o.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div className="grid gap-1.5">
+                    <Label htmlFor="settle-amount">{t('spending.amount_currency', { currency: event.currency })}</Label>
+                    <Input
+                        id="settle-amount"
+                        form="guest-settle-form"
+                        inputMode="decimal"
+                        onFocus={selectAllOnFocus}
+                        value={form.data.amount}
+                        onChange={(e) => form.setData('amount', e.target.value.replace(/,/g, '.').replace(/[^\d.]/g, ''))}
+                        placeholder="0.00"
+                    />
+                </div>
+
+                <div className="grid gap-1.5">
+                    <Label htmlFor="settle-note">{t('spending.note_optional')}</Label>
+                    <Input
+                        id="settle-note"
+                        form="guest-settle-form"
+                        value={form.data.note}
+                        onChange={(e) => form.setData('note', e.target.value)}
+                        placeholder={t('spending.transfer_note_placeholder')}
+                        maxLength={255}
                     />
                 </div>
             </div>

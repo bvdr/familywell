@@ -94,6 +94,53 @@ it('lets an editor guest add a spend that lands in the balances', function () {
     );
 });
 
+it('lets the owner record a transfer involving a guest', function () {
+    [, $users, $event] = guestFamily();
+    $event->enableGuestLink($users[0]->id);
+    $alex = $event->guests()->create(['name' => 'Alex', 'role' => 'editor']);
+
+    // Owner records that the guest paid them back, with a note.
+    actingAs($users[0])->post("/m/spending/events/{$event->id}/settle", [
+        'from_key' => 'g'.$alex->id, 'to_key' => 'u'.$users[0]->id, 'amount' => 1500, 'note' => 'cash',
+    ])->assertRedirect();
+
+    $t = $event->settlements()->first();
+    expect($t->from_key)->toBe('g'.$alex->id)
+        ->and($t->to_key)->toBe('u'.$users[0]->id)
+        ->and($t->amount)->toBe(1500)
+        ->and($t->note)->toBe('cash');
+});
+
+it('lets an editor guest record a transfer involving themselves', function () {
+    [, $users, $event] = guestFamily();
+    $link = $event->enableGuestLink($users[0]->id);
+    $alex = $event->guests()->create(['name' => 'Alex', 'role' => 'editor']);
+
+    $this->post("/m/spending/guest/{$link->token}/settle", [
+        'guest_id' => $alex->id,
+        'from_key' => 'g'.$alex->id, 'to_key' => 'u'.$users[0]->id, 'amount' => 2000, 'note' => 'venmo',
+    ])->assertRedirect();
+
+    $t = $event->settlements()->first();
+    expect($t->from_key)->toBe('g'.$alex->id)
+        ->and($t->to_key)->toBe('u'.$users[0]->id)
+        ->and($t->note)->toBe('venmo');
+});
+
+it('forbids a guest from recording a transfer they are not part of', function () {
+    [, $users, $event] = guestFamily();
+    $link = $event->enableGuestLink($users[0]->id);
+    $alex = $event->guests()->create(['name' => 'Alex', 'role' => 'editor']);
+
+    // Alex tries to record a payment between two OTHER members — not allowed.
+    $this->post("/m/spending/guest/{$link->token}/settle", [
+        'guest_id' => $alex->id,
+        'from_key' => 'u'.$users[1]->id, 'to_key' => 'u'.$users[0]->id, 'amount' => 500,
+    ])->assertForbidden();
+
+    expect($event->settlements()->count())->toBe(0);
+});
+
 it('forbids a view-only guest from writing', function () {
     [, $users, $event] = guestFamily();
     $link = $event->enableGuestLink($users[0]->id);

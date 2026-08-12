@@ -324,18 +324,21 @@ class SpendingController extends Controller
     {
         $event = $this->event($event);
         abort_unless($this->access->canEdit($request->user(), $event), 403);
-        $memberIds = $event->members()->pluck('users.id')->all();
+        $participantKeys = array_keys($event->participantNames());
 
+        // from/to are namespaced participant keys, so a transfer can involve a member OR a guest.
         $data = $request->validate([
-            'from_user_id' => ['required', 'integer', 'in:'.implode(',', $memberIds)],
-            'to_user_id' => ['required', 'integer', 'different:from_user_id', 'in:'.implode(',', $memberIds)],
+            'from_key' => ['required', 'string', 'in:'.implode(',', $participantKeys)],
+            'to_key' => ['required', 'string', 'different:from_key', 'in:'.implode(',', $participantKeys)],
             'amount' => ['required', 'integer', 'gt:0'], // already in cents from the suggested payment
+            'note' => ['nullable', 'string', 'max:255'],
         ]);
 
         $event->settlements()->create([
-            'from_user_id' => $data['from_user_id'],
-            'to_user_id' => $data['to_user_id'],
+            'from_key' => $data['from_key'],
+            'to_key' => $data['to_key'],
             'amount' => $data['amount'],
+            'note' => $data['note'] ?? null,
             'created_by' => $request->user()->id,
         ]);
 
@@ -500,23 +503,25 @@ class SpendingController extends Controller
             'coveredBy' => $split['coveredBy'][$key] ?? null,
         ])->values();
 
-        // Recorded settle-up payments (the Transfers tab). Settlements are user-to-user.
-        $memberName = fn (int $id) => $members->firstWhere('id', $id)?->name ?? '?';
+        // Recorded settle-up payments (the Transfers tab). from/to are participant keys (member or guest).
+        $keyName = fn (string $key) => $names[$key] ?? '?';
         $transfers = $settlements->sortByDesc('id')->map(fn (SpendSettlement $t) => [
             'id' => $t->id,
-            'from' => $memberName($t->from_user_id),
-            'to' => $memberName($t->to_user_id),
+            'from' => $keyName($t->from_key),
+            'to' => $keyName($t->to_key),
             'amount' => $t->amount,
+            'note' => $t->note,
             'date' => $t->created_at?->toDateString(),
         ])->values();
 
         // Personal breakdown for the viewer (only if they're a participant in this event). Everything in
         // base cents. net = paid - share + sent - received (see Balances), so share is derived from the rest.
         $userId = request()->user()->id;
-        $mySummary = $members->contains('id', $userId) ? (function () use ($userId, $spends, $settlements, $balances) {
+        $myKey = 'u'.$userId;
+        $mySummary = $members->contains('id', $userId) ? (function () use ($userId, $myKey, $spends, $settlements, $balances) {
             $paid = (int) $spends->where('payer_id', $userId)->sum('base_amount');
-            $sent = (int) $settlements->where('from_user_id', $userId)->sum('amount');
-            $received = (int) $settlements->where('to_user_id', $userId)->sum('amount');
+            $sent = (int) $settlements->where('from_key', $myKey)->sum('amount');
+            $received = (int) $settlements->where('to_key', $myKey)->sum('amount');
             $net = (int) (collect($balances['balances'])->firstWhere('id', 'u'.$userId)['net'] ?? 0);
 
             return ['paid' => $paid, 'share' => $paid + $sent - $received - $net, 'sent' => $sent, 'received' => $received, 'net' => $net];

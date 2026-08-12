@@ -89,6 +89,7 @@ class SpendingServiceProvider extends ServiceProvider
                 Route::post('/spends', [GuestSpendController::class, 'store'])->name('spends.store');
                 Route::patch('/spends/{spend}', [GuestSpendController::class, 'update'])->name('spends.update');
                 Route::delete('/spends/{spend}', [GuestSpendController::class, 'destroy'])->name('spends.destroy');
+                Route::post('/settle', [GuestSpendController::class, 'settle'])->name('settle');
             });
     }
 }

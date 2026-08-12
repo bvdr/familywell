@@ -54,6 +54,37 @@ class GuestSpendController extends Controller
         return back();
     }
 
+    // Record a settle-up payment involving this guest. Own-entries only: the guest must be one side of
+    // the transfer, so a guest can't record a payment between two other people. from/to are namespaced
+    // participant keys ('u{id}' / 'g{id}'), same as the owner settle route.
+    public function settle(Request $request, string $token): RedirectResponse
+    {
+        [$event, $guest] = $this->access->authorizeWrite($token, (int) $request->input('guest_id'));
+        $participantKeys = array_keys($event->participantNames());
+
+        $data = $request->validate([
+            'from_key' => ['required', 'string', 'in:'.implode(',', $participantKeys)],
+            'to_key' => ['required', 'string', 'different:from_key', 'in:'.implode(',', $participantKeys)],
+            'amount' => ['required', 'integer', 'gt:0'],
+            'note' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $myKey = 'g'.$guest->id;
+        abort_unless($data['from_key'] === $myKey || $data['to_key'] === $myKey, 403, 'You can only record a payment involving yourself.');
+
+        $event->settlements()->create([
+            'from_key' => $data['from_key'],
+            'to_key' => $data['to_key'],
+            'amount' => $data['amount'],
+            'note' => $data['note'] ?? null,
+            'created_by' => $event->created_by, // no user session; attribute to the event owner
+        ]);
+
+        Realtime::broadcast(new SpendingChanged((int) $event->family_id));
+
+        return back();
+    }
+
     // The spend must belong to this event AND have been paid by the acting guest (own-entries only).
     private function ownSpend(SpendEvent $event, $guest, int $spendId): Spend
     {

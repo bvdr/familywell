@@ -86,9 +86,9 @@ const sourceTypeLabel = (t: TFn, type: string) => t(SOURCE_TYPE_META.find((s) =>
 // Participant ids are namespaced strings ('u{id}' for family members, 'g{id}' for guests) so users
 // and guests never collide in one balance sheet.
 type Balance = { id: string; name: string; net: number };
-type Suggestion = { from: { id: string; name: string }; to: { id: string; name: string }; amount: number; canSettle: boolean };
+type Suggestion = { from: { id: string; name: string }; to: { id: string; name: string }; amount: number };
 type Participant = { key: string; name: string; kind: 'member' | 'guest'; weight: number; coveredBy: string | null };
-type Transfer = { id: number; from: string; to: string; amount: number; date: string };
+type Transfer = { id: number; from: string; to: string; amount: number; date: string; note: string | null };
 // Personal breakdown for the viewer (base cents). null when the viewer isn't a participant.
 type MySummary = { paid: number; share: number; sent: number; received: number; net: number } | null;
 
@@ -520,12 +520,12 @@ export default function Event({
         });
     };
 
-    // Settle-up records a user-to-user payment; the ids are 'u{id}' so strip the prefix. Suggestions
-    // that involve a guest aren't one-click settleable (canSettle=false) and hide the button.
+    // Settle-up records a payment between two participants (members or guests). Suggestion ids are
+    // already namespaced keys, so they pass straight through. One-click has no note.
     const markPaid = (s: Suggestion) => {
         router.post(
             route('spending.settle', event.id),
-            { from_user_id: Number(s.from.id.slice(1)), to_user_id: Number(s.to.id.slice(1)), amount: s.amount },
+            { from_key: s.from.id, to_key: s.to.id, amount: s.amount },
             { preserveScroll: true },
         );
     };
@@ -559,20 +559,21 @@ export default function Event({
         return m;
     }, [participants, memberColorsMap]);
 
-    // Record a transfer (settle-up payment) straight from the Transfers tab. Settlements are between
-    // family members (they have accounts), so from/to are members; amounts are in the event's currency.
+    // Record a transfer (settle-up payment) straight from the Transfers tab. from/to are participant
+    // keys (members or guests); amounts are in the event's currency. Optional note shown in the list.
     const [recording, setRecording] = useState(false);
-    const transferForm = useForm({ from_user_id: '', to_user_id: '', amount: '' });
+    const transferForm = useForm({ from_key: '', to_key: '', amount: '', note: '' });
     const transferValid =
-        !!transferForm.data.from_user_id &&
-        !!transferForm.data.to_user_id &&
-        transferForm.data.from_user_id !== transferForm.data.to_user_id &&
+        !!transferForm.data.from_key &&
+        !!transferForm.data.to_key &&
+        transferForm.data.from_key !== transferForm.data.to_key &&
         Number(transferForm.data.amount) > 0;
     const recordTransfer = () => {
         transferForm.transform((d) => ({
-            from_user_id: Number(d.from_user_id),
-            to_user_id: Number(d.to_user_id),
+            from_key: d.from_key,
+            to_key: d.to_key,
             amount: Math.round(Number(d.amount) * 100),
+            note: d.note,
         }));
         transferForm.post(route('spending.settle', event.id), {
             preserveScroll: true,
@@ -748,17 +749,17 @@ export default function Event({
                                 <div className="grid gap-2">
                                     <Label>{t('spending.from')}</Label>
                                     <div className="grid grid-cols-2 gap-2">
-                                        {event.members.map((m) => {
-                                            const on = transferForm.data.from_user_id === String(m.id);
+                                        {participants.map((p) => {
+                                            const on = transferForm.data.from_key === p.key;
                                             return (
                                                 <button
-                                                    key={m.id}
+                                                    key={p.key}
                                                     type="button"
-                                                    onClick={() => transferForm.setData('from_user_id', String(m.id))}
+                                                    onClick={() => transferForm.setData('from_key', p.key)}
                                                     className={`flex items-center gap-2 rounded-lg border p-2 text-left text-sm transition-colors ${on ? 'border-primary bg-accent-subtle' : 'bg-surface-card'}`}
                                                 >
-                                                    <PersonAvatar name={m.name} className="size-6 text-xs" />
-                                                    <span className="text-primary min-w-0 flex-1 truncate">{m.name}</span>
+                                                    <PersonAvatar name={p.name} className="size-6 text-xs" />
+                                                    <span className="text-primary min-w-0 flex-1 truncate">{p.name}</span>
                                                 </button>
                                             );
                                         })}
@@ -767,19 +768,19 @@ export default function Event({
                                 <div className="grid gap-2">
                                     <Label>{t('spending.to')}</Label>
                                     <div className="grid grid-cols-2 gap-2">
-                                        {event.members
-                                            .filter((m) => String(m.id) !== transferForm.data.from_user_id)
-                                            .map((m) => {
-                                                const on = transferForm.data.to_user_id === String(m.id);
+                                        {participants
+                                            .filter((p) => p.key !== transferForm.data.from_key)
+                                            .map((p) => {
+                                                const on = transferForm.data.to_key === p.key;
                                                 return (
                                                     <button
-                                                        key={m.id}
+                                                        key={p.key}
                                                         type="button"
-                                                        onClick={() => transferForm.setData('to_user_id', String(m.id))}
+                                                        onClick={() => transferForm.setData('to_key', p.key)}
                                                         className={`flex items-center gap-2 rounded-lg border p-2 text-left text-sm transition-colors ${on ? 'border-primary bg-accent-subtle' : 'bg-surface-card'}`}
                                                     >
-                                                        <PersonAvatar name={m.name} className="size-6 text-xs" />
-                                                        <span className="text-primary min-w-0 flex-1 truncate">{m.name}</span>
+                                                        <PersonAvatar name={p.name} className="size-6 text-xs" />
+                                                        <span className="text-primary min-w-0 flex-1 truncate">{p.name}</span>
                                                     </button>
                                                 );
                                             })}
@@ -797,6 +798,17 @@ export default function Event({
                                     />
                                     <InputError message={transferForm.errors.amount} />
                                 </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="transfer-note">{t('spending.note_optional')}</Label>
+                                    <Input
+                                        id="transfer-note"
+                                        value={transferForm.data.note}
+                                        onChange={(e) => transferForm.setData('note', e.target.value)}
+                                        placeholder={t('spending.transfer_note_placeholder')}
+                                        maxLength={255}
+                                    />
+                                    <InputError message={transferForm.errors.note} />
+                                </div>
                             </div>
                         </ResponsiveModal>
 
@@ -807,7 +819,7 @@ export default function Event({
                                     <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
                                         {t('spending.transfers_between_you')}
                                     </h2>
-                                    {event.members.length >= 2 && (
+                                    {participants.length >= 2 && (
                                         <button
                                             type="button"
                                             onClick={() => setRecording(true)}
@@ -820,7 +832,7 @@ export default function Event({
                                 {transfers.length === 0 && (
                                     <div className="bg-surface-card text-muted-foreground rounded-xl border p-6 text-center text-sm">
                                         {t('spending.no_transfers_yet')}
-                                        {event.members.length >= 2 && (
+                                        {participants.length >= 2 && (
                                             <button
                                                 type="button"
                                                 onClick={() => setRecording(true)}
@@ -842,6 +854,7 @@ export default function Event({
                                             <div className="text-primary truncate font-medium">
                                                 {tr.from} → {tr.to}
                                             </div>
+                                            {tr.note && <div className="text-primary/80 truncate text-xs">{tr.note}</div>}
                                             <div className="text-muted-foreground text-xs">{dayLabel(t, tr.date)}</div>
                                         </div>
                                         <span className="text-primary font-mono text-sm font-semibold tabular-nums">{fmt(tr.amount)}</span>
@@ -935,11 +948,9 @@ export default function Event({
                                                     <span className="text-primary font-medium">{s.to.name}</span>
                                                     <span className="text-primary ml-2 font-mono font-semibold tabular-nums">{fmt(s.amount)}</span>
                                                 </div>
-                                                {s.canSettle && (
-                                                    <Button size="sm" variant="outline" onClick={() => markPaid(s)}>
-                                                        <Check className="size-4" /> {t('spending.mark_paid')}
-                                                    </Button>
-                                                )}
+                                                <Button size="sm" variant="outline" onClick={() => markPaid(s)}>
+                                                    <Check className="size-4" /> {t('spending.mark_paid')}
+                                                </Button>
                                             </div>
                                         ))}
                                     </section>

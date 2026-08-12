@@ -42,7 +42,7 @@ function netsOf(SpendEvent $event): array
 it('weights the split by participant headcount', function () {
     [, $users, $event] = splitEvent();
     actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
-        'amount' => '30.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+        'amount' => '30.00', 'currency' => 'EUR', 'category' => 'food', 'payer_key' => 'u'.($users[0]->id), 'spent_at' => '2026-07-16',
     ]);
 
     // Give user[1] a headcount of 2 -> total weight 4, spend 3000 splits 750 / 1500 / 750.
@@ -57,7 +57,7 @@ it('weights the split by participant headcount', function () {
 it('bills a covered member to their coverer', function () {
     [, $users, $event] = splitEvent();
     actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
-        'amount' => '30.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+        'amount' => '30.00', 'currency' => 'EUR', 'category' => 'food', 'payer_key' => 'u'.($users[0]->id), 'spent_at' => '2026-07-16',
     ]);
 
     // user[2] is covered by user[0].
@@ -72,7 +72,7 @@ it('bills a covered member to their coverer', function () {
 it('limits a spend to only the participants it is shared with', function () {
     [, $users, $event] = splitEvent();
     actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
-        'amount' => '30.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+        'amount' => '30.00', 'currency' => 'EUR', 'category' => 'food', 'payer_key' => 'u'.($users[0]->id), 'spent_at' => '2026-07-16',
     ]);
     $spend = $event->spends()->first();
 
@@ -92,15 +92,18 @@ it('drops family members without access from the split, but keeps anyone who pai
     // By default (family visibility) everyone is in the split.
     expect(array_keys($event->participantNames()))->toContain('u'.$users[1]->id);
 
-    // Narrow to invited: only the owner (who holds the owner share) stays; the others drop out.
-    $event->setVisibility('invited');
-    expect(array_keys($event->fresh()->participantNames()))->toBe(['u'.$users[0]->id]);
-
-    // ...unless a dropped member fronted money — then they stay so their payment is still attributed.
+    // users[1] fronts money while still a participant (the payer must be a current participant).
     actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
-        'amount' => '30.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[1]->id, 'spent_at' => '2026-07-16',
+        'amount' => '30.00', 'currency' => 'EUR', 'category' => 'food', 'payer_key' => 'u'.($users[1]->id), 'spent_at' => '2026-07-16',
     ]);
-    expect(array_keys($event->fresh()->participantNames()))->toContain('u'.$users[1]->id);
+
+    // Narrow to invited: only the owner holds a share. users[2] (no access, never paid) drops out;
+    // users[1] stays because their payment must still be attributed and settled.
+    $event->setVisibility('invited');
+    $keys = array_keys($event->fresh()->participantNames());
+    expect($keys)->toContain('u'.$users[0]->id)
+        ->and($keys)->toContain('u'.$users[1]->id)
+        ->and($keys)->not->toContain('u'.$users[2]->id);
 });
 
 it('sets a headcount through the endpoint and clears it back to default', function () {
@@ -118,7 +121,7 @@ it('sets a headcount through the endpoint and clears it back to default', functi
 it('stores a spend split among only some participants via the form', function () {
     [, $users, $event] = splitEvent();
     actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
-        'amount' => '30.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+        'amount' => '30.00', 'currency' => 'EUR', 'category' => 'food', 'payer_key' => 'u'.($users[0]->id), 'spent_at' => '2026-07-16',
         'split' => 'some', 'shares' => [['key' => 'u'.$users[0]->id], ['key' => 'u'.$users[1]->id]],
     ])->assertRedirect();
 
@@ -135,7 +138,7 @@ it('stores a spend split among only some participants via the form', function ()
 it('stores exact per-person amounts (spend currency) and bills them', function () {
     [, $users, $event] = splitEvent();
     actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
-        'amount' => '30.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+        'amount' => '30.00', 'currency' => 'EUR', 'category' => 'food', 'payer_key' => 'u'.($users[0]->id), 'spent_at' => '2026-07-16',
         'split' => 'exact', 'shares' => [
             ['key' => 'u'.$users[0]->id, 'amount' => '20'],
             ['key' => 'u'.$users[1]->id, 'amount' => '10'],

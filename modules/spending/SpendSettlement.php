@@ -11,7 +11,9 @@ class SpendSettlement extends Model
 
     protected $table = 'spending_settlements';
 
-    protected $fillable = ['spend_event_id', 'from_user_id', 'to_user_id', 'amount', 'created_by'];
+    // from_key/to_key are namespaced participant keys ('u{id}' member / 'g{id}' guest), so a transfer
+    // can involve a guest. Matches Spend::participantKey() and SpendShare.participant_key.
+    protected $fillable = ['spend_event_id', 'from_key', 'to_key', 'amount', 'note', 'created_by'];
 
     protected $casts = ['amount' => 'integer'];
 }
