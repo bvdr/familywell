@@ -81,7 +81,7 @@ it('records spends and reports balances and settle-up suggestions', function () 
 
     // user[0] pays 30.00, split three ways.
     actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
-        'amount' => '30.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+        'amount' => '30.00', 'currency' => 'EUR', 'category' => 'food', 'payer_key' => 'u'.($users[0]->id), 'spent_at' => '2026-07-16',
     ])->assertRedirect();
 
     expect($event->spends()->first()->amount)->toBe(3000); // stored as cents
@@ -100,11 +100,11 @@ it('shifts balances after a settlement is marked paid', function () {
     actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
     $event = SpendEvent::first();
     actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
-        'amount' => '30.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+        'amount' => '30.00', 'currency' => 'EUR', 'category' => 'food', 'payer_key' => 'u'.($users[0]->id), 'spent_at' => '2026-07-16',
     ]);
 
     actingAs($users[0])->post("/m/spending/events/{$event->id}/settle", [
-        'from_user_id' => $users[1]->id, 'to_user_id' => $users[0]->id, 'amount' => 1000,
+        'from_key' => 'u'.($users[1]->id), 'to_key' => 'u'.($users[0]->id), 'amount' => 1000,
     ])->assertRedirect();
 
     expect($event->settlements()->count())->toBe(1);
@@ -122,7 +122,7 @@ it('records a foreign-currency spend converted to the event currency and frozen'
 
     // 100.00 RON at 0.2 -> 20.00 EUR base.
     actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
-        'amount' => '100.00', 'currency' => 'RON', 'category' => 'transport', 'payer_id' => $users[0]->id, 'spent_at' => '2026-06-15',
+        'amount' => '100.00', 'currency' => 'RON', 'category' => 'transport', 'payer_key' => 'u'.($users[0]->id), 'spent_at' => '2026-06-15',
     ])->assertRedirect();
 
     $spend = $event->spends()->first();
@@ -146,13 +146,13 @@ it('edits a spend and re-freezes the conversion', function () {
     actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
     $event = SpendEvent::first();
     actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
-        'amount' => '10.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+        'amount' => '10.00', 'currency' => 'EUR', 'category' => 'food', 'payer_key' => 'u'.($users[0]->id), 'spent_at' => '2026-07-16',
     ]);
     $spend = $event->spends()->first();
 
     // Change amount + currency + payer -> re-validated and re-converted.
     actingAs($users[0])->patch("/m/spending/spends/{$spend->id}", [
-        'amount' => '40.00', 'currency' => 'RON', 'category' => 'transport', 'payer_id' => $users[1]->id, 'spent_at' => '2026-07-16',
+        'amount' => '40.00', 'currency' => 'RON', 'category' => 'transport', 'payer_key' => 'u'.($users[1]->id), 'spent_at' => '2026-07-16',
     ])->assertRedirect();
 
     $spend->refresh();
@@ -168,7 +168,7 @@ it('duplicates a spend keeping its currency and frozen base amount', function ()
     actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
     $event = SpendEvent::first();
     actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
-        'amount' => '12.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+        'amount' => '12.00', 'currency' => 'EUR', 'category' => 'food', 'payer_key' => 'u'.($users[0]->id), 'spent_at' => '2026-07-16',
     ]);
     $spend = $event->spends()->first();
 
@@ -184,7 +184,7 @@ it('deletes a spend', function () {
     actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
     $event = SpendEvent::first();
     actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
-        'amount' => '12.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+        'amount' => '12.00', 'currency' => 'EUR', 'category' => 'food', 'payer_key' => 'u'.($users[0]->id), 'spent_at' => '2026-07-16',
     ]);
     $spend = $event->spends()->first();
 
@@ -197,14 +197,14 @@ it('does not let another family edit or duplicate a spend', function () {
     actingAs($usersA[0])->post('/m/spending/events', ['name' => 'A', 'currency' => 'EUR']);
     $eventA = SpendEvent::first();
     actingAs($usersA[0])->post("/m/spending/events/{$eventA->id}/spends", [
-        'amount' => '5.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $usersA[0]->id, 'spent_at' => '2026-07-16',
+        'amount' => '5.00', 'currency' => 'EUR', 'category' => 'food', 'payer_key' => 'u'.($usersA[0]->id), 'spent_at' => '2026-07-16',
     ]);
     $spendA = $eventA->spends()->first();
 
     [$familyB, $usersB] = spendingFamily();
     actingAs($usersB[0])->post("/m/spending/spends/{$spendA->id}/duplicate")->assertNotFound();
     actingAs($usersB[0])->patch("/m/spending/spends/{$spendA->id}", [
-        'amount' => '99.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $usersB[0]->id, 'spent_at' => '2026-07-16',
+        'amount' => '99.00', 'currency' => 'EUR', 'category' => 'food', 'payer_key' => 'u'.($usersB[0]->id), 'spent_at' => '2026-07-16',
     ])->assertNotFound();
 });
 
@@ -215,7 +215,7 @@ it('attaches multiple receipt images and serves them back to the family', functi
     $event = SpendEvent::first();
 
     actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
-        'amount' => '12.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+        'amount' => '12.00', 'currency' => 'EUR', 'category' => 'food', 'payer_key' => 'u'.($users[0]->id), 'spent_at' => '2026-07-16',
         'receipts' => [
             UploadedFile::fake()->create('a.jpg', 200, 'image/jpeg'),
             UploadedFile::fake()->create('b.jpg', 200, 'image/jpeg'),
@@ -236,7 +236,7 @@ it('does not serve a receipt to another family', function () {
     actingAs($usersA[0])->post('/m/spending/events', ['name' => 'A', 'currency' => 'EUR']);
     $eventA = SpendEvent::first();
     actingAs($usersA[0])->post("/m/spending/events/{$eventA->id}/spends", [
-        'amount' => '5.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $usersA[0]->id, 'spent_at' => '2026-07-16',
+        'amount' => '5.00', 'currency' => 'EUR', 'category' => 'food', 'payer_key' => 'u'.($usersA[0]->id), 'spent_at' => '2026-07-16',
         'receipts' => [UploadedFile::fake()->create('r.jpg', 200, 'image/jpeg')],
     ]);
     $receiptA = $eventA->spends()->first()->receipts()->first();
@@ -267,7 +267,7 @@ it('still records a spend when broadcasting is down', function () {
 
     // The write succeeds (redirect, not a 500) even though every broadcast throws.
     actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
-        'amount' => '10.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+        'amount' => '10.00', 'currency' => 'EUR', 'category' => 'food', 'payer_key' => 'u'.($users[0]->id), 'spent_at' => '2026-07-16',
     ])->assertRedirect();
 
     expect($event->spends()->count())->toBe(1);
@@ -279,14 +279,14 @@ it('adds a receipt on edit via POST method-spoofing (the file-edit path)', funct
     actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
     $event = SpendEvent::first();
     actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
-        'amount' => '10.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+        'amount' => '10.00', 'currency' => 'EUR', 'category' => 'food', 'payer_key' => 'u'.($users[0]->id), 'spent_at' => '2026-07-16',
     ]);
     $spend = $event->spends()->first();
 
     // The frontend edits with files as POST + _method=patch, since PHP can't parse a multipart PATCH.
     actingAs($users[0])->post("/m/spending/spends/{$spend->id}", [
         '_method' => 'patch',
-        'amount' => '22.00', 'currency' => 'EUR', 'category' => 'transport', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+        'amount' => '22.00', 'currency' => 'EUR', 'category' => 'transport', 'payer_key' => 'u'.($users[0]->id), 'spent_at' => '2026-07-16',
         'receipts' => [UploadedFile::fake()->create('r.jpg', 100, 'image/jpeg')],
         'receipts_thumb' => [UploadedFile::fake()->create('r.thumb.jpg', 10, 'image/jpeg')],
     ])->assertRedirect();
@@ -304,7 +304,7 @@ it('removes only the selected receipts on edit', function () {
     actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
     $event = SpendEvent::first();
     actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
-        'amount' => '10.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+        'amount' => '10.00', 'currency' => 'EUR', 'category' => 'food', 'payer_key' => 'u'.($users[0]->id), 'spent_at' => '2026-07-16',
         'receipts' => [
             UploadedFile::fake()->create('a.jpg', 100, 'image/jpeg'),
             UploadedFile::fake()->create('b.jpg', 100, 'image/jpeg'),
@@ -316,7 +316,7 @@ it('removes only the selected receipts on edit', function () {
 
     actingAs($users[0])->post("/m/spending/spends/{$spend->id}", [
         '_method' => 'patch',
-        'amount' => '10.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+        'amount' => '10.00', 'currency' => 'EUR', 'category' => 'food', 'payer_key' => 'u'.($users[0]->id), 'spent_at' => '2026-07-16',
         'remove_receipt_ids' => [$toRemove->id],
     ])->assertRedirect();
 
@@ -343,7 +343,7 @@ it('creates a payment source and records a spend paid with it', function () {
     expect($source->name)->toBe('Wise')->and($source->type)->toBe('card');
 
     actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
-        'amount' => '20.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $users[0]->id, 'spent_at' => '2026-07-16',
+        'amount' => '20.00', 'currency' => 'EUR', 'category' => 'food', 'payer_key' => 'u'.($users[0]->id), 'spent_at' => '2026-07-16',
         'source_id' => $source->id,
     ])->assertRedirect();
 
@@ -360,7 +360,7 @@ it('rejects a payment source from another family', function () {
     $eventB = SpendEvent::first();
 
     actingAs($usersB[0])->post("/m/spending/events/{$eventB->id}/spends", [
-        'amount' => '5.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $usersB[0]->id, 'spent_at' => '2026-07-16',
+        'amount' => '5.00', 'currency' => 'EUR', 'category' => 'food', 'payer_key' => 'u'.($usersB[0]->id), 'spent_at' => '2026-07-16',
         'source_id' => $sourceAId,
     ])->assertSessionHasErrors('source_id');
 });

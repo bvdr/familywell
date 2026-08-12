@@ -101,6 +101,10 @@
     "amount_currency": "Amount (:currency)",
 
     "transfers_between_you": "Transfers between you",
+    "transfers": "Transfers",
+    "i_paid": "I paid",
+    "i_was_paid": "I was paid",
+    "transfer_note_placeholder": "e.g. cash, bank transfer",
     "record": "Record",
     "no_transfers_yet": "No transfers yet.",
 

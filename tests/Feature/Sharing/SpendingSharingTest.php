@@ -32,7 +32,7 @@ function makeEvent(User $owner): SpendEvent
 
 function validSpend(User $payer): array
 {
-    return ['amount' => '10.00', 'currency' => 'EUR', 'category' => 'food', 'payer_id' => $payer->id, 'spent_at' => '2026-07-16'];
+    return ['amount' => '10.00', 'currency' => 'EUR', 'category' => 'food', 'payer_key' => 'u'.$payer->id, 'spent_at' => '2026-07-16'];
 }
 
 it('makes the creator the owner', function () {
