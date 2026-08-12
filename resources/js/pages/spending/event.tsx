@@ -67,8 +67,8 @@ type Spend = {
     note: string | null;
     receipts: { id: number; url: string; thumbUrl: string }[];
     source: Source | null;
-    // A user paid (id set) or a guest did (isGuest, no user id to prefill the payer select with).
-    payer: { id: number | null; name: string | null; isGuest: boolean };
+    // Namespaced payer key ('u{id}' member / 'g{id}' guest) prefills the select; id/name/isGuest are for display.
+    payer: { key: string; id: number | null; name: string | null; isGuest: boolean };
     // How the spend splits; shares list the subset (some) or per-person amounts (exact, spend currency).
     split: 'all' | 'some' | 'exact';
     shares: { key: string; amount: number | null }[];
@@ -296,7 +296,7 @@ export default function Event({
         amount: string;
         currency: string;
         category: string;
-        payer_id: number;
+        payer_key: string;
         source_id: number | null;
         note: string;
         spent_at: string;
@@ -310,7 +310,7 @@ export default function Event({
         amount: '',
         currency: event.currency,
         category: 'food',
-        payer_id: authId,
+        payer_key: 'u' + authId,
         source_id: null,
         note: '',
         spent_at: today(),
@@ -436,8 +436,7 @@ export default function Event({
             amount: (s.amount / 100).toString(),
             currency: s.currency,
             category: s.category,
-            // Guest-paid spends have no user payer to prefill; default the select to the current user.
-            payer_id: s.payer.id ?? authId,
+            payer_key: s.payer.key,
             source_id: s.source?.id ?? null,
             note: s.note ?? '',
             spent_at: s.spent_at,
@@ -491,7 +490,7 @@ export default function Event({
                 amount: data.amount != null ? String(data.amount) : '',
                 currency: data.currency ?? event.currency,
                 category: data.category ?? 'food',
-                payer_id: authId,
+                payer_key: 'u' + authId,
                 source_id: null,
                 note: data.note ?? '',
                 spent_at: data.date ?? today(),
@@ -1185,15 +1184,16 @@ export default function Event({
                                     </div>
                                     <div className="grid gap-2">
                                         <Label>{t('spending.paid_by_field')}</Label>
-                                        <Select value={String(form.data.payer_id)} onValueChange={(v) => form.setData('payer_id', Number(v))}>
+                                        <Select value={form.data.payer_key} onValueChange={(v) => form.setData('payer_key', v)}>
                                             <SelectTrigger className="w-full">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {event.members.map((m) => (
-                                                    <SelectItem key={m.id} value={String(m.id)}>
-                                                        {m.name}
-                                                        {m.id === authId ? t('spending.you_suffix') : ''}
+                                                {/* Any participant can be the payer: family members and the guests we shared with. */}
+                                                {participants.map((p) => (
+                                                    <SelectItem key={p.key} value={p.key}>
+                                                        {p.name}
+                                                        {p.key === 'u' + authId ? t('spending.you_suffix') : ''}
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
