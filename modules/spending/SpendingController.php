@@ -523,10 +523,15 @@ class SpendingController extends Controller
                 'currency' => $event->currency,
                 'total' => (int) $spends->sum('base_amount'),
                 'archived' => $event->archived_at !== null,
-                'members' => $members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),
+                'members' => $members->filter(fn ($m) => isset($names['u'.$m->id]))->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),
                 'people' => array_sum($split['weights']), // total headcount, not participant rows
                 'categories' => self::CATEGORIES,
                 'currencies' => self::CURRENCIES,
+                // The payer + settle-up dropdowns must match the split: only members actually on the
+                // event (family visibility or an explicit share, or who fronted a spend). $names already
+                // encodes that access rule, so a family member the event isn't shared with (e.g. a
+                // spouse) doesn't leak into "Paid by". Guests are handled separately (they can't be
+                // selected as payer here).
                 // Latest rates from the base currency to every supported currency, so the client can
                 // convert any base figure to a chosen display currency without another round-trip.
                 'rates' => Fx::ratesFrom($event->currency, self::CURRENCIES),
