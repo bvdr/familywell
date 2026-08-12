@@ -168,6 +168,16 @@ class SpendEvent extends Model implements ProvidesGuestView, ProvidesPublicShare
             ->latest('spent_at')->latest('id')->get();
         $settlements = $this->settlements()->get();
         $balances = EventBalances::of($this, $spends, $settlements);
+        $names = $this->participantNames();
+        $keyName = fn (string $key) => $names[$key] ?? '?';
+        $transfers = $settlements->sortByDesc('id')->map(fn (SpendSettlement $t) => [
+            'id' => $t->id,
+            'from' => $keyName($t->from_key),
+            'to' => $keyName($t->to_key),
+            'amount' => $t->amount,
+            'note' => $t->note,
+            'date' => $t->created_at?->toDateString(),
+        ])->values();
 
         return [
             'component' => 'spending/guest-event',
@@ -195,6 +205,7 @@ class SpendEvent extends Model implements ProvidesGuestView, ProvidesPublicShare
                 ])->values(),
                 'balances' => $balances['balances'],
                 'suggestions' => $balances['suggestions'],
+                'transfers' => $transfers,
             ],
         ];
     }

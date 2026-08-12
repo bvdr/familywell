@@ -101,6 +101,10 @@
     "amount_currency": "Sumă (:currency)",
 
     "transfers_between_you": "Transferuri între voi",
+    "transfers": "Transferuri",
+    "i_paid": "Am plătit",
+    "i_was_paid": "Am fost plătit",
+    "transfer_note_placeholder": "ex. numerar, transfer bancar",
     "record": "Înregistrează",
     "no_transfers_yet": "Niciun transfer încă.",
 

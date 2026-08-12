@@ -27,9 +27,9 @@ class EventBalances
                 'amount' => $s->base_amount,
                 'shares' => self::sharesOf($s), // null unless this spend overrides its split
             ])->all(),
-            // Settlements are recorded between users only (an authenticated action), so they're all 'u' keys.
+            // Settlements are stored on namespaced participant keys, so members and guests both settle.
             $settlements->map(fn (SpendSettlement $t) => [
-                'from' => 'u'.$t->from_user_id, 'to' => 'u'.$t->to_user_id, 'amount' => $t->amount,
+                'from' => $t->from_key, 'to' => $t->to_key, 'amount' => $t->amount,
             ])->all(),
             $split['coveredBy'],
         );
@@ -44,8 +44,6 @@ class EventBalances
                 'from' => ['id' => $s['from'], 'name' => $name($s['from'])],
                 'to' => ['id' => $s['to'], 'name' => $name($s['to'])],
                 'amount' => $s['amount'],
-                // The one-click "mark paid" only records user-to-user payments; guest settle-up is manual.
-                'canSettle' => str_starts_with($s['from'], 'u') && str_starts_with($s['to'], 'u'),
             ])->values()->all(),
         ];
     }
