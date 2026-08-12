@@ -51,11 +51,19 @@ export function NotificationsBell() {
         setClearedAll(true);
     };
 
+    // The `notifications` prop is a snapshot from the last page load. Notifications that arrive after
+    // (e.g. a web push while the app sits open) aren't in it, so the panel would show a stale "all
+    // caught up". Refresh just that prop when the bell opens, so the glimpse is always current.
+    const openPanel = () => {
+        setOpen(true);
+        router.reload({ only: ['notifications'] });
+    };
+
     return (
         <>
             <button
                 type="button"
-                onClick={() => setOpen(true)}
+                onClick={openPanel}
                 aria-label={unread > 0 ? t('notifications.aria_unread', { n: unread }) : t('notifications.aria')}
                 className="border-border text-primary hover:bg-surface relative flex size-9 items-center justify-center rounded-lg border transition-colors"
             >
