@@ -9,7 +9,8 @@ import { Link } from '@inertiajs/react';
 const sidebarNavItems: { key: string; url: string }[] = [
     { key: 'settings.profile', url: '/settings/profile' },
     { key: 'settings.password', url: '/settings/password' },
-    { key: 'settings.appearance', url: '/settings/appearance' },
+    // Appearance (light/dark/system) removed for v1: dark mode was broken starter-kit scaffolding.
+    // Re-add here alongside a real dark theme.json when dark mode actually ships.
     { key: 'settings.language', url: '/settings/language' },
     { key: 'settings.notifications', url: '/settings/notifications' },
     { key: 'settings.media', url: '/settings/media' },
