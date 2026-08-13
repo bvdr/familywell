@@ -1,46 +1,11 @@
-import { useEffect, useState } from 'react';
-
-export type Appearance = 'light' | 'dark' | 'system';
-
-const prefersDark = () => window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-const applyTheme = (appearance: Appearance) => {
-    const isDark = appearance === 'dark' || (appearance === 'system' && prefersDark());
-
-    document.documentElement.classList.toggle('dark', isDark);
-};
-
-const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-
-const handleSystemThemeChange = () => {
-    const currentAppearance = localStorage.getItem('appearance') as Appearance;
-    applyTheme(currentAppearance || 'system');
-};
-
+// v1 ships light-only. Dark mode was Laravel starter-kit scaffolding that fought the theme.json
+// token system: theme.json tokens (--bg, --surface-card, --text-primary, ...) only ever get light
+// values, so toggling `.dark` produced white cards with pale-on-white text, an unreadable UI. Worse,
+// the old default was `system`, so a visitor whose OS was dark hit that broken state without ever
+// choosing it. Until a real dark theme exists (a dark theme.json, the intended path per ShareTheme),
+// force light and never add `.dark`. Kept as a function so app.tsx's call site stays unchanged and
+// any stale `.dark`/localStorage from a previous build is cleared on boot.
 export function initializeTheme() {
-    const savedAppearance = (localStorage.getItem('appearance') as Appearance) || 'system';
-
-    applyTheme(savedAppearance);
-
-    // Add the event listener for system theme changes...
-    mediaQuery.addEventListener('change', handleSystemThemeChange);
-}
-
-export function useAppearance() {
-    const [appearance, setAppearance] = useState<Appearance>('system');
-
-    const updateAppearance = (mode: Appearance) => {
-        setAppearance(mode);
-        localStorage.setItem('appearance', mode);
-        applyTheme(mode);
-    };
-
-    useEffect(() => {
-        const savedAppearance = localStorage.getItem('appearance') as Appearance | null;
-        updateAppearance(savedAppearance || 'system');
-
-        return () => mediaQuery.removeEventListener('change', handleSystemThemeChange);
-    }, []);
-
-    return { appearance, updateAppearance };
+    document.documentElement.classList.remove('dark');
+    localStorage.removeItem('appearance');
 }
