@@ -11,7 +11,12 @@ it('emits the default theme tokens as CSS custom properties', function () {
         ->toContain('--text-primary:#1B3A28')
         ->toContain('--font-heading:Playfair Display')
         ->toContain('--spacing-md:16px')
-        ->toContain('--radius-md:12px');
+        ->toContain('--radius-md:12px')
+        // Dark mode flips the brand color tokens app.css never redefines (cards, wells, body text),
+        // so a `.dark` block must ship with the light `:root` one.
+        ->toContain('.dark{')
+        ->toContain('--surface-card:#1F3B2A')
+        ->toContain('--text-secondary:#A6BFAE');
 });
 
 it('injects the theme variables into the served document', function () {

@@ -17,6 +17,23 @@
         "warning": "#D4943A",
         "success": "#2D5E3A"
     },
+    "colorsDark": {
+        "bg": "#14271B",
+        "surface": "#1A3122",
+        "surface-card": "#1F3B2A",
+        "surface-dark": "#284A35",
+        "text-primary": "#F5F3EE",
+        "text-secondary": "#A6BFAE",
+        "text-muted": "#7E978A",
+        "text-inverse": "#FFFFFF",
+        "accent": "#24402E",
+        "accent-light": "#C8DBBC",
+        "accent-subtle": "#22412F",
+        "border": "#2E4A38",
+        "error": "#E06B60",
+        "warning": "#E0A24E",
+        "success": "#6DB77E"
+    },
     "fonts": {
         "heading": "Playfair Display",
         "body": "Inter",
