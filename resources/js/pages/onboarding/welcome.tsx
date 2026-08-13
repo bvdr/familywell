@@ -15,7 +15,7 @@ export default function Welcome({ firstName }: { firstName: string }) {
 
             {/* Header rendered here (not via layout title) so the eyebrow sits above the title. */}
             <div className="flex flex-col gap-2">
-                <p className="text-accent text-xs font-semibold tracking-widest uppercase">Your account is ready</p>
+                <p className="text-primary text-xs font-semibold tracking-widest uppercase">Your account is ready</p>
                 <h1 className="font-heading text-primary text-[32px] leading-tight">How would you like to begin?</h1>
                 <p className="text-muted-foreground text-[15px]">Create a new family to organize, or join one you've been invited to.</p>
             </div>
@@ -33,12 +33,12 @@ export default function Welcome({ firstName }: { firstName: string }) {
                         <span className="text-primary block font-semibold">Create a family</span>
                         <span className="text-muted-foreground block text-sm">Start fresh and invite the people you love.</span>
                     </span>
-                    <ArrowRight className="text-accent size-5" />
+                    <ArrowRight className="text-primary size-5" />
                 </Link>
 
                 {/* Join — needs the invite/code system (Phase 2). Shown but not yet active. */}
                 <div className="bg-surface-card flex items-center gap-4 rounded-lg border border-transparent p-4 opacity-60">
-                    <span className="bg-surface text-accent flex size-11 shrink-0 items-center justify-center rounded-md">
+                    <span className="bg-surface text-muted-foreground flex size-11 shrink-0 items-center justify-center rounded-md">
                         <Ticket className="size-5" />
                     </span>
                     <span className="flex-1">
