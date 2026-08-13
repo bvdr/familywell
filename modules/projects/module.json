@@ -1,6 +1,7 @@
 {
     "id": "projects",
     "name": "Projects",
+    "description": "Plan the bigger things: tasks, progress, and linked shopping lists.",
     "version": "1.0.0",
     "provider": "Modules\\Projects\\ProjectsServiceProvider",
     "frontend": "",
