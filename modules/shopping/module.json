@@ -1,6 +1,7 @@
 {
     "id": "shopping",
     "name": "Shopping",
+    "description": "Shared grocery and shopping lists the whole family can check off together.",
     "version": "1.0.0",
     "provider": "Modules\\Shopping\\ShoppingServiceProvider",
     "frontend": "",

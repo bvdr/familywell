@@ -1,6 +1,7 @@
 {
     "id": "tasks",
     "name": "Tasks",
+    "description": "Shared to-do lists with due dates, sub-tasks, and who's assigned.",
     "version": "1.0.0",
     "provider": "Modules\\Tasks\\TasksServiceProvider",
     "frontend": "",

@@ -19,6 +19,7 @@ class FamilyModuleController extends Controller
             ->map(fn ($m) => [
                 'id' => $m->id,
                 'name' => $m->name,
+                'description' => $m->description,
                 'version' => $m->version,
                 'enabled' => $registry->isEnabled($m->id, $family->id),
             ])->values();
