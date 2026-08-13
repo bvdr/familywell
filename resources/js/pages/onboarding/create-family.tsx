@@ -40,7 +40,7 @@ export default function CreateFamily() {
                     <div className="bg-border h-1 flex-1 rounded-full" />
                 </div>
                 <div className="mt-2 flex justify-between text-sm">
-                    <span className="text-accent font-medium">Step 1 of 2</span>
+                    <span className="text-primary font-medium">Step 1 of 2</span>
                     <span className="text-muted-foreground">Family details</span>
                 </div>
             </div>
