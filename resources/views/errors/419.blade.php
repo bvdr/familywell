@@ -1,0 +1,5 @@
+@extends('errors.layout')
+@section('code', 'Session expired')
+@section('title', 'You were away a while')
+@section('message', 'For your security we ended the idle session. Head back and sign in again to pick up where you left off.')
+@section('cta', 'Back to sign in')
