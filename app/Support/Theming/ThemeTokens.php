@@ -25,6 +25,21 @@ class ThemeTokens
             $vars[] = "--radius-{$k}:{$v}px";
         }
 
-        return ':root{'.implode(';', $vars).';}';
+        $css = ':root{'.implode(';', $vars).';}';
+
+        // Dark mode overrides only the color tokens. app.css owns the shadcn tokens under `.dark`
+        // (--background, --card, --primary, ...) and, loading after this inline block, wins for any it
+        // also defines; this block is what flips the brand-only tokens app.css never touches
+        // (--surface-card, --accent-subtle, --text-secondary, ...) so cards and body text follow the
+        // theme instead of staying stuck on their light values.
+        $dark = [];
+        foreach (($data['colorsDark'] ?? []) as $k => $v) {
+            $dark[] = "--{$k}:{$v}";
+        }
+        if ($dark) {
+            $css .= '.dark{'.implode(';', $dark).';}';
+        }
+
+        return $css;
     }
 }
