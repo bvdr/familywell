@@ -56,7 +56,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
                 </form>
 
                 <div className="text-center text-sm">
-                    <TextLink href={route('login')} className="text-accent inline-flex items-center gap-2">
+                    <TextLink href={route('login')} className="text-primary inline-flex items-center gap-2">
                         <ArrowLeft className="size-4" />
                         {t('auth.back_to_signin')}
                     </TextLink>

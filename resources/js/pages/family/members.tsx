@@ -186,7 +186,7 @@ export default function Members({ family, members, invitations, canManage, palet
                             <Button type="submit" disabled={settings.processing}>
                                 {t('family.save_changes')}
                             </Button>
-                            {settings.recentlySuccessful && <span className="text-accent text-sm">{t('family.saved')}</span>}
+                            {settings.recentlySuccessful && <span className="text-primary text-sm">{t('family.saved')}</span>}
                         </div>
                     </form>
                 ) : (
