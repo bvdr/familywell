@@ -1,6 +1,7 @@
 {
     "id": "notes",
     "name": "Notes",
+    "description": "Quick family notes and checklists, kept tidy in folders.",
     "version": "1.0.0",
     "provider": "Modules\\Notes\\NotesServiceProvider",
     "frontend": "",

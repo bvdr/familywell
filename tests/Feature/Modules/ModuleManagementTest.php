@@ -22,7 +22,9 @@ it('lists installed modules with enabled state', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $p) => $p->component('family/modules')
             ->where('canManage', true)
-            ->has('catalog'));
+            ->has('catalog')
+            // The page shows a blurb per module so a family knows what enabling it does.
+            ->has('catalog.0.description'));
 });
 
 it('lets an admin enable and disable a module', function () {
