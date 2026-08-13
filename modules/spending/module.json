@@ -1,6 +1,7 @@
 {
     "id": "spending",
     "name": "Spending",
+    "description": "Track shared costs and settle up who owes who, split any way you like.",
     "version": "1.0.0",
     "provider": "Modules\\Spending\\SpendingServiceProvider",
     "frontend": "",

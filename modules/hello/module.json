@@ -1,6 +1,7 @@
 {
     "id": "hello",
     "name": "Hello",
+    "description": "A tiny sample module for developers. Safe to leave off.",
     "version": "1.0.0",
     "provider": "Modules\\Hello\\HelloServiceProvider",
     "frontend": "resources/dist/hello.js",
