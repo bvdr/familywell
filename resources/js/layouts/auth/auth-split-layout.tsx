@@ -80,7 +80,7 @@ export default function AuthSplitLayout({ children, title, description, headline
                 <div className="flex w-full max-w-[420px] flex-col gap-6">
                     {/* Wordmark shows on mobile where the brand panel is hidden. */}
                     <Link href={route('home')} className="flex items-center gap-2.5 lg:hidden">
-                        <Leaf className="text-accent size-6" />
+                        <Leaf className="text-primary size-6" />
                         <span className="font-heading text-primary text-2xl">{name ?? 'FamilyWell'}</span>
                     </Link>
 
