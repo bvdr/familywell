@@ -12,6 +12,7 @@ class ModuleManifest
         public array $requires,
         public string $path,
         public ?string $frontend = null,
+        public string $description = '',
     ) {}
 
     public static function fromPath(string $dir): self
@@ -26,6 +27,7 @@ class ModuleManifest
             requires: $data['requires'] ?? [],
             path: $dir,
             frontend: $data['frontend'] ?? null,
+            description: $data['description'] ?? '',
         );
     }
 
