@@ -63,7 +63,37 @@ class HandleInertiaRequests extends Middleware
             // so every member gets a different (and consistent, app-wide) colour. Lazy: needs the
             // family context that SetActiveFamily fills in later in the chain.
             'memberColors' => fn () => $this->memberColors(),
+            // Header bell glimpse: unread count + recent items. MUST be shared here (per request), not
+            // via Inertia::share in a provider boot(): under Octane boot() runs once per worker and
+            // Octane drops the registered share after the first request, so the bell went permanently
+            // empty ("all caught up") on every reused worker. The middleware runs every request.
+            'notifications' => fn () => $this->notifications($request),
         ]);
+    }
+
+    /**
+     * Unread count + the recent items for the header bell. Lazy try/catch: a notifications query
+     * failure (e.g. table not migrated right after a deploy) must fall back to empty, never blank
+     * the whole app by throwing out of share().
+     *
+     * @return array{unread:int, items:array<int,mixed>}
+     */
+    private function notifications(Request $request): array
+    {
+        if (! $user = $request->user()) {
+            return ['unread' => 0, 'items' => []];
+        }
+        try {
+            return [
+                'unread' => $user->unreadNotifications()->count(),
+                'items' => $user->notifications()->latest()->limit(12)->get()
+                    ->map(fn ($n) => \Modules\Notifications\NotificationsController::present($n))->values()->all(),
+            ];
+        } catch (\Throwable $e) {
+            report($e);
+
+            return ['unread' => 0, 'items' => []];
+        }
     }
 
     /** @return array<int,int> userId => avatar palette index (assigned by member order) */

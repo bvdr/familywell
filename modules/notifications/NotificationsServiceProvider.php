@@ -2,10 +2,8 @@
 
 namespace Modules\Notifications;
 
-use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
-use Inertia\Inertia;
 
 class NotificationsServiceProvider extends ServiceProvider
 {
@@ -15,28 +13,9 @@ class NotificationsServiceProvider extends ServiceProvider
         // module registers its category itself. Feature modules register their own in their boot().
         NotificationCategories::register('sharing', 'Shared with me', 'user-plus');
 
-        // Share the unread count + a few recent items on every request, so the header bell can render
-        // its badge and dropdown without a round-trip. Per-user, so no family context needed.
-        Inertia::share('notifications', function () {
-            $user = auth()->user();
-            if (! $user) {
-                return ['unread' => 0, 'items' => []];
-            }
-            // This prop is shared on EVERY page (the header bell). If the notifications query ever
-            // fails (e.g. table not migrated yet right after a deploy), fall back to empty rather
-            // than throw, which would blank the whole app.
-            try {
-                return [
-                    'unread' => $user->unreadNotifications()->count(),
-                    'items' => $user->notifications()->latest()->limit(12)->get()
-                        ->map(fn (DatabaseNotification $n) => NotificationsController::present($n))->values(),
-                ];
-            } catch (\Throwable $e) {
-                report($e);
-
-                return ['unread' => 0, 'items' => []];
-            }
-        });
+        // The header bell's `notifications` shared prop lives in HandleInertiaRequests::share() (per
+        // request), NOT here: an Inertia::share() in this boot() runs once per Octane worker and gets
+        // dropped after the first request, leaving the bell permanently "all caught up".
 
         // Always-on infrastructure: unlike feature modules these routes are not gated by
         // `module:notifications`; every signed-in user has a notifications feed and can manage push.
