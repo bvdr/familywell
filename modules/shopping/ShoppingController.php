@@ -7,7 +7,6 @@ use App\Http\Controllers\Controller;
 use App\Models\EntityVisit;
 use App\Models\Family;
 use App\Models\User;
-use Modules\Notifications\Notify;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
@@ -18,6 +17,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Notifications\Notify;
 
 class ShoppingController extends Controller
 {
@@ -71,19 +71,7 @@ class ShoppingController extends Controller
         $items = ShoppingItem::whereIn('shopping_list_id', $lists->pluck('id'))
             ->orderBy('position')->orderBy('id')->get()
             ->filter(fn (ShoppingItem $i) => in_array($shop->name, $this->itemShops($i, $listById), true))
-            ->map(fn (ShoppingItem $i) => [
-                'id' => $i->id,
-                'name' => $i->name,
-                'quantity' => $i->quantity,
-                'department' => $i->department,
-                'bought' => $i->bought,
-                'note' => $i->note,
-                'dueDate' => optional($i->due_date)->toDateString(),
-                'store' => $i->store,
-                'altStores' => $i->alt_stores ?? [],
-                'listId' => $i->shopping_list_id,
-                'listName' => $listById[$i->shopping_list_id]->name ?? '',
-            ])->values();
+            ->map(fn (ShoppingItem $i) => $this->presentItem($i, $listById))->values();
 
         // Lists the user can add to (edit access), for the "which list" pick when adding here; default
         // to their own most-recent list.
@@ -99,6 +87,54 @@ class ShoppingController extends Controller
             'lists' => $editable->map(fn (ShoppingList $l) => ['id' => $l->id, 'name' => $l->name])->values(),
             'defaultListId' => $defaultList?->id,
         ]);
+    }
+
+    // The "No shop" bucket: every unassigned item (no own store, no list store, no "also at" shop),
+    // gathered from every list you can reach. Reuses the shop detail page in `virtual` mode so you can
+    // find these items and give them a store. Registered before the /shops/{shop} route so "none"
+    // isn't parsed as a shop id.
+    public function shopNone(Request $request): Response
+    {
+        $user = $request->user();
+        [$lists, $listById] = $this->accessibleLists($user->id);
+
+        $items = ShoppingItem::whereIn('shopping_list_id', $lists->pluck('id'))
+            ->orderBy('position')->orderBy('id')->get()
+            ->filter(fn (ShoppingItem $i) => $this->itemShops($i, $listById) === [])
+            ->map(fn (ShoppingItem $i) => $this->presentItem($i, $listById))->values();
+
+        $editable = $lists->filter(fn (ShoppingList $l) => $this->access->roleFor($user, $l) !== null)->sortByDesc('id')->values();
+        $defaultList = $editable->firstWhere('created_by', $user->id) ?? $editable->first();
+
+        return Inertia::render('shopping/shop', [
+            // id 0 + virtual flag: the frontend hides the shop-only bits (rename, aisles, add-at-shop)
+            // and localises the title. Name is set client-side (backend does no shopping i18n).
+            'shop' => ['id' => 0, 'name' => '', 'icon' => '', 'color' => ''],
+            'virtual' => true,
+            'aisles' => [],
+            'items' => $items,
+            'shops' => ShoppingShop::orderBy('name')->pluck('name')->values(),
+            'lists' => $editable->map(fn (ShoppingList $l) => ['id' => $l->id, 'name' => $l->name])->values(),
+            'defaultListId' => $defaultList?->id,
+        ]);
+    }
+
+    /** Shape a shopping item for the shop / no-shop detail pages. */
+    private function presentItem(ShoppingItem $i, Collection $listById): array
+    {
+        return [
+            'id' => $i->id,
+            'name' => $i->name,
+            'quantity' => $i->quantity,
+            'department' => $i->department,
+            'bought' => $i->bought,
+            'note' => $i->note,
+            'dueDate' => optional($i->due_date)->toDateString(),
+            'store' => $i->store,
+            'altStores' => $i->alt_stores ?? [],
+            'listId' => $i->shopping_list_id,
+            'listName' => $listById[$i->shopping_list_id]->name ?? '',
+        ];
     }
 
     // Create a shop by name (from the Shops tab's "+"). Idempotent on name within the family.
@@ -292,8 +328,15 @@ class ShoppingController extends Controller
         // Shops + per-shop unbought counts across accessible lists (drives the Shops tab).
         [$accessible, $listById] = $this->accessibleLists($userId);
         $counts = [];
+        $noShopCount = 0; // unbought items that belong to no shop at all -> the "No shop" bucket
         foreach (ShoppingItem::whereIn('shopping_list_id', $accessible->pluck('id'))->where('bought', false)->get() as $i) {
-            foreach ($this->itemShops($i, $listById) as $name) {
+            $shops = $this->itemShops($i, $listById);
+            if ($shops === []) {
+                $noShopCount++;
+
+                continue;
+            }
+            foreach ($shops as $name) {
                 $counts[$name] = ($counts[$name] ?? 0) + 1;
             }
         }
@@ -321,6 +364,7 @@ class ShoppingController extends Controller
                 'color' => $s->color,
                 'toBuy' => $counts[$s->name] ?? 0,
             ])->values(),
+            'noShopCount' => $noShopCount,
         ];
     }
 

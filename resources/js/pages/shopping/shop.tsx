@@ -10,10 +10,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
-import { useAddAction } from '@/lib/add-action';
 import AppLayout from '@/layouts/app-layout';
-import { aisleIcon } from '@/lib/shopping';
+import { useAddAction } from '@/lib/add-action';
 import { useT } from '@/lib/i18n';
+import { aisleIcon } from '@/lib/shopping';
 import { type BreadcrumbItem } from '@/types';
 
 type Aisle = { slug: string; name: string; icon: string };
@@ -41,6 +41,7 @@ export default function ShopDetail({
     shops = [],
     lists = [],
     defaultListId = null,
+    virtual = false,
 }: {
     shop: Shop;
     aisles: Aisle[];
@@ -48,12 +49,16 @@ export default function ShopDetail({
     shops?: string[];
     lists?: ListRef[];
     defaultListId?: number | null;
+    // The "No shop" bucket reuses this page in `virtual` mode: no real shop entity, so rename, aisle
+    // editing and add-at-shop are hidden and items render as one flat list. The title is localised here.
+    virtual?: boolean;
 }) {
     const t = useT();
+    const shopTitle = virtual ? t('shopping.no_shop') : shop.name;
     const breadcrumbs: BreadcrumbItem[] = [
         { title: t('nav.shopping'), href: '/m/shopping' },
         { title: t('shopping.tab_shops'), href: '/m/shopping/shops' },
-        { title: shop.name, href: `/m/shopping/shops/${shop.id}` },
+        { title: shopTitle, href: virtual ? '/m/shopping/shops/none' : `/m/shopping/shops/${shop.id}` },
     ];
 
     const boughtOpt = useOptimistic<boolean>();
@@ -61,12 +66,24 @@ export default function ShopDetail({
     const toggle = (i: Item) => {
         boughtOpt.set(i.id, !isBought(i));
         // Empty-body PATCH flips `bought` on the item in its own list.
-        router.patch(route('shopping.items.update', i.id), {}, { preserveScroll: true, preserveState: true, onSuccess: () => boughtOpt.clear(i.id), onError: () => boughtOpt.clear(i.id) });
+        router.patch(
+            route('shopping.items.update', i.id),
+            {},
+            { preserveScroll: true, preserveState: true, onSuccess: () => boughtOpt.clear(i.id), onError: () => boughtOpt.clear(i.id) },
+        );
     };
 
     // Item editor: null = closed, 0 = new item at this shop, >0 = editing that id.
     const [editingId, setEditingId] = useState<number | null>(null);
-    const emptyDraft = (): Draft => ({ name: '', quantity: '', department: aisles[0]?.slug ?? 'other', note: '', due_date: '', shops: [shop.name], list_id: defaultListId });
+    const emptyDraft = (): Draft => ({
+        name: '',
+        quantity: '',
+        department: aisles[0]?.slug ?? 'other',
+        note: '',
+        due_date: '',
+        shops: virtual ? [] : [shop.name],
+        list_id: defaultListId,
+    });
     const [draft, setDraft] = useState<Draft>(emptyDraft);
     const skipAutosave = useRef(true);
     const openNew = () => {
@@ -83,7 +100,9 @@ export default function ShopDetail({
             department: i.department,
             note: i.note ?? '',
             due_date: i.dueDate ?? '',
-            shops: shopsSel.length ? shopsSel : [shop.name],
+            // On the "No shop" page there's no shop to pre-select; leave it empty so picking one moves
+            // the item out of this bucket.
+            shops: shopsSel.length ? shopsSel : virtual ? [] : [shop.name],
             list_id: i.listId,
         });
         setEditingId(i.id);
@@ -98,21 +117,26 @@ export default function ShopDetail({
             department: d.department,
             note: d.note || null,
             due_date: d.due_date || null,
-            store: shopsUniq[0] ?? shop.name,
+            // Virtual bucket has no shop to default to: keep store null unless the user picks one.
+            store: shopsUniq[0] ?? (virtual ? null : shop.name),
             alt_stores: shopsUniq.slice(1),
         };
     };
-    const patchItem = (id: number) => router.patch(route('shopping.items.update', id), buildPayload(draft), { preserveScroll: true, preserveState: true });
+    const patchItem = (id: number) =>
+        router.patch(route('shopping.items.update', id), buildPayload(draft), { preserveScroll: true, preserveState: true });
     // `adding` guards a double-tap from creating duplicate items.
     const [adding, setAdding] = useState(false);
     const addItem = () => {
         if (!draft.name.trim() || adding) return;
         setAdding(true);
-        router.post(route('shopping.shops.items.store', shop.id), { ...buildPayload(draft), list_id: draft.list_id }, {
-            preserveScroll: true,
-            onSuccess: () => setEditingId(null),
-            onFinish: () => setAdding(false),
-        });
+        const opts = { preserveScroll: true, onSuccess: () => setEditingId(null), onFinish: () => setAdding(false) };
+        if (virtual) {
+            // No shop to add "at": add straight to the chosen list (store stays whatever the picker set).
+            if (!draft.list_id) return void setAdding(false);
+            router.post(route('shopping.items.store', draft.list_id), buildPayload(draft), opts);
+        } else {
+            router.post(route('shopping.shops.items.store', shop.id), { ...buildPayload(draft), list_id: draft.list_id }, opts);
+        }
     };
     // Editing auto-saves (debounced); new items commit via the Add button.
     useEffect(() => {
@@ -155,9 +179,17 @@ export default function ShopDetail({
     const done = items.filter((i) => isBought(i));
     const bySlug = new Map(aisles.map((a) => [a.slug, a]));
     const otherSlug = bySlug.has('other') ? 'other' : aisles[aisles.length - 1]?.slug;
-    const groups = aisles
-        .map((a) => ({ aisle: a, items: toBuy.filter((i) => (bySlug.has(i.department) ? i.department : otherSlug) === a.slug) }))
-        .filter((g) => g.items.length > 0);
+    // No shop = no aisles: render one headerless group. Otherwise group by the shop's aisles in walk order.
+    const groups: { aisle: Aisle | null; items: Item[] }[] = virtual
+        ? toBuy.length
+            ? [{ aisle: null, items: toBuy }]
+            : []
+        : aisles
+              .map((a) => ({
+                  aisle: a as Aisle | null,
+                  items: toBuy.filter((i) => (bySlug.has(i.department) ? i.department : otherSlug) === a.slug),
+              }))
+              .filter((g) => g.items.length > 0);
     const remaining = toBuy.length;
 
     const departmentOptions = aisles.map((a) => ({ value: a.slug, label: a.name, icon: aisleIcon(a.icon) }));
@@ -165,45 +197,59 @@ export default function ShopDetail({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={shop.name} />
+            <Head title={shopTitle} />
             <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
                 <div className="flex items-center gap-2">
-                    <Link href="/m/shopping/shops" aria-label={t('shopping.back_to_shops')} className="text-muted-foreground hover:text-primary -ml-1 flex size-8 items-center justify-center">
+                    <Link
+                        href="/m/shopping/shops"
+                        aria-label={t('shopping.back_to_shops')}
+                        className="text-muted-foreground hover:text-primary -ml-1 flex size-8 items-center justify-center"
+                    >
                         <ChevronLeft className="size-5" />
                     </Link>
                     <span className="bg-accent-subtle text-primary flex size-9 shrink-0 items-center justify-center rounded-xl">
                         <Store className="size-5" />
                     </span>
                     <div className="min-w-0 flex-1">
-                        <h1 className="font-heading text-primary truncate text-2xl">{shop.name}</h1>
+                        <h1 className="font-heading text-primary truncate text-2xl">{shopTitle}</h1>
                         <p className="text-muted-foreground text-sm">{t('shopping.to_buy', { n: remaining })}</p>
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => setSettingsOpen(true)}
-                        aria-label={t('shopping.shop_settings')}
-                        className="border-border text-primary hover:bg-surface flex size-10 items-center justify-center rounded-full border"
-                    >
-                        <Settings className="size-5" />
-                    </button>
+                    {/* No shop entity to configure on the virtual bucket. */}
+                    {!virtual && (
+                        <button
+                            type="button"
+                            onClick={() => setSettingsOpen(true)}
+                            aria-label={t('shopping.shop_settings')}
+                            className="border-border text-primary hover:bg-surface flex size-10 items-center justify-center rounded-full border"
+                        >
+                            <Settings className="size-5" />
+                        </button>
+                    )}
                 </div>
 
                 {items.length === 0 && (
                     <div className="text-muted-foreground rounded-xl border border-dashed p-10 text-center text-sm">
-                        {t('shopping.nothing_needed_at', { store: shop.name })}
+                        {virtual ? t('shopping.no_shop_empty') : t('shopping.nothing_needed_at', { store: shop.name })}
                     </div>
                 )}
 
                 {groups.map((g) => {
-                    const Icon = aisleIcon(g.aisle.icon);
+                    const Icon = g.aisle ? aisleIcon(g.aisle.icon) : null;
                     return (
-                        <div key={g.aisle.slug} className="flex flex-col gap-2">
-                            <div className="text-muted-foreground flex items-center gap-1.5 px-1 text-xs font-semibold tracking-widest uppercase">
-                                <Icon className="size-4" /> {g.aisle.name}
-                            </div>
+                        <div key={g.aisle?.slug ?? 'all'} className="flex flex-col gap-2">
+                            {g.aisle && Icon && (
+                                <div className="text-muted-foreground flex items-center gap-1.5 px-1 text-xs font-semibold tracking-widest uppercase">
+                                    <Icon className="size-4" /> {g.aisle.name}
+                                </div>
+                            )}
                             {g.items.map((i) => (
                                 <div key={i.id} className="bg-surface-card flex items-center gap-3 rounded-xl border px-3 py-2.5">
-                                    <button type="button" onClick={() => toggle(i)} aria-label={t('shopping.mark_bought')} className="border-border flex size-6 shrink-0 items-center justify-center rounded-full border" />
+                                    <button
+                                        type="button"
+                                        onClick={() => toggle(i)}
+                                        aria-label={t('shopping.mark_bought')}
+                                        className="border-border flex size-6 shrink-0 items-center justify-center rounded-full border"
+                                    />
                                     {/* Tap the body to edit the item. */}
                                     <button type="button" onClick={() => openEdit(i)} className="min-w-0 flex-1 text-left">
                                         <span className="text-primary block truncate text-[15px]">{i.name}</span>
@@ -255,9 +301,11 @@ export default function ShopDetail({
                         <div className="px-5 pt-[calc(1rem+env(safe-area-inset-top))] pb-4">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
-                                    <div className="text-primary-foreground/60 text-[11px] font-semibold tracking-widest uppercase">{t('shopping.focus_mode')}</div>
+                                    <div className="text-primary-foreground/60 text-[11px] font-semibold tracking-widest uppercase">
+                                        {t('shopping.focus_mode')}
+                                    </div>
                                     <h2 className="font-heading mt-1 flex items-center gap-1.5 truncate text-2xl">
-                                        <Store className="size-5" /> {shop.name}
+                                        <Store className="size-5" /> {shopTitle}
                                     </h2>
                                 </div>
                                 <button
@@ -272,12 +320,14 @@ export default function ShopDetail({
                         </div>
                         <div className="flex-1 space-y-6 overflow-y-auto px-5 pb-[calc(2rem+env(safe-area-inset-bottom))]">
                             {groups.map((g) => {
-                                const AisleIcon = aisleIcon(g.aisle.icon);
+                                const AisleIcon = g.aisle ? aisleIcon(g.aisle.icon) : null;
                                 return (
-                                    <section key={g.aisle.slug} className="space-y-2">
-                                        <h3 className="text-primary-foreground/60 flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
-                                            <AisleIcon className="size-3.5" /> {g.aisle.name}
-                                        </h3>
+                                    <section key={g.aisle?.slug ?? 'all'} className="space-y-2">
+                                        {g.aisle && AisleIcon && (
+                                            <h3 className="text-primary-foreground/60 flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
+                                                <AisleIcon className="size-3.5" /> {g.aisle.name}
+                                            </h3>
+                                        )}
                                         {g.items.map((i) => (
                                             <button
                                                 key={i.id}
@@ -324,17 +374,37 @@ export default function ShopDetail({
                 <div className="flex flex-col gap-5">
                     <div className="grid gap-2">
                         <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.item_label')}</Label>
-                        <Input autoFocus value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} placeholder={t('shopping.item_placeholder_shop')} />
+                        <Input
+                            autoFocus
+                            value={draft.name}
+                            onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+                            placeholder={t('shopping.item_placeholder_shop')}
+                        />
                     </div>
 
                     <div className="grid gap-2">
                         <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.quantity')}</Label>
                         <div className="flex items-center gap-2">
-                            <button type="button" onClick={() => bump(-1)} aria-label={t('shopping.decrease')} className="border-border text-primary flex size-9 items-center justify-center rounded-lg border">
+                            <button
+                                type="button"
+                                onClick={() => bump(-1)}
+                                aria-label={t('shopping.decrease')}
+                                className="border-border text-primary flex size-9 items-center justify-center rounded-lg border"
+                            >
                                 <Minus className="size-4" />
                             </button>
-                            <Input value={draft.quantity} onChange={(e) => setDraft((d) => ({ ...d, quantity: e.target.value }))} placeholder={t('shopping.quantity_placeholder')} className="text-center" />
-                            <button type="button" onClick={() => bump(1)} aria-label={t('shopping.increase')} className="border-border text-primary flex size-9 items-center justify-center rounded-lg border">
+                            <Input
+                                value={draft.quantity}
+                                onChange={(e) => setDraft((d) => ({ ...d, quantity: e.target.value }))}
+                                placeholder={t('shopping.quantity_placeholder')}
+                                className="text-center"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => bump(1)}
+                                aria-label={t('shopping.increase')}
+                                className="border-border text-primary flex size-9 items-center justify-center rounded-lg border"
+                            >
                                 <Plus className="size-4" />
                             </button>
                         </div>
@@ -342,7 +412,9 @@ export default function ShopDetail({
 
                     {!editingId && lists.length > 0 && (
                         <div className="grid gap-2">
-                            <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.list_label')}</Label>
+                            <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
+                                {t('shopping.list_label')}
+                            </Label>
                             <Picker
                                 placeholder={t('shopping.pick_list')}
                                 options={lists.map((l) => ({ value: String(l.id), label: l.name }))}
@@ -366,22 +438,44 @@ export default function ShopDetail({
                     </div>
 
                     <div className="grid gap-2">
-                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.department_label')}</Label>
-                        <Picker placeholder={t('shopping.pick_department')} options={departmentOptions} selected={[draft.department]} onChange={(next) => setDraft((d) => ({ ...d, department: next[0] ?? 'other' }))} />
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
+                            {t('shopping.department_label')}
+                        </Label>
+                        <Picker
+                            placeholder={t('shopping.pick_department')}
+                            options={departmentOptions}
+                            selected={[draft.department]}
+                            onChange={(next) => setDraft((d) => ({ ...d, department: next[0] ?? 'other' }))}
+                        />
                     </div>
 
                     <div className="grid gap-2">
                         <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.note_label')}</Label>
-                        <Input value={draft.note} onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))} placeholder={t('shopping.note_placeholder')} />
+                        <Input
+                            value={draft.note}
+                            onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
+                            placeholder={t('shopping.note_placeholder')}
+                        />
                     </div>
 
                     <div className="grid gap-2">
-                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.due_date_label')}</Label>
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
+                            {t('shopping.due_date_label')}
+                        </Label>
                         <div className="border-border flex h-10 w-full items-center gap-2 rounded-md border px-3">
                             <Calendar className="text-muted-foreground size-4 shrink-0" />
-                            <input type="date" value={draft.due_date} onChange={(e) => setDraft((d) => ({ ...d, due_date: e.target.value }))} className="text-primary w-full min-w-0 bg-transparent text-base outline-none md:text-sm" />
+                            <input
+                                type="date"
+                                value={draft.due_date}
+                                onChange={(e) => setDraft((d) => ({ ...d, due_date: e.target.value }))}
+                                className="text-primary w-full min-w-0 bg-transparent text-base outline-none md:text-sm"
+                            />
                             {draft.due_date && (
-                                <button type="button" onClick={() => setDraft((d) => ({ ...d, due_date: '' }))} className="text-muted-foreground hover:text-primary text-xs">
+                                <button
+                                    type="button"
+                                    onClick={() => setDraft((d) => ({ ...d, due_date: '' }))}
+                                    className="text-muted-foreground hover:text-primary text-xs"
+                                >
                                     {t('shopping.clear')}
                                 </button>
                             )}
@@ -389,7 +483,11 @@ export default function ShopDetail({
                     </div>
 
                     {!!editingId && (
-                        <button type="button" onClick={deleteItem} className="text-destructive flex items-center justify-center gap-2 py-1 text-sm font-medium">
+                        <button
+                            type="button"
+                            onClick={deleteItem}
+                            className="text-destructive flex items-center justify-center gap-2 py-1 text-sm font-medium"
+                        >
                             <Trash2 className="size-4" /> {t('shopping.delete_item')}
                         </button>
                     )}
@@ -400,7 +498,12 @@ export default function ShopDetail({
                 <div className="flex flex-col gap-4">
                     <div className="grid gap-2">
                         <label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.name_label')}</label>
-                        <Input value={name} onChange={(e) => setName(e.target.value)} onBlur={saveName} onKeyDown={(e) => e.key === 'Enter' && saveName()} />
+                        <Input
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            onBlur={saveName}
+                            onKeyDown={(e) => e.key === 'Enter' && saveName()}
+                        />
                         <p className="text-text-muted text-xs">{t('shopping.rename_hint')}</p>
                     </div>
                     <Button
@@ -416,7 +519,9 @@ export default function ShopDetail({
                 </div>
             </ResponsiveModal>
 
-            <AisleEditor open={aislesOpen} onOpenChange={setAislesOpen} shopId={shop.id} shopName={shop.name} reloadKeys={['items', 'aisles']} />
+            {!virtual && (
+                <AisleEditor open={aislesOpen} onOpenChange={setAislesOpen} shopId={shop.id} shopName={shop.name} reloadKeys={['items', 'aisles']} />
+            )}
         </AppLayout>
     );
 }
