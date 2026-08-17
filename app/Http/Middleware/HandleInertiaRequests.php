@@ -2,11 +2,14 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Family;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Translations;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
+use Modules\Notifications\NotificationsController;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -57,8 +60,8 @@ class HandleInertiaRequests extends Middleware
             // i18n: the current locale + the picker options + the full translation map for that locale
             // (English-filled). Lazy so it resolves after SetLocale has applied the user's preference.
             'locale' => fn () => app()->getLocale(),
-            'locales' => \App\Support\Translations::options(),
-            'translations' => fn () => \App\Support\Translations::for(app()->getLocale()),
+            'locales' => Translations::options(),
+            'translations' => fn () => Translations::for(app()->getLocale()),
             // Each family member's avatar colour, as userId => palette index assigned by member order,
             // so every member gets a different (and consistent, app-wide) colour. Lazy: needs the
             // family context that SetActiveFamily fills in later in the chain.
@@ -87,7 +90,7 @@ class HandleInertiaRequests extends Middleware
             return [
                 'unread' => $user->unreadNotifications()->count(),
                 'items' => $user->notifications()->latest()->limit(12)->get()
-                    ->map(fn ($n) => \Modules\Notifications\NotificationsController::present($n))->values()->all(),
+                    ->map(fn ($n) => NotificationsController::present($n))->values()->all(),
             ];
         } catch (\Throwable $e) {
             report($e);
@@ -103,7 +106,7 @@ class HandleInertiaRequests extends Middleware
             return [];
         }
 
-        return \App\Models\Family::find($familyId)
+        return Family::find($familyId)
             ?->members()->orderBy('users.id')->pluck('users.id')
             ->values()->flip()->all() ?? [];
     }

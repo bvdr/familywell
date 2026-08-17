@@ -27,6 +27,8 @@
     "nothing_to_buy_heading": "Nimic de cumpărat",
     "to_buy": ":n de cumpărat",
     "nothing_to_buy": "nimic de cumpărat",
+    "no_shop": "Fără magazin",
+    "no_shop_empty": "Nimic fără magazin. Fiecare produs are un magazin asignat.",
     "share_list": "Distribuie lista",
     "list_options": "Opțiuni listă",
     "rename_list": "Redenumește lista",

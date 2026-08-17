@@ -1,6 +1,6 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
-import { openNewOnArrival } from '@/lib/create-intent';
 import { useAddAction } from '@/lib/add-action';
+import { openNewOnArrival } from '@/lib/create-intent';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Archive, Check, ChevronRight, Lock, Plus, RotateCcw, Settings, ShoppingCart, Store, UserCheck, Users } from 'lucide-react';
 import { FormEventHandler, useRef, useState } from 'react';
 
@@ -12,8 +12,8 @@ import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
-import { LIST_COLORS, LIST_ICONS, listColor, listIcon } from '@/lib/shopping';
 import { useT } from '@/lib/i18n';
+import { LIST_COLORS, LIST_ICONS, listColor, listIcon } from '@/lib/shopping';
 import { type BreadcrumbItem } from '@/types';
 
 // Visibility option copy keys, resolved via t() in the component (icons stay static here).
@@ -79,12 +79,12 @@ function ListCard({ list }: { list: List }) {
 
 type Shop = { id: number; name: string; icon: string; color: string; toBuy: number };
 
-function ShopCard({ shop: s, faded = false }: { shop: Shop; faded?: boolean }) {
+function ShopCard({ shop: s, faded = false, href }: { shop: Shop; faded?: boolean; href?: string }) {
     const t = useT();
     return (
         <Link
             key={s.id}
-            href={`/m/shopping/shops/${s.id}`}
+            href={href ?? `/m/shopping/shops/${s.id}`}
             prefetch
             className={`bg-surface-card hover:border-accent flex items-center gap-3 rounded-2xl border p-4 text-left transition-colors ${faded ? 'opacity-55' : ''}`}
         >
@@ -105,10 +105,12 @@ function ShopCard({ shop: s, faded = false }: { shop: Shop; faded?: boolean }) {
 export default function Lists({
     lists,
     shops = [],
+    noShopCount = 0,
     initialView = 'lists',
 }: {
     lists: List[];
     shops?: Shop[];
+    noShopCount?: number;
     initialView?: 'lists' | 'shops';
 }) {
     const t = useT();
@@ -127,13 +129,17 @@ export default function Lists({
     useAddAction(startCreate);
     const submitShop = () => {
         if (!shopName.trim()) return;
-        router.post(route('shopping.shops.store'), { name: shopName.trim() }, {
-            preserveScroll: true,
-            onSuccess: () => {
-                setShopName('');
-                setCreatingShop(false);
+        router.post(
+            route('shopping.shops.store'),
+            { name: shopName.trim() },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setShopName('');
+                    setCreatingShop(false);
+                },
             },
-        });
+        );
     };
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
@@ -172,7 +178,12 @@ export default function Lists({
                             <Settings className="size-5" />
                         </Link>
                         {/* Hidden on mobile: the nav's context-aware "+" creates here. Desktop has no nav "+". */}
-                        <Button size="icon" className="hidden rounded-full md:inline-flex" onClick={startCreate} aria-label={view === 'shops' ? t('shopping.new_shop') : t('shopping.new_list')}>
+                        <Button
+                            size="icon"
+                            className="hidden rounded-full md:inline-flex"
+                            onClick={startCreate}
+                            aria-label={view === 'shops' ? t('shopping.new_shop') : t('shopping.new_list')}
+                        >
                             <Plus className="size-5" />
                         </Button>
                     </div>
@@ -224,7 +235,9 @@ export default function Lists({
                         <InputError message={errors.name} />
 
                         <div className="grid gap-2">
-                            <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.color_icon')}</Label>
+                            <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
+                                {t('shopping.color_icon')}
+                            </Label>
                             <div className="flex flex-wrap gap-2">
                                 {Object.keys(LIST_COLORS).map((c) => (
                                     <button
@@ -263,7 +276,9 @@ export default function Lists({
                         {/* No list-level store: items each carry their own shop, so a list can span shops. */}
 
                         <div className="grid gap-2">
-                            <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.who_can_view')}</Label>
+                            <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
+                                {t('shopping.who_can_view')}
+                            </Label>
                             <div className="flex flex-col gap-2">
                                 {VISIBILITY.map((v) => {
                                     const active = data.visibility === v.key;
@@ -316,74 +331,75 @@ export default function Lists({
 
                 {view === 'lists' && (
                     <>
-                {active.length === 0 && !creating && (
-                    <div className="text-muted-foreground flex flex-col items-center gap-2 rounded-xl border border-dashed p-10 text-center">
-                        <ShoppingCart className="size-6" />
-                        <p className="text-sm">{t('shopping.no_lists_yet')}</p>
-                    </div>
-                )}
+                        {active.length === 0 && !creating && (
+                            <div className="text-muted-foreground flex flex-col items-center gap-2 rounded-xl border border-dashed p-10 text-center">
+                                <ShoppingCart className="size-6" />
+                                <p className="text-sm">{t('shopping.no_lists_yet')}</p>
+                            </div>
+                        )}
 
-                <div className="flex flex-col gap-3">
-                    {active.map((l) => (
-                        <ListCard key={l.id} list={l} />
-                    ))}
-                </div>
+                        <div className="flex flex-col gap-3">
+                            {active.map((l) => (
+                                <ListCard key={l.id} list={l} />
+                            ))}
+                        </div>
 
-                {archived.length > 0 && (
-                    <div className="mt-2 flex flex-col gap-2">
-                        <h2 className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
-                            <Archive className="size-3.5" /> {t('shopping.archived')}
-                        </h2>
-                        {archived.map((l) => {
-                            const Icon = listIcon(l.icon);
-                            return (
-                                <div key={l.id} className="bg-surface flex items-center gap-3 rounded-xl border p-3 opacity-70">
-                                    <span className="text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-lg border">
-                                        <Icon className="size-4.5" />
-                                    </span>
-                                    <div className="min-w-0 flex-1">
-                                        <div className="text-primary truncate text-sm font-medium">{l.name}</div>
-                                        <div className="text-muted-foreground text-xs">
-                                            {t('shopping.items_count', { bought: l.boughtCount, total: l.itemCount })}
+                        {archived.length > 0 && (
+                            <div className="mt-2 flex flex-col gap-2">
+                                <h2 className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
+                                    <Archive className="size-3.5" /> {t('shopping.archived')}
+                                </h2>
+                                {archived.map((l) => {
+                                    const Icon = listIcon(l.icon);
+                                    return (
+                                        <div key={l.id} className="bg-surface flex items-center gap-3 rounded-xl border p-3 opacity-70">
+                                            <span className="text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-lg border">
+                                                <Icon className="size-4.5" />
+                                            </span>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="text-primary truncate text-sm font-medium">{l.name}</div>
+                                                <div className="text-muted-foreground text-xs">
+                                                    {t('shopping.items_count', { bought: l.boughtCount, total: l.itemCount })}
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    archivedOpt.set(l.id, false);
+                                                    router.patch(
+                                                        route('shopping.lists.update', l.id),
+                                                        { archived: false },
+                                                        {
+                                                            preserveScroll: true,
+                                                            preserveState: true,
+                                                            onSuccess: () => archivedOpt.clear(l.id),
+                                                            onError: () => archivedOpt.clear(l.id),
+                                                        },
+                                                    );
+                                                }}
+                                                aria-label={t('shopping.restore_list')}
+                                                className="text-muted-foreground hover:text-primary flex size-8 items-center justify-center rounded-lg transition-colors"
+                                            >
+                                                <RotateCcw className="size-4" />
+                                            </button>
                                         </div>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            archivedOpt.set(l.id, false);
-                                            router.patch(
-                                                route('shopping.lists.update', l.id),
-                                                { archived: false },
-                                                {
-                                                    preserveScroll: true,
-                                                    preserveState: true,
-                                                    onSuccess: () => archivedOpt.clear(l.id),
-                                                    onError: () => archivedOpt.clear(l.id),
-                                                },
-                                            );
-                                        }}
-                                        aria-label={t('shopping.restore_list')}
-                                        className="text-muted-foreground hover:text-primary flex size-8 items-center justify-center rounded-lg transition-colors"
-                                    >
-                                        <RotateCcw className="size-4" />
-                                    </button>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
+                                    );
+                                })}
+                            </div>
+                        )}
                     </>
                 )}
 
                 {view === 'shops' &&
-                    (shops.length === 0 ? (
+                    (shops.length === 0 && noShopCount === 0 ? (
                         <div className="text-muted-foreground flex flex-col items-center gap-2 rounded-xl border border-dashed p-10 text-center">
                             <Store className="size-6" />
                             <p className="text-sm">{t('shopping.no_shops_yet')}</p>
                         </div>
                     ) : (
                         // Shops with something to buy come first; the rest ("nothing to buy") are
-                        // faded and grouped below so the active stores are what you scan first.
+                        // faded and grouped below so the active stores are what you scan first. The
+                        // "No shop" catch-all sits with the active stores when it has items.
                         (() => {
                             const active = shops.filter((s) => s.toBuy > 0);
                             const empty = shops.filter((s) => s.toBuy === 0);
@@ -392,7 +408,13 @@ export default function Lists({
                                     {active.map((s) => (
                                         <ShopCard key={s.id} shop={s} />
                                     ))}
-                                    {empty.length > 0 && active.length > 0 && (
+                                    {noShopCount > 0 && (
+                                        <ShopCard
+                                            shop={{ id: 0, name: t('shopping.no_shop'), icon: '', color: '', toBuy: noShopCount }}
+                                            href="/m/shopping/shops/none"
+                                        />
+                                    )}
+                                    {empty.length > 0 && (active.length > 0 || noShopCount > 0) && (
                                         <div className="text-muted-foreground mt-1 px-1 text-xs font-semibold tracking-widest uppercase">
                                             {t('shopping.nothing_to_buy_heading')}
                                         </div>

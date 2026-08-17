@@ -7,10 +7,10 @@ use App\Support\Dashboard\DashboardAgenda;
 use App\Support\Dashboard\DashboardItems;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareableRegistry;
-use Modules\Notifications\NotificationCategories;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\Notifications\NotificationCategories;
 
 class ShoppingServiceProvider extends ServiceProvider
 {
@@ -92,6 +92,8 @@ class ShoppingServiceProvider extends ServiceProvider
                 // Shops: the family's stores as first-class pages (aggregated cross-list view + aisles).
                 Route::get('/shops', [ShoppingController::class, 'shopsIndex'])->name('shops.index');
                 Route::post('/shops', [ShoppingController::class, 'storeShop'])->name('shops.store');
+                // Literal before the {shop} wildcard so "none" isn't route-model-bound as a shop id.
+                Route::get('/shops/none', [ShoppingController::class, 'shopNone'])->name('shops.none');
                 Route::get('/shops/{shop}', [ShoppingController::class, 'shopShow'])->name('shops.show');
                 Route::patch('/shops/{shop}', [ShoppingController::class, 'updateShop'])->name('shops.update');
                 Route::post('/shops/{shop}/items', [ShoppingController::class, 'storeShopItem'])->name('shops.items.store');

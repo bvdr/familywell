@@ -276,3 +276,24 @@ it('creates a shop from the Shops tab', function () {
     actingAs($users[0])->post('/m/shopping/shops', ['name' => 'Lidl'])->assertRedirect();
     expect(ShoppingShop::withoutGlobalScopes()->where('name', 'Lidl')->exists())->toBeTrue();
 });
+
+it('collects items with no shop into the No shop bucket', function () {
+    [, $users] = shoppingFamily();
+    // A storeless list: its items belong to no shop unless they set one of their own.
+    actingAs($users[0])->post('/m/shopping/lists', ['name' => 'Misc']);
+    $noStore = ShoppingList::withoutGlobalScopes()->where('name', 'Misc')->first();
+    actingAs($users[0])->post('/m/shopping/lists', ['name' => 'Groceries', 'store' => 'Metro']);
+    $withStore = ShoppingList::withoutGlobalScopes()->where('name', 'Groceries')->first();
+
+    actingAs($users[0])->post("/m/shopping/lists/{$noStore->id}/items", ['name' => 'Batteries']); // no shop
+    actingAs($users[0])->post("/m/shopping/lists/{$withStore->id}/items", ['name' => 'Milk']);     // inherits Metro
+
+    // The Shops tab counts exactly the one unassigned item.
+    actingAs($users[0])->get('/m/shopping/shops')->assertInertia(fn ($p) => $p->where('noShopCount', 1));
+
+    // The No shop page lists only that item, in virtual mode.
+    actingAs($users[0])->get('/m/shopping/shops/none')->assertInertia(fn ($p) => $p
+        ->where('virtual', true)
+        ->has('items', 1)
+        ->where('items.0.name', 'Batteries'));
+});

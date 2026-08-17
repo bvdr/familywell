@@ -27,6 +27,8 @@
     "nothing_to_buy_heading": "Nothing to buy",
     "to_buy": ":n to buy",
     "nothing_to_buy": "nothing to buy",
+    "no_shop": "No shop",
+    "no_shop_empty": "Nothing without a shop. Every item is assigned to a store.",
     "share_list": "Share list",
     "list_options": "List options",
     "rename_list": "Rename list",
