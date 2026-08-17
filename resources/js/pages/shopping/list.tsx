@@ -1,5 +1,5 @@
-import { Head, Link, router } from '@inertiajs/react';
 import { useAddAction } from '@/lib/add-action';
+import { Head, Link, router } from '@inertiajs/react';
 import {
     Archive,
     Calendar,
@@ -28,8 +28,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { AisleEditor } from '@/components/aisle-editor';
-import { Picker } from '@/components/picker';
 import { MemberAvatar } from '@/components/member-avatar';
+import { Picker } from '@/components/picker';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
 import { Button } from '@/components/ui/button';
 import {
@@ -47,8 +47,8 @@ import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
-import { aisleIcon, getVoiceLang } from '@/lib/shopping';
 import { useT } from '@/lib/i18n';
+import { aisleIcon, getVoiceLang } from '@/lib/shopping';
 import { type BreadcrumbItem } from '@/types';
 
 type Member = { id: number; name: string };
@@ -66,7 +66,16 @@ type Item = {
 };
 type List = { id: number; name: string; store: string | null; color: string; icon: string; archived: boolean; visibility: string };
 
-type Draft = { name: string; quantity: string; department: string; assigned_to: number | null; note: string; due_date: string; store: string; alt_stores: string[] };
+type Draft = {
+    name: string;
+    quantity: string;
+    department: string;
+    assigned_to: number | null;
+    note: string;
+    due_date: string;
+    store: string;
+    alt_stores: string[];
+};
 const emptyDraft: Draft = { name: '', quantity: '', department: 'other', assigned_to: null, note: '', due_date: '', store: '', alt_stores: [] };
 const FOCUS_ALL = '__all__'; // focus-mode sentinel: show every shop's items in one run
 
@@ -177,7 +186,8 @@ export default function ListDetail({
             (buckets.get(slug) ?? buckets.set(slug, []).get(slug)!).push(it);
         }
         const out = aisles.filter((a) => buckets.has(a.slug)).map((a) => ({ aisle: a, items: buckets.get(a.slug)! }));
-        if (buckets.has('__other__')) out.push({ aisle: { slug: '__other__', name: t('shopping.other'), icon: 'basket' }, items: buckets.get('__other__')! });
+        if (buckets.has('__other__'))
+            out.push({ aisle: { slug: '__other__', name: t('shopping.other'), icon: 'basket' }, items: buckets.get('__other__')! });
         return out;
     };
 
@@ -225,7 +235,15 @@ export default function ListDetail({
     const focusStoreGroups =
         focusStore === FOCUS_ALL
             ? groupByStore(focusUnbought)
-            : [{ store: focusStore, aisles: groupByAisle(focusUnbought.filter((i) => availableAt(i, focusStore)), aislesFor(focusStore || null)) }];
+            : [
+                  {
+                      store: focusStore,
+                      aisles: groupByAisle(
+                          focusUnbought.filter((i) => availableAt(i, focusStore)),
+                          aislesFor(focusStore || null),
+                      ),
+                  },
+              ];
     const focusEmpty = focusStoreGroups.every((g) => g.aisles.length === 0);
     const doneItems = liveItems.filter((i) => isBought(i) && (focusStore === FOCUS_ALL || availableAt(i, focusStore)));
 
@@ -277,7 +295,8 @@ export default function ListDetail({
         setEditingId(item.id);
     };
     const buildPayload = (d: Draft) => ({ ...d, name: d.name.trim(), due_date: d.due_date || null, store: d.store || null });
-    const patchItem = (id: number) => router.patch(route('shopping.items.update', id), buildPayload(draft), { preserveScroll: true, preserveState: true });
+    const patchItem = (id: number) =>
+        router.patch(route('shopping.items.update', id), buildPayload(draft), { preserveScroll: true, preserveState: true });
     // Only the "Add item" (new item) button commits; editing an existing item auto-saves (below).
     // `adding` guards against a double-tap creating duplicate items.
     const [adding, setAdding] = useState(false);
@@ -393,9 +412,27 @@ export default function ListDetail({
         }
     };
 
+    // `addingAll` guards against a double-tap posting the batch twice (the reported voice-dictation
+    // duplication): a ref, not state, so a second synchronous tap sees the flag immediately, before
+    // React re-renders the disabled button.
+    const addingAll = useRef(false);
+    const [addingAllState, setAddingAllState] = useState(false);
     const addAll = () => {
-        if (parsed.length === 0) return;
-        router.post(route('shopping.items.bulk', list.id), { items: parsed }, { preserveScroll: true, onSuccess: closeVoice });
+        if (parsed.length === 0 || addingAll.current) return;
+        addingAll.current = true;
+        setAddingAllState(true);
+        router.post(
+            route('shopping.items.bulk', list.id),
+            { items: parsed },
+            {
+                preserveScroll: true,
+                onSuccess: closeVoice,
+                onFinish: () => {
+                    addingAll.current = false;
+                    setAddingAllState(false);
+                },
+            },
+        );
     };
 
     const headerActions = (
@@ -433,8 +470,12 @@ export default function ListDetail({
                             <UnfoldVertical className="size-4" /> {t('shopping.sort_items')}
                         </DropdownMenuSubTrigger>
                         <DropdownMenuSubContent>
-                            <DropdownMenuItem onSelect={() => setSortAz(false)}>{!sortAz && <Check className="size-4" />} {t('shopping.by_aisle')}</DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => setSortAz(true)}>{sortAz && <Check className="size-4" />} {t('shopping.a_to_z')}</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => setSortAz(false)}>
+                                {!sortAz && <Check className="size-4" />} {t('shopping.by_aisle')}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => setSortAz(true)}>
+                                {sortAz && <Check className="size-4" />} {t('shopping.a_to_z')}
+                            </DropdownMenuItem>
                         </DropdownMenuSubContent>
                     </DropdownMenuSub>
                     <DropdownMenuSeparator />
@@ -686,7 +727,9 @@ export default function ListDetail({
                                                             <span className="border-primary-foreground/40 flex size-6 shrink-0 rounded-full border-2" />
                                                             <div className="min-w-0 flex-1">
                                                                 <div className="font-medium">{item.name}</div>
-                                                                {item.quantity && <div className="text-primary-foreground/60 text-sm">{item.quantity}</div>}
+                                                                {item.quantity && (
+                                                                    <div className="text-primary-foreground/60 text-sm">{item.quantity}</div>
+                                                                )}
                                                             </div>
                                                         </button>
                                                     ))}
@@ -701,7 +744,9 @@ export default function ListDetail({
 
                             {doneItems.length > 0 && (
                                 <section className="space-y-2">
-                                    <h3 className="text-primary-foreground/50 text-xs font-semibold tracking-widest uppercase">{t('shopping.done_heading')}</h3>
+                                    <h3 className="text-primary-foreground/50 text-xs font-semibold tracking-widest uppercase">
+                                        {t('shopping.done_heading')}
+                                    </h3>
                                     {doneItems.map((item) => (
                                         <button
                                             key={item.id}
@@ -765,15 +810,11 @@ export default function ListDetail({
                                         transcript ? (
                                             <p className="text-lg leading-relaxed">{transcript}</p>
                                         ) : (
-                                            <p className="text-primary-foreground/70 text-sm">
-                                                {t('shopping.voice_prompt')}
-                                            </p>
+                                            <p className="text-primary-foreground/70 text-sm">{t('shopping.voice_prompt')}</p>
                                         )
                                     ) : (
                                         <>
-                                            <p className="text-primary-foreground/70 text-sm">
-                                                {t('shopping.type_prompt')}
-                                            </p>
+                                            <p className="text-primary-foreground/70 text-sm">{t('shopping.type_prompt')}</p>
                                             <textarea
                                                 autoFocus
                                                 value={transcript}
@@ -821,7 +862,9 @@ export default function ListDetail({
                                         <h2 className="font-heading text-2xl">{t('shopping.heard_heading')}</h2>
                                         {transcript && <p className="text-primary-foreground/70 mt-2 text-sm italic">"{transcript}"</p>}
                                         <p className="text-primary-foreground/70 mt-2 text-sm">
-                                            {t(parsed.length === 1 ? 'shopping.items_sorted_one' : 'shopping.items_sorted_other', { n: parsed.length })}
+                                            {t(parsed.length === 1 ? 'shopping.items_sorted_one' : 'shopping.items_sorted_other', {
+                                                n: parsed.length,
+                                            })}
                                         </p>
                                     </div>
                                     {aislesFor(list.store)
@@ -896,7 +939,7 @@ export default function ListDetail({
                                     <button
                                         type="button"
                                         onClick={addAll}
-                                        disabled={parsed.length === 0}
+                                        disabled={parsed.length === 0 || addingAllState}
                                         className="bg-primary-foreground text-primary flex w-full items-center justify-center gap-2 rounded-xl py-3.5 font-medium disabled:opacity-50"
                                     >
                                         <Check className="size-5" />{' '}
@@ -979,7 +1022,11 @@ export default function ListDetail({
                             multi
                             searchable
                             placeholder={t('shopping.pick_shops')}
-                            options={[...new Set([...shops, ...chipStores, draft.store, ...draft.alt_stores].filter(Boolean))].map((s) => ({ value: s, label: s, icon: Store }))}
+                            options={[...new Set([...shops, ...chipStores, draft.store, ...draft.alt_stores].filter(Boolean))].map((s) => ({
+                                value: s,
+                                label: s,
+                                icon: Store,
+                            }))}
                             selected={[...new Set([draft.store, ...draft.alt_stores].filter(Boolean))]}
                             onChange={(next) => {
                                 const uniq = [...new Set(next)];
@@ -991,7 +1038,9 @@ export default function ListDetail({
 
                     {/* Department: single pick, from the primary shop's departments. */}
                     <div className="grid gap-2">
-                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.department_label')}</Label>
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
+                            {t('shopping.department_label')}
+                        </Label>
                         <Picker
                             placeholder={t('shopping.pick_department')}
                             options={aislesFor(draft.store || list.store).map((a) => ({ value: a.slug, label: a.name, icon: aisleIcon(a.icon) }))}
@@ -1033,7 +1082,9 @@ export default function ListDetail({
                     </div>
 
                     <div className="grid gap-2">
-                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.due_date_label')}</Label>
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
+                            {t('shopping.due_date_label')}
+                        </Label>
                         <div className="border-border flex h-10 w-full items-center gap-2 rounded-md border px-3">
                             <Calendar className="text-muted-foreground size-4 shrink-0" />
                             <input
