@@ -71,3 +71,18 @@ it('registers a category per feature module', function () {
     notifFamily(); // boot() runs the module providers
     expect(NotificationCategories::ids())->toContain('tasks')->toContain('sharing');
 });
+
+it('shares the bell prop on page responses', function () {
+    // Regression guard: the `notifications` shared prop must be produced per request (in the Inertia
+    // middleware), not once in a provider boot() where Octane drops it after the first request and the
+    // bell goes permanently "all caught up". This asserts the prop reaches a normal page response.
+    [, $users] = notifFamily();
+    $u = $users[1];
+    $u->notify(new PushAlert('Ping', 'body', '/dashboard', 'tasks'));
+
+    actingAs($u)->get('/dashboard')->assertInertia(fn ($page) => $page
+        ->where('notifications.unread', 1)
+        ->has('notifications.items', 1)
+        ->where('notifications.items.0.title', 'Ping')
+    );
+});
