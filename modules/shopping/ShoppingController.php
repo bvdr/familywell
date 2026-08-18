@@ -443,6 +443,9 @@ class ShoppingController extends Controller
             'created_by' => $request->user()->id,
         ]);
 
+        // Promote the list's store to a real shop so it shows in the Shops tab (parity with updateList).
+        ShoppingShop::ensure($data['store'] ?? null);
+
         // Creator owns the share (can manage visibility/roles). Defaults to `family` visibility so
         // every member sees it until the owner narrows it.
         $list->shares()->create(['user_id' => $request->user()->id, 'role' => 'owner']);
@@ -550,6 +553,12 @@ class ShoppingController extends Controller
             $list->archived_at = $data['archived'] ? now() : null;
         }
         $list->fill(array_intersect_key($data, array_flip(['name', 'store', 'color', 'icon'])))->save();
+
+        // Promote the list's store to a real shop so it gets a card in the Shops tab and the items that
+        // inherit it (own store null) are reachable there, not stranded in the "No shop" bucket.
+        if (array_key_exists('store', $data)) {
+            ShoppingShop::ensure($data['store']);
+        }
 
         if (array_key_exists('visibility', $data)) {
             $list->setVisibility($data['visibility']);

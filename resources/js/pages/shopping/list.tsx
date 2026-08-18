@@ -20,6 +20,7 @@ import {
     Store,
     Trash2,
     UnfoldVertical,
+    UserCheck,
     UserPlus,
     Users,
     X,
@@ -48,7 +49,7 @@ import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
-import { aisleIcon, getVoiceLang } from '@/lib/shopping';
+import { aisleIcon, getVoiceLang, LIST_COLORS, LIST_ICONS, listColor, listIcon } from '@/lib/shopping';
 import { type BreadcrumbItem } from '@/types';
 
 type Member = { id: number; name: string };
@@ -78,6 +79,13 @@ type Draft = {
 };
 const emptyDraft: Draft = { name: '', quantity: '', department: 'other', assigned_to: null, note: '', due_date: '', store: '', alt_stores: [] };
 const FOCUS_ALL = '__all__'; // focus-mode sentinel: show every shop's items in one run
+
+// Visibility options for the edit-list drawer (mirrors the new-list drawer on the index).
+const VISIBILITY = [
+    { key: 'family', icon: Users, titleKey: 'shopping.visibility_family_title', subKey: 'shopping.visibility_family_sub' },
+    { key: 'invited', icon: UserCheck, titleKey: 'shopping.visibility_invited_title', subKey: 'shopping.visibility_invited_sub' },
+    { key: 'private', icon: Lock, titleKey: 'shopping.visibility_private_title', subKey: 'shopping.visibility_private_sub' },
+] as const;
 
 function AssigneeBadge({ member }: { member?: Member }) {
     if (!member) return null;
@@ -272,6 +280,33 @@ export default function ListDetail({
         if (title.trim() && title !== list.name) patchList({ name: title.trim() });
     };
 
+    // Full "Edit list" drawer (name, shop, colour/icon, visibility) — like the new-list drawer plus a
+    // shop. Setting the shop makes every item WITHOUT its own shop inherit it (via itemStore/itemShops),
+    // so no item rows are rewritten; clearing it drops them back to "no shop".
+    const [editingList, setEditingList] = useState(false);
+    const [listForm, setListForm] = useState({
+        name: list.name,
+        store: list.store ?? '',
+        color: list.color,
+        icon: list.icon,
+        visibility: list.visibility,
+    });
+    const openEditList = () => {
+        setListForm({ name: list.name, store: list.store ?? '', color: list.color, icon: list.icon, visibility: list.visibility });
+        setEditingList(true);
+    };
+    const saveList = () => {
+        if (!listForm.name.trim()) return;
+        patchList({
+            name: listForm.name.trim(),
+            store: listForm.store || null,
+            color: listForm.color,
+            icon: listForm.icon,
+            visibility: listForm.visibility,
+        });
+        setEditingList(false);
+    };
+
     const openNew = () => {
         // Default a new item to the list's store (or the shop you're focused on) so single-store lists
         // need no store tap; the aisle chips then come from that shop.
@@ -459,8 +494,8 @@ export default function ListDetail({
                     <DropdownMenuItem onSelect={() => setSharing(true)}>
                         <UserPlus className="size-4" /> {t('shopping.share_list')}
                     </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => setTimeout(() => setEditingTitle(true), 0)}>
-                        <Pencil className="size-4" /> {t('shopping.rename_list')}
+                    <DropdownMenuItem onSelect={() => setTimeout(openEditList, 0)}>
+                        <Pencil className="size-4" /> {t('shopping.edit_list')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => setAislesOpen(true)}>
                         <LayoutList className="size-4" /> {t('shopping.edit_departments')}
@@ -955,6 +990,130 @@ export default function ListDetail({
             {share && <ShareSheet open={sharing} onOpenChange={setSharing} share={share} eventName={list.name} />}
 
             <AisleEditor open={aislesOpen} onOpenChange={setAislesOpen} listId={list.id} stores={storeOptions} initialStore={list.store ?? ''} />
+
+            {/* Edit list: name, shop, colour/icon, visibility. Mirrors the new-list drawer plus a shop. */}
+            <ResponsiveModal
+                open={editingList}
+                onOpenChange={setEditingList}
+                title={t('shopping.edit_list')}
+                footer={
+                    <Button className="w-full" disabled={!listForm.name.trim()} onClick={saveList}>
+                        <Check className="size-4" /> {t('shopping.save')}
+                    </Button>
+                }
+            >
+                <div className="flex flex-col gap-5">
+                    <div className="flex items-center gap-3">
+                        <span className={`flex size-12 shrink-0 items-center justify-center rounded-xl ${listColor(listForm.color)}`}>
+                            {(() => {
+                                const Icon = listIcon(listForm.icon);
+                                return <Icon className="size-6" />;
+                            })()}
+                        </span>
+                        <Input
+                            value={listForm.name}
+                            onChange={(e) => setListForm((f) => ({ ...f, name: e.target.value }))}
+                            placeholder={t('shopping.list_name')}
+                            className="text-base"
+                        />
+                    </div>
+
+                    {/* Shop: single pick. Items without their own shop inherit this one. */}
+                    <div className="grid gap-2">
+                        <div className="flex items-center justify-between">
+                            <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.list_shop')}</Label>
+                            {listForm.store && (
+                                <button
+                                    type="button"
+                                    onClick={() => setListForm((f) => ({ ...f, store: '' }))}
+                                    className="text-muted-foreground hover:text-primary text-xs"
+                                >
+                                    {t('shopping.clear')}
+                                </button>
+                            )}
+                        </div>
+                        <Picker
+                            searchable
+                            placeholder={t('shopping.pick_shop')}
+                            options={[...new Set([...shops, ...storeOptions, ...extraStores, listForm.store].filter(Boolean))].map((s) => ({
+                                value: s,
+                                label: s,
+                                icon: Store,
+                            }))}
+                            selected={listForm.store ? [listForm.store] : []}
+                            onChange={(next) => setListForm((f) => ({ ...f, store: next[0] ?? '' }))}
+                            onCreate={(name) => {
+                                setExtraStores((prev) => [...new Set([...prev, name])]);
+                                setListForm((f) => ({ ...f, store: name }));
+                            }}
+                        />
+                        <p className="text-muted-foreground text-xs">{t('shopping.list_shop_hint')}</p>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.color_icon')}</Label>
+                        <div className="flex flex-wrap gap-2">
+                            {Object.keys(LIST_COLORS).map((c) => (
+                                <button
+                                    key={c}
+                                    type="button"
+                                    onClick={() => setListForm((f) => ({ ...f, color: c }))}
+                                    aria-label={t('shopping.color_aria', { c })}
+                                    className={`flex size-9 items-center justify-center rounded-full ${listColor(c)} ${listForm.color === c ? 'ring-primary ring-2 ring-offset-2' : ''}`}
+                                >
+                                    {listForm.color === c && <Check className="size-4" />}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-2">
+                            {Object.keys(LIST_ICONS).map((ic) => {
+                                const Icon = listIcon(ic);
+                                return (
+                                    <button
+                                        key={ic}
+                                        type="button"
+                                        onClick={() => setListForm((f) => ({ ...f, icon: ic }))}
+                                        aria-label={t('shopping.icon_aria', { ic })}
+                                        className={`flex size-9 items-center justify-center rounded-lg border transition-colors ${
+                                            listForm.icon === ic
+                                                ? 'border-primary bg-accent-subtle text-primary'
+                                                : 'border-border text-muted-foreground'
+                                        }`}
+                                    >
+                                        <Icon className="size-4.5" />
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.who_can_view')}</Label>
+                        <div className="flex flex-col gap-2">
+                            {VISIBILITY.map((v) => {
+                                const active = listForm.visibility === v.key;
+                                return (
+                                    <button
+                                        key={v.key}
+                                        type="button"
+                                        onClick={() => setListForm((f) => ({ ...f, visibility: v.key }))}
+                                        className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
+                                            active ? 'border-primary bg-accent-subtle' : 'border-border'
+                                        }`}
+                                    >
+                                        <v.icon className="text-primary size-5 shrink-0" />
+                                        <div className="min-w-0 flex-1">
+                                            <div className="text-primary text-sm font-medium">{t(v.titleKey)}</div>
+                                            <div className="text-muted-foreground text-xs">{t(v.subKey)}</div>
+                                        </div>
+                                        {active && <Check className="text-primary size-4 shrink-0" />}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            </ResponsiveModal>
 
             {/* Add / edit item. Editing auto-saves; only new items need a commit button. */}
             <ResponsiveModal

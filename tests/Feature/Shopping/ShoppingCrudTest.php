@@ -297,3 +297,22 @@ it('collects items with no shop into the No shop bucket', function () {
         ->has('items', 1)
         ->where('items.0.name', 'Batteries'));
 });
+
+it('sets a list shop, promoting it and making storeless items inherit it', function () {
+    [, $users] = shoppingFamily();
+    actingAs($users[0])->post('/m/shopping/lists', ['name' => 'Misc']);
+    $list = ShoppingList::withoutGlobalScopes()->where('name', 'Misc')->first();
+    actingAs($users[0])->post("/m/shopping/lists/{$list->id}/items", ['name' => 'Batteries']); // no own shop
+
+    // Before: the item belongs to no shop.
+    actingAs($users[0])->get('/m/shopping/shops')->assertInertia(fn ($p) => $p->where('noShopCount', 1));
+
+    // Set the list's shop via the edit drawer's PATCH.
+    actingAs($users[0])->patch("/m/shopping/lists/{$list->id}", ['store' => 'Kaufland'])->assertRedirect();
+
+    // The store became a real shop, and the storeless item inherited it (out of the No shop bucket).
+    expect(ShoppingShop::withoutGlobalScopes()->where('name', 'Kaufland')->exists())->toBeTrue();
+    actingAs($users[0])->get('/m/shopping/shops')->assertInertia(fn ($p) => $p
+        ->where('noShopCount', 0)
+        ->where('shops', fn ($shops) => collect($shops)->firstWhere('name', 'Kaufland')['toBuy'] === 1));
+});
