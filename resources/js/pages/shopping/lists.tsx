@@ -6,6 +6,7 @@ import { FormEventHandler, useRef, useState } from 'react';
 
 import InputError from '@/components/input-error';
 import { MemberAvatar } from '@/components/member-avatar';
+import { Picker } from '@/components/picker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -141,12 +142,14 @@ export default function Lists({
             },
         );
     };
-    const { data, setData, post, processing, errors, reset } = useForm({
+    const { data, setData, post, processing, errors, reset, transform } = useForm({
         name: '',
+        store: '',
         color: 'green',
         icon: 'cart',
         visibility: 'family',
     });
+    const [extraStores, setExtraStores] = useState<string[]>([]); // shops typed via the picker this session
 
     const archivedOpt = useOptimistic<boolean>();
     const isArchived = (l: List) => archivedOpt.get(l.id, l.archived);
@@ -155,9 +158,11 @@ export default function Lists({
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
+        transform((d) => ({ ...d, store: d.store || null })); // empty shop => no list-level shop
         post(route('shopping.lists.store'), {
             onSuccess: () => {
                 reset();
+                setExtraStores([]);
                 setCreating(false);
             },
         });
@@ -273,7 +278,40 @@ export default function Lists({
                             </div>
                         </div>
 
-                        {/* No list-level store: items each carry their own shop, so a list can span shops. */}
+                        {/* Optional list-level shop: items without their own shop inherit it. Leave empty
+                            for a list that spans shops (each item carries its own). */}
+                        <div className="grid gap-2">
+                            <div className="flex items-center justify-between">
+                                <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
+                                    {t('shopping.list_shop')}
+                                </Label>
+                                {data.store && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setData('store', '')}
+                                        className="text-muted-foreground hover:text-primary text-xs"
+                                    >
+                                        {t('shopping.clear')}
+                                    </button>
+                                )}
+                            </div>
+                            <Picker
+                                searchable
+                                placeholder={t('shopping.pick_shop')}
+                                options={[...new Set([...shops.map((s) => s.name), ...extraStores, data.store].filter(Boolean))].map((s) => ({
+                                    value: s,
+                                    label: s,
+                                    icon: Store,
+                                }))}
+                                selected={data.store ? [data.store] : []}
+                                onChange={(next) => setData('store', next[0] ?? '')}
+                                onCreate={(name) => {
+                                    setExtraStores((prev) => [...new Set([...prev, name])]);
+                                    setData('store', name);
+                                }}
+                            />
+                            <p className="text-muted-foreground text-xs">{t('shopping.list_shop_hint')}</p>
+                        </div>
 
                         <div className="grid gap-2">
                             <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">

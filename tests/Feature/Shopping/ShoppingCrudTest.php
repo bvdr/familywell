@@ -316,3 +316,12 @@ it('sets a list shop, promoting it and making storeless items inherit it', funct
         ->where('noShopCount', 0)
         ->where('shops', fn ($shops) => collect($shops)->firstWhere('name', 'Kaufland')['toBuy'] === 1));
 });
+
+it('promotes the shop when a list is created with one', function () {
+    [, $users] = shoppingFamily();
+    actingAs($users[0])->post('/m/shopping/lists', ['name' => 'Pharmacy', 'store' => 'Farmacia Tei'])->assertRedirect();
+
+    $list = ShoppingList::withoutGlobalScopes()->where('name', 'Pharmacy')->first();
+    expect($list->store)->toBe('Farmacia Tei')
+        ->and(ShoppingShop::withoutGlobalScopes()->where('name', 'Farmacia Tei')->exists())->toBeTrue();
+});
