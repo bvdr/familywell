@@ -21,7 +21,6 @@
 
         {{-- Brand fonts (Playfair, Inter, Geist Mono) are bundled via @fontsource in app.tsx; no CDN. --}}
 
-        <style id="theme">{!! $themeCss ?? '' !!}</style>
         <script>window.__familywellModules = @json($moduleFrontends ?? []);</script>
         <script>
             window.__familywellReverb = @json($reverb ?? null);
@@ -32,6 +31,10 @@
         @viteReactRefresh
         @vite(['resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])
         @inertiaHead
+
+        {{-- MUST stay last in <head>: the active skin's tokens are injected here so they win the cascade
+             over the compiled stylesheet above (which only maps tokens to utilities). See ThemeTokens. --}}
+        <style id="theme">{!! $themeCss ?? '' !!}</style>
     </head>
     <body class="font-sans antialiased">
         @inertia

@@ -5,7 +5,7 @@
     try {
         $themeCss = $themeCss ?? \App\Support\Theming\ThemeTokens::css('default');
     } catch (\Throwable $e) {
-        $themeCss = ':root{--bg:#F5F3EE;--surface-card:#FFFFFF;--text-primary:#1B3A28;--text-secondary:#4A6B52;--accent:#2D5E3A;--text-inverse:#FFFFFF;--border:#D4D0C8;--radius-lg:16px;}';
+        $themeCss = ':root{--bg:#F5F3EE;--surface-card:#FFFFFF;--text-primary:#1B3A28;--text-secondary:#4A6B52;--text-muted:#7A9A80;--primary:#2D5E3A;--text-inverse:#FFFFFF;--border:#D4D0C8;}';
     }
     // Authenticated users go back to their dashboard; guests to the public home. url('/') routes both.
     $home = auth()->check() ? url('/dashboard') : url('/');
@@ -34,10 +34,10 @@
         .brand{display:inline-flex;align-items:center;gap:8px;margin-bottom:28px}
         .brand .mark{
             display:flex;align-items:center;justify-content:center;
-            width:32px;height:32px;border-radius:8px;background:var(--accent);
+            width:32px;height:32px;border-radius:8px;background:var(--primary);
         }
         .brand .mark svg{width:20px;height:20px;fill:var(--text-inverse)}
-        .brand .name{font-size:18px;font-weight:600;color:var(--accent)}
+        .brand .name{font-size:18px;font-weight:600;color:var(--primary)}
         .code{font-size:13px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted)}
         h1{
             font-family:'Playfair Display',Georgia,'Times New Roman',serif;
@@ -45,7 +45,7 @@
         }
         p{color:var(--text-secondary);font-size:16px;line-height:1.5;margin-bottom:28px}
         .btn{
-            display:inline-block;background:var(--accent);color:var(--text-inverse);
+            display:inline-block;background:var(--primary);color:var(--text-inverse);
             text-decoration:none;font-weight:600;font-size:15px;
             padding:13px 24px;border-radius:9999px;
         }
