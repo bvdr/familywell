@@ -2,38 +2,36 @@
 
 namespace App\Support\Theming;
 
-// Reads a theme's theme.json and flattens its tokens to a :root CSS custom-property block.
-// spacing/radius numbers are treated as pixels. This block is injected server-side (see ShareTheme),
-// so swapping a theme is swapping this variable set, no asset rebuild.
+// Reads a theme's theme.json and flattens it to CSS custom-property blocks. A theme owns the FULL
+// token set (shadcn tokens like --primary/--background/--radius AND the brand DS tokens like
+// --surface-card/--accent-subtle), so swapping a theme reskins the whole app with no asset rebuild.
+//
+// This block is injected server-side AFTER the compiled stylesheet (see app.blade.php), so it wins
+// the cascade for every token it defines — that's what lets a theme override the base look. `tokens`
+// -> :root, `tokensDark` -> .dark (dark-mode overrides), `fonts` -> --font-{sans,heading,mono}.
 class ThemeTokens
 {
     public static function css(string $theme = 'default'): string
     {
-        $data = json_decode(file_get_contents(resource_path("themes/{$theme}/theme.json")), true);
+        $path = resource_path("themes/{$theme}/theme.json");
+        // Unknown theme name -> fall back to default rather than 500 the whole app.
+        if (! is_file($path)) {
+            $path = resource_path('themes/default/theme.json');
+        }
+        $data = json_decode(file_get_contents($path), true);
 
         $vars = [];
-        foreach (($data['colors'] ?? []) as $k => $v) {
+        foreach (($data['tokens'] ?? []) as $k => $v) {
             $vars[] = "--{$k}:{$v}";
         }
         foreach (($data['fonts'] ?? []) as $k => $v) {
             $vars[] = "--font-{$k}:{$v}";
         }
-        foreach (($data['spacing'] ?? []) as $k => $v) {
-            $vars[] = "--spacing-{$k}:{$v}px";
-        }
-        foreach (($data['radius'] ?? []) as $k => $v) {
-            $vars[] = "--radius-{$k}:{$v}px";
-        }
-
         $css = ':root{'.implode(';', $vars).';}';
 
-        // Dark mode overrides only the color tokens. app.css owns the shadcn tokens under `.dark`
-        // (--background, --card, --primary, ...) and, loading after this inline block, wins for any it
-        // also defines; this block is what flips the brand-only tokens app.css never touches
-        // (--surface-card, --accent-subtle, --text-secondary, ...) so cards and body text follow the
-        // theme instead of staying stuck on their light values.
+        // Dark mode overrides only the tokens the theme lists under tokensDark.
         $dark = [];
-        foreach (($data['colorsDark'] ?? []) as $k => $v) {
+        foreach (($data['tokensDark'] ?? []) as $k => $v) {
             $dark[] = "--{$k}:{$v}";
         }
         if ($dark) {
@@ -41,5 +39,16 @@ class ThemeTokens
         }
 
         return $css;
+    }
+
+    /** Theme names available to pick (each is a resources/themes/<name>/theme.json). */
+    public static function available(): array
+    {
+        return collect(glob(resource_path('themes/*/theme.json')))
+            ->map(fn ($p) => [
+                'id' => basename(dirname($p)),
+                'name' => json_decode(file_get_contents($p), true)['name'] ?? basename(dirname($p)),
+            ])
+            ->sortBy('id')->values()->all();
     }
 }
