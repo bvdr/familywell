@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Family;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Theming\ThemeTokens;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class FamilyController extends Controller
 {
@@ -26,6 +28,20 @@ class FamilyController extends Controller
         ]);
 
         $family->update($data);
+
+        return back();
+    }
+
+    // The family's default skin (admin only). Kept separate from update() so it doesn't need the
+    // name/emoji fields. Members override it for themselves in Appearance settings.
+    public function updateTheme(Request $request): RedirectResponse
+    {
+        $family = Family::findOrFail(CurrentFamily::id());
+        $this->authorize('manageMembers', $family);
+
+        $ids = collect(ThemeTokens::available())->pluck('id')->all();
+        $data = $request->validate(['theme' => ['required', Rule::in($ids)]]);
+        $family->update(['theme' => $data['theme']]);
 
         return back();
     }

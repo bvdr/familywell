@@ -47,3 +47,32 @@ it('resolves the skin as user override, then family default, then built-in', fun
     $user->update(['theme' => 'default']);
     actingAs($user)->get('/dashboard')->assertSee('--primary:hsl(135.9, 35.3%, 27.3%)', false);
 });
+
+it('lets a member set and clear their personal skin', function () {
+    $user = App\Models\User::factory()->create(['theme' => null]);
+
+    actingAs($user)->patch('/settings/appearance/theme', ['theme' => 'minimal-mono'])->assertRedirect();
+    expect($user->fresh()->theme)->toBe('minimal-mono');
+
+    // null clears it (back to inheriting the family default).
+    actingAs($user)->patch('/settings/appearance/theme', ['theme' => null])->assertRedirect();
+    expect($user->fresh()->theme)->toBeNull();
+
+    // Unknown skins are rejected.
+    actingAs($user)->patch('/settings/appearance/theme', ['theme' => 'nope'])->assertSessionHasErrors('theme');
+});
+
+it('lets an admin set the family skin but forbids a member', function () {
+    $admin = App\Models\User::factory()->create();
+    $member = App\Models\User::factory()->create();
+    $family = App\Models\Family::factory()->create(['owner_id' => $admin->id, 'theme' => null]);
+    $family->members()->attach($admin, ['role' => 'admin']);
+    $family->members()->attach($member, ['role' => 'member']);
+
+    session(['active_family_id' => $family->id]);
+    actingAs($admin)->patch('/family/theme', ['theme' => 'minimal-mono'])->assertRedirect();
+    expect($family->fresh()->theme)->toBe('minimal-mono');
+
+    session(['active_family_id' => $family->id]);
+    actingAs($member)->patch('/family/theme', ['theme' => 'default'])->assertForbidden();
+});

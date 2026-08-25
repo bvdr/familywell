@@ -92,6 +92,7 @@ Route::middleware(['auth', 'family'])->group(function () {
     Route::get('/family/members', [FamilyMemberController::class, 'index'])->name('family.members.index');
     Route::delete('/family/members/{user}', [FamilyMemberController::class, 'destroy'])->name('family.members.destroy');
     Route::patch('/family', [FamilyController::class, 'update'])->name('family.update');
+    Route::patch('/family/theme', [FamilyController::class, 'updateTheme'])->name('family.theme');
     Route::post('/family/invitations', [FamilyInviteController::class, 'store'])->name('family.invitations.store');
     Route::delete('/family/invitations/{invitation}', [FamilyInviteController::class, 'destroy'])->name('family.invitations.destroy');
 
