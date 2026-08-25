@@ -27,6 +27,13 @@
     --color-primary: var(--primary);
     --color-primary-foreground: var(--primary-foreground);
 
+    /* Solid ACTION fills (primary buttons, FAB, active nav, toggles-on, checkbox fills, unread badge)
+       read from accent-strong, split out from --primary so a skin can make actions pop (e.g. amber)
+       while prominent TEXT (text-primary) stays ink. Defaults to primary, so the green skin is
+       unchanged. */
+    --color-accent-strong: var(--accent-strong);
+    --color-accent-strong-foreground: var(--accent-strong-foreground);
+
     --color-secondary: var(--secondary);
     --color-secondary-foreground: var(--secondary-foreground);
 

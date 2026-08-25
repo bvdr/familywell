@@ -3,8 +3,8 @@ import { Bell, CheckCheck } from 'lucide-react';
 import { useRef, useState } from 'react';
 
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
-import { markAllRead, markRead, notificationIcon, relativeTime, type Notification } from '@/lib/notifications';
 import { useT } from '@/lib/i18n';
+import { markAllRead, markRead, notificationIcon, relativeTime, type Notification } from '@/lib/notifications';
 
 type Shared = { unread: number; items: Notification[] };
 
@@ -69,7 +69,7 @@ export function NotificationsBell() {
             >
                 <Bell className="size-4.5" />
                 {unread > 0 && (
-                    <span className="bg-primary text-primary-foreground absolute -top-1.5 -right-1.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1 text-[10px] font-semibold">
+                    <span className="bg-accent-strong text-accent-strong-foreground absolute -top-1.5 -right-1.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1 text-[10px] font-semibold">
                         {unread > 9 ? '9+' : unread}
                     </span>
                 )}
@@ -124,7 +124,7 @@ export function NotificationsBell() {
                                         </div>
                                         <div className="flex shrink-0 flex-col items-end gap-1">
                                             <span className="text-muted-foreground text-[11px]">{relativeTime(n.at)}</span>
-                                            {!n.read && <span className="bg-primary size-2 rounded-full" />}
+                                            {!n.read && <span className="bg-accent-strong size-2 rounded-full" />}
                                         </div>
                                     </button>
                                 );

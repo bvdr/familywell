@@ -274,7 +274,7 @@ export default function ShopDetail({
                                 onClick={() => toggle(i)}
                                 className="bg-surface flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left opacity-70"
                             >
-                                <span className="border-primary bg-primary text-primary-foreground flex size-6 shrink-0 items-center justify-center rounded-full">
+                                <span className="border-primary bg-accent-strong text-accent-strong-foreground flex size-6 shrink-0 items-center justify-center rounded-full">
                                     <Check className="size-3.5" />
                                 </span>
                                 <span className="text-muted-foreground min-w-0 flex-1 truncate text-[15px] line-through">{i.name}</span>
@@ -297,11 +297,11 @@ export default function ShopDetail({
             {/* Focus (shopping) mode: full-screen run through this shop's unbought items. */}
             {focus &&
                 createPortal(
-                    <div className="bg-primary text-primary-foreground fixed inset-0 z-[60] flex flex-col">
+                    <div className="bg-accent-strong text-accent-strong-foreground fixed inset-0 z-[60] flex flex-col">
                         <div className="px-5 pt-[calc(1rem+env(safe-area-inset-top))] pb-4">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
-                                    <div className="text-primary-foreground/60 text-[11px] font-semibold tracking-widest uppercase">
+                                    <div className="text-accent-strong-foreground/60 text-[11px] font-semibold tracking-widest uppercase">
                                         {t('shopping.focus_mode')}
                                     </div>
                                     <h2 className="font-heading mt-1 flex items-center gap-1.5 truncate text-2xl">
@@ -324,7 +324,7 @@ export default function ShopDetail({
                                 return (
                                     <section key={g.aisle?.slug ?? 'all'} className="space-y-2">
                                         {g.aisle && AisleIcon && (
-                                            <h3 className="text-primary-foreground/60 flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
+                                            <h3 className="text-accent-strong-foreground/60 flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
                                                 <AisleIcon className="size-3.5" /> {g.aisle.name}
                                             </h3>
                                         )}
@@ -338,7 +338,7 @@ export default function ShopDetail({
                                                 <span className="border-primary-foreground/40 flex size-6 shrink-0 rounded-full border-2" />
                                                 <div className="min-w-0 flex-1">
                                                     <div className="font-medium">{i.name}</div>
-                                                    <div className="text-primary-foreground/60 text-sm">
+                                                    <div className="text-accent-strong-foreground/60 text-sm">
                                                         {i.quantity ? `${i.quantity} · ` : ''}
                                                         {t('shopping.from_list', { list: i.listName })}
                                                     </div>
@@ -348,7 +348,7 @@ export default function ShopDetail({
                                     </section>
                                 );
                             })}
-                            {remaining === 0 && <p className="text-primary-foreground/80 py-10 text-center">{t('shopping.everything_done')}</p>}
+                            {remaining === 0 && <p className="text-accent-strong-foreground/80 py-10 text-center">{t('shopping.everything_done')}</p>}
                         </div>
                     </div>,
                     document.body,

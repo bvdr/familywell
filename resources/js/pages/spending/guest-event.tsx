@@ -114,7 +114,7 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
         <Shell title={event.name}>
             {/* Identity bar */}
             <div className="flex items-center gap-2 text-sm">
-                <span className="bg-primary text-primary-foreground flex size-7 items-center justify-center rounded-full text-xs font-medium">
+                <span className="bg-accent-strong text-accent-strong-foreground flex size-7 items-center justify-center rounded-full text-xs font-medium">
                     {me.name.charAt(0).toUpperCase()}
                 </span>
                 <span className="text-primary font-medium">{t('spending.you_are', { name: me.name })}</span>
@@ -147,7 +147,7 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
                         className={`flex items-center justify-between rounded-xl border p-3 ${b.id === myKey ? 'border-primary bg-accent-subtle' : 'bg-surface-card'}`}
                     >
                         <div className="flex items-center gap-3">
-                            <span className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-full text-sm font-medium">
+                            <span className="bg-accent-strong text-accent-strong-foreground flex size-8 items-center justify-center rounded-full text-sm font-medium">
                                 {b.name.charAt(0).toUpperCase()}
                             </span>
                             <div>
@@ -277,7 +277,7 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
                         setEditing(null);
                         setAdding(true);
                     }}
-                    className="bg-primary text-primary-foreground fixed right-4 bottom-6 z-10 flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold shadow-lg sm:right-[calc(50%-20rem)]"
+                    className="bg-accent-strong text-accent-strong-foreground fixed right-4 bottom-6 z-10 flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold shadow-lg sm:right-[calc(50%-20rem)]"
                 >
                     <Plus className="size-5" /> {t('spending.add_expense')}
                 </button>
@@ -297,13 +297,7 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
             )}
 
             {settling && (
-                <SettleForm
-                    token={token}
-                    me={me}
-                    event={event}
-                    others={balances.filter((b) => b.id !== myKey)}
-                    onClose={() => setSettling(false)}
-                />
+                <SettleForm token={token} me={me} event={event} others={balances.filter((b) => b.id !== myKey)} onClose={() => setSettling(false)} />
             )}
         </Shell>
     );
@@ -317,7 +311,7 @@ function Shell({ title, children }: { title: string; children: React.ReactNode }
             <Head title={`${title} · FamilyWell`} />
             <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
                 <div className="flex items-center gap-2 pt-2">
-                    <span className="bg-primary text-primary-foreground flex size-7 items-center justify-center rounded-lg text-xs font-bold">
+                    <span className="bg-accent-strong text-accent-strong-foreground flex size-7 items-center justify-center rounded-lg text-xs font-bold">
                         FW
                     </span>
                     <span className="text-muted-foreground text-sm">FamilyWell · {t('spending.shared_with_you')}</span>
@@ -412,7 +406,9 @@ function SpendForm({ token, me, event, editing, onClose }: { token: string; me: 
                                     onClick={() => form.setData('category', c)}
                                     aria-pressed={active}
                                     className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium capitalize transition-colors ${
-                                        active ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-primary hover:bg-surface'
+                                        active
+                                            ? 'border-primary bg-accent-strong text-accent-strong-foreground'
+                                            : 'border-border text-primary hover:bg-surface'
                                     }`}
                                 >
                                     <Icon className="size-4 shrink-0" />
@@ -451,19 +447,7 @@ function SpendForm({ token, me, event, editing, onClose }: { token: string; me: 
 
 // A guest records a settle-up they are part of: a direction toggle (I paid / I was paid) puts them on
 // the right side, and the counterparty is any other participant. The server re-checks own-involvement.
-function SettleForm({
-    token,
-    me,
-    event,
-    others,
-    onClose,
-}: {
-    token: string;
-    me: Guest;
-    event: EventT;
-    others: Balance[];
-    onClose: () => void;
-}) {
+function SettleForm({ token, me, event, others, onClose }: { token: string; me: Guest; event: EventT; others: Balance[]; onClose: () => void }) {
     const t = useT();
     const myKey = `g${me.id}`;
     const [paid, setPaid] = useState(true); // true = I paid them; false = they paid me
@@ -506,7 +490,7 @@ function SettleForm({
                             key={String(v)}
                             type="button"
                             onClick={() => setPaid(v as boolean)}
-                            className={`rounded-md py-1.5 text-sm font-medium transition-colors ${paid === v ? 'bg-primary text-primary-foreground' : 'text-text-secondary'}`}
+                            className={`rounded-md py-1.5 text-sm font-medium transition-colors ${paid === v ? 'bg-accent-strong text-accent-strong-foreground' : 'text-text-secondary'}`}
                         >
                             {label as string}
                         </button>

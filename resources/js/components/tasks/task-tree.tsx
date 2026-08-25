@@ -1,10 +1,9 @@
-import { router } from '@inertiajs/react';
 import {
     closestCenter,
     DndContext,
     type DragEndEvent,
-    DragOverlay,
     type DragMoveEvent,
+    DragOverlay,
     type DragStartEvent,
     KeyboardSensor,
     PointerSensor,
@@ -13,15 +12,16 @@ import {
 } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { router } from '@inertiajs/react';
 import { Calendar, Check, Plus, Trash2, UserCircle2 } from 'lucide-react';
 import { type Ref, useEffect, useMemo, useRef, useState } from 'react';
 
+import { MemberAvatar } from '@/components/member-avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
-import { MemberAvatar } from '@/components/member-avatar';
 import { useT } from '@/lib/i18n';
 import { dueLabel } from '@/lib/tasks';
 import { buildTree, type FlatTask, flatten, getProjection, INDENT, removeChildrenOf } from './tree-utils';
@@ -70,10 +70,7 @@ export function TaskTree({ tasks, members, canEdit, addUrl, taskUrl, reorderUrl,
     // The key includes `done` (not just ids) so a toggle's fresh value re-syncs the mirror — otherwise
     // the stale mirror value would fight the optimistic toggle and the checkbox would snap back.
     const [items, setItems] = useState<FlatTask[]>(() => flatten(tasks));
-    const serverKey = useMemo(
-        () => JSON.stringify(tasks.map((t) => [t.id, t.done, t.subtasks.map((s) => [s.id, s.done])])),
-        [tasks],
-    );
+    const serverKey = useMemo(() => JSON.stringify(tasks.map((t) => [t.id, t.done, t.subtasks.map((s) => [s.id, s.done])])), [tasks]);
     const lastKey = useRef(serverKey);
     useEffect(() => {
         if (lastKey.current !== serverKey) {
@@ -153,11 +150,7 @@ export function TaskTree({ tasks, members, canEdit, addUrl, taskUrl, reorderUrl,
         }
 
         setItems(result);
-        router.post(
-            reorderUrl,
-            { order: result.map((i) => ({ id: i.id, parent_id: i.parentId })) },
-            { preserveScroll: true, preserveState: true },
-        );
+        router.post(reorderUrl, { order: result.map((i) => ({ id: i.id, parent_id: i.parentId })) }, { preserveScroll: true, preserveState: true });
     }
 
     const tree = buildTree(items); // for the empty check + counts if needed
@@ -334,7 +327,7 @@ function SortableRow({
                     onClick={onToggle}
                     aria-label={done ? t('tasks.mark_not_done') : t('tasks.mark_done')}
                     className={`flex ${sub ? 'size-5' : 'size-6'} shrink-0 items-center justify-center rounded-full border transition-colors ${
-                        done ? 'border-primary bg-primary text-primary-foreground' : 'border-border'
+                        done ? 'border-primary bg-accent-strong text-accent-strong-foreground' : 'border-border'
                     }`}
                 >
                     {done && <Check className={sub ? 'size-3' : 'size-3.5'} />}
@@ -343,10 +336,12 @@ function SortableRow({
                 <button type="button" onClick={handleEdit} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
                     <span className="min-w-0 flex-1">
                         {/* Wrap long titles instead of truncating so a long to-do never widens the row past the screen. */}
-                        <span className={`block break-words ${sub ? 'text-sm' : 'text-[15px]'} ${done ? 'text-muted-foreground line-through' : 'text-primary'}`}>
+                        <span
+                            className={`block break-words ${sub ? 'text-sm' : 'text-[15px]'} ${done ? 'text-muted-foreground line-through' : 'text-primary'}`}
+                        >
                             {item.title}
                         </span>
-                        {item.note && <span className="text-muted-foreground block break-words text-xs">{item.note}</span>}
+                        {item.note && <span className="text-muted-foreground block text-xs break-words">{item.note}</span>}
                     </span>
                     {due && <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${due.tone}`}>{due.label}</span>}
                     <AssigneeDot members={members} id={item.assignedTo} />
@@ -443,7 +438,7 @@ function EditTaskModal({
                             type="button"
                             onClick={() => setAssigned(null)}
                             className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors ${
-                                assigned === null ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-primary'
+                                assigned === null ? 'border-primary bg-accent-strong text-accent-strong-foreground' : 'border-border text-primary'
                             }`}
                         >
                             <UserCircle2 className="size-4" /> {t('tasks.anyone')}
@@ -454,7 +449,7 @@ function EditTaskModal({
                                 type="button"
                                 onClick={() => setAssigned(m.id)}
                                 className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
-                                    assigned === m.id ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-primary'
+                                    assigned === m.id ? 'border-primary bg-accent-strong text-accent-strong-foreground' : 'border-border text-primary'
                                 }`}
                             >
                                 {m.name}

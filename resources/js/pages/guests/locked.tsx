@@ -18,7 +18,7 @@ export default function GuestLocked({ token }: { token: string }) {
             <Head title="Enter password · FamilyWell" />
             <form onSubmit={submit} className="bg-surface-card w-full max-w-sm rounded-2xl border p-6 text-center">
                 <div className="flex items-center justify-center gap-2 pb-2">
-                    <span className="bg-primary text-primary-foreground flex size-7 items-center justify-center rounded-lg text-xs font-bold">
+                    <span className="bg-accent-strong text-accent-strong-foreground flex size-7 items-center justify-center rounded-lg text-xs font-bold">
                         FW
                     </span>
                     <span className="text-muted-foreground text-sm">FamilyWell</span>

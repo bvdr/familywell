@@ -1,8 +1,8 @@
 import AppLayout from '@/layouts/app-layout';
+import { useLocale, useT, type TFn } from '@/lib/i18n';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Blocks, Check, FolderKanban, ListChecks, type LucideIcon, Settings, ShoppingCart, StickyNote, Users, Wallet } from 'lucide-react';
-import { useLocale, useT, type TFn } from '@/lib/i18n';
+import { Blocks, Check, FolderKanban, ListChecks, Settings, ShoppingCart, StickyNote, Users, Wallet, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' }];
@@ -14,7 +14,13 @@ type DashItem = { title: string; subtitle: string; href: string; icon: string };
 type AgendaItem = DashItem & { dueDate: string; toggleUrl: string };
 
 // Map a provider's icon key to a lucide icon; fall back to a neutral one.
-const ICONS: Record<string, LucideIcon> = { wallet: Wallet, 'shopping-cart': ShoppingCart, 'folder-kanban': FolderKanban, 'list-checks': ListChecks, 'sticky-note': StickyNote };
+const ICONS: Record<string, LucideIcon> = {
+    wallet: Wallet,
+    'shopping-cart': ShoppingCart,
+    'folder-kanban': FolderKanban,
+    'list-checks': ListChecks,
+    'sticky-note': StickyNote,
+};
 const iconFor = (key: string) => ICONS[key] ?? Blocks;
 
 // The recent items are grouped by category on the dashboard; the icon key doubles as the category
@@ -76,7 +82,7 @@ function greetingKey() {
 function Shortcut({ href, icon: Icon, title, sub }: { href: string; icon: typeof Wallet; title: string; sub: string }) {
     return (
         <Link href={href} prefetch className="bg-surface-card hover:border-accent flex items-center gap-3 rounded-xl border p-3 transition-colors">
-            <span className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-lg">
+            <span className="bg-accent-strong text-accent-strong-foreground flex size-9 items-center justify-center rounded-lg">
                 <Icon className="size-4.5" />
             </span>
             <span className="min-w-0">
@@ -106,7 +112,7 @@ function AgendaRow({ item }: { item: AgendaItem }) {
                 onClick={toggle}
                 aria-label={done ? t('dashboard.is_done') : t('dashboard.mark_done')}
                 className={`flex size-6 shrink-0 items-center justify-center rounded-full border transition-colors ${
-                    done ? 'border-primary bg-primary text-primary-foreground' : 'border-border'
+                    done ? 'border-primary bg-accent-strong text-accent-strong-foreground' : 'border-border'
                 }`}
             >
                 {done && <Check className="size-3.5" />}
@@ -207,7 +213,7 @@ export default function Dashboard({
                                                 prefetch
                                                 className="bg-surface-card hover:border-accent flex items-start gap-3 rounded-xl border p-3 transition-colors"
                                             >
-                                                <span className="bg-primary text-primary-foreground mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-lg">
+                                                <span className="bg-accent-strong text-accent-strong-foreground mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-lg">
                                                     <Icon className="size-5" />
                                                 </span>
                                                 {/* min-w-0 + wrapping so a long title/subtitle wraps to a couple of lines

@@ -1,6 +1,6 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
-import { openNewOnArrival } from '@/lib/create-intent';
 import { useAddAction } from '@/lib/add-action';
+import { openNewOnArrival } from '@/lib/create-intent';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Archive, FolderKanban, Link2, Plus, RotateCcw } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
@@ -54,9 +54,7 @@ function Card({ p, t }: { p: Project; t: TFn }) {
         >
             {/* Full-bleed banner: the card is p-4, so pull out by 1rem each side and widen by 2rem so it
                 spans edge-to-edge (w-full would stop short because the negative margins only shift it). */}
-            {p.coverUrl && (
-                <img src={p.coverUrl} alt="" className="-mt-4 -ml-4 mb-3 block h-28 w-[calc(100%+2rem)] max-w-none object-cover" />
-            )}
+            {p.coverUrl && <img src={p.coverUrl} alt="" className="-mt-4 mb-3 -ml-4 block h-28 w-[calc(100%+2rem)] max-w-none object-cover" />}
             <div className="flex items-start justify-between gap-2.5">
                 <div className="font-heading text-primary text-lg leading-tight font-semibold">{p.name}</div>
                 <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${st.chip}`}>{t(`projects.status_${p.status}`)}</span>
@@ -68,7 +66,9 @@ function Card({ p, t }: { p: Project; t: TFn }) {
                 </div>
             )}
             <div className="mt-3 text-xs">
-                <span className="text-muted-foreground">{p.total ? t('projects.tasks_done', { done: p.done, total: p.total }) : t('projects.no_tasks_yet')}</span>
+                <span className="text-muted-foreground">
+                    {p.total ? t('projects.tasks_done', { done: p.done, total: p.total }) : t('projects.no_tasks_yet')}
+                </span>
             </div>
             <div className="mt-3 flex items-center justify-between border-t pt-3">
                 <Avatars members={p.members} />
@@ -221,7 +221,7 @@ export default function ProjectsIndex({ projects }: { projects: Project[] }) {
                                     type="button"
                                     onClick={() => setData('status', s)}
                                     className={`rounded-md py-1.5 text-xs font-medium transition-colors ${
-                                        data.status === s ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
+                                        data.status === s ? 'bg-accent-strong text-accent-strong-foreground' : 'text-muted-foreground'
                                     }`}
                                 >
                                     {t(`projects.status_${s}`)}

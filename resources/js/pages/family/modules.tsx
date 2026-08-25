@@ -40,11 +40,7 @@ export default function Modules({ catalog, canManage }: Props) {
                     {catalog.map((m) => {
                         const Icon = MODULE_ICON[m.id] ?? Blocks;
                         return (
-                            <li
-                                key={m.id}
-                                data-testid={`module-${m.id}`}
-                                className="bg-surface-card flex items-center gap-4 rounded-xl border p-4"
-                            >
+                            <li key={m.id} data-testid={`module-${m.id}`} className="bg-surface-card flex items-center gap-4 rounded-xl border p-4">
                                 {/* The tile tints to accent when the module is live, greys out when it is off,
                                     so enabled/disabled reads at a glance without leaning on the label alone. */}
                                 <div
@@ -71,7 +67,7 @@ export default function Modules({ catalog, canManage }: Props) {
                                         data-testid={`toggle-${m.id}`}
                                         data-state={m.enabled ? 'enabled' : 'disabled'}
                                         className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium ${
-                                            m.enabled ? 'text-text-secondary border' : 'bg-primary text-primary-foreground'
+                                            m.enabled ? 'text-text-secondary border' : 'bg-accent-strong text-accent-strong-foreground'
                                         }`}
                                     >
                                         {m.enabled ? t('family.disable') : t('family.enable')}

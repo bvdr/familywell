@@ -43,7 +43,9 @@ export default function ShoppingSettings() {
                                     onClick={() => choose(l.code)}
                                     aria-pressed={active}
                                     className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
-                                        active ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-primary hover:bg-surface'
+                                        active
+                                            ? 'border-primary bg-accent-strong text-accent-strong-foreground'
+                                            : 'border-border text-primary hover:bg-surface'
                                     }`}
                                 >
                                     {l.label}

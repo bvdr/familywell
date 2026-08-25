@@ -1,6 +1,6 @@
+import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { runAddAction } from '@/lib/add-action';
 import { useT } from '@/lib/i18n';
-import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { Link, router, usePage } from '@inertiajs/react';
 import {
     Blocks,
@@ -125,7 +125,7 @@ export function MobileTabBar() {
         <>
             {/* translateZ(0) promotes the bar to its own layer so iOS standalone PWAs keep it pinned to
                 the viewport bottom instead of letting it scroll with the body (a known iOS fixed bug). */}
-            <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex items-center gap-2.5 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] [transform:translateZ(0)] [@media(display-mode:standalone)]:pb-[max(0.5rem,calc(env(safe-area-inset-bottom)/2))] md:hidden">
+            <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex [transform:translateZ(0)] items-center gap-2.5 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden [@media(display-mode:standalone)]:pb-[max(0.5rem,calc(env(safe-area-inset-bottom)/2))]">
                 {/* Pill fills the width; the + stays a fixed circle on the right. */}
                 <div className="border-border/60 pointer-events-auto flex flex-1 items-center justify-around gap-0.5 rounded-full border bg-white/75 p-1.5 shadow-[var(--shadow-fw-md)] backdrop-blur-xl">
                     {pinned.map((item) => {
@@ -163,7 +163,7 @@ export function MobileTabBar() {
                         if (!runAddAction()) setAddOpen(true);
                     }}
                     aria-label="Add"
-                    className="bg-primary text-primary-foreground pointer-events-auto flex size-14 shrink-0 items-center justify-center rounded-full shadow-[var(--shadow-fw-md)] transition-transform active:scale-95"
+                    className="bg-accent-strong text-accent-strong-foreground pointer-events-auto flex size-14 shrink-0 items-center justify-center rounded-full shadow-[var(--shadow-fw-md)] transition-transform active:scale-95"
                 >
                     <Plus className="size-6" />
                 </button>
@@ -190,7 +190,7 @@ export function MobileTabBar() {
                                 onClick={() => setAddOpen(false)}
                                 className="text-primary hover:bg-surface flex w-full items-center gap-3 rounded-xl p-3 text-left transition-colors"
                             >
-                                <span className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-lg">
+                                <span className="bg-accent-strong text-accent-strong-foreground flex size-9 items-center justify-center rounded-lg">
                                     <item.icon className="size-4.5" />
                                 </span>
                                 <span className="text-sm font-medium">{t(item.labelKey)}</span>

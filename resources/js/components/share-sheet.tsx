@@ -1,9 +1,9 @@
 import { MemberAvatar } from '@/components/member-avatar';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { useT } from '@/lib/i18n';
 import { router } from '@inertiajs/react';
 import { Check, Copy, Link2, Lock, UserCheck, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useT } from '@/lib/i18n';
 
 export type ShareMember = { id: number; name: string; role: 'owner' | 'editor' | 'viewer' | null; isOwner: boolean };
 export type ShareState = {
@@ -20,7 +20,6 @@ const VISIBILITY = [
     { key: 'invited', icon: UserCheck, titleKey: 'sharing.vis_invited_title', subKey: 'sharing.vis_invited_sub' },
     { key: 'private', icon: Lock, titleKey: 'sharing.vis_private_title', subKey: 'sharing.vis_private_sub' },
 ] as const;
-
 
 export function ShareSheet({
     open,
@@ -92,7 +91,7 @@ export function ShareSheet({
                                 } ${state.canManage ? '' : 'opacity-70'}`}
                             >
                                 <span
-                                    className={`flex size-9 items-center justify-center rounded-lg ${active ? 'bg-primary text-primary-foreground' : 'bg-accent-subtle text-primary'}`}
+                                    className={`flex size-9 items-center justify-center rounded-lg ${active ? 'bg-accent-strong text-accent-strong-foreground' : 'bg-accent-subtle text-primary'}`}
                                 >
                                     <v.icon className="size-4.5" />
                                 </span>
@@ -101,7 +100,7 @@ export function ShareSheet({
                                     <span className="text-muted-foreground block text-xs">{t(v.subKey)}</span>
                                 </span>
                                 <span
-                                    className={`flex size-5 items-center justify-center rounded-full border ${active ? 'border-primary bg-primary text-primary-foreground' : 'border-border'}`}
+                                    className={`flex size-5 items-center justify-center rounded-full border ${active ? 'border-primary bg-accent-strong text-accent-strong-foreground' : 'border-border'}`}
                                 >
                                     {active && <Check className="size-3.5" />}
                                 </span>
@@ -143,7 +142,11 @@ export function ShareSheet({
                                     </select>
                                 ) : (
                                     <span className="text-muted-foreground text-sm">
-                                        {m.role === 'editor' ? t('sharing.can_edit') : m.role === 'viewer' ? t('sharing.can_view') : t('sharing.no_access')}
+                                        {m.role === 'editor'
+                                            ? t('sharing.can_edit')
+                                            : m.role === 'viewer'
+                                              ? t('sharing.can_view')
+                                              : t('sharing.no_access')}
                                     </span>
                                 )}
                             </div>
@@ -161,7 +164,7 @@ export function ShareSheet({
                                 <span className="text-primary flex-1 truncate text-sm">{state.link.url}</span>
                                 <button
                                     onClick={copy}
-                                    className="bg-primary text-primary-foreground inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium"
+                                    className="bg-accent-strong text-accent-strong-foreground inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium"
                                 >
                                     {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
                                     {copied ? t('common.copied') : t('common.copy')}
@@ -183,7 +186,7 @@ export function ShareSheet({
 
                 <button
                     onClick={() => onOpenChange(false)}
-                    className="bg-primary text-primary-foreground mt-6 w-full rounded-xl py-3 text-sm font-semibold"
+                    className="bg-accent-strong text-accent-strong-foreground mt-6 w-full rounded-xl py-3 text-sm font-semibold"
                 >
                     Done
                 </button>

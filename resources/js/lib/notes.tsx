@@ -63,7 +63,12 @@ function inline(text: string): ReactNode {
 export function snippet(body: string, length = 140): string {
     const text = body
         .split('\n')
-        .map((l) => l.replace(/^(#{1,3}) /, '').replace(CHECK_RE, '$2').replace(/^[-*] /, ''))
+        .map((l) =>
+            l
+                .replace(/^(#{1,3}) /, '')
+                .replace(CHECK_RE, '$2')
+                .replace(/^[-*] /, ''),
+        )
         .join(' ')
         .replace(/\*\*/g, '')
         .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // [text](url) -> text
@@ -103,15 +108,10 @@ export function NoteBody({ body, onToggle }: { body: string; onToggle?: (line: n
                 }
                 if (l.kind === 'check') {
                     return (
-                        <button
-                            key={l.index}
-                            type="button"
-                            onClick={() => onToggle?.(l.index)}
-                            className="flex items-start gap-2 text-left"
-                        >
+                        <button key={l.index} type="button" onClick={() => onToggle?.(l.index)} className="flex items-start gap-2 text-left">
                             <span
                                 className={`mt-0.5 flex size-4.5 shrink-0 items-center justify-center rounded border transition-colors ${
-                                    l.done ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/50'
+                                    l.done ? 'border-primary bg-accent-strong text-accent-strong-foreground' : 'border-muted-foreground/50'
                                 }`}
                             >
                                 {l.done && <span className="text-[11px] leading-none">✓</span>}

@@ -3,8 +3,8 @@ import { Bell, CheckCheck } from 'lucide-react';
 import { useState } from 'react';
 
 import AppLayout from '@/layouts/app-layout';
-import { markAllRead, markRead, notificationIcon, relativeTime, type Notification } from '@/lib/notifications';
 import { useLocale, useT, type TFn } from '@/lib/i18n';
+import { markAllRead, markRead, notificationIcon, relativeTime, type Notification } from '@/lib/notifications';
 import { type BreadcrumbItem } from '@/types';
 
 // Group by calendar day for readable section headers.
@@ -93,7 +93,7 @@ export default function NotificationsIndex({ feed = [] }: { feed?: Notification[
                                         </div>
                                         <div className="flex shrink-0 flex-col items-end gap-1">
                                             <span className="text-muted-foreground text-[11px]">{relativeTime(n.at)}</span>
-                                            {!n.read && <span className="bg-primary size-2 rounded-full" />}
+                                            {!n.read && <span className="bg-accent-strong size-2 rounded-full" />}
                                         </div>
                                     </button>
                                 );

@@ -2,9 +2,9 @@
 // the index cards, detail hero, and pickers agree. Uses the app's tokens (primary = forest green).
 export const PROJECT_STATUS: Record<string, { label: string; chip: string; hero: string }> = {
     planning: { label: 'Planning', chip: 'bg-surface text-muted-foreground', hero: 'bg-white/85 text-primary' },
-    in_progress: { label: 'In progress', chip: 'bg-accent-subtle text-primary', hero: 'bg-primary text-primary-foreground' },
+    in_progress: { label: 'In progress', chip: 'bg-accent-subtle text-primary', hero: 'bg-accent-strong text-accent-strong-foreground' },
     blocked: { label: 'Blocked', chip: 'bg-amber-100 text-amber-700', hero: 'bg-amber-500 text-white' },
-    done: { label: 'Done', chip: 'bg-primary text-primary-foreground', hero: 'bg-primary text-primary-foreground' },
+    done: { label: 'Done', chip: 'bg-accent-strong text-accent-strong-foreground', hero: 'bg-accent-strong text-accent-strong-foreground' },
 };
 
 // Deterministic per-member avatar colour (bg, fg), matching the design's coloured initials.
@@ -30,7 +30,7 @@ export const PROJECT_STATUS_KEYS = Object.keys(PROJECT_STATUS);
 export const DEP_STATUS: Record<string, { label: string; chip: string; dot: string }> = {
     pending: { label: 'Pending', chip: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500' },
     blocked: { label: 'Blocked', chip: 'bg-red-100 text-red-700', dot: 'bg-red-500' },
-    done: { label: 'Done', chip: 'bg-accent-subtle text-primary', dot: 'bg-primary' },
+    done: { label: 'Done', chip: 'bg-accent-subtle text-primary', dot: 'bg-accent-strong' },
 };
 export const depStatus = (s: string) => DEP_STATUS[s] ?? DEP_STATUS.pending;
 export const DEP_STATUS_KEYS = Object.keys(DEP_STATUS);
