@@ -112,7 +112,7 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
                             sessionStorage.removeItem(RELOAD_FLAG);
                             window.location.reload();
                         }}
-                        className="bg-primary text-primary-foreground rounded-full px-5 py-2 text-sm font-medium"
+                        className="bg-accent-strong text-accent-strong-foreground rounded-full px-5 py-2 text-sm font-medium"
                     >
                         Reload
                     </button>

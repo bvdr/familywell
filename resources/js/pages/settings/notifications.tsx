@@ -6,15 +6,7 @@ import HeadingSmall from '@/components/heading-small';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
-import {
-    iosNeedsInstall,
-    isSubscribed,
-    pushSupported,
-    savePushPrefs,
-    sendTestPush,
-    subscribeToPush,
-    unsubscribeFromPush,
-} from '@/lib/push';
+import { iosNeedsInstall, isSubscribed, pushSupported, savePushPrefs, sendTestPush, subscribeToPush, unsubscribeFromPush } from '@/lib/push';
 import { type BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Notifications', href: '/settings/notifications' }];
@@ -70,7 +62,10 @@ export default function Notifications({ categories }: { categories: Category[] }
             <Head title="Notifications" />
             <SettingsLayout>
                 <div className="space-y-6">
-                    <HeadingSmall title="Notifications" description="Get a push on this device (Android, desktop, or an installed iPhone app) when things happen in your family." />
+                    <HeadingSmall
+                        title="Notifications"
+                        description="Get a push on this device (Android, desktop, or an installed iPhone app) when things happen in your family."
+                    />
 
                     {!supported ? (
                         <div className="text-muted-foreground rounded-xl border border-dashed p-4 text-sm">
@@ -78,8 +73,8 @@ export default function Notifications({ categories }: { categories: Category[] }
                         </div>
                     ) : needsInstall ? (
                         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                            On iPhone/iPad, add FamilyWell to your Home Screen first (Share → Add to Home Screen), then open it from
-                            there to turn on notifications.
+                            On iPhone/iPad, add FamilyWell to your Home Screen first (Share → Add to Home Screen), then open it from there to turn on
+                            notifications.
                         </div>
                     ) : (
                         <>
@@ -106,15 +101,16 @@ export default function Notifications({ categories }: { categories: Category[] }
                             )}
 
                             <p className="text-muted-foreground text-xs leading-relaxed">
-                                Push is per-device: turn it on wherever you want to be alerted. What you're notified about (below) is
-                                account-wide.
+                                Push is per-device: turn it on wherever you want to be alerted. What you're notified about (below) is account-wide.
                             </p>
                         </>
                     )}
 
                     <div className="space-y-3 pt-2">
                         <div className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Notify me about</div>
-                        <p className="text-muted-foreground text-xs">Turning one off stops the phone push, but it still shows in your in-app notifications.</p>
+                        <p className="text-muted-foreground text-xs">
+                            Turning one off stops the phone push, but it still shows in your in-app notifications.
+                        </p>
                         <div className="bg-surface-card divide-border/60 divide-y rounded-xl border">
                             {categories.map((c) => (
                                 <div key={c.id} className="flex items-center justify-between px-4 py-3">
@@ -124,7 +120,7 @@ export default function Notifications({ categories }: { categories: Category[] }
                                         role="switch"
                                         aria-checked={prefs[c.id]}
                                         onClick={() => togglePref(c.id)}
-                                        className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${prefs[c.id] ? 'bg-primary' : 'bg-border'}`}
+                                        className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${prefs[c.id] ? 'bg-accent-strong' : 'bg-border'}`}
                                     >
                                         <span
                                             className={`absolute top-0.5 size-5 rounded-full bg-white shadow-sm transition-all ${prefs[c.id] ? 'left-[18px]' : 'left-0.5'}`}

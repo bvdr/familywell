@@ -1,5 +1,5 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useAddAction } from '@/lib/add-action';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
     Archive,
     Ban,
@@ -641,7 +641,7 @@ function EditModal({
                                 key={s}
                                 type="button"
                                 onClick={() => setData('status', s)}
-                                className={`rounded-md py-1.5 text-xs font-medium transition-colors ${data.status === s ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
+                                className={`rounded-md py-1.5 text-xs font-medium transition-colors ${data.status === s ? 'bg-accent-strong text-accent-strong-foreground' : 'text-muted-foreground'}`}
                             >
                                 {t(`projects.status_${s}`)}
                             </button>
@@ -795,7 +795,7 @@ function LinkListModal({
                         onClick={() => setView('new')}
                         className="border-primary/40 bg-accent-subtle flex items-center gap-3 rounded-xl border border-dashed p-3 text-left"
                     >
-                        <span className="bg-primary text-primary-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
+                        <span className="bg-accent-strong text-accent-strong-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
                             <Plus className="size-5" />
                         </span>
                         <div className="min-w-0 flex-1">
@@ -805,9 +805,7 @@ function LinkListModal({
                         <ChevronRight className="text-primary size-4" />
                     </button>
 
-                    <div className="text-text-muted text-[11px] font-semibold tracking-widest uppercase">
-                        {t('projects.or_link_existing_list')}
-                    </div>
+                    <div className="text-text-muted text-[11px] font-semibold tracking-widest uppercase">{t('projects.or_link_existing_list')}</div>
                     <div className="bg-surface flex items-center gap-2 rounded-lg px-3 py-2">
                         <Search className="text-muted-foreground size-4" />
                         <input
@@ -839,7 +837,7 @@ function LinkListModal({
                                         </div>
                                     </div>
                                     <span
-                                        className={`flex size-6 shrink-0 items-center justify-center rounded-md border ${on ? 'border-primary bg-primary text-primary-foreground' : 'border-border'}`}
+                                        className={`flex size-6 shrink-0 items-center justify-center rounded-md border ${on ? 'border-primary bg-accent-strong text-accent-strong-foreground' : 'border-border'}`}
                                     >
                                         {on && <Check className="size-4" />}
                                     </span>
@@ -949,7 +947,11 @@ function LinkNoteModal({
         });
     const addSelected = () => {
         if (!selected.size) return;
-        router.post(route('projects.notes.link', projectId), { note_ids: [...selected] }, { preserveScroll: true, onSuccess: () => onOpenChange(false) });
+        router.post(
+            route('projects.notes.link', projectId),
+            { note_ids: [...selected] },
+            { preserveScroll: true, onSuccess: () => onOpenChange(false) },
+        );
     };
 
     return (
@@ -975,7 +977,7 @@ function LinkNoteModal({
                     }}
                     className="border-primary/40 bg-accent-subtle flex items-center gap-3 rounded-xl border border-dashed p-3 text-left"
                 >
-                    <span className="bg-primary text-primary-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
+                    <span className="bg-accent-strong text-accent-strong-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
                         <Plus className="size-5" />
                     </span>
                     <div className="min-w-0 flex-1">
@@ -1015,7 +1017,7 @@ function LinkNoteModal({
                                     <div className="text-muted-foreground truncate text-xs">{n.preview || n.sharedWith}</div>
                                 </div>
                                 <span
-                                    className={`flex size-6 shrink-0 items-center justify-center rounded-md border ${on ? 'border-primary bg-primary text-primary-foreground' : 'border-border'}`}
+                                    className={`flex size-6 shrink-0 items-center justify-center rounded-md border ${on ? 'border-primary bg-accent-strong text-accent-strong-foreground' : 'border-border'}`}
                                 >
                                     {on && <Check className="size-4" />}
                                 </span>

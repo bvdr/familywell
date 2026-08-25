@@ -84,7 +84,7 @@ export function GuestSheet({
             footer={
                 <button
                     onClick={() => onOpenChange(false)}
-                    className="bg-primary text-primary-foreground w-full rounded-xl py-3 text-sm font-semibold"
+                    className="bg-accent-strong text-accent-strong-foreground w-full rounded-xl py-3 text-sm font-semibold"
                 >
                     Done
                 </button>
@@ -101,7 +101,7 @@ export function GuestSheet({
                     } ${state.canManage ? '' : 'opacity-70'}`}
                 >
                     <span
-                        className={`flex size-9 items-center justify-center rounded-lg ${state.enabled ? 'bg-primary text-primary-foreground' : 'bg-accent-subtle text-primary'}`}
+                        className={`flex size-9 items-center justify-center rounded-lg ${state.enabled ? 'bg-accent-strong text-accent-strong-foreground' : 'bg-accent-subtle text-primary'}`}
                     >
                         <Link2 className="size-4.5" />
                     </span>
@@ -111,7 +111,7 @@ export function GuestSheet({
                             {state.enabled ? 'Anyone with the link can open this' : 'Turn on to share with guests'}
                         </span>
                     </span>
-                    <span className={`relative h-6 w-10 rounded-full transition-colors ${state.enabled ? 'bg-primary' : 'bg-border'}`}>
+                    <span className={`relative h-6 w-10 rounded-full transition-colors ${state.enabled ? 'bg-accent-strong' : 'bg-border'}`}>
                         <span
                             className={`absolute top-0.5 size-5 rounded-full bg-white transition-all ${state.enabled ? 'left-[18px]' : 'left-0.5'}`}
                         />
@@ -126,7 +126,7 @@ export function GuestSheet({
                             <span className="text-primary flex-1 truncate text-sm">{state.url}</span>
                             <button
                                 onClick={copy}
-                                className="bg-primary text-primary-foreground inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium"
+                                className="bg-accent-strong text-accent-strong-foreground inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium"
                             >
                                 {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
                                 {copied ? 'Copied' : 'Copy'}
@@ -152,7 +152,7 @@ export function GuestSheet({
                                     <button
                                         onClick={savePassword}
                                         disabled={!password.trim()}
-                                        className="bg-primary text-primary-foreground rounded-lg px-3 py-2 text-sm font-medium disabled:opacity-40"
+                                        className="bg-accent-strong text-accent-strong-foreground rounded-lg px-3 py-2 text-sm font-medium disabled:opacity-40"
                                     >
                                         Save
                                     </button>
@@ -223,7 +223,7 @@ export function GuestSheet({
                                         <button
                                             onClick={addGuest}
                                             disabled={!newName.trim()}
-                                            className="bg-primary text-primary-foreground flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold disabled:opacity-40"
+                                            className="bg-accent-strong text-accent-strong-foreground flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold disabled:opacity-40"
                                         >
                                             <Plus className="size-4.5" /> Add person
                                         </button>

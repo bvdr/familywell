@@ -254,7 +254,7 @@ export default function Event({
                 className="border-border text-primary hover:bg-surface relative flex size-9 items-center justify-center rounded-lg border transition-colors"
             >
                 <Link2 className="size-4.5" />
-                {guestShare?.enabled && <span className="bg-primary absolute -top-0.5 -right-0.5 size-2 rounded-full" />}
+                {guestShare?.enabled && <span className="bg-accent-strong absolute -top-0.5 -right-0.5 size-2 rounded-full" />}
             </button>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -523,11 +523,7 @@ export default function Event({
     // Settle-up records a payment between two participants (members or guests). Suggestion ids are
     // already namespaced keys, so they pass straight through. One-click has no note.
     const markPaid = (s: Suggestion) => {
-        router.post(
-            route('spending.settle', event.id),
-            { from_key: s.from.id, to_key: s.to.id, amount: s.amount },
-            { preserveScroll: true },
-        );
+        router.post(route('spending.settle', event.id), { from_key: s.from.id, to_key: s.to.id, amount: s.amount }, { preserveScroll: true });
     };
 
     // Split settings (Settings tab). Only the owner manages them; the server re-validates regardless.
@@ -651,7 +647,7 @@ export default function Event({
                                         {tabItem.key === 'transfers' && transfers.length > 0 && (
                                             <span className="text-muted-foreground ml-1 tabular-nums">{transfers.length}</span>
                                         )}
-                                        {active && <span className="bg-primary absolute inset-x-3 -bottom-px h-0.5 rounded-full" />}
+                                        {active && <span className="bg-accent-strong absolute inset-x-3 -bottom-px h-0.5 rounded-full" />}
                                     </button>
                                 );
                             })}
@@ -706,7 +702,7 @@ export default function Event({
                                                     onClick={() => setNewSource((s) => ({ ...s, type: opt.key }))}
                                                     className={`flex flex-col items-center gap-1.5 rounded-xl border p-2.5 text-xs font-medium transition-colors ${
                                                         active
-                                                            ? 'border-primary bg-primary text-primary-foreground'
+                                                            ? 'border-primary bg-accent-strong text-accent-strong-foreground'
                                                             : 'bg-surface-card text-text-secondary hover:border-accent'
                                                     }`}
                                                 >
@@ -1182,7 +1178,7 @@ export default function Event({
                                                         aria-pressed={active}
                                                         className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium capitalize transition-colors ${
                                                             active
-                                                                ? 'border-primary bg-primary text-primary-foreground'
+                                                                ? 'border-primary bg-accent-strong text-accent-strong-foreground'
                                                                 : 'border-border text-primary hover:bg-surface'
                                                         }`}
                                                     >
@@ -1230,7 +1226,7 @@ export default function Event({
                                                     if (k === 'exact' && Object.keys(form.data.share_amounts).length === 0) splitEqually();
                                                 }}
                                                 className={`rounded-md py-1.5 text-sm font-medium transition-colors ${
-                                                    form.data.split === k ? 'bg-primary text-primary-foreground' : 'text-text-secondary'
+                                                    form.data.split === k ? 'bg-accent-strong text-accent-strong-foreground' : 'text-text-secondary'
                                                 }`}
                                             >
                                                 {t(labelKey)}
@@ -1473,7 +1469,7 @@ export default function Event({
                                                                 className="border-border size-9 rounded-lg border object-cover"
                                                             />
                                                             {s.receipts.length > 1 && (
-                                                                <span className="bg-primary text-primary-foreground absolute -top-1.5 -right-1.5 flex min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold tabular-nums">
+                                                                <span className="bg-accent-strong text-accent-strong-foreground absolute -top-1.5 -right-1.5 flex min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold tabular-nums">
                                                                     {s.receipts.length}
                                                                 </span>
                                                             )}

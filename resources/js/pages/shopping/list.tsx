@@ -587,7 +587,7 @@ export default function ListDetail({
                         className="text-muted-foreground flex items-center justify-between text-sm"
                     >
                         <span>{t('shopping.hide_completed')}</span>
-                        <span className={`relative h-6 w-10 rounded-full transition-colors ${hideCompleted ? 'bg-primary' : 'bg-border'}`}>
+                        <span className={`relative h-6 w-10 rounded-full transition-colors ${hideCompleted ? 'bg-accent-strong' : 'bg-border'}`}>
                             <span
                                 className={`bg-background absolute top-0.5 size-5 rounded-full shadow transition-all ${hideCompleted ? 'left-[1.125rem]' : 'left-0.5'}`}
                             />
@@ -626,7 +626,9 @@ export default function ListDetail({
                                                     onClick={() => toggle(item)}
                                                     aria-label={isBought(item) ? t('shopping.mark_not_bought') : t('shopping.mark_bought')}
                                                     className={`flex size-6 shrink-0 items-center justify-center rounded-md border transition-colors ${
-                                                        isBought(item) ? 'border-primary bg-primary text-primary-foreground' : 'border-border'
+                                                        isBought(item)
+                                                            ? 'border-primary bg-accent-strong text-accent-strong-foreground'
+                                                            : 'border-border'
                                                     }`}
                                                 >
                                                     {isBought(item) && <Check className="size-4" />}
@@ -692,14 +694,14 @@ export default function ListDetail({
                 Portaled to <body> so it escapes the layout's stacking context and covers the tab bar. */}
             {focus &&
                 createPortal(
-                    <div className="bg-primary text-primary-foreground fixed inset-0 z-[60] flex flex-col">
+                    <div className="bg-accent-strong text-accent-strong-foreground fixed inset-0 z-[60] flex flex-col">
                         <div className="px-5 pt-[calc(1rem+env(safe-area-inset-top))] pb-4">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
-                                    <div className="text-primary-foreground/60 flex items-center gap-1.5 text-[11px] font-semibold tracking-widest uppercase">
+                                    <div className="text-accent-strong-foreground/60 flex items-center gap-1.5 text-[11px] font-semibold tracking-widest uppercase">
                                         {t('shopping.focus_mode')}
                                     </div>
-                                    <div className="text-primary-foreground/80 mt-1 flex items-center gap-1.5 text-sm">
+                                    <div className="text-accent-strong-foreground/80 mt-1 flex items-center gap-1.5 text-sm">
                                         <Store className="size-4" />{' '}
                                         {focusStore === FOCUS_ALL ? t('shopping.all_shops') : focusStore || list.store || t('shopping.no_store')}
                                     </div>
@@ -725,7 +727,7 @@ export default function ListDetail({
                                             className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                                                 focusStore === s
                                                     ? 'bg-primary-foreground text-primary'
-                                                    : 'bg-primary-foreground/15 text-primary-foreground/80'
+                                                    : 'bg-primary-foreground/15 text-accent-strong-foreground/80'
                                             }`}
                                         >
                                             {s === FOCUS_ALL ? t('shopping.all_shops') : s || t('shopping.no_store')}
@@ -741,7 +743,7 @@ export default function ListDetail({
                                     <div key={sg.store || '__none__'} className="space-y-3">
                                         {/* In the All-shops run, label each shop section. */}
                                         {focusStore === FOCUS_ALL && (
-                                            <div className="text-primary-foreground flex items-center gap-1.5 text-sm font-semibold">
+                                            <div className="text-accent-strong-foreground flex items-center gap-1.5 text-sm font-semibold">
                                                 <Store className="size-4" /> {sg.store || t('shopping.no_store')}
                                             </div>
                                         )}
@@ -749,7 +751,7 @@ export default function ListDetail({
                                             const AisleIcon = aisleIcon(group.aisle.icon);
                                             return (
                                                 <section key={group.aisle.slug} className="space-y-2">
-                                                    <h3 className="text-primary-foreground/60 flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
+                                                    <h3 className="text-accent-strong-foreground/60 flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
                                                         <AisleIcon className="size-3.5" /> {group.aisle.name}
                                                     </h3>
                                                     {group.items.map((item) => (
@@ -763,7 +765,7 @@ export default function ListDetail({
                                                             <div className="min-w-0 flex-1">
                                                                 <div className="font-medium">{item.name}</div>
                                                                 {item.quantity && (
-                                                                    <div className="text-primary-foreground/60 text-sm">{item.quantity}</div>
+                                                                    <div className="text-accent-strong-foreground/60 text-sm">{item.quantity}</div>
                                                                 )}
                                                             </div>
                                                         </button>
@@ -775,11 +777,11 @@ export default function ListDetail({
                                 ),
                             )}
 
-                            {focusEmpty && <p className="text-primary-foreground/80 py-10 text-center">{t('shopping.everything_done')}</p>}
+                            {focusEmpty && <p className="text-accent-strong-foreground/80 py-10 text-center">{t('shopping.everything_done')}</p>}
 
                             {doneItems.length > 0 && (
                                 <section className="space-y-2">
-                                    <h3 className="text-primary-foreground/50 text-xs font-semibold tracking-widest uppercase">
+                                    <h3 className="text-accent-strong-foreground/50 text-xs font-semibold tracking-widest uppercase">
                                         {t('shopping.done_heading')}
                                     </h3>
                                     {doneItems.map((item) => (
@@ -805,7 +807,7 @@ export default function ListDetail({
             {/* Voice dictation + AI review, portaled full-screen over everything. */}
             {voiceOpen &&
                 createPortal(
-                    <div className="bg-primary text-primary-foreground fixed inset-0 z-[60] flex flex-col">
+                    <div className="bg-accent-strong text-accent-strong-foreground fixed inset-0 z-[60] flex flex-col">
                         {stage === 'voice' ? (
                             <>
                                 <div className="flex justify-end px-5 pt-[calc(1rem+env(safe-area-inset-top))]">
@@ -845,17 +847,17 @@ export default function ListDetail({
                                         transcript ? (
                                             <p className="text-lg leading-relaxed">{transcript}</p>
                                         ) : (
-                                            <p className="text-primary-foreground/70 text-sm">{t('shopping.voice_prompt')}</p>
+                                            <p className="text-accent-strong-foreground/70 text-sm">{t('shopping.voice_prompt')}</p>
                                         )
                                     ) : (
                                         <>
-                                            <p className="text-primary-foreground/70 text-sm">{t('shopping.type_prompt')}</p>
+                                            <p className="text-accent-strong-foreground/70 text-sm">{t('shopping.type_prompt')}</p>
                                             <textarea
                                                 autoFocus
                                                 value={transcript}
                                                 onChange={(e) => setTranscript(e.target.value)}
                                                 placeholder={t('shopping.voice_placeholder')}
-                                                className="border-primary-foreground/20 placeholder:text-primary-foreground/40 min-h-28 w-full rounded-xl border bg-transparent p-3 text-base outline-none"
+                                                className="border-primary-foreground/20 placeholder:text-accent-strong-foreground/40 min-h-28 w-full rounded-xl border bg-transparent p-3 text-base outline-none"
                                             />
                                         </>
                                     )}
@@ -882,7 +884,7 @@ export default function ListDetail({
                                             setTranscript('');
                                             setStage('voice');
                                         }}
-                                        className="text-primary-foreground/80 flex items-center gap-1 text-sm"
+                                        className="text-accent-strong-foreground/80 flex items-center gap-1 text-sm"
                                     >
                                         <ChevronLeft className="size-4" /> {t('shopping.redo')}
                                     </button>
@@ -895,8 +897,8 @@ export default function ListDetail({
                                 <div className="flex-1 space-y-4 overflow-y-auto px-5 pb-[calc(9rem+env(safe-area-inset-bottom))]">
                                     <div>
                                         <h2 className="font-heading text-2xl">{t('shopping.heard_heading')}</h2>
-                                        {transcript && <p className="text-primary-foreground/70 mt-2 text-sm italic">"{transcript}"</p>}
-                                        <p className="text-primary-foreground/70 mt-2 text-sm">
+                                        {transcript && <p className="text-accent-strong-foreground/70 mt-2 text-sm italic">"{transcript}"</p>}
+                                        <p className="text-accent-strong-foreground/70 mt-2 text-sm">
                                             {t(parsed.length === 1 ? 'shopping.items_sorted_one' : 'shopping.items_sorted_other', {
                                                 n: parsed.length,
                                             })}
@@ -912,7 +914,7 @@ export default function ListDetail({
                                             const AisleIcon = aisleIcon(group.aisle.icon);
                                             return (
                                                 <section key={group.aisle.slug} className="space-y-2">
-                                                    <h3 className="text-primary-foreground/60 flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
+                                                    <h3 className="text-accent-strong-foreground/60 flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
                                                         <AisleIcon className="size-3.5" /> {group.aisle.name}
                                                     </h3>
                                                     {group.entries.map(({ it, idx }) => (
@@ -940,7 +942,7 @@ export default function ListDetail({
                                                                         )
                                                                     }
                                                                     placeholder={t('shopping.quantity')}
-                                                                    className="text-primary-foreground/60 w-full bg-transparent text-sm outline-none"
+                                                                    className="text-accent-strong-foreground/60 w-full bg-transparent text-sm outline-none"
                                                                 />
                                                             </div>
                                                             <button
@@ -957,10 +959,10 @@ export default function ListDetail({
                                             );
                                         })}
                                     {parsed.length === 0 && (
-                                        <p className="text-primary-foreground/70 py-8 text-center text-sm">{t('shopping.nothing_left')}</p>
+                                        <p className="text-accent-strong-foreground/70 py-8 text-center text-sm">{t('shopping.nothing_left')}</p>
                                     )}
                                 </div>
-                                <div className="bg-primary absolute inset-x-0 bottom-0 space-y-2 px-5 pt-2 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+                                <div className="bg-accent-strong absolute inset-x-0 bottom-0 space-y-2 px-5 pt-2 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
                                     <button
                                         type="button"
                                         onClick={() => {
@@ -1214,7 +1216,7 @@ export default function ListDetail({
                             <button
                                 type="button"
                                 onClick={() => setDraft((d) => ({ ...d, assigned_to: null }))}
-                                className={`rounded-full border px-3 py-1.5 text-sm ${draft.assigned_to === null ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-primary'}`}
+                                className={`rounded-full border px-3 py-1.5 text-sm ${draft.assigned_to === null ? 'border-primary bg-accent-strong text-accent-strong-foreground' : 'border-border text-primary'}`}
                             >
                                 {t('shopping.anyone')}
                             </button>
@@ -1223,7 +1225,7 @@ export default function ListDetail({
                                     key={m.id}
                                     type="button"
                                     onClick={() => setDraft((d) => ({ ...d, assigned_to: m.id }))}
-                                    className={`rounded-full border px-3 py-1.5 text-sm ${draft.assigned_to === m.id ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-primary'}`}
+                                    className={`rounded-full border px-3 py-1.5 text-sm ${draft.assigned_to === m.id ? 'border-primary bg-accent-strong text-accent-strong-foreground' : 'border-border text-primary'}`}
                                 >
                                     {m.name}
                                 </button>

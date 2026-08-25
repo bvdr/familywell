@@ -202,7 +202,7 @@ export default function Lists({
                             type="button"
                             onClick={() => setView(v)}
                             className={`flex-1 rounded-full px-4 py-1.5 text-sm font-medium capitalize transition-colors ${
-                                view === v ? 'bg-primary text-primary-foreground' : 'text-primary'
+                                view === v ? 'bg-accent-strong text-accent-strong-foreground' : 'text-primary'
                             }`}
                         >
                             {t(v === 'lists' ? 'shopping.tab_lists' : 'shopping.tab_shops')}

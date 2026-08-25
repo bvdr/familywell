@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
-import { AISLE_ICON_KEYS, aisleIcon } from '@/lib/shopping';
 import { useT } from '@/lib/i18n';
+import { AISLE_ICON_KEYS, aisleIcon } from '@/lib/shopping';
 
 type Aisle = { id: number; slug: string; name: string; icon: string; position: number };
 type Template = { key: string; label: string };
@@ -128,7 +128,9 @@ export function AisleEditor({
             open={open}
             onOpenChange={handleOpenChange}
             title={t('shopping.edit_departments')}
-            description={storeList.length > 1 ? t('shopping.pick_shop_then_edit') : t('shopping.departments_at', { store: store || t('shopping.this_shop') })}
+            description={
+                storeList.length > 1 ? t('shopping.pick_shop_then_edit') : t('shopping.departments_at', { store: store || t('shopping.this_shop') })
+            }
             footer={
                 <Button className="w-full" onClick={() => handleOpenChange(false)}>
                     {t('shopping.done_button')}
@@ -143,7 +145,7 @@ export function AisleEditor({
                             type="button"
                             onClick={() => setStore(s)}
                             className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
-                                store === s ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-primary'
+                                store === s ? 'border-primary bg-accent-strong text-accent-strong-foreground' : 'border-border text-primary'
                             }`}
                         >
                             {s}
@@ -250,7 +252,9 @@ export function AisleEditor({
                     </div>
 
                     <div className="grid gap-2">
-                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.start_from_template')}</Label>
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
+                            {t('shopping.start_from_template')}
+                        </Label>
                         <div className="flex flex-wrap gap-2">
                             {templates.map((tpl) => (
                                 <button
