@@ -1,5 +1,11 @@
-// Self-hosted brand fonts (bundled by Vite, no runtime CDN).
+// Self-hosted fonts for every skin (bundled by Vite, no runtime CDN). All skins' fonts load so
+// switching a theme never fetches at runtime; the active theme's --font-* tokens pick which apply.
 import '@fontsource/geist-mono/400.css';
+// Geist Sans — the Minimal Mono skin.
+import '@fontsource/geist-sans/400.css';
+import '@fontsource/geist-sans/500.css';
+import '@fontsource/geist-sans/600.css';
+import '@fontsource/geist-sans/700.css';
 import '@fontsource/inter/400.css';
 import '@fontsource/inter/500.css';
 import '@fontsource/inter/600.css';
