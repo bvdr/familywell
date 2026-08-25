@@ -694,7 +694,7 @@ export default function ListDetail({
                 Portaled to <body> so it escapes the layout's stacking context and covers the tab bar. */}
             {focus &&
                 createPortal(
-                    <div className="bg-accent-strong text-accent-strong-foreground fixed inset-0 z-[60] flex flex-col">
+                    <div className="bg-primary text-primary-foreground fixed inset-0 z-[60] flex flex-col">
                         <div className="px-5 pt-[calc(1rem+env(safe-area-inset-top))] pb-4">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
@@ -807,7 +807,7 @@ export default function ListDetail({
             {/* Voice dictation + AI review, portaled full-screen over everything. */}
             {voiceOpen &&
                 createPortal(
-                    <div className="bg-accent-strong text-accent-strong-foreground fixed inset-0 z-[60] flex flex-col">
+                    <div className="bg-primary text-primary-foreground fixed inset-0 z-[60] flex flex-col">
                         {stage === 'voice' ? (
                             <>
                                 <div className="flex justify-end px-5 pt-[calc(1rem+env(safe-area-inset-top))]">

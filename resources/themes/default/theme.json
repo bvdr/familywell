@@ -39,7 +39,6 @@
         "sidebar-accent-foreground": "hsl(145.2, 36.5%, 16.7%)",
         "sidebar-border": "hsl(40, 12.2%, 80.8%)",
         "sidebar-ring": "hsl(135.9, 35.3%, 27.3%)",
-
         "bg": "#F5F3EE",
         "surface": "#E8E4DC",
         "surface-card": "#FFFFFF",
@@ -52,7 +51,9 @@
         "text-inverse": "#FFFFFF",
         "error": "#C2453A",
         "warning": "#D4943A",
-        "success": "#2D5E3A"
+        "success": "#2D5E3A",
+        "tile": "hsl(135.9, 35.3%, 27.3%)",
+        "tile-foreground": "hsl(0, 0%, 100%)"
     },
     "tokensDark": {
         "background": "hsl(142.1, 32.2%, 11.6%)",
@@ -89,7 +90,6 @@
         "sidebar-accent-foreground": "hsl(42.9, 25.9%, 94.7%)",
         "sidebar-border": "hsl(141.4, 23.3%, 23.5%)",
         "sidebar-ring": "hsl(96.8, 30.1%, 79.8%)",
-
         "bg": "#14271B",
         "surface": "#1A3122",
         "surface-card": "#1F3B2A",
@@ -102,7 +102,9 @@
         "text-inverse": "#FFFFFF",
         "error": "#E06B60",
         "warning": "#E0A24E",
-        "success": "#6DB77E"
+        "success": "#6DB77E",
+        "tile": "hsl(96.8, 30.1%, 79.8%)",
+        "tile-foreground": "hsl(142.1, 32.2%, 11.6%)"
     },
     "fonts": {
         "sans": "'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'",

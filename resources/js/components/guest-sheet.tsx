@@ -101,7 +101,7 @@ export function GuestSheet({
                     } ${state.canManage ? '' : 'opacity-70'}`}
                 >
                     <span
-                        className={`flex size-9 items-center justify-center rounded-lg ${state.enabled ? 'bg-accent-strong text-accent-strong-foreground' : 'bg-accent-subtle text-primary'}`}
+                        className={`flex size-9 items-center justify-center rounded-lg ${state.enabled ? 'bg-tile text-tile-foreground' : 'bg-accent-subtle text-primary'}`}
                     >
                         <Link2 className="size-4.5" />
                     </span>

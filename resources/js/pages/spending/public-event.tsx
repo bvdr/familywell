@@ -26,9 +26,7 @@ export default function PublicEvent({ event, spends }: Props) {
             <Head title={`${event.name} · FamilyWell`} />
             <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
                 <div className="flex items-center gap-2 pt-2">
-                    <span className="bg-accent-strong text-accent-strong-foreground flex size-7 items-center justify-center rounded-lg text-xs font-bold">
-                        FW
-                    </span>
+                    <span className="bg-tile text-tile-foreground flex size-7 items-center justify-center rounded-lg text-xs font-bold">FW</span>
                     <span className="text-muted-foreground text-sm">FamilyWell · shared with you</span>
                 </div>
 

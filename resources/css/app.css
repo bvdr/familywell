@@ -34,6 +34,12 @@
     --color-accent-strong: var(--accent-strong);
     --color-accent-strong-foreground: var(--accent-strong-foreground);
 
+    /* Icon TILES (the little square that holds a card's icon) read from --tile, split from action
+       fills so a skin can keep tiles a calm neutral while actions pop. Defaults to primary -> the
+       green skin's solid tiles are unchanged. */
+    --color-tile: var(--tile);
+    --color-tile-foreground: var(--tile-foreground);
+
     --color-secondary: var(--secondary);
     --color-secondary-foreground: var(--secondary-foreground);
 

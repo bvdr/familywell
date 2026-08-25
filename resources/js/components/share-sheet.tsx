@@ -91,7 +91,7 @@ export function ShareSheet({
                                 } ${state.canManage ? '' : 'opacity-70'}`}
                             >
                                 <span
-                                    className={`flex size-9 items-center justify-center rounded-lg ${active ? 'bg-accent-strong text-accent-strong-foreground' : 'bg-accent-subtle text-primary'}`}
+                                    className={`flex size-9 items-center justify-center rounded-lg ${active ? 'bg-tile text-tile-foreground' : 'bg-accent-subtle text-primary'}`}
                                 >
                                     <v.icon className="size-4.5" />
                                 </span>

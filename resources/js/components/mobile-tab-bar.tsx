@@ -190,7 +190,7 @@ export function MobileTabBar() {
                                 onClick={() => setAddOpen(false)}
                                 className="text-primary hover:bg-surface flex w-full items-center gap-3 rounded-xl p-3 text-left transition-colors"
                             >
-                                <span className="bg-accent-strong text-accent-strong-foreground flex size-9 items-center justify-center rounded-lg">
+                                <span className="bg-tile text-tile-foreground flex size-9 items-center justify-center rounded-lg">
                                     <item.icon className="size-4.5" />
                                 </span>
                                 <span className="text-sm font-medium">{t(item.labelKey)}</span>
