@@ -795,7 +795,7 @@ function LinkListModal({
                         onClick={() => setView('new')}
                         className="border-primary/40 bg-accent-subtle flex items-center gap-3 rounded-xl border border-dashed p-3 text-left"
                     >
-                        <span className="bg-accent-strong text-accent-strong-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
+                        <span className="bg-tile text-tile-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
                             <Plus className="size-5" />
                         </span>
                         <div className="min-w-0 flex-1">
@@ -977,7 +977,7 @@ function LinkNoteModal({
                     }}
                     className="border-primary/40 bg-accent-subtle flex items-center gap-3 rounded-xl border border-dashed p-3 text-left"
                 >
-                    <span className="bg-accent-strong text-accent-strong-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
+                    <span className="bg-tile text-tile-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
                         <Plus className="size-5" />
                     </span>
                     <div className="min-w-0 flex-1">

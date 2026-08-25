@@ -297,7 +297,7 @@ export default function ShopDetail({
             {/* Focus (shopping) mode: full-screen run through this shop's unbought items. */}
             {focus &&
                 createPortal(
-                    <div className="bg-accent-strong text-accent-strong-foreground fixed inset-0 z-[60] flex flex-col">
+                    <div className="bg-primary text-primary-foreground fixed inset-0 z-[60] flex flex-col">
                         <div className="px-5 pt-[calc(1rem+env(safe-area-inset-top))] pb-4">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">

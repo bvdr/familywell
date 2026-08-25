@@ -82,7 +82,7 @@ function greetingKey() {
 function Shortcut({ href, icon: Icon, title, sub }: { href: string; icon: typeof Wallet; title: string; sub: string }) {
     return (
         <Link href={href} prefetch className="bg-surface-card hover:border-accent flex items-center gap-3 rounded-xl border p-3 transition-colors">
-            <span className="bg-accent-strong text-accent-strong-foreground flex size-9 items-center justify-center rounded-lg">
+            <span className="bg-tile text-tile-foreground flex size-9 items-center justify-center rounded-lg">
                 <Icon className="size-4.5" />
             </span>
             <span className="min-w-0">
@@ -213,7 +213,7 @@ export default function Dashboard({
                                                 prefetch
                                                 className="bg-surface-card hover:border-accent flex items-start gap-3 rounded-xl border p-3 transition-colors"
                                             >
-                                                <span className="bg-accent-strong text-accent-strong-foreground mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-lg">
+                                                <span className="bg-tile text-tile-foreground mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-lg">
                                                     <Icon className="size-5" />
                                                 </span>
                                                 {/* min-w-0 + wrapping so a long title/subtitle wraps to a couple of lines
