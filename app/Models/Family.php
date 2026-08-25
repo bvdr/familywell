@@ -16,7 +16,7 @@ class Family extends Model
 
     public const EMOJIS = ['🌿', '🏡', '☀️', '🐻', '🌸', '⭐'];
 
-    protected $fillable = ['name', 'description', 'color', 'emoji', 'owner_id'];
+    protected $fillable = ['name', 'description', 'color', 'emoji', 'owner_id', 'theme'];
 
     public function members(): BelongsToMany
     {

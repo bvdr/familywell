@@ -2,6 +2,7 @@
 
 use App\Support\Theming\ThemeTokens;
 
+use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
 
 it('emits the default theme tokens as CSS custom properties', function () {
@@ -31,4 +32,18 @@ it('injects the theme variables into the served document', function () {
         ->assertOk()
         ->assertSee('id="theme"', false)
         ->assertSee('--primary:hsl(135.9, 35.3%, 27.3%)', false);
+});
+
+it('resolves the skin as user override, then family default, then built-in', function () {
+    $family = App\Models\Family::factory()->create(['theme' => 'minimal-mono']);
+    $user = App\Models\User::factory()->create(['theme' => null]);
+    $family->members()->attach($user, ['role' => 'admin']);
+    session(['active_family_id' => $family->id]);
+
+    // No personal skin -> the family default is served.
+    actingAs($user)->get('/dashboard')->assertSee('--accent-strong:#F59E0B', false);
+
+    // Personal skin overrides the family default.
+    $user->update(['theme' => 'default']);
+    actingAs($user)->get('/dashboard')->assertSee('--primary:hsl(135.9, 35.3%, 27.3%)', false);
 });
