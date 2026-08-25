@@ -3,8 +3,15 @@
 use App\Http\Controllers\Settings\MediaLibraryController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
+use App\Models\Family;
+use App\Support\Tenancy\CurrentFamily;
+use App\Support\Theming\ThemeTokens;
+use App\Support\Translations;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
+use Modules\Notifications\NotificationCategories;
 
 Route::middleware('auth')->group(function () {
     Route::redirect('settings', 'settings/profile');
@@ -23,19 +30,35 @@ Route::middleware('auth')->group(function () {
     Route::put('settings/password', [PasswordController::class, 'update'])->name('password.update');
 
     Route::get('settings/appearance', function () {
-        return Inertia::render('settings/appearance');
+        $familyId = CurrentFamily::id();
+
+        return Inertia::render('settings/appearance', [
+            'themes' => ThemeTokens::available(),
+            'currentTheme' => auth()->user()->theme, // null => inherit the family default
+            'familyDefault' => ($familyId ? Family::find($familyId)?->theme : null) ?: 'default',
+        ]);
     })->name('appearance');
+    // Personal skin. null/absent => inherit the family default. Light/dark is separate (client-side).
+    Route::patch('settings/appearance/theme', function (Request $request) {
+        $ids = collect(ThemeTokens::available())->pluck('id')->all();
+        $data = $request->validate([
+            'theme' => ['nullable', Rule::in($ids)],
+        ]);
+        auth()->user()->update(['theme' => $data['theme'] ?? null]);
+
+        return back();
+    })->name('appearance.theme');
 
     // Language: pick the app locale (per user). Options come from the Translations registry.
     Route::get('settings/language', function () {
         return Inertia::render('settings/language', [
-            'locales' => \App\Support\Translations::options(),
+            'locales' => Translations::options(),
             'current' => auth()->user()->locale ?? config('app.locale'),
         ]);
     })->name('language');
-    Route::patch('settings/language', function (\Illuminate\Http\Request $request) {
+    Route::patch('settings/language', function (Request $request) {
         $data = $request->validate([
-            'locale' => ['required', 'string', \Illuminate\Validation\Rule::in(array_keys(\App\Support\Translations::LOCALES))],
+            'locale' => ['required', 'string', Rule::in(array_keys(Translations::LOCALES))],
         ]);
         $request->user()->update(['locale' => $data['locale']]);
 
@@ -46,7 +69,7 @@ Route::middleware('auth')->group(function () {
         // Categories come from the notifications registry (each module registers its own); merge in
         // the user's saved on/off, defaulting missing ones to on.
         $saved = auth()->user()->notification_prefs ?? [];
-        $categories = collect(\Modules\Notifications\NotificationCategories::all())
+        $categories = collect(NotificationCategories::all())
             ->map(fn ($meta, $id) => [
                 'id' => $id,
                 'label' => $meta['label'],

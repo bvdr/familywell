@@ -4,6 +4,7 @@ import { FormEventHandler, useState } from 'react';
 
 import InputError from '@/components/input-error';
 import { MemberAvatar } from '@/components/member-avatar';
+import { SkinPicker, type Skin } from '@/components/skin-picker';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -16,13 +17,14 @@ import { type BreadcrumbItem } from '@/types';
 
 type Member = { id: number; name: string; email: string; role: string };
 type Invitation = { id: number; email: string; role: string };
-type Family = { id: number; name: string; description: string | null; color: string; emoji: string; owner_id: number };
+type Family = { id: number; name: string; description: string | null; color: string; emoji: string; owner_id: number; theme: string };
 type Props = {
     family: Family;
     members: Member[];
     invitations: Invitation[];
     canManage: boolean;
     palette: { colors: string[]; emojis: string[] };
+    themes: Skin[];
 };
 
 // Keep only the last emoji the user typed (one grapheme, so ZWJ sequences like 👨‍👩‍👧‍👦 stay intact).
@@ -49,7 +51,7 @@ function RoleBadge({ role }: { role: string }) {
     );
 }
 
-export default function Members({ family, members, invitations, canManage, palette }: Props) {
+export default function Members({ family, members, invitations, canManage, palette, themes }: Props) {
     const t = useT();
     const breadcrumbs: BreadcrumbItem[] = [{ title: t('nav.members'), href: '/family/members' }];
     const authId = (usePage().props as { auth: { user: { id: number } } }).auth.user.id;
@@ -198,6 +200,21 @@ export default function Members({ family, members, invitations, canManage, palet
                             <h1 className="font-heading text-primary text-2xl">{family.name}</h1>
                             {family.description && <p className="text-muted-foreground text-sm">{family.description}</p>}
                         </div>
+                    </div>
+                )}
+
+                {/* Family default skin (admin only). Members can override it in Appearance settings. */}
+                {canManage && (
+                    <div className="bg-surface-card flex flex-col gap-4 rounded-2xl border p-6">
+                        <div>
+                            <h2 className="text-primary text-base font-semibold">{t('settings.family_skin')}</h2>
+                            <p className="text-muted-foreground text-sm">{t('settings.family_skin_desc')}</p>
+                        </div>
+                        <SkinPicker
+                            themes={themes}
+                            value={family.theme}
+                            onSelect={(id) => id && router.patch(route('family.theme'), { theme: id }, { preserveScroll: true })}
+                        />
                     </div>
                 )}
 

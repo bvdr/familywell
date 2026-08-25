@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Family;
 use App\Models\User;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Theming\ThemeTokens;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -25,6 +26,7 @@ class FamilyMemberController extends Controller
                 'color' => $family->color,
                 'emoji' => $family->emoji,
                 'owner_id' => $family->owner_id,
+                'theme' => $family->theme ?: 'default',
             ],
             'members' => $family->members->map(fn ($m) => [
                 'id' => $m->id, 'name' => $m->name, 'email' => $m->email, 'role' => $m->pivot->role,
@@ -35,6 +37,7 @@ class FamilyMemberController extends Controller
                 : [],
             'canManage' => $canManage,
             'palette' => ['colors' => Family::COLORS, 'emojis' => Family::EMOJIS],
+            'themes' => ThemeTokens::available(),
         ]);
     }
 
