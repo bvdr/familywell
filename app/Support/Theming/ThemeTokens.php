@@ -41,14 +41,29 @@ class ThemeTokens
         return $css;
     }
 
-    /** Theme names available to pick (each is a resources/themes/<name>/theme.json). */
+    /**
+     * Themes available to pick, each with a few colours for the picker's preview swatch.
+     * Each is a resources/themes/<name>/theme.json.
+     */
     public static function available(): array
     {
         return collect(glob(resource_path('themes/*/theme.json')))
-            ->map(fn ($p) => [
-                'id' => basename(dirname($p)),
-                'name' => json_decode(file_get_contents($p), true)['name'] ?? basename(dirname($p)),
-            ])
+            ->map(function ($p) {
+                $data = json_decode(file_get_contents($p), true);
+                $t = $data['tokens'] ?? [];
+
+                return [
+                    'id' => basename(dirname($p)),
+                    'name' => $data['name'] ?? basename(dirname($p)),
+                    // Swatch: page ground, a card, the action accent, and the ink — enough to read the skin.
+                    'swatch' => [
+                        'bg' => $t['background'] ?? '#fff',
+                        'card' => $t['card'] ?? '#fff',
+                        'accent' => $t['accent-strong'] ?? ($t['primary'] ?? '#000'),
+                        'ink' => $t['foreground'] ?? '#000',
+                    ],
+                ];
+            })
             ->sortBy('id')->values()->all();
     }
 }
