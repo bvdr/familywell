@@ -146,6 +146,8 @@
     "move_guest_blocked": "Plătită de un invitat, deci nu poate fi mutată (invitatul există doar în această listă).",
     "move_no_targets": "Nu există alte liste în care să muți.",
     "move_payer_missing": "Persoana care a plătit nu este în acea listă.",
+    "move_same_list": "Este aceeași listă.",
+    "move_failed": "Nu s-a putut muta. Încearcă din nou.",
     "you_suffix": " (Tu)",
 
     "split_label": "Împărțire",

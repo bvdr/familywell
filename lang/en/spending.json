@@ -146,6 +146,8 @@
     "move_guest_blocked": "Paid by a guest, so it can't be moved (the guest only exists in this list).",
     "move_no_targets": "No other lists to move to.",
     "move_payer_missing": "The person who paid this isn't in that list.",
+    "move_same_list": "That's the same list.",
+    "move_failed": "Couldn't move it. Try again.",
     "you_suffix": " (You)",
 
     "split_label": "Split",
