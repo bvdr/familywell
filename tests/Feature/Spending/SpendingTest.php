@@ -431,3 +431,28 @@ it('404s receipt scanning when no Gemini key is configured', function () {
         ->post('/m/spending/scan-receipt', ['photo' => UploadedFile::fake()->create('receipt.jpg', 200, 'image/jpeg')])
         ->assertNotFound();
 });
+
+it('moves an expense to another list and resets its split', function () {
+    [, $users] = spendingFamily();
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip A', 'currency' => 'EUR']);
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip B', 'currency' => 'EUR']);
+    $a = SpendEvent::withoutGlobalScopes()->where('name', 'Trip A')->first();
+    $b = SpendEvent::withoutGlobalScopes()->where('name', 'Trip B')->first();
+
+    // A spend in A with a custom "some" split.
+    actingAs($users[0])->post("/m/spending/events/{$a->id}/spends", [
+        'amount' => '30.00', 'currency' => 'EUR', 'category' => 'food',
+        'payer_key' => 'u'.$users[0]->id, 'spent_at' => '2026-07-16',
+        'split' => 'some', 'shares' => [['key' => 'u'.$users[0]->id]],
+    ]);
+    $spend = Modules\Spending\Spend::withoutGlobalScopes()->first();
+    expect($spend->spend_event_id)->toBe($a->id)->and($spend->shares()->count())->toBe(1);
+
+    // Moving to the same list is rejected.
+    actingAs($users[0])->post("/m/spending/spends/{$spend->id}/move", ['target_event_id' => $a->id])->assertStatus(422);
+
+    // Move to B: lands there, split reset (no per-item share rows).
+    actingAs($users[0])->post("/m/spending/spends/{$spend->id}/move", ['target_event_id' => $b->id])->assertRedirect();
+    expect($spend->fresh()->spend_event_id)->toBe($b->id)
+        ->and($spend->fresh()->shares()->count())->toBe(0);
+});
