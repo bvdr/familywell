@@ -448,11 +448,37 @@ it('moves an expense to another list and resets its split', function () {
     $spend = Modules\Spending\Spend::withoutGlobalScopes()->first();
     expect($spend->spend_event_id)->toBe($a->id)->and($spend->shares()->count())->toBe(1);
 
-    // Moving to the same list is rejected.
-    actingAs($users[0])->post("/m/spending/spends/{$spend->id}/move", ['target_event_id' => $a->id])->assertStatus(422);
+    // Moving to the same list is rejected (with a visible validation error, not a silent no-op).
+    actingAs($users[0])->post("/m/spending/spends/{$spend->id}/move", ['target_event_id' => $a->id])
+        ->assertSessionHasErrors('target_event_id');
 
     // Move to B: lands there, split reset (no per-item share rows).
     actingAs($users[0])->post("/m/spending/spends/{$spend->id}/move", ['target_event_id' => $b->id])->assertRedirect();
     expect($spend->fresh()->spend_event_id)->toBe($b->id)
         ->and($spend->fresh()->shares()->count())->toBe(0);
+});
+
+it('moves a member-paid expense into an invited list the payer was not shared into', function () {
+    [$family, $users] = spendingFamily();
+    // Two family-visible lists to start, so u1 is a participant of the source and can be the payer.
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Shared', 'currency' => 'EUR']);
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Private-ish', 'currency' => 'EUR']);
+    $src = SpendEvent::withoutGlobalScopes()->where('name', 'Shared')->first();
+    $dst = SpendEvent::withoutGlobalScopes()->where('name', 'Private-ish')->first();
+
+    // A spend paid by u1 (not the creator).
+    actingAs($users[0])->post("/m/spending/events/{$src->id}/spends", [
+        'amount' => '20.00', 'currency' => 'EUR', 'category' => 'food',
+        'payer_key' => 'u'.$users[1]->id, 'spent_at' => '2026-07-16',
+    ]);
+    $spend = Modules\Spending\Spend::withoutGlobalScopes()->where('payer_id', $users[1]->id)->first();
+
+    // Narrow the target to "invited": now only the owner (u0) is shared; u1 is NOT a participant of it.
+    $dst->setVisibility('invited');
+    expect(array_keys($dst->fresh()->participantNames()))->not->toContain('u'.$users[1]->id);
+
+    // The move must still succeed — u1 becomes a participant of the target via their moved spend.
+    actingAs($users[0])->post("/m/spending/spends/{$spend->id}/move", ['target_event_id' => $dst->id])->assertRedirect();
+    expect($spend->fresh()->spend_event_id)->toBe($dst->id)
+        ->and(array_keys($dst->fresh()->participantNames()))->toContain('u'.$users[1]->id);
 });

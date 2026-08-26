@@ -193,11 +193,24 @@ export default function Event({
     // "Advanced" section in the edit form + the "move to another list" flow (chosen target id, or '').
     const [advancedOpen, setAdvancedOpen] = useState(false);
     const [moveTarget, setMoveTarget] = useState<string>('');
+    const [moving, setMoving] = useState(false);
+    const [moveError, setMoveError] = useState<string | null>(null);
     const editingSpend = editing ? spends.find((s) => s.id === editing) : undefined;
     const doMove = () => {
-        if (!editing || !moveTarget) return;
+        if (!editing || !moveTarget || moving) return;
+        setMoving(true);
+        setMoveError(null);
         // Server redirects to the target list on success; resets split + re-converts the amount there.
-        router.post(route('spending.spends.move', editing), { target_event_id: Number(moveTarget) }, { preserveScroll: true });
+        // On failure (e.g. a guest-paid expense) surface the message instead of silently doing nothing.
+        router.post(
+            route('spending.spends.move', editing),
+            { target_event_id: Number(moveTarget) },
+            {
+                preserveScroll: true,
+                onError: (errors) => setMoveError(errors.target_event_id ?? t('spending.move_failed')),
+                onFinish: () => setMoving(false),
+            },
+        );
     };
     // Receipt photos being viewed in the lightbox overlay, and which one is showing.
     const [viewing, setViewing] = useState<string[] | null>(null);
@@ -428,6 +441,7 @@ export default function Event({
         setAdding(false);
         setAdvancedOpen(false);
         setMoveTarget('');
+        setMoveError(null);
     };
 
     const submitSpend: FormEventHandler = (e) => {
@@ -1460,7 +1474,13 @@ export default function Event({
                                                     <p className="text-muted-foreground text-xs">{t('spending.move_no_targets')}</p>
                                                 ) : (
                                                     <>
-                                                        <Select value={moveTarget} onValueChange={setMoveTarget}>
+                                                        <Select
+                                                            value={moveTarget}
+                                                            onValueChange={(v) => {
+                                                                setMoveTarget(v);
+                                                                setMoveError(null);
+                                                            }}
+                                                        >
                                                             <SelectTrigger>
                                                                 <SelectValue placeholder={t('spending.move_pick_list')} />
                                                             </SelectTrigger>
@@ -1487,21 +1507,20 @@ export default function Event({
                                                                         </p>
                                                                     ) : null;
                                                                 })()}
+                                                                {moveError && <p className="text-destructive text-xs">{moveError}</p>}
                                                                 <div className="flex gap-2">
                                                                     <Button
                                                                         type="button"
                                                                         variant="outline"
                                                                         className="flex-1"
-                                                                        onClick={() => setMoveTarget('')}
+                                                                        onClick={() => {
+                                                                            setMoveTarget('');
+                                                                            setMoveError(null);
+                                                                        }}
                                                                     >
                                                                         {t('common.cancel')}
                                                                     </Button>
-                                                                    <Button
-                                                                        type="button"
-                                                                        className="flex-1"
-                                                                        onClick={doMove}
-                                                                        disabled={form.processing}
-                                                                    >
+                                                                    <Button type="button" className="flex-1" onClick={doMove} disabled={moving}>
                                                                         {t('spending.confirm_move')}
                                                                     </Button>
                                                                 </div>

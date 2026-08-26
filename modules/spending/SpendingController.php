@@ -323,8 +323,8 @@ class SpendingController extends Controller
 
     // Move an expense to another spending list. The per-item split points at THIS list's people and the
     // amount is frozen to THIS list's currency, so on move we reset the split to "everyone" and re-freeze
-    // the amount into the target list's currency. A guest-paid expense can't move (the guest only exists
-    // here); the payer must be a participant of the target list.
+    // the amount into the target list's currency. A GUEST-paid expense can't move (the guest only exists
+    // in this list); a member payer becomes a participant of the target via their moved spend.
     public function moveSpend(Request $request, int $spend): RedirectResponse
     {
         $spend = Spend::findOrFail($spend);
@@ -333,15 +333,18 @@ class SpendingController extends Controller
 
         $data = $request->validate(['target_event_id' => ['required', 'integer']]);
         $target = $this->event($data['target_event_id']); // family-scoped resolve (404 if not this family)
-        abort_if($target->id === $source->id, 422, 'That is the same list.');
         abort_unless($this->access->canEdit($request->user(), $target), 403);
 
-        // The payer must exist in the target list (blocks guest payers and members without access there).
-        if (! array_key_exists($spend->participantKey(), $target->participantNames())) {
-            throw ValidationException::withMessages([
-                'target_event_id' => __('spending.move_payer_missing'),
-            ]);
+        if ($target->id === $source->id) {
+            throw ValidationException::withMessages(['target_event_id' => __('spending.move_same_list')]);
         }
+        // Only a guest payer can't move — the guest entity belongs to the source list. A member payer is
+        // fine: participantNames() already counts anyone who fronted a spend, so once the expense lands
+        // in the target the payer is a participant there (and we make sure they're on its roster).
+        if ($spend->payer_guest_id !== null) {
+            throw ValidationException::withMessages(['target_event_id' => __('spending.move_guest_blocked')]);
+        }
+        $target->members()->syncWithoutDetaching([$spend->payer_id]);
 
         // Re-freeze the amount into the target list's currency and move it; drop the per-item split
         // (it references the old list's participants) so it defaults to splitting among everyone.
