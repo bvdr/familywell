@@ -136,6 +136,16 @@
 
     "new_spend": "New spend",
     "edit_spend": "Edit spend",
+    "advanced": "Advanced",
+    "move_to_list": "Move to another list",
+    "move_to_list_desc": "Move this expense to another spending list.",
+    "move_pick_list": "Choose a list",
+    "confirm_move": "Move here",
+    "move_resets_split": "This resets the custom split — the expense will split among everyone in the new list.",
+    "move_reconverts": "The amount will be re-converted to :currency.",
+    "move_guest_blocked": "Paid by a guest, so it can't be moved (the guest only exists in this list).",
+    "move_no_targets": "No other lists to move to.",
+    "move_payer_missing": "The person who paid this isn't in that list.",
     "you_suffix": " (You)",
 
     "split_label": "Split",

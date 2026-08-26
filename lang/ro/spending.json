@@ -136,6 +136,16 @@
 
     "new_spend": "Cheltuială nouă",
     "edit_spend": "Editează cheltuiala",
+    "advanced": "Avansat",
+    "move_to_list": "Mută în altă listă",
+    "move_to_list_desc": "Mută această cheltuială în altă listă de cheltuieli.",
+    "move_pick_list": "Alege o listă",
+    "confirm_move": "Mută aici",
+    "move_resets_split": "Aceasta resetează împărțirea personalizată — cheltuiala se va împărți între toți din lista nouă.",
+    "move_reconverts": "Suma va fi reconvertită în :currency.",
+    "move_guest_blocked": "Plătită de un invitat, deci nu poate fi mutată (invitatul există doar în această listă).",
+    "move_no_targets": "Nu există alte liste în care să muți.",
+    "move_payer_missing": "Persoana care a plătit nu este în acea listă.",
     "you_suffix": " (Tu)",
 
     "split_label": "Împărțire",

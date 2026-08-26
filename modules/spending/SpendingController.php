@@ -6,7 +6,6 @@ use App\Events\SpendingChanged;
 use App\Http\Controllers\Controller;
 use App\Models\EntityVisit;
 use App\Models\Family;
-use Modules\Notifications\Notify;
 use App\Support\Media\StoredImage;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
@@ -15,8 +14,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Notifications\Notify;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SpendingController extends Controller
@@ -320,6 +321,46 @@ class SpendingController extends Controller
         return back();
     }
 
+    // Move an expense to another spending list. The per-item split points at THIS list's people and the
+    // amount is frozen to THIS list's currency, so on move we reset the split to "everyone" and re-freeze
+    // the amount into the target list's currency. A guest-paid expense can't move (the guest only exists
+    // here); the payer must be a participant of the target list.
+    public function moveSpend(Request $request, int $spend): RedirectResponse
+    {
+        $spend = Spend::findOrFail($spend);
+        $source = $this->event($spend->spend_event_id);
+        abort_unless($this->access->canEdit($request->user(), $source), 403);
+
+        $data = $request->validate(['target_event_id' => ['required', 'integer']]);
+        $target = $this->event($data['target_event_id']); // family-scoped resolve (404 if not this family)
+        abort_if($target->id === $source->id, 422, 'That is the same list.');
+        abort_unless($this->access->canEdit($request->user(), $target), 403);
+
+        // The payer must exist in the target list (blocks guest payers and members without access there).
+        if (! array_key_exists($spend->participantKey(), $target->participantNames())) {
+            throw ValidationException::withMessages([
+                'target_event_id' => __('spending.move_payer_missing'),
+            ]);
+        }
+
+        // Re-freeze the amount into the target list's currency and move it; drop the per-item split
+        // (it references the old list's participants) so it defaults to splitting among everyone.
+        $rebuilt = $target->buildSpend([
+            'amount' => $spend->amount / 100,
+            'currency' => $spend->currency,
+            'spent_at' => optional($spend->spent_at)->toDateString() ?? now()->toDateString(),
+            'source_id' => $spend->source_id,
+            'category' => $spend->category,
+            'note' => $spend->note,
+        ]);
+        $spend->update(['spend_event_id' => $target->id] + $rebuilt);
+        $spend->shares()->delete();
+
+        Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
+
+        return to_route('spending.show', $target->id);
+    }
+
     public function settle(Request $request, int $event): RedirectResponse
     {
         $event = $this->event($event);
@@ -527,10 +568,19 @@ class SpendingController extends Controller
             return ['paid' => $paid, 'share' => $paid + $sent - $received - $net, 'sent' => $sent, 'received' => $received, 'net' => $net];
         })() : null;
 
+        // Other lists this expense can be moved to: the family's other non-archived events the viewer
+        // can edit. currency lets the form note when a move will re-convert the amount.
+        $moveTargets = SpendEvent::where('id', '!=', $event->id)->whereNull('archived_at')
+            ->with(['shareSetting', 'shares'])->get()
+            ->filter(fn (SpendEvent $e) => $this->access->canEdit(request()->user(), $e))
+            ->map(fn (SpendEvent $e) => ['id' => $e->id, 'name' => $e->name, 'currency' => $e->currency])
+            ->values();
+
         return [
             'familyId' => (int) CurrentFamily::id(),
             'scanEnabled' => ReceiptScanner::configured(),
             'sources' => $sources,
+            'moveTargets' => $moveTargets,
             'event' => [
                 'id' => $event->id,
                 'name' => $event->name,

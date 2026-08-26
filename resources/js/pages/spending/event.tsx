@@ -7,6 +7,7 @@ import {
     BarChart3,
     Camera,
     Check,
+    ChevronDown,
     ChevronLeft,
     ChevronRight,
     Copy,
@@ -164,6 +165,7 @@ export default function Event({
     share,
     guestShare,
     scanEnabled,
+    moveTargets = [],
 }: {
     event: EventT;
     spends: Spend[];
@@ -177,6 +179,7 @@ export default function Event({
     share: ShareState;
     guestShare: GuestShareState;
     scanEnabled: boolean;
+    moveTargets?: { id: number; name: string; currency: string }[];
 }) {
     const authId = (usePage().props as { auth: { user: { id: number } } }).auth.user.id;
     const t = useT();
@@ -187,6 +190,15 @@ export default function Event({
     const [guestSharing, setGuestSharing] = useState(false);
     // When set, the form is editing this spend id instead of creating a new one.
     const [editing, setEditing] = useState<number | null>(null);
+    // "Advanced" section in the edit form + the "move to another list" flow (chosen target id, or '').
+    const [advancedOpen, setAdvancedOpen] = useState(false);
+    const [moveTarget, setMoveTarget] = useState<string>('');
+    const editingSpend = editing ? spends.find((s) => s.id === editing) : undefined;
+    const doMove = () => {
+        if (!editing || !moveTarget) return;
+        // Server redirects to the target list on success; resets split + re-converts the amount there.
+        router.post(route('spending.spends.move', editing), { target_event_id: Number(moveTarget) }, { preserveScroll: true });
+    };
     // Receipt photos being viewed in the lightbox overlay, and which one is showing.
     const [viewing, setViewing] = useState<string[] | null>(null);
     const [viewIndex, setViewIndex] = useState(0);
@@ -414,6 +426,8 @@ export default function Event({
         form.reset();
         setEditing(null);
         setAdding(false);
+        setAdvancedOpen(false);
+        setMoveTarget('');
     };
 
     const submitSpend: FormEventHandler = (e) => {
@@ -1423,6 +1437,82 @@ export default function Event({
                                     {form.progress && <progress value={form.progress.percentage} max="100" className="h-1 w-full" />}
                                     <InputError message={form.errors.receipts} />
                                 </div>
+
+                                {/* Advanced (edit only): move this expense to another spending list. */}
+                                {editing && (
+                                    <div className="border-border/70 mt-1 border-t pt-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setAdvancedOpen((v) => !v)}
+                                            className="text-primary flex w-full items-center justify-between text-sm font-medium"
+                                        >
+                                            {t('spending.advanced')}
+                                            <ChevronDown
+                                                className={`text-muted-foreground size-4 transition-transform ${advancedOpen ? 'rotate-180' : ''}`}
+                                            />
+                                        </button>
+                                        {advancedOpen && (
+                                            <div className="mt-3 grid gap-2">
+                                                <Label>{t('spending.move_to_list')}</Label>
+                                                {editingSpend?.payer.isGuest ? (
+                                                    <p className="text-muted-foreground text-xs">{t('spending.move_guest_blocked')}</p>
+                                                ) : moveTargets.length === 0 ? (
+                                                    <p className="text-muted-foreground text-xs">{t('spending.move_no_targets')}</p>
+                                                ) : (
+                                                    <>
+                                                        <Select value={moveTarget} onValueChange={setMoveTarget}>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder={t('spending.move_pick_list')} />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {moveTargets.map((m) => (
+                                                                    <SelectItem key={m.id} value={String(m.id)}>
+                                                                        {m.name}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                        {moveTarget && (
+                                                            <div className="bg-surface mt-1 grid gap-2 rounded-lg p-3">
+                                                                {editingSpend && editingSpend.split !== 'all' && (
+                                                                    <p className="text-xs" style={{ color: 'var(--warning)' }}>
+                                                                        {t('spending.move_resets_split')}
+                                                                    </p>
+                                                                )}
+                                                                {(() => {
+                                                                    const tgt = moveTargets.find((m) => String(m.id) === moveTarget);
+                                                                    return tgt && tgt.currency !== event.currency ? (
+                                                                        <p className="text-muted-foreground text-xs">
+                                                                            {t('spending.move_reconverts', { currency: tgt.currency })}
+                                                                        </p>
+                                                                    ) : null;
+                                                                })()}
+                                                                <div className="flex gap-2">
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="outline"
+                                                                        className="flex-1"
+                                                                        onClick={() => setMoveTarget('')}
+                                                                    >
+                                                                        {t('common.cancel')}
+                                                                    </Button>
+                                                                    <Button
+                                                                        type="button"
+                                                                        className="flex-1"
+                                                                        onClick={doMove}
+                                                                        disabled={form.processing}
+                                                                    >
+                                                                        {t('spending.confirm_move')}
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </ResponsiveModal>
 

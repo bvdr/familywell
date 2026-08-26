@@ -75,6 +75,7 @@ class SpendingServiceProvider extends ServiceProvider
                 Route::post('/events/{event}/settle', [SpendingController::class, 'settle'])->name('settle');
                 Route::patch('/spends/{spend}', [SpendingController::class, 'updateSpend'])->name('spends.update');
                 Route::post('/spends/{spend}/duplicate', [SpendingController::class, 'duplicateSpend'])->name('spends.duplicate');
+                Route::post('/spends/{spend}/move', [SpendingController::class, 'moveSpend'])->name('spends.move');
                 Route::get('/spends/receipts/{receipt}', [SpendingController::class, 'receiptFile'])->name('receipts.show');
                 Route::delete('/spends/{spend}', [SpendingController::class, 'destroySpend'])->name('spends.destroy');
             });
