@@ -141,6 +141,8 @@
     "move_to_list_desc": "Mută această cheltuială în altă listă de cheltuieli.",
     "move_pick_list": "Alege o listă",
     "confirm_move": "Mută aici",
+    "move_to_named": "Mută în :name",
+    "move_on_save_hint": "Apasă butonul de mai jos pentru a muta aici.",
     "move_resets_split": "Aceasta resetează împărțirea personalizată — cheltuiala se va împărți între toți din lista nouă.",
     "move_reconverts": "Suma va fi reconvertită în :currency.",
     "move_guest_blocked": "Plătită de un invitat, deci nu poate fi mutată (invitatul există doar în această listă).",

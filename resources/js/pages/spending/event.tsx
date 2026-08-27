@@ -446,6 +446,12 @@ export default function Event({
 
     const submitSpend: FormEventHandler = (e) => {
         e.preventDefault();
+        // If a "move to another list" target is picked in Advanced, Save performs the move (not the
+        // in-place update) — that's what the footer button reads as, so tapping it does what it says.
+        if (editing && moveTarget) {
+            doMove();
+            return;
+        }
         const opts = { preserveScroll: true, onSuccess: () => closeForm() };
         if (editing) {
             // PHP never parses a multipart body on a PATCH request, so a receipt upload on edit must
@@ -1144,8 +1150,17 @@ export default function Event({
                             className="sm:max-w-lg"
                             autoFocusRef={amountRef}
                             footer={
-                                <Button type="submit" form="spend-form" disabled={form.processing || !splitValid} className="w-full">
-                                    {t('common.save')}
+                                // With a move target picked, the footer commits the MOVE (label says so);
+                                // otherwise it saves the edits. Split validity is irrelevant to a move.
+                                <Button
+                                    type="submit"
+                                    form="spend-form"
+                                    disabled={moveTarget ? moving : form.processing || !splitValid}
+                                    className="w-full"
+                                >
+                                    {moveTarget
+                                        ? t('spending.move_to_named', { name: moveTargets.find((m) => String(m.id) === moveTarget)?.name ?? '' })
+                                        : t('common.save')}
                                 </Button>
                             }
                         >
@@ -1467,7 +1482,21 @@ export default function Event({
                                         </button>
                                         {advancedOpen && (
                                             <div className="mt-3 grid gap-2">
-                                                <Label>{t('spending.move_to_list')}</Label>
+                                                <div className="flex items-center justify-between">
+                                                    <Label>{t('spending.move_to_list')}</Label>
+                                                    {moveTarget && (
+                                                        <button
+                                                            type="button"
+                                                            className="text-muted-foreground hover:text-primary text-xs"
+                                                            onClick={() => {
+                                                                setMoveTarget('');
+                                                                setMoveError(null);
+                                                            }}
+                                                        >
+                                                            {t('common.cancel')}
+                                                        </button>
+                                                    )}
+                                                </div>
                                                 {editingSpend?.payer.isGuest ? (
                                                     <p className="text-muted-foreground text-xs">{t('spending.move_guest_blocked')}</p>
                                                 ) : moveTargets.length === 0 ? (
@@ -1492,8 +1521,10 @@ export default function Event({
                                                                 ))}
                                                             </SelectContent>
                                                         </Select>
+                                                        {/* The footer button commits the move; here we just show what will happen. */}
                                                         {moveTarget && (
-                                                            <div className="bg-surface mt-1 grid gap-2 rounded-lg p-3">
+                                                            <div className="bg-surface mt-1 grid gap-1 rounded-lg p-3">
+                                                                <p className="text-primary text-xs font-medium">{t('spending.move_on_save_hint')}</p>
                                                                 {editingSpend && editingSpend.split !== 'all' && (
                                                                     <p className="text-xs" style={{ color: 'var(--warning)' }}>
                                                                         {t('spending.move_resets_split')}
@@ -1508,22 +1539,6 @@ export default function Event({
                                                                     ) : null;
                                                                 })()}
                                                                 {moveError && <p className="text-destructive text-xs">{moveError}</p>}
-                                                                <div className="flex gap-2">
-                                                                    <Button
-                                                                        type="button"
-                                                                        variant="outline"
-                                                                        className="flex-1"
-                                                                        onClick={() => {
-                                                                            setMoveTarget('');
-                                                                            setMoveError(null);
-                                                                        }}
-                                                                    >
-                                                                        {t('common.cancel')}
-                                                                    </Button>
-                                                                    <Button type="button" className="flex-1" onClick={doMove} disabled={moving}>
-                                                                        {t('spending.confirm_move')}
-                                                                    </Button>
-                                                                </div>
                                                             </div>
                                                         )}
                                                     </>
