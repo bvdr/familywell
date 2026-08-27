@@ -147,12 +147,18 @@ class SpendingController extends Controller
         $data = $request->validate([
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'archived' => ['sometimes', 'boolean'],
+            // The list's display currency (top-right selector). Base amounts stay frozen to `currency`;
+            // this only changes what the figures are shown in. null clears back to the base currency.
+            'display_currency' => ['sometimes', 'nullable', 'in:'.implode(',', self::CURRENCIES)],
         ]);
         if (array_key_exists('archived', $data)) {
             $event->archived_at = $data['archived'] ? now() : null;
         }
         if (array_key_exists('name', $data)) {
             $event->name = $data['name'];
+        }
+        if (array_key_exists('display_currency', $data)) {
+            $event->display_currency = $data['display_currency'];
         }
         $event->save();
         Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
@@ -594,6 +600,8 @@ class SpendingController extends Controller
                 'id' => $event->id,
                 'name' => $event->name,
                 'currency' => $event->currency,
+                // The saved display currency (falls back to the base). The header selector persists this.
+                'displayCurrency' => $event->display_currency ?: $event->currency,
                 'total' => (int) $spends->sum('base_amount'),
                 'archived' => $event->archived_at !== null,
                 'members' => $members->filter(fn ($m) => isset($names['u'.$m->id]))->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),

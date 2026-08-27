@@ -20,7 +20,7 @@ class SpendEvent extends Model implements ProvidesGuestView, ProvidesPublicShare
 
     protected $table = 'spending_events';
 
-    protected $fillable = ['name', 'currency', 'created_by'];
+    protected $fillable = ['name', 'currency', 'display_currency', 'created_by'];
 
     protected $casts = ['archived_at' => 'datetime'];
 

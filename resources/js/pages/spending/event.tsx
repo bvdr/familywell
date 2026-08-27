@@ -51,6 +51,7 @@ type EventT = {
     id: number;
     name: string;
     currency: string;
+    displayCurrency: string; // saved display currency (falls back to base); persisted via the header selector
     total: number;
     archived: boolean;
     people: number; // total headcount (sum of participant weights), not row count
@@ -219,9 +220,15 @@ export default function Event({
         setViewing(urls);
         setViewIndex(index);
     };
-    // Display currency is cosmetic: it converts the base-currency figures for viewing. Default = base.
-    const [display, setDisplay] = useState(event.currency);
+    // Display currency is cosmetic (it converts the base-currency figures for viewing) but PERSISTED on
+    // the list, so the choice sticks across reloads for everyone. Seed from the saved value; changing it
+    // saves via updateEvent.
+    const [display, setDisplay] = useState(event.displayCurrency);
     const fmt = (baseCents: number) => money(Math.round(baseCents * (event.rates[display] ?? 1)), display);
+    const changeDisplay = (v: string) => {
+        setDisplay(v); // optimistic: reflect the choice immediately
+        router.patch(route('spending.events.update', event.id), { display_currency: v }, { preserveScroll: true, preserveState: true });
+    };
 
     // Inline title editing. `title` mirrors the server value (optimistic on save, re-synced on reload).
     const amountRef = useRef<HTMLInputElement>(null); // focused when the spend drawer opens, so the numeric pad shows
@@ -651,7 +658,7 @@ export default function Event({
                                 </button>
                             )}
                             <div className="flex shrink-0 items-center gap-2">
-                                <Select value={display} onValueChange={setDisplay}>
+                                <Select value={display} onValueChange={changeDisplay}>
                                     <SelectTrigger className="border-border text-primary h-9 w-[76px] shrink-0">
                                         <SelectValue />
                                     </SelectTrigger>
