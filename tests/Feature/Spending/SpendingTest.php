@@ -506,3 +506,17 @@ it('notifies the family when a spend is edited and when it is removed', function
     actingAs($users[0])->delete("/m/spending/spends/{$spend->id}");
     expect($users[1]->fresh()->notifications()->latest()->first()->data['body'])->toContain('removed');
 });
+
+it('persists the list display currency so the header selector sticks', function () {
+    [, $users] = spendingFamily();
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Medical', 'currency' => 'RON']);
+    $event = SpendEvent::first();
+    expect($event->display_currency)->toBeNull(); // defaults to the base currency
+
+    actingAs($users[0])->patch("/m/spending/events/{$event->id}", ['display_currency' => 'EUR'])->assertRedirect();
+    expect($event->fresh()->display_currency)->toBe('EUR');
+
+    // The page exposes the saved value so the selector seeds from it on reload (base stays RON).
+    actingAs($users[0])->get("/m/spending/events/{$event->id}")
+        ->assertInertia(fn ($p) => $p->where('event.displayCurrency', 'EUR')->where('event.currency', 'RON'));
+});
