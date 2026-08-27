@@ -9,6 +9,7 @@ use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\Notifications\NotificationCategories;
 
 class NotesServiceProvider extends ServiceProvider
 {
@@ -16,6 +17,8 @@ class NotesServiceProvider extends ServiceProvider
     {
         // Opt notes into the core sharing system (addressable as `note` in share URLs).
         ShareableRegistry::register('note', Note::class);
+
+        NotificationCategories::register('notes', 'Notes', 'sticky-note');
 
         // "Pick up where you left off": notes this user opened in the last few days, tagged with when
         // so the dashboard can order them across modules. Respects visibility. Notes have no agenda

@@ -8,6 +8,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Modules\Spending\Spend;
 use Modules\Spending\SpendEvent;
 use Modules\Spending\SpendSource;
 
@@ -445,7 +446,7 @@ it('moves an expense to another list and resets its split', function () {
         'payer_key' => 'u'.$users[0]->id, 'spent_at' => '2026-07-16',
         'split' => 'some', 'shares' => [['key' => 'u'.$users[0]->id]],
     ]);
-    $spend = Modules\Spending\Spend::withoutGlobalScopes()->first();
+    $spend = Spend::withoutGlobalScopes()->first();
     expect($spend->spend_event_id)->toBe($a->id)->and($spend->shares()->count())->toBe(1);
 
     // Moving to the same list is rejected (with a visible validation error, not a silent no-op).
@@ -471,7 +472,7 @@ it('moves a member-paid expense into an invited list the payer was not shared in
         'amount' => '20.00', 'currency' => 'EUR', 'category' => 'food',
         'payer_key' => 'u'.$users[1]->id, 'spent_at' => '2026-07-16',
     ]);
-    $spend = Modules\Spending\Spend::withoutGlobalScopes()->where('payer_id', $users[1]->id)->first();
+    $spend = Spend::withoutGlobalScopes()->where('payer_id', $users[1]->id)->first();
 
     // Narrow the target to "invited": now only the owner (u0) is shared; u1 is NOT a participant of it.
     $dst->setVisibility('invited');
@@ -481,4 +482,27 @@ it('moves a member-paid expense into an invited list the payer was not shared in
     actingAs($users[0])->post("/m/spending/spends/{$spend->id}/move", ['target_event_id' => $dst->id])->assertRedirect();
     expect($spend->fresh()->spend_event_id)->toBe($dst->id)
         ->and(array_keys($dst->fresh()->participantNames()))->toContain('u'.$users[1]->id);
+});
+
+it('notifies the family when a spend is edited and when it is removed', function () {
+    [, $users] = spendingFamily();
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
+    $event = SpendEvent::first();
+    actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
+        'amount' => '30.00', 'currency' => 'EUR', 'category' => 'food', 'payer_key' => 'u'.$users[0]->id, 'spent_at' => '2026-07-16',
+    ]);
+    $spend = $event->spends()->first();
+
+    // Edit -> a descriptive "edited" notification reaches another member (not the actor).
+    $users[1]->notifications()->delete();
+    actingAs($users[0])->patch("/m/spending/spends/{$spend->id}", [
+        'amount' => '45.00', 'currency' => 'EUR', 'category' => 'food', 'payer_key' => 'u'.$users[0]->id, 'spent_at' => '2026-07-16',
+    ]);
+    expect($users[1]->fresh()->notifications()->latest()->first()->data['body'])->toContain('edited')
+        ->and($users[0]->fresh()->notifications()->count())->toBe(0); // actor is never notified
+
+    // Delete -> a "removed" notification.
+    $users[1]->notifications()->delete();
+    actingAs($users[0])->delete("/m/spending/spends/{$spend->id}");
+    expect($users[1]->fresh()->notifications()->latest()->first()->data['body'])->toContain('removed');
 });

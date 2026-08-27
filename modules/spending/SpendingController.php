@@ -293,6 +293,8 @@ class SpendingController extends Controller
         $this->attachReceipts($request, $spend);
         $this->syncShares($spend, $data);
 
+        $amount = $data['currency'].' '.number_format((float) $data['amount'], 2);
+        Notify::toAccessOf($event, 'spending', $request->user()->id, $event->name, "{$request->user()->name} edited {$amount}", route('spending.show', $event, false));
         Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
 
         return back();
@@ -407,7 +409,11 @@ class SpendingController extends Controller
         if ($spend->receipt_path) {
             Storage::disk('r2')->delete($spend->receipt_path); // legacy single receipt, if present
         }
+        $event = $this->event($spend->spend_event_id);
+        $amount = $spend->currency.' '.number_format($spend->amount / 100, 2);
         $spend->delete();
+
+        Notify::toAccessOf($event, 'spending', request()->user()->id, $event->name, request()->user()->name." removed {$amount}", route('spending.show', $event, false));
         Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
 
         return back();

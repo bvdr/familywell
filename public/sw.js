@@ -15,30 +15,16 @@ self.addEventListener('push', (event) => {
             }
             const data = payload.data || {};
             const url = data.url || payload.url || '/dashboard';
-            const tag = payload.tag || data.category || undefined;
+            // Unique tag per notification (see PushAlert): every action is its own notification showing
+            // exactly what happened, never collapsed into a "N new updates" count.
+            const tag = payload.tag || undefined;
 
-            let title = payload.title || 'FamilyWell';
-            let body = payload.body || '';
-            let count = 1;
-
-            // Same category (tag) => stack into one notification with a running count, instead of a pile.
-            if (tag) {
-                const existing = await self.registration.getNotifications({ tag });
-                const prev = existing[0]?.data?.count || 0;
-                count = prev + 1;
-                if (count > 1) {
-                    title = data.categoryLabel || 'FamilyWell';
-                    body = `${count} new updates`;
-                }
-            }
-
-            await self.registration.showNotification(title, {
-                body,
+            await self.registration.showNotification(payload.title || 'FamilyWell', {
+                body: payload.body || '',
                 icon: payload.icon || '/icons/icon-192.png',
                 badge: payload.badge || '/icons/icon-192.png',
                 tag,
-                renotify: !!tag, // re-alert even though the same-tag notification is replaced in place
-                data: { url, count },
+                data: { url },
             });
         })(),
     );

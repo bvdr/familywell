@@ -48,8 +48,11 @@ class PushAlert extends Notification
                 'categoryLabel' => $this->category ? NotificationCategories::label($this->category) : null,
             ]);
 
-        if ($this->category) {
-            $message->tag($this->category); // same tag => the SW stacks them into one notification
+        // Unique tag per notification so every action shows as its OWN OS notification with its own
+        // title/body, instead of same-category ones collapsing into a "N new updates" summary. The id
+        // is assigned when the notification is actually sent (null only in isolated unit construction).
+        if ($notification->id) {
+            $message->tag($notification->id);
         }
 
         return $message;

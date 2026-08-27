@@ -7,7 +7,6 @@ use App\Http\Controllers\Controller;
 use App\Models\EntityVisit;
 use App\Models\Family;
 use App\Models\User;
-use Modules\Notifications\Notify;
 use App\Support\Media\StoredImage;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
@@ -18,6 +17,7 @@ use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Notes\Note;
+use Modules\Notifications\Notify;
 use Modules\Shopping\ShoppingList;
 use Modules\Tasks\Task;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -207,6 +207,7 @@ class ProjectsController extends Controller
     public function destroyProject(Request $request, Project $project): RedirectResponse
     {
         abort_unless($project->created_by === $request->user()->id, 403);
+        Notify::toAccessOf($project, 'projects', $request->user()->id, 'Projects', "{$request->user()->name} deleted project: {$project->name}", route('projects.index', [], false));
         $project->delete();
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
 
@@ -422,12 +423,15 @@ class ProjectsController extends Controller
 
     public function destroyTask(Request $request, Task $task): RedirectResponse
     {
-        $this->projectForTask($request, $task);
+        $project = $this->projectForTask($request, $task);
+        $title = $task->title;
         // Remove the project link for a top-level task; sub-tasks cascade with their parent.
         if ($task->parent_id === null) {
             ProjectLink::where(['linkable_type' => 'task', 'linkable_id' => $task->id])->delete();
         }
         $task->delete(); // cascades to sub-tasks
+
+        Notify::toAccessOf($project, 'tasks', $request->user()->id, $project->name, "{$request->user()->name} deleted: {$title}", route('projects.show', $project, false));
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
 
         return back();
@@ -468,7 +472,11 @@ class ProjectsController extends Controller
     public function destroyDependency(Request $request, ProjectDependency $dependency): RedirectResponse
     {
         abort_unless($this->access->roleFor($request->user(), $dependency->project) !== null, 403);
+        $project = $dependency->project;
+        $name = $dependency->name;
         $dependency->delete();
+
+        Notify::toAccessOf($project, 'projects', $request->user()->id, $project->name, "{$request->user()->name} removed blocker: {$name}", route('projects.show', $project, false));
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
 
         return back();
