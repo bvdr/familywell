@@ -7,7 +7,6 @@ use App\Http\Controllers\Controller;
 use App\Models\EntityVisit;
 use App\Models\Family;
 use App\Models\User;
-use Modules\Notifications\Notify;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
@@ -15,6 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Notifications\Notify;
 
 class TasksController extends Controller
 {
@@ -238,6 +238,7 @@ class TasksController extends Controller
     public function destroyList(Request $request, TaskList $list): RedirectResponse
     {
         abort_unless($list->created_by === $request->user()->id, 403);
+        Notify::toAccessOf($list, 'tasks', $request->user()->id, 'Tasks', "{$request->user()->name} deleted list: {$list->name}", route('tasks.index', [], false));
         $list->delete();
         Realtime::broadcast(new TasksChanged((int) CurrentFamily::id()));
 
@@ -356,7 +357,11 @@ class TasksController extends Controller
     public function destroyTask(Request $request, Task $task): RedirectResponse
     {
         abort_unless($task->list && $this->access->roleFor($request->user(), $task->list) !== null, 403);
+        $list = $task->list;
+        $title = $task->title;
         $task->delete(); // cascades to sub-tasks
+
+        Notify::toAccessOf($list, 'tasks', $request->user()->id, $list->name, "{$request->user()->name} deleted: {$title}", route('tasks.show', $list, false));
         Realtime::broadcast(new TasksChanged((int) CurrentFamily::id()));
 
         return back();

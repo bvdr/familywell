@@ -572,6 +572,8 @@ class ShoppingController extends Controller
     public function destroyList(Request $request, ShoppingList $list): RedirectResponse
     {
         abort_unless($list->created_by === $request->user()->id, 403);
+        // Notify BEFORE delete — recipients are derived from the list's shares/visibility.
+        Notify::toAccessOf($list, 'shopping', $request->user()->id, 'Shopping', "{$request->user()->name} deleted list: {$list->name}", route('shopping.index', [], false));
         $list->delete();
         Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
 
@@ -714,7 +716,11 @@ class ShoppingController extends Controller
     public function destroyItem(Request $request, ShoppingItem $item): RedirectResponse
     {
         abort_unless($this->access->roleFor($request->user(), $item->list) !== null, 403);
+        $list = $item->list;
+        $name = $item->name;
         $item->delete();
+
+        Notify::toAccessOf($list, 'shopping', $request->user()->id, $list->name, "{$request->user()->name} removed: {$name}", route('shopping.show', $list, false));
         Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
 
         return back();

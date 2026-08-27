@@ -11,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Notifications\Notify;
 
 class NotesController extends Controller
 {
@@ -140,6 +141,8 @@ class NotesController extends Controller
     public function destroyNote(Request $request, Note $note): RedirectResponse
     {
         abort_unless($note->created_by === $request->user()->id, 403);
+        $title = trim($note->title) !== '' ? $note->title : 'Untitled note';
+        Notify::toAccessOf($note, 'notes', $request->user()->id, 'Notes', "{$request->user()->name} deleted note: {$title}", route('notes.index', [], false));
         $note->delete();
 
         return to_route('notes.index');
