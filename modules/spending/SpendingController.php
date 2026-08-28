@@ -45,20 +45,27 @@ class SpendingController extends Controller
             // middleware guarantees the user is a member), so any `family`-visibility event is
             // visible; `invited`/`private` ones need an explicit share row.
             ->filter(fn (SpendEvent $e) => $e->visibility() === 'family' || $e->shares->contains('user_id', $userId))
-            ->map(fn (SpendEvent $e) => [
-                'id' => $e->id,
-                'name' => $e->name,
-                'currency' => $e->currency,
-                'total' => (int) $e->spends_sum_base_amount,
-                'archived' => $e->archived_at !== null,
-                // Only members who can actually reach the event: everyone for `family` visibility,
-                // otherwise just those with a share. The pivot holds every family member (synced at
-                // creation), so without this filter an invited/private event shows people who have no
-                // access. Mirrors SpendEvent::participantNames().
-                'members' => $e->members
-                    ->filter(fn ($m) => $e->visibility() === 'family' || $e->shares->contains('user_id', $m->id))
-                    ->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),
-            ])->values();
+            ->map(function (SpendEvent $e) {
+                // Show the card total in the list's chosen display currency (the header selector on the
+                // detail page), not the frozen base currency. Base amounts stay in $e->currency; we
+                // convert the sum to the display currency for the overview so the two views agree.
+                $display = $e->display_currency ?: $e->currency;
+
+                return [
+                    'id' => $e->id,
+                    'name' => $e->name,
+                    'currency' => $display,
+                    'total' => Fx::convert((int) $e->spends_sum_base_amount, $e->currency, $display),
+                    'archived' => $e->archived_at !== null,
+                    // Only members who can actually reach the event: everyone for `family` visibility,
+                    // otherwise just those with a share. The pivot holds every family member (synced at
+                    // creation), so without this filter an invited/private event shows people who have no
+                    // access. Mirrors SpendEvent::participantNames().
+                    'members' => $e->members
+                        ->filter(fn ($m) => $e->visibility() === 'family' || $e->shares->contains('user_id', $m->id))
+                        ->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),
+                ];
+            })->values();
 
         return Inertia::render('spending/events', [
             'events' => $events,

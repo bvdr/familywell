@@ -520,3 +520,23 @@ it('persists the list display currency so the header selector sticks', function 
     actingAs($users[0])->get("/m/spending/events/{$event->id}")
         ->assertInertia(fn ($p) => $p->where('event.displayCurrency', 'EUR')->where('event.currency', 'RON'));
 });
+
+it('shows the list overview total in the chosen display currency', function () {
+    Http::fake([
+        'api.frankfurter.dev/*' => Http::response(['rates' => ['RON' => 5.0]]),
+        'open.er-api.com/*' => Http::response(['rates' => ['RON' => 5.0]]),
+    ]);
+
+    [, $users] = spendingFamily();
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Medical', 'currency' => 'EUR']);
+    $event = SpendEvent::first();
+    actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
+        'amount' => '20.00', 'currency' => 'EUR', 'category' => 'other', 'payer_key' => 'u'.($users[0]->id), 'spent_at' => '2026-08-01',
+    ])->assertRedirect();
+
+    // Base sum is 20.00 EUR. With display currency RON at rate 5.0, the overview card must read
+    // 100.00 RON, not the base €20.00 (the bug: the list ignored the display currency selector).
+    actingAs($users[0])->patch("/m/spending/events/{$event->id}", ['display_currency' => 'RON'])->assertRedirect();
+    actingAs($users[0])->get('/m/spending')
+        ->assertInertia(fn ($p) => $p->where('events.0.total', 10000)->where('events.0.currency', 'RON'));
+});
