@@ -2,14 +2,14 @@ import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn } from '@/lib/i18n';
 import { money } from '@/lib/money';
 import { type BreadcrumbItem } from '@/types';
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { animate, motion, useReducedMotion } from 'motion/react';
 import { useEffect, useState } from 'react';
 
 type Cat = { key: string; amount: number; pct: number };
 type Day = { date: string; amount: number };
 // One individual expense in the drilled-down category (amounts already in display cents).
-type Entry = { id: number; amount: number; note: string | null; category: string; date: string; list: string };
+type Entry = { id: number; amount: number; note: string | null; category: string; date: string; list: string; list_id: number };
 type Props = {
     currency: string;
     currencies: string[];
@@ -314,17 +314,24 @@ export default function Analytics({ currency, currencies, period, range, total, 
                         ) : (
                             <ul className="flex flex-col divide-y">
                                 {entries.map((e) => (
-                                    <li key={e.id} className="flex items-center justify-between gap-3 py-2.5">
-                                        <div className="flex min-w-0 items-center gap-2.5">
-                                            <span className="size-2.5 shrink-0 rounded-full" style={{ background: catColor(e.category) }} />
-                                            <div className="min-w-0">
-                                                <div className="text-muted-foreground truncate text-xs">
-                                                    {e.list} · {shortDate(e.date)}
+                                    <li key={e.id}>
+                                        {/* Whole row links to its parent list's detail page. -mx-2/px-2 gives the
+                                            pressable target a subtle hover/active tint without breaking the divider. */}
+                                        <Link
+                                            href={route('spending.show', e.list_id)}
+                                            className="hover:bg-surface active:bg-surface -mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2.5 transition-colors"
+                                        >
+                                            <div className="flex min-w-0 items-center gap-2.5">
+                                                <span className="size-2.5 shrink-0 rounded-full" style={{ background: catColor(e.category) }} />
+                                                <div className="min-w-0">
+                                                    <div className="text-muted-foreground truncate text-xs">
+                                                        {e.list} · {shortDate(e.date)}
+                                                    </div>
+                                                    <div className="text-primary truncate text-sm">{e.note || catLabel(t, e.category)}</div>
                                                 </div>
-                                                <div className="text-primary truncate text-sm">{e.note || catLabel(t, e.category)}</div>
                                             </div>
-                                        </div>
-                                        <span className="text-primary shrink-0 font-mono text-sm tabular-nums">{money(e.amount, currency)}</span>
+                                            <span className="text-primary shrink-0 font-mono text-sm tabular-nums">{money(e.amount, currency)}</span>
+                                        </Link>
                                     </li>
                                 ))}
                             </ul>

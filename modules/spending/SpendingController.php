@@ -159,6 +159,7 @@ class SpendingController extends Controller
                     'category' => $s->category,
                     'date' => $s->spent_at->toDateString(),
                     'list' => $eventName[$s->spend_event_id] ?? '',
+                    'list_id' => $s->spend_event_id, // parent SpendEvent id, so the row can link to its detail page
                 ];
             }
         }
