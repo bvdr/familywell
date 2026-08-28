@@ -12,7 +12,7 @@ import SettingsLayout from '@/layouts/settings/layout';
 export default function Appearance({
     themes = [],
     currentTheme = null,
-    familyDefault = 'default',
+    familyDefault = 'minimal-mono',
 }: {
     themes?: Skin[];
     currentTheme?: string | null; // null => inherit the family default

@@ -11,12 +11,12 @@ namespace App\Support\Theming;
 // -> :root, `tokensDark` -> .dark (dark-mode overrides), `fonts` -> --font-{sans,heading,mono}.
 class ThemeTokens
 {
-    public static function css(string $theme = 'default'): string
+    public static function css(string $theme = 'minimal-mono'): string
     {
         $path = resource_path("themes/{$theme}/theme.json");
-        // Unknown theme name -> fall back to default rather than 500 the whole app.
+        // Unknown theme name -> fall back to the built-in default (minimal-mono) rather than 500 the app.
         if (! is_file($path)) {
-            $path = resource_path('themes/default/theme.json');
+            $path = resource_path('themes/minimal-mono/theme.json');
         }
         $data = json_decode(file_get_contents($path), true);
 

@@ -1,5 +1,5 @@
 {
-    "name": "Warm (default)",
+    "name": "Warm",
     "tokens": {
         "background": "hsl(42.9, 25.9%, 94.7%)",
         "foreground": "hsl(145.2, 36.5%, 16.7%)",

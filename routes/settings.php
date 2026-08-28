@@ -35,7 +35,7 @@ Route::middleware('auth')->group(function () {
         return Inertia::render('settings/appearance', [
             'themes' => ThemeTokens::available(),
             'currentTheme' => auth()->user()->theme, // null => inherit the family default
-            'familyDefault' => ($familyId ? Family::find($familyId)?->theme : null) ?: 'default',
+            'familyDefault' => ($familyId ? Family::find($familyId)?->theme : null) ?: 'minimal-mono',
         ]);
     })->name('appearance');
     // Personal skin. null/absent => inherit the family default. Light/dark is separate (client-side).
