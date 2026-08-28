@@ -622,7 +622,10 @@ it('rolls up global analytics across lists into one display currency for the per
             ->where('count', 2)
             ->where('entries', fn ($rows) => collect($rows)->count() === 2
                 && collect($rows)->pluck('amount')->all() === [2000, 1000] // biggest first
-                && collect($rows)->every(fn ($r) => $r['category'] === 'food'))
+                && collect($rows)->every(fn ($r) => $r['category'] === 'food')
+                // Each entry carries its parent SpendEvent id so the row can link to that list (both food
+                // spends live in the RON list).
+                && collect($rows)->every(fn ($r) => $r['list_id'] === $ron->id))
             // byCategory is never filtered: "other" is still present alongside food.
             ->where('byCategory', fn ($rows) => collect($rows)->firstWhere('key', 'other')['amount'] === 2000
                 && collect($rows)->firstWhere('key', 'food')['amount'] === 3000)
