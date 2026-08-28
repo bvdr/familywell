@@ -195,6 +195,7 @@
     "period_custom": "Custom",
     "display_currency": "Display currency",
     "by_day": "Expenses by day",
+    "by_month": "Expenses by month",
     "by_category": "By category",
     "peak_day": "peak day",
     "daily_chart_aria": "Line chart of spending per day over the selected period"

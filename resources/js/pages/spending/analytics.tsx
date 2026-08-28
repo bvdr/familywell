@@ -16,6 +16,7 @@ type Props = {
     total: number;
     byCategory: Cat[];
     daily: Day[];
+    granularity: 'day' | 'month';
     count: number;
 };
 
@@ -31,12 +32,14 @@ const catColor = (k: string) => CATEGORY_META[k]?.color ?? '#9A8C7A';
 const catLabel = (t: TFn, k: string) => (CATEGORY_META[k] ? t(CATEGORY_META[k].labelKey) : k.charAt(0).toUpperCase() + k.slice(1));
 
 const shortDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+// Monthly points read as "Jan 2026" — the day number is meaningless once buckets are whole months.
+const monthDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
 
 // A smooth (rounded) line through the daily points, built as a Catmull-Rom spline converted to cubic
 // beziers. Straight L-segments would look jagged; this gives the rounded curve the design asks for
 // without pulling in a chart library. Y is per-day spend (not cumulative), so the shape reads as the
 // rhythm of spending across the selected period.
-function DailyCurve({ points, currency, t }: { points: Day[]; currency: string; t: TFn }) {
+function DailyCurve({ points, currency, granularity, t }: { points: Day[]; currency: string; granularity: 'day' | 'month'; t: TFn }) {
     // Hook must run before any early return so it stays unconditional. Under reduced motion we snap.
     const reduced = useReducedMotion();
     if (points.length < 2 || points.every((p) => p.amount === 0)) {
@@ -66,6 +69,8 @@ function DailyCurve({ points, currency, t }: { points: Day[]; currency: string; 
     }
     const area = `${d} L${x(points.length - 1).toFixed(1)},${h - pad} L${x(0).toFixed(1)},${h - pad} Z`;
     const peak = points.reduce((m, p) => (p.amount > m.amount ? p : m), points[0]);
+    // Monthly buckets get a month+year end label ("Jan 2026"); daily buckets keep "Jan 1".
+    const label = granularity === 'month' ? monthDate : shortDate;
 
     return (
         <div className="flex flex-col gap-2">
@@ -104,11 +109,11 @@ function DailyCurve({ points, currency, t }: { points: Day[]; currency: string; 
                 />
             </svg>
             <div className="text-muted-foreground flex justify-between px-1 font-mono text-xs tabular-nums">
-                <span>{shortDate(points[0].date)}</span>
+                <span>{label(points[0].date)}</span>
                 <span className="text-primary font-semibold">
                     {money(peak.amount, currency)} {t('spending.peak_day')}
                 </span>
-                <span>{shortDate(points[points.length - 1].date)}</span>
+                <span>{label(points[points.length - 1].date)}</span>
             </div>
         </div>
     );
@@ -151,7 +156,7 @@ function useCountUp(target: number, reduced: boolean) {
 
 const PERIODS = ['mtd', 'last_month', 'ytd', 'custom'] as const;
 
-export default function Analytics({ currency, currencies, period, range, total, byCategory, daily, count }: Props) {
+export default function Analytics({ currency, currencies, period, range, total, byCategory, daily, granularity, count }: Props) {
     const t = useT();
     const breadcrumbs: BreadcrumbItem[] = [
         { title: t('nav.spending'), href: '/m/spending' },
@@ -245,8 +250,8 @@ export default function Analytics({ currency, currencies, period, range, total, 
 
                 {/* Expenses by day, rounded curve. */}
                 <div className="bg-surface-card flex flex-col gap-3 rounded-xl border p-5">
-                    <h2 className="font-heading text-primary text-lg">{t('spending.by_day')}</h2>
-                    <DailyCurve points={daily} currency={currency} t={t} />
+                    <h2 className="font-heading text-primary text-lg">{granularity === 'month' ? t('spending.by_month') : t('spending.by_day')}</h2>
+                    <DailyCurve points={daily} currency={currency} granularity={granularity} t={t} />
                 </div>
 
                 {/* Spending by category. */}
