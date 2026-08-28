@@ -26,7 +26,7 @@ class FamilyMemberController extends Controller
                 'color' => $family->color,
                 'emoji' => $family->emoji,
                 'owner_id' => $family->owner_id,
-                'theme' => $family->theme ?: 'default',
+                'theme' => $family->theme ?: 'minimal-mono',
             ],
             'members' => $family->members->map(fn ($m) => [
                 'id' => $m->id, 'name' => $m->name, 'email' => $m->email, 'role' => $m->pivot->role,

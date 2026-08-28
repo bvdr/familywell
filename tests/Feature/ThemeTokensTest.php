@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Family;
+use App\Models\User;
 use App\Support\Theming\ThemeTokens;
 
 use function Pest\Laravel\actingAs;
@@ -23,20 +25,21 @@ it('emits the default theme tokens as CSS custom properties', function () {
         ->toContain('--text-secondary:#A6BFAE');
 });
 
-it('falls back to the default theme for an unknown name', function () {
-    expect(ThemeTokens::css('does-not-exist'))->toBe(ThemeTokens::css('default'));
+it('falls back to the built-in default (minimal-mono) for an unknown name', function () {
+    expect(ThemeTokens::css('does-not-exist'))->toBe(ThemeTokens::css('minimal-mono'));
 });
 
 it('injects the theme variables into the served document', function () {
+    // Unauthenticated /login has no user/family skin, so it serves the built-in default (minimal-mono).
     get('/login')
         ->assertOk()
         ->assertSee('id="theme"', false)
-        ->assertSee('--primary:hsl(135.9, 35.3%, 27.3%)', false);
+        ->assertSee('--primary:#1C1917', false);
 });
 
 it('resolves the skin as user override, then family default, then built-in', function () {
-    $family = App\Models\Family::factory()->create(['theme' => 'minimal-mono']);
-    $user = App\Models\User::factory()->create(['theme' => null]);
+    $family = Family::factory()->create(['theme' => 'minimal-mono']);
+    $user = User::factory()->create(['theme' => null]);
     $family->members()->attach($user, ['role' => 'admin']);
     session(['active_family_id' => $family->id]);
 
@@ -49,7 +52,7 @@ it('resolves the skin as user override, then family default, then built-in', fun
 });
 
 it('lets a member set and clear their personal skin', function () {
-    $user = App\Models\User::factory()->create(['theme' => null]);
+    $user = User::factory()->create(['theme' => null]);
 
     actingAs($user)->patch('/settings/appearance/theme', ['theme' => 'minimal-mono'])->assertRedirect();
     expect($user->fresh()->theme)->toBe('minimal-mono');
@@ -63,9 +66,9 @@ it('lets a member set and clear their personal skin', function () {
 });
 
 it('lets an admin set the family skin but forbids a member', function () {
-    $admin = App\Models\User::factory()->create();
-    $member = App\Models\User::factory()->create();
-    $family = App\Models\Family::factory()->create(['owner_id' => $admin->id, 'theme' => null]);
+    $admin = User::factory()->create();
+    $member = User::factory()->create();
+    $family = Family::factory()->create(['owner_id' => $admin->id, 'theme' => null]);
     $family->members()->attach($admin, ['role' => 'admin']);
     $family->members()->attach($member, ['role' => 'member']);
 
