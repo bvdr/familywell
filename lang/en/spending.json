@@ -24,6 +24,7 @@
     "by_payment_method": "By payment method",
     "over_the_trip": "Over the trip",
     "trend_empty": "A trend appears once there are spends on two or more days.",
+    "category_empty": "Spending by category appears once there are spends in the selected period.",
     "total": "total",
     "average_spend": "Average spend",
     "daily_average": "Daily average",
