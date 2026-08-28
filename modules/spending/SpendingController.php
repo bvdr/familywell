@@ -118,15 +118,21 @@ class SpendingController extends Controller
             ->whereBetween('spent_at', [$start->toDateString(), $end->toDateString()])
             ->get(['spend_event_id', 'category', 'base_amount', 'spent_at']);
 
+        // For long ranges, group the series by month instead of by day (see below): decide up front so
+        // we bucket each spend into the right key while summing.
+        $byMonth = $start->diffInDays($end) > 90; // > 90 days spanned => monthly buckets
+        $granularity = $byMonth ? 'month' : 'day';
+
         $total = 0;
         $byCat = [];  // category => display cents
-        $byDay = [];  // 'Y-m-d' => display cents
+        $bucket = []; // series key ('Y-m-d' day, or 'Y-m-01' month) => display cents
         foreach ($spends as $s) {
             $c = $conv((int) $s->base_amount, $eventCcy[$s->spend_event_id]);
             $total += $c;
             $byCat[$s->category] = ($byCat[$s->category] ?? 0) + $c;
-            $d = $s->spent_at->toDateString();
-            $byDay[$d] = ($byDay[$d] ?? 0) + $c;
+            // Bucket by first-of-month for monthly granularity, else by exact day.
+            $key = $byMonth ? $s->spent_at->copy()->startOfMonth()->toDateString() : $s->spent_at->toDateString();
+            $bucket[$key] = ($bucket[$key] ?? 0) + $c;
         }
 
         $pct = fn (int $a) => $total ? round($a / $total * 100) : 0;
@@ -134,12 +140,20 @@ class SpendingController extends Controller
             ->map(fn ($amount, $key) => ['key' => $key, 'amount' => $amount, 'pct' => $pct($amount)])
             ->sortByDesc('amount')->values();
 
-        // Every day in the range, zero-filled, so the curve spans the whole selected period rather
-        // than jumping between only the days that had spending.
+        // Zero-fill every point across the range so the curve spans the whole selected period rather than
+        // jumping between only the buckets that had spending. Daily when the range is <= 90 days; when it
+        // spans more, one point per month (365 daily points render as an unreadable flat line + one spike).
         $daily = [];
-        for ($d = $start->copy(); $d <= $end; $d->addDay()) {
-            $key = $d->toDateString();
-            $daily[] = ['date' => $key, 'amount' => $byDay[$key] ?? 0];
+        if ($byMonth) {
+            for ($m = $start->copy()->startOfMonth(); $m <= $end; $m->addMonthNoOverflow()) {
+                $key = $m->toDateString();
+                $daily[] = ['date' => $key, 'amount' => $bucket[$key] ?? 0];
+            }
+        } else {
+            for ($d = $start->copy(); $d <= $end; $d->addDay()) {
+                $key = $d->toDateString();
+                $daily[] = ['date' => $key, 'amount' => $bucket[$key] ?? 0];
+            }
         }
 
         return Inertia::render('spending/analytics', [
@@ -150,6 +164,7 @@ class SpendingController extends Controller
             'total' => $total,
             'byCategory' => $byCategory,
             'daily' => $daily,
+            'granularity' => $granularity,
             'count' => $spends->count(),
         ]);
     }

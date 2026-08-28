@@ -599,7 +599,35 @@ it('rolls up global analytics across lists into one display currency for the per
             ->where('period', 'mtd')
             ->where('total', 4000)
             ->where('count', 2)
+            // A month-to-date range is <= 90 days, so the series stays daily.
+            ->where('granularity', 'day')
             ->where('byCategory', fn ($rows) => collect($rows)->firstWhere('key', 'food')['amount'] === 2000
                 && collect($rows)->firstWhere('key', 'other')['amount'] === 2000)
+            ->etc());
+});
+
+it('aggregates the analytics series by month when the range spans more than 90 days', function () {
+    Http::fake([
+        'api.frankfurter.dev/*' => Http::response(['rates' => ['EUR' => 0.2]]),
+        'open.er-api.com/*' => Http::response(['rates' => ['EUR' => 0.2]]),
+    ]);
+
+    [, $users] = spendingFamily();
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
+    $eur = SpendEvent::where('currency', 'EUR')->first();
+
+    actingAs($users[0])->post("/m/spending/events/{$eur->id}/spends", [
+        'amount' => '20.00', 'currency' => 'EUR', 'category' => 'other', 'payer_key' => 'u'.$users[0]->id,
+        'spent_at' => now()->startOfYear()->addDays(3)->toDateString(),
+    ])->assertRedirect();
+
+    // Year-to-date spans the whole year (> 90 days), so the series flips to monthly buckets. Every point
+    // is the first of a month.
+    actingAs($users[0])->get('/m/spending/analytics?period=ytd&currency=EUR')
+        ->assertInertia(fn ($p) => $p
+            ->component('spending/analytics')
+            ->where('period', 'ytd')
+            ->where('granularity', 'month')
+            ->where('daily', fn ($rows) => collect($rows)->every(fn ($r) => str_ends_with($r['date'], '-01')))
             ->etc());
 });
