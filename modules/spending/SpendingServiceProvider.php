@@ -71,6 +71,12 @@ class SpendingServiceProvider extends ServiceProvider
             ->group(function () {
                 Route::get('/', [SpendingController::class, 'index'])->name('index');
                 Route::get('/analytics', [SpendingController::class, 'analytics'])->name('analytics');
+                // Module settings: default currency + definable categories. Reads are open to members;
+                // the write endpoints authorize admin-only inside the controller.
+                Route::get('/settings', [SpendingController::class, 'settings'])->name('settings');
+                Route::patch('/settings', [SpendingController::class, 'updateSettings'])->name('settings.update');
+                Route::post('/categories', [SpendingController::class, 'storeCategory'])->name('categories.store');
+                Route::delete('/categories/{category}', [SpendingController::class, 'destroyCategory'])->name('categories.destroy');
                 Route::post('/events', [SpendingController::class, 'storeEvent'])->name('events.store');
                 Route::post('/sources', [SpendingController::class, 'storeSource'])->name('sources.store');
                 // Throttled: each scan is a paid model call, so cap per-user bursts.

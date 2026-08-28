@@ -23,9 +23,6 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SpendingController extends Controller
 {
-    // Public so the guest view (SpendEvent::guestView) can reuse the same option lists.
-    public const CATEGORIES = ['food', 'transport', 'lodging', 'activities', 'shopping', 'other'];
-
     public const CURRENCIES = ['EUR', 'RON', 'USD', 'GBP'];
 
     public function __construct(private ShareAccess $access) {}
@@ -71,7 +68,93 @@ class SpendingController extends Controller
         return Inertia::render('spending/events', [
             'events' => $events,
             'currencies' => self::CURRENCIES,
+            // Pre-select the family's default currency on the create form (falls back to the first
+            // supported currency client-side when unset).
+            'defaultCurrency' => SpendSetting::defaultCurrency(),
         ]);
+    }
+
+    // Module settings screen (reached from the overview header's gear): the family default currency and
+    // the definable expense categories. Visible to any member; writes are admin-only (see below).
+    public function settings(Request $request): Response
+    {
+        $family = Family::findOrFail(CurrentFamily::id());
+        $canManage = $request->user()->can('manageMembers', $family);
+
+        // How many spends use each category key, so the UI can block deleting one that's in use and
+        // still resolve its label. Counts every family spend (across lists), grouped by category key.
+        $usage = Spend::query()->selectRaw('category, count(*) as c')->groupBy('category')->pluck('c', 'category');
+
+        $categories = SpendCategory::forFamily()->map(fn (SpendCategory $c) => [
+            ...$c->toPayload(),
+            'id' => $c->id,
+            'inUse' => (int) ($usage[$c->key] ?? 0),
+        ])->values();
+
+        return Inertia::render('spending/settings', [
+            'currencies' => self::CURRENCIES,
+            'defaultCurrency' => SpendSetting::defaultCurrency(),
+            'categories' => $categories,
+            'canManage' => $canManage,
+        ]);
+    }
+
+    // Save the family's default currency (admin only). null clears it back to the auto default.
+    public function updateSettings(Request $request): RedirectResponse
+    {
+        $family = Family::findOrFail(CurrentFamily::id());
+        $this->authorize('manageMembers', $family);
+
+        $data = $request->validate([
+            'default_currency' => ['nullable', 'in:'.implode(',', self::CURRENCIES)],
+        ]);
+        SpendSetting::current()->update(['default_currency' => $data['default_currency'] ?? null]);
+
+        return back();
+    }
+
+    // Add a custom category (admin only). The admin supplies just a name; we derive a stable slug key
+    // and assign the fallback icon + a rotating colour so it reads distinctly in the charts.
+    public function storeCategory(Request $request): RedirectResponse
+    {
+        $family = Family::findOrFail(CurrentFamily::id());
+        $this->authorize('manageMembers', $family);
+
+        $data = $request->validate(['name' => ['required', 'string', 'max:40']]);
+
+        // Seed defaults first so a brand-new family's custom rows sort after them, and colour cycling
+        // counts existing rows.
+        $existing = SpendCategory::forFamily();
+        $familyId = (int) $family->id;
+        $color = SpendCategory::CUSTOM_COLORS[$existing->count() % count(SpendCategory::CUSTOM_COLORS)];
+
+        SpendCategory::create([
+            'key' => SpendCategory::makeKey($data['name'], $familyId),
+            'name' => trim($data['name']),
+            'icon' => SpendCategory::CUSTOM_ICON,
+            'color' => $color,
+            'is_default' => false,
+            'position' => ($existing->max('position') ?? 0) + 1, // append after current categories
+        ]);
+
+        return back();
+    }
+
+    // Delete a category (admin only). Blocked while any spend still uses its key, so a delete can never
+    // orphan a spend; existing spends always keep a resolvable category.
+    public function destroyCategory(Request $request, int $category): RedirectResponse
+    {
+        $family = Family::findOrFail(CurrentFamily::id());
+        $this->authorize('manageMembers', $family);
+
+        $cat = SpendCategory::findOrFail($category); // family-scoped resolve
+
+        if (Spend::where('category', $cat->key)->exists()) {
+            throw ValidationException::withMessages(['category' => __('spending.category_in_use')]);
+        }
+        $cat->delete();
+
+        return back();
     }
 
     /**
@@ -97,14 +180,16 @@ class SpendingController extends Controller
 
         // Optional drill-down: filter the whole view to one category. Must be a known category, otherwise
         // ignored (treated as "all"). byCategory itself is NEVER filtered — it stays the full switcher.
+        $categoryKeys = SpendCategory::keysFor();
         $activeCategory = $request->query('category');
-        if (! in_array($activeCategory, self::CATEGORIES, true)) {
+        if (! in_array($activeCategory, $categoryKeys, true)) {
             $activeCategory = null;
         }
 
-        // Display currency: an explicit pick, else the most common base among the visible lists so the
-        // default already reads in whatever currency most lists use.
-        $default = $eventCcy->countBy()->sortDesc()->keys()->first() ?? self::CURRENCIES[0];
+        // Display currency: an explicit pick, else the family's default currency, else the most common
+        // base among the visible lists so the default already reads in whatever currency most lists use.
+        $default = SpendSetting::defaultCurrency()
+            ?: ($eventCcy->countBy()->sortDesc()->keys()->first() ?? self::CURRENCIES[0]);
         $display = $request->query('currency');
         if (! in_array($display, self::CURRENCIES, true)) {
             $display = $default;
@@ -194,6 +279,8 @@ class SpendingController extends Controller
         return Inertia::render('spending/analytics', [
             'currency' => $display,
             'currencies' => self::CURRENCIES,
+            // Category metadata (colour/icon/label) so the chart + drill-down render dynamic categories.
+            'categories' => SpendCategory::payloadFor(),
             'period' => $period,
             'range' => ['from' => $start->toDateString(), 'to' => $end->toDateString()],
             'total' => $total,
@@ -314,7 +401,7 @@ class SpendingController extends Controller
         $request->validate(['photo' => ['required', 'image', 'max:10240']]);
 
         try {
-            $data = (new ReceiptScanner(self::CATEGORIES, self::CURRENCIES))->scan($request->file('photo'));
+            $data = (new ReceiptScanner(SpendCategory::keysFor(), self::CURRENCIES))->scan($request->file('photo'));
         } catch (\RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
@@ -430,6 +517,7 @@ class SpendingController extends Controller
 
         return Inertia::render('spending/stats', [
             'event' => ['id' => $event->id, 'name' => $event->name, 'currency' => $event->currency, 'total' => $total],
+            'categories' => SpendCategory::payloadFor(),
             'byCategory' => $byCategory,
             'bySource' => $bySource,
             'overTime' => $overTime,
@@ -647,7 +735,7 @@ class SpendingController extends Controller
         return $request->validate([
             'amount' => ['required', 'numeric', 'gt:0'],
             'currency' => ['required', 'in:'.implode(',', self::CURRENCIES)],
-            'category' => ['required', 'in:'.implode(',', self::CATEGORIES)],
+            'category' => ['required', 'in:'.implode(',', SpendCategory::keysFor())],
             'payer_key' => ['required', 'string', 'in:'.implode(',', $participantKeys)],
             // Optional payment source; must be one of the family's (SpendSource is family-scoped).
             'source_id' => ['nullable', 'integer', 'in:'.implode(',', SpendSource::pluck('id')->all() ?: [0])],
@@ -788,7 +876,9 @@ class SpendingController extends Controller
                 'archived' => $event->archived_at !== null,
                 'members' => $members->filter(fn ($m) => isset($names['u'.$m->id]))->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),
                 'people' => array_sum($split['weights']), // total headcount, not participant rows
-                'categories' => self::CATEGORIES,
+                // Full category metadata (key/label/icon/colour) so the picker + spend log render the
+                // family's dynamic categories, not a hardcoded list.
+                'categories' => SpendCategory::payloadFor(),
                 'currencies' => self::CURRENCIES,
                 // The payer + settle-up dropdowns must match the split: only members actually on the
                 // event (family visibility or an explicit share, or who fronted a spend). $names already

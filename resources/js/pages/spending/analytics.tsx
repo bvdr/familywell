@@ -1,4 +1,5 @@
 import AppLayout from '@/layouts/app-layout';
+import { catColor as catColorOf, catLabel as catLabelOf, categoryMap, type CategoryDef, type CategoryMap } from '@/lib/categories';
 import { useT, type TFn } from '@/lib/i18n';
 import { money } from '@/lib/money';
 import { type BreadcrumbItem } from '@/types';
@@ -13,6 +14,7 @@ type Entry = { id: number; amount: number; note: string | null; category: string
 type Props = {
     currency: string;
     currencies: string[];
+    categories: CategoryDef[];
     period: string;
     range: { from: string; to: string };
     total: number;
@@ -24,17 +26,8 @@ type Props = {
     entries: Entry[];
 };
 
-// Same earthy category palette + label keys as the per-event stats page, so the two views read alike.
-const CATEGORY_META: Record<string, { labelKey: string; color: string }> = {
-    food: { labelKey: 'spending.category_food', color: '#B5623C' },
-    transport: { labelKey: 'spending.category_transport', color: '#2F6B44' },
-    lodging: { labelKey: 'spending.category_lodging', color: '#C99A3A' },
-    activities: { labelKey: 'spending.category_activities', color: '#4F7A6B' },
-    other: { labelKey: 'spending.category_other', color: '#9A8C7A' },
-};
-const catColor = (k: string) => CATEGORY_META[k]?.color ?? '#9A8C7A';
-const catLabel = (t: TFn, k: string) => (CATEGORY_META[k] ? t(CATEGORY_META[k].labelKey) : k.charAt(0).toUpperCase() + k.slice(1));
-
+// Category colour/label now come from the family's dynamic category list (passed as a prop), resolved
+// through a key→def map so this page reads the same as the per-event stats page.
 const shortDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 // Monthly points read as "Jan 2026" — the day number is meaningless once buckets are whole months.
 const monthDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
@@ -160,8 +153,25 @@ function useCountUp(target: number, reduced: boolean) {
 
 const PERIODS = ['mtd', 'last_month', 'ytd', 'custom'] as const;
 
-export default function Analytics({ currency, currencies, period, range, total, byCategory, daily, granularity, count, activeCategory, entries }: Props) {
+export default function Analytics({
+    currency,
+    currencies,
+    categories,
+    period,
+    range,
+    total,
+    byCategory,
+    daily,
+    granularity,
+    count,
+    activeCategory,
+    entries,
+}: Props) {
     const t = useT();
+    // Resolve a category key to its colour/label via the family's category list.
+    const catMap: CategoryMap = categoryMap(categories);
+    const catColor = (k: string) => catColorOf(catMap, k);
+    const catLabel = (t: TFn, k: string) => catLabelOf(t, catMap, k);
     const breadcrumbs: BreadcrumbItem[] = [
         { title: t('nav.spending'), href: '/m/spending' },
         { title: t('spending.analytics'), href: route('spending.analytics') },

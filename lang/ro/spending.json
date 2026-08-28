@@ -20,6 +20,9 @@
     "category_transport": "Transport",
     "category_lodging": "Cazare",
     "category_activities": "Activități",
+    "category_shopping": "Cumpărături",
+    "category_education": "Educație",
+    "category_health": "Sănătate",
     "category_other": "Altele",
     "by_payment_method": "După metoda de plată",
     "over_the_trip": "Pe parcursul călătoriei",
@@ -200,5 +203,17 @@
     "entries_title": "Cheltuieli",
     "all_categories": "Toate categoriile",
     "peak_day": "zi de varf",
-    "daily_chart_aria": "Grafic liniar al cheltuielilor pe zi in perioada selectata"
+    "daily_chart_aria": "Grafic liniar al cheltuielilor pe zi in perioada selectata",
+
+    "settings": "Setări cheltuieli",
+    "settings_sub": "Moneda implicită și categoriile de cheltuieli ale familiei",
+    "default_currency": "Moneda implicită",
+    "default_currency_desc": "Preselectată la listele noi și folosită ca monedă de afișare în analize.",
+    "currency_auto": "Automat",
+    "categories": "Categorii",
+    "categories_desc": "Partajate în familie. Adaugă-le pe ale tale; o categorie folosită nu poate fi ștearsă.",
+    "add_category": "Adaugă o categorie",
+    "category_name_placeholder": "ex. Cadouri, Animale",
+    "delete_category": "Șterge categoria",
+    "category_in_use": "Această categorie este folosită și nu poate fi ștearsă."
 }

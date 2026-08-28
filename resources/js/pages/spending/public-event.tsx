@@ -1,4 +1,4 @@
-import { categoryIcon } from '@/lib/categories';
+import { catIcon, categoryMap, type CategoryDef } from '@/lib/categories';
 import { money } from '@/lib/money';
 import { Head } from '@inertiajs/react';
 
@@ -14,13 +14,17 @@ type Spend = {
 };
 type Props = {
     event: { name: string; currency: string; total: number; members: { id: number; name: string }[] };
+    categories: CategoryDef[];
     spends: Spend[];
 };
 
 const dayLabel = (date: string) => new Date(date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 
-// Read-only public view reached via a share link. No app shell, no auth, no editing.
-export default function PublicEvent({ event, spends }: Props) {
+// Read-only public view reached via a share link. No app shell, no auth, no editing. This page has no
+// i18n context, so a category's English `name` doubles as its label (defaults ship English names).
+export default function PublicEvent({ event, categories, spends }: Props) {
+    const catMap = categoryMap(categories);
+    const catText = (key: string) => catMap[key]?.name ?? key.charAt(0).toUpperCase() + key.slice(1);
     return (
         <div className="bg-background min-h-screen">
             <Head title={`${event.name} · FamilyWell`} />
@@ -41,7 +45,7 @@ export default function PublicEvent({ event, spends }: Props) {
                 <section className="flex flex-col gap-2">
                     <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Spends</h2>
                     {spends.map((s) => {
-                        const Icon = categoryIcon(s.category);
+                        const Icon = catIcon(catMap, s.category);
                         return (
                             <div key={s.id} className="bg-surface-card flex items-center gap-3 rounded-xl border p-3">
                                 <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -49,8 +53,8 @@ export default function PublicEvent({ event, spends }: Props) {
                                         <Icon className="size-4.5" />
                                     </span>
                                     <div className="min-w-0 flex-1">
-                                        <div className="text-primary line-clamp-2 text-sm font-medium">{s.note || s.category}</div>
-                                        <div className="text-muted-foreground truncate text-xs capitalize">
+                                        <div className="text-primary line-clamp-2 text-sm font-medium">{s.note || catText(s.category)}</div>
+                                        <div className="text-muted-foreground truncate text-xs">
                                             {(s.payer ?? 'Someone').split(' ')[0]} · {dayLabel(s.spent_at)}
                                         </div>
                                     </div>

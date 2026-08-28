@@ -1,7 +1,7 @@
 import { useAddAction } from '@/lib/add-action';
 import { openNewOnArrival } from '@/lib/create-intent';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Archive, ChartLine, Plus, RotateCcw, Wallet } from 'lucide-react';
+import { Archive, ChartLine, Plus, RotateCcw, Settings, Wallet } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 import { useOptimistic } from '@/hooks/use-optimistic';
@@ -31,12 +31,21 @@ function Avatars({ members }: { members: Member[] }) {
     );
 }
 
-export default function Events({ events, currencies }: { events: Event[]; currencies: string[] }) {
+export default function Events({
+    events,
+    currencies,
+    defaultCurrency = null,
+}: {
+    events: Event[];
+    currencies: string[];
+    defaultCurrency?: string | null;
+}) {
     const t = useT();
     const breadcrumbs: BreadcrumbItem[] = [{ title: t('nav.spending'), href: '/m/spending' }];
     const [creating, setCreating] = useState(openNewOnArrival);
     useAddAction(() => setCreating(true));
-    const { data, setData, post, processing, errors, reset } = useForm({ name: '', currency: currencies[0] });
+    // Pre-select the family's default currency; fall back to the first supported one when unset.
+    const { data, setData, post, processing, errors, reset } = useForm({ name: '', currency: defaultCurrency ?? currencies[0] });
 
     const archivedOpt = useOptimistic<boolean>();
     const isArchived = (ev: Event) => archivedOpt.get(ev.id, ev.archived);
@@ -62,6 +71,12 @@ export default function Events({ events, currencies }: { events: Event[]; curren
                         <Button asChild variant="outline" size="icon" title={t('spending.analytics')} aria-label={t('spending.analytics')}>
                             <Link href={route('spending.analytics')}>
                                 <ChartLine className="size-4" />
+                            </Link>
+                        </Button>
+                        {/* Module settings: default currency + expense categories. Directly right of Analytics. */}
+                        <Button asChild variant="outline" size="icon" title={t('spending.settings')} aria-label={t('spending.settings')}>
+                            <Link href={route('spending.settings')}>
+                                <Settings className="size-4" />
                             </Link>
                         </Button>
                         {/* Hidden on mobile: the nav's context-aware "+" creates an event there. Desktop has no nav "+". */}
