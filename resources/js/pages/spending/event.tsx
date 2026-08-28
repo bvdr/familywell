@@ -40,7 +40,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { avatarColorFor } from '@/lib/avatar';
-import { catIcon, catLabel, categoryMap, type CategoryDef } from '@/lib/categories';
+import { catColor, catIcon, catLabel, categoryMap, type CategoryDef } from '@/lib/categories';
 import { compressImage, makeThumbnail } from '@/lib/compress-image';
 import { useT, type TFn } from '@/lib/i18n';
 import { money, selectAllOnFocus } from '@/lib/money';
@@ -1219,28 +1219,44 @@ export default function Event({
                                 <div className="grid gap-3">
                                     <div className="grid gap-2">
                                         <Label>{t('spending.category')}</Label>
-                                        <div className="flex flex-wrap gap-2">
-                                            {event.categories.map((c) => {
-                                                const Icon = catIcon(catMap, c.key);
-                                                const active = form.data.category === c.key;
-                                                return (
-                                                    <button
-                                                        key={c.key}
-                                                        type="button"
-                                                        onClick={() => form.setData('category', c.key)}
-                                                        aria-pressed={active}
-                                                        className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
-                                                            active
-                                                                ? 'border-primary bg-accent-strong text-accent-strong-foreground'
-                                                                : 'border-border text-primary hover:bg-surface'
-                                                        }`}
-                                                    >
-                                                        <Icon className="size-4 shrink-0" />
-                                                        {catLabel(t, catMap, c.key)}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
+                                        {/* Dropdown over the family's dynamic categories (defaults + any custom ones).
+                                    The trigger mirrors the selected category's icon + label; each option shows the
+                                    same, with the icon tinted by the category colour (custom categories fall back to
+                                    the Tag icon + fallback colour). The chosen key still submits via form.data.category. */}
+                                        <Select value={form.data.category} onValueChange={(v) => form.setData('category', v)}>
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue>
+                                                    {(() => {
+                                                        const Icon = catIcon(catMap, form.data.category);
+                                                        return (
+                                                            <span className="flex items-center gap-2">
+                                                                <Icon
+                                                                    className="size-4 shrink-0"
+                                                                    style={{ color: catColor(catMap, form.data.category) }}
+                                                                />
+                                                                <span className="truncate">{catLabel(t, catMap, form.data.category)}</span>
+                                                            </span>
+                                                        );
+                                                    })()}
+                                                </SelectValue>
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {event.categories.map((c) => {
+                                                    const Icon = catIcon(catMap, c.key);
+                                                    return (
+                                                        <SelectItem key={c.key} value={c.key}>
+                                                            <span className="flex items-center gap-2">
+                                                                <Icon
+                                                                    className="size-4 shrink-0"
+                                                                    style={{ color: catColor(catMap, c.key) }}
+                                                                />
+                                                                {catLabel(t, catMap, c.key)}
+                                                            </span>
+                                                        </SelectItem>
+                                                    );
+                                                })}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                     <div className="grid gap-2">
                                         <Label>{t('spending.paid_by_field')}</Label>
