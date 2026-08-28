@@ -70,6 +70,7 @@ class SpendingServiceProvider extends ServiceProvider
             ->name('spending.')
             ->group(function () {
                 Route::get('/', [SpendingController::class, 'index'])->name('index');
+                Route::get('/analytics', [SpendingController::class, 'analytics'])->name('analytics');
                 Route::post('/events', [SpendingController::class, 'storeEvent'])->name('events.store');
                 Route::post('/sources', [SpendingController::class, 'storeSource'])->name('sources.store');
                 // Throttled: each scan is a paid model call, so cap per-user bursts.

@@ -184,5 +184,17 @@
     "previous_photo": "Poza anterioară",
     "next_photo": "Poza următoare",
 
-    "yesterday": "Ieri"
+    "yesterday": "Ieri",
+
+    "analytics": "Analize",
+    "analytics_sub": "Totaluri si tendinte pentru toate listele tale",
+    "period_mtd": "Luna aceasta",
+    "period_last_month": "Luna trecuta",
+    "period_ytd": "Anul acesta",
+    "period_custom": "Personalizat",
+    "display_currency": "Moneda afisata",
+    "by_day": "Cheltuieli pe zi",
+    "by_category": "Pe categorie",
+    "peak_day": "zi de varf",
+    "daily_chart_aria": "Grafic liniar al cheltuielilor pe zi in perioada selectata"
 }

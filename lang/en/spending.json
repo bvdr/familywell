@@ -184,5 +184,17 @@
     "previous_photo": "Previous photo",
     "next_photo": "Next photo",
 
-    "yesterday": "Yesterday"
+    "yesterday": "Yesterday",
+
+    "analytics": "Analytics",
+    "analytics_sub": "Totals and trends across all your lists",
+    "period_mtd": "This month",
+    "period_last_month": "Last month",
+    "period_ytd": "This year",
+    "period_custom": "Custom",
+    "display_currency": "Display currency",
+    "by_day": "Expenses by day",
+    "by_category": "By category",
+    "peak_day": "peak day",
+    "daily_chart_aria": "Line chart of spending per day over the selected period"
 }
