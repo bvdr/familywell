@@ -3,6 +3,7 @@ import { useT, type TFn } from '@/lib/i18n';
 import { money } from '@/lib/money';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
+import { animate, motion, useReducedMotion } from 'motion/react';
 import { useEffect, useState } from 'react';
 
 type Cat = { key: string; amount: number; pct: number };
@@ -36,6 +37,8 @@ const shortDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString(un
 // without pulling in a chart library. Y is per-day spend (not cumulative), so the shape reads as the
 // rhythm of spending across the selected period.
 function DailyCurve({ points, currency, t }: { points: Day[]; currency: string; t: TFn }) {
+    // Hook must run before any early return so it stays unconditional. Under reduced motion we snap.
+    const reduced = useReducedMotion();
     if (points.length < 2 || points.every((p) => p.amount === 0)) {
         return <p className="text-muted-foreground py-10 text-center text-sm">{t('spending.trend_empty')}</p>;
     }
@@ -73,8 +76,32 @@ function DailyCurve({ points, currency, t }: { points: Day[]; currency: string; 
                         <stop offset="100%" stopColor="var(--primary)" stopOpacity="0" />
                     </linearGradient>
                 </defs>
-                <path d={area} fill="url(#fill)" />
-                <path d={d} fill="none" stroke="var(--primary)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+                {/* Area fill fades and scales up from its base under the line. transform-box: fill-box so
+                    the scaleY origin is the element's own bottom edge, not the SVG root. Keyed by `area` so a
+                    period/data change remounts it and the intro replays. */}
+                <motion.path
+                    key={`area-${area}`}
+                    d={area}
+                    fill="url(#fill)"
+                    style={{ transformBox: 'fill-box', transformOrigin: 'bottom' }}
+                    initial={reduced ? false : { opacity: 0, scaleY: 0.85 }}
+                    animate={{ opacity: 1, scaleY: 1 }}
+                    transition={{ duration: 0.6, ease: 'easeOut', delay: 0.12 }}
+                />
+                {/* Line draws itself on via pathLength 0 -> 1 (motion maps this to stroke-dash under the hood).
+                    Keyed by `d` so it re-draws when the period or data changes. */}
+                <motion.path
+                    key={`line-${d}`}
+                    d={d}
+                    fill="none"
+                    stroke="var(--primary)"
+                    strokeWidth="2.5"
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                    initial={reduced ? false : { pathLength: 0 }}
+                    animate={{ pathLength: 1 }}
+                    transition={{ duration: 0.8, ease: 'easeOut' }}
+                />
             </svg>
             <div className="text-muted-foreground flex justify-between px-1 font-mono text-xs tabular-nums">
                 <span>{shortDate(points[0].date)}</span>
@@ -87,15 +114,39 @@ function DailyCurve({ points, currency, t }: { points: Day[]; currency: string; 
     );
 }
 
-function Bar({ pct, color, grown }: { pct: number; color: string; grown: boolean }) {
+function Bar({ pct, color, index }: { pct: number; color: string; index: number }) {
+    const reduced = useReducedMotion();
     return (
         <div className="bg-surface h-2.5 overflow-hidden rounded-full">
-            <div
-                className="h-full rounded-full transition-[width] duration-700 ease-out motion-reduce:transition-none"
-                style={{ width: grown ? `${pct}%` : '0%', background: color }}
+            {/* Grow width in with a small per-row delay for a subtle stagger; reduced motion snaps to full. */}
+            <motion.div
+                className="h-full rounded-full"
+                style={{ background: color }}
+                initial={reduced ? false : { width: '0%' }}
+                animate={{ width: `${pct}%` }}
+                transition={{ duration: 0.7, ease: 'easeOut', delay: reduced ? 0 : 0.05 * index }}
             />
         </div>
     );
+}
+
+// Count a formatted money value up from 0 on mount and whenever the target changes. money() wants integer
+// cents, so we round each animated frame before formatting. Reduced motion skips straight to the value.
+function useCountUp(target: number, reduced: boolean) {
+    const [value, setValue] = useState(reduced ? target : 0);
+    useEffect(() => {
+        if (reduced) {
+            setValue(target);
+            return;
+        }
+        const controls = animate(0, target, {
+            duration: 0.7,
+            ease: 'easeOut',
+            onUpdate: (v) => setValue(Math.round(v)),
+        });
+        return () => controls.stop();
+    }, [target, reduced]);
+    return value;
 }
 
 const PERIODS = ['mtd', 'last_month', 'ytd', 'custom'] as const;
@@ -107,11 +158,8 @@ export default function Analytics({ currency, currencies, period, range, total, 
         { title: t('spending.analytics'), href: route('spending.analytics') },
     ];
 
-    const [grown, setGrown] = useState(false);
-    useEffect(() => {
-        const id = requestAnimationFrame(() => setGrown(true));
-        return () => cancelAnimationFrame(id);
-    }, []);
+    const reduced = useReducedMotion() ?? false;
+    const animatedTotal = useCountUp(total, reduced);
 
     // Navigating reloads the page with new query params; Inertia keeps scroll and swaps the props.
     const reload = (params: Record<string, string>) =>
@@ -189,7 +237,7 @@ export default function Analytics({ currency, currencies, period, range, total, 
                 {/* Total spent for the selected period. */}
                 <div className="bg-surface-card flex flex-col gap-1 rounded-xl border p-5">
                     <span className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('spending.total_spent')}</span>
-                    <span className="text-primary font-mono text-3xl font-semibold tabular-nums">{money(total, currency)}</span>
+                    <span className="text-primary font-mono text-3xl font-semibold tabular-nums">{money(animatedTotal, currency)}</span>
                     <span className="text-muted-foreground text-xs">
                         {count} {t(count === 1 ? 'spending.spend_one' : 'spending.spend_other')} · {periodLabel[period]}
                     </span>
@@ -205,9 +253,9 @@ export default function Analytics({ currency, currencies, period, range, total, 
                 <div className="bg-surface-card flex flex-col gap-4 rounded-xl border p-5">
                     <h2 className="font-heading text-primary text-lg">{t('spending.by_category')}</h2>
                     {byCategory.length === 0 ? (
-                        <p className="text-muted-foreground py-4 text-center text-sm">{t('spending.trend_empty')}</p>
+                        <p className="text-muted-foreground py-4 text-center text-sm">{t('spending.category_empty')}</p>
                     ) : (
-                        byCategory.map((c) => (
+                        byCategory.map((c, i) => (
                             <div key={c.key} className="flex flex-col gap-1.5">
                                 <div className="flex items-baseline justify-between gap-3 text-sm">
                                     <span className="text-primary">{catLabel(t, c.key)}</span>
@@ -215,7 +263,7 @@ export default function Analytics({ currency, currencies, period, range, total, 
                                         {money(c.amount, currency)} · {c.pct}%
                                     </span>
                                 </div>
-                                <Bar pct={c.pct} color={catColor(c.key)} grown={grown} />
+                                <Bar pct={c.pct} color={catColor(c.key)} index={i} />
                             </div>
                         ))
                     )}

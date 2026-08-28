@@ -24,6 +24,7 @@
     "by_payment_method": "După metoda de plată",
     "over_the_trip": "Pe parcursul călătoriei",
     "trend_empty": "Un trend apare după ce există cheltuieli în două sau mai multe zile.",
+    "category_empty": "Cheltuielile pe categorie apar după ce există cheltuieli în perioada selectată.",
     "total": "total",
     "average_spend": "Cheltuială medie",
     "daily_average": "Medie zilnică",
