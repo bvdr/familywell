@@ -603,6 +603,29 @@ it('rolls up global analytics across lists into one display currency for the per
             ->where('granularity', 'day')
             ->where('byCategory', fn ($rows) => collect($rows)->firstWhere('key', 'food')['amount'] === 2000
                 && collect($rows)->firstWhere('key', 'other')['amount'] === 2000)
+            ->where('activeCategory', null)
+            ->where('entries', [])
+            ->etc());
+
+    // Add a second food spend so the drill-down list has two rows to order.
+    actingAs($users[0])->post("/m/spending/events/{$ron->id}/spends", [
+        'amount' => '50.00', 'currency' => 'RON', 'category' => 'food', 'payer_key' => 'u'.$users[0]->id, 'spent_at' => $thisMonth,
+    ])->assertRedirect(); // base 5000 RON -> 1000 EUR
+
+    // Filtered to food: total/count/entries reflect only food (2000 + 1000 = 3000, two spends), entries are
+    // sorted by converted amount descending, and byCategory STILL lists every category so the user can switch.
+    actingAs($users[0])->get('/m/spending/analytics?period=mtd&currency=EUR&category=food')
+        ->assertInertia(fn ($p) => $p
+            ->component('spending/analytics')
+            ->where('activeCategory', 'food')
+            ->where('total', 3000)
+            ->where('count', 2)
+            ->where('entries', fn ($rows) => collect($rows)->count() === 2
+                && collect($rows)->pluck('amount')->all() === [2000, 1000] // biggest first
+                && collect($rows)->every(fn ($r) => $r['category'] === 'food'))
+            // byCategory is never filtered: "other" is still present alongside food.
+            ->where('byCategory', fn ($rows) => collect($rows)->firstWhere('key', 'other')['amount'] === 2000
+                && collect($rows)->firstWhere('key', 'food')['amount'] === 3000)
             ->etc());
 });
 

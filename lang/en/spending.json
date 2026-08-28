@@ -197,6 +197,8 @@
     "by_day": "Expenses by day",
     "by_month": "Expenses by month",
     "by_category": "By category",
+    "entries_title": "Expenses",
+    "all_categories": "All categories",
     "peak_day": "peak day",
     "daily_chart_aria": "Line chart of spending per day over the selected period"
 }

@@ -197,6 +197,8 @@
     "by_day": "Cheltuieli pe zi",
     "by_month": "Cheltuieli pe luna",
     "by_category": "Pe categorie",
+    "entries_title": "Cheltuieli",
+    "all_categories": "Toate categoriile",
     "peak_day": "zi de varf",
     "daily_chart_aria": "Grafic liniar al cheltuielilor pe zi in perioada selectata"
 }
