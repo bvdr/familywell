@@ -7,10 +7,10 @@ use App\Support\Dashboard\DashboardItems;
 use App\Support\Guests\GuestableRegistry;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareableRegistry;
-use Modules\Notifications\NotificationCategories;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\Notifications\NotificationCategories;
 
 class SpendingServiceProvider extends ServiceProvider
 {
@@ -47,13 +47,20 @@ class SpendingServiceProvider extends ServiceProvider
                 ->whereNull('archived_at') // archived events drop off the dashboard
                 ->get()
                 ->filter(fn (SpendEvent $e) => $e->visibility() === 'family' || $e->shares->contains('user_id', $userId))
-                ->map(fn (SpendEvent $e) => [
-                    'title' => $e->name,
-                    'subtitle' => (self::CURRENCY_SYMBOL[$e->currency] ?? $e->currency.' ').number_format((int) $e->spends_sum_base_amount / 100, 2),
-                    'href' => "/m/spending/events/{$e->id}",
-                    'icon' => 'wallet',
-                    'visitedAt' => $visits[$e->id]->toIso8601String(),
-                ])->values()->all();
+                ->map(function (SpendEvent $e) use ($visits) {
+                    // Show the card in the list's chosen display currency (converted from the frozen
+                    // base sum), matching the overview and detail views. Falls back to base.
+                    $display = $e->display_currency ?: $e->currency;
+                    $total = Fx::convert((int) $e->spends_sum_base_amount, $e->currency, $display);
+
+                    return [
+                        'title' => $e->name,
+                        'subtitle' => (self::CURRENCY_SYMBOL[$display] ?? $display.' ').number_format($total / 100, 2),
+                        'href' => "/m/spending/events/{$e->id}",
+                        'icon' => 'wallet',
+                        'visitedAt' => $visits[$e->id]->toIso8601String(),
+                    ];
+                })->values()->all();
         });
 
         // Full Inertia pages (not a dashboard widget): Spending is a whole app section. Gated by

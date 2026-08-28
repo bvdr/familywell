@@ -540,3 +540,24 @@ it('shows the list overview total in the chosen display currency', function () {
     actingAs($users[0])->get('/m/spending')
         ->assertInertia(fn ($p) => $p->where('events.0.total', 10000)->where('events.0.currency', 'RON'));
 });
+
+it('shows the home dashboard recent card in the chosen display currency', function () {
+    Http::fake([
+        'api.frankfurter.dev/*' => Http::response(['rates' => ['RON' => 5.0]]),
+        'open.er-api.com/*' => Http::response(['rates' => ['RON' => 5.0]]),
+    ]);
+
+    [, $users] = spendingFamily();
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Medical', 'currency' => 'EUR']);
+    $event = SpendEvent::first();
+    actingAs($users[0])->post("/m/spending/events/{$event->id}/spends", [
+        'amount' => '20.00', 'currency' => 'EUR', 'category' => 'other', 'payer_key' => 'u'.($users[0]->id), 'spent_at' => '2026-08-01',
+    ])->assertRedirect();
+    actingAs($users[0])->patch("/m/spending/events/{$event->id}", ['display_currency' => 'RON'])->assertRedirect();
+    // Opening the event registers the "recently visited" entry the dashboard reads.
+    actingAs($users[0])->get("/m/spending/events/{$event->id}");
+
+    // The "Pick up where you left off" card must read the RON display total (lei 100.00), not €20.00.
+    actingAs($users[0])->get('/dashboard')
+        ->assertInertia(fn ($p) => $p->where('recent.0.subtitle', 'lei 100.00'));
+});
