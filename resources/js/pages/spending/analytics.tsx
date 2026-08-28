@@ -8,6 +8,8 @@ import { useEffect, useState } from 'react';
 
 type Cat = { key: string; amount: number; pct: number };
 type Day = { date: string; amount: number };
+// One individual expense in the drilled-down category (amounts already in display cents).
+type Entry = { id: number; amount: number; note: string | null; category: string; date: string; list: string };
 type Props = {
     currency: string;
     currencies: string[];
@@ -18,6 +20,8 @@ type Props = {
     daily: Day[];
     granularity: 'day' | 'month';
     count: number;
+    activeCategory: string | null;
+    entries: Entry[];
 };
 
 // Same earthy category palette + label keys as the per-event stats page, so the two views read alike.
@@ -156,7 +160,7 @@ function useCountUp(target: number, reduced: boolean) {
 
 const PERIODS = ['mtd', 'last_month', 'ytd', 'custom'] as const;
 
-export default function Analytics({ currency, currencies, period, range, total, byCategory, daily, granularity, count }: Props) {
+export default function Analytics({ currency, currencies, period, range, total, byCategory, daily, granularity, count, activeCategory, entries }: Props) {
     const t = useT();
     const breadcrumbs: BreadcrumbItem[] = [
         { title: t('nav.spending'), href: '/m/spending' },
@@ -167,8 +171,16 @@ export default function Analytics({ currency, currencies, period, range, total, 
     const animatedTotal = useCountUp(total, reduced);
 
     // Navigating reloads the page with new query params; Inertia keeps scroll and swaps the props.
+    // The active category rides along so switching period/currency keeps the drill-down filter.
     const reload = (params: Record<string, string>) =>
-        router.get(route('spending.analytics'), { period, currency, from: range.from, to: range.to, ...params }, { preserveScroll: true, preserveState: true });
+        router.get(
+            route('spending.analytics'),
+            { period, currency, from: range.from, to: range.to, category: activeCategory ?? '', ...params },
+            { preserveScroll: true, preserveState: true },
+        );
+
+    // Tapping a category filters to it; tapping the active one again clears back to all.
+    const toggleCategory = (key: string) => reload({ category: key === activeCategory ? '' : key });
 
     const periodLabel: Record<string, string> = {
         mtd: t('spending.period_mtd'),
@@ -254,25 +266,71 @@ export default function Analytics({ currency, currencies, period, range, total, 
                     <DailyCurve points={daily} currency={currency} granularity={granularity} t={t} />
                 </div>
 
-                {/* Spending by category. */}
+                {/* Spending by category — each row is a filter. Tapping one drills the whole view (total,
+                    count, chart, and the entries list below) into that category; tapping it again clears. */}
                 <div className="bg-surface-card flex flex-col gap-4 rounded-xl border p-5">
                     <h2 className="font-heading text-primary text-lg">{t('spending.by_category')}</h2>
                     {byCategory.length === 0 ? (
                         <p className="text-muted-foreground py-4 text-center text-sm">{t('spending.category_empty')}</p>
                     ) : (
-                        byCategory.map((c, i) => (
-                            <div key={c.key} className="flex flex-col gap-1.5">
-                                <div className="flex items-baseline justify-between gap-3 text-sm">
-                                    <span className="text-primary">{catLabel(t, c.key)}</span>
-                                    <span className="text-muted-foreground font-mono tabular-nums">
-                                        {money(c.amount, currency)} · {c.pct}%
-                                    </span>
-                                </div>
-                                <Bar pct={c.pct} color={catColor(c.key)} index={i} />
-                            </div>
-                        ))
+                        byCategory.map((c, i) => {
+                            const active = c.key === activeCategory;
+                            return (
+                                <button
+                                    key={c.key}
+                                    type="button"
+                                    onClick={() => toggleCategory(c.key)}
+                                    aria-pressed={active}
+                                    className={`-mx-2 flex flex-col gap-1.5 rounded-lg px-2 py-1.5 text-left transition-colors ${
+                                        active ? 'bg-surface ring-primary/40 ring-1' : 'hover:bg-surface'
+                                    }`}
+                                >
+                                    <div className="flex items-baseline justify-between gap-3 text-sm">
+                                        <span className={active ? 'text-primary font-semibold' : 'text-primary'}>{catLabel(t, c.key)}</span>
+                                        <span className="text-muted-foreground font-mono tabular-nums">
+                                            {money(c.amount, currency)} · {c.pct}%
+                                        </span>
+                                    </div>
+                                    <Bar pct={c.pct} color={catColor(c.key)} index={i} />
+                                </button>
+                            );
+                        })
+                    )}
+                    {activeCategory && (
+                        <button type="button" onClick={() => toggleCategory(activeCategory)} className="text-muted-foreground self-start text-xs underline">
+                            {t('spending.all_categories')}
+                        </button>
                     )}
                 </div>
+
+                {/* Drill-down: every individual expense in the filtered category, biggest first. */}
+                {activeCategory && (
+                    <div className="bg-surface-card flex flex-col gap-3 rounded-xl border p-5">
+                        <h2 className="font-heading text-primary text-lg">
+                            {t('spending.entries_title')} · {catLabel(t, activeCategory)}
+                        </h2>
+                        {entries.length === 0 ? (
+                            <p className="text-muted-foreground py-4 text-center text-sm">{t('spending.category_empty')}</p>
+                        ) : (
+                            <ul className="flex flex-col divide-y">
+                                {entries.map((e) => (
+                                    <li key={e.id} className="flex items-center justify-between gap-3 py-2.5">
+                                        <div className="flex min-w-0 items-center gap-2.5">
+                                            <span className="size-2.5 shrink-0 rounded-full" style={{ background: catColor(e.category) }} />
+                                            <div className="min-w-0">
+                                                <div className="text-muted-foreground truncate text-xs">
+                                                    {e.list} · {shortDate(e.date)}
+                                                </div>
+                                                <div className="text-primary truncate text-sm">{e.note || catLabel(t, e.category)}</div>
+                                            </div>
+                                        </div>
+                                        <span className="text-primary shrink-0 font-mono text-sm tabular-nums">{money(e.amount, currency)}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                )}
             </div>
         </AppLayout>
     );

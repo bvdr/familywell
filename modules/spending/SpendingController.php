@@ -93,6 +93,14 @@ class SpendingController extends Controller
             ->filter(fn (SpendEvent $e) => $e->visibility() === 'family' || $e->shares->contains('user_id', $userId));
 
         $eventCcy = $events->pluck('currency', 'id'); // event id => its frozen base currency
+        $eventName = $events->pluck('name', 'id');    // event id => its list name (for the drill-down entries)
+
+        // Optional drill-down: filter the whole view to one category. Must be a known category, otherwise
+        // ignored (treated as "all"). byCategory itself is NEVER filtered — it stays the full switcher.
+        $activeCategory = $request->query('category');
+        if (! in_array($activeCategory, self::CATEGORIES, true)) {
+            $activeCategory = null;
+        }
 
         // Display currency: an explicit pick, else the most common base among the visible lists so the
         // default already reads in whatever currency most lists use.
@@ -112,30 +120,56 @@ class SpendingController extends Controller
         }
         $conv = fn (int $baseCents, string $ccy) => (int) round($baseCents * ($rate[$ccy] ?? 1.0));
 
-        // Query the smaller dataset: only spends in-range for these events, only the columns we sum.
+        // Query the smaller dataset: only spends in-range for these events, only the columns we need
+        // (id + note added for the drill-down entries list).
         $spends = $eventCcy->isEmpty() ? collect() : Spend::query()
             ->whereIn('spend_event_id', $eventCcy->keys())
             ->whereBetween('spent_at', [$start->toDateString(), $end->toDateString()])
-            ->get(['spend_event_id', 'category', 'base_amount', 'spent_at']);
+            ->get(['id', 'spend_event_id', 'category', 'base_amount', 'note', 'spent_at']);
 
         // For long ranges, group the series by month instead of by day (see below): decide up front so
         // we bucket each spend into the right key while summing.
         $byMonth = $start->diffInDays($end) > 90; // > 90 days spanned => monthly buckets
         $granularity = $byMonth ? 'month' : 'day';
 
-        $total = 0;
-        $byCat = [];  // category => display cents
-        $bucket = []; // series key ('Y-m-d' day, or 'Y-m-01' month) => display cents
+        $total = 0;   // display cents — honours the active-category filter
+        $count = 0;   // number of spends — honours the active-category filter
+        $byCat = [];  // category => display cents — ALWAYS across every category (never filtered)
+        $bucket = []; // series key ('Y-m-d' day, or 'Y-m-01' month) => display cents — filtered
+        $entries = []; // individual spends of the active category (drill-down), unsorted here
         foreach ($spends as $s) {
             $c = $conv((int) $s->base_amount, $eventCcy[$s->spend_event_id]);
-            $total += $c;
+            // byCategory spans all categories so the user can switch between them while filtered.
             $byCat[$s->category] = ($byCat[$s->category] ?? 0) + $c;
+
+            // Everything else (total, count, series, entries) reflects the active category only.
+            if ($activeCategory !== null && $s->category !== $activeCategory) {
+                continue;
+            }
+            $total += $c;
+            $count++;
             // Bucket by first-of-month for monthly granularity, else by exact day.
             $key = $byMonth ? $s->spent_at->copy()->startOfMonth()->toDateString() : $s->spent_at->toDateString();
             $bucket[$key] = ($bucket[$key] ?? 0) + $c;
+            if ($activeCategory !== null) {
+                $entries[] = [
+                    'id' => $s->id,
+                    'amount' => $c, // already in display cents
+                    'note' => $s->note, // client falls back to the category label when empty
+                    'category' => $s->category,
+                    'date' => $s->spent_at->toDateString(),
+                    'list' => $eventName[$s->spend_event_id] ?? '',
+                ];
+            }
         }
 
-        $pct = fn (int $a) => $total ? round($a / $total * 100) : 0;
+        // Biggest expense first.
+        usort($entries, fn ($a, $b) => $b['amount'] <=> $a['amount']);
+
+        // byCategory percentages are relative to the grand total across all categories, so the rows stay
+        // consistent (and sum to ~100%) whether or not a category filter is applied.
+        $grandTotal = array_sum($byCat);
+        $pct = fn (int $a) => $grandTotal ? round($a / $grandTotal * 100) : 0;
         $byCategory = collect($byCat)
             ->map(fn ($amount, $key) => ['key' => $key, 'amount' => $amount, 'pct' => $pct($amount)])
             ->sortByDesc('amount')->values();
@@ -165,7 +199,9 @@ class SpendingController extends Controller
             'byCategory' => $byCategory,
             'daily' => $daily,
             'granularity' => $granularity,
-            'count' => $spends->count(),
+            'count' => $count,
+            'activeCategory' => $activeCategory,
+            'entries' => $entries,
         ]);
     }
 
