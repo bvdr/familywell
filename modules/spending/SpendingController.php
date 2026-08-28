@@ -13,6 +13,7 @@ use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -71,6 +72,128 @@ class SpendingController extends Controller
             'events' => $events,
             'currencies' => self::CURRENCIES,
         ]);
+    }
+
+    /**
+     * Global spending analytics across every list the user can see: total, by-category, and a
+     * per-day series for the selected period. Unlike per-event stats (one list, its own base
+     * currency), this rolls up lists that may each have a different base, so everything is
+     * converted to one display currency (query `currency`, default the most common base).
+     */
+    public function analytics(Request $request): Response
+    {
+        $userId = $request->user()->id;
+
+        // Same visibility rule as index(): family-visible events, plus invited/private ones the user
+        // has a share on. Archived lists are excluded. Only id+currency are needed to convert.
+        $events = SpendEvent::query()
+            ->with(['shareSetting', 'shares'])
+            ->whereNull('archived_at')
+            ->get()
+            ->filter(fn (SpendEvent $e) => $e->visibility() === 'family' || $e->shares->contains('user_id', $userId));
+
+        $eventCcy = $events->pluck('currency', 'id'); // event id => its frozen base currency
+
+        // Display currency: an explicit pick, else the most common base among the visible lists so the
+        // default already reads in whatever currency most lists use.
+        $default = $eventCcy->countBy()->sortDesc()->keys()->first() ?? self::CURRENCIES[0];
+        $display = $request->query('currency');
+        if (! in_array($display, self::CURRENCIES, true)) {
+            $display = $default;
+        }
+
+        [$period, $start, $end] = $this->analyticsPeriod($request);
+
+        // One cached rate lookup per distinct base currency (not per spend): convert each list's frozen
+        // base cents into the display currency at the latest rate.
+        $rate = [];
+        foreach ($eventCcy->unique() as $ccy) {
+            $rate[$ccy] = Fx::rate($ccy, $display);
+        }
+        $conv = fn (int $baseCents, string $ccy) => (int) round($baseCents * ($rate[$ccy] ?? 1.0));
+
+        // Query the smaller dataset: only spends in-range for these events, only the columns we sum.
+        $spends = $eventCcy->isEmpty() ? collect() : Spend::query()
+            ->whereIn('spend_event_id', $eventCcy->keys())
+            ->whereBetween('spent_at', [$start->toDateString(), $end->toDateString()])
+            ->get(['spend_event_id', 'category', 'base_amount', 'spent_at']);
+
+        $total = 0;
+        $byCat = [];  // category => display cents
+        $byDay = [];  // 'Y-m-d' => display cents
+        foreach ($spends as $s) {
+            $c = $conv((int) $s->base_amount, $eventCcy[$s->spend_event_id]);
+            $total += $c;
+            $byCat[$s->category] = ($byCat[$s->category] ?? 0) + $c;
+            $d = $s->spent_at->toDateString();
+            $byDay[$d] = ($byDay[$d] ?? 0) + $c;
+        }
+
+        $pct = fn (int $a) => $total ? round($a / $total * 100) : 0;
+        $byCategory = collect($byCat)
+            ->map(fn ($amount, $key) => ['key' => $key, 'amount' => $amount, 'pct' => $pct($amount)])
+            ->sortByDesc('amount')->values();
+
+        // Every day in the range, zero-filled, so the curve spans the whole selected period rather
+        // than jumping between only the days that had spending.
+        $daily = [];
+        for ($d = $start->copy(); $d <= $end; $d->addDay()) {
+            $key = $d->toDateString();
+            $daily[] = ['date' => $key, 'amount' => $byDay[$key] ?? 0];
+        }
+
+        return Inertia::render('spending/analytics', [
+            'currency' => $display,
+            'currencies' => self::CURRENCIES,
+            'period' => $period,
+            'range' => ['from' => $start->toDateString(), 'to' => $end->toDateString()],
+            'total' => $total,
+            'byCategory' => $byCategory,
+            'daily' => $daily,
+            'count' => $spends->count(),
+        ]);
+    }
+
+    /**
+     * Resolve the analytics period into a [label, start, end] Carbon range (inclusive days).
+     * Supported: mtd (default), last_month, ytd, custom (from/to query params).
+     */
+    private function analyticsPeriod(Request $request): array
+    {
+        $today = now();
+        switch ($request->query('period')) {
+            case 'last_month':
+                $start = $today->copy()->subMonthNoOverflow()->startOfMonth();
+                $end = $start->copy()->endOfMonth();
+
+                return ['last_month', $start, $end];
+            case 'ytd':
+                return ['ytd', $today->copy()->startOfYear(), $today->copy()];
+            case 'custom':
+                $start = $this->parseDate($request->query('from')) ?? $today->copy()->startOfMonth();
+                $end = $this->parseDate($request->query('to')) ?? $today->copy();
+                if ($end->lt($start)) {
+                    [$start, $end] = [$end, $start];
+                }
+
+                return ['custom', $start, $end];
+            case 'mtd':
+            default:
+                return ['mtd', $today->copy()->startOfMonth(), $today->copy()];
+        }
+    }
+
+    // Parse a Y-m-d query param into a Carbon date, or null if absent/malformed (falls back to a default).
+    private function parseDate(?string $value): ?Carbon
+    {
+        if (! $value) {
+            return null;
+        }
+        try {
+            return Carbon::createFromFormat('Y-m-d', $value)->startOfDay();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public function storeEvent(Request $request): RedirectResponse

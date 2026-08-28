@@ -1,7 +1,7 @@
 import { useAddAction } from '@/lib/add-action';
 import { openNewOnArrival } from '@/lib/create-intent';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Archive, Plus, RotateCcw, Wallet } from 'lucide-react';
+import { Archive, ChartLine, Plus, RotateCcw, Wallet } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 import { useOptimistic } from '@/hooks/use-optimistic';
@@ -57,10 +57,18 @@ export default function Events({ events, currencies }: { events: Event[]; curren
                         <h1 className="font-heading text-primary text-2xl">{t('nav.spending')}</h1>
                         <p className="text-muted-foreground text-sm">{t('dashboard.spending_sub')}</p>
                     </div>
-                    {/* Hidden on mobile: the nav's context-aware "+" creates an event there. Desktop has no nav "+". */}
-                    <Button className="hidden md:inline-flex" onClick={() => setCreating((v) => !v)}>
-                        <Plus className="size-4" /> {t('create.spending')}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        {/* Analytics: global totals/trends across all lists (top-right, where the request put it). */}
+                        <Button asChild variant="outline" size="icon" title={t('spending.analytics')} aria-label={t('spending.analytics')}>
+                            <Link href={route('spending.analytics')}>
+                                <ChartLine className="size-4" />
+                            </Link>
+                        </Button>
+                        {/* Hidden on mobile: the nav's context-aware "+" creates an event there. Desktop has no nav "+". */}
+                        <Button className="hidden md:inline-flex" onClick={() => setCreating((v) => !v)}>
+                            <Plus className="size-4" /> {t('create.spending')}
+                        </Button>
+                    </div>
                 </div>
 
                 {creating && (

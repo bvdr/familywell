@@ -561,3 +561,45 @@ it('shows the home dashboard recent card in the chosen display currency', functi
     actingAs($users[0])->get('/dashboard')
         ->assertInertia(fn ($p) => $p->where('recent.0.subtitle', 'lei 100.00'));
 });
+
+it('rolls up global analytics across lists into one display currency for the period', function () {
+    Http::fake([
+        // RON -> EUR for the roll-up conversion; EUR -> EUR short-circuits (no HTTP).
+        'api.frankfurter.dev/*' => Http::response(['rates' => ['EUR' => 0.2]]),
+        'open.er-api.com/*' => Http::response(['rates' => ['EUR' => 0.2]]),
+    ]);
+
+    [, $users] = spendingFamily();
+    // Two lists with different base currencies.
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Home', 'currency' => 'RON']);
+    $eur = SpendEvent::where('currency', 'EUR')->first();
+    $ron = SpendEvent::where('currency', 'RON')->first();
+
+    $thisMonth = now()->startOfMonth()->addDays(3)->toDateString();
+    $lastMonth = now()->subMonthNoOverflow()->startOfMonth()->addDays(3)->toDateString();
+
+    // This month: 20.00 EUR (base 2000 EUR, "other") + 100.00 RON (base 10000 RON -> 2000 EUR, "food").
+    actingAs($users[0])->post("/m/spending/events/{$eur->id}/spends", [
+        'amount' => '20.00', 'currency' => 'EUR', 'category' => 'other', 'payer_key' => 'u'.$users[0]->id, 'spent_at' => $thisMonth,
+    ])->assertRedirect();
+    actingAs($users[0])->post("/m/spending/events/{$ron->id}/spends", [
+        'amount' => '100.00', 'currency' => 'RON', 'category' => 'food', 'payer_key' => 'u'.$users[0]->id, 'spent_at' => $thisMonth,
+    ])->assertRedirect();
+    // Last month: must be excluded from the month-to-date period.
+    actingAs($users[0])->post("/m/spending/events/{$eur->id}/spends", [
+        'amount' => '5.00', 'currency' => 'EUR', 'category' => 'other', 'payer_key' => 'u'.$users[0]->id, 'spent_at' => $lastMonth,
+    ])->assertRedirect();
+
+    // Display in EUR, month-to-date: total = 2000 + 2000 = 4000 (the last-month 500 is excluded).
+    actingAs($users[0])->get('/m/spending/analytics?period=mtd&currency=EUR')
+        ->assertInertia(fn ($p) => $p
+            ->component('spending/analytics')
+            ->where('currency', 'EUR')
+            ->where('period', 'mtd')
+            ->where('total', 4000)
+            ->where('count', 2)
+            ->where('byCategory', fn ($rows) => collect($rows)->firstWhere('key', 'food')['amount'] === 2000
+                && collect($rows)->firstWhere('key', 'other')['amount'] === 2000)
+            ->etc());
+});
