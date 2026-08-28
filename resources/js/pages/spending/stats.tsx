@@ -1,4 +1,5 @@
 import AppLayout from '@/layouts/app-layout';
+import { catColor as catColorOf, catLabel as catLabelOf, categoryMap, type CategoryDef, type CategoryMap } from '@/lib/categories';
 import { useT, type TFn } from '@/lib/i18n';
 import { money } from '@/lib/money';
 import { type BreadcrumbItem } from '@/types';
@@ -10,6 +11,7 @@ type Source = { key: string; label: string; type: string; amount: number; pct: n
 type Point = { date: string; amount: number; cumulative: number };
 type Props = {
     event: { id: number; name: string; currency: string; total: number };
+    categories: CategoryDef[];
     byCategory: Cat[];
     bySource: Source[];
     overTime: Point[];
@@ -24,18 +26,8 @@ type Props = {
     };
 };
 
-// An earthy categorical palette, harmonized with the forest/cream brand rather than a stock rainbow.
-// Only the color is static data; the label is a translation key resolved with t() at render time
-// (module-level consts can't call hooks). Unknown categories fall back to the raw key, capitalized.
-const CATEGORY_META: Record<string, { labelKey: string; color: string }> = {
-    food: { labelKey: 'spending.category_food', color: '#B5623C' }, // terracotta
-    transport: { labelKey: 'spending.category_transport', color: '#2F6B44' }, // forest
-    lodging: { labelKey: 'spending.category_lodging', color: '#C99A3A' }, // gold
-    activities: { labelKey: 'spending.category_activities', color: '#4F7A6B' }, // muted teal-green
-    other: { labelKey: 'spending.category_other', color: '#9A8C7A' }, // taupe
-};
-const catColor = (k: string) => CATEGORY_META[k]?.color ?? '#9A8C7A';
-const catLabel = (t: TFn, k: string) => (CATEGORY_META[k] ? t(CATEGORY_META[k].labelKey) : k.charAt(0).toUpperCase() + k.slice(1));
+// Category colour/label come from the family's dynamic category list (a prop); the same earthy palette
+// as before ships as the seeded defaults. Resolved via a key→def map built in the component.
 
 // Payment methods share the same earthy palette, keyed by source type; unspecified is the neutral taupe.
 const SOURCE_COLOR: Record<string, string> = {
@@ -117,8 +109,12 @@ function Fact({ label, value, sub, mono }: { label: string; value: string; sub?:
     );
 }
 
-export default function Stats({ event, byCategory, bySource, overTime, facts }: Props) {
+export default function Stats({ event, categories, byCategory, bySource, overTime, facts }: Props) {
     const t = useT();
+    // Resolve a category key to its colour/label via the family's category list.
+    const catMap: CategoryMap = categoryMap(categories);
+    const catColor = (k: string) => catColorOf(catMap, k);
+    const catLabel = (t: TFn, k: string) => catLabelOf(t, catMap, k);
     const [grown, setGrown] = useState(false);
     useEffect(() => {
         const timer = setTimeout(() => setGrown(true), 60);

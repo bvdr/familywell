@@ -141,6 +141,8 @@ class SpendEvent extends Model implements ProvidesGuestView, ProvidesPublicShare
                     'total' => (int) $spends->sum('base_amount'),
                     'members' => $members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),
                 ],
+                // Category metadata so the public read-only log renders icons/labels for dynamic categories.
+                'categories' => SpendCategory::payloadFor((int) $this->family_id),
                 'spends' => $spends->map(fn (Spend $s) => [
                     'id' => $s->id,
                     'amount' => $s->amount,
@@ -187,7 +189,8 @@ class SpendEvent extends Model implements ProvidesGuestView, ProvidesPublicShare
                     'name' => $this->name,
                     'currency' => $this->currency,
                     'total' => (int) $spends->sum('base_amount'),
-                    'categories' => SpendingController::CATEGORIES,
+                    // The family's dynamic categories (guest context has the event's family scope set).
+                    'categories' => SpendCategory::payloadFor((int) $this->family_id),
                     'currencies' => SpendingController::CURRENCIES,
                 ],
                 'guests' => $this->guests->map(fn ($g) => [

@@ -20,6 +20,9 @@
     "category_transport": "Transport",
     "category_lodging": "Lodging",
     "category_activities": "Activities",
+    "category_shopping": "Shopping",
+    "category_education": "Education",
+    "category_health": "Health",
     "category_other": "Other",
     "by_payment_method": "By payment method",
     "over_the_trip": "Over the trip",
@@ -200,5 +203,17 @@
     "entries_title": "Expenses",
     "all_categories": "All categories",
     "peak_day": "peak day",
-    "daily_chart_aria": "Line chart of spending per day over the selected period"
+    "daily_chart_aria": "Line chart of spending per day over the selected period",
+
+    "settings": "Spending settings",
+    "settings_sub": "Default currency and expense categories for your family",
+    "default_currency": "Default currency",
+    "default_currency_desc": "Pre-selected on new lists and used as the analytics display currency.",
+    "currency_auto": "Automatic",
+    "categories": "Categories",
+    "categories_desc": "Shared across your family. Add your own; a category in use can't be removed.",
+    "add_category": "Add a category",
+    "category_name_placeholder": "e.g. Gifts, Pets",
+    "delete_category": "Delete category",
+    "category_in_use": "This category is in use and can't be deleted."
 }

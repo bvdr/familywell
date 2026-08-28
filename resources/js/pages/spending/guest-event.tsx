@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { categoryIcon } from '@/lib/categories';
+import { catIcon, catLabel, categoryMap, type CategoryDef } from '@/lib/categories';
 import { useT } from '@/lib/i18n';
 import { money, selectAllOnFocus } from '@/lib/money';
 import { Head, router, useForm } from '@inertiajs/react';
@@ -24,7 +24,7 @@ type Spend = {
 type Balance = { id: string; name: string; net: number };
 type Suggestion = { from: { id: string; name: string }; to: { id: string; name: string }; amount: number };
 type Transfer = { id: number; from: string; to: string; amount: number; note: string | null; date: string };
-type EventT = { name: string; currency: string; total: number; categories: string[]; currencies: string[] };
+type EventT = { name: string; currency: string; total: number; categories: CategoryDef[]; currencies: string[] };
 
 type Props = {
     token: string;
@@ -44,6 +44,8 @@ const dayLabel = (date: string) => new Date(date + 'T00:00:00').toLocaleDateStri
 // an add-expense form and can edit/delete the spends they added.
 export default function GuestEvent({ token, event, guests, spends, balances, suggestions, transfers }: Props) {
     const t = useT();
+    // Dynamic categories: key→def lookup for rendering the spend log (the form builds its own).
+    const catMap = categoryMap(event.categories);
     const storageKey = `familywell:guest:${token}`;
     const [meId, setMeId] = useState<number | null>(null);
     // Read the saved identity after mount (no SSR window), and drop it if that guest was removed.
@@ -222,14 +224,14 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
                 <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('spending.spends_heading')}</h2>
                 {spends.map((s) => {
                     const mine = s.payer.guestId === me.id;
-                    const Icon = categoryIcon(s.category);
+                    const Icon = catIcon(catMap, s.category);
                     return (
                         <div key={s.id} className="bg-surface-card flex items-center gap-3 rounded-xl border p-3">
                             <span className="bg-accent-subtle text-primary flex size-9 shrink-0 items-center justify-center rounded-lg">
                                 <Icon className="size-4.5" />
                             </span>
                             <div className="min-w-0 flex-1">
-                                <div className="text-primary line-clamp-2 text-sm font-medium">{s.note || s.category}</div>
+                                <div className="text-primary line-clamp-2 text-sm font-medium">{s.note || catLabel(t, catMap, s.category)}</div>
                                 <div className="text-muted-foreground truncate text-xs capitalize">
                                     {(s.payer.name ?? t('spending.guest_word')).split(' ')[0]} · {dayLabel(s.spent_at)}
                                 </div>
@@ -322,12 +324,14 @@ function Shell({ title, children }: { title: string; children: React.ReactNode }
 
 function SpendForm({ token, me, event, editing, onClose }: { token: string; me: Guest; event: EventT; editing: Spend | null; onClose: () => void }) {
     const t = useT();
+    const catMap = categoryMap(event.categories);
+    const defaultCategory = event.categories[0]?.key ?? 'food';
     const amountRef = useRef<HTMLInputElement>(null); // focused on open so the numeric pad shows
     const form = useForm({
         guest_id: me.id,
         amount: editing ? (editing.amount / 100).toString() : '',
         currency: editing?.currency ?? event.currency,
-        category: editing?.category ?? 'food',
+        category: editing?.category ?? defaultCategory,
         note: editing?.note ?? '',
         spent_at: editing?.spent_at ?? today(),
     });
@@ -395,22 +399,22 @@ function SpendForm({ token, me, event, editing, onClose }: { token: string; me: 
                     <Label>{t('spending.category')}</Label>
                     <div className="flex flex-wrap gap-2">
                         {event.categories.map((c) => {
-                            const Icon = categoryIcon(c);
-                            const active = form.data.category === c;
+                            const Icon = catIcon(catMap, c.key);
+                            const active = form.data.category === c.key;
                             return (
                                 <button
-                                    key={c}
+                                    key={c.key}
                                     type="button"
-                                    onClick={() => form.setData('category', c)}
+                                    onClick={() => form.setData('category', c.key)}
                                     aria-pressed={active}
-                                    className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium capitalize transition-colors ${
+                                    className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
                                         active
                                             ? 'border-primary bg-accent-strong text-accent-strong-foreground'
                                             : 'border-border text-primary hover:bg-surface'
                                     }`}
                                 >
                                     <Icon className="size-4 shrink-0" />
-                                    {c}
+                                    {catLabel(t, catMap, c.key)}
                                 </button>
                             );
                         })}

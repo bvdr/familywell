@@ -40,7 +40,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { avatarColorFor } from '@/lib/avatar';
-import { categoryIcon } from '@/lib/categories';
+import { catIcon, catLabel, categoryMap, type CategoryDef } from '@/lib/categories';
 import { compressImage, makeThumbnail } from '@/lib/compress-image';
 import { useT, type TFn } from '@/lib/i18n';
 import { money, selectAllOnFocus } from '@/lib/money';
@@ -56,7 +56,7 @@ type EventT = {
     archived: boolean;
     people: number; // total headcount (sum of participant weights), not row count
     members: Member[];
-    categories: string[];
+    categories: CategoryDef[]; // the family's dynamic categories (key/label/icon/colour)
     currencies: string[];
     rates: Record<string, number>; // base currency -> each supported currency (latest)
 };
@@ -184,6 +184,9 @@ export default function Event({
 }) {
     const authId = (usePage().props as { auth: { user: { id: number } } }).auth.user.id;
     const t = useT();
+    // Dynamic categories: a key→def lookup for rendering, and the first one as the new-spend default.
+    const catMap = categoryMap(event.categories);
+    const defaultCategory = event.categories[0]?.key ?? 'food';
     const [tab, setTab] = useState<TabKey>('expenses');
     const [adding, setAdding] = useState(false);
     useAddAction(() => setAdding(true));
@@ -341,7 +344,7 @@ export default function Event({
     }>({
         amount: '',
         currency: event.currency,
-        category: 'food',
+        category: defaultCategory,
         payer_key: 'u' + authId,
         source_id: null,
         note: '',
@@ -530,7 +533,7 @@ export default function Event({
             form.setData({
                 amount: data.amount != null ? String(data.amount) : '',
                 currency: data.currency ?? event.currency,
-                category: data.category ?? 'food',
+                category: data.category ?? defaultCategory,
                 payer_key: 'u' + authId,
                 source_id: null,
                 note: data.note ?? '',
@@ -1218,22 +1221,22 @@ export default function Event({
                                         <Label>{t('spending.category')}</Label>
                                         <div className="flex flex-wrap gap-2">
                                             {event.categories.map((c) => {
-                                                const Icon = categoryIcon(c);
-                                                const active = form.data.category === c;
+                                                const Icon = catIcon(catMap, c.key);
+                                                const active = form.data.category === c.key;
                                                 return (
                                                     <button
-                                                        key={c}
+                                                        key={c.key}
                                                         type="button"
-                                                        onClick={() => form.setData('category', c)}
+                                                        onClick={() => form.setData('category', c.key)}
                                                         aria-pressed={active}
-                                                        className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium capitalize transition-colors ${
+                                                        className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
                                                             active
                                                                 ? 'border-primary bg-accent-strong text-accent-strong-foreground'
                                                                 : 'border-border text-primary hover:bg-surface'
                                                         }`}
                                                     >
                                                         <Icon className="size-4 shrink-0" />
-                                                        {c}
+                                                        {catLabel(t, catMap, c.key)}
                                                     </button>
                                                 );
                                             })}
@@ -1609,9 +1612,11 @@ export default function Event({
                                                         <PersonAvatar name={s.payer.name ?? t('spending.guest_word')} />
                                                     )}
                                                     <div className="min-w-0 flex-1">
-                                                        <div className="text-primary line-clamp-2 text-sm font-medium">{s.note || s.category}</div>
-                                                        <div className="text-muted-foreground truncate text-xs capitalize">
-                                                            {(s.payer.name ?? t('spending.guest_word')).split(' ')[0]} · {s.category}
+                                                        <div className="text-primary line-clamp-2 text-sm font-medium">
+                                                            {s.note || catLabel(t, catMap, s.category)}
+                                                        </div>
+                                                        <div className="text-muted-foreground truncate text-xs">
+                                                            {(s.payer.name ?? t('spending.guest_word')).split(' ')[0]} · {catLabel(t, catMap, s.category)}
                                                             {s.split !== 'all' && (
                                                                 <span className="normal-case">
                                                                     {' '}

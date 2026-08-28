@@ -19,7 +19,7 @@ class GuestSpendController extends Controller
     public function store(Request $request, string $token): RedirectResponse
     {
         [$event, $guest] = $this->access->authorizeWrite($token, (int) $request->input('guest_id'));
-        $data = $this->validateSpend($request);
+        $data = $this->validateSpend($request, $event);
 
         $event->spends()->create([
             'payer_guest_id' => $guest->id,
@@ -37,7 +37,7 @@ class GuestSpendController extends Controller
     {
         [$event, $guest] = $this->access->authorizeWrite($token, (int) $request->input('guest_id'));
         $spend = $this->ownSpend($event, $guest, $spend);
-        $spend->update($event->buildSpend($this->validateSpend($request)));
+        $spend->update($event->buildSpend($this->validateSpend($request, $event)));
 
         Realtime::broadcast(new SpendingChanged((int) $event->family_id));
 
@@ -94,12 +94,12 @@ class GuestSpendController extends Controller
             ->firstOrFail();
     }
 
-    private function validateSpend(Request $request): array
+    private function validateSpend(Request $request, SpendEvent $event): array
     {
         return $request->validate([
             'amount' => ['required', 'numeric', 'gt:0'],
             'currency' => ['required', 'in:'.implode(',', SpendingController::CURRENCIES)],
-            'category' => ['required', 'in:'.implode(',', SpendingController::CATEGORIES)],
+            'category' => ['required', 'in:'.implode(',', SpendCategory::keysFor((int) $event->family_id))],
             'note' => ['nullable', 'string', 'max:255'],
             'spent_at' => ['required', 'date'],
         ]);
