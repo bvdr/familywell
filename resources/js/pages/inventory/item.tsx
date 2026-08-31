@@ -1,7 +1,9 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Plus, RefreshCw, ShoppingCart, Sparkles } from 'lucide-react';
+import { ArrowLeft, Pencil, RefreshCw, ShoppingCart, Sparkles } from 'lucide-react';
+import { useState } from 'react';
 
 import { CategoryTile, QtyBar, StateBadge } from '@/components/inventory';
+import { ItemFormModal, QuickUpdateModal } from '@/components/inventory-modals';
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn } from '@/lib/i18n';
 import { byKey, catLabel, fmtNumber, locLabel, unitLabel, type InvCategory, type InvItem, type InvLocation } from '@/lib/inventory';
@@ -15,6 +17,8 @@ export default function InventoryItem({ item, categories, locations, history }: 
     const t = useT();
     const catMap = byKey(categories);
     const locMap = byKey(locations);
+    const [updating, setUpdating] = useState(false);
+    const [editing, setEditing] = useState(false);
     const breadcrumbs: BreadcrumbItem[] = [
         { title: t('inventory.title'), href: '/m/inventory' },
         { title: item.name, href: `/m/inventory/items/${item.id}` },
@@ -65,12 +69,12 @@ export default function InventoryItem({ item, categories, locations, history }: 
                     <QtyBar item={item} className="h-2" />
                 </section>
 
-                {/* Actions — present but inert until Phase 2 wires the writes. */}
+                {/* Actions. Update quantity + Edit are live; Add to Shopping (P4) and Create Task stay inert. */}
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    <ActionButton icon={RefreshCw} label={t('inventory.update_quantity')} t={t} />
-                    <ActionButton icon={Plus} label={t('inventory.edit_item')} t={t} />
-                    <ActionButton icon={ShoppingCart} label={t('inventory.add_to_shopping')} t={t} />
-                    <ActionButton icon={Sparkles} label={t('inventory.create_task')} t={t} />
+                    <ActionButton icon={RefreshCw} label={t('inventory.update_quantity')} onClick={() => setUpdating(true)} primary />
+                    <ActionButton icon={Pencil} label={t('inventory.edit_item')} onClick={() => setEditing(true)} />
+                    <ActionButton icon={ShoppingCart} label={t('inventory.add_to_shopping')} disabled t={t} />
+                    <ActionButton icon={Sparkles} label={t('inventory.create_task')} disabled t={t} />
                 </div>
 
                 {/* Info grid. */}
@@ -118,6 +122,9 @@ export default function InventoryItem({ item, categories, locations, history }: 
                     )}
                 </section>
             </div>
+
+            <QuickUpdateModal open={updating} onOpenChange={setUpdating} item={item} />
+            <ItemFormModal open={editing} onOpenChange={setEditing} item={item} categories={categories} locations={locations} names={[item.name]} />
         </AppLayout>
     );
 }
@@ -129,13 +136,34 @@ function automationText(t: TFn, item: InvItem): string {
     return t('inventory.automation_no_min');
 }
 
-function ActionButton({ icon: Icon, label, t }: { icon: typeof Plus; label: string; t: TFn }) {
+function ActionButton({
+    icon: Icon,
+    label,
+    onClick,
+    disabled = false,
+    primary = false,
+    t,
+}: {
+    icon: typeof RefreshCw;
+    label: string;
+    onClick?: () => void;
+    disabled?: boolean;
+    primary?: boolean;
+    t?: TFn;
+}) {
     return (
         <button
             type="button"
-            disabled
-            title={t('inventory.coming_soon')}
-            className="text-primary flex items-center justify-center gap-1.5 rounded-xl border px-2 py-2.5 text-xs font-medium opacity-60"
+            onClick={onClick}
+            disabled={disabled}
+            title={disabled ? t?.('inventory.coming_soon') : undefined}
+            className={`flex items-center justify-center gap-1.5 rounded-xl border px-2 py-2.5 text-xs font-medium transition-colors ${
+                disabled
+                    ? 'text-primary opacity-50'
+                    : primary
+                      ? 'bg-accent-strong text-accent-strong-foreground border-transparent'
+                      : 'text-primary hover:bg-surface'
+            }`}
         >
             <Icon className="size-4" /> <span className="truncate">{label}</span>
         </button>

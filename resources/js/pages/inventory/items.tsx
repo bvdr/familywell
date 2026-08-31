@@ -1,8 +1,12 @@
 import { Head, Link } from '@inertiajs/react';
+import { Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { CategoryTile, QtyBar, QtyText, StateBadge } from '@/components/inventory';
+import { ItemFormModal } from '@/components/inventory-modals';
 import AppLayout from '@/layouts/app-layout';
+import { useAddAction } from '@/lib/add-action';
+import { openNewOnArrival } from '@/lib/create-intent';
 import { useT, type TFn } from '@/lib/i18n';
 import { byKey, catLabel, locLabel, stateLabel, type InvCategory, type InvItem, type InvLocation, type InvState } from '@/lib/inventory';
 import { relativeTime } from '@/lib/notifications';
@@ -33,6 +37,8 @@ export default function InventoryItems({ items, categories, locations, statuses 
     const [status, setStatus] = useState<string>(initialParam('status'));
     const [category, setCategory] = useState<string>(initialParam('category'));
     const [location, setLocation] = useState<string>(initialParam('location'));
+    const [adding, setAdding] = useState(openNewOnArrival);
+    useAddAction(() => setAdding(true)); // the mobile nav "+" adds an item here
 
     const filtered = useMemo(
         () =>
@@ -69,7 +75,16 @@ export default function InventoryItems({ items, categories, locations, statuses 
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={t('inventory.all_items')} />
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-4">
-                <h1 className="font-heading text-primary text-2xl">{t('inventory.all_items')}</h1>
+                <div className="flex items-center justify-between gap-3">
+                    <h1 className="font-heading text-primary text-2xl">{t('inventory.all_items')}</h1>
+                    <button
+                        type="button"
+                        onClick={() => setAdding(true)}
+                        className="bg-accent-strong text-accent-strong-foreground hover:bg-accent-strong/90 flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                    >
+                        <Plus className="size-4" /> {t('inventory.add_item')}
+                    </button>
+                </div>
 
                 {/* Filters. Category/location options come from the family's own vocabularies. */}
                 <div className="flex flex-wrap gap-2">
@@ -118,6 +133,14 @@ export default function InventoryItems({ items, categories, locations, statuses 
                     </div>
                 )}
             </div>
+
+            <ItemFormModal
+                open={adding}
+                onOpenChange={setAdding}
+                categories={categories}
+                locations={locations}
+                names={items.map((i) => i.name)}
+            />
         </AppLayout>
     );
 }
