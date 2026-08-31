@@ -10,8 +10,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Spending\IconLibrary;
 
 /**
  * Read-only for Phase 1: the Overview, All Items and Item Detail screens, all rendered from real
@@ -111,6 +113,92 @@ class InventoryController extends Controller
         ]);
     }
 
+    /**
+     * Needs Attention: the focused triage screen. Every actionable item, split into non-overlapping
+     * buckets — Empty, Running Low, Expiring Soon (expiring + already-expired), and Stale (fine on stock
+     * but gone quiet). An item lands in exactly one bucket (its most urgent signal), so the header count
+     * is a straight sum. All buckets are built from the one derived state()/isStale(), never re-derived
+     * on the client.
+     */
+    public function needsAttention(): Response
+    {
+        $items = InventoryItem::query()->orderBy('name')->get();
+
+        $low = [];
+        $empty = [];
+        $expiring = [];
+        $stale = [];
+        foreach ($items as $i) {
+            $state = $i->state();
+            if ($state === 'empty') {
+                $empty[] = $i;
+            } elseif ($state === 'low') {
+                $low[] = $i;
+            } elseif ($state === 'expiring' || $state === 'expired') {
+                $expiring[] = $i;
+            } elseif ($i->isStale()) {
+                $stale[] = $i;
+            }
+        }
+
+        // Expiring: soonest first (empty dates last). Stale: quietest first (oldest updated_at first).
+        usort($expiring, fn (InventoryItem $a, InventoryItem $b) => ($a->expires_at?->getTimestamp() ?? PHP_INT_MAX) <=> ($b->expires_at?->getTimestamp() ?? PHP_INT_MAX));
+        usort($stale, fn (InventoryItem $a, InventoryItem $b) => ($a->updated_at?->getTimestamp() ?? 0) <=> ($b->updated_at?->getTimestamp() ?? 0));
+
+        $pay = fn (array $rows) => array_map(fn (InventoryItem $i) => $i->toPayload(), $rows);
+
+        return Inertia::render('inventory/needs-attention', [
+            'empty' => $pay($empty),
+            'low' => $pay($low),
+            'expiring' => $pay($expiring),
+            'stale' => $pay($stale),
+            // The total across every bucket — what the "N items need your attention" subtitle reports.
+            'total' => count($empty) + count($low) + count($expiring) + count($stale),
+            'categories' => InventoryCategory::payloadFor(),
+            'locations' => InventoryLocation::payloadFor(),
+        ]);
+    }
+
+    /**
+     * Categories management + browse: one card per category with its item count and how many need
+     * attention. Admins additionally get add / change-icon / delete (a category in use can't be
+     * deleted). Cards link into All Items filtered by the category (the "category detail").
+     */
+    public function categories(Request $request): Response
+    {
+        $counts = $this->countsByKey('category');
+        $rows = InventoryCategory::forFamily()->map(function (InventoryCategory $c) use ($counts) {
+            $n = $counts[$c->key] ?? ['count' => 0, 'attention' => 0, 'low' => 0, 'empty' => 0];
+
+            return [...$c->toPayload(), 'id' => $c->id, 'count' => $n['count'], 'attention' => $n['attention']];
+        })->values();
+
+        return Inertia::render('inventory/categories', [
+            'categories' => $rows,
+            'canManage' => $this->canManage($request),
+        ]);
+    }
+
+    /**
+     * Locations management + browse: one card per location with a compact "N items · L low · E empty"
+     * summary. Same admin add / change-icon / delete affordances as categories. Cards link into All
+     * Items filtered by the location.
+     */
+    public function locations(Request $request): Response
+    {
+        $counts = $this->countsByKey('location');
+        $rows = InventoryLocation::forFamily()->map(function (InventoryLocation $l) use ($counts) {
+            $n = $counts[$l->key] ?? ['count' => 0, 'attention' => 0, 'low' => 0, 'empty' => 0];
+
+            return [...$l->toPayload(), 'id' => $l->id, 'count' => $n['count'], 'low' => $n['low'], 'empty' => $n['empty']];
+        })->values();
+
+        return Inertia::render('inventory/locations', [
+            'locations' => $rows,
+            'canManage' => $this->canManage($request),
+        ]);
+    }
+
     /** Add Item: create an item and log its opening stock. Category/location resolve by key or name. */
     public function store(Request $request): RedirectResponse
     {
@@ -200,6 +288,166 @@ class InventoryController extends Controller
 
         // The item detail page is gone — send the user back to the list.
         return redirect()->route('inventory.items');
+    }
+
+    // ---------------------------------------------------------------------------------------------------
+    // Category + location management (admin only). Inline creation while adding an item stays open to any
+    // member (resolveCategory/resolveLocation); the explicit management here — add with a chosen icon,
+    // change a custom icon, delete — is family config, so it is gated on `manageMembers` like the
+    // Spending category settings. Reads (the screens above) stay open to every member.
+    // ---------------------------------------------------------------------------------------------------
+
+    /** Add a custom category: name + optional icon. Rotates a colour so it reads distinctly in the tiles. */
+    public function storeCategory(Request $request): RedirectResponse
+    {
+        $this->authorizeManage($request);
+        $data = $this->validateTaxonomy($request);
+
+        $existing = InventoryCategory::forFamily();          // seeds defaults so custom rows sort after them
+        InventoryCategory::create([
+            'key' => InventoryCategory::makeKey($data['name'], (int) CurrentFamily::id()),
+            'name' => $data['name'],
+            'icon' => $data['icon'] ?? InventoryCategory::CUSTOM_ICON,
+            'color' => InventoryCategory::CUSTOM_COLORS[$existing->count() % count(InventoryCategory::CUSTOM_COLORS)],
+            'is_default' => false,
+            'position' => ($existing->max('position') ?? 0) + 1,
+        ]);
+
+        return back();
+    }
+
+    /** Change a custom category's icon. Built-ins keep their curated icon; the key never changes. */
+    public function updateCategory(Request $request, int $category): RedirectResponse
+    {
+        $this->authorizeManage($request);
+        $cat = InventoryCategory::findOrFail($category);     // family-scoped resolve (family middleware ran)
+        abort_if($cat->is_default, 403);
+
+        $data = $request->validate(['icon' => ['nullable', 'string', Rule::in(IconLibrary::names())]]);
+        $cat->update(['icon' => $data['icon'] ?? InventoryCategory::CUSTOM_ICON]);
+
+        return back();
+    }
+
+    /** Delete a category. Blocked while any item still uses its key, so a delete never orphans an item. */
+    public function destroyCategory(Request $request, int $category): RedirectResponse
+    {
+        $this->authorizeManage($request);
+        $cat = InventoryCategory::findOrFail($category);
+
+        if (InventoryItem::where('category', $cat->key)->exists()) {
+            throw ValidationException::withMessages(['category' => __('inventory.category_in_use')]);
+        }
+        $cat->delete();
+
+        return back();
+    }
+
+    /** Add a custom location: name + optional icon (no colour — a location is just an icon + label). */
+    public function storeLocation(Request $request): RedirectResponse
+    {
+        $this->authorizeManage($request);
+        $data = $this->validateTaxonomy($request);
+
+        $existing = InventoryLocation::forFamily();
+        InventoryLocation::create([
+            'key' => InventoryLocation::makeKey($data['name'], (int) CurrentFamily::id()),
+            'name' => $data['name'],
+            'icon' => $data['icon'] ?? InventoryLocation::CUSTOM_ICON,
+            'is_default' => false,
+            'position' => ($existing->max('position') ?? 0) + 1,
+        ]);
+
+        return back();
+    }
+
+    /** Change a custom location's icon. Built-ins keep theirs; the key never changes. */
+    public function updateLocation(Request $request, int $location): RedirectResponse
+    {
+        $this->authorizeManage($request);
+        $loc = InventoryLocation::findOrFail($location);
+        abort_if($loc->is_default, 403);
+
+        $data = $request->validate(['icon' => ['nullable', 'string', Rule::in(IconLibrary::names())]]);
+        $loc->update(['icon' => $data['icon'] ?? InventoryLocation::CUSTOM_ICON]);
+
+        return back();
+    }
+
+    /** Delete a location. Blocked while any item still uses its key. */
+    public function destroyLocation(Request $request, int $location): RedirectResponse
+    {
+        $this->authorizeManage($request);
+        $loc = InventoryLocation::findOrFail($location);
+
+        if (InventoryItem::where('location', $loc->key)->exists()) {
+            throw ValidationException::withMessages(['location' => __('inventory.location_in_use')]);
+        }
+        $loc->delete();
+
+        return back();
+    }
+
+    /**
+     * Shared validation for adding a category/location: a display name (resolved to a stable slug key
+     * server-side) and an optional lucide icon key. The icon set is the app-wide lucide list the
+     * IconPicker offers (generated, lives in the Spending module — inventory reuses it rather than ship a
+     * second 1,700-entry copy); null keeps the model's fallback icon.
+     *
+     * @return array{name:string, icon:string|null}
+     */
+    private function validateTaxonomy(Request $request): array
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:40'],
+            'icon' => ['nullable', 'string', Rule::in(IconLibrary::names())],
+        ]);
+        $data['name'] = trim($data['name']);
+
+        return $data;
+    }
+
+    /** True when the current user may manage the family's inventory taxonomy (family admin). */
+    private function canManage(Request $request): bool
+    {
+        return $request->user()->can('manageMembers', Family::findOrFail(CurrentFamily::id()));
+    }
+
+    /** Guard a taxonomy write to family admins (mirrors the Spending category settings). */
+    private function authorizeManage(Request $request): void
+    {
+        abort_unless($this->canManage($request), 403);
+    }
+
+    /**
+     * Per-key item tallies for the category/location cards, computed in one pass over the family's items
+     * (household inventories are small, so in-memory is cheaper than several grouped queries). Returns
+     * key => [count, attention, low, empty]; `$field` is 'category' or 'location'.
+     *
+     * @return array<string, array{count:int, attention:int, low:int, empty:int}>
+     */
+    private function countsByKey(string $field): array
+    {
+        $counts = [];
+        foreach (InventoryItem::query()->get() as $item) {
+            $key = $item->{$field};
+            if ($key === null || $key === '') {
+                continue;                                    // uncategorised / no location: not a card
+            }
+            $counts[$key] ??= ['count' => 0, 'attention' => 0, 'low' => 0, 'empty' => 0];
+            $counts[$key]['count']++;
+            $state = $item->state();
+            if ($item->needsAttention()) {
+                $counts[$key]['attention']++;
+            }
+            if ($state === 'low') {
+                $counts[$key]['low']++;
+            } elseif ($state === 'empty') {
+                $counts[$key]['empty']++;
+            }
+        }
+
+        return $counts;
     }
 
     /**
