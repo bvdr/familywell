@@ -81,9 +81,11 @@ spec.setdefault("envs", []).extend(
     {"key": k, "value": values[k], "type": "SECRET", "scope": "RUN_TIME"} for k in SECRETS
 )
 
-# Every component (web, reverb, migrate) must run the same image, or the pre-deploy migration
-# could apply a different schema than the code that then serves it.
-for component in (*spec.get("services", []), *spec.get("jobs", [])):
+# Every component (web, reverb, migrate, scheduler) must run the same image, or the pre-deploy
+# migration could apply a different schema than the code that then serves it. Workers are included:
+# a worker with no registry_credentials cannot pull the private GHCR image, which fails the whole
+# deploy with "Image does not exist or is private" on any fresh pull.
+for component in (*spec.get("services", []), *spec.get("jobs", []), *spec.get("workers", [])):
     image = component.get("image")
     if not image:
         continue
