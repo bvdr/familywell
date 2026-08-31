@@ -1,0 +1,18 @@
+{
+    "add": "Add contact",
+    "add_placeholder": "New contact name",
+    "empty": "No contacts yet. Add someone above.",
+    "edit": "Edit contact",
+    "name": "Name",
+    "methods": "Contact methods",
+    "type_phone": "Phone",
+    "type_email": "Email",
+    "type_address": "Address",
+    "type_url": "Link",
+    "type_other": "Other",
+    "value_placeholder": "Value",
+    "add_method": "Add contact method",
+    "remove_method": "Remove",
+    "delete": "Delete contact",
+    "save": "Save"
+}

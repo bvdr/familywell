@@ -4,6 +4,7 @@ import { useT } from '@/lib/i18n';
 import { Link, router, usePage } from '@inertiajs/react';
 import {
     Blocks,
+    Contact,
     FolderKanban,
     LayoutGrid,
     ListChecks,
@@ -36,6 +37,7 @@ const MODULE_ITEMS: Item[] = [
     { key: 'shopping', labelKey: 'nav.shopping', url: '/m/shopping', icon: ShoppingCart },
     { key: 'spending', labelKey: 'nav.spending', url: '/m/spending', icon: Wallet },
     { key: 'notes', labelKey: 'nav.notes', url: '/m/notes', icon: StickyNote },
+    { key: 'contacts', labelKey: 'nav.contacts', url: '/m/contacts', icon: Contact },
 ];
 const SECONDARY: Item[] = [
     { key: 'members', labelKey: 'nav.members', url: '/family/members', icon: Users },

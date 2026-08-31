@@ -1,0 +1,9 @@
+{
+    "id": "contacts",
+    "name": "Contacts",
+    "description": "A shared family address book. Each entry is a 'person' — a reusable primitive (name + contact methods) that other modules extend: Birthdays adds a birthdate, and projects can link people.",
+    "version": "1.0.0",
+    "provider": "Modules\\Contacts\\ContactsServiceProvider",
+    "frontend": "",
+    "requires": []
+}
