@@ -8,6 +8,8 @@ use Modules\Inventory\InventoryCategory;
 use Modules\Inventory\InventoryItem;
 use Modules\Inventory\InventoryLocation;
 use Modules\Inventory\InventoryLog;
+use Modules\Shopping\ShoppingItem;
+use Modules\Shopping\ShoppingList;
 
 use function Pest\Laravel\actingAs;
 
@@ -539,4 +541,155 @@ it('will not let an admin manage another family\'s category', function () {
     actingAs($usersA[0])->patch("/m/inventory/categories/{$catB->id}", ['icon' => 'cat'])->assertNotFound();
     actingAs($usersA[0])->delete("/m/inventory/categories/{$catB->id}")->assertNotFound();
     expect(InventoryCategory::withoutGlobalScopes()->find($catB->id)->icon)->toBe('dog');
+});
+
+// ---------------------------------------------------------------------------------------------------
+// Phase 4 — the Inventory <-> Shopping core loop. These exercise the whole cycle end to end: a low
+// item is surfaced onto a real shopping list, buying it there replenishes the stock, and the link is
+// cleared so it can go round again. Shopping must be enabled too (both modules migrate together).
+// ---------------------------------------------------------------------------------------------------
+
+// Enable the shopping module for the already-active family (inventoryFamily() only turns on inventory).
+function enableShopping(Family $family): void
+{
+    app(ModuleRegistry::class)->enable('shopping', $family->id);
+}
+
+it('adds a low item to Shopping exactly once (idempotent)', function () {
+    [$family, $users] = inventoryFamily();
+    enableShopping($family);
+    $item = makeItem(['name' => 'Milk', 'quantity' => 1, 'unit' => 'L', 'min_quantity' => 2, 'target_quantity' => 4]);
+    expect($item->state())->toBe('low');
+
+    // First push: creates one shopping row and links it.
+    actingAs($users[0])->post("/m/inventory/items/{$item->id}/shopping")->assertRedirect();
+    expect(ShoppingItem::withoutGlobalScopes()->count())->toBe(1);
+    $shopItem = ShoppingItem::withoutGlobalScopes()->first();
+    expect($shopItem->name)->toBe('Milk')
+        ->and($shopItem->quantity)->toBe('to 4 L')            // target-informed label
+        ->and($item->fresh()->shopping_item_id)->toBe($shopItem->id);
+
+    // Second push while it is still open: no duplicate.
+    actingAs($users[0])->post("/m/inventory/items/{$item->id}/shopping")->assertRedirect();
+    expect(ShoppingItem::withoutGlobalScopes()->count())->toBe(1);
+});
+
+it('bulk-adds every distinct low/empty item once, skipping already-added and auto-off items', function () {
+    [$family, $users] = inventoryFamily();
+    enableShopping($family);
+    $low = makeItem(['name' => 'Rice', 'quantity' => 1, 'min_quantity' => 3]);
+    $empty = makeItem(['name' => 'Eggs', 'quantity' => 0, 'min_quantity' => 6]);
+    makeItem(['name' => 'Flour', 'quantity' => 1, 'min_quantity' => 3, 'auto_replenish' => false]); // auto off => skipped
+    makeItem(['name' => 'Sugar', 'quantity' => 9, 'min_quantity' => 3]);                            // good => skipped
+
+    actingAs($users[0])->post('/m/inventory/shopping/add-low')->assertRedirect();
+    expect(ShoppingItem::withoutGlobalScopes()->count())->toBe(2)
+        ->and(ShoppingItem::withoutGlobalScopes()->pluck('name')->sort()->values()->all())->toBe(['Eggs', 'Rice']);
+    expect($low->fresh()->shopping_item_id)->not->toBeNull()
+        ->and($empty->fresh()->shopping_item_id)->not->toBeNull();
+
+    // Running it again adds nothing new (all remaining candidates are already on a list).
+    actingAs($users[0])->post('/m/inventory/shopping/add-low')->assertRedirect();
+    expect(ShoppingItem::withoutGlobalScopes()->count())->toBe(2);
+});
+
+it('replenishes the inventory item when its linked shopping item is bought', function () {
+    [$family, $users] = inventoryFamily();
+    enableShopping($family);
+    $item = makeItem(['name' => 'Parmesan', 'quantity' => 80, 'unit' => 'g', 'min_quantity' => 100, 'target_quantity' => 500]);
+    expect($item->state())->toBe('low');
+
+    actingAs($users[0])->post("/m/inventory/items/{$item->id}/shopping")->assertRedirect();
+    $shopItem = ShoppingItem::withoutGlobalScopes()->first();
+
+    // Mark it bought via the real Shopping endpoint (empty body toggles bought) — fires the hook.
+    actingAs($users[0])->patch("/m/shopping/items/{$shopItem->id}")->assertRedirect();
+
+    $fresh = $item->fresh();
+    expect($fresh->quantity)->toEqual(500.0)          // topped up to target
+        ->and($fresh->shopping_item_id)->toBeNull()    // link cleared -> can be replenished again
+        ->and($fresh->state())->toBe('good');          // left the low state
+    // A "purchased" movement was logged with the signed delta (+420).
+    $log = InventoryLog::withoutGlobalScopes()->where('inventory_item_id', $item->id)->where('type', 'purchased')->first();
+    expect($log)->not->toBeNull()->and((float) $log->delta)->toEqual(420.0);
+});
+
+it('falls back to 2x minimum when a bought item has no target', function () {
+    [$family, $users] = inventoryFamily();
+    enableShopping($family);
+    $item = makeItem(['name' => 'Sponges', 'quantity' => 0, 'min_quantity' => 4]); // empty, no target
+    actingAs($users[0])->post("/m/inventory/items/{$item->id}/shopping")->assertRedirect();
+    $shopItem = ShoppingItem::withoutGlobalScopes()->first();
+
+    actingAs($users[0])->patch("/m/shopping/items/{$shopItem->id}")->assertRedirect();
+    expect($item->fresh()->quantity)->toEqual(8.0)   // 2 x min => "full", leaves the empty state
+        ->and($item->fresh()->state())->toBe('good');
+});
+
+it('does nothing when an unlinked shopping item is bought', function () {
+    [$family, $users] = inventoryFamily();
+    enableShopping($family);
+    $item = makeItem(['name' => 'Milk', 'quantity' => 1, 'min_quantity' => 2, 'target_quantity' => 4]);
+    // A plain grocery line, never linked to any inventory item.
+    $list = ShoppingList::defaultFor($users[0]);
+    $loose = $list->items()->create(['name' => 'Bananas', 'created_by' => $users[0]->id]);
+
+    actingAs($users[0])->patch("/m/shopping/items/{$loose->id}")->assertRedirect();
+    expect($item->fresh()->quantity)->toEqual(1.0)   // untouched
+        ->and(InventoryLog::withoutGlobalScopes()->where('type', 'purchased')->count())->toBe(0);
+});
+
+it('re-buying an already-bought linked item does not replenish twice', function () {
+    [$family, $users] = inventoryFamily();
+    enableShopping($family);
+    $item = makeItem(['name' => 'Milk', 'quantity' => 1, 'min_quantity' => 2, 'target_quantity' => 4]);
+    actingAs($users[0])->post("/m/inventory/items/{$item->id}/shopping")->assertRedirect();
+    $shopItem = ShoppingItem::withoutGlobalScopes()->first();
+
+    actingAs($users[0])->patch("/m/shopping/items/{$shopItem->id}")->assertRedirect(); // bought -> replenish
+    expect($item->fresh()->quantity)->toEqual(4.0);
+
+    // Toggle back to unbought, then bought again. The inventory item is no longer linked, so nothing happens.
+    actingAs($users[0])->patch("/m/shopping/items/{$shopItem->id}")->assertRedirect(); // -> unbought
+    actingAs($users[0])->patch("/m/shopping/items/{$shopItem->id}")->assertRedirect(); // -> bought again
+    expect($item->fresh()->quantity)->toEqual(4.0)   // still target, not doubled
+        ->and(InventoryLog::withoutGlobalScopes()->where('inventory_item_id', $item->id)->where('type', 'purchased')->count())->toBe(1);
+});
+
+it('surfaces only low/empty auto-replenish items on the replenishment screen', function () {
+    [$family, $users] = inventoryFamily();
+    enableShopping($family);
+    makeItem(['name' => 'Rice', 'quantity' => 1, 'min_quantity' => 3]);                              // low, auto on
+    makeItem(['name' => 'Eggs', 'quantity' => 0, 'min_quantity' => 6]);                              // empty, auto on
+    makeItem(['name' => 'Flour', 'quantity' => 1, 'min_quantity' => 3, 'auto_replenish' => false]);  // low, auto off
+    makeItem(['name' => 'Sugar', 'quantity' => 9, 'min_quantity' => 3]);                             // good
+
+    actingAs($users[0])->get('/m/inventory/replenishment')->assertOk()->assertInertia(
+        fn ($p) => $p->component('inventory/replenishment')
+            ->has('items', 2)               // Rice + Eggs only
+            ->where('pending', 2)
+            ->where('items.0.replenishTo', 12) // Eggs first (empty), 2x min 6
+            ->etc()
+    );
+});
+
+it('scopes the loop to the acting family', function () {
+    [$familyA, $usersA] = inventoryFamily();
+    enableShopping($familyA);
+    $itemA = makeItem(['name' => 'Milk', 'quantity' => 1, 'min_quantity' => 2, 'target_quantity' => 4]);
+    actingAs($usersA[0])->post("/m/inventory/items/{$itemA->id}/shopping")->assertRedirect();
+    $shopA = ShoppingItem::withoutGlobalScopes()->first();
+
+    // A second family can't even resolve family A's shopping item (the BelongsToFamily scope hides it ->
+    // 404), so the loop never fires cross-family.
+    $userB = User::factory()->create();
+    $familyB = Family::factory()->create(['owner_id' => $userB->id]);
+    $familyB->members()->attach($userB, ['role' => 'admin']);
+    session(['active_family_id' => $familyB->id]);
+    CurrentFamily::set($familyB->id);
+    enableShopping($familyB);
+
+    actingAs($userB)->patch("/m/shopping/items/{$shopA->id}")->assertNotFound();
+    expect($itemA->fresh()->quantity)->toEqual(1.0)          // untouched
+        ->and($itemA->fresh()->shopping_item_id)->toBe($shopA->id);
 });
