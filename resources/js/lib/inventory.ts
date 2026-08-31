@@ -19,6 +19,10 @@ export type InvItem = {
     expiresAt: string | null;
     autoReplenish: boolean;
     notes: string | null;
+    // Shopping-loop link (P4). `onShoppingList` is true while the item has an open shopping row (so screens
+    // show "Shopping · Added" instead of an Add button); `shoppingListId` deep-links to that list when known.
+    onShoppingList: boolean;
+    shoppingListId: number | null;
     state: InvState;
     stale: boolean; // fine on stock but gone untouched for a long time (soft nudge; orthogonal to state)
     bar: number | null; // 0..1 fill fraction, or null when there's nothing to measure against

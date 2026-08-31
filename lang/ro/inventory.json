@@ -3,7 +3,6 @@
     "subtitle": "Ce ai, ce e pe terminate și ce trebuie completat.",
     "all_items": "Toate produsele",
     "back_to_inventory": "Inventar",
-
     "add_item": "Adaugă produs",
     "edit_item": "Editează",
     "update_quantity": "Actualizează cantitatea",
@@ -11,7 +10,6 @@
     "create_task": "Creează sarcină",
     "view_all_items": "Vezi toate produsele",
     "coming_soon": "În curând",
-
     "add_item_title": "Adaugă produs",
     "edit_item_title": "Editează produsul",
     "name_label": "Nume",
@@ -39,27 +37,22 @@
     "added": "Adăugat",
     "set_exact": "Setează cantitatea exactă",
     "new_quantity": "Cantitate nouă",
-
     "summary_items": "Produse",
     "summary_low": "Pe terminate",
     "summary_empty": "Epuizate",
     "summary_expiring": "Expiră curând",
-
     "needs_attention": "Necesită atenție",
     "needs_attention_empty": "Nimic de rezolvat. Totul e pe stoc.",
     "recently_updated": "Actualizate recent",
     "recent_empty": "Nicio modificare încă.",
     "browse_categories": "Răsfoiește pe categorii",
-
     "empty_title": "Inventarul tău e gol",
     "empty_body": "Adaugă lucrurile pe care casa le ține și le consumă ca să urmărești ce se termină.",
     "no_matches": "Niciun produs nu se potrivește cu aceste filtre.",
-
     "filter_status": "Stare",
     "filter_category": "Categorie",
     "filter_location": "Locație",
     "filter_all": "Toate",
-
     "current": "Curent",
     "minimum": "Minim",
     "target": "Țintă",
@@ -72,7 +65,6 @@
     "no_expiry": "Fără dată de expirare",
     "no_location": "Fără locație",
     "no_category": "Fără categorie",
-
     "qty_unknown": "Necunoscut",
     "of": "din",
     "min_short": "min :n",
@@ -80,7 +72,6 @@
     "low_count": ":count pe terminate",
     "empty_count": ":count epuizate",
     "attention_count": ":count necesită atenție",
-
     "needs_attention_title": "Necesită atenție",
     "needs_attention_subtitle": ":count produse necesită atenția ta",
     "all_good_title": "Totul e în regulă",
@@ -92,7 +83,6 @@
     "section_stale_hint": "Sunt pe stoc, dar neatinse de peste :days zile — merită o privire.",
     "add_all_low_to_shopping": "Adaugă toate produsele pe terminate la Cumpărături",
     "view_needs_attention": "Vezi ce necesită atenție",
-
     "categories_title": "Categorii",
     "categories_subtitle": "Organizează ce ține casa pe grupuri.",
     "locations_title": "Locații",
@@ -112,28 +102,23 @@
     "no_categories": "Încă nicio categorie.",
     "no_locations": "Încă nicio locație.",
     "manage_hint_admins": "Doar administratorii familiei pot adăuga sau șterge categorii și locații.",
-
     "automation_title": "Reaprovizionare",
     "automation_on": "Când scade la :min :unit, va fi adăugat automat la Cumpărături.",
     "automation_no_min": "Setează un minim și va fi adăugat automat la Cumpărături când se termină.",
     "automation_off": "Reaprovizionarea automată e oprită — nu va fi adăugat singur la Cumpărături.",
-    "automation_note": "Automatizarea cumpărăturilor va fi disponibilă într-o actualizare viitoare.",
-
+    "automation_note": "Când se termină, adaugă-l la Cumpărături dintr-o atingere; când îl cumperi, stocul se completează automat aici.",
     "history": "Istoric",
     "history_empty": "Niciun istoric încă.",
-
     "state_good": "Bun",
     "state_low": "Pe terminate",
     "state_empty": "Epuizat",
     "state_expiring": "Expiră curând",
     "state_expired": "Expirat",
     "state_unknown": "Necunoscut",
-
     "log_added": "Adăugat",
     "log_consumed": "Folosit",
     "log_adjusted": "Ajustat",
     "log_purchased": "Cumpărat",
-
     "category_food": "Alimente",
     "category_drinks": "Băuturi",
     "category_cleaning": "Curățenie",
@@ -141,7 +126,6 @@
     "category_laundry": "Rufe",
     "category_household": "Casă",
     "category_other": "Altele",
-
     "location_kitchen": "Bucătărie",
     "location_pantry": "Cămară",
     "location_fridge": "Frigider",
@@ -149,7 +133,6 @@
     "location_bathroom": "Baie",
     "location_garage": "Garaj",
     "location_other": "Altele",
-
     "unit_pieces": "buc",
     "unit_g": "g",
     "unit_kg": "kg",
@@ -157,5 +140,11 @@
     "unit_L": "L",
     "unit_packs": "pachete",
     "unit_bottles": "sticle",
-    "unit_boxes": "cutii"
+    "unit_boxes": "cutii",
+    "shopping_added": "Cumpărături · Adăugat",
+    "add_all_to_shopping": "Adaugă toate :count la Cumpărături",
+    "replenishment_title": "Reaprovizionare",
+    "replenishment_subtitle": ":count produse au nevoie de reaprovizionare",
+    "replenishment_empty_title": "Nimic de reaprovizionat",
+    "replenishment_empty_body": "Tot ce are reaprovizionarea automată activă este peste minim. Vom afișa produsele aici pe măsură ce se termină."
 }
