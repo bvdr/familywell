@@ -4,10 +4,14 @@ use App\Models\Family;
 use App\Models\User;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use Illuminate\Support\Facades\Notification;
+use Modules\Inventory\InventoryAlert;
 use Modules\Inventory\InventoryCategory;
 use Modules\Inventory\InventoryItem;
 use Modules\Inventory\InventoryLocation;
 use Modules\Inventory\InventoryLog;
+use Modules\Inventory\InventorySetting;
+use Modules\Notifications\PushAlert;
 use Modules\Shopping\ShoppingItem;
 use Modules\Shopping\ShoppingList;
 
@@ -692,4 +696,169 @@ it('scopes the loop to the acting family', function () {
     actingAs($userB)->patch("/m/shopping/items/{$shopA->id}")->assertNotFound();
     expect($itemA->fresh()->quantity)->toEqual(1.0)          // untouched
         ->and($itemA->fresh()->shopping_item_id)->toBe($shopA->id);
+});
+
+// ---------------------------------------------------------------------------------------------------
+// Phase 5 — Settings, the daily inventory:check (notifications + auto-replenish), and the dashboard
+// widget feed.
+// ---------------------------------------------------------------------------------------------------
+
+it('renders inventory settings with calm defaults and the admin flag', function () {
+    [, $users] = inventoryFamily();
+
+    actingAs($users[0])->get('/m/inventory/settings')->assertOk()->assertInertia(
+        fn ($p) => $p->component('inventory/settings')
+            ->where('settings.unitSystem', 'metric')
+            ->where('settings.autoAddLow', true)
+            ->where('settings.notifyStale', true)
+            ->where('canManage', true)
+            ->has('unitSystems')
+            ->etc()
+    );
+});
+
+it('lets an admin change settings and persists only the fields sent', function () {
+    [$family, $users] = inventoryFamily();
+
+    // A partial patch (one toggle) must not clobber the other fields.
+    actingAs($users[0])->patch('/m/inventory/settings', ['notify_stale' => false])->assertRedirect();
+    $s = InventorySetting::current($family->id);
+    expect($s->notify_stale)->toBeFalse()
+        ->and($s->notify_low)->toBeTrue()          // untouched
+        ->and($s->auto_add_low)->toBeTrue();       // untouched
+
+    actingAs($users[0])->patch('/m/inventory/settings', ['unit_system' => 'imperial', 'auto_add_empty' => false])->assertRedirect();
+    $s = InventorySetting::current($family->id)->fresh();
+    expect($s->unit_system)->toBe('imperial')
+        ->and($s->auto_add_empty)->toBeFalse()
+        ->and($s->notify_stale)->toBeFalse();      // still off from the earlier patch
+});
+
+it('rejects an unknown unit system and blocks a non-admin from writing settings', function () {
+    [, $users] = inventoryFamily(2); // users[1] is a plain member
+
+    actingAs($users[0])->patch('/m/inventory/settings', ['unit_system' => 'furlongs'])->assertSessionHasErrors('unit_system');
+
+    // Members can read the screen but not write.
+    actingAs($users[1])->get('/m/inventory/settings')->assertOk()
+        ->assertInertia(fn ($p) => $p->where('canManage', false)->etc());
+    actingAs($users[1])->patch('/m/inventory/settings', ['notify_low' => false])->assertForbidden();
+});
+
+it('inventory:check notifies once per condition and does not double-fire the same day', function () {
+    Notification::fake();
+    [, $users] = inventoryFamily();
+
+    makeItem(['name' => 'Rice', 'quantity' => 8, 'min_quantity' => 2]);                    // good — no alert
+    makeItem(['name' => 'Milk', 'quantity' => 1, 'min_quantity' => 2]);                    // low
+    makeItem(['name' => 'Eggs', 'quantity' => 0, 'min_quantity' => 6]);                    // empty
+    makeItem(['name' => 'Ham', 'quantity' => 2, 'expires_at' => now()->subDay()]);         // expired
+    $stale = makeItem(['name' => 'Vinegar', 'quantity' => 5, 'min_quantity' => 1]);        // good…
+    ageItem($stale, 60);                                                                    // …but stale
+
+    test()->artisan('inventory:check')->assertExitCode(0);
+    Notification::assertSentTimes(PushAlert::class, 4);       // low + empty + expired + stale (good is silent)
+    expect(InventoryAlert::withoutGlobalScopes()->count())->toBe(4);
+
+    // Same-day re-run: idempotent, no new pushes.
+    test()->artisan('inventory:check')->assertExitCode(0);
+    Notification::assertSentTimes(PushAlert::class, 4);
+});
+
+it('inventory:check respects the family notification toggles', function () {
+    Notification::fake();
+    [$family, $users] = inventoryFamily();
+    InventorySetting::current($family->id)->update(['notify_low' => false, 'notify_stale' => false]);
+
+    makeItem(['name' => 'Milk', 'quantity' => 1, 'min_quantity' => 2]);                    // low — muted
+    makeItem(['name' => 'Eggs', 'quantity' => 0, 'min_quantity' => 6]);                    // empty — on
+    $stale = makeItem(['name' => 'Vinegar', 'quantity' => 5, 'min_quantity' => 1]);
+    ageItem($stale, 60);                                                                    // stale — muted
+
+    test()->artisan('inventory:check')->assertExitCode(0);
+    Notification::assertSentTimes(PushAlert::class, 1);       // only the empty item
+});
+
+it('inventory:check re-notifies after a condition clears and returns', function () {
+    Notification::fake();
+    [, $users] = inventoryFamily();
+    $milk = makeItem(['name' => 'Milk', 'quantity' => 1, 'min_quantity' => 2]);            // low
+
+    test()->artisan('inventory:check');
+    Notification::assertSentTimes(PushAlert::class, 1);
+
+    // Restock: the low condition clears, so its alert row is pruned.
+    $milk->update(['quantity' => 5]);
+    test()->artisan('inventory:check');
+    expect(InventoryAlert::withoutGlobalScopes()->where('inventory_item_id', $milk->id)->count())->toBe(0);
+
+    // Runs low again → notifies fresh, because clearing pruned the old alert row (not suppressed by
+    // the same-day guard, which only blocks a condition that stayed continuously true).
+    $milk->update(['quantity' => 1]);
+    test()->artisan('inventory:check');
+    Notification::assertSentTimes(PushAlert::class, 2);
+});
+
+it('inventory:check auto-adds short stock to Shopping only when the family opted in', function () {
+    [$family, $users] = inventoryFamily();
+    enableShopping($family);
+    $low = makeItem(['name' => 'Rice', 'quantity' => 1, 'min_quantity' => 3]);             // low, auto on
+    makeItem(['name' => 'Flour', 'quantity' => 1, 'min_quantity' => 3, 'auto_replenish' => false]); // auto off
+
+    // Defaults have auto_add_low ON → the low, auto-replenish item is surfaced once.
+    test()->artisan('inventory:check')->assertExitCode(0);
+    expect(ShoppingItem::withoutGlobalScopes()->count())->toBe(1)
+        ->and($low->fresh()->shopping_item_id)->not->toBeNull();
+
+    // Re-running is idempotent (already linked).
+    test()->artisan('inventory:check');
+    expect(ShoppingItem::withoutGlobalScopes()->count())->toBe(1);
+});
+
+it('inventory:check does not auto-add when both replenishment toggles are off', function () {
+    [$family, $users] = inventoryFamily();
+    enableShopping($family);
+    InventorySetting::current($family->id)->update(['auto_add_low' => false, 'auto_add_empty' => false]);
+    makeItem(['name' => 'Rice', 'quantity' => 1, 'min_quantity' => 3]);                    // low
+
+    test()->artisan('inventory:check')->assertExitCode(0);
+    expect(ShoppingItem::withoutGlobalScopes()->count())->toBe(0);
+});
+
+it('inventory:check skips a family that has the module disabled', function () {
+    Notification::fake();
+    [$family, $users] = inventoryFamily();
+    makeItem(['name' => 'Milk', 'quantity' => 1, 'min_quantity' => 2]);                    // low
+
+    app(ModuleRegistry::class)->disable('inventory', $family->id);
+    test()->artisan('inventory:check')->assertExitCode(0);
+    Notification::assertNothingSent();
+});
+
+it('serves the dashboard widget feed: counts + a few exceptions, most urgent first', function () {
+    [, $users] = inventoryFamily();
+    makeItem(['name' => 'Rice', 'quantity' => 8, 'min_quantity' => 2]);                    // good
+    makeItem(['name' => 'Milk', 'quantity' => 1, 'min_quantity' => 2]);                    // low
+    makeItem(['name' => 'Eggs', 'quantity' => 0, 'min_quantity' => 6]);                    // empty
+    makeItem(['name' => 'Ham', 'quantity' => 2, 'expires_at' => now()->subDay()]);         // expired
+    makeItem(['name' => 'Salt', 'quantity' => null]);                                      // unknown — not an exception
+
+    actingAs($users[0])->getJson('/m/inventory/widget')->assertOk()->assertJson([
+        'total' => 5,
+        'low' => 1,
+        'empty' => 1,
+    ])->assertJsonCount(3, 'items')                     // low + empty + expired only (good/unknown excluded)
+        ->assertJsonPath('items.0.state', 'expired');   // most urgent first
+});
+
+it('returns no widget exceptions when nothing needs attention, and 404s when disabled', function () {
+    [$family, $users] = inventoryFamily();
+    makeItem(['name' => 'Rice', 'quantity' => 8, 'min_quantity' => 2]);                    // good only
+
+    actingAs($users[0])->getJson('/m/inventory/widget')->assertOk()
+        ->assertJson(['total' => 1, 'low' => 0, 'empty' => 0])
+        ->assertJsonCount(0, 'items');
+
+    app(ModuleRegistry::class)->disable('inventory', $family->id);
+    actingAs($users[0])->getJson('/m/inventory/widget')->assertNotFound();
 });
