@@ -4,6 +4,9 @@ import type { TFn } from '@/lib/i18n';
 // `state` and `bar` are derived server-side so the client never re-implements the rules.
 export type InvState = 'good' | 'low' | 'empty' | 'expiring' | 'expired' | 'unknown';
 
+// The units a quantity can be measured in (mirrors InventoryItem::UNITS on the server).
+export type InvUnit = 'pieces' | 'g' | 'kg' | 'ml' | 'L' | 'packs' | 'bottles' | 'boxes';
+
 export type InvItem = {
     id: number;
     name: string;

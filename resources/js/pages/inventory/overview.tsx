@@ -1,8 +1,12 @@
 import { Head, Link } from '@inertiajs/react';
 import { AlertTriangle, ChevronRight, Package, Plus } from 'lucide-react';
+import { useState } from 'react';
 
 import { CategoryTile, QtyBar, QtyText, StateBadge } from '@/components/inventory';
+import { ItemFormModal } from '@/components/inventory-modals';
 import AppLayout from '@/layouts/app-layout';
+import { useAddAction } from '@/lib/add-action';
+import { openNewOnArrival } from '@/lib/create-intent';
 import { useT, type TFn } from '@/lib/i18n';
 import { byKey, catLabel, type InvCategory, type InvItem, type InvLocation } from '@/lib/inventory';
 import { relativeTime } from '@/lib/notifications';
@@ -19,12 +23,15 @@ type Props = {
     categories: InvCategory[];
     locations: InvLocation[];
     categoryCounts: CatCounts;
+    itemNames: string[];
 };
 
-export default function InventoryOverview({ summary, attention, recent, categories, categoryCounts }: Props) {
+export default function InventoryOverview({ summary, attention, recent, categories, locations, categoryCounts, itemNames }: Props) {
     const t = useT();
     const catMap = byKey(categories);
     const breadcrumbs: BreadcrumbItem[] = [{ title: t('inventory.title'), href: '/m/inventory' }];
+    const [adding, setAdding] = useState(openNewOnArrival);
+    useAddAction(() => setAdding(true)); // the mobile nav "+" adds an item here
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -35,12 +42,11 @@ export default function InventoryOverview({ summary, attention, recent, categori
                         <h1 className="font-heading text-primary text-2xl">{t('inventory.title')}</h1>
                         <p className="text-muted-foreground text-sm">{t('inventory.subtitle')}</p>
                     </div>
-                    {/* Writes land in Phase 2 — the button is present but inert for now. */}
-                    <AddItemButton t={t} />
+                    <AddItemButton t={t} onClick={() => setAdding(true)} />
                 </header>
 
                 {summary.total === 0 ? (
-                    <EmptyState t={t} />
+                    <EmptyState t={t} onAdd={() => setAdding(true)} />
                 ) : (
                     <>
                         <SummaryCards summary={summary} t={t} />
@@ -151,6 +157,8 @@ export default function InventoryOverview({ summary, attention, recent, categori
                     </>
                 )}
             </div>
+
+            <ItemFormModal open={adding} onOpenChange={setAdding} categories={categories} locations={locations} names={itemNames} />
         </AppLayout>
     );
 }
@@ -181,20 +189,19 @@ function SummaryCards({ summary, t }: { summary: Summary; t: TFn }) {
     );
 }
 
-function AddItemButton({ t }: { t: TFn }) {
+function AddItemButton({ t, onClick }: { t: TFn; onClick: () => void }) {
     return (
         <button
             type="button"
-            disabled
-            title={t('inventory.coming_soon')}
-            className="bg-accent-strong text-accent-strong-foreground flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium opacity-60"
+            onClick={onClick}
+            className="bg-accent-strong text-accent-strong-foreground hover:bg-accent-strong/90 flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
         >
             <Plus className="size-4" /> {t('inventory.add_item')}
         </button>
     );
 }
 
-function EmptyState({ t }: { t: TFn }) {
+function EmptyState({ t, onAdd }: { t: TFn; onAdd: () => void }) {
     return (
         <div className="bg-surface-card flex flex-col items-center gap-3 rounded-2xl border px-6 py-14 text-center">
             <span className="bg-accent-subtle text-primary flex size-14 items-center justify-center rounded-2xl">
@@ -202,6 +209,13 @@ function EmptyState({ t }: { t: TFn }) {
             </span>
             <h2 className="font-heading text-primary text-xl">{t('inventory.empty_title')}</h2>
             <p className="text-muted-foreground max-w-sm text-sm">{t('inventory.empty_body')}</p>
+            <button
+                type="button"
+                onClick={onAdd}
+                className="bg-accent-strong text-accent-strong-foreground hover:bg-accent-strong/90 mt-1 flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+            >
+                <Plus className="size-4" /> {t('inventory.add_item')}
+            </button>
         </div>
     );
 }
