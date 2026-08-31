@@ -7,6 +7,7 @@ use App\Support\Tenancy\BelongsToFamily;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Modules\Shopping\ShoppingItem;
 
 /**
  * A thing the family keeps, consumes and replenishes. Its STATE (good/low/empty/expiring/expired/
@@ -21,7 +22,7 @@ class InventoryItem extends Model
 
     protected $fillable = [
         'name', 'quantity', 'unit', 'category', 'location', 'min_quantity',
-        'target_quantity', 'expires_at', 'auto_replenish', 'notes', 'created_by', 'family_id',
+        'target_quantity', 'expires_at', 'auto_replenish', 'shopping_item_id', 'notes', 'created_by', 'family_id',
     ];
 
     protected $casts = [
@@ -58,6 +59,17 @@ class InventoryItem extends Model
     public function logs(): HasMany
     {
         return $this->hasMany(InventoryLog::class)->latest();
+    }
+
+    /**
+     * The OPEN shopping item this stock has been surfaced onto, or null. Set when the item is added to
+     * Shopping (P4 loop) and cleared once that shopping item is bought — so a non-null link always means
+     * "there is a live, not-yet-bought shopping row for this item". nullOnDelete on the FK keeps it honest
+     * if the shopping item is removed straight from the Shopping UI.
+     */
+    public function shoppingItem(): BelongsTo
+    {
+        return $this->belongsTo(ShoppingItem::class, 'shopping_item_id');
     }
 
     /**
@@ -110,6 +122,48 @@ class InventoryItem extends Model
     public function needsAttention(): bool
     {
         return in_array($this->state(), self::ATTENTION_STATES, true);
+    }
+
+    // The states that mean "we are short on stock and should buy more" — the ones the Shopping loop acts
+    // on. Deliberately NOT expiring/expired: an item can be going off while still fully stocked, and
+    // "throw it out" is not "buy another", so expiry is a Needs-Attention signal but not a replenishment
+    // one. Buying more is driven purely by how much is left (low = at/below min, empty = none).
+    public const REPLENISH_STATES = ['low', 'empty'];
+
+    /** True when the stock is short enough to want buying more (low or empty). Drives the replenishment screen. */
+    public function wantsReplenishment(): bool
+    {
+        return in_array($this->state(), self::REPLENISH_STATES, true);
+    }
+
+    /**
+     * True when this item is already surfaced on a live shopping list. The link column is cleared the
+     * moment its shopping item is bought, so a non-null value reliably means "an open shopping row still
+     * exists" — the single fact the loop uses to stay idempotent (never add the same item twice while one
+     * is still open).
+     */
+    public function onShoppingList(): bool
+    {
+        return $this->shopping_item_id !== null;
+    }
+
+    /**
+     * The quantity this item should be topped up to when a purchase lands (Shopping -> Inventory). Prefer
+     * the explicit target ("full"); else fall back to twice the minimum, matching barFraction()'s notion
+     * of "full = 2x min" so the bar reads full after a buy; else, with neither set, 1 — just enough to
+     * lift an empty/low item out of that state. Always returns a positive number, so a purchase always
+     * records a concrete replenished amount and the item leaves the low/empty state.
+     */
+    public function replenishTarget(): float
+    {
+        if ($this->target_quantity !== null && $this->target_quantity > 0) {
+            return (float) $this->target_quantity;
+        }
+        if ($this->min_quantity > 0) {
+            return (float) $this->min_quantity * 2;
+        }
+
+        return max(1.0, (float) ($this->quantity ?? 0));
     }
 
     /**
@@ -167,6 +221,11 @@ class InventoryItem extends Model
             'expiresAt' => optional($this->expires_at)->toDateString(),
             'autoReplenish' => $this->auto_replenish,
             'notes' => $this->notes,
+            // Shopping-loop link. `onShoppingList` (from the column) tells every screen whether to show
+            // "Shopping · Added" instead of an Add button; `shoppingListId` is filled only when the
+            // relation is eager-loaded, so the badge can deep-link to the list (null => badge without a link).
+            'onShoppingList' => $this->onShoppingList(),
+            'shoppingListId' => $this->relationLoaded('shoppingItem') ? optional($this->shoppingItem)->shopping_list_id : null,
             'state' => $this->state(),
             'stale' => $this->isStale(),   // soft "gone quiet" flag, orthogonal to state (Needs Attention)
             'bar' => $this->barFraction(),

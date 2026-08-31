@@ -2,13 +2,23 @@
 
 namespace Modules\Inventory;
 
+use App\Support\Modules\Hooks;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\Shopping\ShoppingItem;
 
 class InventoryServiceProvider extends ServiceProvider
 {
-    public function boot(): void
+    public function boot(Hooks $hooks): void
     {
+        // Close the Shopping -> Inventory half of the loop: when a shopping item the family bought is one
+        // we surfaced from inventory, restock the linked item (see InventoryReplenishment). We listen on the
+        // shared hooks bus rather than editing the Shopping controller — Shopping just publishes the event,
+        // exactly as Tasks publishes task.saved. The listener is a no-op for ordinary (unlinked) grocery lines.
+        $hooks->listen('shopping.item.bought', function (ShoppingItem $item) {
+            app(InventoryReplenishment::class)->onShoppingItemBought($item);
+        });
+
         // Full Inertia pages, gated by `module:inventory` so they only exist for families that enabled
         // it. Inventory is family-wide shared config (every member sees the same stock, like the
         // shopping aisles or spending categories), so there is no per-item sharing to register — the
@@ -27,6 +37,13 @@ class InventoryServiceProvider extends ServiceProvider
                 Route::get('/needs-attention', [InventoryController::class, 'needsAttention'])->name('needs-attention');
                 Route::get('/categories', [InventoryController::class, 'categories'])->name('categories');
                 Route::get('/locations', [InventoryController::class, 'locations'])->name('locations');
+
+                // Phase 4: the Inventory -> Shopping loop. The replenishment screen, the per-item "Add to
+                // Shopping" push, and the bulk "add all low items" sweep. Open to any member (like the other
+                // inventory writes); idempotency lives in InventoryReplenishment, not the routes.
+                Route::get('/replenishment', [InventoryController::class, 'replenishment'])->name('replenishment');
+                Route::post('/items/{item}/shopping', [InventoryController::class, 'addToShopping'])->name('items.shopping');
+                Route::post('/shopping/add-low', [InventoryController::class, 'addLowToShopping'])->name('shopping.add-low');
 
                 // Writes. Any family member may edit stock (inventory is collaborative; the family scope
                 // is the boundary). Quick-Update is its own endpoint so the daily "we used the milk"
