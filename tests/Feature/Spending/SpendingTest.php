@@ -5,6 +5,7 @@ use App\Models\User;
 use App\Support\Modules\ModuleRegistry;
 use Illuminate\Contracts\Broadcasting\Broadcaster;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -422,6 +423,39 @@ it('trusts the printed total instead of summing when the receipt prints one', fu
         ->post('/m/spending/scan-receipt', ['photo' => UploadedFile::fake()->create('receipt.jpg', 200, 'image/jpeg')])
         ->assertOk()
         ->assertJsonPath('amount', 42.5);
+});
+
+it('resolves an implausible scanned date (future / junk year) to today instead of trusting it', function () {
+    [$family, $users] = spendingFamily();
+    config(['services.gemini.key' => 'test-key']);
+
+    // Freeze "now" so today is deterministic regardless of when the suite runs.
+    Carbon::setTestNow('2026-08-31');
+
+    $body = fn (string $date) => [
+        'candidates' => [['content' => ['parts' => [['text' => json_encode([
+            'amount' => 10, 'has_printed_total' => true, 'currency' => 'EUR', 'date' => $date, 'category' => 'food',
+        ])]]]]],
+    ];
+
+    // One stub sequence so each of the three scans below gets its own scripted response (Http::fake
+    // merges rather than replaces, so re-faking the same URL would keep returning the first stub).
+    Http::fake(['generativelanguage.googleapis.com/*' => Http::sequence()
+        ->push($body('2026-10-08'))   // future date — can't be a real purchase
+        ->push($body('2005-03-14'))   // junk / mis-read year, far in the past
+        ->push($body('2026-08-19')),  // plausible recent date
+    ]);
+
+    $scan = fn () => actingAs($users[0])
+        ->post('/m/spending/scan-receipt', ['photo' => UploadedFile::fake()->create('r.jpg', 200, 'image/jpeg')]);
+
+    // Future date and junk year both clamp to today; a plausible recent date is honoured (the guard
+    // doesn't flatten every receipt to today).
+    $scan()->assertOk()->assertJsonPath('date', '2026-08-31');
+    $scan()->assertOk()->assertJsonPath('date', '2026-08-31');
+    $scan()->assertOk()->assertJsonPath('date', '2026-08-19');
+
+    Carbon::setTestNow();
 });
 
 it('404s receipt scanning when no Gemini key is configured', function () {

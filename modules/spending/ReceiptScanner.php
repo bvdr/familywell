@@ -3,6 +3,7 @@
 namespace Modules\Spending;
 
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
@@ -27,7 +28,7 @@ class ReceiptScanner
     }
 
     /**
-     * @return array{amount: float|null, currency: string|null, date: string|null, category: string|null, note: string|null}
+     * @return array{amount: float|null, currency: string|null, date: string, category: string|null, note: string|null}
      *
      * @throws RuntimeException when the photo can't be read
      */
@@ -99,7 +100,7 @@ class ReceiptScanner
 
     /**
      * @param  array<string, mixed>  $d
-     * @return array{amount: float|null, currency: string|null, date: string|null, category: string|null, note: string|null}
+     * @return array{amount: float|null, currency: string|null, date: string, category: string|null, note: string|null}
      */
     private function normalise(array $d): array
     {
@@ -116,15 +117,51 @@ class ReceiptScanner
 
         $currency = strtoupper((string) ($d['currency'] ?? ''));
         $category = strtolower((string) ($d['category'] ?? ''));
-        $date = (string) ($d['date'] ?? '');
         $note = trim((string) ($d['note'] ?? ''));
 
         return [
             'amount' => $amount > 0 ? round($amount, 2) : null,
             'currency' => in_array($currency, $this->currencies, true) ? $currency : null,
-            'date' => preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) ? $date : null,
+            'date' => $this->normaliseDate((string) ($d['date'] ?? '')),
             'category' => in_array($category, $this->categories, true) ? $category : null,
             'note' => $note !== '' ? $note : null,
         ];
+    }
+
+    // Turn the model's raw date into a plausible purchase date, never an implausible one. OCR routinely
+    // mis-reads the year on faint thermal receipts (2025 -> 2020, or a stray digit that lands in the
+    // future), so a well-formed string is not enough — it has to make sense as "a receipt someone is
+    // scanning right now". Anything that doesn't falls back to today, which the user reviews before saving.
+    private function normaliseDate(string $raw): string
+    {
+        $today = Carbon::now();
+
+        // Must be a real YYYY-MM-DD calendar date. createFromFormat silently rolls overflow (2026-13-45
+        // becomes 2027-01-14), so we also require it to round-trip back to the same string.
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw)) {
+            return $today->toDateString();
+        }
+        try {
+            $date = Carbon::createFromFormat('!Y-m-d', $raw); // '!' zeroes the time so gt()/year read cleanly
+        } catch (\Throwable) {
+            return $today->toDateString();
+        }
+        if ($date === false || $date->format('Y-m-d') !== $raw) {
+            return $today->toDateString();
+        }
+
+        // A purchase cannot be in the future — a future-dated receipt is a mis-read, so clamp to today.
+        if ($date->gt($today)) {
+            return $today->toDateString();
+        }
+
+        // Guard against year mis-reads: a receipt more than a few years old is implausible for a
+        // scan-it-now flow and almost always a wrong-year OCR (the 2020/2005-style dates we saw in prod).
+        // We stay generous (5 years) so a genuinely older receipt still comes through; the user can adjust.
+        if ($date->year < $today->year - 5) {
+            return $today->toDateString();
+        }
+
+        return $date->toDateString();
     }
 }
