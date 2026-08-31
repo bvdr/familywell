@@ -1,5 +1,6 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { AlertTriangle, ArrowLeft, CheckCircle2, Clock, PackageX, ShoppingCart, TrendingDown } from 'lucide-react';
+import { useState } from 'react';
 
 import { AddToShoppingButton, CategoryTile, QtyBar, QtyText, StateBadge } from '@/components/inventory';
 import AppLayout from '@/layouts/app-layout';
@@ -24,6 +25,7 @@ type Props = {
 export default function InventoryNeedsAttention({ empty, low, expiring, stale, total, categories }: Props) {
     const t = useT();
     const catMap = byKey(categories);
+    const [addingAll, setAddingAll] = useState(false);
     const breadcrumbs: BreadcrumbItem[] = [
         { title: t('inventory.title'), href: '/m/inventory' },
         { title: t('inventory.needs_attention_title'), href: '/m/inventory/needs-attention' },
@@ -43,8 +45,14 @@ export default function InventoryNeedsAttention({ empty, low, expiring, stale, t
         },
     ].filter((s) => s.items.length > 0);
 
-    // Any low OR empty item is a replenishment candidate; the bulk button offers them all at once (P4).
-    const bulkCount = low.length + empty.length;
+    // Any low OR empty item is a replenishment candidate; the bulk button offers them all at once. Items
+    // already on a list are skipped server-side, so this only ever adds the ones that aren't there yet —
+    // the count below is how many are still not on Shopping (what a tap would actually add).
+    const replenishable = [...low, ...empty];
+    const bulkCount = replenishable.filter((i) => !i.onShoppingList).length;
+
+    const addAll = () =>
+        router.post(route('inventory.shopping.add-low'), {}, { preserveScroll: true, onStart: () => setAddingAll(true), onFinish: () => setAddingAll(false) });
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -63,13 +71,13 @@ export default function InventoryNeedsAttention({ empty, low, expiring, stale, t
                     <AllGood t={t} />
                 ) : (
                     <>
-                        {/* Bulk replenishment. Inert until Phase 4 wires the Shopping loop. */}
+                        {/* Bulk replenishment: sweep every not-yet-added low/empty item onto Shopping in one tap. */}
                         {bulkCount > 0 && (
                             <button
                                 type="button"
-                                disabled
-                                title={t('inventory.coming_soon')}
-                                className="bg-accent-strong text-accent-strong-foreground flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium opacity-50"
+                                onClick={addAll}
+                                disabled={addingAll}
+                                className="bg-accent-strong text-accent-strong-foreground flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition-opacity disabled:opacity-50"
                             >
                                 <ShoppingCart className="size-4" /> {t('inventory.add_all_low_to_shopping')}
                             </button>
@@ -101,7 +109,9 @@ export default function InventoryNeedsAttention({ empty, low, expiring, stale, t
                                                     <StateBadge state={item.state} className="mt-1" />
                                                 </span>
                                             </Link>
-                                            <AddToShoppingButton compact />
+                                            {/* Shopping is a replenishment (buy-more) action, so it only makes
+                                                sense for short stock — not for expiring or stale items. */}
+                                            {(s.key === 'low' || s.key === 'empty') && <AddToShoppingButton item={item} compact />}
                                         </li>
                                     ))}
                                 </ul>

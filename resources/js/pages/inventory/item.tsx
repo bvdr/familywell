@@ -1,5 +1,5 @@
-import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Pencil, RefreshCw, ShoppingCart, Sparkles } from 'lucide-react';
+import { Head, Link, router } from '@inertiajs/react';
+import { ArrowLeft, Check, Pencil, RefreshCw, ShoppingCart, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 
 import { CategoryTile, QtyBar, StateBadge } from '@/components/inventory';
@@ -69,11 +69,25 @@ export default function InventoryItem({ item, categories, locations, history }: 
                     <QtyBar item={item} className="h-2" />
                 </section>
 
-                {/* Actions. Update quantity + Edit are live; Add to Shopping (P4) and Create Task stay inert. */}
+                {/* Actions. Update quantity + Edit + Add to Shopping are live; Create Task stays inert. */}
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     <ActionButton icon={RefreshCw} label={t('inventory.update_quantity')} onClick={() => setUpdating(true)} primary />
                     <ActionButton icon={Pencil} label={t('inventory.edit_item')} onClick={() => setEditing(true)} />
-                    <ActionButton icon={ShoppingCart} label={t('inventory.add_to_shopping')} disabled t={t} />
+                    {item.onShoppingList ? (
+                        // Already on a list: link straight to it, in the "added" (success) treatment.
+                        <Link
+                            href={item.shoppingListId ? `/m/shopping/lists/${item.shoppingListId}` : '/m/shopping'}
+                            className="flex items-center justify-center gap-1.5 rounded-xl border border-[var(--success)] px-2 py-2.5 text-xs font-medium text-[var(--success)]"
+                        >
+                            <Check className="size-4" /> <span className="truncate">{t('inventory.shopping_added')}</span>
+                        </Link>
+                    ) : (
+                        <ActionButton
+                            icon={ShoppingCart}
+                            label={t('inventory.add_to_shopping')}
+                            onClick={() => router.post(route('inventory.items.shopping', item.id), {}, { preserveScroll: true })}
+                        />
+                    )}
                     <ActionButton icon={Sparkles} label={t('inventory.create_task')} disabled t={t} />
                 </div>
 

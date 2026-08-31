@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { AlertTriangle, ChevronRight, LayoutGrid, MapPin, Package, Plus } from 'lucide-react';
+import { AlertTriangle, ChevronRight, LayoutGrid, MapPin, Package, Plus, ShoppingCart } from 'lucide-react';
 import { useState } from 'react';
 
 import { CategoryTile, QtyBar, QtyText, StateBadge } from '@/components/inventory';
@@ -55,6 +55,25 @@ export default function InventoryOverview({ summary, attention, recent, categori
                 ) : (
                     <>
                         <SummaryCards summary={summary} t={t} />
+
+                        {/* Replenishment shortcut: the core loop, one tap from the overview when stock is short. */}
+                        {summary.low + summary.empty > 0 && (
+                            <Link
+                                href="/m/inventory/replenishment"
+                                className="bg-accent-subtle/60 hover:bg-accent-subtle flex items-center gap-3 rounded-2xl border px-4 py-3 transition-colors"
+                            >
+                                <span className="bg-accent-strong text-accent-strong-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
+                                    <ShoppingCart className="size-4" />
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                    <span className="text-primary block text-sm font-medium">{t('inventory.replenishment_title')}</span>
+                                    <span className="text-muted-foreground block text-xs">
+                                        {t('inventory.replenishment_subtitle', { count: summary.low + summary.empty })}
+                                    </span>
+                                </span>
+                                <ChevronRight className="text-muted-foreground size-4 shrink-0" />
+                            </Link>
+                        )}
 
                         {/* Needs attention: the whole point — what to act on, most-urgent first. */}
                         <section className="flex flex-col gap-2">

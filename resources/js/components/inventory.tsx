@@ -1,4 +1,6 @@
-import { ShoppingCart } from 'lucide-react';
+import { Link, router } from '@inertiajs/react';
+import { Check, ShoppingCart } from 'lucide-react';
+import { useState } from 'react';
 
 import { LucideIcon } from '@/components/lucide-icon';
 import { useT } from '@/lib/i18n';
@@ -50,21 +52,59 @@ export function CategoryTile({ category, size = 'md' }: { category?: InvCategory
     );
 }
 
-// The "Add to Shopping" affordance. The actual replenishment loop is Phase 4 — for now this is present
-// but inert (disabled, with a "coming soon" hint), so the Needs Attention screen already shows where the
-// action will live. `compact` renders the icon-only pill used in dense list rows; otherwise a labelled
-// button. Kept here so P4 can wire onClick in one place.
-export function AddToShoppingButton({ compact = false, className = '' }: { compact?: boolean; className?: string }) {
+// The "Add to Shopping" affordance — the per-item half of the P4 loop. When the item is not yet on a list
+// it POSTs to inventory.items.shopping (idempotent server-side, so a double-tap can't duplicate); once it
+// is on a list the control flips to a "Shopping · Added" link into that list. `compact` renders the
+// icon-only pill used in dense list rows; otherwise a labelled button. One place, used by every screen.
+export function AddToShoppingButton({
+    item,
+    compact = false,
+    className = '',
+}: {
+    item: Pick<InvItem, 'id' | 'onShoppingList' | 'shoppingListId'>;
+    compact?: boolean;
+    className?: string;
+}) {
     const t = useT();
+    const [busy, setBusy] = useState(false);
+
+    const base = `flex shrink-0 items-center justify-center gap-1.5 rounded-lg border text-xs font-medium ${
+        compact ? 'size-9' : 'px-3 py-2'
+    } ${className}`;
+
+    // Already on a list: show the "Added" state, linking to the list when we know which one.
+    if (item.onShoppingList) {
+        const added = (
+            <>
+                <Check className="size-4" />
+                {!compact && <span className="truncate">{t('inventory.shopping_added')}</span>}
+            </>
+        );
+        const style = `${base} border-[var(--success)] text-[var(--success)]`;
+        return item.shoppingListId ? (
+            <Link href={`/m/shopping/lists/${item.shoppingListId}`} className={style} aria-label={t('inventory.shopping_added')}>
+                {added}
+            </Link>
+        ) : (
+            <span className={style} aria-label={t('inventory.shopping_added')}>
+                {added}
+            </span>
+        );
+    }
+
     return (
         <button
             type="button"
-            disabled
-            title={t('inventory.coming_soon')}
+            disabled={busy}
             aria-label={t('inventory.add_to_shopping')}
-            className={`text-primary flex shrink-0 items-center justify-center gap-1.5 rounded-lg border text-xs font-medium opacity-50 ${
-                compact ? 'size-9' : 'px-3 py-2'
-            } ${className}`}
+            onClick={() =>
+                router.post(
+                    route('inventory.items.shopping', item.id),
+                    {},
+                    { preserveScroll: true, onStart: () => setBusy(true), onFinish: () => setBusy(false) },
+                )
+            }
+            className={`${base} text-primary hover:bg-surface disabled:opacity-50`}
         >
             <ShoppingCart className="size-4" />
             {!compact && <span className="truncate">{t('inventory.add_to_shopping')}</span>}
