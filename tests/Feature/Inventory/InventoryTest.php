@@ -4,7 +4,9 @@ use App\Models\Family;
 use App\Models\User;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use Modules\Inventory\InventoryCategory;
 use Modules\Inventory\InventoryItem;
+use Modules\Inventory\InventoryLocation;
 use Modules\Inventory\InventoryLog;
 
 use function Pest\Laravel\actingAs;
@@ -152,4 +154,213 @@ it('does not leak items across families', function () {
 
     actingAs($usersA[0])->get("/m/inventory/items/{$itemB->id}")->assertNotFound();
     actingAs($usersA[0])->get("/m/inventory/items/{$itemA->id}")->assertOk();
+});
+
+// ---------------------------------------------------------------------------------------------------
+// Phase 2: writes + history log
+// ---------------------------------------------------------------------------------------------------
+
+it('creates an item, logs its opening stock, and derives the right state', function () {
+    [$family, $users] = inventoryFamily();
+
+    actingAs($users[0])->post('/m/inventory/items', [
+        'name' => 'Eggs',
+        'quantity' => 12,
+        'unit' => 'pieces',
+        'category' => 'food',
+        'location' => 'fridge',
+        'min_quantity' => 6,
+        'auto_replenish' => true,
+    ])->assertRedirect();
+
+    $item = InventoryItem::where('name', 'Eggs')->firstOrFail();
+    expect($item->quantity)->toBe(12.0);
+    expect($item->created_by)->toBe($users[0]->id);
+    expect($item->state())->toBe('good');           // 12 > min 6
+
+    // The creation writes one "added" log row carrying the opening quantity.
+    $log = $item->logs()->firstOrFail();
+    expect($log->type)->toBe('added');
+    expect($log->delta)->toBe(12.0);
+    expect($log->user_id)->toBe($users[0]->id);
+    expect($log->family_id)->toBe($family->id);
+});
+
+it('creates an unknown-quantity item (null delta log) in the unknown state', function () {
+    [, $users] = inventoryFamily();
+
+    actingAs($users[0])->post('/m/inventory/items', [
+        'name' => 'Batteries',
+        'quantity' => null,
+        'unit' => 'pieces',
+    ])->assertRedirect();
+
+    $item = InventoryItem::where('name', 'Batteries')->firstOrFail();
+    expect($item->quantity)->toBeNull();
+    expect($item->state())->toBe('unknown');
+    expect($item->logs()->firstOrFail()->delta)->toBeNull();
+});
+
+it('a quick consume down to 0 empties the item and logs a negative delta', function () {
+    [, $users] = inventoryFamily();
+    $item = makeItem(['name' => 'Milk', 'quantity' => 3, 'min_quantity' => 1, 'unit' => 'L']);
+
+    actingAs($users[0])->post("/m/inventory/items/{$item->id}/adjust", ['quantity' => 0])->assertRedirect();
+
+    $item->refresh();
+    expect($item->quantity)->toBe(0.0);
+    expect($item->state())->toBe('empty');
+
+    $log = $item->logs()->firstOrFail();
+    expect($log->type)->toBe('consumed');
+    expect($log->delta)->toBe(-3.0);                 // 0 - 3
+});
+
+it('a quick add logs a positive delta and recomputes the state', function () {
+    [, $users] = inventoryFamily();
+    $item = makeItem(['name' => 'Rice', 'quantity' => 1, 'min_quantity' => 2, 'unit' => 'kg']);
+    expect($item->state())->toBe('low');
+
+    actingAs($users[0])->post("/m/inventory/items/{$item->id}/adjust", ['quantity' => 5])->assertRedirect();
+
+    $item->refresh();
+    expect($item->quantity)->toBe(5.0);
+    expect($item->state())->toBe('good');
+    $log = $item->logs()->firstOrFail();
+    expect($log->type)->toBe('added');
+    expect($log->delta)->toBe(4.0);                  // 5 - 1
+});
+
+it('a quick update with no change writes no log row', function () {
+    [, $users] = inventoryFamily();
+    $item = makeItem(['quantity' => 4]);
+
+    actingAs($users[0])->post("/m/inventory/items/{$item->id}/adjust", ['quantity' => 4])->assertRedirect();
+
+    expect($item->logs()->count())->toBe(0);
+});
+
+it('editing quantity below the minimum flips the item to low and logs an adjustment', function () {
+    [, $users] = inventoryFamily();
+    $item = makeItem(['name' => 'Coffee', 'quantity' => 10, 'min_quantity' => 3, 'unit' => 'packs']);
+    expect($item->state())->toBe('good');
+
+    actingAs($users[0])->patch("/m/inventory/items/{$item->id}", [
+        'name' => 'Coffee',
+        'quantity' => 2,
+        'unit' => 'packs',
+        'min_quantity' => 3,
+        'auto_replenish' => true,
+    ])->assertRedirect();
+
+    $item->refresh();
+    expect($item->quantity)->toBe(2.0);
+    expect($item->state())->toBe('low');
+    $log = $item->logs()->firstOrFail();
+    expect($log->type)->toBe('adjusted');
+    expect($log->delta)->toBe(-8.0);                 // 2 - 10
+});
+
+it('an edit that leaves the quantity unchanged writes no log row', function () {
+    [, $users] = inventoryFamily();
+    $item = makeItem(['name' => 'Sugar', 'quantity' => 5]);
+
+    actingAs($users[0])->patch("/m/inventory/items/{$item->id}", [
+        'name' => 'Brown sugar', // rename only
+        'quantity' => 5,
+        'unit' => 'pieces',
+        'auto_replenish' => true,
+    ])->assertRedirect();
+
+    $item->refresh();
+    expect($item->name)->toBe('Brown sugar');
+    expect($item->logs()->count())->toBe(0);
+});
+
+it('deletes an item and its history without touching other items', function () {
+    [, $users] = inventoryFamily();
+    $keep = makeItem(['name' => 'Keep', 'quantity' => 5]);
+    $gone = makeItem(['name' => 'Gone', 'quantity' => 5]);
+    InventoryLog::create(['inventory_item_id' => $gone->id, 'delta' => -1, 'type' => 'consumed', 'user_id' => $users[0]->id]);
+
+    actingAs($users[0])->delete("/m/inventory/items/{$gone->id}")->assertRedirect('/m/inventory/items');
+
+    expect(InventoryItem::find($gone->id))->toBeNull();
+    expect(InventoryLog::where('inventory_item_id', $gone->id)->count())->toBe(0); // cascaded, not orphaned
+    expect(InventoryItem::find($keep->id))->not->toBeNull();                       // other items untouched
+});
+
+it('resolves a typed category/location name into a new custom key', function () {
+    [$family, $users] = inventoryFamily();
+
+    actingAs($users[0])->post('/m/inventory/items', [
+        'name' => 'Cat food',
+        'quantity' => 2,
+        'unit' => 'boxes',
+        'category' => 'Pet',       // brand-new category, typed inline
+        'location' => 'Balcony',   // brand-new location, typed inline
+    ])->assertRedirect();
+
+    $item = InventoryItem::where('name', 'Cat food')->firstOrFail();
+    expect($item->category)->toBe('pet');
+    expect($item->location)->toBe('balcony');
+    expect(InventoryCategory::where('key', 'pet')->where('is_default', false)->exists())->toBeTrue();
+    expect(InventoryLocation::where('key', 'balcony')->where('is_default', false)->exists())->toBeTrue();
+});
+
+it('reuses a built-in category when its display name is typed (no duplicate)', function () {
+    [, $users] = inventoryFamily();
+    InventoryCategory::ensureDefaults();
+
+    actingAs($users[0])->post('/m/inventory/items', [
+        'name' => 'Bread',
+        'quantity' => 1,
+        'unit' => 'pieces',
+        'category' => 'Food', // slugs to the built-in `food`
+    ])->assertRedirect();
+
+    expect(InventoryItem::where('name', 'Bread')->firstOrFail()->category)->toBe('food');
+    expect(InventoryCategory::where('key', 'food')->count())->toBe(1); // not duplicated
+});
+
+it('validates the write payload', function () {
+    [, $users] = inventoryFamily();
+    $item = makeItem();
+
+    // name is required
+    actingAs($users[0])->post('/m/inventory/items', ['unit' => 'pieces'])
+        ->assertSessionHasErrors('name');
+
+    // unit must be one of the allowed set
+    actingAs($users[0])->post('/m/inventory/items', ['name' => 'X', 'unit' => 'furlongs'])
+        ->assertSessionHasErrors('unit');
+
+    // quantity must be numeric and non-negative
+    actingAs($users[0])->post('/m/inventory/items', ['name' => 'X', 'unit' => 'pieces', 'quantity' => 'lots'])
+        ->assertSessionHasErrors('quantity');
+    actingAs($users[0])->post('/m/inventory/items', ['name' => 'X', 'unit' => 'pieces', 'quantity' => -1])
+        ->assertSessionHasErrors('quantity');
+
+    // adjust needs a numeric, non-negative quantity
+    actingAs($users[0])->post("/m/inventory/items/{$item->id}/adjust", ['quantity' => -5])
+        ->assertSessionHasErrors('quantity');
+});
+
+it('will not let a write touch another family\'s item', function () {
+    [$familyA, $usersA] = inventoryFamily();
+
+    $userB = User::factory()->create();
+    $familyB = Family::factory()->create(['owner_id' => $userB->id]);
+    $familyB->members()->attach($userB, ['role' => 'admin']);
+    CurrentFamily::set($familyB->id);
+    app(ModuleRegistry::class)->enable('inventory', $familyB->id);
+    $itemB = InventoryItem::create(['name' => 'B-Only', 'quantity' => 5, 'family_id' => $familyB->id]);
+
+    session(['active_family_id' => $familyA->id]);
+    CurrentFamily::set($familyA->id);
+
+    actingAs($usersA[0])->post("/m/inventory/items/{$itemB->id}/adjust", ['quantity' => 0])->assertNotFound();
+    actingAs($usersA[0])->delete("/m/inventory/items/{$itemB->id}")->assertNotFound();
+
+    expect(InventoryItem::withoutGlobalScopes()->find($itemB->id)->quantity)->toBe(5.0);
 });
