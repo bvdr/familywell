@@ -27,6 +27,7 @@ import {
 import { createContext, FormEventHandler, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { GuestSheet, type GuestShareState } from '@/components/guest-sheet';
+import { IconPicker } from '@/components/icon-picker';
 import InputError from '@/components/input-error';
 import { useMemberColors } from '@/components/member-avatar';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
@@ -52,6 +53,7 @@ type EventT = {
     name: string;
     currency: string;
     displayCurrency: string; // saved display currency (falls back to base); persisted via the header selector
+    icon: string | null; // chosen lucide icon key for the list (null → Wallet default)
     total: number;
     archived: boolean;
     people: number; // total headcount (sum of participant weights), not row count
@@ -231,6 +233,14 @@ export default function Event({
     const changeDisplay = (v: string) => {
         setDisplay(v); // optimistic: reflect the choice immediately
         router.patch(route('spending.events.update', event.id), { display_currency: v }, { preserveScroll: true, preserveState: true });
+    };
+
+    // The list's lucide icon (shown left of the title). Optimistic like the title; null → Wallet default.
+    const [icon, setIcon] = useState(event.icon);
+    useEffect(() => setIcon(event.icon), [event.icon]);
+    const changeIcon = (key: string | null) => {
+        setIcon(key); // reflect the choice immediately
+        router.patch(route('spending.events.update', event.id), { icon: key }, { preserveScroll: true, preserveState: true });
     };
 
     // Inline title editing. `title` mirrors the server value (optimistic on save, re-synced on reload).
@@ -632,7 +642,15 @@ export default function Event({
                     {/* Sticky editorial header: the serif title, the display currency, and the tab bar that
                     stays put while a tab's content scrolls under it. */}
                     <header className="bg-background/95 sticky top-0 z-20 px-4 pt-3 backdrop-blur-sm">
-                        <div className="mb-3 flex items-center justify-between gap-3">
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                            {/* List icon: tap to pick a lucide icon for this list (defaults to Wallet). */}
+                            <IconPicker
+                                value={icon}
+                                onChange={changeIcon}
+                                className="size-9"
+                                iconClassName="size-4.5"
+                                ariaLabel={t('spending.change_icon')}
+                            />
                             {editingTitle ? (
                                 <input
                                     autoFocus

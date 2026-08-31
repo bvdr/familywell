@@ -6,7 +6,9 @@ import { FormEventHandler, useState } from 'react';
 
 import { useOptimistic } from '@/hooks/use-optimistic';
 
+import { IconPicker } from '@/components/icon-picker';
 import InputError from '@/components/input-error';
+import { LucideIcon } from '@/components/lucide-icon';
 import { MemberAvatar } from '@/components/member-avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +20,7 @@ import { money } from '@/lib/money';
 import { type BreadcrumbItem } from '@/types';
 
 type Member = { id: number; name: string };
-type Event = { id: number; name: string; currency: string; total: number; archived: boolean; members: Member[] };
+type Event = { id: number; name: string; currency: string; total: number; archived: boolean; icon: string | null; members: Member[] };
 
 function Avatars({ members }: { members: Member[] }) {
     return (
@@ -45,7 +47,11 @@ export default function Events({
     const [creating, setCreating] = useState(openNewOnArrival);
     useAddAction(() => setCreating(true));
     // Pre-select the family's default currency; fall back to the first supported one when unset.
-    const { data, setData, post, processing, errors, reset } = useForm({ name: '', currency: defaultCurrency ?? currencies[0] });
+    const { data, setData, post, processing, errors, reset } = useForm({
+        name: '',
+        currency: defaultCurrency ?? currencies[0],
+        icon: null as string | null, // optional lucide key; null keeps the default Wallet icon
+    });
 
     const archivedOpt = useOptimistic<boolean>();
     const isArchived = (ev: Event) => archivedOpt.get(ev.id, ev.archived);
@@ -90,14 +96,20 @@ export default function Events({
                     <form onSubmit={submit} className="bg-surface-card flex flex-col gap-3 rounded-xl border p-4">
                         <div className="grid gap-2">
                             <Label htmlFor="name">{t('spending.event_name')}</Label>
-                            <Input
-                                id="name"
-                                autoFocus
-                                value={data.name}
-                                onChange={(e) => setData('name', e.target.value)}
-                                placeholder={t('spending.event_name_placeholder')}
-                            />
-                            <InputError message={errors.name} />
+                            {/* Icon picker sits left of the name: pick a lucide icon for the list (defaults to Wallet). */}
+                            <div className="flex items-start gap-2">
+                                <IconPicker value={data.icon} onChange={(icon) => setData('icon', icon)} />
+                                <div className="flex-1">
+                                    <Input
+                                        id="name"
+                                        autoFocus
+                                        value={data.name}
+                                        onChange={(e) => setData('name', e.target.value)}
+                                        placeholder={t('spending.event_name_placeholder')}
+                                    />
+                                    <InputError message={errors.name} />
+                                </div>
+                            </div>
                         </div>
                         <div className="grid gap-2">
                             <Label>{t('spending.home_currency')}</Label>
@@ -142,7 +154,7 @@ export default function Events({
                         >
                             <div className="flex items-center gap-3">
                                 <span className="bg-accent-subtle text-primary flex size-10 items-center justify-center rounded-lg">
-                                    <Wallet className="size-5" />
+                                    <LucideIcon name={ev.icon} className="size-5" />
                                 </span>
                                 <div>
                                     <div className="text-primary font-medium">{ev.name}</div>
@@ -162,7 +174,7 @@ export default function Events({
                         {archived.map((ev) => (
                             <div key={ev.id} className="bg-surface flex items-center gap-3 rounded-xl border p-3 opacity-70">
                                 <span className="text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-lg border">
-                                    <Wallet className="size-4.5" />
+                                    <LucideIcon name={ev.icon} className="size-4.5" />
                                 </span>
                                 <Link href={route('spending.show', ev.id)} className="min-w-0 flex-1">
                                     <div className="text-primary truncate text-sm font-medium">{ev.name}</div>
