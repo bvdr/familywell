@@ -15,6 +15,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -55,6 +56,8 @@ class SpendingController extends Controller
                     'currency' => $display,
                     'total' => Fx::convert((int) $e->spends_sum_base_amount, $e->currency, $display),
                     'archived' => $e->archived_at !== null,
+                    // Chosen lucide icon key for the card; null falls back to Wallet client-side.
+                    'icon' => $e->icon,
                     // Only members who can actually reach the event: everyone for `family` visibility,
                     // otherwise just those with a share. The pivot holds every family member (synced at
                     // creation), so without this filter an invited/private event shows people who have no
@@ -358,11 +361,15 @@ class SpendingController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'currency' => ['required', 'in:'.implode(',', self::CURRENCIES)],
+            // Optional lucide icon key for the list (kebab-case). Constrained to the real lucide set so a
+            // junk key can't be stored; null/absent keeps the default Wallet icon.
+            'icon' => ['nullable', 'string', Rule::in(IconLibrary::names())],
         ]);
 
         $event = SpendEvent::create([
             'name' => $data['name'],
             'currency' => $data['currency'],
+            'icon' => $data['icon'] ?? null,
             'created_by' => $request->user()->id,
         ]);
 
@@ -437,6 +444,8 @@ class SpendingController extends Controller
             // The list's display currency (top-right selector). Base amounts stay frozen to `currency`;
             // this only changes what the figures are shown in. null clears back to the base currency.
             'display_currency' => ['sometimes', 'nullable', 'in:'.implode(',', self::CURRENCIES)],
+            // The list's lucide icon key. Must be a real lucide name; null clears it back to Wallet.
+            'icon' => ['sometimes', 'nullable', 'string', Rule::in(IconLibrary::names())],
         ]);
         if (array_key_exists('archived', $data)) {
             $event->archived_at = $data['archived'] ? now() : null;
@@ -446,6 +455,9 @@ class SpendingController extends Controller
         }
         if (array_key_exists('display_currency', $data)) {
             $event->display_currency = $data['display_currency'];
+        }
+        if (array_key_exists('icon', $data)) {
+            $event->icon = $data['icon'];
         }
         $event->save();
         Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
@@ -890,6 +902,8 @@ class SpendingController extends Controller
                 'currency' => $event->currency,
                 // The saved display currency (falls back to the base). The header selector persists this.
                 'displayCurrency' => $event->display_currency ?: $event->currency,
+                // The chosen lucide icon key for this list (null → Wallet default in the header).
+                'icon' => $event->icon,
                 'total' => (int) $spends->sum('base_amount'),
                 'archived' => $event->archived_at !== null,
                 'members' => $members->filter(fn ($m) => isset($names['u'.$m->id]))->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),
