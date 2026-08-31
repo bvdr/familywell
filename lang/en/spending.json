@@ -195,6 +195,7 @@
     "period_mtd": "This month",
     "period_last_month": "Last month",
     "period_ytd": "This year",
+    "period_all_time": "All time",
     "period_custom": "Custom",
     "display_currency": "Display currency",
     "by_day": "Expenses by day",

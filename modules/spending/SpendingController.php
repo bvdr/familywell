@@ -195,7 +195,7 @@ class SpendingController extends Controller
             $display = $default;
         }
 
-        [$period, $start, $end] = $this->analyticsPeriod($request);
+        [$period, $start, $end] = $this->analyticsPeriod($request, $eventCcy->keys()->all());
 
         // One cached rate lookup per distinct base currency (not per spend): convert each list's frozen
         // base cents into the display currency at the latest rate.
@@ -209,7 +209,10 @@ class SpendingController extends Controller
         // (id + note added for the drill-down entries list).
         $spends = $eventCcy->isEmpty() ? collect() : Spend::query()
             ->whereIn('spend_event_id', $eventCcy->keys())
-            ->whereBetween('spent_at', [$start->toDateString(), $end->toDateString()])
+            // End bound is the whole end day, not its midnight: spent_at can carry a time component, so a
+            // plain date end would drop spends made on the last day (e.g. today for mtd, or the newest
+            // spend for all_time, whose end is exactly that date). Kept as a range so the index still applies.
+            ->whereBetween('spent_at', [$start->toDateString(), $end->copy()->endOfDay()->toDateTimeString()])
             ->get(['id', 'spend_event_id', 'category', 'base_amount', 'note', 'spent_at']);
 
         // For long ranges, group the series by month instead of by day (see below): decide up front so
@@ -295,9 +298,11 @@ class SpendingController extends Controller
 
     /**
      * Resolve the analytics period into a [label, start, end] Carbon range (inclusive days).
-     * Supported: mtd (default), last_month, ytd, custom (from/to query params).
+     * Supported: mtd (default), last_month, ytd, all_time, custom (from/to query params).
+     *
+     * @param  list<int>  $eventIds  the visible lists, used only to bound the all_time range to real data
      */
-    private function analyticsPeriod(Request $request): array
+    private function analyticsPeriod(Request $request, array $eventIds = []): array
     {
         $today = now();
         switch ($request->query('period')) {
@@ -308,6 +313,19 @@ class SpendingController extends Controller
                 return ['last_month', $start, $end];
             case 'ytd':
                 return ['ytd', $today->copy()->startOfYear(), $today->copy()];
+            case 'all_time':
+                // No date bound: span the visible lists' whole history, min..max spent_at. One aggregate
+                // query, not two. Falls back to this month when there are no spends yet so the range is
+                // still a valid single period. > 90 days almost always => monthly granularity (below).
+                $bounds = $eventIds === [] ? null : Spend::query()
+                    ->whereIn('spend_event_id', $eventIds)
+                    ->selectRaw('MIN(spent_at) as mn, MAX(spent_at) as mx')
+                    ->first();
+                if (! $bounds || ! $bounds->mn || ! $bounds->mx) {
+                    return ['all_time', $today->copy()->startOfMonth(), $today->copy()];
+                }
+
+                return ['all_time', Carbon::parse($bounds->mn)->startOfDay(), Carbon::parse($bounds->mx)->startOfDay()];
             case 'custom':
                 $start = $this->parseDate($request->query('from')) ?? $today->copy()->startOfMonth();
                 $end = $this->parseDate($request->query('to')) ?? $today->copy();

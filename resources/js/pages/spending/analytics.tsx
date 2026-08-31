@@ -151,7 +151,11 @@ function useCountUp(target: number, reduced: boolean) {
     return value;
 }
 
-const PERIODS = ['mtd', 'last_month', 'ytd', 'custom'] as const;
+const PERIODS = ['mtd', 'last_month', 'ytd', 'all_time', 'custom'] as const;
+
+// The resolved period always spans a concrete date range; show it so "this year" / "all time" / a custom
+// range read unambiguously (a full date, with year, since all-time can reach back several years).
+const fullDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 
 export default function Analytics({
     currency,
@@ -196,6 +200,7 @@ export default function Analytics({
         mtd: t('spending.period_mtd'),
         last_month: t('spending.period_last_month'),
         ytd: t('spending.period_ytd'),
+        all_time: t('spending.period_all_time'),
         custom: t('spending.period_custom'),
     };
 
@@ -237,6 +242,14 @@ export default function Analytics({
                         </button>
                     ))}
                 </div>
+
+                {/* The concrete range the active period resolves to, so the numbers below are never
+                    ambiguous. Hidden for custom, which shows its own from/to inputs right underneath. */}
+                {period !== 'custom' && (
+                    <p className="text-muted-foreground -mt-1 text-xs">
+                        {fullDate(range.from)} – {fullDate(range.to)}
+                    </p>
+                )}
 
                 {/* Custom range: native date inputs (rung 4 — the platform control, no picker library). */}
                 {period === 'custom' && (

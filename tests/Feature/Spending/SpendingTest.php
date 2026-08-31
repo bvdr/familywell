@@ -691,3 +691,33 @@ it('aggregates the analytics series by month when the range spans more than 90 d
             ->where('daily', fn ($rows) => collect($rows)->every(fn ($r) => str_ends_with($r['date'], '-01')))
             ->etc());
 });
+
+it('spans the full history (min..max spent_at) for the all_time period', function () {
+    Http::fake([
+        'api.frankfurter.dev/*' => Http::response(['rates' => ['EUR' => 0.2]]),
+        'open.er-api.com/*' => Http::response(['rates' => ['EUR' => 0.2]]),
+    ]);
+
+    [, $users] = spendingFamily();
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
+    $eur = SpendEvent::where('currency', 'EUR')->first();
+
+    // Two spends far apart in time; all_time must bound the range to exactly these (oldest..newest),
+    // regardless of what "this year" would include, so the whole history is reachable.
+    foreach (['2023-02-10', '2026-08-19'] as $on) {
+        actingAs($users[0])->post("/m/spending/events/{$eur->id}/spends", [
+            'amount' => '20.00', 'currency' => 'EUR', 'category' => 'other', 'payer_key' => 'u'.$users[0]->id,
+            'spent_at' => $on,
+        ])->assertRedirect();
+    }
+
+    actingAs($users[0])->get('/m/spending/analytics?period=all_time&currency=EUR')
+        ->assertInertia(fn ($p) => $p
+            ->component('spending/analytics')
+            ->where('period', 'all_time')
+            ->where('range.from', '2023-02-10')
+            ->where('range.to', '2026-08-19')
+            ->where('granularity', 'month') // > 90 days => monthly
+            ->where('count', 2)
+            ->etc());
+});
