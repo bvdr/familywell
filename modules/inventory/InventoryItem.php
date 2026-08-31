@@ -40,6 +40,12 @@ class InventoryItem extends Model
     // overview card, the All Items filter and the item detail all agree on "expiring soon".
     public const EXPIRING_WITHIN_DAYS = 7;
 
+    // An otherwise-fine item counts as "stale" when nothing has touched it in this long — a soft nudge
+    // ("have we run out and forgotten to log it?"), surfaced only on the Needs Attention screen. It is
+    // deliberately NOT one of the derived STATES: staleness is orthogonal to stock level (a good/unknown
+    // item that's simply gone quiet), so folding it into state() would muddy the one-state-per-item rule.
+    public const STALE_AFTER_DAYS = 45;
+
     // The derived states, most-urgent first. `state()` returns exactly one; this order IS the tie-break
     // when several conditions hold at once (see state()).
     public const STATES = ['expired', 'empty', 'expiring', 'low', 'unknown', 'good'];
@@ -95,10 +101,31 @@ class InventoryItem extends Model
         return 'good';
     }
 
+    // The states that mean "act on this now" — the stock is short or the item is going/gone off. Kept as
+    // one list so every screen (overview counts, Needs Attention buckets, category/location attention
+    // tallies) agrees on what "needs attention" means.
+    public const ATTENTION_STATES = ['expired', 'empty', 'expiring', 'low'];
+
     /** True when this item wants replenishing (drives the "Needs attention" list + the P4 Shopping loop). */
     public function needsAttention(): bool
     {
-        return in_array($this->state(), ['expired', 'empty', 'expiring', 'low'], true);
+        return in_array($this->state(), self::ATTENTION_STATES, true);
+    }
+
+    /**
+     * True when this item is fine on stock (good or unknown) but has gone untouched for STALE_AFTER_DAYS.
+     * Only non-attention items can be stale — anything already low/empty/expiring surfaces under its own,
+     * more urgent, state instead, so the Needs Attention buckets never double-count an item. `updated_at`
+     * is the last time anything about the item changed (a quantity move touches it), so it stands in for
+     * "last checked" without needing to read the log.
+     */
+    public function isStale(): bool
+    {
+        if ($this->needsAttention()) {
+            return false;
+        }
+
+        return $this->updated_at !== null && $this->updated_at->lt(now()->subDays(self::STALE_AFTER_DAYS));
     }
 
     /**
@@ -141,6 +168,7 @@ class InventoryItem extends Model
             'autoReplenish' => $this->auto_replenish,
             'notes' => $this->notes,
             'state' => $this->state(),
+            'stale' => $this->isStale(),   // soft "gone quiet" flag, orthogonal to state (Needs Attention)
             'bar' => $this->barFraction(),
             'createdBy' => $this->created_by,
             'updatedAt' => optional($this->updated_at)->toIso8601String(),
