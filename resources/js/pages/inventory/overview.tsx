@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { AlertTriangle, ChevronRight, Package, Plus } from 'lucide-react';
+import { AlertTriangle, ChevronRight, LayoutGrid, MapPin, Package, Plus } from 'lucide-react';
 import { useState } from 'react';
 
 import { CategoryTile, QtyBar, QtyText, StateBadge } from '@/components/inventory';
@@ -42,7 +42,12 @@ export default function InventoryOverview({ summary, attention, recent, categori
                         <h1 className="font-heading text-primary text-2xl">{t('inventory.title')}</h1>
                         <p className="text-muted-foreground text-sm">{t('inventory.subtitle')}</p>
                     </div>
-                    <AddItemButton t={t} onClick={() => setAdding(true)} />
+                    <div className="flex shrink-0 items-center gap-2">
+                        {/* Browse/manage the family's categories + locations. */}
+                        <IconLink href="/m/inventory/categories" label={t('inventory.view_categories')} icon={LayoutGrid} />
+                        <IconLink href="/m/inventory/locations" label={t('inventory.view_locations')} icon={MapPin} />
+                        <AddItemButton t={t} onClick={() => setAdding(true)} />
+                    </div>
                 </header>
 
                 {summary.total === 0 ? (
@@ -56,6 +61,11 @@ export default function InventoryOverview({ summary, attention, recent, categori
                             <div className="flex items-center gap-2">
                                 <AlertTriangle className="text-[var(--warning)] size-4" />
                                 <h2 className="font-heading text-primary text-lg">{t('inventory.needs_attention')}</h2>
+                                {attention.length > 0 && (
+                                    <Link href="/m/inventory/needs-attention" className="text-primary ml-auto flex items-center gap-0.5 text-xs font-medium">
+                                        {t('inventory.view_needs_attention')} <ChevronRight className="size-3.5" />
+                                    </Link>
+                                )}
                             </div>
                             {attention.length === 0 ? (
                                 <p className="text-muted-foreground bg-surface-card rounded-xl border px-4 py-6 text-center text-sm">
@@ -186,6 +196,20 @@ function SummaryCards({ summary, t }: { summary: Summary; t: TFn }) {
                 </div>
             ))}
         </section>
+    );
+}
+
+// A small square outline link (Categories / Locations) that sits beside the Add button in the header.
+function IconLink({ href, label, icon: Icon }: { href: string; label: string; icon: typeof Package }) {
+    return (
+        <Link
+            href={href}
+            title={label}
+            aria-label={label}
+            className="border-border text-primary hover:bg-surface flex size-9 shrink-0 items-center justify-center rounded-lg border transition-colors"
+        >
+            <Icon className="size-4" />
+        </Link>
     );
 }
 
