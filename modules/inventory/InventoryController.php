@@ -29,7 +29,7 @@ class InventoryController extends Controller
     /** Inventory Overview: summary cards, Needs attention, Recently updated, category browse. */
     public function index(): Response
     {
-        $items = InventoryItem::query()->orderBy('name')->get();
+        $items = InventoryItem::query()->with('shoppingItem:id,shopping_list_id')->orderBy('name')->get();
         $categories = InventoryCategory::payloadFor();
         $locations = InventoryLocation::payloadFor();
 
@@ -76,7 +76,7 @@ class InventoryController extends Controller
     /** All Items: every item + the filter vocabularies (statuses/categories/locations). Grouping is client-side. */
     public function items(): Response
     {
-        $items = InventoryItem::query()->orderBy('name')->get()
+        $items = InventoryItem::query()->with('shoppingItem:id,shopping_list_id')->orderBy('name')->get()
             ->map(fn (InventoryItem $i) => $i->toPayload())->values();
 
         return Inertia::render('inventory/items', [
@@ -94,6 +94,8 @@ class InventoryController extends Controller
         // BelongsToFamily scope can't be relied on here — guard the family explicitly (same reasoning as
         // ShoppingController's aisle endpoints).
         abort_unless((int) $item->family_id === (int) CurrentFamily::id(), 404);
+
+        $item->load('shoppingItem:id,shopping_list_id'); // for the "Shopping · Added" deep-link on the detail
 
         $names = $this->memberNames();
         $history = $item->logs()->with('user:id,name')->limit(30)->get()
@@ -122,7 +124,7 @@ class InventoryController extends Controller
      */
     public function needsAttention(): Response
     {
-        $items = InventoryItem::query()->orderBy('name')->get();
+        $items = InventoryItem::query()->with('shoppingItem:id,shopping_list_id')->orderBy('name')->get();
 
         $low = [];
         $empty = [];
@@ -197,6 +199,59 @@ class InventoryController extends Controller
             'locations' => $rows,
             'canManage' => $this->canManage($request),
         ]);
+    }
+
+    // ---------------------------------------------------------------------------------------------------
+    // Phase 4 — the Inventory <-> Shopping core loop. The screen + two write actions; every rule (which
+    // items qualify, idempotency, restock-on-buy) lives in InventoryReplenishment so this stays thin.
+    // ---------------------------------------------------------------------------------------------------
+
+    /**
+     * Replenishment screen: the low/empty, auto-replenish items that want buying, each shown with its
+     * current amount, where it should be topped up to, and either an "Add to Shopping" action or the
+     * "Shopping · Added" link when it is already on a list. Plus the bulk "Add all to Shopping".
+     */
+    public function replenishment(InventoryReplenishment $replenish): Response
+    {
+        $items = $replenish->replenishable()
+            ->load('shoppingItem:id,shopping_list_id')       // deep-link for the "Added" badge
+            ->sortBy([
+                // Empty before low (emptier is more urgent), then by name.
+                fn (InventoryItem $i) => $i->state() === 'empty' ? 0 : 1,
+                fn (InventoryItem $i) => $i->name,
+            ])
+            ->map(fn (InventoryItem $i) => [
+                ...$i->toPayload(),
+                'replenishTo' => $i->replenishTarget(), // the amount a purchase would top it up to
+            ])
+            ->values();
+
+        // How many the bulk button would actually add (those not already on a list).
+        $pending = $items->filter(fn ($i) => ! $i['onShoppingList'])->count();
+
+        return Inertia::render('inventory/replenishment', [
+            'items' => $items,
+            'pending' => $pending,
+            'categories' => InventoryCategory::payloadFor(),
+            'locations' => InventoryLocation::payloadFor(),
+        ]);
+    }
+
+    /** Per-item "Add to Shopping": surface one item onto the family's default list (idempotent). */
+    public function addToShopping(Request $request, InventoryItem $item, InventoryReplenishment $replenish): RedirectResponse
+    {
+        $this->authorizeItem($item);
+        $replenish->addToShopping($item, $request->user());
+
+        return back();
+    }
+
+    /** Bulk "Add all low items to Shopping": sweep every qualifying, not-yet-added item onto Shopping. */
+    public function addLowToShopping(Request $request, InventoryReplenishment $replenish): RedirectResponse
+    {
+        $replenish->addAllLow($request->user());
+
+        return back();
     }
 
     /** Add Item: create an item and log its opening stock. Category/location resolve by key or name. */
