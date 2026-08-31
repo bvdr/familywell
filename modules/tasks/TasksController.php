@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\EntityVisit;
 use App\Models\Family;
 use App\Models\User;
+use App\Support\Modules\Hooks;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
@@ -18,7 +19,7 @@ use Modules\Notifications\Notify;
 
 class TasksController extends Controller
 {
-    public function __construct(private ShareAccess $access) {}
+    public function __construct(private ShareAccess $access, private Hooks $hooks) {}
 
     public function index(Request $request): Response
     {
@@ -129,10 +130,19 @@ class TasksController extends Controller
             ->filter(fn ($m) => $list->visibility() === 'family' || $shared->contains($m->id))
             ->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values();
 
-        // Top-level tasks with their (single level of) sub-tasks.
-        $tasks = $list->tasks()->whereNull('parent_id')
-            ->with('subtasks')
-            ->orderBy('position')->orderBy('id')->get();
+        // Top-level tasks with their (single level of) sub-tasks. Columns are table-qualified and the
+        // select is pinned to tasks_tasks.* because the `task.query` hook lets a module JOIN another
+        // table in (e.g. to sort by its own column). Without this, an unqualified `id` in the order-by
+        // would be ambiguous once joined, and a bare `*` would let joined columns pollute the models.
+        // With no module listening there is no join, so the result is identical to before.
+        // `->getQuery()` hands the hook a plain Eloquent Builder rather than the HasMany relation, so a
+        // module's typed `Builder $query` listener — and any join/sort it adds — behaves predictably.
+        // The relation's constraints (task_list_id, family scope) and eager-loads are already baked in.
+        $query = $list->tasks()->whereNull('parent_id')->with('subtasks')->select('tasks_tasks.*')->getQuery();
+        // Behavior hook `task.query`: a module may add a primary sort/filter (e.g. important-first),
+        // applied before the base position order so the module's sort wins; a no-op with no listener.
+        $query = $this->hooks->filter('task.query', $query, $list);
+        $tasks = $query->orderBy('tasks_tasks.position')->orderBy('tasks_tasks.id')->get();
 
         return Inertia::render('tasks/list', [
             'list' => [
@@ -151,22 +161,25 @@ class TasksController extends Controller
 
     private function taskPayload(Task $task): array
     {
-        return [
+        // Data hook `task.serialize`: modules may add keys to a task's payload (e.g. an
+        // `important` flag). With no listener the filter returns the array untouched, so the
+        // payload is byte-identical to before. Sub-tasks pass through the same seam.
+        return $this->hooks->filter('task.serialize', [
             'id' => $task->id,
             'title' => $task->title,
             'note' => $task->note,
             'done' => $task->done,
             'dueDate' => optional($task->due_date)->toDateString(),
             'assignedTo' => $task->assigned_to,
-            'subtasks' => $task->subtasks->map(fn (Task $s) => [
+            'subtasks' => $task->subtasks->map(fn (Task $s) => $this->hooks->filter('task.serialize', [
                 'id' => $s->id,
                 'title' => $s->title,
                 'note' => $s->note,
                 'done' => $s->done,
                 'dueDate' => optional($s->due_date)->toDateString(),
                 'assignedTo' => $s->assigned_to,
-            ])->values(),
-        ];
+            ], $s))->values(),
+        ], $task);
     }
 
     public function updateList(Request $request, TaskList $list): RedirectResponse
@@ -263,7 +276,7 @@ class TasksController extends Controller
             abort_if($parent->parent_id !== null, 422, 'Sub-tasks cannot have sub-tasks.');
         }
 
-        $list->tasks()->create([
+        $task = $list->tasks()->create([
             'parent_id' => $data['parent_id'] ?? null,
             'title' => $data['title'],
             'note' => $data['note'] ?? null,
@@ -272,6 +285,10 @@ class TasksController extends Controller
             'position' => (int) $list->tasks()->where('parent_id', $data['parent_id'] ?? null)->max('position') + 1,
             'created_by' => $request->user()->id,
         ]);
+
+        // Behavior hook `task.saved`: a module persists its own per-task data from the request
+        // (e.g. an `important` flag). No-op with no listener.
+        $this->hooks->fire('task.saved', $task, $request);
 
         Notify::toAccessOf($list, 'tasks', $request->user()->id, 'New task', "{$request->user()->name} added: {$data['title']}", route('tasks.show', $list, false));
         Realtime::broadcast(new TasksChanged((int) CurrentFamily::id()));
@@ -323,8 +340,12 @@ class TasksController extends Controller
         $actor = $request->user();
         $url = route('tasks.show', $task->list, false);
 
-        // No body => a plain check/uncheck toggle (the common case, one tap in the list).
-        if (! $request->hasAny(['title', 'note', 'due_date', 'assigned_to', 'done'])) {
+        // Empty body => a plain check/uncheck toggle (the common case, one tap in the list). A body
+        // carrying only a module's own field (e.g. `important`) must NOT be mistaken for a toggle:
+        // it falls through to the edit branch, which no-ops on core fields and lets the `task.saved`
+        // hook hand the field to the owning module. (Existing callers send either an empty body to
+        // toggle, or the full core field set to edit, so this is behaviour-preserving for them.)
+        if (count($request->all()) === 0) {
             $task->update(['done' => ! $task->done]);
             if ($task->done) {
                 Notify::toAccessOf($task->list, 'tasks', $actor->id, 'Task done', "{$actor->name} completed: {$task->title}", $url);
@@ -348,6 +369,10 @@ class TasksController extends Controller
                 Notify::toAccessOf($task->list, 'tasks', $actor->id, 'Task done', "{$actor->name} completed: {$task->title}", $url);
             }
         }
+
+        // Behavior hook `task.saved`: a module persists its own per-task data from the request
+        // (e.g. an `important` flag). No-op with no listener.
+        $this->hooks->fire('task.saved', $task, $request);
 
         Realtime::broadcast(new TasksChanged((int) CurrentFamily::id()));
 
