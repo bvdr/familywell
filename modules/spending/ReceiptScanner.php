@@ -128,10 +128,13 @@ class ReceiptScanner
         ];
     }
 
-    // Turn the model's raw date into a plausible purchase date, never an implausible one. OCR routinely
-    // mis-reads the year on faint thermal receipts (2025 -> 2020, or a stray digit that lands in the
-    // future), so a well-formed string is not enough — it has to make sense as "a receipt someone is
-    // scanning right now". Anything that doesn't falls back to today, which the user reviews before saving.
+    // Turn the model's raw date into a plausible purchase date. This is a scan-it-now flow, so the
+    // receipt is almost always from the current year — yet the year is exactly the field OCR mis-reads
+    // most (faint thermal receipts turn 2026 into 2020/2023/2024, or a stray digit lands in the future).
+    // The month and day come through far more reliably, so we keep those and force the year to the
+    // current one. Year-boundary safety: if the current year would make the date land in the future
+    // (a December receipt scanned in January), it must belong to the previous year — never emit a future
+    // date. Anything with no usable month/day falls back to today, which the user reviews before saving.
     private function normaliseDate(string $raw): string
     {
         $today = Carbon::now();
@@ -150,18 +153,26 @@ class ReceiptScanner
             return $today->toDateString();
         }
 
-        // A purchase cannot be in the future — a future-dated receipt is a mis-read, so clamp to today.
-        if ($date->gt($today)) {
+        // Keep the month/day the model read, but overwrite the (often mis-read) year with the current one.
+        $month = $date->month;
+        $day = $date->day;
+        $year = $today->year;
+
+        // A Feb 29 read off a receipt has no home in a non-leap current year; fall back to today.
+        if (! checkdate($month, $day, $year)) {
             return $today->toDateString();
         }
+        $resolved = Carbon::create($year, $month, $day, 0, 0, 0);
 
-        // Guard against year mis-reads: a receipt more than a few years old is implausible for a
-        // scan-it-now flow and almost always a wrong-year OCR (the 2020/2005-style dates we saw in prod).
-        // We stay generous (5 years) so a genuinely older receipt still comes through; the user can adjust.
-        if ($date->year < $today->year - 5) {
-            return $today->toDateString();
+        // Forcing the current year can push a late-in-year date past today (scanning a December receipt
+        // in January). A purchase can't be in the future, so it belongs to the previous year instead.
+        if ($resolved->gt($today)) {
+            if (! checkdate($month, $day, $year - 1)) {
+                return $today->toDateString();
+            }
+            $resolved = Carbon::create($year - 1, $month, $day, 0, 0, 0);
         }
 
-        return $date->toDateString();
+        return $resolved->toDateString();
     }
 }

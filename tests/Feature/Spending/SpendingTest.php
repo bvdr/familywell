@@ -371,6 +371,9 @@ it('scans a receipt into prefill fields, summing line items when no total is pri
     [$family, $users] = spendingFamily();
     config(['services.gemini.key' => 'test-key']);
 
+    // Freeze "now" so the year-forcing on the scanned date is deterministic (07-19 stays in this year).
+    Carbon::setTestNow('2026-08-31');
+
     // Model returns a wrong total but correct line items and no printed total: we must sum the items.
     Http::fake(['generativelanguage.googleapis.com/*' => Http::response([
         'candidates' => [[
@@ -402,6 +405,8 @@ it('scans a receipt into prefill fields, summing line items when no total is pri
             'category' => 'food', // lower-cased + validated
             'note' => 'Beach bar',
         ]);
+
+    Carbon::setTestNow();
 });
 
 it('trusts the printed total instead of summing when the receipt prints one', function () {
@@ -425,7 +430,7 @@ it('trusts the printed total instead of summing when the receipt prints one', fu
         ->assertJsonPath('amount', 42.5);
 });
 
-it('resolves an implausible scanned date (future / junk year) to today instead of trusting it', function () {
+it('forces the scanned date onto the current year, stepping back only to stay in the past', function () {
     [$family, $users] = spendingFamily();
     config(['services.gemini.key' => 'test-key']);
 
@@ -438,22 +443,29 @@ it('resolves an implausible scanned date (future / junk year) to today instead o
         ])]]]]],
     ];
 
-    // One stub sequence so each of the three scans below gets its own scripted response (Http::fake
-    // merges rather than replaces, so re-faking the same URL would keep returning the first stub).
+    // One stub sequence so each scan below gets its own scripted response (Http::fake merges rather
+    // than replaces, so re-faking the same URL would keep returning the first stub).
     Http::fake(['generativelanguage.googleapis.com/*' => Http::sequence()
-        ->push($body('2026-10-08'))   // future date — can't be a real purchase
-        ->push($body('2005-03-14'))   // junk / mis-read year, far in the past
-        ->push($body('2026-08-19')),  // plausible recent date
+        ->push($body('2023-07-19'))   // wrong (mis-read) year, month/day earlier in the year
+        ->push($body('2020-03-05'))   // wrong year, another past month/day
+        ->push($body('2026-12-27'))   // December read while we're "in" August — future if kept in this year
+        ->push($body('2026-08-19'))   // already this year, plainly past — passes through unchanged
+        ->push($body('not-a-date')),  // no usable month/day — falls back to today
     ]);
 
     $scan = fn () => actingAs($users[0])
         ->post('/m/spending/scan-receipt', ['photo' => UploadedFile::fake()->create('r.jpg', 200, 'image/jpeg')]);
 
-    // Future date and junk year both clamp to today; a plausible recent date is honoured (the guard
-    // doesn't flatten every receipt to today).
-    $scan()->assertOk()->assertJsonPath('date', '2026-08-31');
-    $scan()->assertOk()->assertJsonPath('date', '2026-08-31');
+    // Wrong year gets rewritten to the current year, keeping the same month/day.
+    $scan()->assertOk()->assertJsonPath('date', '2026-07-19');
+    $scan()->assertOk()->assertJsonPath('date', '2026-03-05');
+    // A month/day that would land in the future under the current year steps back to the previous
+    // year so it stays a past date — a future date is never emitted.
+    $scan()->assertOk()->assertJsonPath('date', '2025-12-27');
+    // A current-year past date is honoured as-is.
     $scan()->assertOk()->assertJsonPath('date', '2026-08-19');
+    // Unparseable date falls back to today.
+    $scan()->assertOk()->assertJsonPath('date', '2026-08-31');
 
     Carbon::setTestNow();
 });
