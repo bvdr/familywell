@@ -23,6 +23,7 @@ import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import { useT } from '@/lib/i18n';
+import { Slot } from '@/lib/modules';
 import { dueLabel } from '@/lib/tasks';
 import { buildTree, type FlatTask, flatten, getProjection, INDENT, removeChildrenOf } from './tree-utils';
 
@@ -344,6 +345,9 @@ function SortableRow({
                         {item.note && <span className="text-muted-foreground block text-xs break-words">{item.note}</span>}
                     </span>
                     {due && <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${due.tone}`}>{due.label}</span>}
+                    {/* Extension point: a module can render read-only badges for this task (e.g. an
+                        "important" star). Renders nothing when no module is registered. */}
+                    <Slot name="task.row.badges" ctx={{ task: item }} />
                     <AssigneeDot members={members} id={item.assignedTo} />
                 </button>
             </div>
@@ -457,6 +461,17 @@ function EditTaskModal({
                         ))}
                     </div>
                 </div>
+                {/* Extension point: a module can inject extra editor fields for this task (e.g. an
+                    "important" toggle). `onPatch` lets it persist through the same task endpoint —
+                    the primitive keeps ownership of the router. Renders nothing with no module. */}
+                <Slot
+                    name="task.editor.fields"
+                    ctx={{
+                        task,
+                        onPatch: (data: Record<string, string | number | boolean | null>) =>
+                            router.patch(taskUrl(task.id), data, { preserveScroll: true, preserveState: true }),
+                    }}
+                />
                 <button type="button" onClick={onDelete} className="text-destructive flex items-center justify-center gap-2 py-1 text-sm font-medium">
                     <Trash2 className="size-4" /> {t('tasks.delete_task')}
                 </button>
