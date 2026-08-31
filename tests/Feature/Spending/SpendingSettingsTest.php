@@ -87,6 +87,87 @@ it('lets an admin add a custom category and use it on a spend', function () {
     expect($event->spends()->where('category', 'gifts')->exists())->toBeTrue();
 });
 
+it('persists a chosen icon on a custom category and exposes it everywhere', function () {
+    [, $admin] = settingsFamily();
+
+    // Add a custom category with an icon picked from the IconPicker (a kebab-case lucide key).
+    actingAs($admin)->post('/m/spending/categories', ['name' => 'Gifts', 'icon' => 'party-popper'])
+        ->assertRedirect()->assertSessionHasNoErrors();
+    expect(SpendCategory::where('key', 'gifts')->first()->icon)->toBe('party-popper');
+
+    $hasGiftIcon = fn ($cats) => collect($cats)->firstWhere('key', 'gifts')['icon'] === 'party-popper';
+
+    // (a) comes back in the settings payload
+    actingAs($admin)->get('/m/spending/settings')
+        ->assertInertia(fn ($p) => $p->component('spending/settings')->where('categories', $hasGiftIcon)->etc());
+
+    // (b) used by the spend-form category dropdown on an event
+    actingAs($admin)->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
+    $event = SpendEvent::first();
+    actingAs($admin)->get("/m/spending/events/{$event->id}")
+        ->assertInertia(fn ($p) => $p->component('spending/event')->where('event.categories', $hasGiftIcon)->etc());
+
+    // (c) used by the analytics category metadata
+    actingAs($admin)->get('/m/spending/analytics')
+        ->assertInertia(fn ($p) => $p->component('spending/analytics')->where('categories', $hasGiftIcon)->etc());
+});
+
+it('lets an admin change a custom category icon later, and clears back to the tag fallback', function () {
+    [, $admin] = settingsFamily();
+    actingAs($admin)->post('/m/spending/categories', ['name' => 'Gifts'])->assertRedirect();
+    $gifts = SpendCategory::where('key', 'gifts')->first();
+
+    actingAs($admin)->patch("/m/spending/categories/{$gifts->id}", ['icon' => 'cake'])
+        ->assertRedirect()->assertSessionHasNoErrors();
+    expect($gifts->fresh()->icon)->toBe('cake');
+
+    // Clearing the picker (null) falls back to the generic tag icon rather than storing nothing.
+    actingAs($admin)->patch("/m/spending/categories/{$gifts->id}", ['icon' => null])->assertRedirect();
+    expect($gifts->fresh()->icon)->toBe('tag');
+});
+
+it('leaves a custom category without a chosen icon on the tag fallback', function () {
+    [, $admin] = settingsFamily();
+    actingAs($admin)->post('/m/spending/categories', ['name' => 'Gifts'])->assertRedirect();
+
+    // No icon supplied → the generic tag fallback (a real lucide key the dynamic renderer resolves).
+    expect(SpendCategory::where('key', 'gifts')->first()->icon)->toBe('tag');
+});
+
+it('rejects a junk icon key when adding or editing a category', function () {
+    [, $admin] = settingsFamily();
+
+    // Store: a key that isn't in the lucide set is refused.
+    actingAs($admin)->post('/m/spending/categories', ['name' => 'Gifts', 'icon' => 'not-a-real-icon'])
+        ->assertSessionHasErrors('icon');
+    expect(SpendCategory::where('key', 'gifts')->exists())->toBeFalse();
+
+    // Update: same rule guards editing.
+    actingAs($admin)->post('/m/spending/categories', ['name' => 'Gifts']);
+    $gifts = SpendCategory::where('key', 'gifts')->first();
+    actingAs($admin)->patch("/m/spending/categories/{$gifts->id}", ['icon' => 'totally-bogus'])
+        ->assertSessionHasErrors('icon');
+    expect($gifts->fresh()->icon)->toBe('tag'); // unchanged
+});
+
+it('does not let a built-in category icon be changed', function () {
+    [, $admin] = settingsFamily();
+    actingAs($admin)->get('/m/spending/settings'); // seed defaults
+    $food = SpendCategory::where('key', 'food')->first();
+
+    actingAs($admin)->patch("/m/spending/categories/{$food->id}", ['icon' => 'cake'])->assertForbidden();
+    expect($food->fresh()->icon)->toBe('Utensils'); // curated default icon untouched
+});
+
+it('only lets admins change a custom category icon', function () {
+    [, $admin, $member] = settingsFamily();
+    actingAs($admin)->post('/m/spending/categories', ['name' => 'Gifts']);
+    $gifts = SpendCategory::where('key', 'gifts')->first();
+
+    actingAs($member)->patch("/m/spending/categories/{$gifts->id}", ['icon' => 'cake'])->assertForbidden();
+    expect($gifts->fresh()->icon)->toBe('tag');
+});
+
 it('rejects a spend with an unknown category', function () {
     [, $admin] = settingsFamily();
     actingAs($admin)->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);

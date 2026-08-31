@@ -76,6 +76,7 @@ class SpendingServiceProvider extends ServiceProvider
                 Route::get('/settings', [SpendingController::class, 'settings'])->name('settings');
                 Route::patch('/settings', [SpendingController::class, 'updateSettings'])->name('settings.update');
                 Route::post('/categories', [SpendingController::class, 'storeCategory'])->name('categories.store');
+                Route::patch('/categories/{category}', [SpendingController::class, 'updateCategory'])->name('categories.update');
                 Route::delete('/categories/{category}', [SpendingController::class, 'destroyCategory'])->name('categories.destroy');
                 Route::post('/events', [SpendingController::class, 'storeEvent'])->name('events.store');
                 Route::post('/sources', [SpendingController::class, 'storeSource'])->name('sources.store');
