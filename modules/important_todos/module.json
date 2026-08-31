@@ -1,0 +1,9 @@
+{
+    "id": "important_todos",
+    "name": "Important Todos",
+    "description": "Adds an \"important\" flag to tasks: a toggle in the task editor, a star on the row, and important tasks sorted first. A worked example of extending a primitive through hooks.",
+    "version": "1.0.0",
+    "provider": "Modules\\ImportantTodos\\ImportantTodosServiceProvider",
+    "frontend": "resources/dist/important-todos.js",
+    "requires": ["tasks"]
+}
