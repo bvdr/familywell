@@ -1,5 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { useLocale, useT, type TFn } from '@/lib/i18n';
+import { Slot } from '@/lib/modules';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Blocks, Check, FolderKanban, ListChecks, Settings, ShoppingCart, StickyNote, Users, Wallet, type LucideIcon } from 'lucide-react';
@@ -231,7 +232,10 @@ export default function Dashboard({
                     </section>
                 )}
 
-                {/* Widgets slot removed for now; it will return with customizable dashboard widgets. */}
+                {/* Home-screen widgets contributed by modules (e.g. Birthdays → Upcoming birthdays).
+                    Renders nothing when no enabled module registers a dashboard.widgets component. */}
+                <Slot name="dashboard.widgets" />
+
                 <section className="flex flex-col gap-3">
                     <h2 className="font-heading text-primary px-1 text-lg">{t('dashboard.jump_back_in')}</h2>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
