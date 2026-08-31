@@ -252,6 +252,21 @@ services:
         value: familywell-pool
         scope: RUN_TIME
 
+workers:
+  # Laravel's scheduler, always on: `schedule:work` wakes every minute and runs due scheduled
+  # commands. Today that is recurring-todos:tick (hourly), which resets recurring to-dos on their
+  # next occurrence. Single process; it inherits the top-level DIRECT db connection (no pool
+  # override, unlike web/reverb), so it holds ~1 backend connection. Smallest instance size.
+  - name: scheduler
+    image:
+      registry_type: GHCR
+      registry: bvdr
+      repository: familywell
+      tag: latest
+    run_command: php artisan schedule:work
+    instance_size_slug: basic-xxs
+    instance_count: 1
+
 jobs:
   - name: migrate
     image:
