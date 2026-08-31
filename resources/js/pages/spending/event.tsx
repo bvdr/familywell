@@ -1133,15 +1133,12 @@ export default function Event({
                                                 </>
                                             )}
                                         </Button>
-                                        {/* capture=environment opens the rear camera on mobile; a normal picker on desktop. */}
-                                        <input
-                                            ref={scanInputRef}
-                                            type="file"
-                                            accept="image/*"
-                                            capture="environment"
-                                            hidden
-                                            onChange={handleScanFile}
-                                        />
+                                        {/* NOTE: intentionally no `capture` attribute. `capture="environment"` forces the
+                                            rear camera on iOS and hides the photo library, so you can't scan a screenshot
+                                            (e.g. a Wise receipt already saved in Photos). With only `accept="image/*"`,
+                                            iOS/Android show the native chooser (Photo Library / Take Photo / Choose File),
+                                            letting the user pick an existing image OR shoot a new one. Do not re-add `capture`. */}
+                                        <input ref={scanInputRef} type="file" accept="image/*" hidden onChange={handleScanFile} />
                                         {scanError && <p className="text-destructive text-center text-sm">{scanError}</p>}
                                     </>
                                 )}
