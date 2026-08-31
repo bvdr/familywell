@@ -1,0 +1,9 @@
+{
+    "id": "recurring_todos",
+    "name": "Recurring To-dos",
+    "description": "Make a to-do repeat on a schedule: pick a date and an interval, and once it's completed it resets to 'to do' again on its next occurrence.",
+    "version": "1.0.0",
+    "provider": "Modules\\RecurringTodos\\RecurringTodosServiceProvider",
+    "frontend": "resources/dist/recurring-todos.js",
+    "requires": ["tasks"]
+}
