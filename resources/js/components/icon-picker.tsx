@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Search, X } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
@@ -37,6 +37,7 @@ export type IconPickerProps = {
     onChange: (key: string | null) => void; // returns the chosen key, or null when cleared
     // Trigger presentation. Defaults suit a "list icon" tile; override for other contexts.
     className?: string; // extra classes on the trigger button
+    style?: CSSProperties; // inline styles on the trigger (e.g. a category's colour as its background)
     iconClassName?: string; // size/colour of the icon inside the trigger + placeholder
     ariaLabel?: string; // trigger aria-label (falls back to a generic "choose icon")
     disabled?: boolean;
@@ -48,7 +49,7 @@ export type IconPickerProps = {
 // everywhere). Typing filters by icon name substring (case-insensitive). Picking one returns its key
 // via onChange. Rendering reuses <LucideIcon>, the same dynamic renderer used to display stored keys, so
 // the key a user picks here is exactly the key that renders back elsewhere.
-export function IconPicker({ value, onChange, className, iconClassName, ariaLabel, disabled, allowClear = true }: IconPickerProps) {
+export function IconPicker({ value, onChange, className, style, iconClassName, ariaLabel, disabled, allowClear = true }: IconPickerProps) {
     const t = useT();
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
@@ -84,6 +85,7 @@ export function IconPicker({ value, onChange, className, iconClassName, ariaLabe
                 disabled={disabled}
                 onClick={() => setOpen(true)}
                 aria-label={ariaLabel ?? t('common.choose_icon')}
+                style={style}
                 className={cn(
                     'bg-accent-subtle text-primary hover:border-accent flex size-10 shrink-0 items-center justify-center rounded-lg border border-transparent transition-colors disabled:opacity-50',
                     className,

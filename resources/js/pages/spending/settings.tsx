@@ -1,9 +1,11 @@
+import { CategoryIcon } from '@/components/category-icon';
+import { IconPicker } from '@/components/icon-picker';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { catLabel as catLabelOf, categoryMap, iconByName, type CategoryDef } from '@/lib/categories';
+import { catLabel as catLabelOf, categoryMap, type CategoryDef } from '@/lib/categories';
 import { useT } from '@/lib/i18n';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
@@ -32,11 +34,16 @@ export default function SpendingSettings({ currencies, defaultCurrency, categori
     const setCurrency = (value: string) =>
         router.patch(route('spending.settings.update'), { default_currency: value || null }, { preserveScroll: true });
 
-    const addForm = useForm({ name: '' });
+    const addForm = useForm({ name: '', icon: null as string | null });
     const submitCategory: FormEventHandler = (e) => {
         e.preventDefault();
         addForm.post(route('spending.categories.store'), { preserveScroll: true, onSuccess: () => addForm.reset() });
     };
+
+    // Persist a custom category's chosen icon immediately (the picker is the row's edit affordance). The
+    // key is untouched, so existing spends keep resolving; null clears back to the generic tag fallback.
+    const changeIcon = (c: Category, icon: string | null) =>
+        router.patch(route('spending.categories.update', c.id), { icon }, { preserveScroll: true });
 
     const removeCategory = (c: Category) => {
         if (c.inUse > 0) return; // in-use categories can't be deleted (they'd orphan spends)
@@ -83,16 +90,29 @@ export default function SpendingSettings({ currencies, defaultCurrency, categori
 
                     <ul className="flex flex-col divide-y">
                         {categories.map((c) => {
-                            const Icon = iconByName(c.icon);
+                            // Custom categories are icon-editable: the coloured square is itself an IconPicker
+                            // trigger. Built-in categories keep their curated icon as a static (non-editable) square.
+                            const editable = canManage && !c.isDefault;
                             return (
                                 <li key={c.id} className="flex items-center justify-between gap-3 py-2.5">
                                     <div className="flex min-w-0 items-center gap-3">
-                                        <span
-                                            className="flex size-8 shrink-0 items-center justify-center rounded-lg text-white"
-                                            style={{ background: c.color }}
-                                        >
-                                            <Icon className="size-4" />
-                                        </span>
+                                        {editable ? (
+                                            <IconPicker
+                                                value={c.icon}
+                                                onChange={(icon) => changeIcon(c, icon)}
+                                                style={{ background: c.color }}
+                                                className="size-8 rounded-lg border-transparent text-white hover:opacity-90"
+                                                iconClassName="size-4 text-white"
+                                                ariaLabel={t('spending.change_category_icon')}
+                                            />
+                                        ) : (
+                                            <span
+                                                className="flex size-8 shrink-0 items-center justify-center rounded-lg text-white"
+                                                style={{ background: c.color }}
+                                            >
+                                                <CategoryIcon icon={c.icon} className="size-4" />
+                                            </span>
+                                        )}
                                         <div className="min-w-0">
                                             <div className="text-primary truncate text-sm font-medium">{catLabelOf(t, catMap, c.key)}</div>
                                             {c.inUse > 0 && (
@@ -123,6 +143,12 @@ export default function SpendingSettings({ currencies, defaultCurrency, categori
                         <form onSubmit={submitCategory} className="flex flex-col gap-2 border-t pt-4">
                             <Label htmlFor="category-name">{t('spending.add_category')}</Label>
                             <div className="flex items-start gap-2">
+                                {/* Optional icon for the new category; defaults to the generic tag when left unpicked. */}
+                                <IconPicker
+                                    value={addForm.data.icon}
+                                    onChange={(icon) => addForm.setData('icon', icon)}
+                                    ariaLabel={t('spending.change_category_icon')}
+                                />
                                 <div className="flex-1">
                                     <Input
                                         id="category-name"

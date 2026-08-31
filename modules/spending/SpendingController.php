@@ -123,7 +123,12 @@ class SpendingController extends Controller
         $family = Family::findOrFail(CurrentFamily::id());
         $this->authorize('manageMembers', $family);
 
-        $data = $request->validate(['name' => ['required', 'string', 'max:40']]);
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:40'],
+            // Optional lucide icon key (kebab-case, from the IconPicker). Constrained to the real lucide
+            // set so a junk key can't be stored; absent/null keeps the generic tag fallback.
+            'icon' => ['nullable', 'string', Rule::in(IconLibrary::names())],
+        ]);
 
         // Seed defaults first so a brand-new family's custom rows sort after them, and colour cycling
         // counts existing rows.
@@ -134,11 +139,30 @@ class SpendingController extends Controller
         SpendCategory::create([
             'key' => SpendCategory::makeKey($data['name'], $familyId),
             'name' => trim($data['name']),
-            'icon' => SpendCategory::CUSTOM_ICON,
+            'icon' => $data['icon'] ?? SpendCategory::CUSTOM_ICON,
             'color' => $color,
             'is_default' => false,
             'position' => ($existing->max('position') ?? 0) + 1, // append after current categories
         ]);
+
+        return back();
+    }
+
+    // Change a custom category's icon (admin only). Only custom rows are editable: built-in categories
+    // keep their curated icons. The key is never touched, so existing spends stay resolvable.
+    public function updateCategory(Request $request, int $category): RedirectResponse
+    {
+        $family = Family::findOrFail(CurrentFamily::id());
+        $this->authorize('manageMembers', $family);
+
+        $cat = SpendCategory::findOrFail($category); // family-scoped resolve
+        abort_if($cat->is_default, 403); // don't let a built-in's curated icon be changed
+
+        $data = $request->validate([
+            // Same lucide-key rule as store; null (picker cleared) falls back to the generic tag icon.
+            'icon' => ['nullable', 'string', Rule::in(IconLibrary::names())],
+        ]);
+        $cat->update(['icon' => $data['icon'] ?? SpendCategory::CUSTOM_ICON]);
 
         return back();
     }

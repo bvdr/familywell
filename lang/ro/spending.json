@@ -217,5 +217,6 @@
     "add_category": "Adaugă o categorie",
     "category_name_placeholder": "ex. Cadouri, Animale",
     "delete_category": "Șterge categoria",
+    "change_category_icon": "Schimbă pictograma",
     "category_in_use": "Această categorie este folosită și nu poate fi ștearsă."
 }

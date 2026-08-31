@@ -40,8 +40,11 @@ class SpendCategory extends Model
         ['key' => 'other', 'name' => 'Other', 'icon' => 'MoreHorizontal', 'color' => '#9A8C7A'],
     ];
 
-    // Fallback icon + a small colour cycle for admin-created custom categories (they only enter a name).
-    public const CUSTOM_ICON = 'Tag';
+    // Fallback icon + a small colour cycle for admin-created custom categories. A custom category keeps
+    // this generic tag until the admin picks one via the IconPicker. It is a kebab-case lucide KEY (not a
+    // PascalCase component name like the DEFAULTS above): custom icons are chosen with the IconPicker and
+    // rendered by the dynamic lucide renderer, which addresses icons by their kebab-case key.
+    public const CUSTOM_ICON = 'tag';
 
     public const CUSTOM_COLORS = ['#6B7A99', '#8A6D9A', '#7A9A80', '#B0894F', '#5E8A8A', '#9A6B7A'];
 

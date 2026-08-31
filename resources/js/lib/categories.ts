@@ -6,8 +6,10 @@ import type { TFn } from '@/lib/i18n';
 // `color` a hex string; the label is resolved client-side (see catLabel) so defaults stay localised.
 export type CategoryDef = { key: string; name: string; icon: string; color: string; isDefault: boolean };
 
-// Lucide icon components addressable by the `icon` name stored on a category. Custom categories always
-// use Tag, so this only needs the default set plus the fallback.
+// Built-in categories store a PascalCase lucide COMPONENT name ('Utensils') resolved from this small
+// static map. Custom categories instead store a kebab-case lucide KEY (e.g. 'party-popper') chosen via
+// the IconPicker and rendered by the dynamic renderer — see <CategoryIcon>, which bridges the two. Tag
+// stays here so legacy custom rows saved with the old PascalCase 'Tag' fallback still resolve.
 const ICONS: Record<string, LucideIcon> = {
     Utensils,
     Car,
@@ -20,8 +22,10 @@ const ICONS: Record<string, LucideIcon> = {
     Tag,
 };
 
-// Fallback keeps unknown/legacy icon names (and custom categories) rendering instead of blowing up.
-export const iconByName = (name?: string | null): LucideIcon => ICONS[name ?? ''] ?? Tag;
+// Resolve a PascalCase default-category icon name to its static lucide component, or undefined when the
+// name isn't one of the built-in set. <CategoryIcon> uses this to pick between the static map (defaults)
+// and the dynamic renderer (custom kebab-case keys).
+export const staticCatIcon = (name?: string | null): LucideIcon | undefined => ICONS[name ?? ''];
 
 // Fallback colour for a category key that no longer resolves (e.g. a deleted category still on a spend).
 export const FALLBACK_COLOR = '#9A8C7A';
@@ -41,4 +45,6 @@ export const catLabel = (t: TFn, map: CategoryMap, key: string): string => {
 
 export const catColor = (map: CategoryMap, key: string): string => map[key]?.color ?? FALLBACK_COLOR;
 
-export const catIcon = (map: CategoryMap, key: string): LucideIcon => iconByName(map[key]?.icon);
+// The stored icon string for a category key (PascalCase default name or kebab custom key), or undefined
+// for an unknown/legacy key. Pass it straight to <CategoryIcon icon={...} />.
+export const catIconName = (map: CategoryMap, key: string): string | undefined => map[key]?.icon;

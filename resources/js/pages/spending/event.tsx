@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { createContext, FormEventHandler, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
+import { CategoryIcon } from '@/components/category-icon';
 import { GuestSheet, type GuestShareState } from '@/components/guest-sheet';
 import { IconPicker } from '@/components/icon-picker';
 import InputError from '@/components/input-error';
@@ -41,7 +42,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { avatarColorFor } from '@/lib/avatar';
-import { catColor, catIcon, catLabel, categoryMap, type CategoryDef } from '@/lib/categories';
+import { catColor, catIconName, catLabel, categoryMap, type CategoryDef } from '@/lib/categories';
 import { compressImage, makeThumbnail } from '@/lib/compress-image';
 import { useT, type TFn } from '@/lib/i18n';
 import { money, selectAllOnFocus } from '@/lib/money';
@@ -1241,35 +1242,29 @@ export default function Event({
                                         <Select value={form.data.category} onValueChange={(v) => form.setData('category', v)}>
                                             <SelectTrigger className="w-full">
                                                 <SelectValue>
-                                                    {(() => {
-                                                        const Icon = catIcon(catMap, form.data.category);
-                                                        return (
-                                                            <span className="flex items-center gap-2">
-                                                                <Icon
-                                                                    className="size-4 shrink-0"
-                                                                    style={{ color: catColor(catMap, form.data.category) }}
-                                                                />
-                                                                <span className="truncate">{catLabel(t, catMap, form.data.category)}</span>
-                                                            </span>
-                                                        );
-                                                    })()}
+                                                    <span className="flex items-center gap-2">
+                                                        <CategoryIcon
+                                                            icon={catIconName(catMap, form.data.category)}
+                                                            className="size-4 shrink-0"
+                                                            style={{ color: catColor(catMap, form.data.category) }}
+                                                        />
+                                                        <span className="truncate">{catLabel(t, catMap, form.data.category)}</span>
+                                                    </span>
                                                 </SelectValue>
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {event.categories.map((c) => {
-                                                    const Icon = catIcon(catMap, c.key);
-                                                    return (
-                                                        <SelectItem key={c.key} value={c.key}>
-                                                            <span className="flex items-center gap-2">
-                                                                <Icon
-                                                                    className="size-4 shrink-0"
-                                                                    style={{ color: catColor(catMap, c.key) }}
-                                                                />
-                                                                {catLabel(t, catMap, c.key)}
-                                                            </span>
-                                                        </SelectItem>
-                                                    );
-                                                })}
+                                                {event.categories.map((c) => (
+                                                    <SelectItem key={c.key} value={c.key}>
+                                                        <span className="flex items-center gap-2">
+                                                            <CategoryIcon
+                                                                icon={c.icon}
+                                                                className="size-4 shrink-0"
+                                                                style={{ color: catColor(catMap, c.key) }}
+                                                            />
+                                                            {catLabel(t, catMap, c.key)}
+                                                        </span>
+                                                    </SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
                                     </div>

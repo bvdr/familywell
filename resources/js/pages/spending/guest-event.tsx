@@ -1,9 +1,10 @@
+import { CategoryIcon } from '@/components/category-icon';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { catIcon, catLabel, categoryMap, type CategoryDef } from '@/lib/categories';
+import { catLabel, categoryMap, type CategoryDef } from '@/lib/categories';
 import { useT } from '@/lib/i18n';
 import { money, selectAllOnFocus } from '@/lib/money';
 import { Head, router, useForm } from '@inertiajs/react';
@@ -224,11 +225,10 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
                 <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('spending.spends_heading')}</h2>
                 {spends.map((s) => {
                     const mine = s.payer.guestId === me.id;
-                    const Icon = catIcon(catMap, s.category);
                     return (
                         <div key={s.id} className="bg-surface-card flex items-center gap-3 rounded-xl border p-3">
                             <span className="bg-accent-subtle text-primary flex size-9 shrink-0 items-center justify-center rounded-lg">
-                                <Icon className="size-4.5" />
+                                <CategoryIcon icon={catMap[s.category]?.icon} className="size-4.5" />
                             </span>
                             <div className="min-w-0 flex-1">
                                 <div className="text-primary line-clamp-2 text-sm font-medium">{s.note || catLabel(t, catMap, s.category)}</div>
@@ -399,7 +399,6 @@ function SpendForm({ token, me, event, editing, onClose }: { token: string; me: 
                     <Label>{t('spending.category')}</Label>
                     <div className="flex flex-wrap gap-2">
                         {event.categories.map((c) => {
-                            const Icon = catIcon(catMap, c.key);
                             const active = form.data.category === c.key;
                             return (
                                 <button
@@ -413,7 +412,7 @@ function SpendForm({ token, me, event, editing, onClose }: { token: string; me: 
                                             : 'border-border text-primary hover:bg-surface'
                                     }`}
                                 >
-                                    <Icon className="size-4 shrink-0" />
+                                    <CategoryIcon icon={c.icon} className="size-4 shrink-0" />
                                     {catLabel(t, catMap, c.key)}
                                 </button>
                             );

@@ -217,5 +217,6 @@
     "add_category": "Add a category",
     "category_name_placeholder": "e.g. Gifts, Pets",
     "delete_category": "Delete category",
+    "change_category_icon": "Change icon",
     "category_in_use": "This category is in use and can't be deleted."
 }
