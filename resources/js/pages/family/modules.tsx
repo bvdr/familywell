@@ -1,7 +1,7 @@
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
 import { Head, router } from '@inertiajs/react';
-import { Bell, Blocks, FolderKanban, ListChecks, type LucideIcon, ShoppingCart, Sparkles, StickyNote, Wallet } from 'lucide-react';
+import { Bell, Blocks, Contact, FolderKanban, ListChecks, type LucideIcon, Package, ShoppingCart, Sparkles, StickyNote, Wallet } from 'lucide-react';
 
 type Module = { id: string; name: string; description: string; version: string; enabled: boolean };
 type Props = { catalog: Module[]; canManage: boolean };
@@ -13,6 +13,8 @@ const MODULE_ICON: Record<string, LucideIcon> = {
     tasks: ListChecks,
     projects: FolderKanban,
     notes: StickyNote,
+    contacts: Contact,
+    inventory: Package,
     notifications: Bell,
     hello: Sparkles,
 };

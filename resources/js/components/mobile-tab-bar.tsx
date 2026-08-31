@@ -11,6 +11,7 @@ import {
     Loader2,
     type LucideIcon,
     MoreHorizontal,
+    Package,
     Pin,
     Plus,
     Settings,
@@ -38,6 +39,7 @@ const MODULE_ITEMS: Item[] = [
     { key: 'spending', labelKey: 'nav.spending', url: '/m/spending', icon: Wallet },
     { key: 'notes', labelKey: 'nav.notes', url: '/m/notes', icon: StickyNote },
     { key: 'contacts', labelKey: 'nav.contacts', url: '/m/contacts', icon: Contact },
+    { key: 'inventory', labelKey: 'nav.inventory', url: '/m/inventory', icon: Package },
 ];
 const SECONDARY: Item[] = [
     { key: 'members', labelKey: 'nav.members', url: '/family/members', icon: Users },
