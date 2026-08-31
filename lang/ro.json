@@ -11,7 +11,10 @@
         "loading": "Se încarcă…",
         "copy": "Copiază",
         "copied": "Copiat",
-        "no_matches": "Niciun rezultat"
+        "no_matches": "Niciun rezultat",
+        "choose_icon": "Alege pictograma",
+        "none": "Fără",
+        "refine_search": "Continuă să scrii pentru a restrânge rezultatele"
     },
     "nav": {
         "dashboard": "Acasă",
