@@ -5,6 +5,7 @@ namespace Modules\Inventory;
 use App\Http\Controllers\Controller;
 use App\Models\Family;
 use App\Support\Tenancy\CurrentFamily;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -25,6 +26,9 @@ class InventoryController extends Controller
 {
     // How many rows the overview's "Recently updated" feed shows.
     private const RECENT_LIMIT = 8;
+
+    // How many exception items the dashboard widget surfaces (exceptions only, most urgent first).
+    private const WIDGET_EXCEPTIONS = 4;
 
     /** Inventory Overview: summary cards, Needs attention, Recently updated, category browse. */
     public function index(): Response
@@ -198,6 +202,82 @@ class InventoryController extends Controller
         return Inertia::render('inventory/locations', [
             'locations' => $rows,
             'canManage' => $this->canManage($request),
+        ]);
+    }
+
+    // ---------------------------------------------------------------------------------------------------
+    // Phase 5 — Settings, the dashboard widget feed, and (via the scheduled command) notifications.
+    // ---------------------------------------------------------------------------------------------------
+
+    /**
+     * Inventory Settings: the family's default unit system, replenishment auto-add toggles and
+     * notification policy, plus links to manage categories/locations. Readable by every member; the
+     * write endpoint is admin-only, so `canManage` gates the controls in the UI (server enforces it too).
+     */
+    public function settings(Request $request): Response
+    {
+        $family = Family::findOrFail(CurrentFamily::id());
+
+        return Inertia::render('inventory/settings', [
+            'settings' => InventorySetting::current()->toPayload(),
+            'unitSystems' => InventorySetting::UNIT_SYSTEMS,
+            'canManage' => $request->user()->can('manageMembers', $family),
+        ]);
+    }
+
+    /**
+     * Persist a settings change. Admin-only (hard `authorize`, mirroring the Spending settings). Every
+     * field is optional so the screen can instant-save one toggle at a time — only the fields present in
+     * the request are updated.
+     */
+    public function updateSettings(Request $request): RedirectResponse
+    {
+        $family = Family::findOrFail(CurrentFamily::id());
+        $this->authorize('manageMembers', $family);
+
+        $data = $request->validate([
+            'unit_system' => ['sometimes', Rule::in(InventorySetting::UNIT_SYSTEMS)],
+            'auto_add_low' => ['sometimes', 'boolean'],
+            'auto_add_empty' => ['sometimes', 'boolean'],
+            'notify_low' => ['sometimes', 'boolean'],
+            'notify_empty' => ['sometimes', 'boolean'],
+            'notify_expired' => ['sometimes', 'boolean'],
+            'notify_stale' => ['sometimes', 'boolean'],
+        ]);
+
+        InventorySetting::current()->update($data);
+
+        return back();
+    }
+
+    /**
+     * JSON feed for the home-screen dashboard widget: the family's headline counts (items / low / empty)
+     * plus a few most-urgent exception items. EXCEPTIONS ONLY — never the whole inventory — and the item
+     * list is empty when nothing needs attention, so the widget renders nothing on a healthy inventory.
+     * Family-scoped (BelongsToFamily) and gated by `module:inventory` on the route, so a family without
+     * the module simply 404s and the widget stays hidden.
+     */
+    public function widget(): JsonResponse
+    {
+        $items = InventoryItem::query()->get();
+        $order = array_flip(InventoryItem::STATES); // expired=0 … good=5, for most-urgent-first ordering
+
+        // The exceptions surfaced in the widget: short or expired stock only, most urgent first, a few.
+        // Sort by name then (stably) by state urgency — chained single-key sorts, because the
+        // multi-key sortBy([fn, fn]) form orders the state keys incorrectly here.
+        $exceptions = $items
+            ->filter(fn (InventoryItem $i) => in_array($i->state(), ['expired', 'empty', 'low'], true))
+            ->sortBy(fn (InventoryItem $i) => $i->name)
+            ->sortBy(fn (InventoryItem $i) => $order[$i->state()] ?? 99)
+            ->take(self::WIDGET_EXCEPTIONS)
+            ->map(fn (InventoryItem $i) => ['id' => $i->id, 'name' => $i->name, 'state' => $i->state()])
+            ->values();
+
+        return response()->json([
+            'total' => $items->count(),
+            'low' => $items->filter(fn (InventoryItem $i) => $i->state() === 'low')->count(),
+            'empty' => $items->filter(fn (InventoryItem $i) => $i->state() === 'empty')->count(),
+            'items' => $exceptions,
         ]);
     }
 
