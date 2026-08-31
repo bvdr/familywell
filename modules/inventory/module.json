@@ -1,0 +1,9 @@
+{
+    "id": "inventory",
+    "name": "Inventory",
+    "description": "Know what you have, what's running low, and what needs replenishing — calm household stock, not a warehouse.",
+    "version": "1.0.0",
+    "provider": "Modules\\Inventory\\InventoryServiceProvider",
+    "frontend": "",
+    "requires": []
+}
