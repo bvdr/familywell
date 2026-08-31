@@ -1,0 +1,18 @@
+{
+    "add": "Adaugă contact",
+    "add_placeholder": "Nume contact nou",
+    "empty": "Niciun contact încă. Adaugă pe cineva mai sus.",
+    "edit": "Editează contactul",
+    "name": "Nume",
+    "methods": "Metode de contact",
+    "type_phone": "Telefon",
+    "type_email": "Email",
+    "type_address": "Adresă",
+    "type_url": "Link",
+    "type_other": "Altele",
+    "value_placeholder": "Valoare",
+    "add_method": "Adaugă metodă de contact",
+    "remove_method": "Elimină",
+    "delete": "Șterge contactul",
+    "save": "Salvează"
+}
