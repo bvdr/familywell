@@ -15,7 +15,11 @@ function subscribe(l: () => void): () => void {
     return () => listeners.delete(l);
 }
 
-export function Slot({ name, fallback }: { name: string; fallback?: React.ReactNode }) {
+// `ctx` is the ONLY channel a primitive uses to hand a slot per-instance data + callbacks
+// (e.g. the task being edited and a patch fn). It is spread as props onto every registered
+// component, so a module authors `({ task, onPatch }) => …`. Context-free widgets (like the
+// hello module's) simply ignore the extra props — passing ctx stays backward compatible.
+export function Slot({ name, ctx, fallback }: { name: string; ctx?: Record<string, unknown>; fallback?: React.ReactNode }) {
     const comps = React.useSyncExternalStore(
         subscribe,
         () => slots.get(name) ?? EMPTY,
@@ -27,7 +31,7 @@ export function Slot({ name, fallback }: { name: string; fallback?: React.ReactN
     return React.createElement(
         React.Fragment,
         null,
-        comps.map((C, i) => React.createElement(C, { key: i })),
+        comps.map((C, i) => React.createElement(C, { key: i, ...(ctx ?? {}) })),
     );
 }
 
