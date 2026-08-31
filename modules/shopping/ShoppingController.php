@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\EntityVisit;
 use App\Models\Family;
 use App\Models\User;
+use App\Support\Modules\Hooks;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
@@ -21,7 +22,7 @@ use Modules\Notifications\Notify;
 
 class ShoppingController extends Controller
 {
-    public function __construct(private ShareAccess $access) {}
+    public function __construct(private ShareAccess $access, private Hooks $hooks) {}
 
     // Module-level settings (e.g. the voice dictation language). The settings themselves are a
     // per-device client preference (localStorage), so the page needs no server payload today.
@@ -234,19 +235,11 @@ class ShoppingController extends Controller
         return back();
     }
 
-    // The user's default grocery list: their most recent non-archived list, or a personal "My List"
-    // minted on first use so an item added from a shop always has a home.
+    // The user's default grocery list. Lives on the model now (ShoppingList::defaultFor) so the Inventory
+    // replenishment loop can reuse the exact same "where do loose items land" rule instead of duplicating it.
     private function defaultList(User $user): ShoppingList
     {
-        $list = ShoppingList::whereNull('archived_at')->where('created_by', $user->id)->latest('id')->first();
-        if ($list) {
-            return $list;
-        }
-        $list = ShoppingList::create(['name' => 'My List', 'created_by' => $user->id]);
-        $list->shares()->firstOrCreate(['user_id' => $user->id], ['role' => 'owner']);
-        $list->setVisibility('family');
-
-        return $list;
+        return ShoppingList::defaultFor($user);
     }
 
     // Shop-scoped aisle editing (the shop's "settings"). Same store-name-keyed logic as the list
@@ -677,6 +670,8 @@ class ShoppingController extends Controller
     {
         abort_unless($this->access->roleFor($request->user(), $item->list) !== null, 403);
 
+        $wasBought = $item->bought; // captured before the update so we can spot the not-bought -> bought edge
+
         // No body => a plain check/uncheck toggle (the common case, one tap in the list).
         if (! $request->hasAny(['name', 'quantity', 'department', 'note', 'assigned_to', 'due_date', 'bought', 'store', 'alt_stores'])) {
             $item->update(['bought' => ! $item->bought]);
@@ -708,6 +703,15 @@ class ShoppingController extends Controller
                 Notify::toAccessOf($list, 'shopping', $request->user()->id, 'Shopping done', "{$request->user()->name} finished {$list->name}", route('shopping.show', $list, false));
             }
         }
+
+        // Publish the "just got bought" edge on the hooks bus (WordPress-style, same mechanism Tasks uses
+        // for task.saved). Other modules listen without touching Shopping — the Inventory module uses this
+        // to close its replenishment loop (bought -> restock the linked inventory item). Fires only on the
+        // false -> true transition, so re-checking an already-bought item can't replenish twice.
+        if ($item->bought && ! $wasBought) {
+            $this->hooks->fire('shopping.item.bought', $item);
+        }
+
         Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
 
         return back();
