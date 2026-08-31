@@ -184,24 +184,26 @@ plugin cleans up its extension rows — though cascade-on-uninstall is the backs
 
 ### 5.3 UI hooks — inject rendered components (frontend slots)
 
-This is the genuinely new primitive. The backend can't do it; React must. The primitive's
-edit screen declares **named slots**, and plugin bundles **register components** into them.
-This is WordPress's **meta box** pattern (`add_meta_box` injects a panel into the post edit
-screen) and Home Assistant's **custom card** pattern (web components registered into the
-frontend) — the same idea in React.
+The backend can't do this; React must. The primitive's edit screen declares **named slots**,
+and plugin bundles **register components** into them — WordPress's **meta box** pattern
+(`add_meta_box`) and Home Assistant's **custom card** pattern, in React. The runtime for this
+**already existed** (`resources/js/lib/modules.ts` — `<Slot>` + `registerSlot`, loaded via
+`window.Familywell`); the only change needed to ship the example was teaching `<Slot>` to
+forward a `ctx` to its children (it previously passed none, so a slot component could only
+self-source data). Below is the shipped shape:
 
 ```tsx
-// Primitive edit screen (inside <TaskTree>'s editor)
-<Slot name="task.editor.fields" ctx={{ task, patch }} />
-<Slot name="task.row.badges"   ctx={{ task }} />
+// Primitive edit screen (inside <TaskTree>'s editor). ctx is spread as props onto each
+// registered component; `onPatch` keeps the router in the primitive — the module only names
+// the field to persist. See resources/js/components/tasks/task-tree.tsx.
+<Slot name="task.editor.fields" ctx={{ task, onPatch: (data) => router.patch(taskUrl(task.id), data) }} />
+<Slot name="task.row.badges"   ctx={{ task: item }} />
 
-// Plugin frontend bundle (loaded because its module.json `frontend` is set + enabled)
-registerSlot('task.editor.fields', ({ task, patch }) => (
-  <Toggle label="Important" checked={task.important}
-          onChange={v => patch({ important: v })} />
-));
-registerSlot('task.row.badges', ({ task }) =>
-  task.important ? <StarIcon /> : null);
+// Plugin frontend bundle — a prebuilt file using the shell's React (no bundler), like
+// modules/hello. Loaded only for families that enabled the module.
+const { React, registerSlot } = window.Familywell;
+registerSlot('task.editor.fields', ({ task, onPatch }) => /* an Important toggle → onPatch({important}) */);
+registerSlot('task.row.badges',   ({ task }) => task.important ? /* a star */ : null);
 ```
 
 `<Slot>` renders every component registered under its name, in registration order,
@@ -486,38 +488,63 @@ Lifecycle, reusing the existing machinery:
 - **Uninstall** — drops plugin tables / purges its rows (§8.6).
 - **Migrate** — `php artisan modules:migrate` (unchanged; guarded by `ModuleNamespace`).
 
-## 11. Worked example: `important-todos`, end to end
+## 11. Worked example: `important_todos` — BUILT and verified
 
-The acceptance test for the whole design: this plugin exists entirely under
-`modules/important-todos/` and touches **zero** core or tasks files. Because it only adds a
-field, a display, and a sort, it qualifies as a **tier-1 declarative** plugin (§8.2) — no
-executable code, installable by anyone on any deployment. Shown here in its code form to
-exercise all three hook types; the declarative form is the same intent expressed as JSON.
+This is no longer hypothetical. The module ships at `modules/important_todos/` and was
+verified end-to-end on the live app (login → toggle Important in a task's editor → star
+badge on the row → important task sorts to top → persisted in `important_todos_flags`), with
+the full PHP suite green (247 passing) and **zero** edits to tasks-module logic beyond the
+seams in §5. It adds a field, a display, and a sort — squarely **tier-1 declarative** in
+spirit (§8.2), though shipped in code form to exercise all three hook kinds.
 
-1. **Manifest** declares `extends.primitives: [task]`, the five hooks, and its one table.
-2. **Migration** creates `important_todos_flags(task_id fk, important bool)`.
-3. **Provider `boot()`** binds: `task.serialize` (add `important`), `task.saved` (persist),
-   `task.query` (sort), and — via the frontend bundle — the two UI slots.
-4. **Frontend bundle** `registerSlot('task.editor.fields', …)` (a toggle) and
-   `registerSlot('task.row.badges', …)` (a star).
-5. **Enable** for a family → the toggle appears in the task editor, the star on important
-   rows, important tasks sort first.
-6. **Uninstall** → table dropped, no trace; the task primitive is byte-for-byte unchanged.
+What it contains: a manifest (`extends: [task]`, `frontend` bundle), a migration for
+`important_todos_flags` (FK to `tasks_tasks`, cascade-on-delete = automatic cleanup), a
+model, a provider binding `task.serialize`/`task.saved`/`task.query`, and a prebuilt
+`resources/dist/important-todos.js` registering the two slots. Delete the folder and the
+feature vanishes without a trace.
 
-If step 6 is clean, the architecture works. If `important-todos` needed to edit
-`TasksController` or `list.tsx`, a hook is missing and the design isn't done.
+**Gotchas the build hit — read these before writing a plugin** (each was a real bug caught in
+testing, fixed at root cause; they define the actual contract):
+
+- **Module id must be underscore, not hyphen.** `ModuleNamespace::assertTable` forces every
+  table to start with `{id}_`, and SQL identifiers can't contain hyphens. So `important_todos`,
+  table `important_todos_flags`. (§10's earlier `important-todos` spelling was wrong.)
+- **Every listener MUST self-gate on `isEnabled`.** Module providers boot for *all* families,
+  and these hooks fire on ordinary (ungated) task requests — so without the gate the listeners
+  run for families that never enabled the module, and query the flags table before
+  `modules:migrate` created it (500s for everyone). The tasks module's `DashboardItems`
+  closures use the same self-gate.
+- **`task.query` receives an Eloquent `Builder`, via `getQuery()`.** `$list->tasks()` is a
+  `HasMany` *relation*, not a Builder; the primitive must hand the hook the underlying builder
+  or a typed `Builder $query` listener throws. The primitive also table-qualifies its columns
+  and pins `select('tasks_tasks.*')` so a module JOIN can't make `id` ambiguous or pollute the
+  models.
+- **An extension-only update must not look like a done-toggle.** `updateTask` treats an
+  *empty* body as "toggle done" — a body carrying only a module field (`{important:true}`)
+  falls through to the edit branch (no-op on core fields, then `task.saved` fires). Getting
+  this wrong flipped `done` as a side effect of marking important.
+- **Postgres sorts NULLs FIRST on `DESC`.** A `leftJoin` leaves NULL for un-flagged tasks, so
+  `orderByDesc('important')` pushed important tasks *below* un-flagged ones. Use a portable
+  `CASE WHEN important THEN 1 ELSE 0 END DESC`.
+- **The optimistic mirror re-syncs on known fields only.** `TaskTree`'s `serverKey` hashes
+  id/done, so a plugin field can lag until the next structural change. Acceptable here; a
+  general fix would let a slot contribute to the re-sync key.
+
+To run it: `php artisan modules:migrate`, then enable **Important Todos** in Settings →
+Modules for a family.
 
 ## 12. Phased rollout
 
 Trust and effort both argue for building this **inward-out**: prove the hook API on
 first-party code before exposing it to anyone.
 
-- **Phase 1 — Dogfood (internal, full trust).** Turn the dead `Hooks` bus on. Pick one
-  primitive (`task`), publish its data + behavior hooks, and rewrite one existing
-  cross-module feature as hooks to validate ergonomics. No security work yet — API design.
-- **Phase 2 — Frontend slots (internal).** Build `<Slot>` / `registerSlot`, wire the
-  dormant `frontend` bundle loading, and ship `important-todos` as a *first-party* module
-  purely through hooks. Proves the reach-in direction without third-party risk.
+- **Phase 1 — Dogfood (internal, full trust). ✅ DONE.** The `task` primitive publishes its
+  data + behavior hooks (`task.serialize`/`task.saved`/`task.query`); the `Hooks` bus was
+  already live (used by `hello`). Ergonomics validated by the module below.
+- **Phase 2 — Frontend slots (internal). ✅ DONE.** The `<Slot>`/`registerSlot` runtime
+  already existed; adding `ctx` forwarding + placing two slots in the task UI + shipping
+  `important_todos` as a first-party module proved the reach-in direction end to end (§11),
+  with no third-party risk. **Next real work starts at Phase 3a.**
 - **Phase 3a — Declarative tier 1a + contract (§8.2).** Freeze the primitive catalog +
   hook versions; add the manifest `extends`/`tier`/`capabilities` fields and install-time
   validation; build the small fields+display+sort/filter/preset interpreter (§14.2). Now
