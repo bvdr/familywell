@@ -11,7 +11,10 @@
         "loading": "Loading…",
         "copy": "Copy",
         "copied": "Copied",
-        "no_matches": "No matches"
+        "no_matches": "No matches",
+        "choose_icon": "Choose icon",
+        "none": "None",
+        "refine_search": "Keep typing to narrow the results"
     },
     "nav": {
         "dashboard": "Dashboard",
