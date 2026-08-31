@@ -1,3 +1,5 @@
+import { ShoppingCart } from 'lucide-react';
+
 import { LucideIcon } from '@/components/lucide-icon';
 import { useT } from '@/lib/i18n';
 import { fmtNumber, STATE_META, stateLabel, unitLabel, type InvCategory, type InvItem, type InvState } from '@/lib/inventory';
@@ -45,6 +47,28 @@ export function CategoryTile({ category, size = 'md' }: { category?: InvCategory
         >
             <LucideIcon name={category?.icon ?? 'package'} className={ic} />
         </span>
+    );
+}
+
+// The "Add to Shopping" affordance. The actual replenishment loop is Phase 4 — for now this is present
+// but inert (disabled, with a "coming soon" hint), so the Needs Attention screen already shows where the
+// action will live. `compact` renders the icon-only pill used in dense list rows; otherwise a labelled
+// button. Kept here so P4 can wire onClick in one place.
+export function AddToShoppingButton({ compact = false, className = '' }: { compact?: boolean; className?: string }) {
+    const t = useT();
+    return (
+        <button
+            type="button"
+            disabled
+            title={t('inventory.coming_soon')}
+            aria-label={t('inventory.add_to_shopping')}
+            className={`text-primary flex shrink-0 items-center justify-center gap-1.5 rounded-lg border text-xs font-medium opacity-50 ${
+                compact ? 'size-9' : 'px-3 py-2'
+            } ${className}`}
+        >
+            <ShoppingCart className="size-4" />
+            {!compact && <span className="truncate">{t('inventory.add_to_shopping')}</span>}
+        </button>
     );
 }
 

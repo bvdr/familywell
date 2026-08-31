@@ -20,6 +20,7 @@ export type InvItem = {
     autoReplenish: boolean;
     notes: string | null;
     state: InvState;
+    stale: boolean; // fine on stock but gone untouched for a long time (soft nudge; orthogonal to state)
     bar: number | null; // 0..1 fill fraction, or null when there's nothing to measure against
     createdBy: number | null;
     updatedAt: string | null;
