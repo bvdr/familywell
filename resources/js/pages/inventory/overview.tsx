@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { AlertTriangle, ChevronRight, LayoutGrid, MapPin, Package, Plus, ShoppingCart } from 'lucide-react';
+import { AlertTriangle, ChevronRight, LayoutGrid, MapPin, Package, Plus, Settings, ShoppingCart } from 'lucide-react';
 import { useState } from 'react';
 
 import { CategoryTile, QtyBar, QtyText, StateBadge } from '@/components/inventory';
@@ -43,9 +43,10 @@ export default function InventoryOverview({ summary, attention, recent, categori
                         <p className="text-muted-foreground text-sm">{t('inventory.subtitle')}</p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                        {/* Browse/manage the family's categories + locations. */}
+                        {/* Browse/manage the family's categories + locations, and open module settings. */}
                         <IconLink href="/m/inventory/categories" label={t('inventory.view_categories')} icon={LayoutGrid} />
                         <IconLink href="/m/inventory/locations" label={t('inventory.view_locations')} icon={MapPin} />
+                        <IconLink href="/m/inventory/settings" label={t('inventory.settings')} icon={Settings} />
                         <AddItemButton t={t} onClick={() => setAdding(true)} />
                     </div>
                 </header>
