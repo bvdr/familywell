@@ -257,7 +257,7 @@ export type RecentEvent = {
 };
 
 // One row in the Vehicle Timeline (VehicleTimeline::forVehicle) — a uniform entry across every event type.
-export type TimelineType = 'mileage' | 'maintenance' | 'repair' | 'document' | 'expense';
+export type TimelineType = 'mileage' | 'maintenance' | 'repair' | 'document' | 'expense' | 'tire';
 export type TimelineEntry = {
     id: string;
     type: TimelineType;
@@ -411,6 +411,51 @@ export type FuelStats = {
     distanceTracked: number | null; // km between first and last fill
     monthlyCost: number | null;
     annualCost: number | null;
+};
+
+// ---- Tyres (V1.1) ----------------------------------------------------------------------------------
+
+export type TireSeason = 'summer' | 'winter' | 'all_season';
+
+// One tyre set (VehicleTireSet::toPayload). Distances stored in km; the tab converts for display.
+export type TireSet = {
+    id: number;
+    vehicleId: number;
+    season: string;
+    brand: string | null;
+    size: string | null;
+    installedOn: string | null;
+    installedMileage: number | null;
+    treadDepthMm: number | null;
+    storageLocation: string | null;
+    isMounted: boolean;
+    notes: string | null;
+    createdBy: number | null;
+};
+
+/** Localised tyre-season label; an unknown/blank value falls back to the raw season. */
+export const tireSeasonLabel = (t: TFn, season: string): string => {
+    const key = `vehicles.tire_season_${season}`;
+    const label = t(key);
+    return label === key ? season : label;
+};
+
+// ---- Parts -> Shopping (V1.1) ----------------------------------------------------------------------
+
+export type PartStatus = 'requested' | 'bought';
+
+// One part requested/bought for a vehicle via Shopping (VehiclePartRequest::toPayload).
+export type PartRequest = {
+    id: number;
+    vehicleId: number;
+    name: string;
+    estimatedCost: number | null;
+    status: PartStatus;
+    boughtOn: string | null;
+    onShoppingList: boolean;
+    maintenanceScheduleId: number | null;
+    repairId: number | null;
+    createdBy: number | null;
 };
 
 // One-line vehicle title ("Dacia Duster"). The subtitle (year · engine) is built at the call site.

@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { FileText, Gauge, History, Receipt, Wrench, type LucideIcon } from 'lucide-react';
+import { CircleDot, FileText, Gauge, History, Receipt, Wrench, type LucideIcon } from 'lucide-react';
 
 import AppLayout from '@/layouts/app-layout';
 import { useLocale, useT, type TFn } from '@/lib/i18n';
@@ -21,6 +21,7 @@ const TYPE_META: Record<TimelineType, { icon: LucideIcon; color: string }> = {
     repair: { icon: Wrench, color: 'var(--warning)' },
     document: { icon: FileText, color: 'var(--primary)' },
     expense: { icon: Receipt, color: 'var(--success)' },
+    tire: { icon: CircleDot, color: 'var(--primary)' },
 };
 
 // Local midnight for a Y-m-d string (avoids the UTC day-shift of new Date('2026-08-03')).

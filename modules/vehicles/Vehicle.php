@@ -103,6 +103,18 @@ class Vehicle extends Model
         return $this->hasMany(VehicleFuelEntry::class)->latest('filled_on')->latest('id');
     }
 
+    /** This vehicle's tyre sets (V1.1): the mounted set first, then by season, then newest. */
+    public function tireSets(): HasMany
+    {
+        return $this->hasMany(VehicleTireSet::class)->orderByDesc('is_mounted')->orderBy('season')->latest('id');
+    }
+
+    /** This vehicle's parts requested/bought via Shopping (V1.1), newest first. */
+    public function partRequests(): HasMany
+    {
+        return $this->hasMany(VehiclePartRequest::class)->latest('id');
+    }
+
     /**
      * Roll this vehicle's ACTIVE maintenance schedules up into the card summary: the status dot, the
      * "next service" distance, and how many items need attention. Reads the loaded `maintenanceSchedules`

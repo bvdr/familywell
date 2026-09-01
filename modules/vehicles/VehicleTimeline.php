@@ -91,6 +91,24 @@ class VehicleTimeline
             ]);
         }
 
+        // Tyre changes (V1.1) — each mounted set stamps when/at-what-mileage it went on; surface that as a
+        // "Winter tyres" change event. Only sets that were actually mounted (have an install point) appear.
+        foreach ($vehicle->tireSets as $set) {
+            if ($set->installed_on === null) {
+                continue;
+            }
+            $season = ucfirst(str_replace('_', ' ', (string) $set->season));
+            $entries->push([
+                'id' => 'tire-'.$set->id,
+                'type' => 'tire',
+                'date' => optional($set->installed_on)->toDateString(),
+                'title' => trim("{$season} tyres".($set->brand ? " · {$set->brand}" : '')),
+                'subtitle' => $set->size,
+                'mileage' => $set->installed_mileage,
+                'cost' => null,
+            ]);
+        }
+
         // Mileage readings — the odometer history (the opening reading + every quick update / correction).
         foreach ($vehicle->mileageLogs as $log) {
             $entries->push([

@@ -20,7 +20,7 @@ class VehicleExpenseLink extends Model
 
     protected $table = 'vehicles_expense_links';
 
-    protected $fillable = ['vehicle_id', 'spend_id', 'maintenance_history_id', 'repair_id', 'fuel_entry_id', 'family_id'];
+    protected $fillable = ['vehicle_id', 'spend_id', 'maintenance_history_id', 'repair_id', 'fuel_entry_id', 'part_request_id', 'family_id'];
 
     public function vehicle(): BelongsTo
     {
@@ -37,6 +37,12 @@ class VehicleExpenseLink extends Model
     public function fuelEntry(): BelongsTo
     {
         return $this->belongsTo(VehicleFuelEntry::class, 'fuel_entry_id');
+    }
+
+    /** The part request this expense came from, when a bought part with a cost mirrored in (V1.1, else null). */
+    public function partRequest(): BelongsTo
+    {
+        return $this->belongsTo(VehiclePartRequest::class, 'part_request_id');
     }
 
     public function spend(): BelongsTo

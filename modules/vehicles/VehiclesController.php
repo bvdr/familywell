@@ -82,7 +82,7 @@ class VehiclesController extends Controller
 
         // Eager-load the relations the P5 roll-up reads (status + next + recent), so the Overview stays a
         // handful of queries regardless of how much history a car has accrued.
-        $vehicle->load(['maintenanceSchedules', 'documents', 'maintenanceHistory', 'repairs']);
+        $vehicle->load(['maintenanceSchedules', 'documents', 'maintenanceHistory', 'repairs', 'partRequests']);
 
         $names = $this->memberNames();
         $history = $vehicle->mileageLogs()->limit(self::MILEAGE_HISTORY_LIMIT)->get()
@@ -110,6 +110,10 @@ class VehiclesController extends Controller
                 'documentsExpiring' => $vehicle->documents->filter(fn (VehicleDocument $d) => $d->isExpiring())->count(),
                 'notes' => $vehicle->noteLinks()->count(),
             ],
+            // V1.1: parts requested/bought via Shopping for this car, plus whether Shopping is on (the
+            // "Add part" surface only appears when there's a shopping list to add to).
+            'parts' => $vehicle->partRequests->map(fn (VehiclePartRequest $p) => $p->toPayload())->values(),
+            'canShopping' => app(ModuleRegistry::class)->isEnabled('shopping', (int) CurrentFamily::id()),
         ]);
     }
 
@@ -124,7 +128,7 @@ class VehiclesController extends Controller
 
         // Eager-load every source the merge reads (incl. the linked provider for maintenance/repairs, so
         // providerName() resolves without an N+1), so the timeline is a fixed handful of queries.
-        $vehicle->load(['maintenanceHistory.serviceProvider', 'repairs.serviceProvider', 'documents', 'mileageLogs']);
+        $vehicle->load(['maintenanceHistory.serviceProvider', 'repairs.serviceProvider', 'documents', 'mileageLogs', 'tireSets']);
 
         return Inertia::render('vehicles/timeline', [
             'vehicle' => $this->cardPayload($vehicle),

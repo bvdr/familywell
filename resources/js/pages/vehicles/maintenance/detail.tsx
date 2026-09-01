@@ -24,6 +24,7 @@ import {
 } from '@/lib/vehicles';
 import type { BreadcrumbItem } from '@/types';
 
+import { AddPartButton } from '../parts';
 import ProviderPicker from '../provider-picker';
 import VehicleNav from '../vehicle-nav';
 
@@ -33,10 +34,11 @@ type Props = {
     history: MaintenanceHistoryEntry[];
     linkedTask: MaintenanceLinkedTask | null;
     canExpense: boolean;
+    canShopping: boolean;
     providers: ProviderOption[];
 };
 
-export default function MaintenanceDetail({ vehicle, schedule, history, linkedTask, canExpense, providers }: Props) {
+export default function MaintenanceDetail({ vehicle, schedule, history, linkedTask, canExpense, canShopping, providers }: Props) {
     const t = useT();
     const title = schedule.name || templateLabel(t, schedule.type);
     const breadcrumbs: BreadcrumbItem[] = [
@@ -95,6 +97,13 @@ export default function MaintenanceDetail({ vehicle, schedule, history, linkedTa
                 {/* Actions. "Mark as completed" records the service (and closes the linked task + logs any
                     cost to Spending); "Create task" and "Add expense" wire into the Tasks / Spending modules. */}
                 <CompletePanel vehicle={vehicle} schedule={schedule} linkedTask={linkedTask} canExpense={canExpense} providers={providers} t={t} />
+
+                {/* V1.1: request a part for this service — creates a labelled row on the family shopping list. */}
+                {canShopping && (
+                    <div>
+                        <AddPartButton vehicleId={vehicle.id} scheduleId={schedule.id} t={t} />
+                    </div>
+                )}
 
                 <MaintenanceHistoryList history={history} t={t} />
             </div>

@@ -41,12 +41,14 @@ import {
     type NextMaintenance,
     type OverviewNext,
     type OverviewStatus,
+    type PartRequest,
     type RecentEvent,
     type UnitSystem,
     type Vehicle,
 } from '@/lib/vehicles';
 import type { BreadcrumbItem, SharedData } from '@/types';
 
+import { PartsSection } from './parts';
 import VehicleNav from './vehicle-nav';
 
 type SectionCounts = {
@@ -66,9 +68,11 @@ type Props = {
     next: OverviewNext;
     recent: RecentEvent[];
     sections: SectionCounts;
+    parts: PartRequest[];
+    canShopping: boolean;
 };
 
-export default function VehicleOverview({ vehicle, owner, primaryDriver, history, unitSystem, status, next, recent, sections }: Props) {
+export default function VehicleOverview({ vehicle, owner, primaryDriver, history, unitSystem, status, next, recent, sections, parts, canShopping }: Props) {
     const t = useT();
     const { modules } = usePage<SharedData & { modules?: { enabled?: string[] } }>().props;
     const enabled = modules?.enabled ?? [];
@@ -136,6 +140,9 @@ export default function VehicleOverview({ vehicle, owner, primaryDriver, history
                         subtitle={t('vehicles.timeline_sub')}
                     />
                 </div>
+
+                {/* V1.1: parts to buy for this car (on the family shopping list), with a quick "add part". */}
+                <PartsSection vehicleId={vehicle.id} parts={parts} canShopping={canShopping} t={t} />
 
                 {/* Recent maintenance/repair events with cost. Hidden until there's a service story to tell. */}
                 <RecentEvents recent={recent} unitSystem={unitSystem} t={t} />

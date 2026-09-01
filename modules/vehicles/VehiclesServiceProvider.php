@@ -9,6 +9,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\Notifications\NotificationCategories;
+use Modules\Shopping\ShoppingItem;
 use Modules\Tasks\Task;
 use Modules\Vehicles\Console\CheckVehicles;
 
@@ -40,6 +41,20 @@ class VehiclesServiceProvider extends ServiceProvider
             if ($schedule) {
                 MaintenanceCompletion::fromTask($schedule, $request->user());
             }
+
+            // TYRES -> TASKS, completion half (V1.1). A seasonal "change tyres" reminder is just a nudge, so
+            // checking it off only clears the link — that lets a fresh reminder fire next season (idempotency).
+            VehicleTireSet::where('open_task_id', $task->id)->update(['open_task_id' => null]);
+        });
+
+        // SHOPPING -> VEHICLES, "bought part" half (V1.1). When a shopping row is marked bought, close the
+        // matching vehicle part request (flip to bought, mirror its cost into Spending if it had an estimate).
+        // Same shared-bus pattern Inventory uses for its own replenishment loop; self-gates to this family.
+        $hooks->listen('shopping.item.bought', function (ShoppingItem $item) {
+            if (! $this->enabledHere()) {
+                return;
+            }
+            app(VehicleParts::class)->onShoppingItemBought($item);
         });
 
         // The daily sweep: create tasks for due/overdue maintenance and notify. Registered the same way
@@ -142,6 +157,20 @@ class VehiclesServiceProvider extends ServiceProvider
                 Route::post('/{vehicle}/fuel', [VehicleFuelController::class, 'store'])->name('fuel.store');
                 Route::patch('/{vehicle}/fuel/{entry}', [VehicleFuelController::class, 'update'])->name('fuel.update');
                 Route::delete('/{vehicle}/fuel/{entry}', [VehicleFuelController::class, 'destroy'])->name('fuel.destroy');
+
+                // V1.1: Tyres — the car's tyre sets with their own lifecycle. `mount` swaps which set is on
+                // the car (one at a time); `remind` spawns an idempotent seasonal "change tyres" task.
+                Route::get('/{vehicle}/tires', [VehicleTiresController::class, 'index'])->name('tires.index');
+                Route::post('/{vehicle}/tires', [VehicleTiresController::class, 'store'])->name('tires.store');
+                Route::patch('/{vehicle}/tires/{set}', [VehicleTiresController::class, 'update'])->name('tires.update');
+                Route::delete('/{vehicle}/tires/{set}', [VehicleTiresController::class, 'destroy'])->name('tires.destroy');
+                Route::post('/{vehicle}/tires/{set}/mount', [VehicleTiresController::class, 'mount'])->name('tires.mount');
+                Route::post('/{vehicle}/tires/{set}/remind', [VehicleTiresController::class, 'remind'])->name('tires.remind');
+
+                // V1.1: Parts -> Shopping — add a part to the family shopping list (labelled with the car),
+                // reusing the shopping.item.bought hook so a purchase can mirror into the car's Spending.
+                Route::post('/{vehicle}/parts', [VehiclePartsController::class, 'store'])->name('parts.store');
+                Route::delete('/{vehicle}/parts/{part}', [VehiclePartsController::class, 'destroy'])->name('parts.destroy');
 
                 // P4: Notes — reuse the Notes module; a note attached to the car ({note} is guarded via the link).
                 Route::get('/{vehicle}/notes', [VehicleNotesController::class, 'index'])->name('notes.index');
