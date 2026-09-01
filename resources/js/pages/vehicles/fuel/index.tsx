@@ -1,11 +1,12 @@
 import { Head, router } from '@inertiajs/react';
 import { Droplet, Fuel, Pencil, Plus, Trash2 } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn } from '@/lib/i18n';
 import {
@@ -69,40 +70,31 @@ export default function VehicleFuel({ vehicle, unitSystem, entries, stats, canEx
                 {/* Computed metrics — only once there's something to compute. */}
                 {stats.entryCount > 0 && <FuelMetrics stats={stats} unitSystem={unitSystem} t={t} />}
 
-                {adding && (
-                    <FuelForm
-                        vehicle={vehicle}
-                        entry={null}
-                        unitSystem={unitSystem}
-                        canExpense={canExpense}
-                        t={t}
-                        onDone={() => setAdding(false)}
-                        onCancel={() => setAdding(false)}
-                    />
-                )}
-
-                {entries.length === 0 && !adding ? (
+                {entries.length === 0 ? (
                     <EmptyState t={t} />
                 ) : (
                     <ul className="flex flex-col gap-3">
-                        {entries.map((e) =>
-                            editingId === e.id ? (
-                                <FuelForm
-                                    key={e.id}
-                                    vehicle={vehicle}
-                                    entry={e}
-                                    unitSystem={unitSystem}
-                                    canExpense={canExpense}
-                                    t={t}
-                                    onDone={() => setEditingId(null)}
-                                    onCancel={() => setEditingId(null)}
-                                />
-                            ) : (
-                                <FuelCard key={e.id} vehicle={vehicle} entry={e} unitSystem={unitSystem} t={t} onEdit={() => setEditingId(e.id)} />
-                            ),
-                        )}
+                        {entries.map((e) => (
+                            <FuelCard key={e.id} vehicle={vehicle} entry={e} unitSystem={unitSystem} t={t} onEdit={() => setEditingId(e.id)} />
+                        ))}
                     </ul>
                 )}
+
+                {/* Always mounted (per the shared modal API) so open/close animates instead of remounting. */}
+                <FuelFormModal
+                    open={adding || editingId !== null}
+                    onOpenChange={(v) => {
+                        if (!v) {
+                            setAdding(false);
+                            setEditingId(null);
+                        }
+                    }}
+                    vehicle={vehicle}
+                    entry={editingId !== null ? (entries.find((e) => e.id === editingId) ?? null) : null}
+                    unitSystem={unitSystem}
+                    canExpense={canExpense}
+                    t={t}
+                />
             </div>
         </AppLayout>
     );
@@ -180,31 +172,32 @@ function FuelCard({ vehicle, entry, unitSystem, t, onEdit }: { vehicle: VehicleH
     );
 }
 
-// The add/edit form. Volume is entered in the family's unit but we keep it simple: the value is sent as-is
-// (litres/gallons) — the server stores litres, so imperial families enter gallons and we convert on submit.
-function FuelForm({
+// The add/edit form, in the shared modal. Volume is entered in the family's unit but we keep it simple:
+// the value is sent as-is (litres/gallons) — the server stores litres, so imperial families enter gallons
+// and we convert on submit.
+function FuelFormModal({
+    open,
+    onOpenChange,
     vehicle,
     entry,
     unitSystem,
     canExpense,
     t,
-    onDone,
-    onCancel,
 }: {
+    open: boolean;
+    onOpenChange: (v: boolean) => void;
     vehicle: VehicleHeader;
     entry: FuelEntry | null;
     unitSystem: UnitSystem;
     canExpense: boolean;
     t: TFn;
-    onDone: () => void;
-    onCancel: () => void;
 }) {
     const editing = entry !== null;
     // Volume is shown/edited in the display unit; convert to litres only when posting (imperial gallons).
     const litersToDisplay = (l: number) => (unitSystem === 'imperial' ? l / 3.785411784 : l);
     const displayToLiters = (v: number) => (unitSystem === 'imperial' ? v * 3.785411784 : v);
 
-    const [form, setForm] = useState({
+    const seedForm = () => ({
         filled_on: entry?.filledOn ?? todayIso(),
         liters: entry?.liters != null ? String(round1(litersToDisplay(entry.liters))) : '',
         cost: entry?.cost != null ? String(entry.cost) : '',
@@ -214,8 +207,20 @@ function FuelForm({
         note: entry?.note ?? '',
         create_expense: false,
     });
+
+    const [form, setForm] = useState(seedForm);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [processing, setProcessing] = useState(false);
+
+    // Re-seed on every open transition (Add starts blank, Edit reflects the row being edited), not on
+    // every keystroke.
+    useEffect(() => {
+        if (open) {
+            setForm(seedForm());
+            setErrors({});
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, entry?.id]);
 
     const set = (k: keyof typeof form, v: string | boolean) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -238,65 +243,70 @@ function FuelForm({
         const url = editing ? `/m/vehicles/${vehicle.id}/fuel/${entry!.id}` : `/m/vehicles/${vehicle.id}/fuel`;
         router.post(url, payload, {
             preserveScroll: true,
-            onSuccess: onDone,
+            onSuccess: () => onOpenChange(false),
             onError: (e) => setErrors(e as Record<string, string>),
             onFinish: () => setProcessing(false),
         });
     };
 
     return (
-        <section className="bg-surface-card flex flex-col gap-4 rounded-2xl border p-5">
-            <h3 className="font-heading text-primary text-lg">{editing ? t('vehicles.edit_fuel') : t('vehicles.add_fuel')}</h3>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-                <Field label={t('vehicles.completed_date')} error={errors.filled_on}>
-                    <Input type="date" value={form.filled_on} onChange={(e) => set('filled_on', e.target.value)} className="text-base" />
-                </Field>
-                <Field label={t('vehicles.fuel_liters', { unit: volumeUnitLabel(unitSystem) })} error={errors.liters}>
-                    <Input value={form.liters} onChange={(e) => set('liters', e.target.value)} inputMode="decimal" placeholder="0.0" className="text-base" />
-                </Field>
-                <Field label={t('vehicles.completed_mileage')} error={errors.mileage}>
-                    <Input value={form.mileage} onChange={(e) => set('mileage', e.target.value)} inputMode="numeric" placeholder={fmtMileage(vehicle.currentMileage)} className="text-base" />
-                </Field>
-                <Field label={t('vehicles.completed_cost')} error={errors.cost}>
-                    <Input value={form.cost} onChange={(e) => set('cost', e.target.value)} inputMode="decimal" placeholder="0.00" className="text-base" />
-                </Field>
-                <Field label={t('vehicles.fuel_station')} error={errors.station}>
-                    <Input value={form.station} onChange={(e) => set('station', e.target.value)} placeholder={t('vehicles.fuel_station_placeholder')} className="text-base" />
-                </Field>
-            </div>
-
-            <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={form.is_full_tank} onChange={(e) => set('is_full_tank', e.target.checked)} className="size-4 rounded border" />
-                <span className="text-text-secondary">{t('vehicles.fuel_full_tank')}</span>
-            </label>
-            <p className="text-muted-foreground -mt-2 text-xs">{t('vehicles.fuel_full_tank_hint')}</p>
-
-            <Field label={t('vehicles.notes_label')} error={errors.note}>
-                <textarea
-                    value={form.note}
-                    onChange={(e) => set('note', e.target.value)}
-                    rows={2}
-                    className="border-input bg-surface-card focus-visible:ring-ring w-full rounded-lg border px-3 py-2 text-base focus-visible:ring-2 focus-visible:outline-none"
-                />
-            </Field>
-
-            {!editing && canExpense && (
-                <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={form.create_expense} onChange={(e) => set('create_expense', e.target.checked)} className="size-4 rounded border" />
-                    <span className="text-text-secondary">{t('vehicles.fuel_add_to_spending')}</span>
-                </label>
-            )}
-
-            <div className="flex items-center gap-3">
-                <Button type="button" onClick={submit} disabled={processing || form.liters.trim() === '' || form.mileage.trim() === '' || form.filled_on === ''} className="flex-1">
+        <ResponsiveModal
+            open={open}
+            onOpenChange={onOpenChange}
+            title={editing ? t('vehicles.edit_fuel') : t('vehicles.add_fuel')}
+            footer={
+                <Button
+                    type="button"
+                    onClick={submit}
+                    disabled={processing || form.liters.trim() === '' || form.mileage.trim() === '' || form.filled_on === ''}
+                    className="w-full"
+                >
                     {t('vehicles.save')}
                 </Button>
-                <Button type="button" variant="outline" onClick={onCancel}>
-                    {t('vehicles.cancel')}
-                </Button>
+            }
+        >
+            <div className="flex flex-col gap-4 pb-1">
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label={t('vehicles.completed_date')} error={errors.filled_on}>
+                        <Input type="date" value={form.filled_on} onChange={(e) => set('filled_on', e.target.value)} className="text-base" />
+                    </Field>
+                    <Field label={t('vehicles.fuel_liters', { unit: volumeUnitLabel(unitSystem) })} error={errors.liters}>
+                        <Input value={form.liters} onChange={(e) => set('liters', e.target.value)} inputMode="decimal" placeholder="0.0" className="text-base" />
+                    </Field>
+                    <Field label={t('vehicles.completed_mileage')} error={errors.mileage}>
+                        <Input value={form.mileage} onChange={(e) => set('mileage', e.target.value)} inputMode="numeric" placeholder={fmtMileage(vehicle.currentMileage)} className="text-base" />
+                    </Field>
+                    <Field label={t('vehicles.completed_cost')} error={errors.cost}>
+                        <Input value={form.cost} onChange={(e) => set('cost', e.target.value)} inputMode="decimal" placeholder="0.00" className="text-base" />
+                    </Field>
+                    <Field label={t('vehicles.fuel_station')} error={errors.station}>
+                        <Input value={form.station} onChange={(e) => set('station', e.target.value)} placeholder={t('vehicles.fuel_station_placeholder')} className="text-base" />
+                    </Field>
+                </div>
+
+                <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={form.is_full_tank} onChange={(e) => set('is_full_tank', e.target.checked)} className="size-4 rounded border" />
+                    <span className="text-text-secondary">{t('vehicles.fuel_full_tank')}</span>
+                </label>
+                <p className="text-muted-foreground -mt-2 text-xs">{t('vehicles.fuel_full_tank_hint')}</p>
+
+                <Field label={t('vehicles.notes_label')} error={errors.note}>
+                    <textarea
+                        value={form.note}
+                        onChange={(e) => set('note', e.target.value)}
+                        rows={2}
+                        className="border-input bg-surface-card focus-visible:ring-ring w-full rounded-lg border px-3 py-2 text-base focus-visible:ring-2 focus-visible:outline-none"
+                    />
+                </Field>
+
+                {!editing && canExpense && (
+                    <label className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked={form.create_expense} onChange={(e) => set('create_expense', e.target.checked)} className="size-4 rounded border" />
+                        <span className="text-text-secondary">{t('vehicles.fuel_add_to_spending')}</span>
+                    </label>
+                )}
             </div>
-        </section>
+        </ResponsiveModal>
     );
 }
 

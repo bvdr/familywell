@@ -1,11 +1,12 @@
 import { Head, router } from '@inertiajs/react';
 import { FileText, ImageIcon, Paperclip, Pencil, Plus, Trash2, Wrench, X } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn } from '@/lib/i18n';
 import { fmtMileage, mileageText, vehicleTitle, type ProviderOption, type Repair, type RepairAttachment, type VehicleHeader } from '@/lib/vehicles';
@@ -45,48 +46,37 @@ export default function VehicleRepairs({ vehicle, repairs, canExpense, providers
 
                 <div className="flex items-center justify-between gap-3">
                     <h2 className="font-heading text-primary text-xl">{t('vehicles.repairs')}</h2>
-                    {!adding && (
-                        <Button type="button" onClick={() => setAdding(true)}>
-                            <Plus className="size-4" /> {t('vehicles.add_repair')}
-                        </Button>
-                    )}
+                    <Button type="button" onClick={() => setAdding(true)}>
+                        <Plus className="size-4" /> {t('vehicles.add_repair')}
+                    </Button>
                 </div>
 
-                {adding && (
-                    <RepairForm
-                        vehicle={vehicle}
-                        repair={null}
-                        canExpense={canExpense}
-                        providers={providers}
-                        t={t}
-                        onDone={() => setAdding(false)}
-                        onCancel={() => setAdding(false)}
-                    />
-                )}
-
-                {repairs.length === 0 && !adding ? (
+                {repairs.length === 0 ? (
                     <EmptyState t={t} />
                 ) : (
                     <ul className="flex flex-col gap-3">
-                        {repairs.map((r) =>
-                            editingId === r.id ? (
-                                <RepairForm
-                                    key={r.id}
-                                    vehicle={vehicle}
-                                    repair={r}
-                                    canExpense={canExpense}
-                                    providers={providers}
-                                    t={t}
-                                    onDone={() => setEditingId(null)}
-                                    onCancel={() => setEditingId(null)}
-                                />
-                            ) : (
-                                <RepairCard key={r.id} vehicle={vehicle} repair={r} t={t} onEdit={() => setEditingId(r.id)} />
-                            ),
-                        )}
+                        {repairs.map((r) => (
+                            <RepairCard key={r.id} vehicle={vehicle} repair={r} t={t} onEdit={() => setEditingId(r.id)} />
+                        ))}
                     </ul>
                 )}
             </div>
+
+            {/* One shared add/edit sheet, mounted once. Add opens it blank; a row's edit opens it seeded. */}
+            <RepairFormModal
+                open={adding || editingId !== null}
+                onOpenChange={(v) => {
+                    if (!v) {
+                        setAdding(false);
+                        setEditingId(null);
+                    }
+                }}
+                vehicle={vehicle}
+                repair={editingId !== null ? (repairs.find((r) => r.id === editingId) ?? null) : null}
+                canExpense={canExpense}
+                providers={providers}
+                t={t}
+            />
         </AppLayout>
     );
 }
@@ -160,27 +150,9 @@ function AttachmentChip({ attachment, t }: { attachment: RepairAttachment; t: TF
     );
 }
 
-// The add/edit form. Uploads new files as multipart; on edit, lets existing attachments be removed. On add,
-// a costed repair can optionally be mirrored into Spending (spec 11).
-function RepairForm({
-    vehicle,
-    repair,
-    canExpense,
-    providers,
-    t,
-    onDone,
-    onCancel,
-}: {
-    vehicle: VehicleHeader;
-    repair: Repair | null;
-    canExpense: boolean;
-    providers: ProviderOption[];
-    t: TFn;
-    onDone: () => void;
-    onCancel: () => void;
-}) {
-    const editing = repair !== null;
-    const [form, setForm] = useState({
+// The initial form state for a repair (blank for Add, seeded from the record for Edit).
+function initialRepairForm(repair: Repair | null) {
+    return {
         title: repair?.title ?? '',
         occurred_on: repair?.occurredOn ?? todayIso(),
         mileage: repair?.mileage != null ? String(repair.mileage) : '',
@@ -190,11 +162,46 @@ function RepairForm({
         service_provider_id: repair?.serviceProviderId ?? null,
         notes: repair?.notes ?? '',
         create_expense: false,
-    });
+    };
+}
+
+// The add/edit sheet (shared ResponsiveModal). Uploads new files as multipart; on edit, lets existing
+// attachments be removed. On add, a costed repair can optionally be mirrored into Spending (spec 11).
+function RepairFormModal({
+    open,
+    onOpenChange,
+    vehicle,
+    repair,
+    canExpense,
+    providers,
+    t,
+}: {
+    open: boolean;
+    onOpenChange: (v: boolean) => void;
+    vehicle: VehicleHeader;
+    repair: Repair | null;
+    canExpense: boolean;
+    providers: ProviderOption[];
+    t: TFn;
+}) {
+    const editing = repair !== null;
+    const [form, setForm] = useState(() => initialRepairForm(repair));
     const [files, setFiles] = useState<File[]>([]);
     const [removeIds, setRemoveIds] = useState<number[]>([]);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [processing, setProcessing] = useState(false);
+    const titleRef = useRef<HTMLInputElement>(null);
+
+    // Re-seed each time the sheet opens (it stays mounted): Add starts blank, Edit reflects the repair.
+    useEffect(() => {
+        if (open) {
+            setForm(initialRepairForm(repair));
+            setFiles([]);
+            setRemoveIds([]);
+            setErrors({});
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, repair?.id]);
 
     const set = (k: keyof typeof form, v: string | boolean) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -219,7 +226,7 @@ function RepairForm({
         router.post(url, payload, {
             forceFormData: true,
             preserveScroll: true,
-            onSuccess: onDone,
+            onSuccess: () => onOpenChange(false),
             onError: (e) => setErrors(e as Record<string, string>),
             onFinish: () => setProcessing(false),
         });
@@ -228,84 +235,86 @@ function RepairForm({
     const keptAttachments = (repair?.attachments ?? []).filter((a) => !removeIds.includes(a.id));
 
     return (
-        <section className="bg-surface-card flex flex-col gap-4 rounded-2xl border p-5">
-            <h3 className="font-heading text-primary text-lg">{editing ? t('vehicles.edit_repair') : t('vehicles.add_repair')}</h3>
-
-            <Field label={t('vehicles.repair_title_label')} error={errors.title}>
-                <Input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder={t('vehicles.repair_title_placeholder')} className="text-base" />
-            </Field>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-                <Field label={t('vehicles.completed_date')} error={errors.occurred_on}>
-                    <Input type="date" value={form.occurred_on} onChange={(e) => set('occurred_on', e.target.value)} className="text-base" />
-                </Field>
-                <Field label={t('vehicles.completed_mileage')} error={errors.mileage}>
-                    <Input value={form.mileage} onChange={(e) => set('mileage', e.target.value)} inputMode="numeric" placeholder={fmtMileage(vehicle.currentMileage)} className="text-base" />
-                </Field>
-                <Field label={t('vehicles.completed_cost')} error={errors.cost}>
-                    <Input value={form.cost} onChange={(e) => set('cost', e.target.value)} inputMode="decimal" placeholder="0.00" className="text-base" />
-                </Field>
-                <ProviderPicker
-                    providers={providers}
-                    value={{ serviceProviderId: form.service_provider_id, provider: form.provider }}
-                    onChange={(v) => setForm((p) => ({ ...p, service_provider_id: v.serviceProviderId, provider: v.provider }))}
-                    label={t('vehicles.completed_provider')}
-                    t={t}
-                    error={errors.provider ?? errors.service_provider_id}
-                />
-            </div>
-
-            <Field label={t('vehicles.notes_label')} error={errors.notes}>
-                <textarea
-                    value={form.notes}
-                    onChange={(e) => set('notes', e.target.value)}
-                    rows={2}
-                    className="border-input bg-surface-card focus-visible:ring-ring w-full rounded-lg border px-3 py-2 text-base focus-visible:ring-2 focus-visible:outline-none"
-                />
-            </Field>
-
-            {/* Existing attachments (edit mode): tap the X to mark for removal on save. */}
-            {keptAttachments.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                    {keptAttachments.map((a) => (
-                        <span key={a.id} className="border-border text-primary flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium">
-                            <Paperclip className="size-3.5" />
-                            <span className="max-w-[10rem] truncate">{a.name || t('vehicles.attachment')}</span>
-                            <button type="button" onClick={() => setRemoveIds((p) => [...p, a.id])} aria-label={t('vehicles.delete')} className="text-muted-foreground hover:text-destructive">
-                                <X className="size-3.5" />
-                            </button>
-                        </span>
-                    ))}
-                </div>
-            )}
-
-            <Field label={t('vehicles.attachments_label')} error={errors['attachments.0'] ?? errors.attachments}>
-                <input
-                    type="file"
-                    accept="image/*,application/pdf"
-                    multiple
-                    onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
-                    className="text-muted-foreground file:border-border file:bg-surface file:text-primary block w-full text-sm file:mr-3 file:rounded-lg file:border file:px-3 file:py-1.5 file:text-sm file:font-medium"
-                />
-                {files.length > 0 && <span className="text-muted-foreground text-xs">{t('vehicles.files_selected', { count: files.length })}</span>}
-            </Field>
-
-            {!editing && canExpense && (
-                <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={form.create_expense} onChange={(e) => set('create_expense', e.target.checked)} className="size-4 rounded border" />
-                    <span className="text-text-secondary">{t('vehicles.repair_add_to_spending')}</span>
-                </label>
-            )}
-
-            <div className="flex items-center gap-3">
-                <Button type="button" onClick={submit} disabled={processing || form.title.trim() === '' || form.occurred_on === ''} className="flex-1">
+        <ResponsiveModal
+            open={open}
+            onOpenChange={onOpenChange}
+            title={editing ? t('vehicles.edit_repair') : t('vehicles.add_repair')}
+            autoFocusRef={titleRef}
+            className="sm:max-w-lg"
+            footer={
+                <Button type="button" onClick={submit} disabled={processing || form.title.trim() === '' || form.occurred_on === ''} className="w-full">
                     {t('vehicles.save')}
                 </Button>
-                <Button type="button" variant="outline" onClick={onCancel}>
-                    {t('vehicles.cancel')}
-                </Button>
+            }
+        >
+            <div className="flex flex-col gap-4 pb-1">
+                <Field label={t('vehicles.repair_title_label')} error={errors.title}>
+                    <Input ref={titleRef} value={form.title} onChange={(e) => set('title', e.target.value)} placeholder={t('vehicles.repair_title_placeholder')} className="text-base" />
+                </Field>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label={t('vehicles.completed_date')} error={errors.occurred_on}>
+                        <Input type="date" value={form.occurred_on} onChange={(e) => set('occurred_on', e.target.value)} className="text-base" />
+                    </Field>
+                    <Field label={t('vehicles.completed_mileage')} error={errors.mileage}>
+                        <Input value={form.mileage} onChange={(e) => set('mileage', e.target.value)} inputMode="numeric" placeholder={fmtMileage(vehicle.currentMileage)} className="text-base" />
+                    </Field>
+                    <Field label={t('vehicles.completed_cost')} error={errors.cost}>
+                        <Input value={form.cost} onChange={(e) => set('cost', e.target.value)} inputMode="decimal" placeholder="0.00" className="text-base" />
+                    </Field>
+                    <ProviderPicker
+                        providers={providers}
+                        value={{ serviceProviderId: form.service_provider_id, provider: form.provider }}
+                        onChange={(v) => setForm((p) => ({ ...p, service_provider_id: v.serviceProviderId, provider: v.provider }))}
+                        label={t('vehicles.completed_provider')}
+                        t={t}
+                        error={errors.provider ?? errors.service_provider_id}
+                    />
+                </div>
+
+                <Field label={t('vehicles.notes_label')} error={errors.notes}>
+                    <textarea
+                        value={form.notes}
+                        onChange={(e) => set('notes', e.target.value)}
+                        rows={2}
+                        className="border-input bg-surface-card focus-visible:ring-ring w-full rounded-lg border px-3 py-2 text-base focus-visible:ring-2 focus-visible:outline-none"
+                    />
+                </Field>
+
+                {/* Existing attachments (edit mode): tap the X to mark for removal on save. */}
+                {keptAttachments.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                        {keptAttachments.map((a) => (
+                            <span key={a.id} className="border-border text-primary flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium">
+                                <Paperclip className="size-3.5" />
+                                <span className="max-w-[10rem] truncate">{a.name || t('vehicles.attachment')}</span>
+                                <button type="button" onClick={() => setRemoveIds((p) => [...p, a.id])} aria-label={t('vehicles.delete')} className="text-muted-foreground hover:text-destructive">
+                                    <X className="size-3.5" />
+                                </button>
+                            </span>
+                        ))}
+                    </div>
+                )}
+
+                <Field label={t('vehicles.attachments_label')} error={errors['attachments.0'] ?? errors.attachments}>
+                    <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        multiple
+                        onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
+                        className="text-muted-foreground file:border-border file:bg-surface file:text-primary block w-full text-sm file:mr-3 file:rounded-lg file:border file:px-3 file:py-1.5 file:text-sm file:font-medium"
+                    />
+                    {files.length > 0 && <span className="text-muted-foreground text-xs">{t('vehicles.files_selected', { count: files.length })}</span>}
+                </Field>
+
+                {!editing && canExpense && (
+                    <label className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked={form.create_expense} onChange={(e) => set('create_expense', e.target.checked)} className="size-4 rounded border" />
+                        <span className="text-text-secondary">{t('vehicles.repair_add_to_spending')}</span>
+                    </label>
+                )}
             </div>
-        </section>
+        </ResponsiveModal>
     );
 }
 

@@ -1,11 +1,12 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { CheckCircle2, ListChecks, Pencil, Plus, Receipt } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn } from '@/lib/i18n';
 import {
@@ -176,6 +177,20 @@ function CompletePanel({
     });
     const [expense, setExpense] = useState({ amount: '', note: '', spent_at: todayIso() });
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const amountRef = useRef<HTMLInputElement>(null);
+
+    // Re-seed each sheet when it opens (they stay mounted): completion defaults the date to today and the
+    // mileage to the car's current odometer; the expense sheet starts blank.
+    useEffect(() => {
+        if (panel === 'complete') {
+            setForm({ performed_at: todayIso(), mileage: String(vehicle.currentMileage), cost: '', provider: '', service_provider_id: null, notes: '' });
+            setErrors({});
+        } else if (panel === 'expense') {
+            setExpense({ amount: '', note: '', spent_at: todayIso() });
+            setErrors({});
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [panel]);
 
     const set = (k: keyof typeof form, v: string) => setForm((p) => ({ ...p, [k]: v }));
     const setExp = (k: keyof typeof expense, v: string) => setExpense((p) => ({ ...p, [k]: v }));
@@ -217,95 +232,98 @@ function CompletePanel({
         );
     };
 
-    if (panel === 'complete') {
-        return (
-            <section className="bg-surface-card flex flex-col gap-4 rounded-2xl border p-5">
-                <h3 className="font-heading text-primary text-lg">{t('vehicles.record_completion')}</h3>
-                <div className="grid gap-4 sm:grid-cols-2">
-                    <FormField label={t('vehicles.completed_date')} error={errors.performed_at}>
-                        <Input type="date" value={form.performed_at} onChange={(e) => set('performed_at', e.target.value)} className="text-base" />
-                    </FormField>
-                    <FormField label={t('vehicles.completed_mileage')} error={errors.mileage}>
-                        <Input value={form.mileage} onChange={(e) => set('mileage', e.target.value)} inputMode="numeric" className="text-base" />
-                    </FormField>
-                    <FormField label={t('vehicles.completed_cost')} error={errors.cost}>
-                        <Input value={form.cost} onChange={(e) => set('cost', e.target.value)} inputMode="decimal" placeholder="0.00" className="text-base" />
-                    </FormField>
-                    <ProviderPicker
-                        providers={providers}
-                        value={{ serviceProviderId: form.service_provider_id, provider: form.provider }}
-                        onChange={(v) => setForm((p) => ({ ...p, service_provider_id: v.serviceProviderId, provider: v.provider }))}
-                        label={t('vehicles.completed_provider')}
-                        t={t}
-                        error={errors.provider ?? errors.service_provider_id}
-                    />
-                </div>
-                <FormField label={t('vehicles.notes_label')} error={errors.notes}>
-                    <textarea
-                        value={form.notes}
-                        onChange={(e) => set('notes', e.target.value)}
-                        rows={2}
-                        className="border-input bg-surface-card focus-visible:ring-ring w-full rounded-lg border px-3 py-2 text-base focus-visible:ring-2 focus-visible:outline-none"
-                    />
-                </FormField>
-                {/* A cost here is mirrored into Spending, linked to this car. */}
-                <p className="text-muted-foreground text-xs">{t('vehicles.cost_to_spending_hint')}</p>
-                <div className="flex items-center gap-3">
-                    <Button type="button" onClick={submit} disabled={processing || form.mileage.trim() === '' || form.performed_at === ''} className="flex-1">
+    return (
+        <>
+            <div className="flex flex-wrap gap-2">
+                <Button type="button" onClick={() => setPanel('complete')}>
+                    <CheckCircle2 className="size-4" /> {t('vehicles.mark_completed')}
+                </Button>
+                {canExpense && (
+                    <Button type="button" variant="outline" onClick={() => setPanel('expense')}>
+                        <Receipt className="size-4" /> {t('vehicles.add_expense')}
+                    </Button>
+                )}
+                {/* Only offer "Create task" when the schedule has no open one — otherwise the banner links to it. */}
+                {!linkedTask && (
+                    <Button type="button" variant="outline" onClick={createTask} disabled={processing}>
+                        <Plus className="size-4" /> {t('vehicles.create_task')}
+                    </Button>
+                )}
+            </div>
+
+            {/* Record a completion (records the service, closes any linked task, logs cost to Spending). */}
+            <ResponsiveModal
+                open={panel === 'complete'}
+                onOpenChange={(v) => !v && close()}
+                title={t('vehicles.record_completion')}
+                className="sm:max-w-lg"
+                footer={
+                    <Button type="button" onClick={submit} disabled={processing || form.mileage.trim() === '' || form.performed_at === ''} className="w-full">
                         <CheckCircle2 className="size-4" /> {t('vehicles.save_completion')}
                     </Button>
-                    <Button type="button" variant="outline" onClick={close}>
-                        {t('vehicles.cancel')}
-                    </Button>
+                }
+            >
+                <div className="flex flex-col gap-4 pb-1">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <FormField label={t('vehicles.completed_date')} error={errors.performed_at}>
+                            <Input type="date" value={form.performed_at} onChange={(e) => set('performed_at', e.target.value)} className="text-base" />
+                        </FormField>
+                        <FormField label={t('vehicles.completed_mileage')} error={errors.mileage}>
+                            <Input value={form.mileage} onChange={(e) => set('mileage', e.target.value)} inputMode="numeric" className="text-base" />
+                        </FormField>
+                        <FormField label={t('vehicles.completed_cost')} error={errors.cost}>
+                            <Input value={form.cost} onChange={(e) => set('cost', e.target.value)} inputMode="decimal" placeholder="0.00" className="text-base" />
+                        </FormField>
+                        <ProviderPicker
+                            providers={providers}
+                            value={{ serviceProviderId: form.service_provider_id, provider: form.provider }}
+                            onChange={(v) => setForm((p) => ({ ...p, service_provider_id: v.serviceProviderId, provider: v.provider }))}
+                            label={t('vehicles.completed_provider')}
+                            t={t}
+                            error={errors.provider ?? errors.service_provider_id}
+                        />
+                    </div>
+                    <FormField label={t('vehicles.notes_label')} error={errors.notes}>
+                        <textarea
+                            value={form.notes}
+                            onChange={(e) => set('notes', e.target.value)}
+                            rows={2}
+                            className="border-input bg-surface-card focus-visible:ring-ring w-full rounded-lg border px-3 py-2 text-base focus-visible:ring-2 focus-visible:outline-none"
+                        />
+                    </FormField>
+                    {/* A cost here is mirrored into Spending, linked to this car. */}
+                    <p className="text-muted-foreground text-xs">{t('vehicles.cost_to_spending_hint')}</p>
                 </div>
-            </section>
-        );
-    }
+            </ResponsiveModal>
 
-    if (panel === 'expense') {
-        return (
-            <section className="bg-surface-card flex flex-col gap-4 rounded-2xl border p-5">
-                <h3 className="font-heading text-primary text-lg">{t('vehicles.add_expense')}</h3>
-                <div className="grid gap-4 sm:grid-cols-2">
-                    <FormField label={t('vehicles.expense_amount')} error={errors.amount}>
-                        <Input value={expense.amount} onChange={(e) => setExp('amount', e.target.value)} inputMode="decimal" placeholder="0.00" className="text-base" />
-                    </FormField>
-                    <FormField label={t('vehicles.completed_date')} error={errors.spent_at}>
-                        <Input type="date" value={expense.spent_at} onChange={(e) => setExp('spent_at', e.target.value)} className="text-base" />
-                    </FormField>
-                </div>
-                <FormField label={t('vehicles.expense_note')} error={errors.note}>
-                    <Input value={expense.note} onChange={(e) => setExp('note', e.target.value)} placeholder={schedule.name} className="text-base" />
-                </FormField>
-                <div className="flex items-center gap-3">
-                    <Button type="button" onClick={submitExpense} disabled={processing || expense.amount.trim() === ''} className="flex-1">
+            {/* Add an ad-hoc expense for this service, mirrored into Spending linked to the car. */}
+            <ResponsiveModal
+                open={panel === 'expense'}
+                onOpenChange={(v) => !v && close()}
+                title={t('vehicles.add_expense')}
+                autoFocusRef={amountRef}
+                className="sm:max-w-lg"
+                footer={
+                    <Button type="button" onClick={submitExpense} disabled={processing || expense.amount.trim() === ''} className="w-full">
                         <Receipt className="size-4" /> {t('vehicles.save_expense')}
                     </Button>
-                    <Button type="button" variant="outline" onClick={close}>
-                        {t('vehicles.cancel')}
-                    </Button>
+                }
+            >
+                <div className="flex flex-col gap-4 pb-1">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <FormField label={t('vehicles.expense_amount')} error={errors.amount}>
+                            <Input ref={amountRef} value={expense.amount} onChange={(e) => setExp('amount', e.target.value)} inputMode="decimal" placeholder="0.00" className="text-base" />
+                        </FormField>
+                        <FormField label={t('vehicles.completed_date')} error={errors.spent_at}>
+                            <Input type="date" value={expense.spent_at} onChange={(e) => setExp('spent_at', e.target.value)} className="text-base" />
+                        </FormField>
+                    </div>
+                    <FormField label={t('vehicles.expense_note')} error={errors.note}>
+                        <Input value={expense.note} onChange={(e) => setExp('note', e.target.value)} placeholder={schedule.name} className="text-base" />
+                    </FormField>
                 </div>
-            </section>
-        );
-    }
-
-    return (
-        <div className="flex flex-wrap gap-2">
-            <Button type="button" onClick={() => setPanel('complete')}>
-                <CheckCircle2 className="size-4" /> {t('vehicles.mark_completed')}
-            </Button>
-            {canExpense && (
-                <Button type="button" variant="outline" onClick={() => setPanel('expense')}>
-                    <Receipt className="size-4" /> {t('vehicles.add_expense')}
-                </Button>
-            )}
-            {/* Only offer "Create task" when the schedule has no open one — otherwise the banner links to it. */}
-            {!linkedTask && (
-                <Button type="button" variant="outline" onClick={createTask} disabled={processing}>
-                    <Plus className="size-4" /> {t('vehicles.create_task')}
-                </Button>
-            )}
-        </div>
+            </ResponsiveModal>
+        </>
     );
 }
 

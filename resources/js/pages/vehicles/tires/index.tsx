@@ -1,11 +1,12 @@
 import { Head, router } from '@inertiajs/react';
 import { Bell, CircleDot, Pencil, Plus, Trash2 } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn } from '@/lib/i18n';
 import { distanceText, mileageText, tireSeasonLabel, vehicleTitle, type TireSet, type UnitSystem, type VehicleHeader } from '@/lib/vehicles';
@@ -46,37 +47,44 @@ export default function VehicleTires({ vehicle, unitSystem, sets, canRemind }: P
 
                 <div className="flex items-center justify-between gap-3">
                     <h2 className="font-heading text-primary text-xl">{t('vehicles.tires')}</h2>
-                    {!adding && (
-                        <Button type="button" onClick={() => setAdding(true)}>
-                            <Plus className="size-4" /> {t('vehicles.add_tire_set')}
-                        </Button>
-                    )}
+                    <Button type="button" onClick={() => setAdding(true)}>
+                        <Plus className="size-4" /> {t('vehicles.add_tire_set')}
+                    </Button>
                 </div>
 
-                {adding && <TireForm vehicle={vehicle} set={null} t={t} onDone={() => setAdding(false)} onCancel={() => setAdding(false)} />}
-
-                {sets.length === 0 && !adding ? (
+                {sets.length === 0 ? (
                     <EmptyState t={t} />
                 ) : (
                     <ul className="flex flex-col gap-3">
-                        {sets.map((s) =>
-                            editingId === s.id ? (
-                                <TireForm key={s.id} vehicle={vehicle} set={s} t={t} onDone={() => setEditingId(null)} onCancel={() => setEditingId(null)} />
-                            ) : (
-                                <TireCard
-                                    key={s.id}
-                                    vehicle={vehicle}
-                                    set={s}
-                                    unitSystem={unitSystem}
-                                    canRemind={canRemind}
-                                    t={t}
-                                    onEdit={() => setEditingId(s.id)}
-                                />
-                            ),
-                        )}
+                        {sets.map((s) => (
+                            <TireCard
+                                key={s.id}
+                                vehicle={vehicle}
+                                set={s}
+                                unitSystem={unitSystem}
+                                canRemind={canRemind}
+                                t={t}
+                                onEdit={() => setEditingId(s.id)}
+                            />
+                        ))}
                     </ul>
                 )}
             </div>
+
+            {/* Always mounted (per the shared-modal pattern in ItemFormModal): open drives both the "add"
+                and "edit" cases, and tire is looked up fresh from `sets` by editingId. */}
+            <TireFormModal
+                open={adding || editingId !== null}
+                onOpenChange={(v) => {
+                    if (!v) {
+                        setAdding(false);
+                        setEditingId(null);
+                    }
+                }}
+                vehicle={vehicle}
+                tire={editingId !== null ? (sets.find((s) => s.id === editingId) ?? null) : null}
+                t={t}
+            />
         </AppLayout>
     );
 }
@@ -172,20 +180,50 @@ function TireCard({
     );
 }
 
-// Add/edit form. `is_mounted` is offered only on create (existing sets swap via the card's mount action).
-function TireForm({ vehicle, set, t, onDone, onCancel }: { vehicle: VehicleHeader; set: TireSet | null; t: TFn; onDone: () => void; onCancel: () => void }) {
-    const editing = set !== null;
+// Add/edit modal. `is_mounted` is offered only on create (existing sets swap via the card's mount action).
+// `tire` null => add; a TireSet => edit. Stays mounted; re-seeds its fields whenever it opens (mirrors
+// ItemFormModal in inventory-modals.tsx) so switching between "add" and editing different rows never
+// leaks stale field values from a previous open.
+function TireFormModal({
+    open,
+    onOpenChange,
+    vehicle,
+    tire,
+    t,
+}: {
+    open: boolean;
+    onOpenChange: (v: boolean) => void;
+    vehicle: VehicleHeader;
+    tire: TireSet | null;
+    t: TFn;
+}) {
+    const editing = tire !== null;
     const [form, setForm] = useState({
-        season: set?.season ?? 'summer',
-        brand: set?.brand ?? '',
-        size: set?.size ?? '',
-        tread_depth_mm: set?.treadDepthMm != null ? String(set.treadDepthMm) : '',
-        storage_location: set?.storageLocation ?? '',
-        is_mounted: set?.isMounted ?? false,
-        notes: set?.notes ?? '',
+        season: tire?.season ?? 'summer',
+        brand: tire?.brand ?? '',
+        size: tire?.size ?? '',
+        tread_depth_mm: tire?.treadDepthMm != null ? String(tire.treadDepthMm) : '',
+        storage_location: tire?.storageLocation ?? '',
+        is_mounted: tire?.isMounted ?? false,
+        notes: tire?.notes ?? '',
     });
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [processing, setProcessing] = useState(false);
+
+    useEffect(() => {
+        if (!open) return;
+        setForm({
+            season: tire?.season ?? 'summer',
+            brand: tire?.brand ?? '',
+            size: tire?.size ?? '',
+            tread_depth_mm: tire?.treadDepthMm != null ? String(tire.treadDepthMm) : '',
+            storage_location: tire?.storageLocation ?? '',
+            is_mounted: tire?.isMounted ?? false,
+            notes: tire?.notes ?? '',
+        });
+        setErrors({});
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, tire?.id]);
 
     const setField = (k: keyof typeof form, v: string | boolean) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -201,77 +239,77 @@ function TireForm({ vehicle, set, t, onDone, onCancel }: { vehicle: VehicleHeade
             ...(!editing ? { is_mounted: form.is_mounted } : {}),
             ...(editing ? { _method: 'patch' } : {}),
         };
-        const url = editing ? `/m/vehicles/${vehicle.id}/tires/${set!.id}` : `/m/vehicles/${vehicle.id}/tires`;
+        const url = editing ? `/m/vehicles/${vehicle.id}/tires/${tire!.id}` : `/m/vehicles/${vehicle.id}/tires`;
         router.post(url, payload, {
             preserveScroll: true,
-            onSuccess: onDone,
+            onSuccess: () => onOpenChange(false),
             onError: (e) => setErrors(e as Record<string, string>),
             onFinish: () => setProcessing(false),
         });
     };
 
     return (
-        <section className="bg-surface-card flex flex-col gap-4 rounded-2xl border p-5">
-            <h3 className="font-heading text-primary text-lg">{editing ? t('vehicles.edit_tire_set') : t('vehicles.add_tire_set')}</h3>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-                <Field label={t('vehicles.tire_season')} error={errors.season}>
-                    <select
-                        value={form.season}
-                        onChange={(e) => setField('season', e.target.value)}
-                        className="border-input bg-surface-card focus-visible:ring-ring w-full rounded-lg border px-3 py-2 text-base focus-visible:ring-2 focus-visible:outline-none"
-                    >
-                        {SEASONS.map((s) => (
-                            <option key={s} value={s}>
-                                {tireSeasonLabel(t, s)}
-                            </option>
-                        ))}
-                    </select>
-                </Field>
-                <Field label={t('vehicles.tire_brand')} error={errors.brand}>
-                    <Input value={form.brand} onChange={(e) => setField('brand', e.target.value)} className="text-base" />
-                </Field>
-                <Field label={t('vehicles.tire_size')} error={errors.size}>
-                    <Input value={form.size} onChange={(e) => setField('size', e.target.value)} placeholder={t('vehicles.tire_size_placeholder')} className="text-base" />
-                </Field>
-                <Field label={t('vehicles.tire_tread')} error={errors.tread_depth_mm}>
-                    <Input value={form.tread_depth_mm} onChange={(e) => setField('tread_depth_mm', e.target.value)} inputMode="decimal" placeholder="0.0" className="text-base" />
-                </Field>
-                <Field label={t('vehicles.tire_storage')} error={errors.storage_location}>
-                    <Input
-                        value={form.storage_location}
-                        onChange={(e) => setField('storage_location', e.target.value)}
-                        placeholder={t('vehicles.tire_storage_placeholder')}
-                        className="text-base"
-                    />
-                </Field>
-            </div>
-
-            <Field label={t('vehicles.notes_label')} error={errors.notes}>
-                <textarea
-                    value={form.notes}
-                    onChange={(e) => setField('notes', e.target.value)}
-                    rows={2}
-                    className="border-input bg-surface-card focus-visible:ring-ring w-full rounded-lg border px-3 py-2 text-base focus-visible:ring-2 focus-visible:outline-none"
-                />
-            </Field>
-
-            {!editing && (
-                <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={form.is_mounted} onChange={(e) => setField('is_mounted', e.target.checked)} className="size-4 rounded border" />
-                    <span className="text-text-secondary">{t('vehicles.tire_set_mounted_now')}</span>
-                </label>
-            )}
-
-            <div className="flex items-center gap-3">
-                <Button type="button" onClick={submit} disabled={processing} className="flex-1">
+        <ResponsiveModal
+            open={open}
+            onOpenChange={onOpenChange}
+            title={editing ? t('vehicles.edit_tire_set') : t('vehicles.add_tire_set')}
+            footer={
+                <Button type="button" onClick={submit} disabled={processing} className="w-full">
                     {t('vehicles.save')}
                 </Button>
-                <Button type="button" variant="outline" onClick={onCancel}>
-                    {t('vehicles.cancel')}
-                </Button>
+            }
+        >
+            <div className="flex flex-col gap-4 pb-1">
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label={t('vehicles.tire_season')} error={errors.season}>
+                        <select
+                            value={form.season}
+                            onChange={(e) => setField('season', e.target.value)}
+                            className="border-input bg-surface-card focus-visible:ring-ring w-full rounded-lg border px-3 py-2 text-base focus-visible:ring-2 focus-visible:outline-none"
+                        >
+                            {SEASONS.map((s) => (
+                                <option key={s} value={s}>
+                                    {tireSeasonLabel(t, s)}
+                                </option>
+                            ))}
+                        </select>
+                    </Field>
+                    <Field label={t('vehicles.tire_brand')} error={errors.brand}>
+                        <Input value={form.brand} onChange={(e) => setField('brand', e.target.value)} className="text-base" />
+                    </Field>
+                    <Field label={t('vehicles.tire_size')} error={errors.size}>
+                        <Input value={form.size} onChange={(e) => setField('size', e.target.value)} placeholder={t('vehicles.tire_size_placeholder')} className="text-base" />
+                    </Field>
+                    <Field label={t('vehicles.tire_tread')} error={errors.tread_depth_mm}>
+                        <Input value={form.tread_depth_mm} onChange={(e) => setField('tread_depth_mm', e.target.value)} inputMode="decimal" placeholder="0.0" className="text-base" />
+                    </Field>
+                    <Field label={t('vehicles.tire_storage')} error={errors.storage_location}>
+                        <Input
+                            value={form.storage_location}
+                            onChange={(e) => setField('storage_location', e.target.value)}
+                            placeholder={t('vehicles.tire_storage_placeholder')}
+                            className="text-base"
+                        />
+                    </Field>
+                </div>
+
+                <Field label={t('vehicles.notes_label')} error={errors.notes}>
+                    <textarea
+                        value={form.notes}
+                        onChange={(e) => setField('notes', e.target.value)}
+                        rows={2}
+                        className="border-input bg-surface-card focus-visible:ring-ring w-full rounded-lg border px-3 py-2 text-base focus-visible:ring-2 focus-visible:outline-none"
+                    />
+                </Field>
+
+                {!editing && (
+                    <label className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked={form.is_mounted} onChange={(e) => setField('is_mounted', e.target.checked)} className="size-4 rounded border" />
+                        <span className="text-text-secondary">{t('vehicles.tire_set_mounted_now')}</span>
+                    </label>
+                )}
             </div>
-        </section>
+        </ResponsiveModal>
     );
 }
 

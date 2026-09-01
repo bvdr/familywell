@@ -1,11 +1,12 @@
 import { Head, router } from '@inertiajs/react';
 import { Pencil, Plus, StickyNote, Trash2 } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn } from '@/lib/i18n';
 import { relativeTime } from '@/lib/notifications';
@@ -44,7 +45,7 @@ export default function VehicleNotes({ vehicle, notes, canManage }: Props) {
 
                 <div className="flex items-center justify-between gap-3">
                     <h2 className="font-heading text-primary text-xl">{t('vehicles.notes_section')}</h2>
-                    {canManage && !adding && (
+                    {canManage && (
                         <Button type="button" onClick={() => setAdding(true)}>
                             <Plus className="size-4" /> {t('vehicles.add_note')}
                         </Button>
@@ -54,22 +55,29 @@ export default function VehicleNotes({ vehicle, notes, canManage }: Props) {
                 {/* Notes reuse the Notes module; without it enabled we still list existing notes read-only. */}
                 {!canManage && <p className="text-muted-foreground bg-surface/60 rounded-xl border border-dashed px-4 py-3 text-sm">{t('vehicles.notes_module_off')}</p>}
 
-                {adding && <NoteForm vehicle={vehicle} note={null} t={t} onDone={() => setAdding(false)} onCancel={() => setAdding(false)} />}
-
-                {notes.length === 0 && !adding ? (
+                {notes.length === 0 ? (
                     <EmptyState t={t} />
                 ) : (
                     <ul className="flex flex-col gap-3">
-                        {notes.map((n) =>
-                            editingId === n.id ? (
-                                <NoteForm key={n.id} vehicle={vehicle} note={n} t={t} onDone={() => setEditingId(null)} onCancel={() => setEditingId(null)} />
-                            ) : (
-                                <NoteCard key={n.id} vehicle={vehicle} note={n} canManage={canManage} t={t} onEdit={() => setEditingId(n.id)} />
-                            ),
-                        )}
+                        {notes.map((n) => (
+                            <NoteCard key={n.id} vehicle={vehicle} note={n} canManage={canManage} t={t} onEdit={() => setEditingId(n.id)} />
+                        ))}
                     </ul>
                 )}
             </div>
+
+            <NoteFormModal
+                open={adding || editingId !== null}
+                onOpenChange={(v) => {
+                    if (!v) {
+                        setAdding(false);
+                        setEditingId(null);
+                    }
+                }}
+                note={editingId !== null ? (notes.find((n) => n.id === editingId) ?? null) : null}
+                vehicleId={vehicle.id}
+                t={t}
+            />
         </AppLayout>
     );
 }
@@ -114,52 +122,84 @@ function NoteCard({ vehicle, note, canManage, t, onEdit }: { vehicle: VehicleHea
     );
 }
 
-function NoteForm({ vehicle, note, t, onDone, onCancel }: { vehicle: VehicleHeader; note: VehicleNote | null; t: TFn; onDone: () => void; onCancel: () => void }) {
+// Add / Edit note. One modal for both: pass a `note` to edit, `null` to add. Self-contained — re-seeds
+// its own local form state whenever it opens, mirroring the ItemFormModal pattern (inventory-modals.tsx).
+function NoteFormModal({
+    open,
+    onOpenChange,
+    note,
+    vehicleId,
+    t,
+}: {
+    open: boolean;
+    onOpenChange: (v: boolean) => void;
+    note: VehicleNote | null;
+    vehicleId: number;
+    t: TFn;
+}) {
     const editing = note !== null;
-    const [form, setForm] = useState({ title: note?.title ?? '', body: note?.body ?? '' });
+    const titleRef = useRef<HTMLInputElement>(null);
+    const [form, setForm] = useState({ title: '', body: '' });
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [processing, setProcessing] = useState(false);
+
+    // Re-seed on open (not on every keystroke) so Add starts blank and Edit reflects the current note,
+    // even after a prior edit of a different note.
+    useEffect(() => {
+        if (open) {
+            setForm({ title: note?.title ?? '', body: note?.body ?? '' });
+            setErrors({});
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, note?.id]);
 
     const set = (k: keyof typeof form, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
     const submit = () => {
         setProcessing(true);
-        const url = editing ? `/m/vehicles/${vehicle.id}/notes/${note!.id}` : `/m/vehicles/${vehicle.id}/notes`;
+        const url = editing ? `/m/vehicles/${vehicleId}/notes/${note!.id}` : `/m/vehicles/${vehicleId}/notes`;
         const method = editing ? router.patch : router.post;
         method(url, form, {
             preserveScroll: true,
-            onSuccess: onDone,
+            onSuccess: () => onOpenChange(false),
             onError: (e) => setErrors(e as Record<string, string>),
             onFinish: () => setProcessing(false),
         });
     };
 
     return (
-        <section className="bg-surface-card flex flex-col gap-4 rounded-2xl border p-5">
-            <h3 className="font-heading text-primary text-lg">{editing ? t('vehicles.edit_note') : t('vehicles.add_note')}</h3>
-
-            <Field label={t('vehicles.note_title_label')} error={errors.title}>
-                <Input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder={t('vehicles.note_title_placeholder')} className="text-base" />
-            </Field>
-
-            <Field label={t('vehicles.note_body_label')} error={errors.body}>
-                <textarea
-                    value={form.body}
-                    onChange={(e) => set('body', e.target.value)}
-                    rows={4}
-                    className="border-input bg-surface-card focus-visible:ring-ring w-full rounded-lg border px-3 py-2 text-base focus-visible:ring-2 focus-visible:outline-none"
-                />
-            </Field>
-
-            <div className="flex items-center gap-3">
-                <Button type="button" onClick={submit} disabled={processing || form.body.trim() === ''} className="flex-1">
+        <ResponsiveModal
+            open={open}
+            onOpenChange={onOpenChange}
+            title={editing ? t('vehicles.edit_note') : t('vehicles.add_note')}
+            autoFocusRef={titleRef}
+            footer={
+                <Button type="button" onClick={submit} disabled={processing || form.body.trim() === ''} className="w-full">
                     {t('vehicles.save')}
                 </Button>
-                <Button type="button" variant="outline" onClick={onCancel}>
-                    {t('vehicles.cancel')}
-                </Button>
+            }
+        >
+            <div className="flex flex-col gap-4 pb-1">
+                <Field label={t('vehicles.note_title_label')} error={errors.title}>
+                    <Input
+                        ref={titleRef}
+                        value={form.title}
+                        onChange={(e) => set('title', e.target.value)}
+                        placeholder={t('vehicles.note_title_placeholder')}
+                        className="text-base"
+                    />
+                </Field>
+
+                <Field label={t('vehicles.note_body_label')} error={errors.body}>
+                    <textarea
+                        value={form.body}
+                        onChange={(e) => set('body', e.target.value)}
+                        rows={4}
+                        className="border-input bg-surface-card focus-visible:ring-ring w-full rounded-lg border px-3 py-2 text-base focus-visible:ring-2 focus-visible:outline-none"
+                    />
+                </Field>
             </div>
-        </section>
+        </ResponsiveModal>
     );
 }
 
