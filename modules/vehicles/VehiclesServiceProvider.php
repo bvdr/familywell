@@ -35,6 +35,19 @@ class VehiclesServiceProvider extends ServiceProvider
                 // common "I drove some km" action stays a single, fast round-trip separate from a full edit.
                 Route::post('/{vehicle}/mileage', [VehiclesController::class, 'updateMileage'])->name('mileage');
 
+                // Maintenance (P2): recurring schedules with dual time+mileage triggers, their history, and
+                // "mark as completed". Nested under the vehicle — a schedule only exists in the context of
+                // its car. `{schedule}` is guarded to belong to `{vehicle}` in the controller.
+                Route::get('/{vehicle}/maintenance', [VehicleMaintenanceController::class, 'index'])->name('maintenance.index');
+                Route::get('/{vehicle}/maintenance/new', [VehicleMaintenanceController::class, 'create'])->name('maintenance.create');
+                Route::post('/{vehicle}/maintenance', [VehicleMaintenanceController::class, 'store'])->name('maintenance.store');
+                Route::get('/{vehicle}/maintenance/{schedule}', [VehicleMaintenanceController::class, 'show'])->name('maintenance.show');
+                Route::get('/{vehicle}/maintenance/{schedule}/edit', [VehicleMaintenanceController::class, 'edit'])->name('maintenance.edit');
+                Route::patch('/{vehicle}/maintenance/{schedule}', [VehicleMaintenanceController::class, 'update'])->name('maintenance.update');
+                Route::delete('/{vehicle}/maintenance/{schedule}', [VehicleMaintenanceController::class, 'destroy'])->name('maintenance.destroy');
+                // Record a performance: writes history + advances the schedule's baseline (next due recomputes).
+                Route::post('/{vehicle}/maintenance/{schedule}/complete', [VehicleMaintenanceController::class, 'complete'])->name('maintenance.complete');
+
                 // Optional cover photo (R2, same StoredImage pattern as project covers / spend receipts).
                 Route::post('/{vehicle}/photo', [VehiclesController::class, 'uploadPhoto'])->name('photo.upload');
                 Route::get('/{vehicle}/photo', [VehiclesController::class, 'photoFile'])->name('photo.show');
