@@ -4,7 +4,7 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, Sid
 import { useT } from '@/lib/i18n';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { Blocks, Contact, FolderKanban, LayoutGrid, ListChecks, type LucideIcon, Package, ShoppingCart, StickyNote, Users, Wallet } from 'lucide-react';
+import { Blocks, Car, Contact, FolderKanban, LayoutGrid, ListChecks, type LucideIcon, Package, ShoppingCart, StickyNote, Users, Wallet } from 'lucide-react';
 import AppLogo from './app-logo';
 
 // titleKey is a translation key, resolved per-render so the sidebar is localized.
@@ -23,6 +23,7 @@ const moduleNavItems: Record<string, { titleKey: string; url: string; icon: Luci
     notes: { titleKey: 'nav.notes', url: '/m/notes', icon: StickyNote },
     contacts: { titleKey: 'nav.contacts', url: '/m/contacts', icon: Contact },
     inventory: { titleKey: 'nav.inventory', url: '/m/inventory', icon: Package },
+    vehicles: { titleKey: 'nav.vehicles', url: '/m/vehicles', icon: Car },
 };
 
 export function AppSidebar() {

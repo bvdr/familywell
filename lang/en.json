@@ -27,6 +27,7 @@
         "notes": "Notes",
         "contacts": "Contacts",
         "inventory": "Inventory",
+        "vehicles": "Vehicles",
         "notifications": "Notifications",
         "settings": "Settings",
         "more": "More",
@@ -68,6 +69,7 @@
         "tasks": "New to-do list",
         "projects": "New project",
         "spending": "New event",
-        "notes": "New note"
+        "notes": "New note",
+        "vehicles": "Add a vehicle"
     }
 }

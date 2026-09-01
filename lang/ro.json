@@ -27,6 +27,7 @@
         "notes": "Notițe",
         "contacts": "Contacte",
         "inventory": "Inventar",
+        "vehicles": "Vehicule",
         "notifications": "Notificări",
         "settings": "Setări",
         "more": "Mai mult",
@@ -68,6 +69,7 @@
         "tasks": "Listă de sarcini nouă",
         "projects": "Proiect nou",
         "spending": "Eveniment nou",
-        "notes": "Notiță nouă"
+        "notes": "Notiță nouă",
+        "vehicles": "Adaugă un vehicul"
     }
 }
