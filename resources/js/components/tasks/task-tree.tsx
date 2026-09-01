@@ -375,6 +375,11 @@ function EditTaskModal({
     const [due, setDue] = useState(task.dueDate ?? '');
     const [assigned, setAssigned] = useState<number | null>(task.assignedTo);
 
+    // Once the task is deleted it no longer exists on the server, so any further PATCH to its endpoint
+    // 404s (route-model binding can't resolve it) and Inertia paints the branded "Nothing here" page.
+    // This guard makes both the debounced auto-save and the on-close flush no-ops after a delete.
+    const deleted = useRef(false);
+
     const patch = () =>
         router.patch(
             taskUrl(task.id),
@@ -388,18 +393,26 @@ function EditTaskModal({
             first.current = false;
             return;
         }
-        if (!title.trim()) return;
+        if (deleted.current || !title.trim()) return;
         const t = setTimeout(patch, 500);
         return () => clearTimeout(t);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [title, note, due, assigned]);
+
+    // Delete then close the drawer ourselves — leaving it open would let the on-close flush below fire a
+    // PATCH against the just-deleted task (the 404 root cause). `deleted` also blocks the auto-save flush.
+    const handleDelete = () => {
+        deleted.current = true;
+        onDelete();
+        onClose();
+    };
 
     return (
         <ResponsiveModal
             open
             onOpenChange={(v) => {
                 if (v) return;
-                if (title.trim()) patch(); // flush the last edit
+                if (!deleted.current && title.trim()) patch(); // flush the last edit
                 onClose();
             }}
             title={t('tasks.edit_task')}
@@ -472,7 +485,7 @@ function EditTaskModal({
                             router.patch(taskUrl(task.id), data, { preserveScroll: true, preserveState: true }),
                     }}
                 />
-                <button type="button" onClick={onDelete} className="text-destructive flex items-center justify-center gap-2 py-1 text-sm font-medium">
+                <button type="button" onClick={handleDelete} className="text-destructive flex items-center justify-center gap-2 py-1 text-sm font-medium">
                     <Trash2 className="size-4" /> {t('tasks.delete_task')}
                 </button>
             </div>

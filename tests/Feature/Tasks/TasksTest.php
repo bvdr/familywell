@@ -2,13 +2,16 @@
 
 use App\Models\Family;
 use App\Models\User;
-use Modules\Notifications\PushAlert;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareAccess;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
+use Modules\ImportantTodos\ImportantFlag;
+use Modules\Notifications\PushAlert;
+use Modules\RecurringTodos\RecurringRule;
 use Modules\Tasks\Task;
 use Modules\Tasks\TaskList;
+use NotificationChannels\WebPush\WebPushChannel;
 
 use function Pest\Laravel\actingAs;
 
@@ -141,7 +144,7 @@ it('mutes the push for a muted category but still logs it in-app', function () {
 
     // Still delivered to Bob, but only on the in-app log channel, no web push.
     Notification::assertSentTo($bob, PushAlert::class, function ($notification, $channels) {
-        return in_array('database', $channels, true) && ! in_array(\NotificationChannels\WebPush\WebPushChannel::class, $channels, true);
+        return in_array('database', $channels, true) && ! in_array(WebPushChannel::class, $channels, true);
     });
 });
 
@@ -186,4 +189,39 @@ it('only offers members with access as assignees on a private list', function ()
     // The non-shared member can't reach the list, so they must not be assignable.
     actingAs($users[0])->get("/m/tasks/lists/{$list->id}")
         ->assertInertia(fn ($p) => $p->has('members', 1)->where('members.0.id', $users[0]->id));
+});
+
+it('deletes a task carrying the important flag + a recurring rule and cleans up both, landing on a valid page', function () {
+    // Regression for the branded 404 on deleting an extended task: the extension rows must cascade
+    // away with the task (no orphans), the delete must redirect (not 404), and the list it lands on
+    // must still render. (The client-side companion fix closes the edit drawer on delete so its
+    // on-close flush never PATCHes the now-gone task — see resources/js/components/tasks/task-tree.tsx.)
+    [$family, $users] = tasksFamily();
+    $reg = app(ModuleRegistry::class);
+    $reg->enable('important_todos', $family->id);
+    $reg->enable('recurring_todos', $family->id);
+
+    actingAs($users[0])->post('/m/tasks/lists', ['name' => 'Chores']);
+    $list = TaskList::withoutGlobalScopes()->first();
+
+    actingAs($users[0])->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Mow the lawn', 'due_date' => '2026-09-01']);
+    $task = Task::withoutGlobalScopes()->first();
+
+    // Mark it important + weekly through the shared task endpoint (the module save hooks persist both).
+    actingAs($users[0])->patch("/m/tasks/tasks/{$task->id}", ['important' => true, 'recurrence' => 'weekly'])->assertRedirect();
+    expect(ImportantFlag::withoutGlobalScopes()->where('task_id', $task->id)->exists())->toBeTrue()
+        ->and(RecurringRule::withoutGlobalScopes()->where('task_id', $task->id)->exists())->toBeTrue();
+
+    actingAs($users[0])
+        ->from("/m/tasks/lists/{$list->id}")
+        ->delete("/m/tasks/tasks/{$task->id}")
+        ->assertRedirect(); // not a 404
+
+    // The task and both extension rows are gone — the FK cascade cleaned up, no orphans left behind.
+    expect(Task::withoutGlobalScopes()->count())->toBe(0)
+        ->and(ImportantFlag::withoutGlobalScopes()->count())->toBe(0)
+        ->and(RecurringRule::withoutGlobalScopes()->count())->toBe(0);
+
+    // The page the delete redirects back to still resolves (no branded "Nothing here").
+    actingAs($users[0])->get("/m/tasks/lists/{$list->id}")->assertOk();
 });
