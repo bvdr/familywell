@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Modules\Tasks\Task;
 
 /**
  * A recurring maintenance rule for one vehicle: two triggers (every `interval_km` and/or every
@@ -24,7 +25,7 @@ class VehicleMaintenanceSchedule extends Model
 
     protected $fillable = [
         'vehicle_id', 'name', 'type', 'interval_km', 'interval_months',
-        'last_performed_at', 'last_performed_mileage', 'notes', 'active', 'created_by', 'family_id',
+        'last_performed_at', 'last_performed_mileage', 'notes', 'active', 'open_task_id', 'created_by', 'family_id',
     ];
 
     protected $casts = [
@@ -33,6 +34,7 @@ class VehicleMaintenanceSchedule extends Model
         'last_performed_at' => 'date',
         'last_performed_mileage' => 'integer',
         'active' => 'boolean',
+        'open_task_id' => 'integer',
     ];
 
     public function vehicle(): BelongsTo
@@ -43,6 +45,16 @@ class VehicleMaintenanceSchedule extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * The Tasks task currently open for this schedule (P3: due -> task). Null once the maintenance is
+     * completed, so the next due cycle can spawn a fresh one. A plain reference, not an FK — MaintenanceTasks
+     * confirms the task still exists and is open before trusting it as "already handled".
+     */
+    public function openTask(): BelongsTo
+    {
+        return $this->belongsTo(Task::class, 'open_task_id');
     }
 
     /** This rule's performed-maintenance records, newest first. */
