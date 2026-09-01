@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Camera, Car, Gauge, Pencil, Wrench } from 'lucide-react';
+import { Camera, Car, ChevronRight, Gauge, Pencil, Wrench } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 
 import InputError from '@/components/input-error';
@@ -14,6 +14,8 @@ import {
     fuelLabel,
     MILEAGE_PRESETS,
     mileageText,
+    STATE_META,
+    stateLabel,
     transmissionLabel,
     vehicleSubtitle,
     vehicleTitle,
@@ -21,6 +23,8 @@ import {
     type Vehicle,
 } from '@/lib/vehicles';
 import type { BreadcrumbItem } from '@/types';
+
+import VehicleNav from './vehicle-nav';
 
 type Props = {
     vehicle: Vehicle;
@@ -55,11 +59,14 @@ export default function VehicleOverview({ vehicle, owner, primaryDriver, history
                     </Link>
                 </header>
 
+                <VehicleNav vehicleId={vehicle.id} active="overview" />
+
                 <MileagePanel vehicle={vehicle} t={t} />
 
-                {/* Later-phase sections, stubbed so the shape of the car's home is visible from day one. */}
+                {/* Maintenance is live (P2) — a real summary linking to the tab. Repairs / Fuel / Documents
+                    are still stubbed so the shape of the car's home stays visible until later phases. */}
+                <MaintenanceSummary vehicle={vehicle} t={t} />
                 <div className="grid gap-3 sm:grid-cols-2">
-                    <StubSection title={t('vehicles.maintenance')} desc={t('vehicles.maintenance_stub')} />
                     <StubSection title={t('vehicles.repairs')} desc={t('vehicles.repairs_stub')} />
                     <StubSection title={t('vehicles.fuel')} desc={t('vehicles.fuel_stub')} />
                     <StubSection title={t('vehicles.documents')} desc={t('vehicles.documents_stub')} />
@@ -214,6 +221,40 @@ function MileagePanel({ vehicle, t }: { vehicle: Vehicle; t: TFn }) {
                 )}
             </div>
         </section>
+    );
+}
+
+// The Maintenance summary tile on the Overview: the derived status dot, how many items need attention,
+// and the soonest service by distance — a link into the Maintenance tab. Real from P2 onward.
+function MaintenanceSummary({ vehicle, t }: { vehicle: Vehicle; t: TFn }) {
+    const color = STATE_META[vehicle.state].color;
+    const subtitle =
+        vehicle.attention > 0
+            ? t('vehicles.attention_count', { count: vehicle.attention })
+            : vehicle.nextServiceKm != null && vehicle.nextServiceKm >= 0
+              ? t('vehicles.next_service_in', { value: fmtMileage(vehicle.nextServiceKm) })
+              : t('vehicles.maint_all_good');
+
+    return (
+        <Link
+            href={`/m/vehicles/${vehicle.id}/maintenance`}
+            className="bg-surface-card group flex items-center gap-3 rounded-2xl border px-4 py-3.5 transition-colors hover:border-[var(--primary)]"
+        >
+            <span className="bg-accent-subtle text-primary flex size-10 shrink-0 items-center justify-center rounded-xl">
+                <Wrench className="size-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                    <span className="text-primary font-medium">{t('vehicles.maintenance')}</span>
+                    <span className="flex items-center gap-1 text-xs font-medium" style={{ color }}>
+                        <span className="size-1.5 rounded-full" style={{ background: color }} />
+                        {stateLabel(t, vehicle.state)}
+                    </span>
+                </div>
+                <span className="text-muted-foreground block truncate text-sm">{subtitle}</span>
+            </div>
+            <ChevronRight className="text-muted-foreground size-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
+        </Link>
     );
 }
 
