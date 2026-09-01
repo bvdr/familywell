@@ -97,6 +97,12 @@ class Vehicle extends Model
         return $this->hasMany(VehicleNoteLink::class);
     }
 
+    /** This vehicle's fuel fill-ups (V1.1), newest first. */
+    public function fuelEntries(): HasMany
+    {
+        return $this->hasMany(VehicleFuelEntry::class)->latest('filled_on')->latest('id');
+    }
+
     /**
      * Roll this vehicle's ACTIVE maintenance schedules up into the card summary: the status dot, the
      * "next service" distance, and how many items need attention. Reads the loaded `maintenanceSchedules`
