@@ -29,10 +29,68 @@ export type Vehicle = {
     roadTaxStatus: string | null;
     inspectionStatus: string | null;
     notes: string | null;
+    // Derived maintenance rollup (P2): the card status dot, the soonest service distance, and how many
+    // schedules need attention now (due or overdue).
     state: VehicleState;
     nextServiceKm: number | null;
+    attention: number;
     createdBy: number | null;
     updatedAt: string | null;
+};
+
+// The compact vehicle header the maintenance screens render from (title + odometer + state rollup).
+export type VehicleHeader = {
+    id: number;
+    make: string;
+    model: string;
+    year: number | null;
+    version: string | null;
+    currentMileage: number;
+    state: VehicleState;
+    nextServiceKm: number | null;
+    attention: number;
+};
+
+// The four maintenance statuses from the engine (MaintenanceStatus), most urgent last.
+export type MaintStatus = 'good' | 'due_soon' | 'due' | 'overdue';
+
+// A recurring maintenance schedule with its live computed status (VehicleMaintenanceSchedule::toPayload).
+export type MaintenanceSchedule = {
+    id: number;
+    vehicleId: number;
+    name: string;
+    type: string;
+    intervalKm: number | null;
+    intervalMonths: number | null;
+    lastPerformedAt: string | null;
+    lastPerformedMileage: number | null;
+    notes: string | null;
+    active: boolean;
+    status: MaintStatus;
+    nextDueMileage: number | null;
+    nextDueDate: string | null;
+    remainingKm: number | null;
+    remainingDays: number | null;
+    neverPerformed: boolean;
+};
+
+// One performed-maintenance record (VehicleMaintenanceHistory::toPayload).
+export type MaintenanceHistoryEntry = {
+    id: number;
+    scheduleId: number | null;
+    name: string;
+    performedAt: string | null;
+    mileage: number;
+    cost: number | null;
+    provider: string | null;
+    notes: string | null;
+};
+
+// A predefined template for the add-schedule picker (MaintenanceTemplate::options).
+export type MaintenanceTemplate = {
+    key: string;
+    intervalKm: number | null;
+    intervalMonths: number | null;
 };
 
 export type MileageEntry = {
@@ -90,3 +148,58 @@ export const vehicleSubtitle = (v: Pick<Vehicle, 'year' | 'version'>): string =>
 // The quick-update presets on the Overview (spec 2): add this many km to the current odometer, or enter
 // a value manually. Kept here so the overview and any future quick-add share one list.
 export const MILEAGE_PRESETS = [10, 50, 100, 500] as const;
+
+// ---- Maintenance (P2) ------------------------------------------------------------------------------
+
+// Colour + label per maintenance status, from the theme tokens so it tracks the active skin. Mirrors the
+// four engine statuses; the card dot collapses due/due_soon into one amber (see maintStatusToVehicleState).
+export const MAINT_STATUS_META: Record<MaintStatus, { color: string }> = {
+    good: { color: 'var(--success)' },
+    due_soon: { color: 'var(--warning)' },
+    due: { color: 'var(--warning)' },
+    overdue: { color: 'var(--destructive)' },
+};
+
+/** Localised status label (Good / Due soon / Due / Overdue). */
+export const maintStatusLabel = (t: TFn, status: MaintStatus): string => t(`vehicles.maint_status_${status}`);
+
+/** Localised template label ("Oil change"); an unknown key (or "custom") falls back to the raw type. */
+export const templateLabel = (t: TFn, key: string): string => {
+    const k = `vehicles.mtpl_${key}`;
+    const label = t(k);
+    return label === k ? key : label;
+};
+
+// The recurring interval as a human line: "Every 15,000 km · 12 months", skipping a missing trigger.
+export const intervalText = (t: TFn, km: number | null, months: number | null): string => {
+    const parts: string[] = [];
+    if (km != null) parts.push(t('vehicles.every_km', { value: fmtMileage(km) }));
+    if (months != null) parts.push(t('vehicles.every_months', { value: months }));
+    return parts.join(' · ');
+};
+
+/**
+ * The one-line "how far off" summary for a schedule, from whichever trigger is more pressing. Reads as
+ * "6,860 km remaining", "in 24 days", "due now", or "overdue by 500 km / 12 days". Never-performed
+ * schedules have no baseline, so they read "Not recorded yet".
+ */
+export const remainingText = (t: TFn, s: MaintenanceSchedule): string => {
+    if (s.neverPerformed) return t('vehicles.never_performed');
+
+    // Pick the trigger closest to (or furthest past) its due point — the smaller signed remaining wins.
+    const km = s.remainingKm;
+    const days = s.remainingDays;
+    const useKm = km != null && (days == null || km <= days);
+
+    if (useKm && km != null) {
+        if (km > 0) return t('vehicles.km_remaining', { value: fmtMileage(km) });
+        if (km === 0) return t('vehicles.due_now');
+        return t('vehicles.km_overdue', { value: fmtMileage(-km) });
+    }
+    if (days != null) {
+        if (days > 0) return t('vehicles.days_remaining', { value: days });
+        if (days === 0) return t('vehicles.due_now');
+        return t('vehicles.days_overdue', { value: -days });
+    }
+    return t('vehicles.due_now');
+};
