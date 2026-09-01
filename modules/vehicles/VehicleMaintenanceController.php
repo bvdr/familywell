@@ -95,6 +95,8 @@ class VehicleMaintenanceController extends Controller
             // task" again, and whether Spending is on so "Add expense" only shows when it can land somewhere.
             'linkedTask' => $this->linkedTask($schedule),
             'canExpense' => app(ModuleRegistry::class)->isEnabled('spending', (int) CurrentFamily::id()),
+            // V1.1: whether Shopping is on, so the "Add part" action only shows when it can add somewhere.
+            'canShopping' => app(ModuleRegistry::class)->isEnabled('shopping', (int) CurrentFamily::id()),
             // V1.1: the family's service providers, for the completion form's provider picker.
             'providers' => $this->providerOptions(),
         ]);

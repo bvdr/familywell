@@ -1,0 +1,299 @@
+import { Head, router } from '@inertiajs/react';
+import { Bell, CircleDot, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+
+import InputError from '@/components/input-error';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import AppLayout from '@/layouts/app-layout';
+import { useT, type TFn } from '@/lib/i18n';
+import { distanceText, mileageText, tireSeasonLabel, vehicleTitle, type TireSet, type UnitSystem, type VehicleHeader } from '@/lib/vehicles';
+import type { BreadcrumbItem } from '@/types';
+
+import VehicleNav from '../vehicle-nav';
+
+type Props = {
+    vehicle: VehicleHeader;
+    unitSystem: UnitSystem;
+    sets: TireSet[];
+    canRemind: boolean;
+};
+
+const SEASONS = ['summer', 'winter', 'all_season'] as const;
+
+export default function VehicleTires({ vehicle, unitSystem, sets, canRemind }: Props) {
+    const t = useT();
+    const [adding, setAdding] = useState(false);
+    const [editingId, setEditingId] = useState<number | null>(null);
+
+    const breadcrumbs: BreadcrumbItem[] = [
+        { title: t('vehicles.title'), href: '/m/vehicles' },
+        { title: vehicleTitle(vehicle), href: `/m/vehicles/${vehicle.id}` },
+        { title: t('vehicles.tires'), href: `/m/vehicles/${vehicle.id}/tires` },
+    ];
+
+    return (
+        <AppLayout breadcrumbs={breadcrumbs}>
+            <Head title={`${vehicleTitle(vehicle)} · ${t('vehicles.tires')}`} />
+            <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 p-4">
+                <header className="flex flex-col gap-1">
+                    <h1 className="font-heading text-primary text-2xl">{vehicleTitle(vehicle)}</h1>
+                    <p className="text-muted-foreground text-sm tabular-nums">{mileageText(t, vehicle.currentMileage, unitSystem)}</p>
+                </header>
+
+                <VehicleNav vehicleId={vehicle.id} active="tires" />
+
+                <div className="flex items-center justify-between gap-3">
+                    <h2 className="font-heading text-primary text-xl">{t('vehicles.tires')}</h2>
+                    {!adding && (
+                        <Button type="button" onClick={() => setAdding(true)}>
+                            <Plus className="size-4" /> {t('vehicles.add_tire_set')}
+                        </Button>
+                    )}
+                </div>
+
+                {adding && <TireForm vehicle={vehicle} set={null} t={t} onDone={() => setAdding(false)} onCancel={() => setAdding(false)} />}
+
+                {sets.length === 0 && !adding ? (
+                    <EmptyState t={t} />
+                ) : (
+                    <ul className="flex flex-col gap-3">
+                        {sets.map((s) =>
+                            editingId === s.id ? (
+                                <TireForm key={s.id} vehicle={vehicle} set={s} t={t} onDone={() => setEditingId(null)} onCancel={() => setEditingId(null)} />
+                            ) : (
+                                <TireCard
+                                    key={s.id}
+                                    vehicle={vehicle}
+                                    set={s}
+                                    unitSystem={unitSystem}
+                                    canRemind={canRemind}
+                                    t={t}
+                                    onEdit={() => setEditingId(s.id)}
+                                />
+                            ),
+                        )}
+                    </ul>
+                )}
+            </div>
+        </AppLayout>
+    );
+}
+
+function EmptyState({ t }: { t: TFn }) {
+    return (
+        <div className="text-muted-foreground bg-surface-card flex flex-col items-center gap-2 rounded-2xl border px-4 py-10 text-center">
+            <CircleDot className="size-8 opacity-40" />
+            <p className="text-primary font-medium">{t('vehicles.tires_empty_title')}</p>
+            <p className="max-w-sm text-sm">{t('vehicles.tires_empty_body')}</p>
+        </div>
+    );
+}
+
+// One tyre set. The mounted set is highlighted with a primary ring + an "On the car" badge; the others offer
+// a "Mount this set" action that swaps it onto the car. A seasonal reminder button spawns a Tasks reminder.
+function TireCard({
+    vehicle,
+    set,
+    unitSystem,
+    canRemind,
+    t,
+    onEdit,
+}: {
+    vehicle: VehicleHeader;
+    set: TireSet;
+    unitSystem: UnitSystem;
+    canRemind: boolean;
+    t: TFn;
+    onEdit: () => void;
+}) {
+    const url = `/m/vehicles/${vehicle.id}/tires/${set.id}`;
+    const mount = () => router.post(`${url}/mount`, {}, { preserveScroll: true });
+    const remind = () => router.post(`${url}/remind`, {}, { preserveScroll: true });
+    const remove = () => {
+        if (confirm(t('vehicles.tire_delete_confirm'))) router.delete(url, { preserveScroll: true });
+    };
+
+    // "Fitted 2026-01-12 at 148,000 km", skipping whichever part is missing.
+    const fitted: string | null = set.installedOn
+        ? t('vehicles.tire_fitted', { date: set.installedOn }) +
+          (set.installedMileage != null ? ' ' + t('vehicles.tire_fitted_at', { mileage: distanceText(set.installedMileage, unitSystem) }) : '')
+        : null;
+
+    const meta = [
+        set.size,
+        set.treadDepthMm != null ? `${set.treadDepthMm} mm` : null,
+        set.storageLocation,
+    ].filter(Boolean) as string[];
+
+    return (
+        <li className={`bg-surface-card flex flex-col gap-2 rounded-2xl border p-4 ${set.isMounted ? 'border-[var(--primary)] ring-1 ring-[var(--primary)]/30' : ''}`}>
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <h3 className="text-primary flex flex-wrap items-center gap-2 font-medium">
+                        <CircleDot className="text-muted-foreground size-4 shrink-0" />
+                        {tireSeasonLabel(t, set.season)}
+                        {set.brand && <span className="text-muted-foreground font-normal">· {set.brand}</span>}
+                        {set.isMounted && (
+                            <span className="rounded-full border border-[var(--primary)]/40 px-1.5 py-0.5 text-[11px] font-medium text-primary">
+                                {t('vehicles.tire_on_car')}
+                            </span>
+                        )}
+                    </h3>
+                    {meta.length > 0 && <p className="text-muted-foreground text-sm tabular-nums">{meta.join(' · ')}</p>}
+                    {fitted && <p className="text-muted-foreground text-xs tabular-nums">{fitted}</p>}
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                    <IconButton label={t('vehicles.edit')} onClick={onEdit}>
+                        <Pencil className="size-4" />
+                    </IconButton>
+                    <IconButton label={t('vehicles.delete')} onClick={remove}>
+                        <Trash2 className="size-4" />
+                    </IconButton>
+                </div>
+            </div>
+
+            {set.notes && <p className="text-text-secondary text-sm whitespace-pre-wrap">{set.notes}</p>}
+
+            <div className="flex flex-wrap gap-2">
+                {!set.isMounted && (
+                    <Button type="button" variant="outline" size="sm" onClick={mount}>
+                        {t('vehicles.tire_mount')}
+                    </Button>
+                )}
+                {canRemind && (
+                    <Button type="button" variant="ghost" size="sm" onClick={remind}>
+                        <Bell className="size-4" /> {t('vehicles.tire_remind')}
+                    </Button>
+                )}
+            </div>
+        </li>
+    );
+}
+
+// Add/edit form. `is_mounted` is offered only on create (existing sets swap via the card's mount action).
+function TireForm({ vehicle, set, t, onDone, onCancel }: { vehicle: VehicleHeader; set: TireSet | null; t: TFn; onDone: () => void; onCancel: () => void }) {
+    const editing = set !== null;
+    const [form, setForm] = useState({
+        season: set?.season ?? 'summer',
+        brand: set?.brand ?? '',
+        size: set?.size ?? '',
+        tread_depth_mm: set?.treadDepthMm != null ? String(set.treadDepthMm) : '',
+        storage_location: set?.storageLocation ?? '',
+        is_mounted: set?.isMounted ?? false,
+        notes: set?.notes ?? '',
+    });
+    const [errors, setErrors] = useState<Record<string, string>>({});
+    const [processing, setProcessing] = useState(false);
+
+    const setField = (k: keyof typeof form, v: string | boolean) => setForm((p) => ({ ...p, [k]: v }));
+
+    const submit = () => {
+        setProcessing(true);
+        const payload = {
+            season: form.season,
+            brand: form.brand,
+            size: form.size,
+            tread_depth_mm: form.tread_depth_mm,
+            storage_location: form.storage_location,
+            notes: form.notes,
+            ...(!editing ? { is_mounted: form.is_mounted } : {}),
+            ...(editing ? { _method: 'patch' } : {}),
+        };
+        const url = editing ? `/m/vehicles/${vehicle.id}/tires/${set!.id}` : `/m/vehicles/${vehicle.id}/tires`;
+        router.post(url, payload, {
+            preserveScroll: true,
+            onSuccess: onDone,
+            onError: (e) => setErrors(e as Record<string, string>),
+            onFinish: () => setProcessing(false),
+        });
+    };
+
+    return (
+        <section className="bg-surface-card flex flex-col gap-4 rounded-2xl border p-5">
+            <h3 className="font-heading text-primary text-lg">{editing ? t('vehicles.edit_tire_set') : t('vehicles.add_tire_set')}</h3>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+                <Field label={t('vehicles.tire_season')} error={errors.season}>
+                    <select
+                        value={form.season}
+                        onChange={(e) => setField('season', e.target.value)}
+                        className="border-input bg-surface-card focus-visible:ring-ring w-full rounded-lg border px-3 py-2 text-base focus-visible:ring-2 focus-visible:outline-none"
+                    >
+                        {SEASONS.map((s) => (
+                            <option key={s} value={s}>
+                                {tireSeasonLabel(t, s)}
+                            </option>
+                        ))}
+                    </select>
+                </Field>
+                <Field label={t('vehicles.tire_brand')} error={errors.brand}>
+                    <Input value={form.brand} onChange={(e) => setField('brand', e.target.value)} className="text-base" />
+                </Field>
+                <Field label={t('vehicles.tire_size')} error={errors.size}>
+                    <Input value={form.size} onChange={(e) => setField('size', e.target.value)} placeholder={t('vehicles.tire_size_placeholder')} className="text-base" />
+                </Field>
+                <Field label={t('vehicles.tire_tread')} error={errors.tread_depth_mm}>
+                    <Input value={form.tread_depth_mm} onChange={(e) => setField('tread_depth_mm', e.target.value)} inputMode="decimal" placeholder="0.0" className="text-base" />
+                </Field>
+                <Field label={t('vehicles.tire_storage')} error={errors.storage_location}>
+                    <Input
+                        value={form.storage_location}
+                        onChange={(e) => setField('storage_location', e.target.value)}
+                        placeholder={t('vehicles.tire_storage_placeholder')}
+                        className="text-base"
+                    />
+                </Field>
+            </div>
+
+            <Field label={t('vehicles.notes_label')} error={errors.notes}>
+                <textarea
+                    value={form.notes}
+                    onChange={(e) => setField('notes', e.target.value)}
+                    rows={2}
+                    className="border-input bg-surface-card focus-visible:ring-ring w-full rounded-lg border px-3 py-2 text-base focus-visible:ring-2 focus-visible:outline-none"
+                />
+            </Field>
+
+            {!editing && (
+                <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={form.is_mounted} onChange={(e) => setField('is_mounted', e.target.checked)} className="size-4 rounded border" />
+                    <span className="text-text-secondary">{t('vehicles.tire_set_mounted_now')}</span>
+                </label>
+            )}
+
+            <div className="flex items-center gap-3">
+                <Button type="button" onClick={submit} disabled={processing} className="flex-1">
+                    {t('vehicles.save')}
+                </Button>
+                <Button type="button" variant="outline" onClick={onCancel}>
+                    {t('vehicles.cancel')}
+                </Button>
+            </div>
+        </section>
+    );
+}
+
+function Field({ label, error, children }: { label: string; error?: string; children: ReactNode }) {
+    return (
+        <div className="grid gap-1.5">
+            <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{label}</Label>
+            {children}
+            <InputError message={error} />
+        </div>
+    );
+}
+
+function IconButton({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            aria-label={label}
+            className="text-muted-foreground hover:text-primary hover:bg-surface flex size-8 items-center justify-center rounded-lg transition-colors"
+        >
+            {children}
+        </button>
+    );
+}
