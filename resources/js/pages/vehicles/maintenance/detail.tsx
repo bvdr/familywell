@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { CheckCircle2, Pencil, Plus, Receipt } from 'lucide-react';
+import { CheckCircle2, ListChecks, Pencil, Plus, Receipt } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 
 import InputError from '@/components/input-error';
@@ -17,6 +17,7 @@ import {
     templateLabel,
     vehicleTitle,
     type MaintenanceHistoryEntry,
+    type MaintenanceLinkedTask,
     type MaintenanceSchedule,
     type VehicleHeader,
 } from '@/lib/vehicles';
@@ -24,9 +25,15 @@ import type { BreadcrumbItem } from '@/types';
 
 import VehicleNav from '../vehicle-nav';
 
-type Props = { vehicle: VehicleHeader; schedule: MaintenanceSchedule; history: MaintenanceHistoryEntry[] };
+type Props = {
+    vehicle: VehicleHeader;
+    schedule: MaintenanceSchedule;
+    history: MaintenanceHistoryEntry[];
+    linkedTask: MaintenanceLinkedTask | null;
+    canExpense: boolean;
+};
 
-export default function MaintenanceDetail({ vehicle, schedule, history }: Props) {
+export default function MaintenanceDetail({ vehicle, schedule, history, linkedTask, canExpense }: Props) {
     const t = useT();
     const title = schedule.name || templateLabel(t, schedule.type);
     const breadcrumbs: BreadcrumbItem[] = [
@@ -79,9 +86,12 @@ export default function MaintenanceDetail({ vehicle, schedule, history }: Props)
                     {schedule.notes && <p className="text-text-secondary border-t pt-3 text-sm whitespace-pre-wrap">{schedule.notes}</p>}
                 </section>
 
-                {/* Actions. "Mark as completed" is live (writes history + advances the schedule); Add expense
-                    / Create task are stubbed until the Phase 3 Spending / Tasks integration. */}
-                <CompletePanel vehicle={vehicle} schedule={schedule} t={t} />
+                {/* The open linked task (P3), if this schedule spawned one when it fell due. */}
+                {linkedTask && <LinkedTaskBanner task={linkedTask} t={t} />}
+
+                {/* Actions. "Mark as completed" records the service (and closes the linked task + logs any
+                    cost to Spending); "Create task" and "Add expense" wire into the Tasks / Spending modules. */}
+                <CompletePanel vehicle={vehicle} schedule={schedule} linkedTask={linkedTask} canExpense={canExpense} t={t} />
 
                 <MaintenanceHistoryList history={history} t={t} />
             </div>
@@ -98,10 +108,42 @@ function Stat({ label, value }: { label: string; value: string }) {
     );
 }
 
-// The "mark as completed" form: records a performance (date, mileage, cost, provider, notes). Defaults the
-// date to today and the mileage to the car's current odometer, so the common "just did it" case is one tap.
-function CompletePanel({ vehicle, schedule, t }: { vehicle: VehicleHeader; schedule: MaintenanceSchedule; t: TFn }) {
-    const [open, setOpen] = useState(false);
+// A pointer to the open linked task (Maintenance -> Tasks). Deep-links into the Tasks module so checking it
+// off there completes the maintenance (via the task.saved hook), closing the round-trip.
+function LinkedTaskBanner({ task, t }: { task: MaintenanceLinkedTask; t: TFn }) {
+    const href = task.listId ? `/m/tasks/lists/${task.listId}` : '/m/tasks';
+    return (
+        <Link
+            href={href}
+            className="border-border bg-surface hover:bg-surface-card flex items-center gap-3 rounded-xl border px-4 py-3 text-sm transition-colors"
+        >
+            <ListChecks className="text-primary size-4 shrink-0" />
+            <span className="text-text-secondary min-w-0">
+                <span className="text-primary font-medium">{t('vehicles.linked_task')}</span>
+                <span className="truncate"> · {task.title}</span>
+            </span>
+            <span className="text-muted-foreground ml-auto shrink-0 text-xs">{t('vehicles.view_task')}</span>
+        </Link>
+    );
+}
+
+// The action row + its two inline forms: "mark as completed" (records a performance, defaulting the date to
+// today and mileage to the car's odometer), and "add expense" (records a car cost into Spending). "Create
+// task" is a one-shot POST — idempotent server-side — shown only when no task is open yet.
+function CompletePanel({
+    vehicle,
+    schedule,
+    linkedTask,
+    canExpense,
+    t,
+}: {
+    vehicle: VehicleHeader;
+    schedule: MaintenanceSchedule;
+    linkedTask: MaintenanceLinkedTask | null;
+    canExpense: boolean;
+    t: TFn;
+}) {
+    const [panel, setPanel] = useState<'none' | 'complete' | 'expense'>('none');
     const [processing, setProcessing] = useState(false);
     const [form, setForm] = useState({
         performed_at: todayIso(),
@@ -110,70 +152,133 @@ function CompletePanel({ vehicle, schedule, t }: { vehicle: VehicleHeader; sched
         provider: '',
         notes: '',
     });
+    const [expense, setExpense] = useState({ amount: '', note: '', spent_at: todayIso() });
     const [errors, setErrors] = useState<Record<string, string>>({});
 
     const set = (k: keyof typeof form, v: string) => setForm((p) => ({ ...p, [k]: v }));
+    const setExp = (k: keyof typeof expense, v: string) => setExpense((p) => ({ ...p, [k]: v }));
+    const close = () => {
+        setPanel('none');
+        setErrors({});
+    };
 
     const submit = () => {
         setProcessing(true);
         router.post(route('vehicles.maintenance.complete', [vehicle.id, schedule.id]), form, {
             preserveScroll: true,
+            onSuccess: close,
+            onError: (e) => setErrors(e as Record<string, string>),
+            onFinish: () => setProcessing(false),
+        });
+    };
+
+    const submitExpense = () => {
+        setProcessing(true);
+        router.post(route('vehicles.maintenance.expense', [vehicle.id, schedule.id]), expense, {
+            preserveScroll: true,
             onSuccess: () => {
-                setOpen(false);
-                setErrors({});
+                setExpense({ amount: '', note: '', spent_at: todayIso() });
+                close();
             },
             onError: (e) => setErrors(e as Record<string, string>),
             onFinish: () => setProcessing(false),
         });
     };
 
-    if (!open) {
+    // The manual "Create task" action: idempotent server-side, so a second click while one is open no-ops.
+    const createTask = () => {
+        setProcessing(true);
+        router.post(
+            route('vehicles.maintenance.task', [vehicle.id, schedule.id]),
+            {},
+            { preserveScroll: true, onFinish: () => setProcessing(false) },
+        );
+    };
+
+    if (panel === 'complete') {
         return (
-            <div className="flex flex-wrap gap-2">
-                <Button type="button" onClick={() => setOpen(true)}>
-                    <CheckCircle2 className="size-4" /> {t('vehicles.mark_completed')}
-                </Button>
-                {/* Phase 3 hooks — present so the workflow is visible, inert until Spending/Tasks are wired. */}
-                <StubButton icon={<Receipt className="size-4" />} label={t('vehicles.add_expense')} hint={t('vehicles.coming_p3')} />
-                <StubButton icon={<Plus className="size-4" />} label={t('vehicles.create_task')} hint={t('vehicles.coming_p3')} />
-            </div>
+            <section className="bg-surface-card flex flex-col gap-4 rounded-2xl border p-5">
+                <h3 className="font-heading text-primary text-lg">{t('vehicles.record_completion')}</h3>
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <FormField label={t('vehicles.completed_date')} error={errors.performed_at}>
+                        <Input type="date" value={form.performed_at} onChange={(e) => set('performed_at', e.target.value)} className="text-base" />
+                    </FormField>
+                    <FormField label={t('vehicles.completed_mileage')} error={errors.mileage}>
+                        <Input value={form.mileage} onChange={(e) => set('mileage', e.target.value)} inputMode="numeric" className="text-base" />
+                    </FormField>
+                    <FormField label={t('vehicles.completed_cost')} error={errors.cost}>
+                        <Input value={form.cost} onChange={(e) => set('cost', e.target.value)} inputMode="decimal" placeholder="0.00" className="text-base" />
+                    </FormField>
+                    <FormField label={t('vehicles.completed_provider')} error={errors.provider}>
+                        <Input value={form.provider} onChange={(e) => set('provider', e.target.value)} placeholder={t('vehicles.provider_placeholder')} className="text-base" />
+                    </FormField>
+                </div>
+                <FormField label={t('vehicles.notes_label')} error={errors.notes}>
+                    <textarea
+                        value={form.notes}
+                        onChange={(e) => set('notes', e.target.value)}
+                        rows={2}
+                        className="border-input bg-surface-card focus-visible:ring-ring w-full rounded-lg border px-3 py-2 text-base focus-visible:ring-2 focus-visible:outline-none"
+                    />
+                </FormField>
+                {/* A cost here is mirrored into Spending, linked to this car. */}
+                <p className="text-muted-foreground text-xs">{t('vehicles.cost_to_spending_hint')}</p>
+                <div className="flex items-center gap-3">
+                    <Button type="button" onClick={submit} disabled={processing || form.mileage.trim() === '' || form.performed_at === ''} className="flex-1">
+                        <CheckCircle2 className="size-4" /> {t('vehicles.save_completion')}
+                    </Button>
+                    <Button type="button" variant="outline" onClick={close}>
+                        {t('vehicles.cancel')}
+                    </Button>
+                </div>
+            </section>
+        );
+    }
+
+    if (panel === 'expense') {
+        return (
+            <section className="bg-surface-card flex flex-col gap-4 rounded-2xl border p-5">
+                <h3 className="font-heading text-primary text-lg">{t('vehicles.add_expense')}</h3>
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <FormField label={t('vehicles.expense_amount')} error={errors.amount}>
+                        <Input value={expense.amount} onChange={(e) => setExp('amount', e.target.value)} inputMode="decimal" placeholder="0.00" className="text-base" />
+                    </FormField>
+                    <FormField label={t('vehicles.completed_date')} error={errors.spent_at}>
+                        <Input type="date" value={expense.spent_at} onChange={(e) => setExp('spent_at', e.target.value)} className="text-base" />
+                    </FormField>
+                </div>
+                <FormField label={t('vehicles.expense_note')} error={errors.note}>
+                    <Input value={expense.note} onChange={(e) => setExp('note', e.target.value)} placeholder={schedule.name} className="text-base" />
+                </FormField>
+                <div className="flex items-center gap-3">
+                    <Button type="button" onClick={submitExpense} disabled={processing || expense.amount.trim() === ''} className="flex-1">
+                        <Receipt className="size-4" /> {t('vehicles.save_expense')}
+                    </Button>
+                    <Button type="button" variant="outline" onClick={close}>
+                        {t('vehicles.cancel')}
+                    </Button>
+                </div>
+            </section>
         );
     }
 
     return (
-        <section className="bg-surface-card flex flex-col gap-4 rounded-2xl border p-5">
-            <h3 className="font-heading text-primary text-lg">{t('vehicles.record_completion')}</h3>
-            <div className="grid gap-4 sm:grid-cols-2">
-                <FormField label={t('vehicles.completed_date')} error={errors.performed_at}>
-                    <Input type="date" value={form.performed_at} onChange={(e) => set('performed_at', e.target.value)} className="text-base" />
-                </FormField>
-                <FormField label={t('vehicles.completed_mileage')} error={errors.mileage}>
-                    <Input value={form.mileage} onChange={(e) => set('mileage', e.target.value)} inputMode="numeric" className="text-base" />
-                </FormField>
-                <FormField label={t('vehicles.completed_cost')} error={errors.cost}>
-                    <Input value={form.cost} onChange={(e) => set('cost', e.target.value)} inputMode="decimal" placeholder="0.00" className="text-base" />
-                </FormField>
-                <FormField label={t('vehicles.completed_provider')} error={errors.provider}>
-                    <Input value={form.provider} onChange={(e) => set('provider', e.target.value)} placeholder={t('vehicles.provider_placeholder')} className="text-base" />
-                </FormField>
-            </div>
-            <FormField label={t('vehicles.notes_label')} error={errors.notes}>
-                <textarea
-                    value={form.notes}
-                    onChange={(e) => set('notes', e.target.value)}
-                    rows={2}
-                    className="border-input bg-surface-card focus-visible:ring-ring w-full rounded-lg border px-3 py-2 text-base focus-visible:ring-2 focus-visible:outline-none"
-                />
-            </FormField>
-            <div className="flex items-center gap-3">
-                <Button type="button" onClick={submit} disabled={processing || form.mileage.trim() === '' || form.performed_at === ''} className="flex-1">
-                    <CheckCircle2 className="size-4" /> {t('vehicles.save_completion')}
+        <div className="flex flex-wrap gap-2">
+            <Button type="button" onClick={() => setPanel('complete')}>
+                <CheckCircle2 className="size-4" /> {t('vehicles.mark_completed')}
+            </Button>
+            {canExpense && (
+                <Button type="button" variant="outline" onClick={() => setPanel('expense')}>
+                    <Receipt className="size-4" /> {t('vehicles.add_expense')}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                    {t('vehicles.cancel')}
+            )}
+            {/* Only offer "Create task" when the schedule has no open one — otherwise the banner links to it. */}
+            {!linkedTask && (
+                <Button type="button" variant="outline" onClick={createTask} disabled={processing}>
+                    <Plus className="size-4" /> {t('vehicles.create_task')}
                 </Button>
-            </div>
-        </section>
+            )}
+        </div>
     );
 }
 
@@ -201,18 +306,6 @@ function MaintenanceHistoryList({ history, t }: { history: MaintenanceHistoryEnt
                 </ul>
             )}
         </section>
-    );
-}
-
-function StubButton({ icon, label, hint }: { icon: ReactNode; label: string; hint: string }) {
-    return (
-        <span
-            title={hint}
-            className="text-muted-foreground/50 border-border/60 flex cursor-default items-center gap-1.5 rounded-lg border border-dashed px-3 py-2 text-sm font-medium"
-        >
-            {icon}
-            {label}
-        </span>
     );
 }
 

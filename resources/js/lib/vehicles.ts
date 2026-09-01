@@ -86,6 +86,14 @@ export type MaintenanceHistoryEntry = {
     notes: string | null;
 };
 
+// The open Tasks task a schedule spawned when it fell due (P3: Maintenance -> Tasks). Null when there is
+// none; `listId` deep-links to the task's list in the Tasks module.
+export type MaintenanceLinkedTask = {
+    id: number;
+    listId: number | null;
+    title: string;
+};
+
 // A predefined template for the add-schedule picker (MaintenanceTemplate::options).
 export type MaintenanceTemplate = {
     key: string;
