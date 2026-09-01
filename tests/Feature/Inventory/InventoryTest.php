@@ -529,6 +529,118 @@ it('will not delete a category that is still in use, but deletes an empty one', 
     expect(InventoryCategory::find($empty->id))->toBeNull();
 });
 
+// ---------------------------------------------------------------------------------------------------
+// V1.1 — categories & locations become fully editable: rename + re-icon + safe delete, for custom AND
+// the seeded defaults (Bogdan runs two houses and wants to rename/re-organise Kitchen/Pantry/Food/…).
+// The `key` never changes on an edit, so items keep resolving; renaming a default detaches it from its
+// i18n label so the family's chosen name shows everywhere.
+// ---------------------------------------------------------------------------------------------------
+
+it('renames a custom category, keeping its stable key', function () {
+    [, $users] = inventoryFamily();
+    $cat = InventoryCategory::create(['key' => 'pet', 'name' => 'Pet', 'icon' => 'dog', 'color' => '#6B7A99', 'is_default' => false, 'position' => 20]);
+
+    actingAs($users[0])->patch("/m/inventory/categories/{$cat->id}", ['name' => 'Pets & Animals'])->assertRedirect();
+
+    $cat->refresh();
+    expect($cat->name)->toBe('Pets & Animals')
+        ->and($cat->key)->toBe('pet')            // key stable
+        ->and($cat->is_default)->toBeFalse();
+});
+
+it('renames a seeded default category, detaching it from its localised label', function () {
+    [, $users] = inventoryFamily();
+    InventoryCategory::ensureDefaults();
+    $food = InventoryCategory::where('key', 'food')->firstOrFail();
+    expect($food->is_default)->toBeTrue();
+
+    makeItem(['name' => 'Bread', 'category' => 'food']); // an item on the default, to prove it keeps resolving
+
+    actingAs($users[0])->patch("/m/inventory/categories/{$food->id}", ['name' => 'Groceries'])->assertRedirect();
+
+    $food->refresh();
+    expect($food->name)->toBe('Groceries')
+        ->and($food->is_default)->toBeFalse()    // a renamed default becomes the family's own -> uses name, not i18n
+        ->and($food->key)->toBe('food');         // key stable, the item still points at `food`
+
+    // Reflects on the categories screen (food is position 0).
+    actingAs($users[0])->get('/m/inventory/categories')->assertInertia(
+        fn ($p) => $p->where('categories.0.key', 'food')->where('categories.0.name', 'Groceries')->where('categories.0.isDefault', false)->etc()
+    );
+});
+
+it('changes a default category icon without detaching its localised label', function () {
+    [, $users] = inventoryFamily();
+    InventoryCategory::ensureDefaults();
+    $food = InventoryCategory::where('key', 'food')->firstOrFail();
+
+    actingAs($users[0])->patch("/m/inventory/categories/{$food->id}", ['icon' => 'cat'])->assertRedirect();
+
+    $food->refresh();
+    expect($food->icon)->toBe('cat')
+        ->and($food->is_default)->toBeTrue()     // an icon-only edit keeps the default localised
+        ->and($food->name)->toBe('Food');
+});
+
+it('validates a category rename (name required, max 40)', function () {
+    [, $users] = inventoryFamily();
+    InventoryCategory::ensureDefaults();
+    $food = InventoryCategory::where('key', 'food')->firstOrFail();
+
+    actingAs($users[0])->patch("/m/inventory/categories/{$food->id}", ['name' => ''])->assertSessionHasErrors('name');
+    actingAs($users[0])->patch("/m/inventory/categories/{$food->id}", ['name' => str_repeat('a', 41)])->assertSessionHasErrors('name');
+});
+
+it('renames and re-icons a seeded default location, and it reflects on the items screen', function () {
+    [, $users] = inventoryFamily();
+    InventoryLocation::ensureDefaults();
+    $kitchen = InventoryLocation::where('key', 'kitchen')->firstOrFail(); // position 0
+    expect($kitchen->is_default)->toBeTrue();
+    makeItem(['name' => 'Pan', 'location' => 'kitchen']);
+
+    actingAs($users[0])->patch("/m/inventory/locations/{$kitchen->id}", ['name' => 'Countryside Kitchen', 'icon' => 'house'])->assertRedirect();
+
+    $kitchen->refresh();
+    expect($kitchen->name)->toBe('Countryside Kitchen')
+        ->and($kitchen->icon)->toBe('house')
+        ->and($kitchen->is_default)->toBeFalse()
+        ->and($kitchen->key)->toBe('kitchen');   // item still points at `kitchen`
+
+    // The renamed default carries its new name + isDefault:false everywhere the vocabulary is shipped.
+    actingAs($users[0])->get('/m/inventory/items')->assertInertia(
+        fn ($p) => $p->where('locations.0.key', 'kitchen')->where('locations.0.name', 'Countryside Kitchen')->where('locations.0.isDefault', false)->etc()
+    );
+});
+
+it('blocks deleting a location in use (with the item count) and allows an empty default', function () {
+    [, $users] = inventoryFamily();
+    InventoryLocation::ensureDefaults();
+    $pantry = InventoryLocation::where('key', 'pantry')->firstOrFail(); // makeItem defaults to pantry
+    $garage = InventoryLocation::where('key', 'garage')->firstOrFail(); // empty seeded default
+    makeItem(['name' => 'Flour', 'location' => 'pantry']);
+
+    actingAs($users[0])->delete("/m/inventory/locations/{$pantry->id}")->assertSessionHasErrors('location');
+    expect(InventoryLocation::find($pantry->id))->not->toBeNull(); // in use -> kept, item never orphaned
+
+    actingAs($users[0])->delete("/m/inventory/locations/{$garage->id}")->assertRedirect();
+    expect(InventoryLocation::find($garage->id))->toBeNull();      // empty seeded default deletes fine
+});
+
+it('blocks a non-admin from renaming or deleting a category/location', function () {
+    [, $users] = inventoryFamily(2); // users[1] is a plain member
+    InventoryCategory::ensureDefaults();
+    InventoryLocation::ensureDefaults();
+    $food = InventoryCategory::where('key', 'food')->firstOrFail();
+    $kitchen = InventoryLocation::where('key', 'kitchen')->firstOrFail();
+
+    actingAs($users[1])->patch("/m/inventory/categories/{$food->id}", ['name' => 'X'])->assertForbidden();
+    actingAs($users[1])->delete("/m/inventory/categories/{$food->id}")->assertForbidden();
+    actingAs($users[1])->patch("/m/inventory/locations/{$kitchen->id}", ['name' => 'X'])->assertForbidden();
+    actingAs($users[1])->delete("/m/inventory/locations/{$kitchen->id}")->assertForbidden();
+
+    expect($food->fresh()->name)->toBe('Food');
+});
+
 it('will not let an admin manage another family\'s category', function () {
     [$familyA, $usersA] = inventoryFamily();
 
