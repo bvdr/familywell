@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Camera, Car, ChevronRight, Gauge, Pencil, Wrench } from 'lucide-react';
+import { Camera, Car, ChevronRight, FileText, Gauge, Pencil, StickyNote, Wrench } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 
 import InputError from '@/components/input-error';
@@ -26,14 +26,22 @@ import type { BreadcrumbItem } from '@/types';
 
 import VehicleNav from './vehicle-nav';
 
+type SectionCounts = {
+    repairs: number;
+    documents: number;
+    documentsExpiring: number;
+    notes: number;
+};
+
 type Props = {
     vehicle: Vehicle;
     owner: string | null;
     primaryDriver: string | null;
     history: MileageEntry[];
+    sections: SectionCounts;
 };
 
-export default function VehicleOverview({ vehicle, owner, primaryDriver, history }: Props) {
+export default function VehicleOverview({ vehicle, owner, primaryDriver, history, sections }: Props) {
     const t = useT();
     const breadcrumbs: BreadcrumbItem[] = [
         { title: t('vehicles.title'), href: '/m/vehicles' },
@@ -63,13 +71,31 @@ export default function VehicleOverview({ vehicle, owner, primaryDriver, history
 
                 <MileagePanel vehicle={vehicle} t={t} />
 
-                {/* Maintenance is live (P2) — a real summary linking to the tab. Repairs / Fuel / Documents
-                    are still stubbed so the shape of the car's home stays visible until later phases. */}
+                {/* Maintenance is live (P2); Repairs / Documents / Notes are live from P4 — real tiles that
+                    link into each tab and surface the car's counts (and an expiring-document exception). Fuel
+                    stays a stub until V1.1. */}
                 <MaintenanceSummary vehicle={vehicle} t={t} />
                 <div className="grid gap-3 sm:grid-cols-2">
-                    <StubSection title={t('vehicles.repairs')} desc={t('vehicles.repairs_stub')} />
+                    <SectionTile
+                        href={`/m/vehicles/${vehicle.id}/repairs`}
+                        icon={<Wrench className="size-5" />}
+                        title={t('vehicles.repairs')}
+                        subtitle={sections.repairs > 0 ? t('vehicles.repairs_count', { count: sections.repairs }) : t('vehicles.repairs_none')}
+                    />
+                    <SectionTile
+                        href={`/m/vehicles/${vehicle.id}/documents`}
+                        icon={<FileText className="size-5" />}
+                        title={t('vehicles.documents')}
+                        subtitle={documentsSubtitle(t, sections)}
+                        alert={sections.documentsExpiring > 0}
+                    />
+                    <SectionTile
+                        href={`/m/vehicles/${vehicle.id}/notes`}
+                        icon={<StickyNote className="size-5" />}
+                        title={t('vehicles.notes_section')}
+                        subtitle={sections.notes > 0 ? t('vehicles.notes_count', { count: sections.notes }) : t('vehicles.notes_none')}
+                    />
                     <StubSection title={t('vehicles.fuel')} desc={t('vehicles.fuel_stub')} />
-                    <StubSection title={t('vehicles.documents')} desc={t('vehicles.documents_stub')} />
                 </div>
 
                 <MileageHistory history={history} t={t} />
@@ -314,8 +340,52 @@ function DetailsCard({ vehicle, owner, primaryDriver, t }: { vehicle: Vehicle; o
     );
 }
 
-// A placeholder for a later-phase section (Maintenance / Repairs / Fuel / Documents). Reads as "coming",
-// not broken — a muted card with the section's name and a one-line promise.
+// A live section tile (Repairs / Documents / Notes): links into the tab and shows the car's count, with an
+// amber tint when something needs attention (an expiring document).
+function SectionTile({
+    href,
+    icon,
+    title,
+    subtitle,
+    alert = false,
+}: {
+    href: string;
+    icon: ReactNode;
+    title: string;
+    subtitle: string;
+    alert?: boolean;
+}): ReactNode {
+    return (
+        <Link
+            href={href}
+            className="bg-surface-card group flex items-center gap-3 rounded-2xl border px-4 py-3.5 transition-colors hover:border-[var(--primary)]"
+        >
+            <span
+                className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${
+                    alert ? 'bg-[var(--warning)]/15 text-[var(--warning)]' : 'bg-accent-subtle text-primary'
+                }`}
+            >
+                {icon}
+            </span>
+            <div className="min-w-0 flex-1">
+                <span className="text-primary block font-medium">{title}</span>
+                <span className="text-muted-foreground block truncate text-sm">{subtitle}</span>
+            </div>
+            <ChevronRight className="text-muted-foreground size-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
+        </Link>
+    );
+}
+
+// "3 documents · 1 expiring" — the documents tile subtitle, surfacing the exception when there is one.
+function documentsSubtitle(t: TFn, s: SectionCounts): string {
+    if (s.documents === 0) return t('vehicles.documents_none');
+    const parts = [t('vehicles.documents_count', { count: s.documents })];
+    if (s.documentsExpiring > 0) parts.push(t('vehicles.documents_expiring_count', { count: s.documentsExpiring }));
+    return parts.join(' · ');
+}
+
+// A placeholder for a later-phase section (Fuel). Reads as "coming", not broken — a muted card with the
+// section's name and a one-line promise.
 function StubSection({ title, desc }: { title: string; desc: string }): ReactNode {
     return (
         <div className="bg-surface/60 flex items-center gap-3 rounded-xl border border-dashed px-4 py-3">

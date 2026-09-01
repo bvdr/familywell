@@ -1,12 +1,12 @@
 import { Link } from '@inertiajs/react';
-import { FileText, Fuel, Gauge, Wrench } from 'lucide-react';
+import { FileText, Fuel, Gauge, StickyNote, Wrench } from 'lucide-react';
 
 import { useT } from '@/lib/i18n';
 
-// The per-car sub-navigation (spec: Overview / Maintenance / Repairs / Fuel / Documents …). Overview and
-// Maintenance are live in P2; the rest are shown disabled ("coming soon") so the shape of a car's home is
-// visible now and the tabs don't move as later phases land. `active` selects the current tab.
-type Tab = 'overview' | 'maintenance';
+// The per-car sub-navigation (spec: Overview / Maintenance / Repairs / Fuel / Documents / Notes …).
+// Overview + Maintenance are live from P2; Repairs / Documents / Notes go live in P4. Fuel remains a stub
+// (V1.1) so the nav shape stays stable. `active` selects the current tab.
+type Tab = 'overview' | 'maintenance' | 'repairs' | 'documents' | 'notes';
 
 export default function VehicleNav({ vehicleId, active }: { vehicleId: number; active: Tab }) {
     const t = useT();
@@ -20,10 +20,26 @@ export default function VehicleNav({ vehicleId, active }: { vehicleId: number; a
                 label={t('vehicles.tab_maintenance')}
                 active={active === 'maintenance'}
             />
-            {/* Later-phase tabs, present but inert so the nav is stable across phases. */}
-            <TabStub icon={<Wrench className="size-4" />} label={t('vehicles.tab_repairs')} />
+            <TabLink
+                href={`/m/vehicles/${vehicleId}/repairs`}
+                icon={<Wrench className="size-4" />}
+                label={t('vehicles.tab_repairs')}
+                active={active === 'repairs'}
+            />
+            <TabLink
+                href={`/m/vehicles/${vehicleId}/documents`}
+                icon={<FileText className="size-4" />}
+                label={t('vehicles.tab_documents')}
+                active={active === 'documents'}
+            />
+            <TabLink
+                href={`/m/vehicles/${vehicleId}/notes`}
+                icon={<StickyNote className="size-4" />}
+                label={t('vehicles.tab_notes')}
+                active={active === 'notes'}
+            />
+            {/* Fuel arrives in V1.1 — present but inert so the nav is stable across phases. */}
             <TabStub icon={<Fuel className="size-4" />} label={t('vehicles.tab_fuel')} />
-            <TabStub icon={<FileText className="size-4" />} label={t('vehicles.tab_documents')} />
         </nav>
     );
 }

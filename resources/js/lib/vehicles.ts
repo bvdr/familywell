@@ -101,6 +101,75 @@ export type MaintenanceTemplate = {
     intervalMonths: number | null;
 };
 
+// ---- Repairs / Documents / Notes (P4) --------------------------------------------------------------
+
+// One file attached to a repair (invoice/photo). `url` streams the full file; `thumbUrl` the card preview.
+export type RepairAttachment = {
+    id: number;
+    name: string | null;
+    url: string;
+    thumbUrl: string;
+};
+
+// An unplanned repair (Repair::toPayload) — a permanent-history record, not a recurring rule.
+export type Repair = {
+    id: number;
+    vehicleId: number;
+    title: string;
+    occurredOn: string | null;
+    mileage: number | null;
+    cost: number | null;
+    provider: string | null;
+    notes: string | null;
+    attachments: RepairAttachment[];
+    createdBy: number | null;
+};
+
+// The document types the picker offers (VehicleDocument::TYPES). Kept in sync with the server list.
+export type DocumentType =
+    | 'registration'
+    | 'insurance'
+    | 'inspection'
+    | 'purchase_contract'
+    | 'warranty'
+    | 'service_invoice'
+    | 'repair_invoice'
+    | 'manual'
+    | 'road_tax'
+    | 'other';
+
+// A vehicle document (VehicleDocument::toPayload). `expiring` is the derived badge (within the lead window).
+export type VehicleDocument = {
+    id: number;
+    vehicleId: number;
+    type: string;
+    title: string;
+    expiresOn: string | null;
+    expiring: boolean;
+    hasFile: boolean;
+    fileName: string | null;
+    fileUrl: string | null;
+    notes: string | null;
+    hasRenewalTask: boolean;
+    createdBy: number | null;
+};
+
+// A note attached to a vehicle (a reused Notes-module note; VehicleNotesController::notePayload).
+export type VehicleNote = {
+    id: number;
+    title: string;
+    body: string;
+    createdBy: number | null;
+    updatedAt: string | null;
+};
+
+/** Localised document-type label; an unknown/blank value falls back to the raw type. */
+export const documentTypeLabel = (t: TFn, type: string): string => {
+    const key = `vehicles.doctype_${type}`;
+    const label = t(key);
+    return label === key ? type : label;
+};
+
 export type MileageEntry = {
     id: number;
     mileage: number;
