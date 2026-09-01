@@ -1,4 +1,5 @@
 import type { TFn } from '@/lib/i18n';
+import { money as moneyOf } from '@/lib/money';
 
 // The vehicle shape the server sends (Vehicle::toPayload + the controller's photo URLs). `state` and
 // `nextServiceKm` are placeholders in P1 (no maintenance data yet); the card renders them but they carry
@@ -456,6 +457,82 @@ export type PartRequest = {
     maintenanceScheduleId: number | null;
     repairId: number | null;
     createdBy: number | null;
+};
+
+// ---- Cost & consumption analytics (V1.1 P3) --------------------------------------------------------
+// Everything here is DERIVED server-side (VehicleAnalytics) from the vehicle->Spending links, the fuel log
+// and the odometer history — no new financial tracking. Money is in MINOR UNITS (cents) in the family's
+// spending currency, exactly like the Spending analytics screen this mirrors; distance is metric km.
+
+// The expense types a vehicle's spend breaks down into (VehicleAnalytics::TYPES).
+export type CostType = 'maintenance' | 'repair' | 'fuel' | 'parts' | 'other';
+
+// One breakdown row (type, amount in display cents, % of the period total).
+export type CostTypeRow = { key: string; amount: number; pct: number };
+
+// One point on a money trend curve (amount in display cents).
+export type TrendDay = { date: string; amount: number };
+
+// The per-period spend roll-up (VehicleAnalytics::forVehicle).
+export type VehicleAnalyticsData = {
+    currency: string;
+    total: number; // display cents
+    count: number;
+    byType: CostTypeRow[];
+    daily: TrendDay[];
+    granularity: 'day' | 'month';
+    kmDriven: number | null; // km driven across the period (from odometer history)
+    costPerKm: number | null; // operating cost per km, in display CENTS per km
+};
+
+// One consumption point (FuelStats::consumptionTrend) — L/100km at the fill that closed a full-to-full segment.
+export type ConsumptionPoint = { date: string; value: number };
+
+// The estimated next fill (VehicleAnalytics::estimates.nextFuelFill) — a projection from the average gap
+// between fills; never presented as exact.
+export type NextFuelFill = { estimatedDate: string; days: number; avgKmBetweenFills: number | null };
+
+// The estimations block (VehicleAnalytics::estimates): soonest service (reuses NextMaintenance) + next fill.
+export type VehicleEstimates = { nextService: NextMaintenance | null; nextFuelFill: NextFuelFill | null };
+
+// The compact headline the Overview shows (VehicleAnalytics::compact).
+export type CompactAnalytics = {
+    currency: string;
+    ytdTotal: number; // display cents
+    ytdCostPerKm: number | null; // display cents per km
+    avgConsumption: number | null; // L/100km
+    hasData: boolean;
+};
+
+// Colour per expense type, from the theme tokens so it tracks the active skin. Reuses the maintenance /
+// warning / destructive tones so the breakdown reads consistently with the rest of the module.
+export const COST_TYPE_META: Record<CostType, { color: string }> = {
+    maintenance: { color: 'var(--primary)' },
+    repair: { color: 'var(--warning)' },
+    fuel: { color: 'var(--accent-strong)' },
+    parts: { color: 'var(--success)' },
+    other: { color: 'var(--muted-foreground)' },
+};
+
+/** The colour for an expense-type key, falling back to the "other" tone for an unknown key. */
+export const costTypeColor = (key: string): string => COST_TYPE_META[key as CostType]?.color ?? COST_TYPE_META.other.color;
+
+/** Localised expense-type label ("Maintenance" / "Fuel" / …); an unknown key falls back to the raw key. */
+export const costTypeLabel = (t: TFn, key: string): string => {
+    const k = `vehicles.cost_type_${key}`;
+    const label = t(k);
+    return label === k ? key : label;
+};
+
+/**
+ * Operating cost per distance, formatted in the family's currency + unit. Input is in display CENTS per km
+ * (what VehicleAnalytics returns); imperial scales to per-mile. Rounds to whole cents — a per-km figure is
+ * a headline, not an invoice — and null renders as an em dash.
+ */
+export const costPerKmText = (costPerKmCents: number | null, currency: string, unit: UnitSystem): string => {
+    if (costPerKmCents == null) return '—';
+    const perUnit = unit === 'imperial' ? costPerKmCents * KM_PER_MILE : costPerKmCents;
+    return `${moneyOf(Math.round(perUnit), currency)}/${distanceUnitLabel(unit)}`;
 };
 
 // One-line vehicle title ("Dacia Duster"). The subtitle (year · engine) is built at the call site.
