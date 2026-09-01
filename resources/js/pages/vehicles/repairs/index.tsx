@@ -8,18 +8,20 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn } from '@/lib/i18n';
-import { fmtMileage, mileageText, vehicleTitle, type Repair, type RepairAttachment, type VehicleHeader } from '@/lib/vehicles';
+import { fmtMileage, mileageText, vehicleTitle, type ProviderOption, type Repair, type RepairAttachment, type VehicleHeader } from '@/lib/vehicles';
 import type { BreadcrumbItem } from '@/types';
 
+import ProviderPicker from '../provider-picker';
 import VehicleNav from '../vehicle-nav';
 
 type Props = {
     vehicle: VehicleHeader;
     repairs: Repair[];
     canExpense: boolean;
+    providers: ProviderOption[];
 };
 
-export default function VehicleRepairs({ vehicle, repairs, canExpense }: Props) {
+export default function VehicleRepairs({ vehicle, repairs, canExpense, providers }: Props) {
     const t = useT();
     const [adding, setAdding] = useState(false);
     const [editingId, setEditingId] = useState<number | null>(null);
@@ -55,6 +57,7 @@ export default function VehicleRepairs({ vehicle, repairs, canExpense }: Props) 
                         vehicle={vehicle}
                         repair={null}
                         canExpense={canExpense}
+                        providers={providers}
                         t={t}
                         onDone={() => setAdding(false)}
                         onCancel={() => setAdding(false)}
@@ -72,6 +75,7 @@ export default function VehicleRepairs({ vehicle, repairs, canExpense }: Props) 
                                     vehicle={vehicle}
                                     repair={r}
                                     canExpense={canExpense}
+                                    providers={providers}
                                     t={t}
                                     onDone={() => setEditingId(null)}
                                     onCancel={() => setEditingId(null)}
@@ -162,6 +166,7 @@ function RepairForm({
     vehicle,
     repair,
     canExpense,
+    providers,
     t,
     onDone,
     onCancel,
@@ -169,6 +174,7 @@ function RepairForm({
     vehicle: VehicleHeader;
     repair: Repair | null;
     canExpense: boolean;
+    providers: ProviderOption[];
     t: TFn;
     onDone: () => void;
     onCancel: () => void;
@@ -179,7 +185,9 @@ function RepairForm({
         occurred_on: repair?.occurredOn ?? todayIso(),
         mileage: repair?.mileage != null ? String(repair.mileage) : '',
         cost: repair?.cost != null ? String(repair.cost) : '',
-        provider: repair?.provider ?? '',
+        // When a provider is linked, the picker drives it by id — don't prefill free text with its name.
+        provider: repair?.serviceProviderId != null ? '' : (repair?.provider ?? ''),
+        service_provider_id: repair?.serviceProviderId ?? null,
         notes: repair?.notes ?? '',
         create_expense: false,
     });
@@ -201,6 +209,7 @@ function RepairForm({
             mileage: form.mileage,
             cost: form.cost,
             provider: form.provider,
+            ...(form.service_provider_id != null ? { service_provider_id: form.service_provider_id } : {}),
             notes: form.notes,
             attachments: files,
             ...(!editing && canExpense ? { create_expense: form.create_expense } : {}),
@@ -236,9 +245,14 @@ function RepairForm({
                 <Field label={t('vehicles.completed_cost')} error={errors.cost}>
                     <Input value={form.cost} onChange={(e) => set('cost', e.target.value)} inputMode="decimal" placeholder="0.00" className="text-base" />
                 </Field>
-                <Field label={t('vehicles.completed_provider')} error={errors.provider}>
-                    <Input value={form.provider} onChange={(e) => set('provider', e.target.value)} placeholder={t('vehicles.provider_placeholder')} className="text-base" />
-                </Field>
+                <ProviderPicker
+                    providers={providers}
+                    value={{ serviceProviderId: form.service_provider_id, provider: form.provider }}
+                    onChange={(v) => setForm((p) => ({ ...p, service_provider_id: v.serviceProviderId, provider: v.provider }))}
+                    label={t('vehicles.completed_provider')}
+                    t={t}
+                    error={errors.provider ?? errors.service_provider_id}
+                />
             </div>
 
             <Field label={t('vehicles.notes_label')} error={errors.notes}>

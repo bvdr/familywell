@@ -74,7 +74,8 @@ export type MaintenanceSchedule = {
     neverPerformed: boolean;
 };
 
-// One performed-maintenance record (VehicleMaintenanceHistory::toPayload).
+// One performed-maintenance record (VehicleMaintenanceHistory::toPayload). `provider` is the RESOLVED
+// display name (linked provider wins over free text); `serviceProviderId` is the link when set.
 export type MaintenanceHistoryEntry = {
     id: number;
     scheduleId: number | null;
@@ -83,6 +84,7 @@ export type MaintenanceHistoryEntry = {
     mileage: number;
     cost: number | null;
     provider: string | null;
+    serviceProviderId: number | null;
     notes: string | null;
 };
 
@@ -111,7 +113,8 @@ export type RepairAttachment = {
     thumbUrl: string;
 };
 
-// An unplanned repair (Repair::toPayload) — a permanent-history record, not a recurring rule.
+// An unplanned repair (Repair::toPayload) — a permanent-history record, not a recurring rule. `provider` is
+// the RESOLVED display name (linked provider wins over free text); `serviceProviderId` is the link when set.
 export type Repair = {
     id: number;
     vehicleId: number;
@@ -120,9 +123,40 @@ export type Repair = {
     mileage: number | null;
     cost: number | null;
     provider: string | null;
+    serviceProviderId: number | null;
     notes: string | null;
     attachments: RepairAttachment[];
     createdBy: number | null;
+};
+
+// ---- Service providers / garages (V1.1) ------------------------------------------------------------
+
+// A service provider / garage (ServiceProvider::toPayload).
+export type ServiceProvider = {
+    id: number;
+    name: string;
+    address: string | null;
+    phone: string | null;
+    website: string | null;
+    notes: string | null;
+    createdBy: number | null;
+};
+
+// A provider row on the manage screen — the provider plus how many services it has on record.
+export type ServiceProviderWithCount = ServiceProvider & { serviceCount: number };
+
+// The compact {id,name} option the maintenance/repair forms render their provider picker from.
+export type ProviderOption = { id: number; name: string };
+
+// One service row on a provider's detail (a maintenance completion or a repair done there).
+export type ProviderServiceEntry = {
+    id: string;
+    type: 'maintenance' | 'repair';
+    date: string | null;
+    title: string;
+    vehicle: string | null;
+    mileage: number | null;
+    cost: number | null;
 };
 
 // The document types the picker offers (VehicleDocument::TYPES). Kept in sync with the server list.

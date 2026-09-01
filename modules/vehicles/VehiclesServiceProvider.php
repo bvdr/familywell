@@ -72,6 +72,14 @@ class VehiclesServiceProvider extends ServiceProvider
                 // JSON feed the home-screen dashboard widget reads (exceptions/next-ups per car).
                 Route::get('/widget', [VehiclesController::class, 'widget'])->name('widget');
 
+                // V1.1: Service providers / garages — a family-scoped manage screen + provider detail. STATIC
+                // one-segment path, so registered here BEFORE the `/{vehicle}` catch-all. Any member may manage.
+                Route::get('/providers', [ServiceProvidersController::class, 'index'])->name('providers.index');
+                Route::post('/providers', [ServiceProvidersController::class, 'store'])->name('providers.store');
+                Route::get('/providers/{provider}', [ServiceProvidersController::class, 'show'])->name('providers.show');
+                Route::patch('/providers/{provider}', [ServiceProvidersController::class, 'update'])->name('providers.update');
+                Route::delete('/providers/{provider}', [ServiceProvidersController::class, 'destroy'])->name('providers.destroy');
+
                 // Per-car Overview + edit + delete.
                 Route::get('/{vehicle}', [VehiclesController::class, 'show'])->name('show');
                 // P5: the per-car Timeline — the whole life of the car as one chronological feed.

@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Car, ChevronRight, Gauge, Plus, Settings } from 'lucide-react';
+import { Car, ChevronRight, Gauge, Plus, Settings, Wrench } from 'lucide-react';
 
 import AppLayout from '@/layouts/app-layout';
 import { useAddAction } from '@/lib/add-action';
@@ -25,6 +25,14 @@ export default function VehiclesIndex({ vehicles, unitSystem, canManage }: Props
                         <p className="text-muted-foreground text-sm">{t('vehicles.subtitle')}</p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
+                        {/* Service providers / garages — a family-wide manage screen, open to every member. */}
+                        <Link
+                            href="/m/vehicles/providers"
+                            aria-label={t('vehicles.providers')}
+                            className="border-border text-muted-foreground hover:text-primary flex items-center justify-center rounded-lg border p-2 transition-colors"
+                        >
+                            <Wrench className="size-4" />
+                        </Link>
                         {canManage && (
                             <Link
                                 href="/m/vehicles/settings"

@@ -19,7 +19,7 @@ use Modules\Tasks\Task;
 class MaintenanceCompletion
 {
     /**
-     * @param  array{performed_at:string, mileage:int, cost?:float|null, provider?:?string, notes?:?string}  $data
+     * @param  array{performed_at:string, mileage:int, cost?:float|null, provider?:?string, service_provider_id?:?int, notes?:?string}  $data
      */
     public static function complete(Vehicle $vehicle, VehicleMaintenanceSchedule $schedule, array $data, User $actor): VehicleMaintenanceHistory
     {
@@ -32,7 +32,8 @@ class MaintenanceCompletion
             'performed_at' => $data['performed_at'],
             'mileage' => $mileage,
             'cost' => $cost,
-            'provider' => $data['provider'] ?? null,
+            'provider' => $data['provider'] ?? null,                          // free-text fallback
+            'service_provider_id' => $data['service_provider_id'] ?? null,    // preferred link (V1.1)
             'notes' => $data['notes'] ?? null,
             'created_by' => $actor->id,
         ]);

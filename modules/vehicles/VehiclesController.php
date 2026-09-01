@@ -122,8 +122,9 @@ class VehiclesController extends Controller
     {
         $this->authorizeVehicle($vehicle);
 
-        // Eager-load every source the merge reads, so the timeline is a fixed handful of queries.
-        $vehicle->load(['maintenanceHistory', 'repairs', 'documents', 'mileageLogs']);
+        // Eager-load every source the merge reads (incl. the linked provider for maintenance/repairs, so
+        // providerName() resolves without an N+1), so the timeline is a fixed handful of queries.
+        $vehicle->load(['maintenanceHistory.serviceProvider', 'repairs.serviceProvider', 'documents', 'mileageLogs']);
 
         return Inertia::render('vehicles/timeline', [
             'vehicle' => $this->cardPayload($vehicle),
