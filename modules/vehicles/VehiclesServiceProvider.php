@@ -2,13 +2,53 @@
 
 namespace Modules\Vehicles;
 
+use App\Support\Modules\Hooks;
+use App\Support\Modules\ModuleRegistry;
+use App\Support\Tenancy\CurrentFamily;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\Notifications\NotificationCategories;
+use Modules\Tasks\Task;
+use Modules\Vehicles\Console\CheckVehicles;
 
 class VehiclesServiceProvider extends ServiceProvider
 {
-    public function boot(): void
+    /** Register the daily sweep so `vehicles:check` is available to artisan + the scheduler. */
+    public function register(): void
     {
+        $this->commands([CheckVehicles::class]);
+    }
+
+    public function boot(Hooks $hooks): void
+    {
+        // Our notification category (maintenance-due pushes), so it gets its own on/off row on the
+        // Notifications settings screen. Registration is idempotent (boot re-runs per request/worker).
+        NotificationCategories::register('vehicles', 'Vehicles', 'car');
+
+        // MAINTENANCE -> TASKS, completion half. When a task is checked off, complete the maintenance it
+        // was linked to: write history, advance the schedule, recompute next due, and clear the link so the
+        // schedule can re-fire. We listen on the shared hooks bus (Tasks publishes `task.saved`) rather than
+        // editing the Tasks controller — exactly how important_todos and inventory extend other modules. The
+        // listener fires on EVERY task save, so it self-gates hard: only a done task, in a family with this
+        // module enabled, that is actually a schedule's open task, does anything.
+        $hooks->listen('task.saved', function (Task $task, $request) {
+            if (! $task->done || ! $this->enabledHere()) {
+                return;
+            }
+            $schedule = VehicleMaintenanceSchedule::where('open_task_id', $task->id)->first();
+            if ($schedule) {
+                MaintenanceCompletion::fromTask($schedule, $request->user());
+            }
+        });
+
+        // The daily sweep: create tasks for due/overdue maintenance and notify. Registered the same way
+        // inventory:check is — each module wires its own schedule. Fully runnable by hand regardless of
+        // whether the scheduler worker is live in prod (`php artisan vehicles:check`).
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
+            $schedule->command('vehicles:check')->dailyAt('07:00')->withoutOverlapping();
+        });
+
         // Full Inertia pages, gated by `module:vehicles` so they only exist for families that enabled
         // it. Vehicles are family-wide shared config (every member sees and may edit the same cars, like
         // inventory stock or the shopping aisles), so there is no per-vehicle sharing to register — the
@@ -47,11 +87,25 @@ class VehiclesServiceProvider extends ServiceProvider
                 Route::delete('/{vehicle}/maintenance/{schedule}', [VehicleMaintenanceController::class, 'destroy'])->name('maintenance.destroy');
                 // Record a performance: writes history + advances the schedule's baseline (next due recomputes).
                 Route::post('/{vehicle}/maintenance/{schedule}/complete', [VehicleMaintenanceController::class, 'complete'])->name('maintenance.complete');
+                // P3 integrations from the event detail: create the linked Tasks task on demand (idempotent),
+                // and record an ad-hoc expense into Spending linked to this car.
+                Route::post('/{vehicle}/maintenance/{schedule}/task', [VehicleMaintenanceController::class, 'createTask'])->name('maintenance.task');
+                Route::post('/{vehicle}/maintenance/{schedule}/expense', [VehicleMaintenanceController::class, 'addExpense'])->name('maintenance.expense');
 
                 // Optional cover photo (R2, same StoredImage pattern as project covers / spend receipts).
                 Route::post('/{vehicle}/photo', [VehiclesController::class, 'uploadPhoto'])->name('photo.upload');
                 Route::get('/{vehicle}/photo', [VehiclesController::class, 'photoFile'])->name('photo.show');
                 Route::delete('/{vehicle}/photo', [VehiclesController::class, 'deletePhoto'])->name('photo.delete');
             });
+    }
+
+    // True only when the current family has Vehicles enabled — the gate the task.saved listener needs so it
+    // stays inert for families that never enabled the module (and before install/migrate). Mirrors the
+    // pattern the important_todos listeners use.
+    private function enabledHere(): bool
+    {
+        $familyId = CurrentFamily::id();
+
+        return $familyId && app(ModuleRegistry::class)->isEnabled('vehicles', (int) $familyId);
     }
 }

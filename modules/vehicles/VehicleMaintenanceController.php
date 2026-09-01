@@ -3,6 +3,7 @@
 namespace Modules\Vehicles;
 
 use App\Http\Controllers\Controller;
+use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,8 +21,9 @@ use Inertia\Response;
  * leaning on the global BelongsToFamily scope. A schedule is additionally guarded to belong to its
  * vehicle, so a mismatched pair can't be reached.
  *
- * Deeper Tasks/Spending integration is Phase 3 — here "mark completed" only writes history + advances the
- * schedule; the detail screen's "Add expense" / "Create task" are stubbed until then.
+ * Phase 3 wires the cross-module workflows: "mark completed" runs the shared MaintenanceCompletion (history
+ * + baseline + odometer + Spending + closing the linked task), and the detail screen's "Create task" /
+ * "Add expense" actions are live (MaintenanceTasks / VehicleExpenses).
  */
 class VehicleMaintenanceController extends Controller
 {
@@ -85,7 +87,28 @@ class VehicleMaintenanceController extends Controller
             'vehicle' => $this->vehiclePayload($vehicle),
             'schedule' => $schedule->toPayload((int) $vehicle->current_mileage),
             'history' => $history,
+            // P3: the open linked task (if any) so the detail can link to it instead of offering "Create
+            // task" again, and whether Spending is on so "Add expense" only shows when it can land somewhere.
+            'linkedTask' => $this->linkedTask($schedule),
+            'canExpense' => app(ModuleRegistry::class)->isEnabled('spending', (int) CurrentFamily::id()),
         ]);
+    }
+
+    /**
+     * The schedule's currently-open maintenance task, as a small payload the detail links to — or null when
+     * there is none (or a stale link, which hasOpenTask self-heals). listId lets the client deep-link to the
+     * task's list in the Tasks module.
+     *
+     * @return array{id:int, listId:?int, title:string}|null
+     */
+    private function linkedTask(VehicleMaintenanceSchedule $schedule): ?array
+    {
+        if (! MaintenanceTasks::hasOpenTask($schedule)) {
+            return null;
+        }
+        $task = $schedule->openTask()->first();
+
+        return $task ? ['id' => $task->id, 'listId' => $task->task_list_id, 'title' => $task->title] : null;
     }
 
     /** Edit schedule: the form prefilled (templates offered for switching type/intervals). */
@@ -135,35 +158,50 @@ class VehicleMaintenanceController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $mileage = (int) $data['mileage'];
+        // One shared completion path (also used by a checked-off linked task): writes history, advances the
+        // baseline, bumps+logs the odometer if it moved forward, mirrors any cost into Spending, and closes
+        // the linked task. See MaintenanceCompletion.
+        MaintenanceCompletion::complete($vehicle, $schedule, $data, $request->user());
 
-        $vehicle->maintenanceHistory()->create([
-            'schedule_id' => $schedule->id,
-            'name' => $schedule->name,   // snapshot: the record stays truthful if the schedule changes later
-            'performed_at' => $data['performed_at'],
-            'mileage' => $mileage,
-            'cost' => $data['cost'] ?? null,
-            'provider' => $data['provider'] ?? null,
-            'notes' => $data['notes'] ?? null,
+        return back();
+    }
+
+    /**
+     * Manually create the linked Tasks task for this schedule (the event-detail "Create task" action).
+     * Idempotent — if a task is already open it's a no-op, so the button and the daily sweep never collide.
+     */
+    public function createTask(Request $request, Vehicle $vehicle, VehicleMaintenanceSchedule $schedule): RedirectResponse
+    {
+        $this->authorizeSchedule($vehicle, $schedule);
+        abort_unless(app(ModuleRegistry::class)->isEnabled('tasks', (int) CurrentFamily::id()), 404);
+
+        MaintenanceTasks::ensureForDue($schedule, $vehicle, $request->user());
+
+        return back();
+    }
+
+    /**
+     * Record an ad-hoc expense for this car into Spending (the event-detail "Add expense" action), linked to
+     * the vehicle. Not tied to a specific performance — that link is set only when a completion carries a cost.
+     */
+    public function addExpense(Request $request, Vehicle $vehicle, VehicleMaintenanceSchedule $schedule): RedirectResponse
+    {
+        $this->authorizeSchedule($vehicle, $schedule);
+        abort_unless(app(ModuleRegistry::class)->isEnabled('spending', (int) CurrentFamily::id()), 404);
+
+        $data = $request->validate([
+            'amount' => ['required', 'numeric', 'gt:0'],
+            'note' => ['nullable', 'string', 'max:255'],
+            'spent_at' => ['nullable', 'date'],
         ]);
 
-        // Advance the baseline — the next due km/date recompute from this performance.
-        $schedule->update([
-            'last_performed_at' => $data['performed_at'],
-            'last_performed_mileage' => $mileage,
-        ]);
-
-        // A completion at/above the current reading is also the latest odometer value; keep the two in
-        // step and logged (never silently, and never backwards).
-        if ($mileage > (int) $vehicle->current_mileage) {
-            $vehicle->update(['current_mileage' => $mileage]);
-            VehicleMileageLog::create([
-                'vehicle_id' => $vehicle->id,
-                'mileage' => $mileage,
-                'recorded_by' => $request->user()->id,
-                'recorded_at' => now(),
-            ]);
-        }
+        VehicleExpenses::record(
+            $vehicle,
+            $request->user(),
+            (float) $data['amount'],
+            $data['note'] ?: trim("{$schedule->name} — {$vehicle->make} {$vehicle->model}"),
+            $data['spent_at'] ?? now()->toDateString(),
+        );
 
         return back();
     }
