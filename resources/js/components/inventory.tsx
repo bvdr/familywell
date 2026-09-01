@@ -66,14 +66,18 @@ export function AddToShoppingButton({
     className?: string;
 }) {
     const t = useT();
-    const [busy, setBusy] = useState(false);
+    // Optimistic "added" flag: flip to the Added state the instant it's tapped (same idea as the
+    // useOptimistic overlay, but this control is self-contained per item so a local boolean is enough).
+    // Cleared on error so the button snaps back; on success the reloaded `onShoppingList` prop takes over.
+    const [optAdded, setOptAdded] = useState(false);
+    const added = item.onShoppingList || optAdded;
 
     const base = `flex shrink-0 items-center justify-center gap-1.5 rounded-lg border text-xs font-medium ${
         compact ? 'size-9' : 'px-3 py-2'
     } ${className}`;
 
-    // Already on a list: show the "Added" state, linking to the list when we know which one.
-    if (item.onShoppingList) {
+    // Already on a list (or optimistically added): show the "Added" state, linking to the list when we know which one.
+    if (added) {
         const added = (
             <>
                 <Check className="size-4" />
@@ -95,16 +99,17 @@ export function AddToShoppingButton({
     return (
         <button
             type="button"
-            disabled={busy}
             aria-label={t('inventory.add_to_shopping')}
-            onClick={() =>
+            onClick={() => {
+                setOptAdded(true); // instant Added state; reconcile with the server below
                 router.post(
                     route('inventory.items.shopping', item.id),
                     {},
-                    { preserveScroll: true, onStart: () => setBusy(true), onFinish: () => setBusy(false) },
-                )
-            }
-            className={`${base} text-primary hover:bg-surface disabled:opacity-50`}
+                    // preserveState keeps this local optimistic flag alive across the prop reload the POST triggers.
+                    { preserveScroll: true, preserveState: true, onError: () => setOptAdded(false) },
+                );
+            }}
+            className={`${base} text-primary hover:bg-surface`}
         >
             <ShoppingCart className="size-4" />
             {!compact && <span className="truncate">{t('inventory.add_to_shopping')}</span>}

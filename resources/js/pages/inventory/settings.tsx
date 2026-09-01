@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { LayoutGrid, MapPin } from 'lucide-react';
 
+import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
 import type { BreadcrumbItem } from '@/types';
@@ -42,7 +43,25 @@ export default function InventorySettings({ settings, unitSystems, canManage }: 
         notify_expired: boolean;
         notify_stale: boolean;
     }>;
+    // Optimistic toggle overlay keyed by the request field name, so a switch flips instantly and only
+    // snaps back if the patch fails. Render each toggle's `on` through `flag(field, serverValue)`.
+    const toggleOpt = useOptimistic<boolean>();
+    const flag = (field: keyof Patch, serverValue: boolean) => toggleOpt.get(field, serverValue);
     const save = (patch: Patch) => router.patch(route('inventory.settings.update'), patch, { preserveScroll: true });
+    // Flip a boolean setting: overlay the new value now, patch in the background, clear on settle.
+    const toggle = (field: keyof Patch, current: boolean) => {
+        toggleOpt.set(field, !current);
+        router.patch(
+            route('inventory.settings.update'),
+            { [field]: !current },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: () => toggleOpt.clear(field),
+                onError: () => toggleOpt.clear(field),
+            },
+        );
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -83,16 +102,16 @@ export default function InventorySettings({ settings, unitSystems, canManage }: 
                     <ToggleRow
                         label={t('inventory.auto_add_low')}
                         hint={t('inventory.auto_add_low_hint')}
-                        on={settings.autoAddLow}
+                        on={flag('auto_add_low', settings.autoAddLow)}
                         disabled={!canManage}
-                        onToggle={() => save({ auto_add_low: !settings.autoAddLow })}
+                        onToggle={() => toggle('auto_add_low', flag('auto_add_low', settings.autoAddLow))}
                     />
                     <ToggleRow
                         label={t('inventory.auto_add_empty')}
                         hint={t('inventory.auto_add_empty_hint')}
-                        on={settings.autoAddEmpty}
+                        on={flag('auto_add_empty', settings.autoAddEmpty)}
                         disabled={!canManage}
-                        onToggle={() => save({ auto_add_empty: !settings.autoAddEmpty })}
+                        onToggle={() => toggle('auto_add_empty', flag('auto_add_empty', settings.autoAddEmpty))}
                     />
                 </section>
 
@@ -104,27 +123,27 @@ export default function InventorySettings({ settings, unitSystems, canManage }: 
                     </div>
                     <ToggleRow
                         label={t('inventory.notify_low')}
-                        on={settings.notifyLow}
+                        on={flag('notify_low', settings.notifyLow)}
                         disabled={!canManage}
-                        onToggle={() => save({ notify_low: !settings.notifyLow })}
+                        onToggle={() => toggle('notify_low', flag('notify_low', settings.notifyLow))}
                     />
                     <ToggleRow
                         label={t('inventory.notify_empty')}
-                        on={settings.notifyEmpty}
+                        on={flag('notify_empty', settings.notifyEmpty)}
                         disabled={!canManage}
-                        onToggle={() => save({ notify_empty: !settings.notifyEmpty })}
+                        onToggle={() => toggle('notify_empty', flag('notify_empty', settings.notifyEmpty))}
                     />
                     <ToggleRow
                         label={t('inventory.notify_expired')}
-                        on={settings.notifyExpired}
+                        on={flag('notify_expired', settings.notifyExpired)}
                         disabled={!canManage}
-                        onToggle={() => save({ notify_expired: !settings.notifyExpired })}
+                        onToggle={() => toggle('notify_expired', flag('notify_expired', settings.notifyExpired))}
                     />
                     <ToggleRow
                         label={t('inventory.notify_stale')}
-                        on={settings.notifyStale}
+                        on={flag('notify_stale', settings.notifyStale)}
                         disabled={!canManage}
-                        onToggle={() => save({ notify_stale: !settings.notifyStale })}
+                        onToggle={() => toggle('notify_stale', flag('notify_stale', settings.notifyStale))}
                     />
                     <p className="text-muted-foreground mt-2 text-xs">{t('inventory.notify_footnote')}</p>
                 </section>
