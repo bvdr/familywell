@@ -8,16 +8,19 @@ use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Console\Command;
 use Modules\Notifications\Notify;
+use Modules\Vehicles\DocumentRenewalTasks;
 use Modules\Vehicles\MaintenanceStatus;
 use Modules\Vehicles\MaintenanceTasks;
 use Modules\Vehicles\Vehicle;
+use Modules\Vehicles\VehicleDocument;
 use Modules\Vehicles\VehicleMaintenanceSchedule;
 
 /**
- * The daily maintenance sweep. For every family with the Vehicles module (and Tasks, since it creates
- * tasks) enabled, it turns each active schedule that is DUE or OVERDUE into exactly one Tasks task, and
- * notifies the assignee. Idempotent: a schedule that already has an open linked task is skipped, so a
- * same-day (or any) re-run never doubles up.
+ * The daily vehicles sweep. For every family with the Vehicles module (and Tasks, since it creates tasks)
+ * enabled, it (1) turns each active maintenance schedule that is DUE or OVERDUE into exactly one Tasks task
+ * and (2) turns each document whose expiry is approaching into exactly one renewal task, notifying the
+ * assignee in both cases. Idempotent: a schedule/document that already has an open linked task is skipped,
+ * so a same-day (or any) re-run never doubles up.
  *
  * Runs OUTSIDE an HTTP request, so it walks families itself and sets CurrentFamily per family (the
  * BelongsToFamily scope, the family list/event provisioning and Notify all read it). Scheduled ->daily()
@@ -59,13 +62,14 @@ class CheckVehicles extends Command
                 }
 
                 $created += $this->sweepFamily($actor);
+                $created += $this->sweepDocuments($actor);
             }
         } finally {
             // Leave tenancy exactly as we found it (null-safe: forget when there was no prior scope).
             $prior !== null ? CurrentFamily::set($prior) : CurrentFamily::forget();
         }
 
-        $this->info("Vehicles check: {$created} maintenance task(s) created.");
+        $this->info("Vehicles check: {$created} task(s) created (maintenance + document renewals).");
 
         return self::SUCCESS;
     }
@@ -107,6 +111,47 @@ class CheckVehicles extends Command
                 'Maintenance due',
                 "{$schedule->name} is due on {$vehicle->make} {$vehicle->model}.",
                 "/m/vehicles/{$vehicle->id}/maintenance/{$schedule->id}",
+            );
+        }
+
+        return $created;
+    }
+
+    /**
+     * Create renewal tasks for the current family's documents whose expiry is approaching (within
+     * VehicleDocument::EXPIRY_LEAD_DAYS). Idempotent via renewal_task_id, so a re-run never doubles up.
+     * Returns how many were created.
+     */
+    private function sweepDocuments(User $actor): int
+    {
+        $created = 0;
+
+        // Only documents with an expiry can be "approaching" — pre-filter in SQL, then apply the exact
+        // window in PHP (isExpiring) so the lead-time rule lives in one place (the model).
+        $documents = VehicleDocument::query()->whereNotNull('expires_on')->with('vehicle')->get();
+
+        foreach ($documents as $document) {
+            $vehicle = $document->vehicle;
+            if (! $vehicle || ! $document->isExpiring()) {
+                continue; // no vehicle, or not within the renewal window yet
+            }
+            if (DocumentRenewalTasks::hasOpenTask($document)) {
+                continue; // already has a live renewal task — idempotent skip
+            }
+
+            $task = DocumentRenewalTasks::ensureForExpiring($document, $vehicle, $actor);
+            $created++;
+
+            $recipients = $task->assigned_to
+                ? User::whereKey($task->assigned_to)->get()
+                : Family::find($vehicle->family_id)?->members ?? collect();
+            Notify::push(
+                $recipients,
+                'vehicles',
+                null,
+                'Document expiring',
+                "{$document->title} for {$vehicle->make} {$vehicle->model} is expiring.",
+                "/m/vehicles/{$vehicle->id}/documents",
             );
         }
 

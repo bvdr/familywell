@@ -77,6 +77,24 @@ class Vehicle extends Model
         return $this->hasMany(VehicleMaintenanceHistory::class)->latest('performed_at')->latest('id');
     }
 
+    /** This vehicle's unplanned repairs (P4), newest first — the permanent history. */
+    public function repairs(): HasMany
+    {
+        return $this->hasMany(Repair::class)->latest('occurred_on')->latest('id');
+    }
+
+    /** This vehicle's documents (P4). Expiring ones sort first, then never-expiring, then by title. */
+    public function documents(): HasMany
+    {
+        return $this->hasMany(VehicleDocument::class)->orderByRaw('expires_on is null')->orderBy('expires_on')->orderBy('title');
+    }
+
+    /** Links to Notes-module notes attached to this vehicle (P4). */
+    public function noteLinks(): HasMany
+    {
+        return $this->hasMany(VehicleNoteLink::class);
+    }
+
     /**
      * Roll this vehicle's ACTIVE maintenance schedules up into the card summary: the status dot, the
      * "next service" distance, and how many items need attention. Reads the loaded `maintenanceSchedules`

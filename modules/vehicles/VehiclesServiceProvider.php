@@ -96,6 +96,29 @@ class VehiclesServiceProvider extends ServiceProvider
                 Route::post('/{vehicle}/photo', [VehiclesController::class, 'uploadPhoto'])->name('photo.upload');
                 Route::get('/{vehicle}/photo', [VehiclesController::class, 'photoFile'])->name('photo.show');
                 Route::delete('/{vehicle}/photo', [VehiclesController::class, 'deletePhoto'])->name('photo.delete');
+
+                // P4: Repairs — the car's unplanned-fix history, with invoice/photo attachments (R2) and an
+                // optional Spending link when a repair carries a cost.
+                Route::get('/{vehicle}/repairs', [VehicleRepairsController::class, 'index'])->name('repairs.index');
+                Route::post('/{vehicle}/repairs', [VehicleRepairsController::class, 'store'])->name('repairs.store');
+                Route::patch('/{vehicle}/repairs/{repair}', [VehicleRepairsController::class, 'update'])->name('repairs.update');
+                Route::delete('/{vehicle}/repairs/{repair}', [VehicleRepairsController::class, 'destroy'])->name('repairs.destroy');
+                Route::get('/{vehicle}/repairs/{repair}/attachments/{attachment}', [VehicleRepairsController::class, 'attachmentFile'])->name('repairs.attachment');
+
+                // P4: Documents — type + optional expiry + single file (R2). An approaching expiry can spawn
+                // exactly one renewal Task (idempotent), created here on demand and by the daily sweep.
+                Route::get('/{vehicle}/documents', [VehicleDocumentsController::class, 'index'])->name('documents.index');
+                Route::post('/{vehicle}/documents', [VehicleDocumentsController::class, 'store'])->name('documents.store');
+                Route::patch('/{vehicle}/documents/{document}', [VehicleDocumentsController::class, 'update'])->name('documents.update');
+                Route::delete('/{vehicle}/documents/{document}', [VehicleDocumentsController::class, 'destroy'])->name('documents.destroy');
+                Route::get('/{vehicle}/documents/{document}/file', [VehicleDocumentsController::class, 'fileShow'])->name('documents.file');
+                Route::post('/{vehicle}/documents/{document}/renewal-task', [VehicleDocumentsController::class, 'createRenewalTask'])->name('documents.renewal');
+
+                // P4: Notes — reuse the Notes module; a note attached to the car ({note} is guarded via the link).
+                Route::get('/{vehicle}/notes', [VehicleNotesController::class, 'index'])->name('notes.index');
+                Route::post('/{vehicle}/notes', [VehicleNotesController::class, 'store'])->name('notes.store');
+                Route::patch('/{vehicle}/notes/{note}', [VehicleNotesController::class, 'update'])->name('notes.update');
+                Route::delete('/{vehicle}/notes/{note}', [VehicleNotesController::class, 'destroy'])->name('notes.destroy');
             });
     }
 
