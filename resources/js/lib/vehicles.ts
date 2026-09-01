@@ -178,6 +178,79 @@ export type MileageEntry = {
     recorder: string | null;
 };
 
+// ---- Overview roll-up / Timeline / Settings (P5) ---------------------------------------------------
+
+// The combined Overview status (VehicleOverview::status): 'attention' when maintenance is due/overdue OR a
+// document is expiring, else 'good'.
+export type OverviewStatus = {
+    overall: 'good' | 'attention';
+    maintenanceAttention: number;
+    documentsExpiring: number;
+};
+
+// The soonest maintenance schedule to come up (VehicleOverview::next.maintenance).
+export type NextMaintenance = {
+    id: number;
+    name: string;
+    type: string;
+    status: MaintStatus;
+    remainingKm: number | null;
+    remainingDays: number | null;
+    nextDueDate: string | null;
+    nextDueMileage: number | null;
+    neverPerformed: boolean;
+};
+
+// The soonest-expiring document (VehicleOverview::next.document).
+export type NextDocument = {
+    id: number;
+    title: string;
+    type: string;
+    expiresOn: string | null;
+    expiring: boolean;
+};
+
+export type OverviewNext = { maintenance: NextMaintenance | null; document: NextDocument | null };
+
+// One "Recent" event on the Overview (maintenance completion or repair, with cost/mileage).
+export type RecentEvent = {
+    id: string;
+    type: 'maintenance' | 'repair';
+    date: string | null;
+    title: string;
+    cost: number | null;
+    mileage: number | null;
+};
+
+// One row in the Vehicle Timeline (VehicleTimeline::forVehicle) — a uniform entry across every event type.
+export type TimelineType = 'mileage' | 'maintenance' | 'repair' | 'document' | 'expense';
+export type TimelineEntry = {
+    id: string;
+    type: TimelineType;
+    date: string | null;
+    title: string;
+    subtitle: string | null;
+    mileage: number | null;
+    cost: number | null;
+};
+
+// One customisable maintenance-template default interval on the Settings screen (VehicleSetting::toPayload).
+export type SettingsTemplate = {
+    key: string;
+    intervalKm: number | null;
+    intervalMonths: number | null;
+    customised: boolean;
+};
+
+// The family's Vehicles settings (VehicleSetting::toPayload).
+export type VehicleSettings = {
+    unitSystem: UnitSystem;
+    notifyMaintenance: boolean;
+    notifyDocuments: boolean;
+    notifyMileageMilestone: boolean;
+    templates: SettingsTemplate[];
+};
+
 export type MemberOption = { id: number; name: string };
 
 // Colour per placeholder status, drawn from the theme tokens so it tracks the active skin. In P1 every
@@ -207,13 +280,35 @@ export const transmissionLabel = (t: TFn, tr: string | null): string => {
     return label === key ? tr : label;
 };
 
-// A thousands-grouped mileage string ("142340" -> "142,340"). Locale-agnostic grouping keeps the number
+// A thousands-grouped number string ("142340" -> "142,340"). Locale-agnostic grouping keeps the value
 // readable without pulling a formatter per render.
 export const fmtMileage = (n: number): string => n.toLocaleString('en-US');
 
-// "142,340 km" — the odometer as shown across the module. Units are metric (km) in P1; the global
-// metric/imperial setting is honoured in P5 (spec 20), so this stays the single place to switch.
-export const mileageText = (t: TFn, km: number): string => t('vehicles.mileage_value', { value: fmtMileage(km) });
+// ---- Units (P5) ------------------------------------------------------------------------------------
+// Distance is ALWAYS stored in km; the family's unit_system only decides how it is DISPLAYED (km vs
+// miles). Vehicles has no wider unit framework — this one axis is it. Mirrors modules/vehicles/VehicleUnits.php
+// so the server-rendered widget and the client read identically.
+export type UnitSystem = 'metric' | 'imperial';
+export const KM_PER_MILE = 1.60934;
+
+/** The short distance-unit label ("km" / "mi"). */
+export const distanceUnitLabel = (unit: UnitSystem): string => (unit === 'imperial' ? 'mi' : 'km');
+
+/** Stored km -> the display unit's whole value (an odometer is never shown with decimals). */
+export const kmToUnit = (km: number, unit: UnitSystem): number => (unit === 'imperial' ? Math.round(km / KM_PER_MILE) : km);
+
+/** A display-unit value (what the user typed / a preset) -> stored km. */
+export const unitToKm = (value: number, unit: UnitSystem): number => (unit === 'imperial' ? Math.round(value * KM_PER_MILE) : value);
+
+/** Thousands-grouped distance value in the display unit, WITHOUT the unit label. */
+export const fmtDistance = (km: number, unit: UnitSystem): string => fmtMileage(kmToUnit(km, unit));
+
+/** "142,340 km" / "88,447 mi" — a distance with its unit label, in the family's system. */
+export const distanceText = (km: number, unit: UnitSystem): string => `${fmtDistance(km, unit)} ${distanceUnitLabel(unit)}`;
+
+// The odometer as shown across the module. `unit` defaults to metric so pre-P5 call sites (which don't
+// thread the family unit) keep rendering km unchanged; the P5 surfaces pass the real unit.
+export const mileageText = (t: TFn, km: number, unit: UnitSystem = 'metric'): string => distanceText(km, unit);
 
 // One-line vehicle title ("Dacia Duster"). The subtitle (year · engine) is built at the call site.
 export const vehicleTitle = (v: Pick<Vehicle, 'make' | 'model'>): string => `${v.make} ${v.model}`.trim();
@@ -247,10 +342,11 @@ export const templateLabel = (t: TFn, key: string): string => {
     return label === k ? key : label;
 };
 
-// The recurring interval as a human line: "Every 15,000 km · 12 months", skipping a missing trigger.
-export const intervalText = (t: TFn, km: number | null, months: number | null): string => {
+// The recurring interval as a human line: "15,000 km · 12 months", skipping a missing trigger. The km
+// side is shown in the family's unit (default metric for pre-P5 callers).
+export const intervalText = (t: TFn, km: number | null, months: number | null, unit: UnitSystem = 'metric'): string => {
     const parts: string[] = [];
-    if (km != null) parts.push(t('vehicles.every_km', { value: fmtMileage(km) }));
+    if (km != null) parts.push(t('vehicles.every_km', { value: distanceText(km, unit) }));
     if (months != null) parts.push(t('vehicles.every_months', { value: months }));
     return parts.join(' · ');
 };
@@ -260,7 +356,7 @@ export const intervalText = (t: TFn, km: number | null, months: number | null): 
  * "6,860 km remaining", "in 24 days", "due now", or "overdue by 500 km / 12 days". Never-performed
  * schedules have no baseline, so they read "Not recorded yet".
  */
-export const remainingText = (t: TFn, s: MaintenanceSchedule): string => {
+export const remainingText = (t: TFn, s: MaintenanceSchedule, unit: UnitSystem = 'metric'): string => {
     if (s.neverPerformed) return t('vehicles.never_performed');
 
     // Pick the trigger closest to (or furthest past) its due point — the smaller signed remaining wins.
@@ -269,9 +365,9 @@ export const remainingText = (t: TFn, s: MaintenanceSchedule): string => {
     const useKm = km != null && (days == null || km <= days);
 
     if (useKm && km != null) {
-        if (km > 0) return t('vehicles.km_remaining', { value: fmtMileage(km) });
+        if (km > 0) return t('vehicles.km_remaining', { value: distanceText(km, unit) });
         if (km === 0) return t('vehicles.due_now');
-        return t('vehicles.km_overdue', { value: fmtMileage(-km) });
+        return t('vehicles.km_overdue', { value: distanceText(-km, unit) });
     }
     if (days != null) {
         if (days > 0) return t('vehicles.days_remaining', { value: days });

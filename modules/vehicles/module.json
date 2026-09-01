@@ -4,5 +4,6 @@
     "description": "The home for everything about the family cars — state, mileage, maintenance, expenses and documents. Calm car care, not a workshop system.",
     "version": "1.0.0",
     "provider": "Modules\\Vehicles\\VehiclesServiceProvider",
+    "frontend": "resources/dist/vehicles.js",
     "requires": ["tasks", "spending"]
 }

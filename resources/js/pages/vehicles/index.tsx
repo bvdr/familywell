@@ -1,15 +1,15 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Car, ChevronRight, Gauge, Plus } from 'lucide-react';
+import { Car, ChevronRight, Gauge, Plus, Settings } from 'lucide-react';
 
 import AppLayout from '@/layouts/app-layout';
 import { useAddAction } from '@/lib/add-action';
 import { useT, type TFn } from '@/lib/i18n';
-import { mileageText, STATE_META, stateLabel, vehicleSubtitle, vehicleTitle, type Vehicle } from '@/lib/vehicles';
+import { mileageText, STATE_META, stateLabel, vehicleSubtitle, vehicleTitle, type UnitSystem, type Vehicle } from '@/lib/vehicles';
 import type { BreadcrumbItem } from '@/types';
 
-type Props = { vehicles: Vehicle[] };
+type Props = { vehicles: Vehicle[]; unitSystem: UnitSystem; canManage: boolean };
 
-export default function VehiclesIndex({ vehicles }: Props) {
+export default function VehiclesIndex({ vehicles, unitSystem, canManage }: Props) {
     const t = useT();
     const breadcrumbs: BreadcrumbItem[] = [{ title: t('vehicles.title'), href: '/m/vehicles' }];
     // The mobile nav "+" adds a car from this screen.
@@ -24,7 +24,18 @@ export default function VehiclesIndex({ vehicles }: Props) {
                         <h1 className="font-heading text-primary text-2xl">{t('vehicles.my_cars')}</h1>
                         <p className="text-muted-foreground text-sm">{t('vehicles.subtitle')}</p>
                     </div>
-                    <AddVehicleButton t={t} />
+                    <div className="flex shrink-0 items-center gap-2">
+                        {canManage && (
+                            <Link
+                                href="/m/vehicles/settings"
+                                aria-label={t('vehicles.settings')}
+                                className="border-border text-muted-foreground hover:text-primary flex items-center justify-center rounded-lg border p-2 transition-colors"
+                            >
+                                <Settings className="size-4" />
+                            </Link>
+                        )}
+                        <AddVehicleButton t={t} />
+                    </div>
                 </header>
 
                 {vehicles.length === 0 ? (
@@ -32,7 +43,7 @@ export default function VehiclesIndex({ vehicles }: Props) {
                 ) : (
                     <div className="grid gap-4 sm:grid-cols-2">
                         {vehicles.map((v) => (
-                            <VehicleCard key={v.id} vehicle={v} t={t} />
+                            <VehicleCard key={v.id} vehicle={v} unitSystem={unitSystem} t={t} />
                         ))}
                     </div>
                 )}
@@ -43,7 +54,7 @@ export default function VehiclesIndex({ vehicles }: Props) {
 
 // One car card: photo (or a fallback tile), make/model, year · engine, current mileage, and the
 // placeholder status + next-service line (real once P2 maintenance schedules exist).
-function VehicleCard({ vehicle, t }: { vehicle: Vehicle; t: TFn }) {
+function VehicleCard({ vehicle, unitSystem, t }: { vehicle: Vehicle; unitSystem: UnitSystem; t: TFn }) {
     const color = STATE_META[vehicle.state].color;
     return (
         <Link
@@ -72,7 +83,7 @@ function VehicleCard({ vehicle, t }: { vehicle: Vehicle; t: TFn }) {
                 </div>
                 <div className="text-text-secondary mt-auto flex items-center gap-1.5 text-sm">
                     <Gauge className="text-muted-foreground size-4" />
-                    <span className="tabular-nums">{mileageText(t, vehicle.currentMileage)}</span>
+                    <span className="tabular-nums">{mileageText(t, vehicle.currentMileage, unitSystem)}</span>
                     <ChevronRight className="text-muted-foreground ml-auto size-4 transition-transform group-hover:translate-x-0.5" />
                 </div>
             </div>

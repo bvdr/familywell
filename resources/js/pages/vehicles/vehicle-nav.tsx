@@ -1,12 +1,12 @@
 import { Link } from '@inertiajs/react';
-import { FileText, Fuel, Gauge, StickyNote, Wrench } from 'lucide-react';
+import { FileText, Fuel, Gauge, History, StickyNote, Wrench } from 'lucide-react';
 
 import { useT } from '@/lib/i18n';
 
-// The per-car sub-navigation (spec: Overview / Maintenance / Repairs / Fuel / Documents / Notes …).
-// Overview + Maintenance are live from P2; Repairs / Documents / Notes go live in P4. Fuel remains a stub
-// (V1.1) so the nav shape stays stable. `active` selects the current tab.
-type Tab = 'overview' | 'maintenance' | 'repairs' | 'documents' | 'notes';
+// The per-car sub-navigation (spec: Overview / Maintenance / Repairs / Timeline / Fuel / Documents / Notes).
+// Overview + Maintenance are live from P2; Repairs / Documents / Notes from P4; Timeline from P5. Fuel
+// remains a stub (V1.1) so the nav shape stays stable. `active` selects the current tab.
+type Tab = 'overview' | 'maintenance' | 'repairs' | 'documents' | 'notes' | 'timeline';
 
 export default function VehicleNav({ vehicleId, active }: { vehicleId: number; active: Tab }) {
     const t = useT();
@@ -37,6 +37,12 @@ export default function VehicleNav({ vehicleId, active }: { vehicleId: number; a
                 icon={<StickyNote className="size-4" />}
                 label={t('vehicles.tab_notes')}
                 active={active === 'notes'}
+            />
+            <TabLink
+                href={`/m/vehicles/${vehicleId}/timeline`}
+                icon={<History className="size-4" />}
+                label={t('vehicles.tab_timeline')}
+                active={active === 'timeline'}
             />
             {/* Fuel arrives in V1.1 — present but inert so the nav is stable across phases. */}
             <TabStub icon={<Fuel className="size-4" />} label={t('vehicles.tab_fuel')} />
