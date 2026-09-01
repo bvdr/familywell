@@ -87,6 +87,14 @@ class VehiclesController extends Controller
             'owner' => $vehicle->owner_id ? ($names[$vehicle->owner_id] ?? null) : null,
             'primaryDriver' => $vehicle->primary_driver_id ? ($names[$vehicle->primary_driver_id] ?? null) : null,
             'history' => $history,
+            // P4: the at-a-glance counts the Overview's Repairs / Documents / Notes tiles show, so those
+            // sections read as real (and surface an expiring-document exception) instead of stubs.
+            'sections' => [
+                'repairs' => $vehicle->repairs()->count(),
+                'documents' => $vehicle->documents()->count(),
+                'documentsExpiring' => $vehicle->documents()->get()->filter(fn (VehicleDocument $d) => $d->isExpiring())->count(),
+                'notes' => $vehicle->noteLinks()->count(),
+            ],
         ]);
     }
 
