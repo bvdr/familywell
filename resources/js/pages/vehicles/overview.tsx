@@ -1,5 +1,18 @@
-import { Head, Link, router } from '@inertiajs/react';
-import { Camera, Car, ChevronRight, FileText, Gauge, Pencil, StickyNote, Wrench } from 'lucide-react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import {
+    Camera,
+    Car,
+    ChevronRight,
+    FileText,
+    Gauge,
+    History,
+    Pencil,
+    Receipt,
+    StickyNote,
+    Wrench,
+    X,
+    type LucideIcon,
+} from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 
 import InputError from '@/components/input-error';
@@ -10,19 +23,29 @@ import { compressImage, makeThumbnail } from '@/lib/compress-image';
 import { useT, type TFn } from '@/lib/i18n';
 import { relativeTime } from '@/lib/notifications';
 import {
-    fmtMileage,
+    distanceText,
+    documentTypeLabel,
+    fmtDistance,
     fuelLabel,
+    MAINT_STATUS_META,
+    maintStatusLabel,
     MILEAGE_PRESETS,
     mileageText,
     STATE_META,
     stateLabel,
     transmissionLabel,
+    unitToKm,
     vehicleSubtitle,
     vehicleTitle,
     type MileageEntry,
+    type NextMaintenance,
+    type OverviewNext,
+    type OverviewStatus,
+    type RecentEvent,
+    type UnitSystem,
     type Vehicle,
 } from '@/lib/vehicles';
-import type { BreadcrumbItem } from '@/types';
+import type { BreadcrumbItem, SharedData } from '@/types';
 
 import VehicleNav from './vehicle-nav';
 
@@ -38,11 +61,17 @@ type Props = {
     owner: string | null;
     primaryDriver: string | null;
     history: MileageEntry[];
+    unitSystem: UnitSystem;
+    status: OverviewStatus;
+    next: OverviewNext;
+    recent: RecentEvent[];
     sections: SectionCounts;
 };
 
-export default function VehicleOverview({ vehicle, owner, primaryDriver, history, sections }: Props) {
+export default function VehicleOverview({ vehicle, owner, primaryDriver, history, unitSystem, status, next, recent, sections }: Props) {
     const t = useT();
+    const { modules } = usePage<SharedData & { modules?: { enabled?: string[] } }>().props;
+    const enabled = modules?.enabled ?? [];
     const breadcrumbs: BreadcrumbItem[] = [
         { title: t('vehicles.title'), href: '/m/vehicles' },
         { title: vehicleTitle(vehicle), href: `/m/vehicles/${vehicle.id}` },
@@ -55,7 +84,7 @@ export default function VehicleOverview({ vehicle, owner, primaryDriver, history
                 <PhotoHero vehicle={vehicle} t={t} />
 
                 <header className="flex items-start justify-between gap-3">
-                    <div>
+                    <div className="min-w-0">
                         <h1 className="font-heading text-primary text-2xl">{vehicleTitle(vehicle)}</h1>
                         <p className="text-muted-foreground text-sm">{vehicleSubtitle(vehicle) || t('vehicles.no_details')}</p>
                     </div>
@@ -69,12 +98,17 @@ export default function VehicleOverview({ vehicle, owner, primaryDriver, history
 
                 <VehicleNav vehicleId={vehicle.id} active="overview" />
 
-                <MileagePanel vehicle={vehicle} t={t} />
+                {/* The combined Good / Attention roll-up: maintenance due-or-overdue + expiring documents. */}
+                <StatusBanner status={status} t={t} />
 
-                {/* Maintenance is live (P2); Repairs / Documents / Notes are live from P4 — real tiles that
-                    link into each tab and surface the car's counts (and an expiring-document exception). Fuel
-                    stays a stub until V1.1. */}
-                <MaintenanceSummary vehicle={vehicle} t={t} />
+                <QuickActions vehicle={vehicle} enabled={enabled} t={t} />
+
+                <MileagePanel vehicle={vehicle} unitSystem={unitSystem} t={t} />
+
+                {/* Next up: the soonest maintenance and the soonest document/obligation expiry. */}
+                <NextUp vehicle={vehicle} next={next} unitSystem={unitSystem} t={t} />
+
+                <MaintenanceSummary vehicle={vehicle} unitSystem={unitSystem} t={t} />
                 <div className="grid gap-3 sm:grid-cols-2">
                     <SectionTile
                         href={`/m/vehicles/${vehicle.id}/repairs`}
@@ -95,10 +129,18 @@ export default function VehicleOverview({ vehicle, owner, primaryDriver, history
                         title={t('vehicles.notes_section')}
                         subtitle={sections.notes > 0 ? t('vehicles.notes_count', { count: sections.notes }) : t('vehicles.notes_none')}
                     />
-                    <StubSection title={t('vehicles.fuel')} desc={t('vehicles.fuel_stub')} />
+                    <SectionTile
+                        href={`/m/vehicles/${vehicle.id}/timeline`}
+                        icon={<History className="size-5" />}
+                        title={t('vehicles.timeline')}
+                        subtitle={t('vehicles.timeline_sub')}
+                    />
                 </div>
 
-                <MileageHistory history={history} t={t} />
+                {/* Recent maintenance/repair events with cost. Hidden until there's a service story to tell. */}
+                <RecentEvents recent={recent} unitSystem={unitSystem} t={t} />
+
+                <MileageHistory history={history} unitSystem={unitSystem} t={t} />
 
                 <DetailsCard vehicle={vehicle} owner={owner} primaryDriver={primaryDriver} t={t} />
             </div>
@@ -160,19 +202,137 @@ function PhotoHero({ vehicle, t }: { vehicle: Vehicle; t: TFn }) {
     );
 }
 
-// Big current mileage + the quick-update controls: presets that add to the odometer, or a manual absolute
-// entry. A manual reading below the current odometer is blocked server-side; on that error we offer a
-// one-tap "save as correction" (the explicit override the server asks for).
-function MileagePanel({ vehicle, t }: { vehicle: Vehicle; t: TFn }) {
+// The one-line overall state: a calm "All good" when nothing is live, or an amber attention line naming
+// what needs a look (N maintenance items, M expiring documents).
+function StatusBanner({ status, t }: { status: OverviewStatus; t: TFn }) {
+    const attention = status.overall === 'attention';
+    const color = attention ? 'var(--warning)' : 'var(--success)';
+
+    const parts: string[] = [];
+    if (status.maintenanceAttention > 0) parts.push(t('vehicles.attention_maintenance', { count: status.maintenanceAttention }));
+    if (status.documentsExpiring > 0) parts.push(t('vehicles.attention_documents', { count: status.documentsExpiring }));
+
+    return (
+        <div
+            className="flex items-center gap-2.5 rounded-2xl border px-4 py-3"
+            style={{ background: `color-mix(in srgb, ${color} 8%, transparent)`, borderColor: `color-mix(in srgb, ${color} 30%, transparent)` }}
+        >
+            <span className="size-2.5 shrink-0 rounded-full" style={{ background: color }} />
+            <span className="text-primary text-sm font-medium">{attention ? t('vehicles.status_attention') : t('vehicles.status_good')}</span>
+            {attention && parts.length > 0 && <span className="text-muted-foreground truncate text-sm">· {parts.join(' · ')}</span>}
+        </div>
+    );
+}
+
+// The quick-action row (spec 15): update mileage, add expense, add maintenance, add document, add note.
+// Each is either a link into the relevant tab or (add-expense) a small inline modal. Module-gated where a
+// destination lives in another module (Spending / Notes).
+function QuickActions({ vehicle, enabled, t }: { vehicle: Vehicle; enabled: string[]; t: TFn }) {
+    const [expense, setExpense] = useState(false);
+
+    return (
+        <>
+            <div className="flex flex-wrap gap-2">
+                <ActionButton icon={Gauge} label={t('vehicles.qa_mileage')} onClick={() => document.getElementById('mileage')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} />
+                {enabled.includes('spending') && <ActionButton icon={Receipt} label={t('vehicles.qa_expense')} onClick={() => setExpense(true)} />}
+                <ActionLink icon={Wrench} label={t('vehicles.qa_maintenance')} href={`/m/vehicles/${vehicle.id}/maintenance/new`} />
+                <ActionLink icon={FileText} label={t('vehicles.qa_document')} href={`/m/vehicles/${vehicle.id}/documents`} />
+                {enabled.includes('notes') && <ActionLink icon={StickyNote} label={t('vehicles.qa_note')} href={`/m/vehicles/${vehicle.id}/notes`} />}
+            </div>
+            {expense && <ExpenseModal vehicle={vehicle} onClose={() => setExpense(false)} t={t} />}
+        </>
+    );
+}
+
+function ActionButton({ icon: Icon, label, onClick }: { icon: LucideIcon; label: string; onClick: () => void }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className="bg-surface-card text-primary hover:border-accent inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors"
+        >
+            <Icon className="size-4" /> {label}
+        </button>
+    );
+}
+
+function ActionLink({ icon: Icon, label, href }: { icon: LucideIcon; label: string; href: string }) {
+    return (
+        <Link
+            href={href}
+            className="bg-surface-card text-primary hover:border-accent inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors"
+        >
+            <Icon className="size-4" /> {label}
+        </Link>
+    );
+}
+
+// A tiny modal for the vehicle-level ad-hoc expense (amount + note + date), posting to the P5 expense
+// endpoint which mirrors it into Spending linked to the car.
+function ExpenseModal({ vehicle, onClose, t }: { vehicle: Vehicle; onClose: () => void; t: TFn }) {
+    const [amount, setAmount] = useState('');
+    const [note, setNote] = useState('');
+    const [processing, setProcessing] = useState(false);
+
+    const save = () => {
+        setProcessing(true);
+        router.post(
+            route('vehicles.expense', vehicle.id),
+            { amount, note },
+            {
+                preserveScroll: true,
+                onSuccess: onClose,
+                onFinish: () => setProcessing(false),
+            },
+        );
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4" onClick={onClose}>
+            <div className="bg-surface-card w-full max-w-md rounded-t-2xl border p-5 sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+                <div className="mb-4 flex items-center justify-between">
+                    <h2 className="font-heading text-primary text-lg">{t('vehicles.qa_expense')}</h2>
+                    <button type="button" onClick={onClose} className="text-muted-foreground hover:text-primary" aria-label={t('vehicles.cancel')}>
+                        <X className="size-5" />
+                    </button>
+                </div>
+                <p className="text-muted-foreground mb-3 text-xs">{t('vehicles.expense_car_hint')}</p>
+                <div className="flex flex-col gap-3">
+                    <div>
+                        <label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('vehicles.expense_amount')}</label>
+                        <Input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="0" className="mt-1 text-base" />
+                    </div>
+                    <div>
+                        <label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('vehicles.expense_note')}</label>
+                        <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={vehicleTitle(vehicle)} className="mt-1 text-base" />
+                    </div>
+                    <div className="mt-1 flex justify-end gap-2">
+                        <Button type="button" variant="outline" onClick={onClose}>
+                            {t('vehicles.cancel')}
+                        </Button>
+                        <Button type="button" onClick={save} disabled={processing || amount.trim() === ''}>
+                            {t('vehicles.save_expense')}
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// Big current mileage + the quick-update controls, in the family's unit. Presets add whole units (10/50/…),
+// a manual field takes an absolute reading — both converted to km before posting (the odometer is stored in
+// km). A reading below the current one is blocked server-side; on that error we offer a "save as correction".
+function MileagePanel({ vehicle, unitSystem, t }: { vehicle: Vehicle; unitSystem: UnitSystem; t: TFn }) {
     const [manual, setManual] = useState('');
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const submit = (mileage: number, correction = false) => {
+    const submit = (mileageKm: number, correction = false) => {
         setProcessing(true);
         router.post(
             route('vehicles.mileage', vehicle.id),
-            { mileage, correction },
+            { mileage: mileageKm, correction },
             {
                 preserveScroll: true,
                 onSuccess: () => {
@@ -185,24 +345,25 @@ function MileagePanel({ vehicle, t }: { vehicle: Vehicle; t: TFn }) {
         );
     };
 
-    const addPreset = (delta: number) => submit(vehicle.currentMileage + delta);
+    // Presets are whole units in the display system; convert the delta to km before adding to the odometer.
+    const addPreset = (delta: number) => submit(vehicle.currentMileage + unitToKm(delta, unitSystem));
     const saveManual = (correction = false) => {
         const value = parseInt(manual, 10);
-        if (Number.isFinite(value)) submit(value, correction);
+        if (Number.isFinite(value)) submit(unitToKm(value, unitSystem), correction);
     };
 
-    // The server flags a backwards manual reading on the `mileage` field — surface the correction escape.
     const backwards = !!error;
+    const unitLabel = unitSystem === 'imperial' ? 'mi' : 'km';
 
     return (
-        <section className="bg-surface-card flex flex-col gap-4 rounded-2xl border p-5">
+        <section id="mileage" className="bg-surface-card flex flex-col gap-4 rounded-2xl border p-5 scroll-mt-20">
             <div className="flex items-center gap-3">
                 <span className="bg-accent-subtle text-primary flex size-11 items-center justify-center rounded-xl">
                     <Gauge className="size-6" />
                 </span>
                 <div>
                     <span className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('vehicles.current_mileage')}</span>
-                    <div className="text-primary text-3xl font-semibold tabular-nums">{mileageText(t, vehicle.currentMileage)}</div>
+                    <div className="text-primary text-3xl font-semibold tabular-nums">{mileageText(t, vehicle.currentMileage, unitSystem)}</div>
                 </div>
             </div>
 
@@ -215,7 +376,7 @@ function MileagePanel({ vehicle, t }: { vehicle: Vehicle; t: TFn }) {
                         onClick={() => addPreset(delta)}
                         className="border-border text-primary hover:bg-surface rounded-lg border px-3 py-1.5 text-sm font-medium tabular-nums transition-colors disabled:opacity-50"
                     >
-                        +{fmtMileage(delta)}
+                        +{delta.toLocaleString('en-US')} {unitLabel}
                     </button>
                 ))}
             </div>
@@ -237,11 +398,7 @@ function MileagePanel({ vehicle, t }: { vehicle: Vehicle; t: TFn }) {
                 </div>
                 <InputError message={error ?? undefined} />
                 {backwards && (
-                    <button
-                        type="button"
-                        onClick={() => saveManual(true)}
-                        className="text-destructive self-start text-xs font-medium underline"
-                    >
+                    <button type="button" onClick={() => saveManual(true)} className="text-destructive self-start text-xs font-medium underline">
                         {t('vehicles.save_as_correction')}
                     </button>
                 )}
@@ -250,15 +407,79 @@ function MileagePanel({ vehicle, t }: { vehicle: Vehicle; t: TFn }) {
     );
 }
 
-// The Maintenance summary tile on the Overview: the derived status dot, how many items need attention,
-// and the soonest service by distance — a link into the Maintenance tab. Real from P2 onward.
-function MaintenanceSummary({ vehicle, t }: { vehicle: Vehicle; t: TFn }) {
+// "Next up": the soonest maintenance schedule (with its km/date remaining) and the soonest document to
+// expire. Renders nothing when a fresh car has neither.
+function NextUp({ vehicle, next, unitSystem, t }: { vehicle: Vehicle; next: OverviewNext; unitSystem: UnitSystem; t: TFn }) {
+    if (!next.maintenance && !next.document) return null;
+
+    return (
+        <section className="flex flex-col gap-2">
+            <h2 className="font-heading text-primary text-lg">{t('vehicles.next_up')}</h2>
+            <div className="bg-border grid gap-px overflow-hidden rounded-2xl border">
+                {next.maintenance && <NextMaintenanceRow vehicle={vehicle} m={next.maintenance} unitSystem={unitSystem} t={t} />}
+                {next.document && (
+                    <Link href={`/m/vehicles/${vehicle.id}/documents`} className="bg-surface-card group flex items-center gap-3 px-4 py-3">
+                        <span
+                            className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${
+                                next.document.expiring ? 'bg-[var(--warning)]/15 text-[var(--warning)]' : 'bg-accent-subtle text-primary'
+                            }`}
+                        >
+                            <FileText className="size-4.5" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                            <span className="text-primary block truncate text-sm font-medium">{next.document.title}</span>
+                            <span className="text-muted-foreground block truncate text-xs">
+                                {documentTypeLabel(t, next.document.type)}
+                                {next.document.expiresOn ? ` · ${t('vehicles.expires_on', { date: next.document.expiresOn })}` : ''}
+                            </span>
+                        </div>
+                        <ChevronRight className="text-muted-foreground size-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
+                    </Link>
+                )}
+            </div>
+        </section>
+    );
+}
+
+function NextMaintenanceRow({ vehicle, m, unitSystem, t }: { vehicle: Vehicle; m: NextMaintenance; unitSystem: UnitSystem; t: TFn }) {
+    const color = MAINT_STATUS_META[m.status].color;
+    // Build the "how far off" line from whichever trigger is nearer (km shown in the family's unit).
+    let remaining: string;
+    if (m.neverPerformed) remaining = t('vehicles.never_performed');
+    else {
+        const km = m.remainingKm;
+        const days = m.remainingDays;
+        const useKm = km != null && (days == null || km <= days);
+        if (useKm && km != null) remaining = km > 0 ? t('vehicles.km_remaining', { value: distanceText(km, unitSystem) }) : km === 0 ? t('vehicles.due_now') : t('vehicles.km_overdue', { value: distanceText(-km, unitSystem) });
+        else if (days != null) remaining = days > 0 ? t('vehicles.days_remaining', { value: days }) : days === 0 ? t('vehicles.due_now') : t('vehicles.days_overdue', { value: -days });
+        else remaining = t('vehicles.due_now');
+    }
+
+    return (
+        <Link href={`/m/vehicles/${vehicle.id}/maintenance/${m.id}`} className="bg-surface-card group flex items-center gap-3 px-4 py-3">
+            <span className="bg-accent-subtle text-primary flex size-9 shrink-0 items-center justify-center rounded-lg">
+                <Wrench className="size-4.5" />
+            </span>
+            <div className="min-w-0 flex-1">
+                <span className="text-primary block truncate text-sm font-medium">{m.name}</span>
+                <span className="flex items-center gap-1.5 text-xs" style={{ color }}>
+                    <span className="size-1.5 rounded-full" style={{ background: color }} />
+                    {maintStatusLabel(t, m.status)} · <span className="text-muted-foreground tabular-nums">{remaining}</span>
+                </span>
+            </div>
+            <ChevronRight className="text-muted-foreground size-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
+        </Link>
+    );
+}
+
+// The Maintenance summary tile: the derived status dot, attention count, and soonest service by distance.
+function MaintenanceSummary({ vehicle, unitSystem, t }: { vehicle: Vehicle; unitSystem: UnitSystem; t: TFn }) {
     const color = STATE_META[vehicle.state].color;
     const subtitle =
         vehicle.attention > 0
             ? t('vehicles.attention_count', { count: vehicle.attention })
             : vehicle.nextServiceKm != null && vehicle.nextServiceKm >= 0
-              ? t('vehicles.next_service_in', { value: fmtMileage(vehicle.nextServiceKm) })
+              ? t('vehicles.next_service_in', { value: distanceText(vehicle.nextServiceKm, unitSystem) })
               : t('vehicles.maint_all_good');
 
     return (
@@ -284,7 +505,38 @@ function MaintenanceSummary({ vehicle, t }: { vehicle: Vehicle; t: TFn }) {
     );
 }
 
-function MileageHistory({ history, t }: { history: MileageEntry[]; t: TFn }) {
+// Recent maintenance/repair events, each with when it happened, the odometer and the cost. Hidden when the
+// car has no service story yet.
+function RecentEvents({ recent, unitSystem, t }: { recent: RecentEvent[]; unitSystem: UnitSystem; t: TFn }) {
+    if (recent.length === 0) return null;
+
+    return (
+        <section className="flex flex-col gap-2">
+            <h2 className="font-heading text-primary text-lg">{t('vehicles.recent')}</h2>
+            <ul className="bg-border grid gap-px overflow-hidden rounded-2xl border">
+                {recent.map((e) => (
+                    <li key={e.id} className="bg-surface-card flex items-center gap-3 px-4 py-2.5">
+                        <span className="bg-accent-subtle text-primary flex size-8 shrink-0 items-center justify-center rounded-lg">
+                            {e.type === 'repair' ? <Wrench className="size-4" /> : <Gauge className="size-4" />}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                            <span className="text-primary block truncate text-sm">{e.title || t(`vehicles.recent_${e.type}`)}</span>
+                            <span className="text-muted-foreground block truncate text-xs">
+                                {e.date ? relativeTime(e.date) : ''}
+                                {e.mileage != null ? ` · ${fmtDistance(e.mileage, unitSystem)} ${unitSystem === 'imperial' ? 'mi' : 'km'}` : ''}
+                            </span>
+                        </div>
+                        {e.cost != null && (
+                            <span className="text-primary shrink-0 text-sm tabular-nums">{t('vehicles.cost_value', { value: e.cost.toLocaleString('en-US') })}</span>
+                        )}
+                    </li>
+                ))}
+            </ul>
+        </section>
+    );
+}
+
+function MileageHistory({ history, unitSystem, t }: { history: MileageEntry[]; unitSystem: UnitSystem; t: TFn }) {
     return (
         <section className="flex flex-col gap-2">
             <h2 className="font-heading text-primary text-lg">{t('vehicles.mileage_history')}</h2>
@@ -295,7 +547,7 @@ function MileageHistory({ history, t }: { history: MileageEntry[]; t: TFn }) {
                     {history.map((h) => (
                         <li key={h.id} className="bg-surface-card flex items-center gap-3 px-4 py-2.5 text-sm">
                             <span className="text-muted-foreground w-24 shrink-0 text-xs">{h.recordedAt ? relativeTime(h.recordedAt) : ''}</span>
-                            <span className="text-primary flex-1 tabular-nums">{mileageText(t, h.mileage)}</span>
+                            <span className="text-primary flex-1 tabular-nums">{mileageText(t, h.mileage, unitSystem)}</span>
                             {h.recorder && <span className="text-muted-foreground shrink-0 text-xs">{h.recorder}</span>}
                         </li>
                     ))}
@@ -340,31 +592,12 @@ function DetailsCard({ vehicle, owner, primaryDriver, t }: { vehicle: Vehicle; o
     );
 }
 
-// A live section tile (Repairs / Documents / Notes): links into the tab and shows the car's count, with an
-// amber tint when something needs attention (an expiring document).
-function SectionTile({
-    href,
-    icon,
-    title,
-    subtitle,
-    alert = false,
-}: {
-    href: string;
-    icon: ReactNode;
-    title: string;
-    subtitle: string;
-    alert?: boolean;
-}): ReactNode {
+// A live section tile (Repairs / Documents / Notes / Timeline): links into the tab and shows the car's
+// count, with an amber tint when something needs attention (an expiring document).
+function SectionTile({ href, icon, title, subtitle, alert = false }: { href: string; icon: ReactNode; title: string; subtitle: string; alert?: boolean }): ReactNode {
     return (
-        <Link
-            href={href}
-            className="bg-surface-card group flex items-center gap-3 rounded-2xl border px-4 py-3.5 transition-colors hover:border-[var(--primary)]"
-        >
-            <span
-                className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${
-                    alert ? 'bg-[var(--warning)]/15 text-[var(--warning)]' : 'bg-accent-subtle text-primary'
-                }`}
-            >
+        <Link href={href} className="bg-surface-card group flex items-center gap-3 rounded-2xl border px-4 py-3.5 transition-colors hover:border-[var(--primary)]">
+            <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${alert ? 'bg-[var(--warning)]/15 text-[var(--warning)]' : 'bg-accent-subtle text-primary'}`}>
                 {icon}
             </span>
             <div className="min-w-0 flex-1">
@@ -382,20 +615,4 @@ function documentsSubtitle(t: TFn, s: SectionCounts): string {
     const parts = [t('vehicles.documents_count', { count: s.documents })];
     if (s.documentsExpiring > 0) parts.push(t('vehicles.documents_expiring_count', { count: s.documentsExpiring }));
     return parts.join(' · ');
-}
-
-// A placeholder for a later-phase section (Fuel). Reads as "coming", not broken — a muted card with the
-// section's name and a one-line promise.
-function StubSection({ title, desc }: { title: string; desc: string }): ReactNode {
-    return (
-        <div className="bg-surface/60 flex items-center gap-3 rounded-xl border border-dashed px-4 py-3">
-            <span className="text-muted-foreground/60 flex size-8 shrink-0 items-center justify-center">
-                <Wrench className="size-4" />
-            </span>
-            <div className="min-w-0">
-                <span className="text-primary block text-sm font-medium">{title}</span>
-                <span className="text-muted-foreground block truncate text-xs">{desc}</span>
-            </div>
-        </div>
-    );
 }
