@@ -64,8 +64,18 @@ class VehiclesServiceProvider extends ServiceProvider
                 Route::get('/new', [VehiclesController::class, 'create'])->name('create');
                 Route::post('/', [VehiclesController::class, 'store'])->name('store');
 
+                // P5 module-level surfaces. STATIC paths, so they must precede the `/{vehicle}` catch-all
+                // below (else "settings"/"widget" would bind as a vehicle id). Settings reads are open to
+                // members; the write authorizes admin inside the controller (like Inventory/Spending).
+                Route::get('/settings', [VehiclesController::class, 'settings'])->name('settings');
+                Route::patch('/settings', [VehiclesController::class, 'updateSettings'])->name('settings.update');
+                // JSON feed the home-screen dashboard widget reads (exceptions/next-ups per car).
+                Route::get('/widget', [VehiclesController::class, 'widget'])->name('widget');
+
                 // Per-car Overview + edit + delete.
                 Route::get('/{vehicle}', [VehiclesController::class, 'show'])->name('show');
+                // P5: the per-car Timeline — the whole life of the car as one chronological feed.
+                Route::get('/{vehicle}/timeline', [VehiclesController::class, 'timeline'])->name('timeline');
                 Route::get('/{vehicle}/edit', [VehiclesController::class, 'edit'])->name('edit');
                 Route::patch('/{vehicle}', [VehiclesController::class, 'update'])->name('update');
                 Route::delete('/{vehicle}', [VehiclesController::class, 'destroy'])->name('destroy');
@@ -74,6 +84,10 @@ class VehiclesServiceProvider extends ServiceProvider
                 // preset or manual entry), logs it and updates current_mileage. Its own endpoint so the
                 // common "I drove some km" action stays a single, fast round-trip separate from a full edit.
                 Route::post('/{vehicle}/mileage', [VehiclesController::class, 'updateMileage'])->name('mileage');
+
+                // P5: a vehicle-level ad-hoc expense (the Overview "Add expense" quick action) — a Spend
+                // linked to the car with no maintenance/repair context.
+                Route::post('/{vehicle}/expense', [VehiclesController::class, 'addExpense'])->name('expense');
 
                 // Maintenance (P2): recurring schedules with dual time+mileage triggers, their history, and
                 // "mark as completed". Nested under the vehicle — a schedule only exists in the context of

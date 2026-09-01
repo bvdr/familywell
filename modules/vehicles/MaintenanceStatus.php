@@ -113,6 +113,12 @@ class MaintenanceStatus
         return self::RANK[$a] >= self::RANK[$b] ? $a : $b;
     }
 
+    /** Numeric urgency of a status (good=0 … overdue=3), for ordering "which service is next". */
+    public static function rank(string $status): int
+    {
+        return self::RANK[$status] ?? 0;
+    }
+
     /**
      * Map an engine status onto the coarser three-state vehicle card dot (good / service_due / overdue):
      * both "due soon" and "due" read as the amber "service due", only past-due is red.

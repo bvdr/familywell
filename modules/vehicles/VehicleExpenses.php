@@ -36,7 +36,7 @@ class VehicleExpenses
      * doesn't have Spending enabled (the cost still lives on the maintenance history row regardless — we
      * simply don't mirror it into a module the family turned off).
      */
-    public static function record(Vehicle $vehicle, User $actor, float $amount, string $note, string $spentAt, ?int $maintenanceHistoryId = null): ?Spend
+    public static function record(Vehicle $vehicle, User $actor, float $amount, string $note, string $spentAt, ?int $maintenanceHistoryId = null, ?int $repairId = null): ?Spend
     {
         $familyId = (int) $vehicle->family_id;
         if (! app(ModuleRegistry::class)->isEnabled('spending', $familyId)) {
@@ -67,6 +67,7 @@ class VehicleExpenses
             'vehicle_id' => $vehicle->id,
             'spend_id' => $spend->id,
             'maintenance_history_id' => $maintenanceHistoryId,
+            'repair_id' => $repairId,
         ]);
 
         return $spend;

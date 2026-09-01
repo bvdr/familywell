@@ -59,7 +59,9 @@ class VehicleMaintenanceController extends Controller
         return Inertia::render('vehicles/maintenance/form', [
             'vehicle' => $this->vehiclePayload($vehicle),
             'schedule' => null,
-            'templates' => MaintenanceTemplate::options(),
+            // The template picker pre-fills from the family's CUSTOM default intervals when set (spec 20),
+            // falling back to MaintenanceTemplate's shipped defaults per key.
+            'templates' => VehicleSetting::current()->templateOptions(),
         ]);
     }
 

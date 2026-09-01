@@ -5,7 +5,9 @@ namespace Modules\Vehicles;
 use App\Http\Controllers\Controller;
 use App\Models\Family;
 use App\Support\Media\StoredImage;
+use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -31,7 +33,7 @@ class VehiclesController extends Controller
     private const MILEAGE_HISTORY_LIMIT = 30;
 
     /** My Cars: one card per vehicle (make/model, year · engine, current mileage, placeholder status). */
-    public function index(): Response
+    public function index(Request $request): Response
     {
         // Eager-load the schedules the card summary rolls up, so My Cars stays O(1) queries as cars grow.
         $vehicles = Vehicle::query()->with('maintenanceSchedules')->orderBy('make')->orderBy('model')->get()
@@ -39,6 +41,9 @@ class VehiclesController extends Controller
 
         return Inertia::render('vehicles/index', [
             'vehicles' => $vehicles,
+            'unitSystem' => VehicleSetting::current()->unit_system,
+            // The settings gear is admin-only (writes are gated server-side); hide the control for members.
+            'canManage' => $request->user()->can('manageMembers', Family::findOrFail(CurrentFamily::id())),
         ]);
     }
 
@@ -70,10 +75,14 @@ class VehiclesController extends Controller
         return redirect()->route('vehicles.show', $vehicle);
     }
 
-    /** Vehicle Overview: big current mileage, the quick-update controls (client-side) and history. */
+    /** Vehicle Overview: big mileage + overall status, Next up, Recent events, quick actions and history. */
     public function show(Request $request, Vehicle $vehicle): Response
     {
         $this->authorizeVehicle($vehicle);
+
+        // Eager-load the relations the P5 roll-up reads (status + next + recent), so the Overview stays a
+        // handful of queries regardless of how much history a car has accrued.
+        $vehicle->load(['maintenanceSchedules', 'documents', 'maintenanceHistory', 'repairs']);
 
         $names = $this->memberNames();
         $history = $vehicle->mileageLogs()->limit(self::MILEAGE_HISTORY_LIMIT)->get()
@@ -87,15 +96,208 @@ class VehiclesController extends Controller
             'owner' => $vehicle->owner_id ? ($names[$vehicle->owner_id] ?? null) : null,
             'primaryDriver' => $vehicle->primary_driver_id ? ($names[$vehicle->primary_driver_id] ?? null) : null,
             'history' => $history,
-            // P4: the at-a-glance counts the Overview's Repairs / Documents / Notes tiles show, so those
-            // sections read as real (and surface an expiring-document exception) instead of stubs.
+            'unitSystem' => VehicleSetting::current()->unit_system,
+            // P5: the combined Good/Attention roll-up (maintenance due/overdue + document expiries), the
+            // soonest maintenance + document to come up, and the recent maintenance/repair events with cost.
+            'status' => VehicleOverview::status($vehicle),
+            'next' => VehicleOverview::next($vehicle),
+            'recent' => VehicleOverview::recent($vehicle),
+            // The at-a-glance counts the Overview's Repairs / Documents / Notes tiles show (from the loaded
+            // relations, so no extra queries).
             'sections' => [
-                'repairs' => $vehicle->repairs()->count(),
-                'documents' => $vehicle->documents()->count(),
-                'documentsExpiring' => $vehicle->documents()->get()->filter(fn (VehicleDocument $d) => $d->isExpiring())->count(),
+                'repairs' => $vehicle->repairs->count(),
+                'documents' => $vehicle->documents->count(),
+                'documentsExpiring' => $vehicle->documents->filter(fn (VehicleDocument $d) => $d->isExpiring())->count(),
                 'notes' => $vehicle->noteLinks()->count(),
             ],
         ]);
+    }
+
+    /**
+     * Vehicle Timeline (spec 16): the car's whole life as one chronological feed across every event type,
+     * grouped by year/month on the client. All reads go through the family-scoped relations (+ the guarded
+     * vehicle), so the feed is inherently family-scoped.
+     */
+    public function timeline(Request $request, Vehicle $vehicle): Response
+    {
+        $this->authorizeVehicle($vehicle);
+
+        // Eager-load every source the merge reads, so the timeline is a fixed handful of queries.
+        $vehicle->load(['maintenanceHistory', 'repairs', 'documents', 'mileageLogs']);
+
+        return Inertia::render('vehicles/timeline', [
+            'vehicle' => $this->cardPayload($vehicle),
+            'unitSystem' => VehicleSetting::current()->unit_system,
+            'entries' => VehicleTimeline::forVehicle($vehicle),
+        ]);
+    }
+
+    /**
+     * JSON feed for the home-screen dashboard widget: one compact line per car (name / mileage / status)
+     * plus only the things needing attention (maintenance due, expiring documents) — EXCEPTIONS/next-ups,
+     * never the full picture. Family-scoped (BelongsToFamily) and gated by `module:vehicles` on the route,
+     * so a family without the module simply 404s and the widget stays hidden. Cars with nothing live are
+     * omitted, so a healthy fleet returns an empty list and the widget renders nothing.
+     */
+    public function widget(): JsonResponse
+    {
+        $unit = VehicleSetting::current()->unit_system;
+        $vehicles = Vehicle::query()->with(['maintenanceSchedules', 'documents'])->orderBy('make')->orderBy('model')->get();
+
+        $cars = $vehicles->map(function (Vehicle $vehicle) use ($unit) {
+            $status = VehicleOverview::status($vehicle);
+            if ($status['overall'] !== 'attention') {
+                return null; // exceptions only — a car with nothing live never appears
+            }
+
+            $next = VehicleOverview::next($vehicle);
+
+            return [
+                'id' => $vehicle->id,
+                'name' => trim("{$vehicle->make} {$vehicle->model}"),
+                'mileageText' => VehicleUnits::distanceText((int) $vehicle->current_mileage, $unit),
+                'attention' => $status['maintenanceAttention'] + $status['documentsExpiring'],
+                'items' => $this->widgetItems($vehicle, $next, $unit),
+            ];
+        })->filter()->values();
+
+        return response()->json(['cars' => $cars]);
+    }
+
+    /**
+     * The short "needs attention" lines for one car in the widget: due/overdue maintenance schedules
+     * (name + km/date remaining) and expiring documents (title + expiry). A few, most-urgent first.
+     *
+     * @param  array{maintenance:?array<string,mixed>, document:?array<string,mixed>}  $next
+     * @return list<array<string,mixed>>
+     */
+    private function widgetItems(Vehicle $vehicle, array $next, string $unit): array
+    {
+        $items = [];
+
+        // Maintenance that needs attention now (due/overdue) — most urgent first.
+        $mileage = (int) $vehicle->current_mileage;
+        $due = $vehicle->maintenanceSchedules
+            ->filter(fn (VehicleMaintenanceSchedule $s) => $s->active
+                && MaintenanceStatus::needsAttention($s->statusFor($mileage)['status']))
+            ->sortByDesc(fn (VehicleMaintenanceSchedule $s) => MaintenanceStatus::rank($s->statusFor($mileage)['status']));
+
+        foreach ($due as $schedule) {
+            $s = $schedule->statusFor($mileage);
+            $items[] = [
+                'kind' => 'maintenance',
+                'label' => $schedule->name,
+                'status' => $s['status'],
+                // A ready-to-show "how far off" line, unit-aware (e.g. "6,860 km" / "due now" / "overdue").
+                'detail' => $this->maintenanceDetail($s, $unit),
+            ];
+        }
+
+        // Expiring documents (soonest first).
+        $expiring = $vehicle->documents
+            ->filter(fn (VehicleDocument $d) => $d->isExpiring())
+            ->sortBy(fn (VehicleDocument $d) => optional($d->expires_on)->toDateString());
+
+        foreach ($expiring as $document) {
+            $items[] = [
+                'kind' => 'document',
+                'label' => $document->title,
+                'type' => $document->type,
+                // "Nov 4" — a short expiry, matching the spec's widget example.
+                'detail' => $document->expires_on ? $document->expires_on->format('M j') : '',
+            ];
+        }
+
+        return $items;
+    }
+
+    /**
+     * A concise, unit-aware "how far off" line for a due schedule in the widget: the nearer trigger's
+     * distance (or days) remaining, or a plain "due now" / "overdue" when it's at/past the point.
+     */
+    private function maintenanceDetail(array $s, string $unit): string
+    {
+        $km = $s['remainingKm'];
+        $days = $s['remainingDays'];
+        $useKm = $km !== null && ($days === null || $km <= $days);
+
+        if ($useKm && $km !== null) {
+            if ($km > 0) {
+                return VehicleUnits::distanceText($km, $unit);
+            }
+
+            return $km === 0 ? 'due now' : 'overdue';
+        }
+        if ($days !== null) {
+            if ($days > 0) {
+                return "in {$days}d";
+            }
+
+            return $days === 0 ? 'due now' : 'overdue';
+        }
+
+        return 'due now';
+    }
+
+    /**
+     * Vehicles Settings: the family's display unit system, notification condition toggles, and customisable
+     * default maintenance-template intervals. Readable by every member; the write endpoint is admin-only, so
+     * `canManage` gates the controls in the UI (server enforces it too).
+     */
+    public function settings(Request $request): Response
+    {
+        $family = Family::findOrFail(CurrentFamily::id());
+
+        return Inertia::render('vehicles/settings', [
+            'settings' => VehicleSetting::current()->toPayload(),
+            'unitSystems' => VehicleSetting::UNIT_SYSTEMS,
+            'canManage' => $request->user()->can('manageMembers', $family),
+        ]);
+    }
+
+    /**
+     * Persist a settings change. Admin-only (hard `authorize`, mirroring the Inventory/Spending settings).
+     * Every field is optional so the screen can instant-save one control at a time; template intervals
+     * arrive as a {key: {km, months}} map and are stored verbatim (nulls mean "not tracked by that trigger").
+     */
+    public function updateSettings(Request $request): RedirectResponse
+    {
+        $family = Family::findOrFail(CurrentFamily::id());
+        $this->authorize('manageMembers', $family);
+
+        $data = $request->validate([
+            'unit_system' => ['sometimes', Rule::in(VehicleSetting::UNIT_SYSTEMS)],
+            'notify_maintenance' => ['sometimes', 'boolean'],
+            'notify_documents' => ['sometimes', 'boolean'],
+            'notify_mileage_milestone' => ['sometimes', 'boolean'],
+            // A single-key patch of custom template intervals, MERGED into the stored map below.
+            'template_intervals' => ['sometimes', 'array'],
+            'template_intervals.*.km' => ['nullable', 'integer', 'min:0'],
+            'template_intervals.*.months' => ['nullable', 'integer', 'min:0'],
+            // "Reset this template to the shipped default" — removes its override key.
+            'template_reset' => ['sometimes', Rule::in(array_keys(MaintenanceTemplate::TEMPLATES))],
+        ]);
+
+        $settings = VehicleSetting::current();
+
+        // Template intervals are a JSON map; merge (not replace) so instant-saving one row never drops the
+        // others, and only keys the module ships are kept so a stray key can't bloat the blob.
+        $reset = $data['template_reset'] ?? null;
+        $patch = array_intersect_key($data['template_intervals'] ?? [], MaintenanceTemplate::TEMPLATES);
+        unset($data['template_intervals'], $data['template_reset']);
+
+        if ($patch !== [] || $reset !== null) {
+            $map = $settings->template_intervals ?? [];
+            $map = array_merge($map, $patch);
+            if ($reset !== null) {
+                unset($map[$reset]);
+            }
+            $data['template_intervals'] = $map ?: null;
+        }
+
+        $settings->update($data);
+
+        return back();
     }
 
     /** Edit Vehicle: the form pre-filled. Mileage is NOT edited here — it is managed on the Overview. */
@@ -160,6 +362,33 @@ class VehiclesController extends Controller
         // in the history like any other reading. A normal update is monotonic by the guard above.
         $vehicle->update(['current_mileage' => $mileage]);
         $this->logMileage($vehicle, $mileage, $request->user()->id);
+
+        return back();
+    }
+
+    /**
+     * A vehicle-level ad-hoc expense (the Overview "Add expense" quick action). Records a Spend linked to
+     * the car via the P3 bridge — no maintenance/repair context — so "how much on this car" stays complete.
+     * Gated on Spending being enabled; a no-op there (VehicleExpenses::record returns null).
+     */
+    public function addExpense(Request $request, Vehicle $vehicle): RedirectResponse
+    {
+        $this->authorizeVehicle($vehicle);
+        abort_unless(app(ModuleRegistry::class)->isEnabled('spending', (int) CurrentFamily::id()), 404);
+
+        $data = $request->validate([
+            'amount' => ['required', 'numeric', 'gt:0'],
+            'note' => ['nullable', 'string', 'max:255'],
+            'spent_at' => ['nullable', 'date'],
+        ]);
+
+        VehicleExpenses::record(
+            $vehicle,
+            $request->user(),
+            (float) $data['amount'],
+            $data['note'] ?: trim("{$vehicle->make} {$vehicle->model}"),
+            $data['spent_at'] ?? now()->toDateString(),
+        );
 
         return back();
     }

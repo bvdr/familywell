@@ -69,6 +69,8 @@ class VehicleRepairsController extends Controller
                 (float) $data['cost'],
                 trim($data['title']),
                 $data['occurred_on'],
+                null,          // not a maintenance completion
+                $repair->id,   // tag the link so the Timeline shows this cost as the repair, not a 2nd expense
             );
         }
 
