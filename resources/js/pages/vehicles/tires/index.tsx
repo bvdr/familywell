@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
+import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn } from '@/lib/i18n';
 import { distanceText, mileageText, tireSeasonLabel, vehicleTitle, type TireSet, type UnitSystem, type VehicleHeader } from '@/lib/vehicles';
@@ -27,6 +28,31 @@ export default function VehicleTires({ vehicle, unitSystem, sets, canRemind }: P
     const t = useT();
     const [adding, setAdding] = useState(false);
     const [editingId, setEditingId] = useState<number | null>(null);
+    // Optimistic mount: the tapped set becomes "on the car" instantly and the others un-mount (only one set is
+    // ever mounted). Cleared on settle so the reloaded props are authoritative. Optimistic remove hides a set
+    // the moment it's deleted, reappearing only if the delete fails.
+    const [optMountedId, setOptMountedId] = useState<number | null>(null);
+    const removed = useOptimistic<boolean>();
+    const visibleSets = sets.filter((s) => !removed.get(s.id, false));
+    const isMounted = (s: TireSet) => (optMountedId !== null ? s.id === optMountedId : s.isMounted);
+    const mountSet = (s: TireSet) => {
+        setOptMountedId(s.id);
+        router.post(
+            `/m/vehicles/${vehicle.id}/tires/${s.id}/mount`,
+            {},
+            { preserveScroll: true, preserveState: true, onSuccess: () => setOptMountedId(null), onError: () => setOptMountedId(null) },
+        );
+    };
+    const removeSet = (s: TireSet) => {
+        if (!confirm(t('vehicles.tire_delete_confirm'))) return;
+        removed.set(s.id, true);
+        router.delete(`/m/vehicles/${vehicle.id}/tires/${s.id}`, {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => removed.clear(s.id),
+            onError: () => removed.clear(s.id),
+        });
+    };
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: t('vehicles.title'), href: '/m/vehicles' },
@@ -52,19 +78,22 @@ export default function VehicleTires({ vehicle, unitSystem, sets, canRemind }: P
                     </Button>
                 </div>
 
-                {sets.length === 0 ? (
+                {visibleSets.length === 0 ? (
                     <EmptyState t={t} />
                 ) : (
                     <ul className="flex flex-col gap-3">
-                        {sets.map((s) => (
+                        {visibleSets.map((s) => (
                             <TireCard
                                 key={s.id}
                                 vehicle={vehicle}
                                 set={s}
+                                mounted={isMounted(s)}
                                 unitSystem={unitSystem}
                                 canRemind={canRemind}
                                 t={t}
                                 onEdit={() => setEditingId(s.id)}
+                                onMount={() => mountSet(s)}
+                                onRemove={() => removeSet(s)}
                             />
                         ))}
                     </ul>
@@ -104,24 +133,26 @@ function EmptyState({ t }: { t: TFn }) {
 function TireCard({
     vehicle,
     set,
+    mounted,
     unitSystem,
     canRemind,
     t,
     onEdit,
+    onMount,
+    onRemove,
 }: {
     vehicle: VehicleHeader;
     set: TireSet;
+    mounted: boolean; // the (optimistic) mounted state — parent owns it so only one set shows as "on the car"
     unitSystem: UnitSystem;
     canRemind: boolean;
     t: TFn;
     onEdit: () => void;
+    onMount: () => void;
+    onRemove: () => void;
 }) {
     const url = `/m/vehicles/${vehicle.id}/tires/${set.id}`;
-    const mount = () => router.post(`${url}/mount`, {}, { preserveScroll: true });
     const remind = () => router.post(`${url}/remind`, {}, { preserveScroll: true });
-    const remove = () => {
-        if (confirm(t('vehicles.tire_delete_confirm'))) router.delete(url, { preserveScroll: true });
-    };
 
     // "Fitted 2026-01-12 at 148,000 km", skipping whichever part is missing.
     const fitted: string | null = set.installedOn
@@ -136,14 +167,14 @@ function TireCard({
     ].filter(Boolean) as string[];
 
     return (
-        <li className={`bg-surface-card flex flex-col gap-2 rounded-2xl border p-4 ${set.isMounted ? 'border-[var(--primary)] ring-1 ring-[var(--primary)]/30' : ''}`}>
+        <li className={`bg-surface-card flex flex-col gap-2 rounded-2xl border p-4 ${mounted ? 'border-[var(--primary)] ring-1 ring-[var(--primary)]/30' : ''}`}>
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                     <h3 className="text-primary flex flex-wrap items-center gap-2 font-medium">
                         <CircleDot className="text-muted-foreground size-4 shrink-0" />
                         {tireSeasonLabel(t, set.season)}
                         {set.brand && <span className="text-muted-foreground font-normal">· {set.brand}</span>}
-                        {set.isMounted && (
+                        {mounted && (
                             <span className="rounded-full border border-[var(--primary)]/40 px-1.5 py-0.5 text-[11px] font-medium text-primary">
                                 {t('vehicles.tire_on_car')}
                             </span>
@@ -156,7 +187,7 @@ function TireCard({
                     <IconButton label={t('vehicles.edit')} onClick={onEdit}>
                         <Pencil className="size-4" />
                     </IconButton>
-                    <IconButton label={t('vehicles.delete')} onClick={remove}>
+                    <IconButton label={t('vehicles.delete')} onClick={onRemove}>
                         <Trash2 className="size-4" />
                     </IconButton>
                 </div>
@@ -165,8 +196,8 @@ function TireCard({
             {set.notes && <p className="text-text-secondary text-sm whitespace-pre-wrap">{set.notes}</p>}
 
             <div className="flex flex-wrap gap-2">
-                {!set.isMounted && (
-                    <Button type="button" variant="outline" size="sm" onClick={mount}>
+                {!mounted && (
+                    <Button type="button" variant="outline" size="sm" onClick={onMount}>
                         {t('vehicles.tire_mount')}
                     </Button>
                 )}

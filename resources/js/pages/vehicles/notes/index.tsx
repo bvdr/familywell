@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
+import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn } from '@/lib/i18n';
 import { relativeTime } from '@/lib/notifications';
@@ -25,6 +26,19 @@ export default function VehicleNotes({ vehicle, notes, canManage }: Props) {
     const t = useT();
     const [adding, setAdding] = useState(false);
     const [editingId, setEditingId] = useState<number | null>(null);
+    // Optimistic removal: a deleted note disappears immediately, reappearing only if the delete fails.
+    const removed = useOptimistic<boolean>();
+    const visibleNotes = notes.filter((n) => !removed.get(n.id, false));
+    const removeNote = (note: VehicleNote) => {
+        if (!confirm(t('vehicles.note_delete_confirm'))) return;
+        removed.set(note.id, true);
+        router.delete(`/m/vehicles/${vehicle.id}/notes/${note.id}`, {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => removed.clear(note.id),
+            onError: () => removed.clear(note.id),
+        });
+    };
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: t('vehicles.title'), href: '/m/vehicles' },
@@ -55,12 +69,12 @@ export default function VehicleNotes({ vehicle, notes, canManage }: Props) {
                 {/* Notes reuse the Notes module; without it enabled we still list existing notes read-only. */}
                 {!canManage && <p className="text-muted-foreground bg-surface/60 rounded-xl border border-dashed px-4 py-3 text-sm">{t('vehicles.notes_module_off')}</p>}
 
-                {notes.length === 0 ? (
+                {visibleNotes.length === 0 ? (
                     <EmptyState t={t} />
                 ) : (
                     <ul className="flex flex-col gap-3">
-                        {notes.map((n) => (
-                            <NoteCard key={n.id} vehicle={vehicle} note={n} canManage={canManage} t={t} onEdit={() => setEditingId(n.id)} />
+                        {visibleNotes.map((n) => (
+                            <NoteCard key={n.id} note={n} canManage={canManage} t={t} onEdit={() => setEditingId(n.id)} onRemove={() => removeNote(n)} />
                         ))}
                     </ul>
                 )}
@@ -92,13 +106,7 @@ function EmptyState({ t }: { t: TFn }) {
     );
 }
 
-function NoteCard({ vehicle, note, canManage, t, onEdit }: { vehicle: VehicleHeader; note: VehicleNote; canManage: boolean; t: TFn; onEdit: () => void }) {
-    const remove = () => {
-        if (confirm(t('vehicles.note_delete_confirm'))) {
-            router.delete(`/m/vehicles/${vehicle.id}/notes/${note.id}`, { preserveScroll: true });
-        }
-    };
-
+function NoteCard({ note, canManage, t, onEdit, onRemove }: { note: VehicleNote; canManage: boolean; t: TFn; onEdit: () => void; onRemove: () => void }) {
     return (
         <li className="bg-surface-card flex flex-col gap-1.5 rounded-2xl border p-4">
             <div className="flex items-start justify-between gap-3">
@@ -111,7 +119,7 @@ function NoteCard({ vehicle, note, canManage, t, onEdit }: { vehicle: VehicleHea
                         <IconButton label={t('vehicles.edit')} onClick={onEdit}>
                             <Pencil className="size-4" />
                         </IconButton>
-                        <IconButton label={t('vehicles.delete')} onClick={remove}>
+                        <IconButton label={t('vehicles.delete')} onClick={onRemove}>
                             <Trash2 className="size-4" />
                         </IconButton>
                     </div>

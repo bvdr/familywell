@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
+import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn } from '@/lib/i18n';
 import { documentTypeLabel, mileageText, vehicleTitle, type VehicleDocument, type VehicleHeader } from '@/lib/vehicles';
@@ -25,6 +26,19 @@ export default function VehicleDocuments({ vehicle, documents, types, canTask }:
     const t = useT();
     const [adding, setAdding] = useState(false);
     const [editingId, setEditingId] = useState<number | null>(null);
+    // Optimistic removal: a deleted document disappears immediately, reappearing only if the delete fails.
+    const removed = useOptimistic<boolean>();
+    const visibleDocuments = documents.filter((d) => !removed.get(d.id, false));
+    const removeDocument = (document: VehicleDocument) => {
+        if (!confirm(t('vehicles.document_delete_confirm'))) return;
+        removed.set(document.id, true);
+        router.delete(`/m/vehicles/${vehicle.id}/documents/${document.id}`, {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => removed.clear(document.id),
+            onError: () => removed.clear(document.id),
+        });
+    };
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: t('vehicles.title'), href: '/m/vehicles' },
@@ -50,12 +64,12 @@ export default function VehicleDocuments({ vehicle, documents, types, canTask }:
                     </Button>
                 </div>
 
-                {documents.length === 0 ? (
+                {visibleDocuments.length === 0 ? (
                     <EmptyState t={t} />
                 ) : (
                     <ul className="flex flex-col gap-3">
-                        {documents.map((d) => (
-                            <DocumentCard key={d.id} vehicle={vehicle} document={d} canTask={canTask} t={t} onEdit={() => setEditingId(d.id)} />
+                        {visibleDocuments.map((d) => (
+                            <DocumentCard key={d.id} vehicle={vehicle} document={d} canTask={canTask} t={t} onEdit={() => setEditingId(d.id)} onRemove={() => removeDocument(d)} />
                         ))}
                     </ul>
                 )}
@@ -95,20 +109,16 @@ function DocumentCard({
     canTask,
     t,
     onEdit,
+    onRemove,
 }: {
     vehicle: VehicleHeader;
     document: VehicleDocument;
     canTask: boolean;
     t: TFn;
     onEdit: () => void;
+    onRemove: () => void;
 }) {
     const [processing, setProcessing] = useState(false);
-
-    const remove = () => {
-        if (confirm(t('vehicles.document_delete_confirm'))) {
-            router.delete(`/m/vehicles/${vehicle.id}/documents/${document.id}`, { preserveScroll: true });
-        }
-    };
 
     const createRenewalTask = () => {
         setProcessing(true);
@@ -134,7 +144,7 @@ function DocumentCard({
                     <IconButton label={t('vehicles.edit')} onClick={onEdit}>
                         <Pencil className="size-4" />
                     </IconButton>
-                    <IconButton label={t('vehicles.delete')} onClick={remove}>
+                    <IconButton label={t('vehicles.delete')} onClick={onRemove}>
                         <Trash2 className="size-4" />
                     </IconButton>
                 </div>

@@ -351,26 +351,38 @@ function MileagePanel({ vehicle, unitSystem, t }: { vehicle: Vehicle; unitSystem
     const [manual, setManual] = useState('');
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    // Optimistic odometer: show the new reading the instant it's submitted, then reconcile with the server.
+    // Cleared on success (the reloaded prop is authoritative) and on error (roll back to the confirmed value,
+    // e.g. a rejected backwards reading), so the big number never lies while the request is in flight.
+    const [optMileage, setOptMileage] = useState<number | null>(null);
+    const shownMileage = optMileage ?? vehicle.currentMileage;
 
     const submit = (mileageKm: number, correction = false) => {
         setProcessing(true);
+        setOptMileage(mileageKm);
         router.post(
             route('vehicles.mileage', vehicle.id),
             { mileage: mileageKm, correction },
             {
                 preserveScroll: true,
+                preserveState: true,
                 onSuccess: () => {
                     setManual('');
                     setError(null);
+                    setOptMileage(null);
                 },
-                onError: (errs) => setError(errs.mileage ?? null),
+                onError: (errs) => {
+                    setError(errs.mileage ?? null);
+                    setOptMileage(null);
+                },
                 onFinish: () => setProcessing(false),
             },
         );
     };
 
     // Presets are whole units in the display system; convert the delta to km before adding to the odometer.
-    const addPreset = (delta: number) => submit(vehicle.currentMileage + unitToKm(delta, unitSystem));
+    // Base off the shown (optimistic) reading so rapid taps stack correctly instead of all off the stale value.
+    const addPreset = (delta: number) => submit(shownMileage + unitToKm(delta, unitSystem));
     const saveManual = (correction = false) => {
         const value = parseInt(manual, 10);
         if (Number.isFinite(value)) submit(unitToKm(value, unitSystem), correction);
@@ -387,7 +399,7 @@ function MileagePanel({ vehicle, unitSystem, t }: { vehicle: Vehicle; unitSystem
                 </span>
                 <div>
                     <span className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('vehicles.current_mileage')}</span>
-                    <div className="text-primary text-3xl font-semibold tabular-nums">{mileageText(t, vehicle.currentMileage, unitSystem)}</div>
+                    <div className="text-primary text-3xl font-semibold tabular-nums">{mileageText(t, shownMileage, unitSystem)}</div>
                 </div>
             </div>
 

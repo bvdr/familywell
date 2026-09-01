@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
+import { useOptimistic } from '@/hooks/use-optimistic';
 import type { TFn } from '@/lib/i18n';
 import type { PartRequest } from '@/lib/vehicles';
 
@@ -14,6 +15,18 @@ import type { PartRequest } from '@/lib/vehicles';
 // already has parts on record. Adding is idempotent server-side (a still-open request is reused).
 export function PartsSection({ vehicleId, parts, canShopping, t }: { vehicleId: number; parts: PartRequest[]; canShopping: boolean; t: TFn }) {
     const [adding, setAdding] = useState(false);
+    // Optimistic removal overlay: a deleted part disappears immediately and only reappears if the delete fails.
+    const removed = useOptimistic<boolean>();
+    const visibleParts = parts.filter((p) => !removed.get(p.id, false));
+    const removePart = (part: PartRequest) => {
+        removed.set(part.id, true);
+        router.delete(`/m/vehicles/${vehicleId}/parts/${part.id}`, {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => removed.clear(part.id),
+            onError: () => removed.clear(part.id),
+        });
+    };
 
     if (!canShopping && parts.length === 0) return null;
 
@@ -34,12 +47,12 @@ export function PartsSection({ vehicleId, parts, canShopping, t }: { vehicleId: 
 
             <AddPartForm vehicleId={vehicleId} t={t} open={adding} onOpenChange={setAdding} />
 
-            {parts.length === 0 ? (
+            {visibleParts.length === 0 ? (
                 <p className="text-muted-foreground bg-surface-card rounded-xl border px-4 py-6 text-center text-sm">{t('vehicles.parts_empty')}</p>
             ) : (
                 <ul className="bg-border grid gap-px overflow-hidden rounded-2xl border">
-                    {parts.map((p) => (
-                        <PartRow key={p.id} vehicleId={vehicleId} part={p} t={t} />
+                    {visibleParts.map((p) => (
+                        <PartRow key={p.id} part={p} t={t} onRemove={() => removePart(p)} />
                     ))}
                 </ul>
             )}
@@ -47,9 +60,9 @@ export function PartsSection({ vehicleId, parts, canShopping, t }: { vehicleId: 
     );
 }
 
-function PartRow({ vehicleId, part, t }: { vehicleId: number; part: PartRequest; t: TFn }) {
+function PartRow({ part, t, onRemove }: { part: PartRequest; t: TFn; onRemove: () => void }) {
     const remove = () => {
-        if (confirm(t('vehicles.part_delete_confirm'))) router.delete(`/m/vehicles/${vehicleId}/parts/${part.id}`, { preserveScroll: true });
+        if (confirm(t('vehicles.part_delete_confirm'))) onRemove();
     };
     const bought = part.status === 'bought';
 

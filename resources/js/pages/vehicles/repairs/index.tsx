@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
+import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn } from '@/lib/i18n';
 import { fmtMileage, mileageText, vehicleTitle, type ProviderOption, type Repair, type RepairAttachment, type VehicleHeader } from '@/lib/vehicles';
@@ -26,6 +27,19 @@ export default function VehicleRepairs({ vehicle, repairs, canExpense, providers
     const t = useT();
     const [adding, setAdding] = useState(false);
     const [editingId, setEditingId] = useState<number | null>(null);
+    // Optimistic removal: a deleted repair disappears immediately, reappearing only if the delete fails.
+    const removed = useOptimistic<boolean>();
+    const visibleRepairs = repairs.filter((r) => !removed.get(r.id, false));
+    const removeRepair = (repair: Repair) => {
+        if (!confirm(t('vehicles.repair_delete_confirm'))) return;
+        removed.set(repair.id, true);
+        router.delete(`/m/vehicles/${vehicle.id}/repairs/${repair.id}`, {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => removed.clear(repair.id),
+            onError: () => removed.clear(repair.id),
+        });
+    };
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: t('vehicles.title'), href: '/m/vehicles' },
@@ -51,12 +65,12 @@ export default function VehicleRepairs({ vehicle, repairs, canExpense, providers
                     </Button>
                 </div>
 
-                {repairs.length === 0 ? (
+                {visibleRepairs.length === 0 ? (
                     <EmptyState t={t} />
                 ) : (
                     <ul className="flex flex-col gap-3">
-                        {repairs.map((r) => (
-                            <RepairCard key={r.id} vehicle={vehicle} repair={r} t={t} onEdit={() => setEditingId(r.id)} />
+                        {visibleRepairs.map((r) => (
+                            <RepairCard key={r.id} repair={r} t={t} onEdit={() => setEditingId(r.id)} onRemove={() => removeRepair(r)} />
                         ))}
                     </ul>
                 )}
@@ -92,13 +106,7 @@ function EmptyState({ t }: { t: TFn }) {
 }
 
 // One repair record: what/when/mileage/cost/garage, its notes, and any attachments as tappable chips.
-function RepairCard({ vehicle, repair, t, onEdit }: { vehicle: VehicleHeader; repair: Repair; t: TFn; onEdit: () => void }) {
-    const remove = () => {
-        if (confirm(t('vehicles.repair_delete_confirm'))) {
-            router.delete(`/m/vehicles/${vehicle.id}/repairs/${repair.id}`, { preserveScroll: true });
-        }
-    };
-
+function RepairCard({ repair, t, onEdit, onRemove }: { repair: Repair; t: TFn; onEdit: () => void; onRemove: () => void }) {
     return (
         <li className="bg-surface-card flex flex-col gap-2 rounded-2xl border p-4">
             <div className="flex items-start justify-between gap-3">
@@ -115,7 +123,7 @@ function RepairCard({ vehicle, repair, t, onEdit }: { vehicle: VehicleHeader; re
                     <IconButton label={t('vehicles.edit')} onClick={onEdit}>
                         <Pencil className="size-4" />
                     </IconButton>
-                    <IconButton label={t('vehicles.delete')} onClick={remove}>
+                    <IconButton label={t('vehicles.delete')} onClick={onRemove}>
                         <Trash2 className="size-4" />
                     </IconButton>
                 </div>
