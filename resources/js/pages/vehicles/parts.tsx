@@ -1,15 +1,16 @@
 import { router } from '@inertiajs/react';
-import { Package, Plus, ShoppingCart, Trash2, X } from 'lucide-react';
-import { useState } from 'react';
+import { Package, Plus, ShoppingCart, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import type { TFn } from '@/lib/i18n';
 import type { PartRequest } from '@/lib/vehicles';
 
 // The vehicle-level "Parts" card on the Overview: the parts requested/bought for this car (each a labelled
-// row on the family shopping list), with an inline "add part" form. Shown whenever Shopping is on or the car
+// row on the family shopping list), with an "add part" modal. Shown whenever Shopping is on or the car
 // already has parts on record. Adding is idempotent server-side (a still-open request is reused).
 export function PartsSection({ vehicleId, parts, canShopping, t }: { vehicleId: number; parts: PartRequest[]; canShopping: boolean; t: TFn }) {
     const [adding, setAdding] = useState(false);
@@ -20,7 +21,7 @@ export function PartsSection({ vehicleId, parts, canShopping, t }: { vehicleId: 
         <section className="flex flex-col gap-2">
             <div className="flex items-center justify-between gap-3">
                 <h2 className="font-heading text-primary text-lg">{t('vehicles.parts')}</h2>
-                {canShopping && !adding && (
+                {canShopping && (
                     <button
                         type="button"
                         onClick={() => setAdding(true)}
@@ -31,10 +32,10 @@ export function PartsSection({ vehicleId, parts, canShopping, t }: { vehicleId: 
                 )}
             </div>
 
-            {adding && <AddPartForm vehicleId={vehicleId} t={t} onDone={() => setAdding(false)} onCancel={() => setAdding(false)} />}
+            <AddPartForm vehicleId={vehicleId} t={t} open={adding} onOpenChange={setAdding} />
 
             {parts.length === 0 ? (
-                !adding && <p className="text-muted-foreground bg-surface-card rounded-xl border px-4 py-6 text-center text-sm">{t('vehicles.parts_empty')}</p>
+                <p className="text-muted-foreground bg-surface-card rounded-xl border px-4 py-6 text-center text-sm">{t('vehicles.parts_empty')}</p>
             ) : (
                 <ul className="bg-border grid gap-px overflow-hidden rounded-2xl border">
                     {parts.map((p) => (
@@ -81,11 +82,20 @@ function PartRow({ vehicleId, part, t }: { vehicleId: number; part: PartRequest;
     );
 }
 
-// The inline add form used by the Overview card (name + optional estimated cost).
-function AddPartForm({ vehicleId, t, onDone, onCancel }: { vehicleId: number; t: TFn; onDone: () => void; onCancel: () => void }) {
+// The "add part" modal used by the Overview card (name + optional estimated cost). Always mounted so the
+// drawer/dialog can animate in and out; `open` is owned by the parent (PartsSection).
+function AddPartForm({ vehicleId, t, open, onOpenChange }: { vehicleId: number; t: TFn; open: boolean; onOpenChange: (open: boolean) => void }) {
     const [name, setName] = useState('');
     const [cost, setCost] = useState('');
     const [processing, setProcessing] = useState(false);
+
+    // Re-seed on every open so a previous submission (or a cancelled edit) doesn't linger.
+    useEffect(() => {
+        if (open) {
+            setName('');
+            setCost('');
+        }
+    }, [open]);
 
     const submit = () => {
         setProcessing(true);
@@ -94,15 +104,24 @@ function AddPartForm({ vehicleId, t, onDone, onCancel }: { vehicleId: number; t:
             { name, estimated_cost: cost },
             {
                 preserveScroll: true,
-                onSuccess: onDone,
+                onSuccess: () => onOpenChange(false),
                 onFinish: () => setProcessing(false),
             },
         );
     };
 
     return (
-        <div className="bg-surface-card flex flex-col gap-3 rounded-2xl border p-4">
-            <div className="grid gap-3 sm:grid-cols-2">
+        <ResponsiveModal
+            open={open}
+            onOpenChange={onOpenChange}
+            title={t('vehicles.add_part')}
+            footer={
+                <Button type="button" onClick={submit} disabled={processing || name.trim() === ''} className="w-full">
+                    {t('vehicles.add_part')}
+                </Button>
+            }
+        >
+            <div className="flex flex-col gap-3 pb-2">
                 <div className="grid gap-1.5">
                     <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('vehicles.part_name')}</Label>
                     <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('vehicles.part_name_placeholder')} className="text-base" />
@@ -111,27 +130,27 @@ function AddPartForm({ vehicleId, t, onDone, onCancel }: { vehicleId: number; t:
                     <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('vehicles.part_cost')}</Label>
                     <Input value={cost} onChange={(e) => setCost(e.target.value)} inputMode="decimal" placeholder="0.00" className="text-base" />
                 </div>
+                <p className="text-muted-foreground text-xs">{t('vehicles.part_cost_hint')}</p>
             </div>
-            <p className="text-muted-foreground text-xs">{t('vehicles.part_cost_hint')}</p>
-            <div className="flex items-center gap-3">
-                <Button type="button" onClick={submit} disabled={processing || name.trim() === ''} className="flex-1">
-                    {t('vehicles.add_part')}
-                </Button>
-                <Button type="button" variant="outline" onClick={onCancel}>
-                    {t('vehicles.cancel')}
-                </Button>
-            </div>
-        </div>
+        </ResponsiveModal>
     );
 }
 
-// A compact "Add part to shopping" control for a maintenance event or repair. Toggles a small inline form
-// that posts with the origin id, so the part records what service it's for.
+// A compact "Add part to shopping" control for a maintenance event or repair. Opens a modal that posts with
+// the origin id, so the part records what service it's for. Manages its own open state internally.
 export function AddPartButton({ vehicleId, scheduleId, repairId, t }: { vehicleId: number; scheduleId?: number; repairId?: number; t: TFn }) {
     const [open, setOpen] = useState(false);
     const [name, setName] = useState('');
     const [cost, setCost] = useState('');
     const [processing, setProcessing] = useState(false);
+
+    // Re-seed on every open so a previous submission doesn't linger.
+    useEffect(() => {
+        if (open) {
+            setName('');
+            setCost('');
+        }
+    }, [open]);
 
     const submit = () => {
         setProcessing(true);
@@ -140,18 +159,14 @@ export function AddPartButton({ vehicleId, scheduleId, repairId, t }: { vehicleI
             { name, estimated_cost: cost, maintenance_schedule_id: scheduleId, repair_id: repairId },
             {
                 preserveScroll: true,
-                onSuccess: () => {
-                    setName('');
-                    setCost('');
-                    setOpen(false);
-                },
+                onSuccess: () => setOpen(false),
                 onFinish: () => setProcessing(false),
             },
         );
     };
 
-    if (!open) {
-        return (
+    return (
+        <>
             <button
                 type="button"
                 onClick={() => setOpen(true)}
@@ -159,24 +174,32 @@ export function AddPartButton({ vehicleId, scheduleId, repairId, t }: { vehicleI
             >
                 <ShoppingCart className="size-4" /> {t('vehicles.add_part')}
             </button>
-        );
-    }
-
-    return (
-        <div className="bg-surface flex flex-col gap-2 rounded-lg border p-3">
-            <div className="flex items-center justify-between">
-                <span className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('vehicles.add_part')}</span>
-                <button type="button" onClick={() => setOpen(false)} aria-label={t('vehicles.cancel')} className="text-muted-foreground hover:text-primary">
-                    <X className="size-4" />
-                </button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('vehicles.part_name_placeholder')} className="min-w-40 flex-1 text-base" />
-                <Input value={cost} onChange={(e) => setCost(e.target.value)} inputMode="decimal" placeholder="0.00" className="w-24 text-base" />
-                <Button type="button" onClick={submit} disabled={processing || name.trim() === ''}>
-                    {t('vehicles.add_part')}
-                </Button>
-            </div>
-        </div>
+            <ResponsiveModal
+                open={open}
+                onOpenChange={setOpen}
+                title={t('vehicles.add_part')}
+                footer={
+                    <Button type="button" onClick={submit} disabled={processing || name.trim() === ''} className="w-full">
+                        {t('vehicles.add_part')}
+                    </Button>
+                }
+            >
+                <div className="flex flex-col gap-3 pb-2">
+                    <div className="grid gap-1.5">
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('vehicles.part_name')}</Label>
+                        <Input
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder={t('vehicles.part_name_placeholder')}
+                            className="text-base"
+                        />
+                    </div>
+                    <div className="grid gap-1.5">
+                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('vehicles.part_cost')}</Label>
+                        <Input value={cost} onChange={(e) => setCost(e.target.value)} inputMode="decimal" placeholder="0.00" className="text-base" />
+                    </div>
+                </div>
+            </ResponsiveModal>
+        </>
     );
 }

@@ -1,11 +1,12 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { ChevronRight, Pencil, Plus, Trash2, Wrench } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn } from '@/lib/i18n';
 import type { ServiceProvider, ServiceProviderWithCount } from '@/lib/vehicles';
@@ -39,22 +40,29 @@ export default function ServiceProviders({ providers }: Props) {
                     )}
                 </header>
 
-                {adding && <ProviderForm provider={null} t={t} onDone={() => setAdding(false)} onCancel={() => setAdding(false)} />}
-
-                {providers.length === 0 && !adding ? (
+                {providers.length === 0 ? (
                     <EmptyState t={t} />
                 ) : (
                     <ul className="flex flex-col gap-3">
-                        {providers.map((p) =>
-                            editingId === p.id ? (
-                                <ProviderForm key={p.id} provider={p} t={t} onDone={() => setEditingId(null)} onCancel={() => setEditingId(null)} />
-                            ) : (
-                                <ProviderCard key={p.id} provider={p} t={t} onEdit={() => setEditingId(p.id)} />
-                            ),
-                        )}
+                        {providers.map((p) => (
+                            <ProviderCard key={p.id} provider={p} t={t} onEdit={() => setEditingId(p.id)} />
+                        ))}
                     </ul>
                 )}
             </div>
+
+            {/* Always mounted; open/onOpenChange (not adding/editingId) controls visibility, per ResponsiveModal's API. */}
+            <ProviderFormModal
+                open={adding || editingId !== null}
+                onOpenChange={(v) => {
+                    if (!v) {
+                        setAdding(false);
+                        setEditingId(null);
+                    }
+                }}
+                provider={editingId !== null ? (providers.find((p) => p.id === editingId) ?? null) : null}
+                t={t}
+            />
         </AppLayout>
     );
 }
@@ -106,18 +114,47 @@ function ProviderCard({ provider, t, onEdit }: { provider: ServiceProviderWithCo
     );
 }
 
-// The add/edit form: name (required) + optional contact fields and notes.
-function ProviderForm({ provider, t, onDone, onCancel }: { provider: ServiceProvider | null; t: TFn; onDone: () => void; onCancel: () => void }) {
+// The add/edit form, in the shared ResponsiveModal (drawer on mobile, dialog on desktop): name
+// (required) + optional contact fields and notes. `provider` set = edit, null = add. Stays mounted;
+// open/onOpenChange controls visibility, and the form re-seeds from `provider` each time it opens.
+function ProviderFormModal({
+    open,
+    onOpenChange,
+    provider,
+    t,
+}: {
+    open: boolean;
+    onOpenChange: (v: boolean) => void;
+    provider: ServiceProvider | null;
+    t: TFn;
+}) {
     const editing = provider !== null;
+    const nameRef = useRef<HTMLInputElement>(null);
     const [form, setForm] = useState({
-        name: provider?.name ?? '',
-        address: provider?.address ?? '',
-        phone: provider?.phone ?? '',
-        website: provider?.website ?? '',
-        notes: provider?.notes ?? '',
+        name: '',
+        address: '',
+        phone: '',
+        website: '',
+        notes: '',
     });
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [processing, setProcessing] = useState(false);
+
+    // Re-seed the form whenever the modal opens (Add starts blank, Edit reflects the current provider),
+    // not on every keystroke.
+    useEffect(() => {
+        if (open) {
+            setForm({
+                name: provider?.name ?? '',
+                address: provider?.address ?? '',
+                phone: provider?.phone ?? '',
+                website: provider?.website ?? '',
+                notes: provider?.notes ?? '',
+            });
+            setErrors({});
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, provider?.id]);
 
     const set = (k: keyof typeof form, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -127,51 +164,58 @@ function ProviderForm({ provider, t, onDone, onCancel }: { provider: ServiceProv
         const method = editing ? router.patch : router.post;
         method(url, form, {
             preserveScroll: true,
-            onSuccess: onDone,
+            onSuccess: () => onOpenChange(false),
             onError: (e) => setErrors(e as Record<string, string>),
             onFinish: () => setProcessing(false),
         });
     };
 
     return (
-        <section className="bg-surface-card flex flex-col gap-4 rounded-2xl border p-5">
-            <h3 className="font-heading text-primary text-lg">{editing ? t('vehicles.edit_provider') : t('vehicles.add_provider')}</h3>
-
-            <Field label={t('vehicles.provider_name_label')} error={errors.name}>
-                <Input value={form.name} onChange={(e) => set('name', e.target.value)} placeholder={t('vehicles.provider_name_placeholder')} className="text-base" />
-            </Field>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-                <Field label={t('vehicles.provider_phone_label')} error={errors.phone}>
-                    <Input value={form.phone} onChange={(e) => set('phone', e.target.value)} className="text-base" />
-                </Field>
-                <Field label={t('vehicles.provider_website_label')} error={errors.website}>
-                    <Input value={form.website} onChange={(e) => set('website', e.target.value)} className="text-base" />
-                </Field>
-            </div>
-
-            <Field label={t('vehicles.provider_address_label')} error={errors.address}>
-                <Input value={form.address} onChange={(e) => set('address', e.target.value)} className="text-base" />
-            </Field>
-
-            <Field label={t('vehicles.notes_label')} error={errors.notes}>
-                <textarea
-                    value={form.notes}
-                    onChange={(e) => set('notes', e.target.value)}
-                    rows={2}
-                    className="border-input bg-surface-card focus-visible:ring-ring w-full rounded-lg border px-3 py-2 text-base focus-visible:ring-2 focus-visible:outline-none"
-                />
-            </Field>
-
-            <div className="flex items-center gap-3">
-                <Button type="button" onClick={submit} disabled={processing || form.name.trim() === ''} className="flex-1">
+        <ResponsiveModal
+            open={open}
+            onOpenChange={onOpenChange}
+            title={editing ? t('vehicles.edit_provider') : t('vehicles.add_provider')}
+            autoFocusRef={nameRef}
+            footer={
+                <Button type="button" onClick={submit} disabled={processing || form.name.trim() === ''} className="w-full">
                     {t('vehicles.save')}
                 </Button>
-                <Button type="button" variant="outline" onClick={onCancel}>
-                    {t('vehicles.cancel')}
-                </Button>
+            }
+        >
+            <div className="flex flex-col gap-4 pb-1">
+                <Field label={t('vehicles.provider_name_label')} error={errors.name}>
+                    <Input
+                        ref={nameRef}
+                        value={form.name}
+                        onChange={(e) => set('name', e.target.value)}
+                        placeholder={t('vehicles.provider_name_placeholder')}
+                        className="text-base"
+                    />
+                </Field>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label={t('vehicles.provider_phone_label')} error={errors.phone}>
+                        <Input value={form.phone} onChange={(e) => set('phone', e.target.value)} className="text-base" />
+                    </Field>
+                    <Field label={t('vehicles.provider_website_label')} error={errors.website}>
+                        <Input value={form.website} onChange={(e) => set('website', e.target.value)} className="text-base" />
+                    </Field>
+                </div>
+
+                <Field label={t('vehicles.provider_address_label')} error={errors.address}>
+                    <Input value={form.address} onChange={(e) => set('address', e.target.value)} className="text-base" />
+                </Field>
+
+                <Field label={t('vehicles.notes_label')} error={errors.notes}>
+                    <textarea
+                        value={form.notes}
+                        onChange={(e) => set('notes', e.target.value)}
+                        rows={2}
+                        className="border-input bg-surface-card focus-visible:ring-ring w-full rounded-lg border px-3 py-2 text-base focus-visible:ring-2 focus-visible:outline-none"
+                    />
+                </Field>
             </div>
-        </section>
+        </ResponsiveModal>
     );
 }
 

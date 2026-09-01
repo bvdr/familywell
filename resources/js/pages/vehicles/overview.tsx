@@ -10,14 +10,14 @@ import {
     Receipt,
     StickyNote,
     Wrench,
-    X,
     type LucideIcon,
 } from 'lucide-react';
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import AppLayout from '@/layouts/app-layout';
 import { compressImage, makeThumbnail } from '@/lib/compress-image';
 import { useT, type TFn } from '@/lib/i18n';
@@ -246,7 +246,7 @@ function QuickActions({ vehicle, enabled, t }: { vehicle: Vehicle; enabled: stri
                 <ActionLink icon={FileText} label={t('vehicles.qa_document')} href={`/m/vehicles/${vehicle.id}/documents`} />
                 {enabled.includes('notes') && <ActionLink icon={StickyNote} label={t('vehicles.qa_note')} href={`/m/vehicles/${vehicle.id}/notes`} />}
             </div>
-            {expense && <ExpenseModal vehicle={vehicle} onClose={() => setExpense(false)} t={t} />}
+            <ExpenseModal vehicle={vehicle} open={expense} onOpenChange={setExpense} t={t} />
         </>
     );
 }
@@ -275,11 +275,21 @@ function ActionLink({ icon: Icon, label, href }: { icon: LucideIcon; label: stri
 }
 
 // A tiny modal for the vehicle-level ad-hoc expense (amount + note + date), posting to the P5 expense
-// endpoint which mirrors it into Spending linked to the car.
-function ExpenseModal({ vehicle, onClose, t }: { vehicle: Vehicle; onClose: () => void; t: TFn }) {
+// endpoint which mirrors it into Spending linked to the car. Uses the app's shared ResponsiveModal so it
+// looks and behaves like every other add/edit sheet (mobile drawer + desktop dialog).
+function ExpenseModal({ vehicle, open, onOpenChange, t }: { vehicle: Vehicle; open: boolean; onOpenChange: (v: boolean) => void; t: TFn }) {
     const [amount, setAmount] = useState('');
     const [note, setNote] = useState('');
     const [processing, setProcessing] = useState(false);
+    const amountRef = useRef<HTMLInputElement>(null);
+
+    // Reset the fields each time the sheet opens (it stays mounted for the open/close animation).
+    useEffect(() => {
+        if (open) {
+            setAmount('');
+            setNote('');
+        }
+    }, [open]);
 
     const save = () => {
         setProcessing(true);
@@ -288,42 +298,36 @@ function ExpenseModal({ vehicle, onClose, t }: { vehicle: Vehicle; onClose: () =
             { amount, note },
             {
                 preserveScroll: true,
-                onSuccess: onClose,
+                onSuccess: () => onOpenChange(false),
                 onFinish: () => setProcessing(false),
             },
         );
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4" onClick={onClose}>
-            <div className="bg-surface-card w-full max-w-md rounded-t-2xl border p-5 sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
-                <div className="mb-4 flex items-center justify-between">
-                    <h2 className="font-heading text-primary text-lg">{t('vehicles.qa_expense')}</h2>
-                    <button type="button" onClick={onClose} className="text-muted-foreground hover:text-primary" aria-label={t('vehicles.cancel')}>
-                        <X className="size-5" />
-                    </button>
+        <ResponsiveModal
+            open={open}
+            onOpenChange={onOpenChange}
+            title={t('vehicles.qa_expense')}
+            description={t('vehicles.expense_car_hint')}
+            autoFocusRef={amountRef}
+            footer={
+                <Button onClick={save} disabled={processing || amount.trim() === ''} className="w-full">
+                    {t('vehicles.save_expense')}
+                </Button>
+            }
+        >
+            <div className="flex flex-col gap-3 pb-1">
+                <div>
+                    <label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('vehicles.expense_amount')}</label>
+                    <Input ref={amountRef} value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="0" className="mt-1 text-base" />
                 </div>
-                <p className="text-muted-foreground mb-3 text-xs">{t('vehicles.expense_car_hint')}</p>
-                <div className="flex flex-col gap-3">
-                    <div>
-                        <label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('vehicles.expense_amount')}</label>
-                        <Input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="0" className="mt-1 text-base" />
-                    </div>
-                    <div>
-                        <label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('vehicles.expense_note')}</label>
-                        <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={vehicleTitle(vehicle)} className="mt-1 text-base" />
-                    </div>
-                    <div className="mt-1 flex justify-end gap-2">
-                        <Button type="button" variant="outline" onClick={onClose}>
-                            {t('vehicles.cancel')}
-                        </Button>
-                        <Button type="button" onClick={save} disabled={processing || amount.trim() === ''}>
-                            {t('vehicles.save_expense')}
-                        </Button>
-                    </div>
+                <div>
+                    <label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('vehicles.expense_note')}</label>
+                    <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={vehicleTitle(vehicle)} className="mt-1 text-base" />
                 </div>
             </div>
-        </div>
+        </ResponsiveModal>
     );
 }
 

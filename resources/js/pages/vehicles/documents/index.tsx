@@ -1,11 +1,12 @@
 import { Head, router } from '@inertiajs/react';
 import { AlertTriangle, BellRing, CheckCircle2, Download, FileText, Pencil, Plus, Trash2 } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn } from '@/lib/i18n';
 import { documentTypeLabel, mileageText, vehicleTitle, type VehicleDocument, type VehicleHeader } from '@/lib/vehicles';
@@ -44,28 +45,35 @@ export default function VehicleDocuments({ vehicle, documents, types, canTask }:
 
                 <div className="flex items-center justify-between gap-3">
                     <h2 className="font-heading text-primary text-xl">{t('vehicles.documents')}</h2>
-                    {!adding && (
-                        <Button type="button" onClick={() => setAdding(true)}>
-                            <Plus className="size-4" /> {t('vehicles.add_document')}
-                        </Button>
-                    )}
+                    <Button type="button" onClick={() => setAdding(true)}>
+                        <Plus className="size-4" /> {t('vehicles.add_document')}
+                    </Button>
                 </div>
 
-                {adding && <DocumentForm vehicle={vehicle} document={null} types={types} t={t} onDone={() => setAdding(false)} onCancel={() => setAdding(false)} />}
-
-                {documents.length === 0 && !adding ? (
+                {documents.length === 0 ? (
                     <EmptyState t={t} />
                 ) : (
                     <ul className="flex flex-col gap-3">
-                        {documents.map((d) =>
-                            editingId === d.id ? (
-                                <DocumentForm key={d.id} vehicle={vehicle} document={d} types={types} t={t} onDone={() => setEditingId(null)} onCancel={() => setEditingId(null)} />
-                            ) : (
-                                <DocumentCard key={d.id} vehicle={vehicle} document={d} canTask={canTask} t={t} onEdit={() => setEditingId(d.id)} />
-                            ),
-                        )}
+                        {documents.map((d) => (
+                            <DocumentCard key={d.id} vehicle={vehicle} document={d} canTask={canTask} t={t} onEdit={() => setEditingId(d.id)} />
+                        ))}
                     </ul>
                 )}
+
+                {/* Always mounted; open drives Add (document=null) vs Edit (document=the row being edited). */}
+                <DocumentFormModal
+                    open={adding || editingId !== null}
+                    onOpenChange={(v) => {
+                        if (!v) {
+                            setAdding(false);
+                            setEditingId(null);
+                        }
+                    }}
+                    vehicle={vehicle}
+                    document={editingId !== null ? (documents.find((d) => d.id === editingId) ?? null) : null}
+                    types={types}
+                    t={t}
+                />
             </div>
         </AppLayout>
     );
@@ -167,20 +175,22 @@ function DocumentCard({
     );
 }
 
-function DocumentForm({
+// Add (document=null) / Edit (document=the row) document form, in the shared ResponsiveModal. Stays
+// mounted; the form re-seeds from `document` every time it opens (see the effect below).
+function DocumentFormModal({
+    open,
+    onOpenChange,
     vehicle,
     document,
     types,
     t,
-    onDone,
-    onCancel,
 }: {
+    open: boolean;
+    onOpenChange: (v: boolean) => void;
     vehicle: VehicleHeader;
     document: VehicleDocument | null;
     types: string[];
     t: TFn;
-    onDone: () => void;
-    onCancel: () => void;
 }) {
     const editing = document !== null;
     const [form, setForm] = useState({
@@ -192,6 +202,22 @@ function DocumentForm({
     const [file, setFile] = useState<File | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [processing, setProcessing] = useState(false);
+
+    // Re-seed on every open (Add starts blank, Edit reflects the row clicked) — including clearing any
+    // previously chosen File, which isn't derived from `document` and would otherwise leak between opens.
+    useEffect(() => {
+        if (open) {
+            setForm({
+                type: document?.type ?? types[0] ?? 'other',
+                title: document?.title ?? '',
+                expires_on: document?.expiresOn ?? '',
+                notes: document?.notes ?? '',
+            });
+            setFile(null);
+            setErrors({});
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, document?.id]);
 
     const set = (k: keyof typeof form, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -207,67 +233,69 @@ function DocumentForm({
         router.post(url, payload, {
             forceFormData: true,
             preserveScroll: true,
-            onSuccess: onDone,
+            onSuccess: () => onOpenChange(false),
             onError: (e) => setErrors(e as Record<string, string>),
             onFinish: () => setProcessing(false),
         });
     };
 
     return (
-        <section className="bg-surface-card flex flex-col gap-4 rounded-2xl border p-5">
-            <h3 className="font-heading text-primary text-lg">{editing ? t('vehicles.edit_document') : t('vehicles.add_document')}</h3>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-                <Field label={t('vehicles.document_type_label')} error={errors.type}>
-                    <select
-                        value={form.type}
-                        onChange={(e) => set('type', e.target.value)}
-                        className="border-input bg-surface-card focus-visible:ring-ring w-full rounded-lg border px-3 py-2 text-base focus-visible:ring-2 focus-visible:outline-none"
-                    >
-                        {types.map((ty) => (
-                            <option key={ty} value={ty}>
-                                {documentTypeLabel(t, ty)}
-                            </option>
-                        ))}
-                    </select>
-                </Field>
-                <Field label={t('vehicles.document_expiry_label')} error={errors.expires_on}>
-                    <Input type="date" value={form.expires_on} onChange={(e) => set('expires_on', e.target.value)} className="text-base" />
-                </Field>
-            </div>
-
-            <Field label={t('vehicles.document_title_label')} error={errors.title}>
-                <Input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder={t('vehicles.document_title_placeholder')} className="text-base" />
-            </Field>
-
-            <Field label={t('vehicles.notes_label')} error={errors.notes}>
-                <textarea
-                    value={form.notes}
-                    onChange={(e) => set('notes', e.target.value)}
-                    rows={2}
-                    className="border-input bg-surface-card focus-visible:ring-ring w-full rounded-lg border px-3 py-2 text-base focus-visible:ring-2 focus-visible:outline-none"
-                />
-            </Field>
-
-            <Field label={editing && document?.hasFile ? t('vehicles.replace_file_label') : t('vehicles.document_file_label')} error={errors.file}>
-                <input
-                    type="file"
-                    accept="image/*,application/pdf"
-                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                    className="text-muted-foreground file:border-border file:bg-surface file:text-primary block w-full text-sm file:mr-3 file:rounded-lg file:border file:px-3 file:py-1.5 file:text-sm file:font-medium"
-                />
-                {editing && document?.hasFile && !file && <span className="text-muted-foreground text-xs">{t('vehicles.current_file', { name: document.fileName || t('vehicles.view_file') })}</span>}
-            </Field>
-
-            <div className="flex items-center gap-3">
-                <Button type="button" onClick={submit} disabled={processing || form.title.trim() === ''} className="flex-1">
+        <ResponsiveModal
+            open={open}
+            onOpenChange={onOpenChange}
+            title={editing ? t('vehicles.edit_document') : t('vehicles.add_document')}
+            footer={
+                <Button type="button" onClick={submit} disabled={processing || form.title.trim() === ''} className="w-full">
                     {t('vehicles.save')}
                 </Button>
-                <Button type="button" variant="outline" onClick={onCancel}>
-                    {t('vehicles.cancel')}
-                </Button>
+            }
+        >
+            <div className="flex flex-col gap-4 pb-1">
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label={t('vehicles.document_type_label')} error={errors.type}>
+                        <select
+                            value={form.type}
+                            onChange={(e) => set('type', e.target.value)}
+                            className="border-input bg-surface-card focus-visible:ring-ring w-full rounded-lg border px-3 py-2 text-base focus-visible:ring-2 focus-visible:outline-none"
+                        >
+                            {types.map((ty) => (
+                                <option key={ty} value={ty}>
+                                    {documentTypeLabel(t, ty)}
+                                </option>
+                            ))}
+                        </select>
+                    </Field>
+                    <Field label={t('vehicles.document_expiry_label')} error={errors.expires_on}>
+                        <Input type="date" value={form.expires_on} onChange={(e) => set('expires_on', e.target.value)} className="text-base" />
+                    </Field>
+                </div>
+
+                <Field label={t('vehicles.document_title_label')} error={errors.title}>
+                    <Input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder={t('vehicles.document_title_placeholder')} className="text-base" />
+                </Field>
+
+                <Field label={t('vehicles.notes_label')} error={errors.notes}>
+                    <textarea
+                        value={form.notes}
+                        onChange={(e) => set('notes', e.target.value)}
+                        rows={2}
+                        className="border-input bg-surface-card focus-visible:ring-ring w-full rounded-lg border px-3 py-2 text-base focus-visible:ring-2 focus-visible:outline-none"
+                    />
+                </Field>
+
+                <Field label={editing && document?.hasFile ? t('vehicles.replace_file_label') : t('vehicles.document_file_label')} error={errors.file}>
+                    <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                        className="text-muted-foreground file:border-border file:bg-surface file:text-primary block w-full text-sm file:mr-3 file:rounded-lg file:border file:px-3 file:py-1.5 file:text-sm file:font-medium"
+                    />
+                    {editing && document?.hasFile && !file && (
+                        <span className="text-muted-foreground text-xs">{t('vehicles.current_file', { name: document.fileName || t('vehicles.view_file') })}</span>
+                    )}
+                </Field>
             </div>
-        </section>
+        </ResponsiveModal>
     );
 }
 
