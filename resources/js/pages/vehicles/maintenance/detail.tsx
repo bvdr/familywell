@@ -19,10 +19,12 @@ import {
     type MaintenanceHistoryEntry,
     type MaintenanceLinkedTask,
     type MaintenanceSchedule,
+    type ProviderOption,
     type VehicleHeader,
 } from '@/lib/vehicles';
 import type { BreadcrumbItem } from '@/types';
 
+import ProviderPicker from '../provider-picker';
 import VehicleNav from '../vehicle-nav';
 
 type Props = {
@@ -31,9 +33,10 @@ type Props = {
     history: MaintenanceHistoryEntry[];
     linkedTask: MaintenanceLinkedTask | null;
     canExpense: boolean;
+    providers: ProviderOption[];
 };
 
-export default function MaintenanceDetail({ vehicle, schedule, history, linkedTask, canExpense }: Props) {
+export default function MaintenanceDetail({ vehicle, schedule, history, linkedTask, canExpense, providers }: Props) {
     const t = useT();
     const title = schedule.name || templateLabel(t, schedule.type);
     const breadcrumbs: BreadcrumbItem[] = [
@@ -91,7 +94,7 @@ export default function MaintenanceDetail({ vehicle, schedule, history, linkedTa
 
                 {/* Actions. "Mark as completed" records the service (and closes the linked task + logs any
                     cost to Spending); "Create task" and "Add expense" wire into the Tasks / Spending modules. */}
-                <CompletePanel vehicle={vehicle} schedule={schedule} linkedTask={linkedTask} canExpense={canExpense} t={t} />
+                <CompletePanel vehicle={vehicle} schedule={schedule} linkedTask={linkedTask} canExpense={canExpense} providers={providers} t={t} />
 
                 <MaintenanceHistoryList history={history} t={t} />
             </div>
@@ -135,21 +138,31 @@ function CompletePanel({
     schedule,
     linkedTask,
     canExpense,
+    providers,
     t,
 }: {
     vehicle: VehicleHeader;
     schedule: MaintenanceSchedule;
     linkedTask: MaintenanceLinkedTask | null;
     canExpense: boolean;
+    providers: ProviderOption[];
     t: TFn;
 }) {
     const [panel, setPanel] = useState<'none' | 'complete' | 'expense'>('none');
     const [processing, setProcessing] = useState(false);
-    const [form, setForm] = useState({
+    const [form, setForm] = useState<{
+        performed_at: string;
+        mileage: string;
+        cost: string;
+        provider: string;
+        service_provider_id: number | null;
+        notes: string;
+    }>({
         performed_at: todayIso(),
         mileage: String(vehicle.currentMileage),
         cost: '',
         provider: '',
+        service_provider_id: null,
         notes: '',
     });
     const [expense, setExpense] = useState({ amount: '', note: '', spent_at: todayIso() });
@@ -209,9 +222,14 @@ function CompletePanel({
                     <FormField label={t('vehicles.completed_cost')} error={errors.cost}>
                         <Input value={form.cost} onChange={(e) => set('cost', e.target.value)} inputMode="decimal" placeholder="0.00" className="text-base" />
                     </FormField>
-                    <FormField label={t('vehicles.completed_provider')} error={errors.provider}>
-                        <Input value={form.provider} onChange={(e) => set('provider', e.target.value)} placeholder={t('vehicles.provider_placeholder')} className="text-base" />
-                    </FormField>
+                    <ProviderPicker
+                        providers={providers}
+                        value={{ serviceProviderId: form.service_provider_id, provider: form.provider }}
+                        onChange={(v) => setForm((p) => ({ ...p, service_provider_id: v.serviceProviderId, provider: v.provider }))}
+                        label={t('vehicles.completed_provider')}
+                        t={t}
+                        error={errors.provider ?? errors.service_provider_id}
+                    />
                 </div>
                 <FormField label={t('vehicles.notes_label')} error={errors.notes}>
                     <textarea

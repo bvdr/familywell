@@ -8,6 +8,7 @@ use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -30,7 +31,8 @@ class VehicleRepairsController extends Controller
     {
         $this->authorizeVehicle($vehicle);
 
-        $repairs = $vehicle->repairs()->with('attachments')->get()
+        // Eager-load serviceProvider so each repair resolves its provider name without an N+1.
+        $repairs = $vehicle->repairs()->with(['attachments', 'serviceProvider'])->get()
             ->map(fn (Repair $r) => $r->toPayload($this->attachmentPayloads($r)))->values();
 
         return Inertia::render('vehicles/repairs/index', [
@@ -38,6 +40,8 @@ class VehicleRepairsController extends Controller
             'repairs' => $repairs,
             // Only offer "also add to Spending" when the family actually has Spending on.
             'canExpense' => app(ModuleRegistry::class)->isEnabled('spending', (int) CurrentFamily::id()),
+            // V1.1: the family's service providers, for the repair form's provider picker.
+            'providers' => $this->providerOptions(),
         ]);
     }
 
@@ -52,7 +56,8 @@ class VehicleRepairsController extends Controller
             'occurred_on' => $data['occurred_on'],
             'mileage' => $data['mileage'] ?? null,
             'cost' => $data['cost'] ?? null,
-            'provider' => $data['provider'] ?? null,
+            'provider' => $data['provider'] ?? null,                          // free-text fallback
+            'service_provider_id' => $data['service_provider_id'] ?? null,    // preferred link (V1.1)
             'notes' => $data['notes'] ?? null,
             'created_by' => $request->user()->id,
         ]);
@@ -88,7 +93,8 @@ class VehicleRepairsController extends Controller
             'occurred_on' => $data['occurred_on'],
             'mileage' => $data['mileage'] ?? null,
             'cost' => $data['cost'] ?? null,
-            'provider' => $data['provider'] ?? null,
+            'provider' => $data['provider'] ?? null,                          // free-text fallback
+            'service_provider_id' => $data['service_provider_id'] ?? null,    // preferred link (V1.1)
             'notes' => $data['notes'] ?? null,
         ]);
 
@@ -135,7 +141,9 @@ class VehicleRepairsController extends Controller
             'occurred_on' => ['required', 'date'],
             'mileage' => ['nullable', 'integer', 'min:0'],
             'cost' => ['nullable', 'numeric', 'min:0'],
-            'provider' => ['nullable', 'string', 'max:120'],
+            'provider' => ['nullable', 'string', 'max:120'],   // free-text fallback
+            // V1.1: optional link to a family service provider (preferred over the free text).
+            'service_provider_id' => ['nullable', 'integer', Rule::exists('vehicles_service_providers', 'id')->where('family_id', (int) CurrentFamily::id())],
             'notes' => ['nullable', 'string', 'max:2000'],
             'create_expense' => ['sometimes', 'boolean'],
             'attachments' => ['nullable', 'array', 'max:10'],
@@ -200,6 +208,13 @@ class VehicleRepairsController extends Controller
             'currentMileage' => (int) $vehicle->current_mileage,
             ...$vehicle->maintenanceSummary(),
         ];
+    }
+
+    /** [{id,name}] for the repair form's provider picker (family-scoped, alphabetical). */
+    private function providerOptions(): array
+    {
+        return ServiceProvider::query()->orderBy('name')->get()
+            ->map(fn (ServiceProvider $p) => ['id' => $p->id, 'name' => $p->name])->values()->all();
     }
 
     private function authorizeVehicle(Vehicle $vehicle): void

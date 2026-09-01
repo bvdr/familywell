@@ -8,6 +8,7 @@ use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -82,7 +83,8 @@ class VehicleMaintenanceController extends Controller
     {
         $this->authorizeSchedule($vehicle, $schedule);
 
-        $history = $schedule->history()->limit(self::HISTORY_LIMIT)->get()
+        // Eager-load serviceProvider so each history row resolves its provider name without an N+1.
+        $history = $schedule->history()->with('serviceProvider')->limit(self::HISTORY_LIMIT)->get()
             ->map(fn (VehicleMaintenanceHistory $h) => $h->toPayload())->values();
 
         return Inertia::render('vehicles/maintenance/detail', [
@@ -93,6 +95,8 @@ class VehicleMaintenanceController extends Controller
             // task" again, and whether Spending is on so "Add expense" only shows when it can land somewhere.
             'linkedTask' => $this->linkedTask($schedule),
             'canExpense' => app(ModuleRegistry::class)->isEnabled('spending', (int) CurrentFamily::id()),
+            // V1.1: the family's service providers, for the completion form's provider picker.
+            'providers' => $this->providerOptions(),
         ]);
     }
 
@@ -156,7 +160,9 @@ class VehicleMaintenanceController extends Controller
             'performed_at' => ['required', 'date'],
             'mileage' => ['required', 'integer', 'min:0'],
             'cost' => ['nullable', 'numeric', 'min:0'],
-            'provider' => ['nullable', 'string', 'max:120'],
+            'provider' => ['nullable', 'string', 'max:120'],   // free-text fallback
+            // V1.1: optional link to a family service provider (preferred over the free text).
+            'service_provider_id' => ['nullable', 'integer', Rule::exists('vehicles_service_providers', 'id')->where('family_id', (int) CurrentFamily::id())],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
@@ -266,6 +272,13 @@ class VehicleMaintenanceController extends Controller
         $candidates = array_filter([$payload['remainingKm'], $payload['remainingDays']], fn ($v) => $v !== null);
 
         return $candidates === [] ? PHP_INT_MAX : (int) min($candidates);
+    }
+
+    /** [{id,name}] for the completion form's provider picker (family-scoped, alphabetical). */
+    private function providerOptions(): array
+    {
+        return ServiceProvider::query()->orderBy('name')->get()
+            ->map(fn (ServiceProvider $p) => ['id' => $p->id, 'name' => $p->name])->values()->all();
     }
 
     private function authorizeVehicle(Vehicle $vehicle): void

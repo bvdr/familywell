@@ -22,7 +22,8 @@ class Repair extends Model
     protected $table = 'vehicles_repairs';
 
     protected $fillable = [
-        'vehicle_id', 'title', 'occurred_on', 'mileage', 'cost', 'provider', 'notes', 'created_by', 'family_id',
+        'vehicle_id', 'title', 'occurred_on', 'mileage', 'cost', 'provider', 'service_provider_id',
+        'notes', 'created_by', 'family_id',
     ];
 
     protected $casts = [
@@ -41,9 +42,25 @@ class Repair extends Model
         return $this->hasMany(RepairAttachment::class)->latest('id');
     }
 
+    /** The linked service provider (V1.1), when this repair points at one instead of free text. */
+    public function serviceProvider(): BelongsTo
+    {
+        return $this->belongsTo(ServiceProvider::class, 'service_provider_id');
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * The garage/provider name to display: the linked provider's name when set, else the free-text
+     * fallback (quick entry / pre-V1.1 rows). Reads the `serviceProvider` relation — eager-load it where
+     * many repairs render.
+     */
+    public function providerName(): ?string
+    {
+        return $this->serviceProvider?->name ?? $this->provider;
     }
 
     /**
@@ -62,7 +79,9 @@ class Repair extends Model
             'occurredOn' => optional($this->occurred_on)->toDateString(),
             'mileage' => $this->mileage,
             'cost' => $this->cost,
-            'provider' => $this->provider,
+            // Resolved display name (linked provider wins over free text).
+            'provider' => $this->providerName(),
+            'serviceProviderId' => $this->service_provider_id,
             'notes' => $this->notes,
             'attachments' => $attachments,
             'createdBy' => $this->created_by,

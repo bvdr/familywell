@@ -33,7 +33,7 @@ class VehicleTimeline
                 'type' => 'maintenance',
                 'date' => optional($h->performed_at)->toDateString(),
                 'title' => $h->name,
-                'subtitle' => $h->provider,
+                'subtitle' => $h->providerName(),
                 'mileage' => $h->mileage,
                 'cost' => $h->cost !== null ? (float) $h->cost : null,
             ]);
@@ -46,7 +46,7 @@ class VehicleTimeline
                 'type' => 'repair',
                 'date' => optional($r->occurred_on)->toDateString(),
                 'title' => $r->title,
-                'subtitle' => $r->provider,
+                'subtitle' => $r->providerName(),
                 'mileage' => $r->mileage,
                 'cost' => $r->cost !== null ? (float) $r->cost : null,
             ]);
