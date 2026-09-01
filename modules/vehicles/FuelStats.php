@@ -109,4 +109,46 @@ class FuelStats
             'annualCost' => $annualCost,
         ];
     }
+
+    /**
+     * The consumption TREND (V1.1 P3, for the analytics curve): one L/100km point per CLOSED full-to-full
+     * segment, in chronological order, dated at the later full fill that closes the segment. Same full-to-
+     * full method as forEntries() — a partial fill only adds litres to the current segment — so the points
+     * agree with the headline average. Fewer than two full tanks yields no closed segment, hence an empty
+     * series (the screen then shows the "not enough data yet" empty state, never a fabricated line).
+     *
+     * @param  Collection<int, VehicleFuelEntry>  $entries
+     * @return list<array{date:string, value:float}>
+     */
+    public static function consumptionTrend(Collection $entries): array
+    {
+        // Same ordering as forEntries: by odometer, so segments read in the order they were driven.
+        $ordered = $entries->sortBy([['mileage', 'asc'], ['filled_on', 'asc'], ['id', 'asc']])->values();
+
+        $points = [];
+        $lastFull = null;   // previous FULL-tank fill (the segment's opening reading)
+        $accum = 0.0;       // litres pumped since $lastFull (excludes its own litres)
+
+        foreach ($ordered as $fill) {
+            if ($lastFull !== null) {
+                $accum += (float) $fill->liters;
+            }
+            if ($fill->is_full_tank) {
+                if ($lastFull !== null) {
+                    $distance = (int) $fill->mileage - (int) $lastFull->mileage;
+                    if ($distance > 0) {
+                        $points[] = [
+                            // Date the point at the fill that CLOSES the segment (when the burn was measured).
+                            'date' => optional($fill->filled_on)->toDateString() ?? '',
+                            'value' => round($accum / $distance * 100, 2),
+                        ];
+                    }
+                }
+                $lastFull = $fill;
+                $accum = 0.0;
+            }
+        }
+
+        return $points;
+    }
 }

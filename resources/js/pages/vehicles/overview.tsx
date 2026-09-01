@@ -2,8 +2,10 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     Camera,
     Car,
+    ChartLine,
     ChevronRight,
     FileText,
+    Fuel,
     Gauge,
     History,
     Pencil,
@@ -21,9 +23,13 @@ import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import AppLayout from '@/layouts/app-layout';
 import { compressImage, makeThumbnail } from '@/lib/compress-image';
 import { useT, type TFn } from '@/lib/i18n';
+import { money } from '@/lib/money';
 import { relativeTime } from '@/lib/notifications';
 import {
+    consumptionText,
+    costPerKmText,
     distanceText,
+    distanceUnitLabel,
     documentTypeLabel,
     fmtDistance,
     fuelLabel,
@@ -37,6 +43,7 @@ import {
     unitToKm,
     vehicleSubtitle,
     vehicleTitle,
+    type CompactAnalytics,
     type MileageEntry,
     type NextMaintenance,
     type OverviewNext,
@@ -70,9 +77,10 @@ type Props = {
     sections: SectionCounts;
     parts: PartRequest[];
     canShopping: boolean;
+    analytics: CompactAnalytics;
 };
 
-export default function VehicleOverview({ vehicle, owner, primaryDriver, history, unitSystem, status, next, recent, sections, parts, canShopping }: Props) {
+export default function VehicleOverview({ vehicle, owner, primaryDriver, history, unitSystem, status, next, recent, sections, parts, canShopping, analytics }: Props) {
     const t = useT();
     const { modules } = usePage<SharedData & { modules?: { enabled?: string[] } }>().props;
     const enabled = modules?.enabled ?? [];
@@ -113,6 +121,11 @@ export default function VehicleOverview({ vehicle, owner, primaryDriver, history
                 <NextUp vehicle={vehicle} next={next} unitSystem={unitSystem} t={t} />
 
                 <MaintenanceSummary vehicle={vehicle} unitSystem={unitSystem} t={t} />
+
+                {/* V1.1 P3: the compact running-cost headline (YTD spend, cost per km, avg consumption),
+                    linking through to the full Costs tab. Hidden until there's anything worth showing. */}
+                <RunningCosts vehicle={vehicle} analytics={analytics} unitSystem={unitSystem} t={t} />
+
                 <div className="grid gap-3 sm:grid-cols-2">
                     <SectionTile
                         href={`/m/vehicles/${vehicle.id}/repairs`}
@@ -512,6 +525,41 @@ function MaintenanceSummary({ vehicle, unitSystem, t }: { vehicle: Vehicle; unit
                 <span className="text-muted-foreground block truncate text-sm">{subtitle}</span>
             </div>
             <ChevronRight className="text-muted-foreground size-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
+        </Link>
+    );
+}
+
+// V1.1 P3: the compact "running costs" headline — a few derived stats (year-to-date spend, operating cost
+// per km, average fuel consumption) that link through to the full Costs tab. Comes from VehicleAnalytics, so
+// it never disagrees with that screen. Hidden until there's data (no spends and no consumption yet).
+function RunningCosts({ vehicle, analytics, unitSystem, t }: { vehicle: Vehicle; analytics: CompactAnalytics; unitSystem: UnitSystem; t: TFn }) {
+    if (!analytics.hasData) return null;
+
+    const stats: { icon: LucideIcon; label: string; value: string }[] = [
+        { icon: Receipt, label: t('vehicles.cost_ytd'), value: money(analytics.ytdTotal, analytics.currency) },
+        { icon: Gauge, label: t('vehicles.operating_cost', { unit: distanceUnitLabel(unitSystem) }), value: costPerKmText(analytics.ytdCostPerKm, analytics.currency, unitSystem) },
+        { icon: Fuel, label: t('vehicles.fuel_consumption_avg'), value: consumptionText(analytics.avgConsumption, unitSystem) },
+    ];
+
+    return (
+        <Link
+            href={`/m/vehicles/${vehicle.id}/analytics`}
+            className="bg-surface-card group flex flex-col gap-3 rounded-2xl border p-4 transition-colors hover:border-[var(--primary)]"
+        >
+            <div className="flex items-center justify-between gap-2">
+                <span className="text-primary flex items-center gap-2 font-medium">
+                    <ChartLine className="size-4.5" /> {t('vehicles.costs')}
+                </span>
+                <ChevronRight className="text-muted-foreground size-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
+            </div>
+            <div className="bg-border grid grid-cols-3 gap-px overflow-hidden rounded-xl border">
+                {stats.map((s) => (
+                    <div key={s.label} className="bg-surface-card flex flex-col gap-0.5 p-3">
+                        <span className="text-muted-foreground text-[11px] font-semibold tracking-widest uppercase">{s.label}</span>
+                        <span className="text-primary text-base font-semibold tabular-nums">{s.value}</span>
+                    </div>
+                ))}
+            </div>
         </Link>
     );
 }

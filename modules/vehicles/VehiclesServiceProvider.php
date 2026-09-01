@@ -99,6 +99,8 @@ class VehiclesServiceProvider extends ServiceProvider
                 Route::get('/{vehicle}', [VehiclesController::class, 'show'])->name('show');
                 // P5: the per-car Timeline — the whole life of the car as one chronological feed.
                 Route::get('/{vehicle}/timeline', [VehiclesController::class, 'timeline'])->name('timeline');
+                // V1.1 P3: the per-car Costs & consumption analytics — all derived from earlier phases.
+                Route::get('/{vehicle}/analytics', [VehicleAnalyticsController::class, 'index'])->name('analytics');
                 Route::get('/{vehicle}/edit', [VehiclesController::class, 'edit'])->name('edit');
                 Route::patch('/{vehicle}', [VehiclesController::class, 'update'])->name('update');
                 Route::delete('/{vehicle}', [VehiclesController::class, 'destroy'])->name('destroy');

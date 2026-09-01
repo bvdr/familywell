@@ -1,12 +1,12 @@
 import { Link } from '@inertiajs/react';
-import { CircleDot, FileText, Fuel, Gauge, History, StickyNote, Wrench } from 'lucide-react';
+import { ChartLine, CircleDot, FileText, Fuel, Gauge, History, StickyNote, Wrench } from 'lucide-react';
 
 import { useT } from '@/lib/i18n';
 
 // The per-car sub-navigation (spec: Overview / Maintenance / Repairs / Timeline / Fuel / Documents / Notes).
 // Overview + Maintenance are live from P2; Repairs / Documents / Notes from P4; Timeline from P5; Fuel from
-// V1.1. `active` selects the current tab.
-type Tab = 'overview' | 'maintenance' | 'repairs' | 'fuel' | 'tires' | 'documents' | 'notes' | 'timeline';
+// V1.1; Costs (analytics) from V1.1 P3. `active` selects the current tab.
+type Tab = 'overview' | 'maintenance' | 'repairs' | 'fuel' | 'tires' | 'documents' | 'notes' | 'timeline' | 'analytics';
 
 export default function VehicleNav({ vehicleId, active }: { vehicleId: number; active: Tab }) {
     const t = useT();
@@ -49,6 +49,12 @@ export default function VehicleNav({ vehicleId, active }: { vehicleId: number; a
                 icon={<StickyNote className="size-4" />}
                 label={t('vehicles.tab_notes')}
                 active={active === 'notes'}
+            />
+            <TabLink
+                href={`/m/vehicles/${vehicleId}/analytics`}
+                icon={<ChartLine className="size-4" />}
+                label={t('vehicles.tab_costs')}
+                active={active === 'analytics'}
             />
             <TabLink
                 href={`/m/vehicles/${vehicleId}/timeline`}

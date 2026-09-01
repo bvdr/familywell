@@ -114,6 +114,10 @@ class VehiclesController extends Controller
             // "Add part" surface only appears when there's a shopping list to add to).
             'parts' => $vehicle->partRequests->map(fn (VehiclePartRequest $p) => $p->toPayload())->values(),
             'canShopping' => app(ModuleRegistry::class)->isEnabled('shopping', (int) CurrentFamily::id()),
+            // V1.1 P3: the compact cost/consumption headline (YTD spend, cost per km, avg L/100km) — a
+            // couple of derived stats that link through to the full Costs tab. Consistent with it because
+            // both come from VehicleAnalytics.
+            'analytics' => VehicleAnalytics::compact($vehicle),
         ]);
     }
 
