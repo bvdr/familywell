@@ -26,6 +26,7 @@ class Vehicle extends Model
     protected $fillable = [
         'make', 'model', 'year', 'version', 'fuel_type', 'transmission', 'vin', 'registration_number',
         'color', 'purchase_date', 'purchase_price', 'owner_id', 'primary_driver_id', 'current_mileage',
+        'milestone_notified_km',
         'photo_path', 'license_plate', 'insurance_company', 'road_tax_status', 'inspection_status',
         'notes', 'created_by', 'family_id',
     ];
@@ -35,6 +36,7 @@ class Vehicle extends Model
         'purchase_date' => 'date',
         'purchase_price' => 'float',
         'current_mileage' => 'integer',
+        'milestone_notified_km' => 'integer',
     ];
 
     // Fuel + transmission code lists. Kept here (not a DB enum) so adding an option is a one-line code
