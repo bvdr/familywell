@@ -66,12 +66,13 @@ class VehicleTimeline
         }
 
         // Ad-hoc expenses only: a Spend linked to the car that is NOT already represented by a maintenance
-        // completion (maintenance_history_id) or a repair (repair_id). Eager-loads the spend so the cost +
-        // date + note come from the real Spending record.
+        // completion (maintenance_history_id), a repair (repair_id) or a fuel fill (fuel_entry_id). Eager-
+        // loads the spend so the cost + date + note come from the real Spending record.
         $expenses = VehicleExpenseLink::query()
             ->where('vehicle_id', $vehicle->id)
             ->whereNull('maintenance_history_id')
             ->whereNull('repair_id')
+            ->whereNull('fuel_entry_id')
             ->with('spend')
             ->get();
         foreach ($expenses as $link) {

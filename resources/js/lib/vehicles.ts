@@ -310,6 +310,75 @@ export const distanceText = (km: number, unit: UnitSystem): string => `${fmtDist
 // thread the family unit) keep rendering km unchanged; the P5 surfaces pass the real unit.
 export const mileageText = (t: TFn, km: number, unit: UnitSystem = 'metric'): string => distanceText(km, unit);
 
+// ---- Fuel volume + consumption (V1.1) --------------------------------------------------------------
+// Volume is ALWAYS stored in litres; imperial displays US gallons. Consumption is stored L/100km; imperial
+// displays mpg (US). Cost-per-distance is stored per-km; imperial displays per-mile. Mirrors the distance
+// pattern — the server keeps one canonical unit and the client converts only for display.
+export const LITERS_PER_US_GALLON = 3.785411784;
+export const MPG_L100_CONSTANT = 235.214583; // 1 L/100km == 235.214583 mpg (US)
+
+/** The short volume-unit label ("L" / "gal"). */
+export const volumeUnitLabel = (unit: UnitSystem): string => (unit === 'imperial' ? 'gal' : 'L');
+
+/** Stored litres -> the display unit's value (litres, or US gallons for imperial). */
+export const litersToUnit = (liters: number, unit: UnitSystem): number =>
+    unit === 'imperial' ? liters / LITERS_PER_US_GALLON : liters;
+
+/** "52.0 L" / "13.7 gal" — a volume with its unit label, to one decimal. */
+export const volumeText = (liters: number, unit: UnitSystem): string =>
+    `${litersToUnit(liters, unit).toFixed(1)} ${volumeUnitLabel(unit)}`;
+
+/** The consumption-unit label ("L/100km" / "mpg"). */
+export const consumptionUnitLabel = (unit: UnitSystem): string => (unit === 'imperial' ? 'mpg' : 'L/100km');
+
+/** Stored L/100km -> the display unit's value (L/100km, or mpg for imperial). null passes through. */
+export const consumptionValue = (lPer100: number | null, unit: UnitSystem): number | null => {
+    if (lPer100 == null || lPer100 <= 0) return lPer100;
+    return unit === 'imperial' ? MPG_L100_CONSTANT / lPer100 : lPer100;
+};
+
+/** "6.5 L/100km" / "36.2 mpg" — consumption with its unit label. Null renders as an em dash. */
+export const consumptionText = (lPer100: number | null, unit: UnitSystem): string => {
+    const v = consumptionValue(lPer100, unit);
+    if (v == null) return '—';
+    return `${v.toFixed(1)} ${consumptionUnitLabel(unit)}`;
+};
+
+/** "€0.12/km" / "€0.19/mi" — cost per distance in the family's unit. Stored per-km. Null -> em dash. */
+export const costPerDistanceText = (costPerKm: number | null, unit: UnitSystem): string => {
+    if (costPerKm == null) return '—';
+    const perUnit = unit === 'imperial' ? costPerKm * KM_PER_MILE : costPerKm;
+    return `€${perUnit.toFixed(2)}/${distanceUnitLabel(unit)}`;
+};
+
+// One recorded fuel fill (VehicleFuelEntry::toPayload). Litres/cost/mileage are stored metric; the Fuel tab
+// converts for display via the helpers above.
+export type FuelEntry = {
+    id: number;
+    vehicleId: number;
+    filledOn: string | null;
+    liters: number;
+    cost: number | null;
+    mileage: number;
+    isFullTank: boolean;
+    station: string | null;
+    note: string | null;
+    createdBy: number | null;
+};
+
+// The computed fuel metrics for a vehicle (FuelStats::forEntries). All values metric; convert for display.
+export type FuelStats = {
+    entryCount: number;
+    totalLiters: number;
+    totalCost: number;
+    latestConsumption: number | null; // L/100km, most recent full-to-full segment
+    avgConsumption: number | null; // L/100km across all segments
+    costPerKm: number | null; // currency per km
+    distanceTracked: number | null; // km between first and last fill
+    monthlyCost: number | null;
+    annualCost: number | null;
+};
+
 // One-line vehicle title ("Dacia Duster"). The subtitle (year · engine) is built at the call site.
 export const vehicleTitle = (v: Pick<Vehicle, 'make' | 'model'>): string => `${v.make} ${v.model}`.trim();
 

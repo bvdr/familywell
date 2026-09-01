@@ -128,6 +128,13 @@ class VehiclesServiceProvider extends ServiceProvider
                 Route::get('/{vehicle}/documents/{document}/file', [VehicleDocumentsController::class, 'fileShow'])->name('documents.file');
                 Route::post('/{vehicle}/documents/{document}/renewal-task', [VehicleDocumentsController::class, 'createRenewalTask'])->name('documents.renewal');
 
+                // V1.1: Fuel — a lightweight per-car fill-up log with computed consumption / cost metrics. A
+                // costed fill can mirror into Spending (opt-in); recording one also advances the odometer.
+                Route::get('/{vehicle}/fuel', [VehicleFuelController::class, 'index'])->name('fuel.index');
+                Route::post('/{vehicle}/fuel', [VehicleFuelController::class, 'store'])->name('fuel.store');
+                Route::patch('/{vehicle}/fuel/{entry}', [VehicleFuelController::class, 'update'])->name('fuel.update');
+                Route::delete('/{vehicle}/fuel/{entry}', [VehicleFuelController::class, 'destroy'])->name('fuel.destroy');
+
                 // P4: Notes — reuse the Notes module; a note attached to the car ({note} is guarded via the link).
                 Route::get('/{vehicle}/notes', [VehicleNotesController::class, 'index'])->name('notes.index');
                 Route::post('/{vehicle}/notes', [VehicleNotesController::class, 'store'])->name('notes.store');

@@ -4,9 +4,9 @@ import { FileText, Fuel, Gauge, History, StickyNote, Wrench } from 'lucide-react
 import { useT } from '@/lib/i18n';
 
 // The per-car sub-navigation (spec: Overview / Maintenance / Repairs / Timeline / Fuel / Documents / Notes).
-// Overview + Maintenance are live from P2; Repairs / Documents / Notes from P4; Timeline from P5. Fuel
-// remains a stub (V1.1) so the nav shape stays stable. `active` selects the current tab.
-type Tab = 'overview' | 'maintenance' | 'repairs' | 'documents' | 'notes' | 'timeline';
+// Overview + Maintenance are live from P2; Repairs / Documents / Notes from P4; Timeline from P5; Fuel from
+// V1.1. `active` selects the current tab.
+type Tab = 'overview' | 'maintenance' | 'repairs' | 'fuel' | 'documents' | 'notes' | 'timeline';
 
 export default function VehicleNav({ vehicleId, active }: { vehicleId: number; active: Tab }) {
     const t = useT();
@@ -27,6 +27,12 @@ export default function VehicleNav({ vehicleId, active }: { vehicleId: number; a
                 active={active === 'repairs'}
             />
             <TabLink
+                href={`/m/vehicles/${vehicleId}/fuel`}
+                icon={<Fuel className="size-4" />}
+                label={t('vehicles.tab_fuel')}
+                active={active === 'fuel'}
+            />
+            <TabLink
                 href={`/m/vehicles/${vehicleId}/documents`}
                 icon={<FileText className="size-4" />}
                 label={t('vehicles.tab_documents')}
@@ -44,8 +50,6 @@ export default function VehicleNav({ vehicleId, active }: { vehicleId: number; a
                 label={t('vehicles.tab_timeline')}
                 active={active === 'timeline'}
             />
-            {/* Fuel arrives in V1.1 — present but inert so the nav is stable across phases. */}
-            <TabStub icon={<Fuel className="size-4" />} label={t('vehicles.tab_fuel')} />
         </nav>
     );
 }
@@ -63,14 +67,5 @@ function TabLink({ href, icon, label, active }: { href: string; icon: React.Reac
             {icon}
             {label}
         </Link>
-    );
-}
-
-function TabStub({ icon, label }: { icon: React.ReactNode; label: string }) {
-    return (
-        <span className="text-muted-foreground/40 flex cursor-default items-center gap-1.5 border-b-2 border-transparent px-3 py-2 font-medium">
-            {icon}
-            {label}
-        </span>
     );
 }

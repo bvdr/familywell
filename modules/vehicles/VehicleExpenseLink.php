@@ -20,7 +20,7 @@ class VehicleExpenseLink extends Model
 
     protected $table = 'vehicles_expense_links';
 
-    protected $fillable = ['vehicle_id', 'spend_id', 'maintenance_history_id', 'repair_id', 'family_id'];
+    protected $fillable = ['vehicle_id', 'spend_id', 'maintenance_history_id', 'repair_id', 'fuel_entry_id', 'family_id'];
 
     public function vehicle(): BelongsTo
     {
@@ -31,6 +31,12 @@ class VehicleExpenseLink extends Model
     public function repair(): BelongsTo
     {
         return $this->belongsTo(Repair::class, 'repair_id');
+    }
+
+    /** The fuel entry this expense came from, when it was a costed fill's mirror (V1.1, else null). */
+    public function fuelEntry(): BelongsTo
+    {
+        return $this->belongsTo(VehicleFuelEntry::class, 'fuel_entry_id');
     }
 
     public function spend(): BelongsTo
