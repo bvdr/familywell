@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import { CategoryTile, QtyBar, StateBadge } from '@/components/inventory';
 import { ItemFormModal, QuickUpdateModal } from '@/components/inventory-modals';
+import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn } from '@/lib/i18n';
 import { byKey, catLabel, fmtNumber, locLabel, unitLabel, type InvCategory, type InvItem, type InvLocation } from '@/lib/inventory';
@@ -19,13 +20,22 @@ export default function InventoryItem({ item, categories, locations, history }: 
     const locMap = byKey(locations);
     const [updating, setUpdating] = useState(false);
     const [editing, setEditing] = useState(false);
+    // Optimistic quantity overlay: the Quick-Update sheet applies the new amount here the moment Save is
+    // tapped, so the hero number + "Current" row update instantly; state/bar stay server-derived and catch
+    // up on the reload. Cleared once the request settles (see the modal's onReconcile below).
+    const qtyOpt = useOptimistic<number | null>();
+    const shownQuantity = qtyOpt.get(item.id, item.quantity);
+    const displayItem = { ...item, quantity: shownQuantity };
+    // Optimistic "on a shopping list" flag for the Add-to-Shopping action (mirrors AddToShoppingButton).
+    const [optAdded, setOptAdded] = useState(false);
+    const onShoppingList = item.onShoppingList || optAdded;
     const breadcrumbs: BreadcrumbItem[] = [
         { title: t('inventory.title'), href: '/m/inventory' },
         { title: item.name, href: `/m/inventory/items/${item.id}` },
     ];
 
     const rows: { label: string; value: string }[] = [
-        { label: t('inventory.current'), value: item.quantity === null ? t('inventory.qty_unknown') : `${fmtNumber(item.quantity)} ${unitLabel(t, item.unit)}` },
+        { label: t('inventory.current'), value: shownQuantity === null ? t('inventory.qty_unknown') : `${fmtNumber(shownQuantity)} ${unitLabel(t, item.unit)}` },
         { label: t('inventory.minimum'), value: item.minQuantity > 0 ? `${fmtNumber(item.minQuantity)} ${unitLabel(t, item.unit)}` : '—' },
         { label: t('inventory.target'), value: item.targetQuantity ? `${fmtNumber(item.targetQuantity)} ${unitLabel(t, item.unit)}` : '—' },
         { label: t('inventory.category_label'), value: catLabel(t, item.category, catMap) },
@@ -55,26 +65,26 @@ export default function InventoryItem({ item, categories, locations, history }: 
 
                     <div className="flex items-end justify-between gap-3">
                         <div className="text-primary text-3xl font-semibold tabular-nums">
-                            {item.quantity === null ? (
+                            {shownQuantity === null ? (
                                 <span className="text-muted-foreground text-2xl">{t('inventory.qty_unknown')}</span>
                             ) : (
                                 <>
-                                    {fmtNumber(item.quantity)}
+                                    {fmtNumber(shownQuantity)}
                                     {item.targetQuantity ? <span className="text-muted-foreground text-xl"> {t('inventory.of')} {fmtNumber(item.targetQuantity)}</span> : null}
                                     <span className="text-muted-foreground ml-1 text-lg">{unitLabel(t, item.unit)}</span>
                                 </>
                             )}
                         </div>
                     </div>
-                    <QtyBar item={item} className="h-2" />
+                    <QtyBar item={displayItem} className="h-2" />
                 </section>
 
                 {/* Actions. Update quantity + Edit + Add to Shopping are live; Create Task stays inert. */}
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     <ActionButton icon={RefreshCw} label={t('inventory.update_quantity')} onClick={() => setUpdating(true)} primary />
                     <ActionButton icon={Pencil} label={t('inventory.edit_item')} onClick={() => setEditing(true)} />
-                    {item.onShoppingList ? (
-                        // Already on a list: link straight to it, in the "added" (success) treatment.
+                    {onShoppingList ? (
+                        // Already on a list (or optimistically added): link straight to it, in the "added" (success) treatment.
                         <Link
                             href={item.shoppingListId ? `/m/shopping/lists/${item.shoppingListId}` : '/m/shopping'}
                             className="flex items-center justify-center gap-1.5 rounded-xl border border-[var(--success)] px-2 py-2.5 text-xs font-medium text-[var(--success)]"
@@ -85,7 +95,10 @@ export default function InventoryItem({ item, categories, locations, history }: 
                         <ActionButton
                             icon={ShoppingCart}
                             label={t('inventory.add_to_shopping')}
-                            onClick={() => router.post(route('inventory.items.shopping', item.id), {}, { preserveScroll: true })}
+                            onClick={() => {
+                                setOptAdded(true); // instant "added" state; reconcile below
+                                router.post(route('inventory.items.shopping', item.id), {}, { preserveScroll: true, preserveState: true, onError: () => setOptAdded(false) });
+                            }}
                         />
                     )}
                     <ActionButton icon={Sparkles} label={t('inventory.create_task')} disabled t={t} />
@@ -137,7 +150,13 @@ export default function InventoryItem({ item, categories, locations, history }: 
                 </section>
             </div>
 
-            <QuickUpdateModal open={updating} onOpenChange={setUpdating} item={item} />
+            <QuickUpdateModal
+                open={updating}
+                onOpenChange={setUpdating}
+                item={item}
+                onOptimistic={(nextQty) => qtyOpt.set(item.id, nextQty)}
+                onReconcile={() => qtyOpt.clear(item.id)}
+            />
             <ItemFormModal open={editing} onOpenChange={setEditing} item={item} categories={categories} locations={locations} names={[item.name]} />
         </AppLayout>
     );

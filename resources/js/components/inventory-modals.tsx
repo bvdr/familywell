@@ -324,10 +324,24 @@ export function ItemFormModal({
  * (Consumed / Added), a manual entry, and the resulting new quantity. One field on save: the absolute
  * quantity the user landed on.
  */
-export function QuickUpdateModal({ open, onOpenChange, item }: { open: boolean; onOpenChange: (v: boolean) => void; item: InvItem }) {
+export function QuickUpdateModal({
+    open,
+    onOpenChange,
+    item,
+    onOptimistic,
+    onReconcile,
+}: {
+    open: boolean;
+    onOpenChange: (v: boolean) => void;
+    item: InvItem;
+    // Optimistic hooks: `onOptimistic(next)` lets the parent overlay the new quantity the instant Save is
+    // tapped (so the item's shown amount updates now, not after the round-trip); `onReconcile` clears that
+    // overlay once the server settles (success or error), handing authority back to the reloaded props.
+    onOptimistic?: (next: number) => void;
+    onReconcile?: () => void;
+}) {
     const t = useT();
     const [qty, setQty] = useState<string>('0');
-    const [saving, setSaving] = useState(false);
 
     // Start from the current amount each time it opens (unknown counts as 0 to start).
     useEffect(() => {
@@ -340,15 +354,22 @@ export function QuickUpdateModal({ open, onOpenChange, item }: { open: boolean; 
     const next = num(qty);
     const delta = next - current;
 
+    // Optimistic save: apply the new quantity + close the sheet immediately, then reconcile in the
+    // background. The server derives state/bar from the quantity, so those catch up on the reload — we only
+    // overlay the raw number we already know (never re-implementing the state rules client-side). Rolls the
+    // overlay back on error so the shown amount snaps to the confirmed value instead of lying.
     const save = () => {
-        setSaving(true);
+        const target = next;
+        onOptimistic?.(target);
+        onOpenChange(false);
         router.post(
             route('inventory.items.adjust', item.id),
-            { quantity: next },
+            { quantity: target },
             {
                 preserveScroll: true,
-                onSuccess: () => onOpenChange(false),
-                onFinish: () => setSaving(false),
+                preserveState: true,
+                onSuccess: () => onReconcile?.(),
+                onError: () => onReconcile?.(),
             },
         );
     };
@@ -360,7 +381,7 @@ export function QuickUpdateModal({ open, onOpenChange, item }: { open: boolean; 
             title={t('inventory.update_quantity')}
             description={item.name}
             footer={
-                <Button onClick={save} disabled={saving} className="w-full">
+                <Button onClick={save} className="w-full">
                     {t('inventory.save')}
                 </Button>
             }
