@@ -622,7 +622,9 @@ it('rolls up global analytics across lists into one display currency for the per
     $eur = SpendEvent::where('currency', 'EUR')->first();
     $ron = SpendEvent::where('currency', 'RON')->first();
 
-    $thisMonth = now()->startOfMonth()->addDays(3)->toDateString();
+    // Month-to-date safe: near the start of a month, startOfMonth()+3 would be in the future and fall
+    // outside the mtd window. Cap at today so this spend is always inside the current mtd period.
+    $thisMonth = now()->startOfMonth()->addDays(3)->min(now())->toDateString();
     $lastMonth = now()->subMonthNoOverflow()->startOfMonth()->addDays(3)->toDateString();
 
     // This month: 20.00 EUR (base 2000 EUR, "other") + 100.00 RON (base 10000 RON -> 2000 EUR, "food").
