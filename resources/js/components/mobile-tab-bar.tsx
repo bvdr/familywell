@@ -4,6 +4,7 @@ import { useT } from '@/lib/i18n';
 import { Link, router, usePage } from '@inertiajs/react';
 import {
     Blocks,
+    Car,
     Contact,
     FolderKanban,
     LayoutGrid,
@@ -40,6 +41,7 @@ const MODULE_ITEMS: Item[] = [
     { key: 'notes', labelKey: 'nav.notes', url: '/m/notes', icon: StickyNote },
     { key: 'contacts', labelKey: 'nav.contacts', url: '/m/contacts', icon: Contact },
     { key: 'inventory', labelKey: 'nav.inventory', url: '/m/inventory', icon: Package },
+    { key: 'vehicles', labelKey: 'nav.vehicles', url: '/m/vehicles', icon: Car },
 ];
 const SECONDARY: Item[] = [
     { key: 'members', labelKey: 'nav.members', url: '/family/members', icon: Users },
@@ -56,6 +58,8 @@ const CREATE: Item[] = [
     { key: 'spending', labelKey: 'create.spending', url: '/m/spending?new=1', icon: Wallet },
     // A note has no create sheet: POST straight to notes.store, which redirects into the new editor.
     { key: 'notes', labelKey: 'create.notes', url: '/m/notes', method: 'post', icon: StickyNote },
+    // A vehicle has a full add form (no sheet): deep-link straight to it.
+    { key: 'vehicles', labelKey: 'create.vehicles', url: '/m/vehicles/new', icon: Car },
 ];
 
 const PINS_KEY = 'familywell:navPins';
