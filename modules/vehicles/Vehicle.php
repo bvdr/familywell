@@ -7,12 +7,15 @@ use App\Support\Tenancy\BelongsToFamily;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * A family vehicle — the object at the centre of the module. Phase 1 owns identity + the first-class
  * odometer (`current_mileage`, mirrored into vehicles_mileage_log on every change). Its "status" and
- * "next service" (the coloured dot / km-remaining on the card) are NOT stored: they are placeholders in
- * P1 and become derived values once maintenance schedules land in P2 — hence statePlaceholder() below.
+ * "next service" (the coloured dot / km-remaining on the card) are NOT stored: they are DERIVED, as of
+ * P2, by rolling up the vehicle's maintenance schedules through MaintenanceStatus (see
+ * maintenanceSummary()). Computing on read keeps the dot correct as the odometer and today's date move,
+ * with no stored status to fall stale.
  */
 class Vehicle extends Model
 {
@@ -62,15 +65,58 @@ class Vehicle extends Model
         return $this->hasMany(VehicleMileageLog::class)->latest('recorded_at')->latest('id');
     }
 
-    /**
-     * The card's status dot. A PLACEHOLDER in Phase 1 — there is no maintenance data yet, so every
-     * healthy vehicle reads "good". P2 replaces this with a real derivation from the vehicle's
-     * maintenance schedules (good / service due soon / overdue). Kept as a method (not a stored column)
-     * so that switch-over is purely internal and the wire shape never changes.
-     */
-    public function statePlaceholder(): string
+    /** This vehicle's recurring maintenance rules. */
+    public function maintenanceSchedules(): HasMany
     {
-        return 'good';
+        return $this->hasMany(VehicleMaintenanceSchedule::class);
+    }
+
+    /** This vehicle's performed-maintenance records, newest first. */
+    public function maintenanceHistory(): HasMany
+    {
+        return $this->hasMany(VehicleMaintenanceHistory::class)->latest('performed_at')->latest('id');
+    }
+
+    /**
+     * Roll this vehicle's ACTIVE maintenance schedules up into the card summary: the status dot, the
+     * "next service" distance, and how many items need attention. Reads the loaded `maintenanceSchedules`
+     * relation, so callers that render many vehicles (My Cars) should eager-load it to avoid N+1.
+     *
+     * - state: the worst schedule status mapped to the three-state card dot (good / service_due / overdue).
+     * - nextServiceKm: the smallest km-remaining across schedules (the soonest by distance) — negative
+     *   when a km trigger is already past due; null when no schedule has an active km trigger.
+     * - attention: count of schedules that are due or overdue now (drives "N things need attention").
+     *
+     * @return array{state:string, nextServiceKm:?int, attention:int}
+     */
+    public function maintenanceSummary(?Carbon $today = null): array
+    {
+        $today ??= Carbon::today();
+        $mileage = (int) $this->current_mileage;
+
+        $worst = MaintenanceStatus::GOOD;
+        $nextServiceKm = null;
+        $attention = 0;
+
+        foreach ($this->maintenanceSchedules as $schedule) {
+            if (! $schedule->active) {
+                continue;
+            }
+            $s = $schedule->statusFor($mileage, $today);
+            $worst = MaintenanceStatus::worse($worst, $s['status']);
+            if ($s['remainingKm'] !== null && ($nextServiceKm === null || $s['remainingKm'] < $nextServiceKm)) {
+                $nextServiceKm = $s['remainingKm'];
+            }
+            if (MaintenanceStatus::needsAttention($s['status'])) {
+                $attention++;
+            }
+        }
+
+        return [
+            'state' => MaintenanceStatus::toVehicleState($worst),
+            'nextServiceKm' => $nextServiceKm,
+            'attention' => $attention,
+        ];
     }
 
     /**
@@ -103,10 +149,9 @@ class Vehicle extends Model
             'roadTaxStatus' => $this->road_tax_status,
             'inspectionStatus' => $this->inspection_status,
             'notes' => $this->notes,
-            // Placeholders until P2 maintenance schedules exist — the card renders them but they carry no
-            // real data yet (status is always "good", next service is unknown).
-            'state' => $this->statePlaceholder(),
-            'nextServiceKm' => null,
+            // Derived maintenance rollup (state dot + soonest service distance + attention count). Eager-
+            // load `maintenanceSchedules` where many vehicles render, so this stays O(1) queries.
+            ...$this->maintenanceSummary(),
             'createdBy' => $this->created_by,
             'updatedAt' => optional($this->updated_at)->toIso8601String(),
         ];

@@ -33,7 +33,8 @@ class VehiclesController extends Controller
     /** My Cars: one card per vehicle (make/model, year · engine, current mileage, placeholder status). */
     public function index(): Response
     {
-        $vehicles = Vehicle::query()->orderBy('make')->orderBy('model')->get()
+        // Eager-load the schedules the card summary rolls up, so My Cars stays O(1) queries as cars grow.
+        $vehicles = Vehicle::query()->with('maintenanceSchedules')->orderBy('make')->orderBy('model')->get()
             ->map(fn (Vehicle $v) => $this->cardPayload($v))->values();
 
         return Inertia::render('vehicles/index', [

@@ -1,0 +1,96 @@
+<?php
+
+namespace Modules\Vehicles;
+
+use App\Models\User;
+use App\Support\Tenancy\BelongsToFamily;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
+
+/**
+ * A recurring maintenance rule for one vehicle: two triggers (every `interval_km` and/or every
+ * `interval_months`), a last-performed baseline, and a computed due status. The status/next-due are NOT
+ * stored — they are derived on read from MaintenanceStatus so they always track the current odometer and
+ * today's date (mileage moves daily; a stored status would rot). "Mark as completed" appends a history
+ * row and advances the baseline, from which the next due point recomputes.
+ */
+class VehicleMaintenanceSchedule extends Model
+{
+    use BelongsToFamily;
+
+    protected $table = 'vehicles_maintenance_schedules';
+
+    protected $fillable = [
+        'vehicle_id', 'name', 'type', 'interval_km', 'interval_months',
+        'last_performed_at', 'last_performed_mileage', 'notes', 'active', 'created_by', 'family_id',
+    ];
+
+    protected $casts = [
+        'interval_km' => 'integer',
+        'interval_months' => 'integer',
+        'last_performed_at' => 'date',
+        'last_performed_mileage' => 'integer',
+        'active' => 'boolean',
+    ];
+
+    public function vehicle(): BelongsTo
+    {
+        return $this->belongsTo(Vehicle::class, 'vehicle_id');
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /** This rule's performed-maintenance records, newest first. */
+    public function history(): HasMany
+    {
+        return $this->hasMany(VehicleMaintenanceHistory::class, 'schedule_id')
+            ->latest('performed_at')->latest('id');
+    }
+
+    /**
+     * The computed due picture for this schedule at a given odometer + date (defaults to the schedule's
+     * vehicle current_mileage and today). A thin wrapper over the pure engine — the model only supplies
+     * its columns; all the logic lives in MaintenanceStatus so it stays testable without a DB.
+     *
+     * @return array{status:string, nextDueMileage:?int, nextDueDate:?string, remainingKm:?int, remainingDays:?int, neverPerformed:bool}
+     */
+    public function statusFor(int $currentMileage, ?Carbon $today = null): array
+    {
+        return MaintenanceStatus::compute(
+            $this->interval_km,
+            $this->interval_months,
+            $this->last_performed_mileage,
+            $this->last_performed_at,
+            $currentMileage,
+            $today ?? Carbon::today(),
+        );
+    }
+
+    /**
+     * The wire shape for the schedule list / detail. Needs the vehicle's current odometer to compute the
+     * live status, so it is passed in (not read off a possibly-unloaded relation).
+     *
+     * @return array<string, mixed>
+     */
+    public function toPayload(int $currentMileage, ?Carbon $today = null): array
+    {
+        return [
+            'id' => $this->id,
+            'vehicleId' => $this->vehicle_id,
+            'name' => $this->name,
+            'type' => $this->type,
+            'intervalKm' => $this->interval_km,
+            'intervalMonths' => $this->interval_months,
+            'lastPerformedAt' => optional($this->last_performed_at)->toDateString(),
+            'lastPerformedMileage' => $this->last_performed_mileage,
+            'notes' => $this->notes,
+            'active' => $this->active,
+            ...$this->statusFor($currentMileage, $today),
+        ];
+    }
+}
