@@ -451,27 +451,54 @@ class InventoryController extends Controller
         return back();
     }
 
-    /** Change a custom category's icon. Built-ins keep their curated icon; the key never changes. */
+    /**
+     * Rename and/or re-icon a category — custom OR a seeded default (Bogdan explicitly wants to edit the
+     * defaults). The `key` never changes, so items keep resolving; only the display name/icon move. Every
+     * field is optional so the screen can save a rename and an icon change independently.
+     *
+     * Renaming a default detaches it from its i18n label (is_default -> false) so the family's chosen name
+     * is what shows everywhere — an unrenamed default keeps its localised label (a Romanian family still
+     * sees "Bucătărie"). An icon-only edit leaves is_default alone, so the localised label survives.
+     */
     public function updateCategory(Request $request, int $category): RedirectResponse
     {
         $this->authorizeManage($request);
         $cat = InventoryCategory::findOrFail($category);     // family-scoped resolve (family middleware ran)
-        abort_if($cat->is_default, 403);
 
-        $data = $request->validate(['icon' => ['nullable', 'string', Rule::in(IconLibrary::names())]]);
-        $cat->update(['icon' => $data['icon'] ?? InventoryCategory::CUSTOM_ICON]);
+        $data = $request->validate([
+            'name' => ['sometimes', 'required', 'string', 'max:40'],
+            'icon' => ['sometimes', 'nullable', 'string', Rule::in(IconLibrary::names())],
+        ]);
+
+        $updates = [];
+        if (array_key_exists('name', $data)) {
+            $updates['name'] = trim($data['name']);
+            if ($cat->is_default) {
+                $updates['is_default'] = false;              // a renamed default becomes the family's own
+            }
+        }
+        if (array_key_exists('icon', $data)) {
+            $updates['icon'] = $data['icon'] ?? InventoryCategory::CUSTOM_ICON;
+        }
+        if ($updates) {
+            $cat->update($updates);
+        }
 
         return back();
     }
 
-    /** Delete a category. Blocked while any item still uses its key, so a delete never orphans an item. */
+    /**
+     * Delete a category (custom or default). Blocked while any item still uses its key, so a delete never
+     * orphans an item — the error carries the exact count so the UI can say "N items use this category".
+     */
     public function destroyCategory(Request $request, int $category): RedirectResponse
     {
         $this->authorizeManage($request);
         $cat = InventoryCategory::findOrFail($category);
 
-        if (InventoryItem::where('category', $cat->key)->exists()) {
-            throw ValidationException::withMessages(['category' => __('inventory.category_in_use')]);
+        $inUse = InventoryItem::where('category', $cat->key)->count();
+        if ($inUse > 0) {
+            throw ValidationException::withMessages(['category' => __('inventory.category_in_use_n', ['count' => $inUse])]);
         }
         $cat->delete();
 
@@ -496,27 +523,51 @@ class InventoryController extends Controller
         return back();
     }
 
-    /** Change a custom location's icon. Built-ins keep theirs; the key never changes. */
+    /**
+     * Rename and/or re-icon a location — custom OR a seeded default. Same rules as updateCategory: the key
+     * is stable (items keep resolving), a rename detaches a default from its i18n label so the family's
+     * chosen name shows, and an icon-only edit keeps the localised label. Bogdan runs two houses and wants
+     * to rename + re-organise the seeded Kitchen/Pantry/… for them.
+     */
     public function updateLocation(Request $request, int $location): RedirectResponse
     {
         $this->authorizeManage($request);
         $loc = InventoryLocation::findOrFail($location);
-        abort_if($loc->is_default, 403);
 
-        $data = $request->validate(['icon' => ['nullable', 'string', Rule::in(IconLibrary::names())]]);
-        $loc->update(['icon' => $data['icon'] ?? InventoryLocation::CUSTOM_ICON]);
+        $data = $request->validate([
+            'name' => ['sometimes', 'required', 'string', 'max:40'],
+            'icon' => ['sometimes', 'nullable', 'string', Rule::in(IconLibrary::names())],
+        ]);
+
+        $updates = [];
+        if (array_key_exists('name', $data)) {
+            $updates['name'] = trim($data['name']);
+            if ($loc->is_default) {
+                $updates['is_default'] = false;
+            }
+        }
+        if (array_key_exists('icon', $data)) {
+            $updates['icon'] = $data['icon'] ?? InventoryLocation::CUSTOM_ICON;
+        }
+        if ($updates) {
+            $loc->update($updates);
+        }
 
         return back();
     }
 
-    /** Delete a location. Blocked while any item still uses its key. */
+    /**
+     * Delete a location (custom or default). Blocked while any item still uses its key; the error carries
+     * the count so the UI can say "N items use this location — reassign them first".
+     */
     public function destroyLocation(Request $request, int $location): RedirectResponse
     {
         $this->authorizeManage($request);
         $loc = InventoryLocation::findOrFail($location);
 
-        if (InventoryItem::where('location', $loc->key)->exists()) {
-            throw ValidationException::withMessages(['location' => __('inventory.location_in_use')]);
+        $inUse = InventoryItem::where('location', $loc->key)->count();
+        if ($inUse > 0) {
+            throw ValidationException::withMessages(['location' => __('inventory.location_in_use_n', ['count' => $inUse])]);
         }
         $loc->delete();
 
