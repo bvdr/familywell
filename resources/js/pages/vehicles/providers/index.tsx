@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
+import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn } from '@/lib/i18n';
 import type { ServiceProvider, ServiceProviderWithCount } from '@/lib/vehicles';
@@ -18,6 +19,20 @@ export default function ServiceProviders({ providers }: Props) {
     const t = useT();
     const [adding, setAdding] = useState(false);
     const [editingId, setEditingId] = useState<number | null>(null);
+
+    // Optimistic removal: a deleted provider disappears immediately, reappearing only if the delete fails.
+    const removed = useOptimistic<boolean>();
+    const visibleProviders = providers.filter((p) => !removed.get(p.id, false));
+    const removeProvider = (provider: ServiceProviderWithCount) => {
+        if (!confirm(t('vehicles.provider_delete_confirm'))) return;
+        removed.set(provider.id, true);
+        router.delete(`/m/vehicles/providers/${provider.id}`, {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => removed.clear(provider.id),
+            onError: () => removed.clear(provider.id),
+        });
+    };
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: t('vehicles.title'), href: '/m/vehicles' },
@@ -40,12 +55,12 @@ export default function ServiceProviders({ providers }: Props) {
                     )}
                 </header>
 
-                {providers.length === 0 ? (
+                {visibleProviders.length === 0 ? (
                     <EmptyState t={t} />
                 ) : (
                     <ul className="flex flex-col gap-3">
-                        {providers.map((p) => (
-                            <ProviderCard key={p.id} provider={p} t={t} onEdit={() => setEditingId(p.id)} />
+                        {visibleProviders.map((p) => (
+                            <ProviderCard key={p.id} provider={p} t={t} onEdit={() => setEditingId(p.id)} onRemove={() => removeProvider(p)} />
                         ))}
                     </ul>
                 )}
@@ -78,13 +93,7 @@ function EmptyState({ t }: { t: TFn }) {
 }
 
 // One provider row: name + contact, its service count, links to the detail. Edit/delete inline.
-function ProviderCard({ provider, t, onEdit }: { provider: ServiceProviderWithCount; t: TFn; onEdit: () => void }) {
-    const remove = () => {
-        if (confirm(t('vehicles.provider_delete_confirm'))) {
-            router.delete(`/m/vehicles/providers/${provider.id}`, { preserveScroll: true });
-        }
-    };
-
+function ProviderCard({ provider, t, onEdit, onRemove }: { provider: ServiceProviderWithCount; t: TFn; onEdit: () => void; onRemove: () => void }) {
     return (
         <li className="bg-surface-card flex items-center gap-3 rounded-2xl border p-4">
             <Link href={`/m/vehicles/providers/${provider.id}`} className="group min-w-0 flex-1">
@@ -99,7 +108,7 @@ function ProviderCard({ provider, t, onEdit }: { provider: ServiceProviderWithCo
                 <IconButton label={t('vehicles.edit')} onClick={onEdit}>
                     <Pencil className="size-4" />
                 </IconButton>
-                <IconButton label={t('vehicles.delete')} onClick={remove}>
+                <IconButton label={t('vehicles.delete')} onClick={onRemove}>
                     <Trash2 className="size-4" />
                 </IconButton>
                 <Link

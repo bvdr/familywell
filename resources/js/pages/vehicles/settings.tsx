@@ -1,6 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 
+import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn } from '@/lib/i18n';
 import { templateLabel, type SettingsTemplate, type UnitSystem, type VehicleSettings } from '@/lib/vehicles';
@@ -32,6 +33,22 @@ export default function VehiclesSettings({ settings, unitSystems, canManage }: P
 
     const save = (patch: Patch) => router.patch(route('vehicles.settings.update'), patch, { preserveScroll: true });
 
+    // Optimistic overlay for the instant controls (unit select + the three switches): the control flips
+    // on tap and snaps back only if the save fails. Keyed by the settings prop name. Template intervals
+    // already keep their own local input state, so they don't need this.
+    const opt = useOptimistic<string | boolean>();
+    const unitSystem = opt.get('unitSystem', settings.unitSystem) as UnitSystem;
+    const notify = (key: 'notifyMaintenance' | 'notifyDocuments' | 'notifyMileageMilestone') => opt.get(key, settings[key]) as boolean;
+    const saveInstant = (key: string, value: string | boolean, patch: Patch) => {
+        opt.set(key, value);
+        router.patch(route('vehicles.settings.update'), patch, {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => opt.clear(key),
+            onError: () => opt.clear(key),
+        });
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={t('vehicles.settings')} />
@@ -49,8 +66,8 @@ export default function VehiclesSettings({ settings, unitSystems, canManage }: P
                         <p className="text-muted-foreground text-sm">{t('vehicles.unit_system_desc')}</p>
                     </div>
                     <select
-                        value={settings.unitSystem}
-                        onChange={(e) => save({ unit_system: e.target.value as UnitSystem })}
+                        value={unitSystem}
+                        onChange={(e) => saveInstant('unitSystem', e.target.value, { unit_system: e.target.value as UnitSystem })}
                         disabled={!canManage}
                         className="border-border bg-surface-card text-primary w-full rounded-lg border px-3 py-2 text-base disabled:opacity-60 md:max-w-xs md:text-sm"
                         aria-label={t('vehicles.unit_system')}
@@ -73,23 +90,29 @@ export default function VehiclesSettings({ settings, unitSystems, canManage }: P
                     <ToggleRow
                         label={t('vehicles.notify_maintenance')}
                         hint={t('vehicles.notify_maintenance_hint')}
-                        on={settings.notifyMaintenance}
+                        on={notify('notifyMaintenance')}
                         disabled={!canManage}
-                        onToggle={() => save({ notify_maintenance: !settings.notifyMaintenance })}
+                        onToggle={() =>
+                            saveInstant('notifyMaintenance', !notify('notifyMaintenance'), { notify_maintenance: !notify('notifyMaintenance') })
+                        }
                     />
                     <ToggleRow
                         label={t('vehicles.notify_documents')}
                         hint={t('vehicles.notify_documents_hint')}
-                        on={settings.notifyDocuments}
+                        on={notify('notifyDocuments')}
                         disabled={!canManage}
-                        onToggle={() => save({ notify_documents: !settings.notifyDocuments })}
+                        onToggle={() => saveInstant('notifyDocuments', !notify('notifyDocuments'), { notify_documents: !notify('notifyDocuments') })}
                     />
                     <ToggleRow
                         label={t('vehicles.notify_milestone')}
                         hint={t('vehicles.notify_milestone_hint')}
-                        on={settings.notifyMileageMilestone}
+                        on={notify('notifyMileageMilestone')}
                         disabled={!canManage}
-                        onToggle={() => save({ notify_mileage_milestone: !settings.notifyMileageMilestone })}
+                        onToggle={() =>
+                            saveInstant('notifyMileageMilestone', !notify('notifyMileageMilestone'), {
+                                notify_mileage_milestone: !notify('notifyMileageMilestone'),
+                            })
+                        }
                     />
                     <p className="text-muted-foreground mt-2 text-xs">{t('vehicles.notify_footnote')}</p>
                 </section>
@@ -162,7 +185,11 @@ function TemplateRow({ tpl, canManage, save, t }: { tpl: SettingsTemplate; canMa
                 <span className="text-muted-foreground text-xs">{t('vehicles.months')}</span>
             </label>
             {tpl.customised && canManage && (
-                <button type="button" onClick={() => save({ template_reset: tpl.key })} className="text-muted-foreground hover:text-primary text-xs underline">
+                <button
+                    type="button"
+                    onClick={() => save({ template_reset: tpl.key })}
+                    className="text-muted-foreground hover:text-primary text-xs underline"
+                >
                     {t('vehicles.reset')}
                 </button>
             )}

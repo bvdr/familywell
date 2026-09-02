@@ -69,7 +69,15 @@ export default function VehicleDocuments({ vehicle, documents, types, canTask }:
                 ) : (
                     <ul className="flex flex-col gap-3">
                         {visibleDocuments.map((d) => (
-                            <DocumentCard key={d.id} vehicle={vehicle} document={d} canTask={canTask} t={t} onEdit={() => setEditingId(d.id)} onRemove={() => removeDocument(d)} />
+                            <DocumentCard
+                                key={d.id}
+                                vehicle={vehicle}
+                                document={d}
+                                canTask={canTask}
+                                t={t}
+                                onEdit={() => setEditingId(d.id)}
+                                onRemove={() => removeDocument(d)}
+                            />
                         ))}
                     </ul>
                 )}
@@ -118,11 +126,18 @@ function DocumentCard({
     onEdit: () => void;
     onRemove: () => void;
 }) {
-    const [processing, setProcessing] = useState(false);
+    // Optimistic: flip to the "created" state on tap (the server call is idempotent), rolling back only if it
+    // fails. The reloaded hasRenewalTask prop takes over on success.
+    const [optCreated, setOptCreated] = useState(false);
+    const hasRenewalTask = optCreated || document.hasRenewalTask;
 
     const createRenewalTask = () => {
-        setProcessing(true);
-        router.post(`/m/vehicles/${vehicle.id}/documents/${document.id}/renewal-task`, {}, { preserveScroll: true, onFinish: () => setProcessing(false) });
+        setOptCreated(true);
+        router.post(
+            `/m/vehicles/${vehicle.id}/documents/${document.id}/renewal-task`,
+            {},
+            { preserveScroll: true, preserveState: true, onFinish: () => setOptCreated(false) },
+        );
     };
 
     return (
@@ -131,7 +146,9 @@ function DocumentCard({
                 <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                         <h3 className="text-primary font-medium">{document.title}</h3>
-                        <span className="bg-accent-subtle text-primary rounded-md px-1.5 py-0.5 text-xs font-medium">{documentTypeLabel(t, document.type)}</span>
+                        <span className="bg-accent-subtle text-primary rounded-md px-1.5 py-0.5 text-xs font-medium">
+                            {documentTypeLabel(t, document.type)}
+                        </span>
                     </div>
                     {document.expiresOn && (
                         <p className={`flex items-center gap-1.5 text-sm ${document.expiring ? 'text-[var(--warning)]' : 'text-muted-foreground'}`}>
@@ -166,7 +183,7 @@ function DocumentCard({
                 )}
                 {/* Renewal task: link into Tasks when one already exists, else offer to create it (idempotent). */}
                 {canTask &&
-                    (document.hasRenewalTask ? (
+                    (hasRenewalTask ? (
                         <span className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
                             <CheckCircle2 className="size-3.5" /> {t('vehicles.renewal_task_created')}
                         </span>
@@ -174,7 +191,6 @@ function DocumentCard({
                         <button
                             type="button"
                             onClick={createRenewalTask}
-                            disabled={processing}
                             className="border-border text-primary hover:bg-surface flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:opacity-50"
                         >
                             <BellRing className="size-3.5" /> {t('vehicles.create_renewal_task')}
@@ -281,7 +297,12 @@ function DocumentFormModal({
                 </div>
 
                 <Field label={t('vehicles.document_title_label')} error={errors.title}>
-                    <Input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder={t('vehicles.document_title_placeholder')} className="text-base" />
+                    <Input
+                        value={form.title}
+                        onChange={(e) => set('title', e.target.value)}
+                        placeholder={t('vehicles.document_title_placeholder')}
+                        className="text-base"
+                    />
                 </Field>
 
                 <Field label={t('vehicles.notes_label')} error={errors.notes}>
@@ -293,7 +314,10 @@ function DocumentFormModal({
                     />
                 </Field>
 
-                <Field label={editing && document?.hasFile ? t('vehicles.replace_file_label') : t('vehicles.document_file_label')} error={errors.file}>
+                <Field
+                    label={editing && document?.hasFile ? t('vehicles.replace_file_label') : t('vehicles.document_file_label')}
+                    error={errors.file}
+                >
                     <input
                         type="file"
                         accept="image/*,application/pdf"
@@ -301,7 +325,9 @@ function DocumentFormModal({
                         className="text-muted-foreground file:border-border file:bg-surface file:text-primary block w-full text-sm file:mr-3 file:rounded-lg file:border file:px-3 file:py-1.5 file:text-sm file:font-medium"
                     />
                     {editing && document?.hasFile && !file && (
-                        <span className="text-muted-foreground text-xs">{t('vehicles.current_file', { name: document.fileName || t('vehicles.view_file') })}</span>
+                        <span className="text-muted-foreground text-xs">
+                            {t('vehicles.current_file', { name: document.fileName || t('vehicles.view_file') })}
+                        </span>
                     )}
                 </Field>
             </div>
