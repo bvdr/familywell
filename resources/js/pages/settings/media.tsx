@@ -3,6 +3,7 @@ import { ImageOff, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 
 import HeadingSmall from '@/components/heading-small';
+import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { useT } from '@/lib/i18n';
@@ -22,9 +23,19 @@ export default function Media({ items }: { items: MediaItem[] }) {
     const breadcrumbs: BreadcrumbItem[] = [{ title: t('settings.media'), href: '/settings/media' }];
     const [preview, setPreview] = useState<MediaItem | null>(null);
 
+    // Optimistic removal: the tile disappears on confirm and only comes back if the delete fails.
+    const removed = useOptimistic<boolean>();
+    const key = (m: MediaItem) => `${m.type}-${m.id}`;
+    const visible = items.filter((m) => !removed.get(key(m), false));
     const remove = (m: MediaItem) => {
         if (!confirm(t('settings.confirm_delete_media', { kind: m.kind.toLowerCase() }))) return;
-        router.delete(route('media.destroy', { type: m.type, id: m.id }), { preserveScroll: true });
+        removed.set(key(m), true);
+        router.delete(route('media.destroy', { type: m.type, id: m.id }), {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => removed.clear(key(m)),
+            onError: () => removed.clear(key(m)),
+        });
     };
 
     return (
@@ -34,14 +45,14 @@ export default function Media({ items }: { items: MediaItem[] }) {
                 <div className="space-y-6">
                     <HeadingSmall title={t('settings.media')} description={t('settings.media_desc')} />
 
-                    {items.length === 0 ? (
+                    {visible.length === 0 ? (
                         <div className="text-muted-foreground flex flex-col items-center gap-2 rounded-xl border border-dashed p-10 text-center">
                             <ImageOff className="size-6" />
                             <p className="text-sm">{t('settings.no_media_empty')}</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                            {items.map((m) => (
+                            {visible.map((m) => (
                                 <div key={`${m.type}-${m.id}`} className="group bg-surface-card relative overflow-hidden rounded-xl border">
                                     <button type="button" onClick={() => setPreview(m)} className="block aspect-square w-full">
                                         <img src={m.thumbUrl} alt={m.name} className="h-full w-full object-cover" loading="lazy" />
@@ -66,12 +77,7 @@ export default function Media({ items }: { items: MediaItem[] }) {
             </SettingsLayout>
 
             {preview && (
-                <div
-                    className="fixed inset-0 z-[60] flex flex-col bg-black/90 p-4"
-                    role="dialog"
-                    aria-modal="true"
-                    onClick={() => setPreview(null)}
-                >
+                <div className="fixed inset-0 z-[60] flex flex-col bg-black/90 p-4" role="dialog" aria-modal="true" onClick={() => setPreview(null)}>
                     <div className="flex items-center justify-between text-white">
                         <div className="min-w-0">
                             <div className="truncate font-medium">{preview.name}</div>

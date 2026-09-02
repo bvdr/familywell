@@ -1,3 +1,4 @@
+import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
 import { Head, router } from '@inertiajs/react';
@@ -21,11 +22,17 @@ const MODULE_ICON: Record<string, LucideIcon> = {
 
 export default function Modules({ catalog, canManage }: Props) {
     const t = useT();
+    // Optimistic flip: the tile/button switch state on tap; the reload (nav links, sidebar) catches up.
+    const enabled = useOptimistic<boolean>();
+    const isEnabled = (m: Module) => enabled.get(m.id, m.enabled);
     const toggle = (m: Module) => {
-        if (m.enabled) {
-            router.delete(`/family/modules/${m.id}`, { preserveScroll: true });
+        const on = isEnabled(m);
+        enabled.set(m.id, !on);
+        const opts = { preserveScroll: true, preserveState: true, onSuccess: () => enabled.clear(m.id), onError: () => enabled.clear(m.id) };
+        if (on) {
+            router.delete(`/family/modules/${m.id}`, opts);
         } else {
-            router.post(`/family/modules/${m.id}/enable`, {}, { preserveScroll: true });
+            router.post(`/family/modules/${m.id}/enable`, {}, opts);
         }
     };
 
@@ -41,6 +48,7 @@ export default function Modules({ catalog, canManage }: Props) {
                 <ul className="flex flex-col gap-3" data-testid="modules-list">
                     {catalog.map((m) => {
                         const Icon = MODULE_ICON[m.id] ?? Blocks;
+                        const on = isEnabled(m);
                         return (
                             <li key={m.id} data-testid={`module-${m.id}`} className="bg-surface-card flex items-center gap-4 rounded-xl border p-4">
                                 {/* The tile tints to accent when the module is live, greys out when it is off,
@@ -49,7 +57,7 @@ export default function Modules({ catalog, canManage }: Props) {
                                     className={`flex size-11 shrink-0 items-center justify-center rounded-lg ${
                                         // text-primary (forest green), not text-accent: shadcn maps --accent to the
                                         // pale hover-green, which is invisible on the accent-subtle tile.
-                                        m.enabled ? 'bg-accent-subtle text-primary' : 'bg-surface text-muted-foreground'
+                                        on ? 'bg-accent-subtle text-primary' : 'bg-surface text-muted-foreground'
                                     }`}
                                 >
                                     <Icon className="size-5" />
@@ -67,16 +75,16 @@ export default function Modules({ catalog, canManage }: Props) {
                                     <button
                                         onClick={() => toggle(m)}
                                         data-testid={`toggle-${m.id}`}
-                                        data-state={m.enabled ? 'enabled' : 'disabled'}
+                                        data-state={on ? 'enabled' : 'disabled'}
                                         className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium ${
-                                            m.enabled ? 'text-text-secondary border' : 'bg-accent-strong text-accent-strong-foreground'
+                                            on ? 'text-text-secondary border' : 'bg-accent-strong text-accent-strong-foreground'
                                         }`}
                                     >
-                                        {m.enabled ? t('family.disable') : t('family.enable')}
+                                        {on ? t('family.disable') : t('family.enable')}
                                     </button>
                                 ) : (
                                     <span data-testid={`state-${m.id}`} className="text-muted-foreground shrink-0 text-xs uppercase">
-                                        {m.enabled ? t('family.enabled') : t('family.disabled')}
+                                        {on ? t('family.enabled') : t('family.disabled')}
                                     </span>
                                 )}
                             </li>

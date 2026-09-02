@@ -2,12 +2,13 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft, Check, ChevronRight, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
-import { CategoryTile } from '@/components/inventory';
 import { IconPicker } from '@/components/icon-picker';
 import InputError from '@/components/input-error';
+import { CategoryTile } from '@/components/inventory';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
 import { byKey, catLabel, type InvCategory } from '@/lib/inventory';
@@ -40,7 +41,9 @@ export default function InventoryCategories({ categories, canManage }: Props) {
                 </header>
 
                 {categories.length === 0 ? (
-                    <p className="text-muted-foreground bg-surface-card rounded-xl border px-4 py-10 text-center text-sm">{t('inventory.no_categories')}</p>
+                    <p className="text-muted-foreground bg-surface-card rounded-xl border px-4 py-10 text-center text-sm">
+                        {t('inventory.no_categories')}
+                    </p>
                 ) : (
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         {categories.map((c) => (
@@ -49,11 +52,7 @@ export default function InventoryCategories({ categories, canManage }: Props) {
                     </div>
                 )}
 
-                {canManage ? (
-                    <AddForm />
-                ) : (
-                    <p className="text-muted-foreground text-xs">{t('inventory.manage_hint_admins')}</p>
-                )}
+                {canManage ? <AddForm /> : <p className="text-muted-foreground text-xs">{t('inventory.manage_hint_admins')}</p>}
             </div>
         </AppLayout>
     );
@@ -67,9 +66,18 @@ function CategoryRow({ c, canManage, catMap }: { c: CatRow; canManage: boolean; 
     const [editing, setEditing] = useState(false);
     const [name, setName] = useState('');
     const [blocked, setBlocked] = useState(false); // set when a delete is attempted while the category is in use
+    // Optimistic overlays: icon/name show the picked value at once, a deleted row vanishes at once; each
+    // clears when the request settles so the reloaded props take over (or snap back on error).
+    const icon = useOptimistic<string | null>();
+    const label = useOptimistic<string>();
+    const removed = useOptimistic<boolean>();
+    const settle = (o: { clear: (id: number) => void }) => ({ onSuccess: () => o.clear(c.id), onError: () => o.clear(c.id) });
 
     // Change the icon inline. null clears to the fallback (handled server-side).
-    const changeIcon = (icon: string | null) => router.patch(route('inventory.categories.update', c.id), { icon }, { preserveScroll: true });
+    const changeIcon = (next: string | null) => {
+        icon.set(c.id, next);
+        router.patch(route('inventory.categories.update', c.id), { icon: next }, { preserveScroll: true, preserveState: true, ...settle(icon) });
+    };
 
     const startEdit = () => {
         setName(catLabel(t, c.key, catMap)); // seed with the current display label (localised for defaults)
@@ -78,7 +86,9 @@ function CategoryRow({ c, canManage, catMap }: { c: CatRow; canManage: boolean; 
     const saveEdit = () => {
         const trimmed = name.trim();
         if (trimmed === '') return;
-        router.patch(route('inventory.categories.update', c.id), { name: trimmed }, { preserveScroll: true, onSuccess: () => setEditing(false) });
+        label.set(c.id, trimmed);
+        setEditing(false); // close now; a failed save clears the overlay and the old name returns
+        router.patch(route('inventory.categories.update', c.id), { name: trimmed }, { preserveScroll: true, preserveState: true, ...settle(label) });
     };
 
     const remove = () => {
@@ -86,13 +96,13 @@ function CategoryRow({ c, canManage, catMap }: { c: CatRow; canManage: boolean; 
             setBlocked(true); // in-use categories can't be deleted (they'd orphan items) — show the count instead
             return;
         }
-        router.delete(route('inventory.categories.destroy', c.id), { preserveScroll: true });
+        removed.set(c.id, true);
+        router.delete(route('inventory.categories.destroy', c.id), { preserveScroll: true, preserveState: true, ...settle(removed) });
     };
 
-    const subtitle = [
-        t('inventory.items_count', { count: c.count }),
-        c.attention > 0 ? t('inventory.attention_count', { count: c.attention }) : null,
-    ]
+    if (removed.get(c.id, false)) return null;
+
+    const subtitle = [t('inventory.items_count', { count: c.count }), c.attention > 0 ? t('inventory.attention_count', { count: c.attention }) : null]
         .filter(Boolean)
         .join(' · ');
 
@@ -101,7 +111,7 @@ function CategoryRow({ c, canManage, catMap }: { c: CatRow; canManage: boolean; 
             <div className="flex items-center gap-3">
                 {canManage ? (
                     <IconPicker
-                        value={c.icon}
+                        value={icon.get(c.id, c.icon)}
                         onChange={changeIcon}
                         style={{ background: `color-mix(in srgb, ${c.color} 16%, transparent)`, color: c.color }}
                         className="size-10 rounded-lg border-transparent"
@@ -148,7 +158,7 @@ function CategoryRow({ c, canManage, catMap }: { c: CatRow; canManage: boolean; 
                     <>
                         <Link href={`/m/inventory/items?category=${encodeURIComponent(c.key)}`} className="flex min-w-0 flex-1 items-center gap-2">
                             <span className="min-w-0 flex-1">
-                                <span className="text-primary block truncate text-sm font-medium">{catLabel(t, c.key, catMap)}</span>
+                                <span className="text-primary block truncate text-sm font-medium">{label.get(c.id, catLabel(t, c.key, catMap))}</span>
                                 <span className="text-muted-foreground block truncate text-xs">{subtitle}</span>
                             </span>
                             <ChevronRight className="text-muted-foreground size-4 shrink-0" />

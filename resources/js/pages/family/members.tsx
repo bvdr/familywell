@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
 import { type BreadcrumbItem } from '@/types';
@@ -76,8 +77,29 @@ export default function Members({ family, members, invitations, canManage, palet
             },
         });
     };
-    const removeMember = (id: number) => router.delete(route('family.members.destroy', id), { preserveScroll: true });
-    const revokeInvite = (id: number) => router.delete(route('family.invitations.destroy', id), { preserveScroll: true });
+    // Optimistic overlays: removed rows vanish on tap, the family skin highlight moves on tap. Each clears
+    // when the request settles so the reloaded props are authoritative again (snap back on error).
+    const gone = useOptimistic<boolean>();
+    const settle = (id: string) => ({ preserveScroll: true, preserveState: true, onSuccess: () => gone.clear(id), onError: () => gone.clear(id) });
+    const visibleMembers = members.filter((m) => !gone.get(`m${m.id}`, false));
+    const visibleInvitations = invitations.filter((i) => !gone.get(`i${i.id}`, false));
+    const removeMember = (id: number) => {
+        gone.set(`m${id}`, true);
+        router.delete(route('family.members.destroy', id), settle(`m${id}`));
+    };
+    const revokeInvite = (id: number) => {
+        gone.set(`i${id}`, true);
+        router.delete(route('family.invitations.destroy', id), settle(`i${id}`));
+    };
+    const skin = useOptimistic<string>();
+    const pickFamilySkin = (id: string) => {
+        skin.set('theme', id);
+        router.patch(
+            route('family.theme'),
+            { theme: id },
+            { preserveScroll: true, preserveState: true, onSuccess: () => skin.clear('theme'), onError: () => skin.clear('theme') },
+        );
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -210,11 +232,7 @@ export default function Members({ family, members, invitations, canManage, palet
                             <h2 className="text-primary text-base font-semibold">{t('settings.family_skin')}</h2>
                             <p className="text-muted-foreground text-sm">{t('settings.family_skin_desc')}</p>
                         </div>
-                        <SkinPicker
-                            themes={themes}
-                            value={family.theme}
-                            onSelect={(id) => id && router.patch(route('family.theme'), { theme: id }, { preserveScroll: true })}
-                        />
+                        <SkinPicker themes={themes} value={skin.get('theme', family.theme)} onSelect={(id) => id && pickFamilySkin(id)} />
                     </div>
                 )}
 
@@ -284,7 +302,7 @@ export default function Members({ family, members, invitations, canManage, palet
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {members.map((m) => {
+                                {visibleMembers.map((m) => {
                                     const isOwner = m.id === family.owner_id;
                                     return (
                                         <TableRow key={m.id}>
@@ -329,12 +347,12 @@ export default function Members({ family, members, invitations, canManage, palet
                     </div>
 
                     {/* Pending invitations */}
-                    {canManage && invitations.length > 0 && (
+                    {canManage && visibleInvitations.length > 0 && (
                         <div className="flex flex-col gap-2">
                             <h3 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
                                 {t('family.pending_invitations')}
                             </h3>
-                            {invitations.map((i) => (
+                            {visibleInvitations.map((i) => (
                                 <div key={i.id} className="flex items-center justify-between rounded-xl border border-dashed p-3">
                                     <div className="flex items-center gap-3">
                                         <span className="bg-surface text-text-muted flex size-9 items-center justify-center rounded-full">
