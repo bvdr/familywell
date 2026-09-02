@@ -15,5 +15,6 @@
     "confirm_remove": "Remove this birthday? The person stays in Contacts.",
     "save": "Save",
     "cancel": "Cancel",
-    "year": "Year"
+    "year": "Year",
+    "no_match": "No one by that name yet. Add them above."
 }

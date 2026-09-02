@@ -1,6 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { Cake, Check, Pencil, Plus, Trash2, X } from 'lucide-react';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -77,6 +77,15 @@ function DateParts({ value, onChange, t, months }: { value: Parts; onChange: (v:
     );
 }
 
+// Diacritics/case-insensitive "contains" so typing "balan" finds "Bălan". Filtering the list while
+// you type the new name is how you spot that someone is already in it before adding them twice.
+const fold = (s: string) =>
+    s
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+
 const payload = (p: Parts) => ({ birth_day: Number(p.day), birth_month: Number(p.month), birth_year: p.year ? Number(p.year) : null });
 const complete = (p: Parts) => Number(p.day) >= 1 && Number(p.month) >= 1;
 
@@ -92,7 +101,15 @@ export default function BirthdaysIndex({ birthdays }: { birthdays: Birthday[] })
 
     // Optimistic removal: the row disappears on tap, reappearing only if the delete fails.
     const removed = useOptimistic<boolean>();
-    const visible = birthdays.filter((b) => !removed.get(b.id, false));
+    const query = fold(newName);
+    const visible = birthdays.filter((b) => !removed.get(b.id, false) && (!query || fold(b.name).includes(query)));
+    // Month separators: the list stays soonest-first, so months run from the current one forward and
+    // wrap into next year; the header carries the year only once it wraps, to make that visible.
+    const monthHeader = (b: Birthday) => {
+        const d = new Date(b.nextBirthday + 'T00:00:00');
+        const sameYear = d.getFullYear() === new Date().getFullYear();
+        return new Intl.DateTimeFormat(locale, sameYear ? { month: 'long' } : { month: 'long', year: 'numeric' }).format(d);
+    };
     const remove = (b: Birthday) => {
         if (!confirm(t('birthdays.confirm_remove'))) return;
         removed.set(b.id, true);
@@ -160,45 +177,54 @@ export default function BirthdaysIndex({ birthdays }: { birthdays: Birthday[] })
                     <p className="text-muted-foreground text-xs">{t('birthdays.add_hint')}</p>
                 </div>
 
-                {visible.length === 0 && <p className="text-muted-foreground py-6 text-center text-sm">{t('birthdays.empty')}</p>}
+                {visible.length === 0 && (
+                    <p className="text-muted-foreground py-6 text-center text-sm">{query ? t('birthdays.no_match') : t('birthdays.empty')}</p>
+                )}
 
                 <div className="flex flex-col gap-2">
-                    {visible.map((b) =>
-                        editing?.id === b.id ? (
-                            <EditRow key={b.id} birthday={b} months={months} t={t} onClose={() => setEditing(null)} />
-                        ) : (
-                            <div key={b.id} className="bg-surface-card flex items-center gap-3 rounded-xl border px-3 py-2.5">
-                                <span className="bg-accent-subtle text-primary flex size-9 shrink-0 items-center justify-center rounded-full">
-                                    <Cake className="size-4.5" />
-                                </span>
-                                <span className="min-w-0 flex-1">
-                                    <Link href="/m/contacts" className="text-primary block truncate text-[15px]">
-                                        {b.name}
-                                    </Link>
-                                    <span className="text-muted-foreground block truncate text-xs">
-                                        {dateLabel(b)} · {when(b)}
-                                        {b.turning != null ? ` · ${t('birthdays.turns', { age: b.turning })}` : ''}
+                    {visible.map((b, i) => (
+                        <Fragment key={b.id}>
+                            {(i === 0 || monthHeader(visible[i - 1]) !== monthHeader(b)) && (
+                                <h2 className="text-muted-foreground mt-3 px-1 text-xs font-semibold tracking-widest uppercase first:mt-0">
+                                    {monthHeader(b)}
+                                </h2>
+                            )}
+                            {editing?.id === b.id ? (
+                                <EditRow birthday={b} months={months} t={t} onClose={() => setEditing(null)} />
+                            ) : (
+                                <div className="bg-surface-card flex items-center gap-3 rounded-xl border px-3 py-2.5">
+                                    <span className="bg-accent-subtle text-primary flex size-9 shrink-0 items-center justify-center rounded-full">
+                                        <Cake className="size-4.5" />
                                     </span>
-                                </span>
-                                <button
-                                    type="button"
-                                    onClick={() => setEditing(b)}
-                                    className="text-muted-foreground p-1"
-                                    aria-label={t('birthdays.edit')}
-                                >
-                                    <Pencil className="size-4" />
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => remove(b)}
-                                    className="text-muted-foreground p-1"
-                                    aria-label={t('birthdays.remove')}
-                                >
-                                    <Trash2 className="size-4" />
-                                </button>
-                            </div>
-                        ),
-                    )}
+                                    <span className="min-w-0 flex-1">
+                                        <Link href="/m/contacts" className="text-primary block truncate text-[15px]">
+                                            {b.name}
+                                        </Link>
+                                        <span className="text-muted-foreground block truncate text-xs">
+                                            {dateLabel(b)} · {when(b)}
+                                            {b.turning != null ? ` · ${t('birthdays.turns', { age: b.turning })}` : ''}
+                                        </span>
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setEditing(b)}
+                                        className="text-muted-foreground p-1"
+                                        aria-label={t('birthdays.edit')}
+                                    >
+                                        <Pencil className="size-4" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => remove(b)}
+                                        className="text-muted-foreground p-1"
+                                        aria-label={t('birthdays.remove')}
+                                    >
+                                        <Trash2 className="size-4" />
+                                    </button>
+                                </div>
+                            )}
+                        </Fragment>
+                    ))}
                 </div>
             </div>
         </AppLayout>
