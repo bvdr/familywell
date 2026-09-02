@@ -42,7 +42,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { avatarColorFor } from '@/lib/avatar';
-import { catColor, catIconName, catLabel, categoryMap, type CategoryDef } from '@/lib/categories';
+import { catColor, categoryMap, catIconName, catLabel, type CategoryDef } from '@/lib/categories';
 import { compressImage, makeThumbnail } from '@/lib/compress-image';
 import { useT, type TFn } from '@/lib/i18n';
 import { money, selectAllOnFocus } from '@/lib/money';
@@ -185,7 +185,7 @@ export default function Event({
     scanEnabled: boolean;
     moveTargets?: { id: number; name: string; currency: string }[];
 }) {
-    const authId = (usePage().props as { auth: { user: { id: number } } }).auth.user.id;
+    const authId = usePage<{ auth: { user: { id: number } } }>().props.auth.user.id;
     const t = useT();
     // Dynamic categories: a key→def lookup for rendering, and the first one as the new-spend default.
     const catMap = categoryMap(event.categories);
@@ -1642,7 +1642,8 @@ export default function Event({
                                                             {s.note || catLabel(t, catMap, s.category)}
                                                         </div>
                                                         <div className="text-muted-foreground truncate text-xs">
-                                                            {(s.payer.name ?? t('spending.guest_word')).split(' ')[0]} · {catLabel(t, catMap, s.category)}
+                                                            {(s.payer.name ?? t('spending.guest_word')).split(' ')[0]} ·{' '}
+                                                            {catLabel(t, catMap, s.category)}
                                                             {s.split !== 'all' && (
                                                                 <span className="normal-case">
                                                                     {' '}
