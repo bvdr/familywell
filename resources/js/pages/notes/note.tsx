@@ -4,7 +4,15 @@ import { useEffect, useRef, useState } from 'react';
 
 import { MarkdownEditor } from '@/components/notes/markdown-editor';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
 import { NOTE_COLOR_KEYS, NOTE_SWATCHES, noteColor } from '@/lib/notes';
@@ -57,8 +65,21 @@ export default function NoteDetail({ note, folders, share }: { note: Note; folde
     // Flush any unsaved edits when leaving the page.
     useEffect(() => flush, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Immediate (non-text) changes save right away.
-    const save = (data: Payload) => router.patch(route('notes.update', note.id), data, { preserveScroll: true, preserveState: true });
+    // Immediate (non-text) changes save right away, and render right away: the overlay is keyed by
+    // payload field, so pin/color/folder/visibility flip on tap and only snap back if the PATCH fails.
+    const fieldOpt = useOptimistic<string | number | boolean | null>();
+    const view = {
+        pinned: fieldOpt.get('pinned', note.pinned) as boolean,
+        color: fieldOpt.get('color', note.color) as string,
+        folderId: fieldOpt.get('folder_id', note.folderId) as number | null,
+        visibility: fieldOpt.get('visibility', note.visibility) as string,
+    };
+    const save = (data: Payload) => {
+        const keys = Object.keys(data);
+        keys.forEach((k) => fieldOpt.set(k, data[k]));
+        const settle = () => keys.forEach((k) => fieldOpt.clear(k));
+        router.patch(route('notes.update', note.id), data, { preserveScroll: true, preserveState: true, onSuccess: settle, onError: settle });
+    };
 
     const onTitle = (v: string) => {
         setTitle(v);
@@ -77,13 +98,13 @@ export default function NoteDetail({ note, folders, share }: { note: Note; folde
         <>
             <button
                 type="button"
-                onClick={() => save({ pinned: !note.pinned })}
-                aria-label={note.pinned ? t('notes.unpin') : t('notes.pin')}
+                onClick={() => save({ pinned: !view.pinned })}
+                aria-label={view.pinned ? t('notes.unpin') : t('notes.pin')}
                 className={`flex size-9 items-center justify-center rounded-lg border transition-colors ${
-                    note.pinned ? 'border-primary bg-accent-subtle text-primary' : 'border-border text-primary hover:bg-surface'
+                    view.pinned ? 'border-primary bg-accent-subtle text-primary' : 'border-border text-primary hover:bg-surface'
                 }`}
             >
-                {note.pinned ? <Pin className="size-4.5 fill-current" /> : <Pin className="size-4.5" />}
+                {view.pinned ? <Pin className="size-4.5 fill-current" /> : <Pin className="size-4.5" />}
             </button>
             <button
                 type="button"
@@ -116,10 +137,10 @@ export default function NoteDetail({ note, folders, share }: { note: Note; folde
                                 onClick={() => save({ color: c })}
                                 aria-label={`${c} color`}
                                 className={`flex size-7 items-center justify-center rounded-full border ${NOTE_SWATCHES[c]} ${
-                                    note.color === c ? 'ring-primary ring-2 ring-offset-1' : ''
+                                    view.color === c ? 'ring-primary ring-2 ring-offset-1' : ''
                                 }`}
                             >
-                                {note.color === c && <Check className="size-3.5" />}
+                                {view.color === c && <Check className="size-3.5" />}
                             </button>
                         ))}
                     </div>
@@ -129,15 +150,15 @@ export default function NoteDetail({ note, folders, share }: { note: Note; folde
                         <FolderInput className="size-3.5" /> {t('notes.folder')}
                     </DropdownMenuLabel>
                     <DropdownMenuItem onSelect={() => save({ folder_id: null })}>
-                        {note.folderId === null && <Check className="size-4" />} {t('notes.no_folder')}
+                        {view.folderId === null && <Check className="size-4" />} {t('notes.no_folder')}
                     </DropdownMenuItem>
                     {folders.map((f) => (
                         <DropdownMenuItem key={f.id} onSelect={() => save({ folder_id: f.id })}>
-                            {note.folderId === f.id && <Check className="size-4" />} {f.name}
+                            {view.folderId === f.id && <Check className="size-4" />} {f.name}
                         </DropdownMenuItem>
                     ))}
                     <DropdownMenuSeparator />
-                    {note.visibility === 'family' ? (
+                    {view.visibility === 'family' ? (
                         <DropdownMenuItem onSelect={() => save({ visibility: 'private' })}>
                             <Lock className="size-4" /> {t('notes.make_private')}
                         </DropdownMenuItem>
@@ -177,7 +198,7 @@ export default function NoteDetail({ note, folders, share }: { note: Note; folde
                         disabled={!note.canEdit}
                         placeholder={t('notes.title_placeholder')}
                         rows={1}
-                        className="font-heading text-primary w-full resize-none overflow-hidden bg-transparent text-2xl leading-tight outline-none placeholder:text-muted-foreground/50"
+                        className="font-heading text-primary placeholder:text-muted-foreground/50 w-full resize-none overflow-hidden bg-transparent text-2xl leading-tight outline-none"
                     />
                     <div className="text-muted-foreground flex items-center gap-2 text-xs">
                         {folderName && <span className="bg-surface/60 rounded-full px-2 py-0.5">{folderName}</span>}
