@@ -63,6 +63,10 @@ function AssigneeDot({ members, id }: { members: TaskMember[]; id: number | null
 export function TaskTree({ tasks, members, canEdit, addUrl, taskUrl, reorderUrl, emptyHint, addInputRef }: Props) {
     const t = useT();
     const doneOpt = useOptimistic<boolean>();
+    // Optimistic removal: a deleted task (and its sub-tasks) disappears immediately, reappearing only
+    // if the DELETE fails. Overlay on the local mirror rather than mutating it, so a failed delete
+    // needs no re-sync (the server key is unchanged, so the mirror would not refresh on its own).
+    const removed = useOptimistic<boolean>();
     const [newTitle, setNewTitle] = useState('');
     const [editing, setEditing] = useState<SubTask | null>(null);
     const [openSwipe, setOpenSwipe] = useState<number | null>(null); // row whose delete action is revealed
@@ -92,7 +96,9 @@ export function TaskTree({ tasks, members, canEdit, addUrl, taskUrl, reorderUrl,
     );
 
     // While dragging a parent, hide its sub-tasks so the parent moves as one unit.
-    const flattened = useMemo(() => (activeId != null ? removeChildrenOf(items, [activeId]) : items), [items, activeId]);
+    const visibleItems = items.filter((i) => !removed.get(i.id, false) && !(i.parentId != null && removed.get(i.parentId, false)));
+    // ponytail: no useMemo here, the overlay object changes identity each render anyway; tens of rows.
+    const flattened = activeId != null ? removeChildrenOf(visibleItems, [activeId]) : visibleItems;
     const sortedIds = useMemo(() => flattened.map((i) => i.id), [flattened]);
     const projection = activeId != null && overId != null ? getProjection(flattened, activeId, overId, offsetLeft, INDENT) : null;
     const activeItem = activeId != null ? flattened.find((i) => i.id === activeId) : null;
@@ -113,7 +119,13 @@ export function TaskTree({ tasks, members, canEdit, addUrl, taskUrl, reorderUrl,
     };
     const del = (id: number) => {
         setOpenSwipe(null);
-        router.delete(taskUrl(id), { preserveScroll: true });
+        removed.set(id, true);
+        router.delete(taskUrl(id), {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => removed.clear(id),
+            onError: () => removed.clear(id),
+        });
     };
 
     function resetDrag() {
@@ -154,7 +166,7 @@ export function TaskTree({ tasks, members, canEdit, addUrl, taskUrl, reorderUrl,
         router.post(reorderUrl, { order: result.map((i) => ({ id: i.id, parent_id: i.parentId })) }, { preserveScroll: true, preserveState: true });
     }
 
-    const tree = buildTree(items); // for the empty check + counts if needed
+    const tree = buildTree(visibleItems); // for the empty check + counts if needed
 
     return (
         <div className="flex flex-col gap-2">
@@ -485,7 +497,11 @@ function EditTaskModal({
                             router.patch(taskUrl(task.id), data, { preserveScroll: true, preserveState: true }),
                     }}
                 />
-                <button type="button" onClick={handleDelete} className="text-destructive flex items-center justify-center gap-2 py-1 text-sm font-medium">
+                <button
+                    type="button"
+                    onClick={handleDelete}
+                    className="text-destructive flex items-center justify-center gap-2 py-1 text-sm font-medium"
+                >
                     <Trash2 className="size-4" /> {t('tasks.delete_task')}
                 </button>
             </div>
