@@ -15,5 +15,6 @@
     "confirm_remove": "Ștergi această zi de naștere? Persoana rămâne în Contacte.",
     "save": "Salvează",
     "cancel": "Anulează",
-    "year": "An"
+    "year": "An",
+    "no_match": "Nimeni cu acest nume încă. Adaugă mai sus."
 }
