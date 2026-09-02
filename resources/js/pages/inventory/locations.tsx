@@ -2,12 +2,13 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft, Check, ChevronRight, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
-import { LucideIcon } from '@/components/lucide-icon';
 import { IconPicker } from '@/components/icon-picker';
 import InputError from '@/components/input-error';
+import { LucideIcon } from '@/components/lucide-icon';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
 import { byKey, locLabel, type InvLocation } from '@/lib/inventory';
@@ -40,7 +41,9 @@ export default function InventoryLocations({ locations, canManage }: Props) {
                 </header>
 
                 {locations.length === 0 ? (
-                    <p className="text-muted-foreground bg-surface-card rounded-xl border px-4 py-10 text-center text-sm">{t('inventory.no_locations')}</p>
+                    <p className="text-muted-foreground bg-surface-card rounded-xl border px-4 py-10 text-center text-sm">
+                        {t('inventory.no_locations')}
+                    </p>
                 ) : (
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         {locations.map((l) => (
@@ -49,11 +52,7 @@ export default function InventoryLocations({ locations, canManage }: Props) {
                     </div>
                 )}
 
-                {canManage ? (
-                    <AddForm />
-                ) : (
-                    <p className="text-muted-foreground text-xs">{t('inventory.manage_hint_admins')}</p>
-                )}
+                {canManage ? <AddForm /> : <p className="text-muted-foreground text-xs">{t('inventory.manage_hint_admins')}</p>}
             </div>
         </AppLayout>
     );
@@ -67,8 +66,17 @@ function LocationRow({ l, canManage, locMap }: { l: LocRow; canManage: boolean; 
     const [editing, setEditing] = useState(false);
     const [name, setName] = useState('');
     const [blocked, setBlocked] = useState(false); // set when a delete is attempted while the location is in use
+    // Optimistic overlays: icon/name show the picked value at once, a deleted row vanishes at once; each
+    // clears when the request settles so the reloaded props take over (or snap back on error).
+    const icon = useOptimistic<string | null>();
+    const label = useOptimistic<string>();
+    const removed = useOptimistic<boolean>();
+    const settle = (o: { clear: (id: number) => void }) => ({ onSuccess: () => o.clear(l.id), onError: () => o.clear(l.id) });
 
-    const changeIcon = (icon: string | null) => router.patch(route('inventory.locations.update', l.id), { icon }, { preserveScroll: true });
+    const changeIcon = (next: string | null) => {
+        icon.set(l.id, next);
+        router.patch(route('inventory.locations.update', l.id), { icon: next }, { preserveScroll: true, preserveState: true, ...settle(icon) });
+    };
 
     const startEdit = () => {
         setName(locLabel(t, l.key, locMap)); // seed with the current display label (localised for defaults)
@@ -77,7 +85,9 @@ function LocationRow({ l, canManage, locMap }: { l: LocRow; canManage: boolean; 
     const saveEdit = () => {
         const trimmed = name.trim();
         if (trimmed === '') return;
-        router.patch(route('inventory.locations.update', l.id), { name: trimmed }, { preserveScroll: true, onSuccess: () => setEditing(false) });
+        label.set(l.id, trimmed);
+        setEditing(false); // close now; a failed save clears the overlay and the old name returns
+        router.patch(route('inventory.locations.update', l.id), { name: trimmed }, { preserveScroll: true, preserveState: true, ...settle(label) });
     };
 
     const remove = () => {
@@ -85,8 +95,11 @@ function LocationRow({ l, canManage, locMap }: { l: LocRow; canManage: boolean; 
             setBlocked(true); // in-use locations can't be deleted (they'd orphan items) — show the count instead
             return;
         }
-        router.delete(route('inventory.locations.destroy', l.id), { preserveScroll: true });
+        removed.set(l.id, true);
+        router.delete(route('inventory.locations.destroy', l.id), { preserveScroll: true, preserveState: true, ...settle(removed) });
     };
+
+    if (removed.get(l.id, false)) return null;
 
     // Compact summary: "N items · L low · E empty" (only the non-zero problem parts).
     const subtitle = [
@@ -102,7 +115,7 @@ function LocationRow({ l, canManage, locMap }: { l: LocRow; canManage: boolean; 
             <div className="flex items-center gap-3">
                 {canManage ? (
                     <IconPicker
-                        value={l.icon}
+                        value={icon.get(l.id, l.icon)}
                         onChange={changeIcon}
                         className="size-10 rounded-lg"
                         iconClassName="size-5"
@@ -150,7 +163,7 @@ function LocationRow({ l, canManage, locMap }: { l: LocRow; canManage: boolean; 
                     <>
                         <Link href={`/m/inventory/items?location=${encodeURIComponent(l.key)}`} className="flex min-w-0 flex-1 items-center gap-2">
                             <span className="min-w-0 flex-1">
-                                <span className="text-primary block truncate text-sm font-medium">{locLabel(t, l.key, locMap)}</span>
+                                <span className="text-primary block truncate text-sm font-medium">{label.get(l.id, locLabel(t, l.key, locMap))}</span>
                                 <span className="text-muted-foreground block truncate text-xs">{subtitle}</span>
                             </span>
                             <ChevronRight className="text-muted-foreground size-4 shrink-0" />

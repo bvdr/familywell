@@ -3,6 +3,7 @@ import { Head, router } from '@inertiajs/react';
 import AppearanceTabs from '@/components/appearance-tabs';
 import HeadingSmall from '@/components/heading-small';
 import { SkinPicker, type Skin } from '@/components/skin-picker';
+import { useOptimistic } from '@/hooks/use-optimistic';
 import { useT } from '@/lib/i18n';
 import { type BreadcrumbItem } from '@/types';
 
@@ -22,7 +23,16 @@ export default function Appearance({
     const breadcrumbs: BreadcrumbItem[] = [{ title: t('settings.appearance_settings'), href: '/settings/appearance' }];
 
     const familySkin = themes.find((s) => s.id === familyDefault);
-    const selectSkin = (id: string | null) => router.patch(route('appearance.theme'), { theme: id }, { preserveScroll: true });
+    // Optimistic highlight only: the skin CSS is injected server-side, so colours switch when the reload lands.
+    const picked = useOptimistic<string | null>();
+    const selectSkin = (id: string | null) => {
+        picked.set('theme', id);
+        router.patch(
+            route('appearance.theme'),
+            { theme: id },
+            { preserveScroll: true, preserveState: true, onSuccess: () => picked.clear('theme'), onError: () => picked.clear('theme') },
+        );
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -39,7 +49,7 @@ export default function Appearance({
                         <HeadingSmall title={t('settings.skin')} description={t('settings.skin_desc')} />
                         <SkinPicker
                             themes={themes}
-                            value={currentTheme}
+                            value={picked.get('theme', currentTheme)}
                             onSelect={selectSkin}
                             inheritLabel={t('settings.skin_family_default', { name: familySkin?.name ?? familyDefault })}
                             inheritSwatch={familySkin?.swatch}

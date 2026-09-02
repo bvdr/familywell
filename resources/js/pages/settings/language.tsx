@@ -2,6 +2,7 @@ import { Head, router } from '@inertiajs/react';
 import { Check } from 'lucide-react';
 
 import HeadingSmall from '@/components/heading-small';
+import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { useT } from '@/lib/i18n';
@@ -13,10 +14,18 @@ export default function Language({ locales, current }: { locales: Locale[]; curr
     const t = useT();
     const breadcrumbs: BreadcrumbItem[] = [{ title: t('settings.language'), href: '/settings/language' }];
 
-    // Saving reloads (Inertia back()) so the new locale's translations arrive on the shared prop.
+    // Saving reloads (Inertia back()) so the new locale's translations arrive on the shared prop. The tick
+    // moves optimistically; the strings themselves can only change once the reload lands.
+    const picked = useOptimistic<string>();
+    const selected = picked.get('locale', current);
     const choose = (code: string) => {
-        if (code === current) return;
-        router.patch(route('language.update'), { locale: code }, { preserveScroll: true });
+        if (code === selected) return;
+        picked.set('locale', code);
+        router.patch(
+            route('language.update'),
+            { locale: code },
+            { preserveScroll: true, preserveState: true, onSuccess: () => picked.clear('locale'), onError: () => picked.clear('locale') },
+        );
     };
 
     return (
@@ -27,7 +36,7 @@ export default function Language({ locales, current }: { locales: Locale[]; curr
                     <HeadingSmall title={t('settings.language')} description={t('settings.language_desc')} />
                     <div className="bg-surface-card divide-border/60 divide-y rounded-xl border">
                         {locales.map((l) => {
-                            const on = l.code === current;
+                            const on = l.code === selected;
                             return (
                                 <button
                                     key={l.code}
