@@ -2,7 +2,6 @@ import { Head, router } from '@inertiajs/react';
 import { Archive, Check, Copy, Lock, MoreHorizontal, Pencil, Trash2, UserPlus, Users } from 'lucide-react';
 import { useRef, useState } from 'react';
 
-import { useAddAction } from '@/lib/add-action';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
 import { TaskTree, type TaskMember, type TaskNode } from '@/components/tasks/task-tree';
 import { Button } from '@/components/ui/button';
@@ -10,7 +9,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
+import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
+import { useAddAction } from '@/lib/add-action';
 import { useT } from '@/lib/i18n';
 import { LIST_COLORS, LIST_ICONS, listColor, listIcon } from '@/lib/tasks';
 import { type BreadcrumbItem } from '@/types';
@@ -40,6 +41,17 @@ export default function ListDetail({ list, share, members, tasks }: { list: List
 
     const patchList = (data: Record<string, string | number | boolean | null>) =>
         router.patch(route('tasks.lists.update', list.id), data, { preserveScroll: true });
+    // Optimistic visibility: the lock icon + menu item flip on tap, snapping back only if the PATCH fails.
+    const visibilityOpt = useOptimistic<string>();
+    const visibility = visibilityOpt.get(list.id, list.visibility);
+    const setVisibility = (v: string) => {
+        visibilityOpt.set(list.id, v);
+        router.patch(
+            route('tasks.lists.update', list.id),
+            { visibility: v },
+            { preserveScroll: true, preserveState: true, onSuccess: () => visibilityOpt.clear(list.id), onError: () => visibilityOpt.clear(list.id) },
+        );
+    };
 
     const headerActions = (
         <>
@@ -69,12 +81,12 @@ export default function ListDetail({ list, share, members, tasks }: { list: List
                         <Pencil className="size-4" /> {t('tasks.edit_list')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    {list.visibility === 'family' ? (
-                        <DropdownMenuItem onSelect={() => patchList({ visibility: 'private' })}>
+                    {visibility === 'family' ? (
+                        <DropdownMenuItem onSelect={() => setVisibility('private')}>
                             <Lock className="size-4" /> {t('tasks.make_private')}
                         </DropdownMenuItem>
                     ) : (
-                        <DropdownMenuItem onSelect={() => patchList({ visibility: 'family' })}>
+                        <DropdownMenuItem onSelect={() => setVisibility('family')}>
                             <Users className="size-4" /> {t('tasks.share_with_family')}
                         </DropdownMenuItem>
                     )}
@@ -109,7 +121,7 @@ export default function ListDetail({ list, share, members, tasks }: { list: List
                     <div className="min-w-0 flex-1">
                         <h1 className="font-heading text-primary flex items-center gap-1.5 truncate text-2xl">
                             {list.name}
-                            {list.visibility === 'private' && <Lock className="text-muted-foreground size-4 shrink-0" />}
+                            {visibility === 'private' && <Lock className="text-muted-foreground size-4 shrink-0" />}
                         </h1>
                         <p className="text-muted-foreground text-sm">{t('tasks.progress', { done, total })}</p>
                     </div>
