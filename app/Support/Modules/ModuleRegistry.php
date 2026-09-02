@@ -36,9 +36,39 @@ class ModuleRegistry
 
     public function isEnabled(string $id, int $familyId): bool
     {
-        return DB::table('family_modules')
-            ->where(['family_id' => $familyId, 'module_id' => $id, 'enabled' => true])
-            ->exists();
+        return in_array($id, $this->enabledIds($familyId), true);
+    }
+
+    /**
+     * Enabled module ids for a family, ONE query per family per request. Every caller (shell shared
+     * props, ShareModules, EnsureModuleEnabled, module controllers/hooks) routes through isEnabled(),
+     * which used to run its own EXISTS: the app shell alone fired ~27 of them on every Inertia visit
+     * (measured on /dashboard), i.e. half the queries of a page load, each a round trip to the
+     * managed Postgres in prod. The memo lives on the current Request's attribute bag so it dies with
+     * the request under Octane and per test request, no flush wiring.
+     * ponytail: in console the bound Request lives for the whole process, so a long-running worker
+     * would keep a family's enabled-set until restart. Nothing queued calls isEnabled() today (only
+     * HTTP + the scheduled check commands); if a job ever needs live state, clear the bag per job.
+     *
+     * @return list<string>
+     */
+    public function enabledIds(int $familyId): array
+    {
+        $bag = app('request')->attributes;
+        $key = "modules.enabled.{$familyId}";
+        if (! $bag->has($key)) {
+            $bag->set($key, DB::table('family_modules')
+                ->where(['family_id' => $familyId, 'enabled' => true])
+                ->pluck('module_id')->all());
+        }
+
+        return $bag->get($key);
+    }
+
+    /** Drop the per-request memo after a toggle so the same request sees the new state. */
+    private function forgetEnabled(int $familyId): void
+    {
+        app('request')->attributes->remove("modules.enabled.{$familyId}");
     }
 
     public function enable(string $id, int $familyId): void
@@ -51,6 +81,7 @@ class ModuleRegistry
             ['family_id' => $familyId, 'module_id' => $id],
             ['enabled' => true],
         );
+        $this->forgetEnabled($familyId);
     }
 
     public function disable(string $id, int $familyId): void
@@ -59,5 +90,6 @@ class ModuleRegistry
             ['family_id' => $familyId, 'module_id' => $id],
             ['enabled' => false],
         );
+        $this->forgetEnabled($familyId);
     }
 }
