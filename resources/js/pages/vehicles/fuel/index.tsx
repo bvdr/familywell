@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
+import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn } from '@/lib/i18n';
 import {
@@ -41,6 +42,21 @@ export default function VehicleFuel({ vehicle, unitSystem, entries, stats, canEx
     const [adding, setAdding] = useState(false);
     const [editingId, setEditingId] = useState<number | null>(null);
 
+    // Optimistic removal: a deleted fill disappears immediately, reappearing only if the delete fails.
+    // The stats strip stays as-is until the reload; recomputing it locally isn't worth the code.
+    const removed = useOptimistic<boolean>();
+    const visibleEntries = entries.filter((e) => !removed.get(e.id, false));
+    const removeEntry = (entry: FuelEntry) => {
+        if (!confirm(t('vehicles.fuel_delete_confirm'))) return;
+        removed.set(entry.id, true);
+        router.delete(`/m/vehicles/${vehicle.id}/fuel/${entry.id}`, {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => removed.clear(entry.id),
+            onError: () => removed.clear(entry.id),
+        });
+    };
+
     const breadcrumbs: BreadcrumbItem[] = [
         { title: t('vehicles.title'), href: '/m/vehicles' },
         { title: vehicleTitle(vehicle), href: `/m/vehicles/${vehicle.id}` },
@@ -70,12 +86,19 @@ export default function VehicleFuel({ vehicle, unitSystem, entries, stats, canEx
                 {/* Computed metrics — only once there's something to compute. */}
                 {stats.entryCount > 0 && <FuelMetrics stats={stats} unitSystem={unitSystem} t={t} />}
 
-                {entries.length === 0 ? (
+                {visibleEntries.length === 0 ? (
                     <EmptyState t={t} />
                 ) : (
                     <ul className="flex flex-col gap-3">
-                        {entries.map((e) => (
-                            <FuelCard key={e.id} vehicle={vehicle} entry={e} unitSystem={unitSystem} t={t} onEdit={() => setEditingId(e.id)} />
+                        {visibleEntries.map((e) => (
+                            <FuelCard
+                                key={e.id}
+                                entry={e}
+                                unitSystem={unitSystem}
+                                t={t}
+                                onEdit={() => setEditingId(e.id)}
+                                onRemove={() => removeEntry(e)}
+                            />
                         ))}
                     </ul>
                 )}
@@ -117,8 +140,14 @@ function FuelMetrics({ stats, unitSystem, t }: { stats: FuelStats; unitSystem: U
         { label: t('vehicles.fuel_consumption_latest'), value: consumptionText(stats.latestConsumption, unitSystem) },
         { label: t('vehicles.fuel_consumption_avg'), value: consumptionText(stats.avgConsumption, unitSystem) },
         { label: t('vehicles.fuel_cost_per_km', { unit: distanceUnitLabel(unitSystem) }), value: costPerDistanceText(stats.costPerKm, unitSystem) },
-        { label: t('vehicles.fuel_monthly'), value: stats.monthlyCost != null ? t('vehicles.cost_value', { value: stats.monthlyCost.toFixed(2) }) : '—' },
-        { label: t('vehicles.fuel_annual'), value: stats.annualCost != null ? t('vehicles.cost_value', { value: stats.annualCost.toFixed(2) }) : '—' },
+        {
+            label: t('vehicles.fuel_monthly'),
+            value: stats.monthlyCost != null ? t('vehicles.cost_value', { value: stats.monthlyCost.toFixed(2) }) : '—',
+        },
+        {
+            label: t('vehicles.fuel_annual'),
+            value: stats.annualCost != null ? t('vehicles.cost_value', { value: stats.annualCost.toFixed(2) }) : '—',
+        },
         { label: t('vehicles.fuel_total_cost'), value: stats.totalCost > 0 ? t('vehicles.cost_value', { value: stats.totalCost.toFixed(2) }) : '—' },
     ];
 
@@ -135,13 +164,19 @@ function FuelMetrics({ stats, unitSystem, t }: { stats: FuelStats; unitSystem: U
 }
 
 // One fill record: date, volume, cost, odometer, a partial-tank badge, and the station/note.
-function FuelCard({ vehicle, entry, unitSystem, t, onEdit }: { vehicle: VehicleHeader; entry: FuelEntry; unitSystem: UnitSystem; t: TFn; onEdit: () => void }) {
-    const remove = () => {
-        if (confirm(t('vehicles.fuel_delete_confirm'))) {
-            router.delete(`/m/vehicles/${vehicle.id}/fuel/${entry.id}`, { preserveScroll: true });
-        }
-    };
-
+function FuelCard({
+    entry,
+    unitSystem,
+    t,
+    onEdit,
+    onRemove,
+}: {
+    entry: FuelEntry;
+    unitSystem: UnitSystem;
+    t: TFn;
+    onEdit: () => void;
+    onRemove: () => void;
+}) {
     return (
         <li className="bg-surface-card flex flex-col gap-2 rounded-2xl border p-4">
             <div className="flex items-start justify-between gap-3">
@@ -149,11 +184,17 @@ function FuelCard({ vehicle, entry, unitSystem, t, onEdit }: { vehicle: VehicleH
                     <h3 className="text-primary flex items-center gap-2 font-medium tabular-nums">
                         <Droplet className="text-muted-foreground size-4 shrink-0" />
                         {volumeText(entry.liters, unitSystem)}
-                        {!entry.isFullTank && <span className="text-muted-foreground rounded-full border px-1.5 py-0.5 text-[11px] font-medium">{t('vehicles.fuel_partial')}</span>}
+                        {!entry.isFullTank && (
+                            <span className="text-muted-foreground rounded-full border px-1.5 py-0.5 text-[11px] font-medium">
+                                {t('vehicles.fuel_partial')}
+                            </span>
+                        )}
                     </h3>
                     <p className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm">
                         {entry.filledOn && <span>{entry.filledOn}</span>}
-                        <span className="tabular-nums">{fmtDistance(entry.mileage, unitSystem)} {distanceUnitLabel(unitSystem)}</span>
+                        <span className="tabular-nums">
+                            {fmtDistance(entry.mileage, unitSystem)} {distanceUnitLabel(unitSystem)}
+                        </span>
                         {entry.cost != null && <span className="tabular-nums">{t('vehicles.cost_value', { value: entry.cost.toFixed(2) })}</span>}
                         {entry.station && <span>{entry.station}</span>}
                     </p>
@@ -162,7 +203,7 @@ function FuelCard({ vehicle, entry, unitSystem, t, onEdit }: { vehicle: VehicleH
                     <IconButton label={t('vehicles.edit')} onClick={onEdit}>
                         <Pencil className="size-4" />
                     </IconButton>
-                    <IconButton label={t('vehicles.delete')} onClick={remove}>
+                    <IconButton label={t('vehicles.delete')} onClick={onRemove}>
                         <Trash2 className="size-4" />
                     </IconButton>
                 </div>
@@ -271,21 +312,49 @@ function FuelFormModal({
                         <Input type="date" value={form.filled_on} onChange={(e) => set('filled_on', e.target.value)} className="text-base" />
                     </Field>
                     <Field label={t('vehicles.fuel_liters', { unit: volumeUnitLabel(unitSystem) })} error={errors.liters}>
-                        <Input value={form.liters} onChange={(e) => set('liters', e.target.value)} inputMode="decimal" placeholder="0.0" className="text-base" />
+                        <Input
+                            value={form.liters}
+                            onChange={(e) => set('liters', e.target.value)}
+                            inputMode="decimal"
+                            placeholder="0.0"
+                            className="text-base"
+                        />
                     </Field>
                     <Field label={t('vehicles.completed_mileage')} error={errors.mileage}>
-                        <Input value={form.mileage} onChange={(e) => set('mileage', e.target.value)} inputMode="numeric" placeholder={fmtMileage(vehicle.currentMileage)} className="text-base" />
+                        <Input
+                            value={form.mileage}
+                            onChange={(e) => set('mileage', e.target.value)}
+                            inputMode="numeric"
+                            placeholder={fmtMileage(vehicle.currentMileage)}
+                            className="text-base"
+                        />
                     </Field>
                     <Field label={t('vehicles.completed_cost')} error={errors.cost}>
-                        <Input value={form.cost} onChange={(e) => set('cost', e.target.value)} inputMode="decimal" placeholder="0.00" className="text-base" />
+                        <Input
+                            value={form.cost}
+                            onChange={(e) => set('cost', e.target.value)}
+                            inputMode="decimal"
+                            placeholder="0.00"
+                            className="text-base"
+                        />
                     </Field>
                     <Field label={t('vehicles.fuel_station')} error={errors.station}>
-                        <Input value={form.station} onChange={(e) => set('station', e.target.value)} placeholder={t('vehicles.fuel_station_placeholder')} className="text-base" />
+                        <Input
+                            value={form.station}
+                            onChange={(e) => set('station', e.target.value)}
+                            placeholder={t('vehicles.fuel_station_placeholder')}
+                            className="text-base"
+                        />
                     </Field>
                 </div>
 
                 <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={form.is_full_tank} onChange={(e) => set('is_full_tank', e.target.checked)} className="size-4 rounded border" />
+                    <input
+                        type="checkbox"
+                        checked={form.is_full_tank}
+                        onChange={(e) => set('is_full_tank', e.target.checked)}
+                        className="size-4 rounded border"
+                    />
                     <span className="text-text-secondary">{t('vehicles.fuel_full_tank')}</span>
                 </label>
                 <p className="text-muted-foreground -mt-2 text-xs">{t('vehicles.fuel_full_tank_hint')}</p>
@@ -301,7 +370,12 @@ function FuelFormModal({
 
                 {!editing && canExpense && (
                     <label className="flex items-center gap-2 text-sm">
-                        <input type="checkbox" checked={form.create_expense} onChange={(e) => set('create_expense', e.target.checked)} className="size-4 rounded border" />
+                        <input
+                            type="checkbox"
+                            checked={form.create_expense}
+                            onChange={(e) => set('create_expense', e.target.checked)}
+                            className="size-4 rounded border"
+                        />
                         <span className="text-text-secondary">{t('vehicles.fuel_add_to_spending')}</span>
                     </label>
                 )}
