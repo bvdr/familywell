@@ -261,6 +261,16 @@ export default function Event({
 
     // Optimistically removed spends: the row vanishes on tap, before the server confirms the delete.
     const removedSpends = useOptimistic<boolean>();
+    // Archive toggle: the menu label flips on tap, not after the round trip.
+    const archivedOpt = useOptimistic<boolean>();
+    const archived = archivedOpt.get(event.id, event.archived);
+    // Mark-paid: the suggestion row disappears on tap (keyed from→to); the server re-derives balances.
+    const settledOpt = useOptimistic<boolean>();
+    const visibleSuggestions = suggestions.filter((s) => !settledOpt.get(`${s.from.id}-${s.to.id}`, false));
+    // Headcount +/- and covered-by: overlay the tapped values on the participant so the stepper moves
+    // instantly instead of waiting for the reload (the split maths reconcile from the server response).
+    const participantOpt = useOptimistic<{ weight: number; coveredBy: string | null }>();
+    const settingsParticipants = participants.map((p) => ({ ...p, ...participantOpt.get(p.key, { weight: p.weight, coveredBy: p.coveredBy }) }));
 
     // Spends arrive newest-first, so a sequential pass groups them into contiguous days. Optimistically
     // deleted rows are filtered out first so they disappear immediately (per-day subtotals and the
@@ -318,11 +328,21 @@ export default function Event({
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                        onSelect={() =>
-                            router.patch(route('spending.events.update', event.id), { archived: !event.archived }, { preserveScroll: true })
-                        }
+                        onSelect={() => {
+                            archivedOpt.set(event.id, !archived);
+                            router.patch(
+                                route('spending.events.update', event.id),
+                                { archived: !archived },
+                                {
+                                    preserveScroll: true,
+                                    preserveState: true,
+                                    onSuccess: () => archivedOpt.clear(event.id),
+                                    onError: () => archivedOpt.clear(event.id),
+                                },
+                            );
+                        }}
                     >
-                        <Archive className="size-4" /> {t(event.archived ? 'spending.unarchive_event' : 'spending.archive_event')}
+                        <Archive className="size-4" /> {t(archived ? 'spending.unarchive_event' : 'spending.archive_event')}
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
@@ -578,17 +598,30 @@ export default function Event({
     // Settle-up records a payment between two participants (members or guests). Suggestion ids are
     // already namespaced keys, so they pass straight through. One-click has no note.
     const markPaid = (s: Suggestion) => {
-        router.post(route('spending.settle', event.id), { from_key: s.from.id, to_key: s.to.id, amount: s.amount }, { preserveScroll: true });
+        const key = `${s.from.id}-${s.to.id}`;
+        settledOpt.set(key, true); // hide the suggestion now; reappears only if the settle fails
+        router.post(
+            route('spending.settle', event.id),
+            { from_key: s.from.id, to_key: s.to.id, amount: s.amount },
+            { preserveScroll: true, preserveState: true, onSuccess: () => settledOpt.clear(key), onError: () => settledOpt.clear(key) },
+        );
     };
 
     // Split settings (Settings tab). Only the owner manages them; the server re-validates regardless.
     const canManageSettings = share?.canManage ?? false;
-    const patchParticipant = (p: Participant, weight: number, coveredBy: string | null) =>
+    const patchParticipant = (p: Participant, weight: number, coveredBy: string | null) => {
+        participantOpt.set(p.key, { weight, coveredBy });
         router.patch(
             route('spending.participants.update', { event: event.id, key: p.key }),
             { weight, covered_by: coveredBy ?? '' },
-            { preserveScroll: true, preserveState: true },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: () => participantOpt.clear(p.key),
+                onError: () => participantOpt.clear(p.key),
+            },
         );
+    };
     const setWeight = (p: Participant, w: number) => patchParticipant(p, Math.max(1, w), p.coveredBy);
     const setCover = (p: Participant, key: string | null) => patchParticipant(p, p.weight, key);
 
@@ -994,12 +1027,12 @@ export default function Event({
                                     ))}
                                 </section>
 
-                                {suggestions.length > 0 && (
+                                {visibleSuggestions.length > 0 && (
                                     <section className="flex flex-col gap-2">
                                         <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
                                             {t('spending.suggested_payments')}
                                         </h2>
-                                        {suggestions.map((s, i) => (
+                                        {visibleSuggestions.map((s, i) => (
                                             <div key={i} className="bg-surface-card flex items-center justify-between rounded-xl border p-3">
                                                 <div className="text-sm">
                                                     <span className="text-primary font-medium">{s.from.name}</span>
@@ -1025,8 +1058,8 @@ export default function Event({
                                         {t('spending.people_and_split')}
                                     </h2>
                                     <p className="text-muted-foreground -mt-0.5 text-xs">{t('spending.people_split_desc')}</p>
-                                    {participants.map((p) => {
-                                        const coversOthers = participants.some((o) => o.coveredBy === p.key);
+                                    {settingsParticipants.map((p) => {
+                                        const coversOthers = settingsParticipants.some((o) => o.coveredBy === p.key);
                                         const coverName = p.coveredBy ? (participants.find((o) => o.key === p.coveredBy)?.name ?? '?') : null;
                                         return (
                                             <div key={p.key} className="bg-surface-card flex flex-col gap-3 rounded-xl border p-3">
