@@ -1,3 +1,4 @@
+import { useOptimistic } from '@/hooks/use-optimistic';
 import { useAddAction } from '@/lib/add-action';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
@@ -116,24 +117,58 @@ export default function ProjectDetail({
     const taskDone = tasks.reduce((n, t) => n + (t.done ? 1 : 0) + t.subtasks.filter((s) => s.done).length, 0);
     const taskPct = taskTotal ? Math.round((taskDone / taskTotal) * 100) : 0;
 
-    // A section shows once it has content, or right after the user chooses to add it from the sheet.
-    const showDeps = dependencies.length > 0 || reveal.has('deps');
-    const showTasks = taskTotal > 0 || reveal.has('tasks');
-    const showLists = lists.length > 0;
-    const showNotes = notes.length > 0;
-
     const breadcrumbs: BreadcrumbItem[] = [
         { title: t('nav.projects'), href: '/m/projects' },
         { title: project.name, href: route('projects.show', project.id) },
     ];
     const st = projectStatus(project.status);
 
-    const patch = (data: Record<string, string | number | boolean | null>) =>
-        router.patch(route('projects.update', project.id), data, { preserveScroll: true });
+    // Optimistic overlays (see use-optimistic.ts): the tap shows its result now, the server reload
+    // confirms it. Only for outcomes we can predict locally: a dep's next status, a row vanishing
+    // after remove/unlink, the archive label flipping. Creates stay server-driven (they need ids).
+    const depStatusOpt = useOptimistic<string>();
+    const removedDep = useOptimistic<boolean>();
+    const unlinkedList = useOptimistic<boolean>();
+    const unlinkedNote = useOptimistic<boolean>();
+    const archivedOpt = useOptimistic<boolean>();
+    const isArchived = archivedOpt.get(project.id, project.archived);
+    const visibleDeps = dependencies.filter((d) => !removedDep.get(d.id, false));
+    const visibleLists = lists.filter((l) => !unlinkedList.get(l.id, false));
+    const visibleNotes = notes.filter((n) => !unlinkedNote.get(n.id, false));
+    const settle = (o: ReturnType<typeof useOptimistic<boolean>> | ReturnType<typeof useOptimistic<string>>, id: number) => ({
+        preserveScroll: true,
+        preserveState: true,
+        onSuccess: () => o.clear(id),
+        onError: () => o.clear(id),
+    });
 
+    // A section shows once it has content, or right after the user chooses to add it from the sheet.
+    const showDeps = visibleDeps.length > 0 || reveal.has('deps');
+    const showTasks = taskTotal > 0 || reveal.has('tasks');
+    const showLists = visibleLists.length > 0;
+    const showNotes = visibleNotes.length > 0;
+
+    const toggleArchived = () => {
+        archivedOpt.set(project.id, !isArchived);
+        router.patch(route('projects.update', project.id), { archived: !isArchived }, settle(archivedOpt, project.id));
+    };
     const cycleDep = (d: Dep) => {
-        const next = DEP_STATUS_KEYS[(DEP_STATUS_KEYS.indexOf(d.status) + 1) % DEP_STATUS_KEYS.length];
-        router.patch(route('projects.deps.update', d.id), { status: next }, { preserveScroll: true });
+        const current = depStatusOpt.get(d.id, d.status);
+        const next = DEP_STATUS_KEYS[(DEP_STATUS_KEYS.indexOf(current) + 1) % DEP_STATUS_KEYS.length];
+        depStatusOpt.set(d.id, next);
+        router.patch(route('projects.deps.update', d.id), { status: next }, settle(depStatusOpt, d.id));
+    };
+    const removeDep = (d: Dep) => {
+        removedDep.set(d.id, true);
+        router.delete(route('projects.deps.destroy', d.id), settle(removedDep, d.id));
+    };
+    const unlinkList = (l: LinkedList) => {
+        unlinkedList.set(l.id, true);
+        router.delete(route('projects.lists.unlink', [project.id, l.id]), settle(unlinkedList, l.id));
+    };
+    const unlinkNote = (n: LinkedNote) => {
+        unlinkedNote.set(n.id, true);
+        router.delete(route('projects.notes.unlink', [project.id, n.id]), settle(unlinkedNote, n.id));
     };
     const addDep = () => {
         if (!depName.trim()) return;
@@ -167,8 +202,8 @@ export default function ProjectDetail({
                     <DropdownMenuItem onSelect={() => router.post(route('projects.duplicate', project.id))}>
                         <Copy className="size-4" /> {t('projects.duplicate')}
                     </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => patch({ archived: !project.archived })}>
-                        <Archive className="size-4" /> {t(project.archived ? 'projects.unarchive' : 'projects.archive')}
+                    <DropdownMenuItem onSelect={toggleArchived}>
+                        <Archive className="size-4" /> {t(isArchived ? 'projects.unarchive' : 'projects.archive')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
@@ -270,10 +305,11 @@ export default function ProjectDetail({
 
                 {/* Blocked by */}
                 {showDeps && (
-                    <Section id="section-deps" icon={Ban} tone="red" title={t('projects.blocked_by')} count={dependencies.length}>
+                    <Section id="section-deps" icon={Ban} tone="red" title={t('projects.blocked_by')} count={visibleDeps.length}>
                         <div className="flex flex-col gap-2">
-                            {dependencies.map((d) => {
-                                const ds = depStatus(d.status);
+                            {visibleDeps.map((d) => {
+                                const status = depStatusOpt.get(d.id, d.status);
+                                const ds = depStatus(status);
                                 return (
                                     <div key={d.id} className="bg-surface-card flex items-center gap-3 rounded-xl border p-3">
                                         <span className={`size-2 shrink-0 rounded-full ${ds.dot}`} />
@@ -286,11 +322,11 @@ export default function ProjectDetail({
                                             onClick={() => cycleDep(d)}
                                             className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${ds.chip}`}
                                         >
-                                            {t(`projects.dep_status_${d.status}`)}
+                                            {t(`projects.dep_status_${status}`)}
                                         </button>
                                         <button
                                             type="button"
-                                            onClick={() => router.delete(route('projects.deps.destroy', d.id), { preserveScroll: true })}
+                                            onClick={() => removeDep(d)}
                                             aria-label={t('projects.remove')}
                                             className="text-muted-foreground hover:text-destructive flex size-6 items-center justify-center"
                                         >
@@ -333,9 +369,9 @@ export default function ProjectDetail({
 
                 {/* Materials — linked shopping lists */}
                 {showLists && (
-                    <Section id="section-lists" icon={ShoppingCart} title={t('projects.shopping_lists')} count={lists.length}>
+                    <Section id="section-lists" icon={ShoppingCart} title={t('projects.shopping_lists')} count={visibleLists.length}>
                         <div className="flex flex-col gap-2">
-                            {lists.map((l) => (
+                            {visibleLists.map((l) => (
                                 <div key={l.id} className="bg-surface-card flex items-center gap-3 rounded-xl border p-3">
                                     <span className="bg-accent-subtle text-primary flex size-9 shrink-0 items-center justify-center rounded-lg">
                                         <ShoppingCart className="size-4.5" />
@@ -349,7 +385,7 @@ export default function ProjectDetail({
                                     </Link>
                                     <button
                                         type="button"
-                                        onClick={() => router.delete(route('projects.lists.unlink', [project.id, l.id]), { preserveScroll: true })}
+                                        onClick={() => unlinkList(l)}
                                         aria-label={t('projects.unlink_list')}
                                         className="text-muted-foreground hover:text-destructive flex size-6 items-center justify-center"
                                     >
@@ -370,9 +406,9 @@ export default function ProjectDetail({
 
                 {/* Linked notes */}
                 {showNotes && (
-                    <Section id="section-notes" icon={StickyNote} title={t('nav.notes')} count={notes.length}>
+                    <Section id="section-notes" icon={StickyNote} title={t('nav.notes')} count={visibleNotes.length}>
                         <div className="flex flex-col gap-2">
-                            {notes.map((n) => (
+                            {visibleNotes.map((n) => (
                                 <div key={n.id} className={`flex items-center gap-3 rounded-xl border p-3 ${noteColor(n.color)}`}>
                                     <span className="bg-surface/70 text-primary flex size-9 shrink-0 items-center justify-center rounded-lg">
                                         <StickyNote className="size-4.5" />
@@ -383,7 +419,7 @@ export default function ProjectDetail({
                                     </Link>
                                     <button
                                         type="button"
-                                        onClick={() => router.delete(route('projects.notes.unlink', [project.id, n.id]), { preserveScroll: true })}
+                                        onClick={() => unlinkNote(n)}
                                         aria-label={t('projects.unlink_note')}
                                         className="text-muted-foreground hover:text-destructive flex size-6 items-center justify-center"
                                     >
