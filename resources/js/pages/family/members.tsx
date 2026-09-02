@@ -54,7 +54,7 @@ function RoleBadge({ role }: { role: string }) {
 export default function Members({ family, members, invitations, canManage, palette, themes }: Props) {
     const t = useT();
     const breadcrumbs: BreadcrumbItem[] = [{ title: t('nav.members'), href: '/family/members' }];
-    const authId = (usePage().props as { auth: { user: { id: number } } }).auth.user.id;
+    const authId = usePage<{ auth: { user: { id: number } } }>().props.auth.user.id;
     const [inviteOpen, setInviteOpen] = useState(false);
 
     const settings = useForm({ name: family.name, description: family.description ?? '', color: family.color, emoji: family.emoji });

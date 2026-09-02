@@ -4,6 +4,7 @@ use App\Http\Middleware\EnsureModuleEnabled;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RequireFamily;
 use App\Http\Middleware\SetActiveFamily;
+use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\ShareModules;
 use App\Http\Middleware\ShareRealtime;
 use App\Http\Middleware\ShareTheme;
@@ -26,9 +27,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(at: '*');
 
         $middleware->web(append: [
+            // SetLocale runs BEFORE HandleInertiaRequests on purpose: Inertia resolves share() at the
+            // start of the chain, and the translations once-prop key needs the final locale right
+            // then (a closure can't key a once-prop). Only needs the session user, already there.
+            SetLocale::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
-            \App\Http\Middleware\SetLocale::class,
             SetActiveFamily::class,
             ShareTheme::class,
             ShareModules::class,

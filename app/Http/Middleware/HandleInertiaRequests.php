@@ -2,12 +2,13 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\Family;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Translations;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 use Inertia\Middleware;
 use Modules\Notifications\NotificationsController;
 
@@ -42,6 +43,7 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
+        $locale = app()->getLocale();
 
         return array_merge(parent::share($request), [
             ...parent::share($request),
@@ -58,10 +60,14 @@ class HandleInertiaRequests extends Middleware
             // Web Push public (VAPID) key, so the client can subscribe the browser to push. Public by design.
             'vapidPublicKey' => config('webpush.vapid.public_key'),
             // i18n: the current locale + the picker options + the full translation map for that locale
-            // (English-filled). Lazy so it resolves after SetLocale has applied the user's preference.
-            'locale' => fn () => app()->getLocale(),
+            // (English-filled). SetLocale already ran (see bootstrap/app.php), so both are eager.
+            'locale' => $locale,
             'locales' => Translations::options(),
-            'translations' => fn () => Translations::for(app()->getLocale()),
+            // Once-prop: the map is ~46KB (97% of a typical Inertia response) and only changes with
+            // the locale, so ship it on the first page load and on locale change, never on every
+            // visit. Keyed by locale: switching language yields a key the client hasn't got, so the
+            // server sends the new map. Needs @inertiajs/react >= 2.2 (once-prop protocol).
+            'translations' => Inertia::once(fn () => Translations::for($locale))->as("translations-{$locale}"),
             // Each family member's avatar colour, as userId => palette index assigned by member order,
             // so every member gets a different (and consistent, app-wide) colour. Lazy: needs the
             // family context that SetActiveFamily fills in later in the chain.
@@ -106,9 +112,10 @@ class HandleInertiaRequests extends Middleware
             return [];
         }
 
-        return Family::find($familyId)
-            ?->members()->orderBy('users.id')->pluck('users.id')
-            ->values()->flip()->all() ?? [];
+        // Straight off the pivot: one query instead of Family::find + members (2 per request).
+        return DB::table('family_user')->where('family_id', $familyId)
+            ->orderBy('user_id')->pluck('user_id')
+            ->values()->flip()->all();
     }
 
     /** @return list<string> */
