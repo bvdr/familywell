@@ -1,5 +1,5 @@
-import { Head, router, useForm } from '@inertiajs/react';
 import { useAddAction } from '@/lib/add-action';
+import { Head, router, useForm } from '@inertiajs/react';
 import { Check, LayoutGrid, List as ListIcon, Lock, MoreHorizontal, Pin, Plus, Search, StickyNote, Trash2 } from 'lucide-react';
 import { FormEventHandler, useMemo, useState } from 'react';
 
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
+import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn } from '@/lib/i18n';
 import { noteColor, snippet } from '@/lib/notes';
@@ -44,14 +45,16 @@ function NoteCard({ note, folders, grid, t }: { note: Note; folders: Folder[]; g
         <button
             type="button"
             onClick={() => router.visit(route('notes.show', note.id))}
-            className={`flex flex-col rounded-2xl border p-4 text-left transition-colors hover:border-accent ${noteColor(note.color)} ${grid ? '' : 'w-full'}`}
+            className={`hover:border-accent flex flex-col rounded-2xl border p-4 text-left transition-colors ${noteColor(note.color)} ${grid ? '' : 'w-full'}`}
         >
             <div className="flex items-start gap-1.5">
                 <span className="text-primary min-w-0 flex-1 truncate font-medium">{title}</span>
                 {note.pinned && <Pin className="text-muted-foreground size-3.5 shrink-0 fill-current" />}
                 {note.visibility === 'private' && <Lock className="text-muted-foreground size-3.5 shrink-0" />}
             </div>
-            <p className={`text-muted-foreground mt-1 text-sm ${grid ? 'line-clamp-4' : 'line-clamp-2'}`}>{snippet(note.body) || t('notes.no_text')}</p>
+            <p className={`text-muted-foreground mt-1 text-sm ${grid ? 'line-clamp-4' : 'line-clamp-2'}`}>
+                {snippet(note.body) || t('notes.no_text')}
+            </p>
             <div className="text-muted-foreground mt-3 flex items-center gap-1.5 text-xs">
                 <span>{relDate(note.updatedAt, t)}</span>
                 {folder && (
@@ -73,12 +76,25 @@ export default function NotesIndex({ notes, folders }: { notes: Note[]; folders:
     const [query, setQuery] = useState('');
     const [creatingFolder, setCreatingFolder] = useState(false);
     const [editingFolder, setEditingFolder] = useState<Folder | null>(null);
+    // Optimistic folder delete: the chip disappears and the filter falls back to "all" immediately;
+    // the chip only comes back if the DELETE fails.
+    const removedFolder = useOptimistic<boolean>();
+    const visibleFolders = folders.filter((f) => !removedFolder.get(f.id, false));
+    const deleteFolder = (folder: Folder) => {
+        removedFolder.set(folder.id, true);
+        setActiveFolder(ALL);
+        router.delete(route('notes.folders.destroy', folder.id), {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => removedFolder.clear(folder.id),
+            onError: () => removedFolder.clear(folder.id),
+        });
+    };
 
     // The nav's "+" (and the desktop header "+") create a note in the active folder, if one is
     // selected. This runs on a user click, when Inertia's router is ready. Cross-page quick-add
     // instead POSTs straight to notes.store from the nav (see MobileTabBar), landing in the editor.
-    const createNote = () =>
-        router.post(route('notes.store'), activeFolder === ALL ? {} : { folder_id: Number(activeFolder) });
+    const createNote = () => router.post(route('notes.store'), activeFolder === ALL ? {} : { folder_id: Number(activeFolder) });
     useAddAction(createNote);
 
     const visible = useMemo(() => {
@@ -131,12 +147,17 @@ export default function NotesIndex({ notes, folders }: { notes: Note[]; folders:
                 {/* Search. */}
                 <div className="relative">
                     <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-                    <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('notes.search_placeholder')} className="pl-9 text-base" />
+                    <Input
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        placeholder={t('notes.search_placeholder')}
+                        className="pl-9 text-base"
+                    />
                 </div>
 
                 {/* Folder filter chips. */}
                 <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    {[{ id: ALL, name: t('notes.all_notes'), count: notes.length }, ...folders].map((f) => {
+                    {[{ id: ALL, name: t('notes.all_notes'), count: notes.length }, ...visibleFolders].map((f) => {
                         const on = String(f.id) === activeFolder;
                         const isReal = f.id !== ALL;
                         return (
@@ -163,7 +184,12 @@ export default function NotesIndex({ notes, folders }: { notes: Note[]; folders:
                         <Plus className="size-3.5" /> {t('notes.folder')}
                     </button>
                     {activeFolder !== ALL && (
-                        <FolderMenu folder={folders.find((f) => String(f.id) === activeFolder)} onEdit={setEditingFolder} t={t} />
+                        <FolderMenu
+                            folder={visibleFolders.find((f) => String(f.id) === activeFolder)}
+                            onEdit={setEditingFolder}
+                            onDelete={deleteFolder}
+                            t={t}
+                        />
                     )}
                 </div>
 
@@ -208,7 +234,7 @@ export default function NotesIndex({ notes, folders }: { notes: Note[]; folders:
 }
 
 // Small ⋯ menu shown when a real folder is the active filter: rename or delete it.
-function FolderMenu({ folder, onEdit, t }: { folder?: Folder; onEdit: (f: Folder) => void; t: TFn }) {
+function FolderMenu({ folder, onEdit, onDelete, t }: { folder?: Folder; onEdit: (f: Folder) => void; onDelete: (f: Folder) => void; t: TFn }) {
     if (!folder) return null;
     return (
         <DropdownMenu>
@@ -227,8 +253,7 @@ function FolderMenu({ folder, onEdit, t }: { folder?: Folder; onEdit: (f: Folder
                 <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
                     onSelect={() => {
-                        if (confirm(t('notes.confirm_delete_folder')))
-                            router.delete(route('notes.folders.destroy', folder.id), { preserveScroll: true });
+                        if (confirm(t('notes.confirm_delete_folder'))) onDelete(folder);
                     }}
                 >
                     <Trash2 className="size-4" /> {t('notes.delete_folder')}
@@ -264,7 +289,13 @@ function FolderModal({ open, onOpenChange, folder, t }: { open: boolean; onOpenC
             }
         >
             <form id="folder-form" onSubmit={submit}>
-                <Input autoFocus value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder={t('notes.folder_name_placeholder')} className="text-base" />
+                <Input
+                    autoFocus
+                    value={data.name}
+                    onChange={(e) => setData('name', e.target.value)}
+                    placeholder={t('notes.folder_name_placeholder')}
+                    className="text-base"
+                />
                 <InputError message={errors.name} className="mt-2" />
             </form>
         </ResponsiveModal>
