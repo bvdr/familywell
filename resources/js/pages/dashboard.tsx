@@ -1,6 +1,9 @@
+import { LucideIcon as DynamicLucideIcon } from '@/components/lucide-icon';
 import AppLayout from '@/layouts/app-layout';
 import { useLocale, useT, type TFn } from '@/lib/i18n';
 import { Slot } from '@/lib/modules';
+import { listColor as shoppingListColor, listIcon as shoppingListIcon } from '@/lib/shopping';
+import { listColor as taskListColor, listIcon as taskListIcon } from '@/lib/tasks';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Blocks, Check, FolderKanban, ListChecks, Settings, ShoppingCart, StickyNote, Users, Wallet, type LucideIcon } from 'lucide-react';
@@ -9,7 +12,9 @@ import { useState } from 'react';
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' }];
 
 // A recently-opened entity ("Pick up where you left off"). visitedAt drives the order server-side.
-type DashItem = { title: string; subtitle: string; href: string; icon: string };
+// `category` is the module id (groups the cards); `icon`/`color` are the entity's own (a spend event's
+// lucide key, a list's icon slug + colour swatch), so the card shows what the user picked.
+type DashItem = { title: string; subtitle: string; href: string; icon: string; category?: string; color?: string | null };
 // A dated leaf item (a task / shopping item due on a day) for the Today / This Week sections.
 // toggleUrl: empty-body PATCH marks it done/bought (and it drops off on the next dashboard load).
 type AgendaItem = DashItem & { dueDate: string; toggleUrl: string };
@@ -24,17 +29,57 @@ const ICONS: Record<string, LucideIcon> = {
 };
 const iconFor = (key: string) => ICONS[key] ?? Blocks;
 
-// The recent items are grouped by category on the dashboard; the icon key doubles as the category
-// (each module tags its items with a distinct icon).
-// icon key -> nav translation key for the recent-items group headers.
+// The recent items are grouped by module on the dashboard: module id -> nav translation key for the
+// group header. Older providers that only send an icon key still group by that key.
 const CATEGORY: Record<string, string> = {
+    tasks: 'nav.tasks',
+    shopping: 'nav.shopping',
+    spending: 'nav.spending',
+    projects: 'nav.projects',
+    notes: 'nav.notes',
     'list-checks': 'nav.tasks',
     'shopping-cart': 'nav.shopping',
     wallet: 'nav.spending',
     'folder-kanban': 'nav.projects',
     'sticky-note': 'nav.notes',
 };
-const categoryOf = (icon: string) => CATEGORY[icon] ?? 'Other';
+const categoryOf = (it: DashItem) => CATEGORY[it.category ?? ''] ?? CATEGORY[it.icon] ?? 'Other';
+
+// The card's icon tile: the entity's own icon + colour, resolved with the same helpers the module's
+// own list page uses (so a shopping list looks the same here as on /m/shopping). Spend events store a
+// lucide key; task/shopping lists store a slug + swatch. Everything else gets the neutral tile.
+function ItemTile({ it }: { it: DashItem }) {
+    const base = 'mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-lg';
+    if (it.category === 'shopping') {
+        const Icon = shoppingListIcon(it.icon);
+        return (
+            <span className={`${base} ${shoppingListColor(it.color ?? '')}`}>
+                <Icon className="size-5" />
+            </span>
+        );
+    }
+    if (it.category === 'tasks') {
+        const Icon = taskListIcon(it.icon);
+        return (
+            <span className={`${base} ${taskListColor(it.color ?? '')}`}>
+                <Icon className="size-5" />
+            </span>
+        );
+    }
+    if (it.category === 'spending') {
+        return (
+            <span className={`${base} bg-tile text-tile-foreground`}>
+                <DynamicLucideIcon name={it.icon} className="size-5" />
+            </span>
+        );
+    }
+    const Icon = iconFor(it.icon);
+    return (
+        <span className={`${base} bg-tile text-tile-foreground`}>
+            <Icon className="size-5" />
+        </span>
+    );
+}
 
 // Group recent items by category, preserving the order the categories first appear. Since `recent`
 // arrives most-recent-first, the category you opened most recently leads.
@@ -42,7 +87,7 @@ function groupRecent(recent: DashItem[]): { category: string; items: DashItem[] 
     const groups: { category: string; items: DashItem[] }[] = [];
     const byCat = new Map<string, { category: string; items: DashItem[] }>();
     for (const it of recent) {
-        const cat = categoryOf(it.icon);
+        const cat = categoryOf(it);
         let g = byCat.get(cat);
         if (!g) {
             g = { category: cat, items: [] };
@@ -206,7 +251,6 @@ export default function Dashboard({
                                 <h3 className="text-muted-foreground px-1 text-xs font-semibold tracking-widest uppercase">{t(group.category)}</h3>
                                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                                     {group.items.map((it) => {
-                                        const Icon = iconFor(it.icon);
                                         return (
                                             <Link
                                                 key={it.href}
@@ -214,9 +258,7 @@ export default function Dashboard({
                                                 prefetch
                                                 className="bg-surface-card hover:border-accent flex items-start gap-3 rounded-xl border p-3 transition-colors"
                                             >
-                                                <span className="bg-tile text-tile-foreground mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-lg">
-                                                    <Icon className="size-5" />
-                                                </span>
+                                                <ItemTile it={it} />
                                                 {/* min-w-0 + wrapping so a long title/subtitle wraps to a couple of lines
                                                     instead of forcing the card super wide. */}
                                                 <span className="min-w-0 flex-1">

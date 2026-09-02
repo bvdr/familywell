@@ -7,10 +7,10 @@ use App\Support\Dashboard\DashboardAgenda;
 use App\Support\Dashboard\DashboardItems;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareableRegistry;
-use Modules\Notifications\NotificationCategories;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\Notifications\NotificationCategories;
 
 class TasksServiceProvider extends ServiceProvider
 {
@@ -47,7 +47,10 @@ class TasksServiceProvider extends ServiceProvider
                     'title' => $l->name,
                     'subtitle' => "{$l->done_count} of {$l->tasks_count} done",
                     'href' => "/m/tasks/lists/{$l->id}",
-                    'icon' => 'list-checks',
+                    'category' => 'tasks',
+                    // The list's own icon slug + colour swatch (lib/tasks.ts resolves them, like the lists page).
+                    'icon' => $l->icon ?: 'list-checks',
+                    'color' => $l->color,
                     'visitedAt' => $visits[$l->id]->toIso8601String(),
                 ])->values()->all();
         });

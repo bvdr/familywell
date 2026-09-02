@@ -46,7 +46,10 @@ class ShoppingServiceProvider extends ServiceProvider
                     'title' => $l->name,
                     'subtitle' => "{$l->bought_count} of {$l->items_count} items",
                     'href' => "/m/shopping/lists/{$l->id}",
-                    'icon' => 'shopping-cart',
+                    'category' => 'shopping',
+                    // The list's own icon slug + colour swatch (lib/shopping.ts resolves them, like the lists page).
+                    'icon' => $l->icon ?: 'cart',
+                    'color' => $l->color,
                     'visitedAt' => $visits[$l->id]->toIso8601String(),
                 ])->values()->all();
         });

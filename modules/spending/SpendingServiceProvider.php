@@ -57,7 +57,9 @@ class SpendingServiceProvider extends ServiceProvider
                         'title' => $e->name,
                         'subtitle' => (self::CURRENCY_SYMBOL[$display] ?? $display.' ').number_format($total / 100, 2),
                         'href' => "/m/spending/events/{$e->id}",
-                        'icon' => 'wallet',
+                        'category' => 'spending',
+                        // The event's own lucide icon key (null keeps the module default on the dashboard).
+                        'icon' => $e->icon ?: 'wallet',
                         'visitedAt' => $visits[$e->id]->toIso8601String(),
                     ];
                 })->values()->all();

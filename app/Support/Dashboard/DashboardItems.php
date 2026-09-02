@@ -23,7 +23,7 @@ class DashboardItems
      * Run every provider and flatten their items. A failing provider is logged and skipped so one
      * module can't take down the dashboard.
      *
-     * @return array<int, array{title: string, subtitle: string, href: string, icon: string}>
+     * @return array<int, array{title: string, subtitle: string, href: string, category: string, icon: string, color?: ?string, visitedAt: string}> `category` is the module id (groups the dashboard cards); `icon`/`color` are the ENTITY's own (a spend event's lucide key, a list's icon slug + swatch), so a card shows what the user picked, not a generic module glyph.
      */
     public static function collect(): array
     {
