@@ -44,6 +44,7 @@ class NotesServiceProvider extends ServiceProvider
                     'title' => $n->title !== '' ? $n->title : 'Untitled note',
                     'subtitle' => $n->folder?->name ?? 'Notes',
                     'href' => "/m/notes/{$n->id}",
+                    'category' => 'notes',
                     'icon' => 'sticky-note',
                     'visitedAt' => $visits[$n->id]->toIso8601String(),
                 ])->values()->all();

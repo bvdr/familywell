@@ -7,10 +7,10 @@ use App\Support\Dashboard\DashboardAgenda;
 use App\Support\Dashboard\DashboardItems;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareableRegistry;
-use Modules\Notifications\NotificationCategories;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\Notifications\NotificationCategories;
 use Modules\Tasks\Task;
 
 class ProjectsServiceProvider extends ServiceProvider
@@ -46,6 +46,7 @@ class ProjectsServiceProvider extends ServiceProvider
                     'title' => $p->name,
                     'subtitle' => $p->progress.'% · '.str_replace('_', ' ', $p->status),
                     'href' => "/m/projects/{$p->id}",
+                    'category' => 'projects',
                     'icon' => 'folder-kanban',
                     'visitedAt' => $visits[$p->id]->toIso8601String(),
                 ])->values()->all();
