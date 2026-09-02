@@ -32,7 +32,8 @@
         "settings": "Settings",
         "more": "More",
         "home": "Home",
-        "more_desc": "Tap a pin to choose your four bottom-bar shortcuts"
+        "more_desc": "Tap a pin to choose your four bottom-bar shortcuts",
+        "birthdays": "Birthdays"
     },
     "dashboard": {
         "good_morning": "Good morning",

@@ -32,7 +32,8 @@
         "settings": "Setări",
         "more": "Mai mult",
         "home": "Acasă",
-        "more_desc": "Apasă un ac pentru a-ți alege cele patru scurtături din bară"
+        "more_desc": "Apasă un ac pentru a-ți alege cele patru scurtături din bară",
+        "birthdays": "Zile de naștere"
     },
     "dashboard": {
         "good_morning": "Bună dimineața",

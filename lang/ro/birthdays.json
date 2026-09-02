@@ -1,0 +1,19 @@
+{
+    "add": "Adaugă zi de naștere",
+    "add_placeholder": "Cine sărbătorește?",
+    "add_hint": "Ziua și luna sunt de ajuns. Adaugă anul ca să vezi vârsta. Persoanele adăugate aici apar și în Contacte.",
+    "day": "Zi",
+    "month": "Luna",
+    "year_optional": "An (opțional)",
+    "empty": "Nicio zi de naștere încă. Adaugă pe cineva mai sus.",
+    "today": "Azi!",
+    "tomorrow": "Mâine",
+    "in_days": "în :days zile",
+    "turns": "împlinește :age",
+    "edit": "Editează ziua de naștere",
+    "remove": "Șterge ziua de naștere",
+    "confirm_remove": "Ștergi această zi de naștere? Persoana rămâne în Contacte.",
+    "save": "Salvează",
+    "cancel": "Anulează",
+    "year": "An"
+}
