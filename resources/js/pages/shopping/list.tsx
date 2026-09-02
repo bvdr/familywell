@@ -111,7 +111,7 @@ type SpeechRec = {
 type SpeechCtor = new () => SpeechRec;
 
 export default function ListDetail({
-    list,
+    list: serverList,
     items,
     members,
     aislesByStore,
@@ -134,6 +134,11 @@ export default function ListDetail({
     aiEnabled: boolean;
 }) {
     const t = useT();
+    // Optimistic list fields: rename / visibility / edit-drawer saves render instantly by shadowing the
+    // server `list` with the pending patch, so every existing `list.*` read below is optimistic for free.
+    // Cleared on settle (success or error), at which point the reloaded prop is authoritative again.
+    const listOpt = useOptimistic<Partial<List>>();
+    const list: List = { ...serverList, ...listOpt.get(serverList.id, {}) };
     const [hideCompleted, setHideCompleted] = useState(false);
     const [sortAz, setSortAz] = useState(false);
     const [focus, setFocus] = useState(false); // full-screen "shopping mode" overlay
@@ -218,7 +223,7 @@ export default function ListDetail({
         if (sortAz) visible = [...visible].sort((a, b) => a.name.localeCompare(b.name));
         return groupByStore(visible);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [items, aislesByStore, defaultAisles, hideCompleted, sortAz, bought, removed]);
+    }, [items, list, aislesByStore, defaultAisles, hideCompleted, sortAz, bought, removed]);
     const multiStore = storeGroups.length > 1;
 
     // Focus mode is per shop: the store chips are every shop with something still to get (primary or
@@ -272,8 +277,15 @@ export default function ListDetail({
         });
     };
 
-    const patchList = (data: Record<string, string | number | boolean | null>) =>
-        router.patch(route('shopping.lists.update', list.id), data, { preserveScroll: true });
+    const patchList = (data: Partial<List>) => {
+        listOpt.set(list.id, { ...listOpt.get(list.id, {}), ...data });
+        router.patch(route('shopping.lists.update', list.id), data, {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => listOpt.clear(list.id),
+            onError: () => listOpt.clear(list.id),
+        });
+    };
 
     const saveTitle = () => {
         setEditingTitle(false);
