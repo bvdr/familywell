@@ -1,0 +1,19 @@
+{
+    "add": "Add birthday",
+    "add_placeholder": "Who is celebrating?",
+    "add_hint": "Day and month are enough. Add the year to see their age. People you add here appear in Contacts too.",
+    "day": "Day",
+    "month": "Month",
+    "year_optional": "Year (optional)",
+    "empty": "No birthdays yet. Add someone above.",
+    "today": "Today!",
+    "tomorrow": "Tomorrow",
+    "in_days": "in :days days",
+    "turns": "turns :age",
+    "edit": "Edit birthday",
+    "remove": "Remove birthday",
+    "confirm_remove": "Remove this birthday? The person stays in Contacts.",
+    "save": "Save",
+    "cancel": "Cancel",
+    "year": "Year"
+}

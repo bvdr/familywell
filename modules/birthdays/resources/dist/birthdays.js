@@ -1,34 +1,47 @@
 // Pre-built module frontend (shell runtime, no bundler, no second React). Extends the Contacts
 // `person` primitive's slots and adds a home-screen widget:
-//   - person.editor.fields : a birthdate picker in the contact editor
+//   - person.editor.fields : a day/month (+ optional year) birthday field in the contact editor
 //   - person.row.badges    : a 🎂 badge (age + how soon) on the contact row
 //   - dashboard.widgets    : an "Upcoming birthdays" card that fetches /m/birthdays/upcoming
 const { React, registerSlot } = window.Familywell;
 const h = React.createElement;
 
-// Editor field: a birthdate. Persists via onPatch (the contacts endpoint); the backend person.saved
-// hook stores it. Age is shown once known (it comes back on the next payload).
+// Editor field: day + month, year optional (age only shows once a year is known). Persists via
+// onPatch (the contacts endpoint); the backend person.saved hook stores it. Native inputs on purpose
+// (mobile number keypad). Sends the trio only once day+month are both set; clearing the day clears
+// the birthday.
 function BirthdateField(props) {
     const person = props.person || {};
     const onPatch = props.onPatch;
-    const [val, setVal] = React.useState(person.birthdate || '');
+    const [day, setDay] = React.useState(person.birthDay ? String(person.birthDay) : '');
+    const [month, setMonth] = React.useState(person.birthMonth ? String(person.birthMonth) : '');
+    const [year, setYear] = React.useState(person.birthYear ? String(person.birthYear) : '');
+    const months = Array.from({ length: 12 }, (_, i) => new Date(2024, i, 1).toLocaleString(undefined, { month: 'short' }));
 
-    function change(e) {
-        const v = e.target.value;
-        setVal(v);
-        if (onPatch) onPatch({ birthdate: v || '' }); // empty clears it
+    function push(d, m, y) {
+        if (!onPatch) return;
+        if (!d) return onPatch({ birth_month: '', birth_day: '', birth_year: '' }); // empty clears it
+        if (d && m) onPatch({ birth_day: Number(d), birth_month: Number(m), birth_year: y ? Number(y) : null });
     }
 
+    const cls = 'border-border text-primary h-9 rounded-lg border bg-transparent px-2 text-base md:text-sm';
     return h(
         'div',
         { className: 'grid gap-2', 'data-testid': 'birthdate-field' },
         h('label', { className: 'text-muted-foreground text-xs font-semibold tracking-widest uppercase' }, 'Birthday'),
-        h('input', {
-            type: 'date',
-            value: val,
-            onChange: change,
-            className: 'border-border text-primary h-9 rounded-lg border bg-transparent px-3 text-sm',
-        }),
+        h(
+            'div',
+            { className: 'flex items-center gap-1.5' },
+            h('input', { type: 'number', inputMode: 'numeric', min: 1, max: 31, placeholder: 'Day', 'aria-label': 'Day', value: day, className: cls + ' w-16',
+                onChange: (e) => { setDay(e.target.value); push(e.target.value, month, year); } }),
+            h('select', { 'aria-label': 'Month', value: month, className: cls + ' w-24',
+                onChange: (e) => { setMonth(e.target.value); push(day, e.target.value, year); } },
+                h('option', { value: '' }, 'Month'),
+                months.map((m, i) => h('option', { key: i, value: i + 1 }, m)),
+            ),
+            h('input', { type: 'number', inputMode: 'numeric', min: 1900, max: new Date().getFullYear(), placeholder: 'Year', 'aria-label': 'Year (optional)', value: year, className: cls + ' w-28',
+                onChange: (e) => { setYear(e.target.value); push(day, month, e.target.value); } }),
+        ),
         person.age != null ? h('span', { className: 'text-muted-foreground text-xs' }, 'Age ' + person.age) : null,
     );
 }
@@ -36,7 +49,7 @@ function BirthdateField(props) {
 // Row badge: 🎂 with current age and how soon the next birthday is.
 function BirthdayBadge(props) {
     const person = props.person || {};
-    if (!person.birthdate) return null;
+    if (!person.birthMonth) return null;
     const days = person.daysUntilBirthday;
     const soon = days === 0 ? 'today' : days != null ? 'in ' + days + 'd' : '';
     return h(

@@ -8,9 +8,10 @@ use Illuminate\Support\Carbon;
 use Modules\Contacts\Person;
 
 /**
- * A person's birthdate — the birthdays module's extension of the `person` primitive (one row per
- * person, cascades with the person). Age and the next birthday are DERIVED here rather than stored,
- * so "recurring every year" needs no scheduler: the next occurrence is just computed from the date.
+ * A person's birthday — the birthdays module's extension of the `person` primitive (one row per
+ * person, cascades with the person). The recurring part is `month` + `day`; the full `birthdate`
+ * (with the year) is optional and only unlocks age / "turns N". Age and the next birthday are
+ * DERIVED here rather than stored, so "recurring every year" needs no scheduler.
  */
 class BirthdayDate extends Model
 {
@@ -18,7 +19,7 @@ class BirthdayDate extends Model
 
     protected $table = 'birthdays_dates';
 
-    protected $fillable = ['person_id', 'birthdate', 'family_id'];
+    protected $fillable = ['person_id', 'month', 'day', 'birthdate', 'family_id'];
 
     protected $casts = ['birthdate' => 'date'];
 
@@ -27,21 +28,27 @@ class BirthdayDate extends Model
         return $this->belongsTo(Person::class);
     }
 
-    /** Current age in whole years, or null if no date. */
+    /** Current age in whole years, or null when the year is unknown. */
     public function age(): ?int
     {
         return $this->birthdate?->age;
     }
 
+    /** Birth year, or null when unknown. */
+    public function year(): ?int
+    {
+        return $this->birthdate?->year;
+    }
+
     /** The next birthday on/after today (this year's, or next year's if it already passed). */
     public function nextBirthday(): ?Carbon
     {
-        if (! $this->birthdate) {
+        if (! $this->month || ! $this->day) {
             return null;
         }
         $today = Carbon::today();
         // setDate overflows Feb 29 to Mar 1 in a non-leap year — fine for our purposes.
-        $next = $this->birthdate->copy()->setDate($today->year, $this->birthdate->month, $this->birthdate->day)->startOfDay();
+        $next = Carbon::today()->setDate($today->year, $this->month, $this->day)->startOfDay();
         if ($next->lt($today)) {
             $next->addYear();
         }

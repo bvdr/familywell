@@ -23,6 +23,9 @@ type Person = {
     name: string;
     contactMethods: ContactMethod[];
     birthdate?: string | null;
+    birthMonth?: number | null;
+    birthDay?: number | null;
+    birthYear?: number | null;
     age?: number | null;
     nextBirthday?: string | null;
     daysUntilBirthday?: number | null;

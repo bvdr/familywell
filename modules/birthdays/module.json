@@ -1,9 +1,11 @@
 {
     "id": "birthdays",
     "name": "Birthdays",
-    "description": "Adds a birthday to each contact: their age, the next birthday (repeats every year), a badge on the contact, and an 'Upcoming birthdays' widget on the home screen. Extends the Contacts 'person' primitive.",
+    "description": "A Birthdays page (quick-add a person with day + month, year optional) plus a birthday on each contact: age when the year is known, the next birthday (repeats every year), a badge on the contact, and an 'Upcoming birthdays' widget on the home screen. People added here are contacts too.",
     "version": "1.0.0",
     "provider": "Modules\\Birthdays\\BirthdaysServiceProvider",
     "frontend": "resources/dist/birthdays.js",
-    "requires": ["contacts"]
+    "requires": [
+        "contacts"
+    ]
 }
