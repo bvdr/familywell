@@ -6,10 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
+import { useOptimistic } from '@/hooks/use-optimistic';
+import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
 import { Slot } from '@/lib/modules';
 import type { BreadcrumbItem } from '@/types';
-import AppLayout from '@/layouts/app-layout';
 
 // A contact method (phone/email/…). `id` is present for existing rows loaded from the server.
 type ContactMethod = { id?: number; type: string; label: string | null; value: string };
@@ -34,6 +35,19 @@ export default function ContactsIndex({ people, contactTypes }: { people: Person
     const breadcrumbs: BreadcrumbItem[] = [{ title: t('nav.contacts'), href: '/m/contacts' }];
     const [newName, setNewName] = useState('');
     const [editing, setEditing] = useState<Person | null>(null);
+    // Optimistic delete: the row disappears the moment the drawer closes, returning only if the DELETE fails.
+    const removed = useOptimistic<boolean>();
+    const visiblePeople = people.filter((p) => !removed.get(p.id, false));
+    const removePerson = (person: Person) => {
+        removed.set(person.id, true);
+        setEditing(null);
+        router.delete(route('contacts.people.destroy', person.id), {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => removed.clear(person.id),
+            onError: () => removed.clear(person.id),
+        });
+    };
 
     const addPerson = () => {
         if (!newName.trim()) return;
@@ -60,10 +74,10 @@ export default function ContactsIndex({ people, contactTypes }: { people: Person
                     </Button>
                 </div>
 
-                {people.length === 0 && <p className="text-muted-foreground py-6 text-center text-sm">{t('contacts.empty')}</p>}
+                {visiblePeople.length === 0 && <p className="text-muted-foreground py-6 text-center text-sm">{t('contacts.empty')}</p>}
 
                 <div className="flex flex-col gap-2">
-                    {people.map((p) => (
+                    {visiblePeople.map((p) => (
                         <button
                             key={p.id}
                             type="button"
@@ -88,12 +102,24 @@ export default function ContactsIndex({ people, contactTypes }: { people: Person
                 </div>
             </div>
 
-            {editing && <PersonModal person={editing} contactTypes={contactTypes} onClose={() => setEditing(null)} />}
+            {editing && (
+                <PersonModal person={editing} contactTypes={contactTypes} onClose={() => setEditing(null)} onRemove={() => removePerson(editing)} />
+            )}
         </AppLayout>
     );
 }
 
-function PersonModal({ person, contactTypes, onClose }: { person: Person; contactTypes: string[]; onClose: () => void }) {
+function PersonModal({
+    person,
+    contactTypes,
+    onClose,
+    onRemove,
+}: {
+    person: Person;
+    contactTypes: string[];
+    onClose: () => void;
+    onRemove: () => void;
+}) {
     const t = useT();
     const [name, setName] = useState(person.name);
     const [methods, setMethods] = useState<ContactMethod[]>(person.contactMethods.map((m) => ({ ...m })));
@@ -106,12 +132,7 @@ function PersonModal({ person, contactTypes, onClose }: { person: Person; contac
         );
     };
 
-    const remove = () => {
-        router.delete(route('contacts.people.destroy', person.id), { preserveScroll: true, onSuccess: onClose });
-    };
-
-    const setMethod = (i: number, patch: Partial<ContactMethod>) =>
-        setMethods((ms) => ms.map((m, idx) => (idx === i ? { ...m, ...patch } : m)));
+    const setMethod = (i: number, patch: Partial<ContactMethod>) => setMethods((ms) => ms.map((m, idx) => (idx === i ? { ...m, ...patch } : m)));
 
     return (
         <ResponsiveModal open onOpenChange={(v) => !v && onClose()} title={t('contacts.edit')}>
@@ -180,7 +201,7 @@ function PersonModal({ person, contactTypes, onClose }: { person: Person; contac
                 />
 
                 <div className="flex items-center justify-between pt-1">
-                    <button type="button" onClick={remove} className="text-destructive flex items-center gap-2 text-sm font-medium">
+                    <button type="button" onClick={onRemove} className="text-destructive flex items-center gap-2 text-sm font-medium">
                         <Trash2 className="size-4" /> {t('contacts.delete')}
                     </button>
                     <Button onClick={save}>{t('contacts.save')}</Button>
