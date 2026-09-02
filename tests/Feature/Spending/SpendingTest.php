@@ -230,6 +230,16 @@ it('attaches multiple receipt images and serves them back to the family', functi
     Storage::disk('r2')->assertExists($receipt->path);
 
     actingAs($users[0])->get("/m/spending/spends/receipts/{$receipt->id}")->assertOk();
+
+    // The event page renders receipt URLs keyed by the stored path (browser cache buster). Regression:
+    // the eager load once selected only id,spend_id, so `path` was null and the page 500'd in prod.
+    $key = substr(md5($receipt->path), 0, 8);
+    actingAs($users[0])->get("/m/spending/events/{$event->id}")->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('spends.0.receipts.0.thumbUrl', "http://localhost/m/spending/spends/receipts/{$receipt->id}?v=thumb&k={$key}"));
+    // Keyed URL is browser-cacheable for a year; the key changes with the file so it never goes stale.
+    actingAs($users[0])->get("/m/spending/spends/receipts/{$receipt->id}?k={$key}")
+        ->assertOk()->assertHeader('Cache-Control', 'immutable, max-age=31536000, private');
 });
 
 it('does not serve a receipt to another family', function () {
