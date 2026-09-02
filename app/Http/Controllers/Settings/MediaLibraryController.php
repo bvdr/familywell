@@ -46,8 +46,8 @@ class MediaLibraryController extends Controller
                     'id' => $p->id,
                     'name' => $p->name,
                     'kind' => 'Project cover',
-                    'thumbUrl' => route('projects.cover.show', $p).'?v=thumb',
-                    'fullUrl' => route('projects.cover.show', $p),
+                    'thumbUrl' => StoredImage::url('projects.cover.show', $p, $p->cover_path, thumb: true),
+                    'fullUrl' => StoredImage::url('projects.cover.show', $p, $p->cover_path),
                 ];
             }
         }
@@ -68,8 +68,8 @@ class MediaLibraryController extends Controller
                     'id' => $r->id,
                     'name' => $names[$r->spend->spend_event_id] ?? 'Receipt',
                     'kind' => 'Receipt',
-                    'thumbUrl' => route('spending.receipts.show', $r->id).'?v=thumb',
-                    'fullUrl' => route('spending.receipts.show', $r->id),
+                    'thumbUrl' => StoredImage::url('spending.receipts.show', $r->id, $r->path, thumb: true),
+                    'fullUrl' => StoredImage::url('spending.receipts.show', $r->id, $r->path),
                 ];
             }
         }

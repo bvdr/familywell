@@ -487,8 +487,8 @@ class VehiclesController extends Controller
         return [
             ...$vehicle->toPayload(),
             // Thumb for cards, full image for the overview hero. Null when there is no photo.
-            'photoThumbUrl' => $vehicle->photo_path ? route('vehicles.photo.show', $vehicle).'?v=thumb' : null,
-            'photoUrl' => $vehicle->photo_path ? route('vehicles.photo.show', $vehicle) : null,
+            'photoThumbUrl' => $vehicle->photo_path ? StoredImage::url('vehicles.photo.show', $vehicle, $vehicle->photo_path, thumb: true) : null,
+            'photoUrl' => $vehicle->photo_path ? StoredImage::url('vehicles.photo.show', $vehicle, $vehicle->photo_path) : null,
         ];
     }
 

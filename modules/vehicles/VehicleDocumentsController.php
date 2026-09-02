@@ -148,7 +148,7 @@ class VehicleDocumentsController extends Controller
     private function fileUrl(VehicleDocument $document): ?string
     {
         return $document->file_path
-            ? route('vehicles.documents.file', [$document->vehicle_id, $document->id])
+            ? StoredImage::url('vehicles.documents.file', [$document->vehicle_id, $document->id], $document->file_path)
             : null;
     }
 
