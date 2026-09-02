@@ -191,8 +191,8 @@ class VehicleRepairsController extends Controller
         return $repair->attachments->map(fn (RepairAttachment $a) => [
             'id' => $a->id,
             'name' => $a->name,
-            'url' => route('vehicles.repairs.attachment', [$repair->vehicle_id, $repair->id, $a->id]),
-            'thumbUrl' => route('vehicles.repairs.attachment', [$repair->vehicle_id, $repair->id, $a->id]).'?v=thumb',
+            'url' => StoredImage::url('vehicles.repairs.attachment', [$repair->vehicle_id, $repair->id, $a->id], $a->path),
+            'thumbUrl' => StoredImage::url('vehicles.repairs.attachment', [$repair->vehicle_id, $repair->id, $a->id], $a->path, thumb: true),
         ])->values()->all();
     }
 

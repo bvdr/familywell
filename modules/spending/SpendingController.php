@@ -954,8 +954,8 @@ class SpendingController extends Controller
                 'note' => $s->note,
                 'receipts' => $s->receipts->map(fn (SpendReceipt $r) => [
                     'id' => $r->id,
-                    'url' => route('spending.receipts.show', $r->id),                 // full image (lightbox)
-                    'thumbUrl' => route('spending.receipts.show', $r->id).'?v=thumb', // small variant (previews)
+                    'url' => StoredImage::url('spending.receipts.show', $r->id, $r->path), // full image (lightbox)
+                    'thumbUrl' => StoredImage::url('spending.receipts.show', $r->id, $r->path, thumb: true), // small variant (previews)
                 ])->values(),
                 'source' => $s->source ? ['id' => $s->source->id, 'name' => $s->source->name, 'type' => $s->source->type] : null,
                 // A user paid (payer.id set) or a guest did (isGuest, no user id to prefill the form with).

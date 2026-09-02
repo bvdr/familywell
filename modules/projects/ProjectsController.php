@@ -58,7 +58,7 @@ class ProjectsController extends Controller
                     'done' => $done,
                     'total' => $total,
                     'archived' => $p->archived_at !== null,
-                    'coverUrl' => $p->cover_path ? route('projects.cover.show', $p).'?v=thumb' : null,
+                    'coverUrl' => $p->cover_path ? StoredImage::url('projects.cover.show', $p, $p->cover_path, thumb: true) : null,
                     'updated' => $p->updated_at?->diffForHumans(short: true),
                     'members' => $memberIds->map(fn ($id) => ['id' => $id, 'name' => $memberNames[$id] ?? '?'])->all(),
                 ];
@@ -140,7 +140,7 @@ class ProjectsController extends Controller
                 'archived' => $project->archived_at !== null,
                 'visibility' => $project->visibility(),
                 'updated' => $project->updated_at?->diffForHumans(short: true),
-                'coverUrl' => $project->cover_path ? route('projects.cover.show', $project) : null,
+                'coverUrl' => $project->cover_path ? StoredImage::url('projects.cover.show', $project, $project->cover_path) : null,
             ],
             'share' => $this->shareState($project, $family),
             'members' => $members,

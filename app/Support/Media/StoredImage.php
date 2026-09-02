@@ -40,14 +40,37 @@ class StoredImage
         Storage::disk($disk)->delete([$path, self::thumbPath($path)]);
     }
 
-    /** Serve a variant: 'thumb' returns the thumbnail when one exists, otherwise the original. */
+    /**
+     * Build the auth-gated URL for a stored image, keyed by its content so the browser can cache it
+     * for a long time. `k` is a short hash of the stored path: store() names files randomly, so a
+     * re-upload (new cover/photo) yields a new path and therefore a new URL, while the old one may
+     * stay cached harmlessly. `v=thumb` picks the small variant. Every module MUST build image URLs
+     * through here; a URL without `k` is served with the default no-cache headers (see response()).
+     *
+     * @param  mixed  $params  route parameters
+     */
+    public static function url(string $route, mixed $params, string $path, bool $thumb = false): string
+    {
+        $query = ($thumb ? 'v=thumb&' : '').'k='.substr(md5($path), 0, 8);
+
+        return route($route, $params).'?'.$query;
+    }
+
+    /**
+     * Serve a variant: 'thumb' returns the thumbnail when one exists, otherwise the original.
+     * Cached a year, immutable, when the URL carries the content key from url(): the key changes with
+     * the content, so a long cache never goes stale, and the round trip (auth + R2 fetch) is skipped
+     * on every later render of the same card/list. `private` keeps Cloudflare and other shared caches
+     * out, since these routes are per-user authorized.
+     */
     public static function response(string $path, ?string $variant, string $disk = 'r2'): StreamedResponse
     {
         $d = Storage::disk($disk);
+        $headers = request()->query('k') ? ['Cache-Control' => 'private, max-age=31536000, immutable'] : [];
         if ($variant === 'thumb' && $d->exists(self::thumbPath($path))) {
-            return $d->response(self::thumbPath($path));
+            return $d->response(self::thumbPath($path), null, $headers);
         }
 
-        return $d->response($path);
+        return $d->response($path, null, $headers);
     }
 }
