@@ -35,9 +35,9 @@ type ListRef = { id: number; name: string };
 type Draft = { name: string; quantity: string; department: string; note: string; due_date: string; shops: string[]; list_id: number | null };
 
 export default function ShopDetail({
-    shop,
+    shop: serverShop,
     aisles,
-    items,
+    items: serverItems,
     shops = [],
     lists = [],
     defaultListId = null,
@@ -54,6 +54,13 @@ export default function ShopDetail({
     virtual?: boolean;
 }) {
     const t = useT();
+    // Optimistic rename: shadow the server shop with the pending name so the title/breadcrumb flip on
+    // Enter, not after the round trip. Cleared on settle; the reloaded prop is then authoritative.
+    const nameOpt = useOptimistic<string>();
+    const shop: Shop = { ...serverShop, name: nameOpt.get(serverShop.id, serverShop.name) };
+    // Optimistic removal: a deleted item disappears immediately, reappearing only if the delete fails.
+    const removedOpt = useOptimistic<boolean>();
+    const items = serverItems.filter((i) => !removedOpt.get(i.id, false));
     const shopTitle = virtual ? t('shopping.no_shop') : shop.name;
     const breadcrumbs: BreadcrumbItem[] = [
         { title: t('nav.shopping'), href: '/m/shopping' },
@@ -154,7 +161,13 @@ export default function ShopDetail({
         const id = editingId;
         if (!id) return;
         setEditingId(null);
-        router.delete(route('shopping.items.destroy', id), { preserveScroll: true });
+        removedOpt.set(id, true);
+        router.delete(route('shopping.items.destroy', id), {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => removedOpt.clear(id),
+            onError: () => removedOpt.clear(id),
+        });
     };
     const bump = (delta: number) =>
         setDraft((d) => {
@@ -170,7 +183,13 @@ export default function ShopDetail({
     const [focus, setFocus] = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('focus') === '1');
     const saveName = () => {
         const n = name.trim();
-        if (n && n !== shop.name) router.patch(route('shopping.shops.update', shop.id), { name: n }, { preserveScroll: true });
+        if (!n || n === shop.name) return;
+        nameOpt.set(shop.id, n);
+        router.patch(
+            route('shopping.shops.update', shop.id),
+            { name: n },
+            { preserveScroll: true, preserveState: true, onSuccess: () => nameOpt.clear(shop.id), onError: () => nameOpt.clear(shop.id) },
+        );
     };
 
     // Split into "to buy" (grouped by the shop's aisles, walk order) and a bought pile at the bottom.
