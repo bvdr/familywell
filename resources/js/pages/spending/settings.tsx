@@ -4,6 +4,7 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { catLabel as catLabelOf, categoryMap, type CategoryDef } from '@/lib/categories';
 import { useT } from '@/lib/i18n';
@@ -30,9 +31,26 @@ export default function SpendingSettings({ currencies, defaultCurrency, categori
     ];
     const catMap = categoryMap(categories);
 
+    // Optimistic overlays so every control here reacts on tap: the currency select shows the new value,
+    // a category's icon swaps, a deleted category row vanishes. Server props reconcile on reload.
+    const currencyOpt = useOptimistic<string>();
+    const iconOpt = useOptimistic<string | null>();
+    const removedOpt = useOptimistic<boolean>();
+    const visibleCategories = categories.filter((c) => !removedOpt.get(c.id, false));
+    const settle = <K extends string | number>(o: { clear: (id: K) => void }, id: K) => ({
+        onSuccess: () => o.clear(id),
+        onError: () => o.clear(id),
+    });
+
     // Default currency: '' is the "auto" option (server stores null and falls back).
-    const setCurrency = (value: string) =>
-        router.patch(route('spending.settings.update'), { default_currency: value || null }, { preserveScroll: true });
+    const setCurrency = (value: string) => {
+        currencyOpt.set('default', value);
+        router.patch(
+            route('spending.settings.update'),
+            { default_currency: value || null },
+            { preserveScroll: true, preserveState: true, ...settle(currencyOpt, 'default') },
+        );
+    };
 
     const addForm = useForm({ name: '', icon: null as string | null });
     const submitCategory: FormEventHandler = (e) => {
@@ -42,12 +60,15 @@ export default function SpendingSettings({ currencies, defaultCurrency, categori
 
     // Persist a custom category's chosen icon immediately (the picker is the row's edit affordance). The
     // key is untouched, so existing spends keep resolving; null clears back to the generic tag fallback.
-    const changeIcon = (c: Category, icon: string | null) =>
-        router.patch(route('spending.categories.update', c.id), { icon }, { preserveScroll: true });
+    const changeIcon = (c: Category, icon: string | null) => {
+        iconOpt.set(c.id, icon);
+        router.patch(route('spending.categories.update', c.id), { icon }, { preserveScroll: true, preserveState: true, ...settle(iconOpt, c.id) });
+    };
 
     const removeCategory = (c: Category) => {
         if (c.inUse > 0) return; // in-use categories can't be deleted (they'd orphan spends)
-        router.delete(route('spending.categories.destroy', c.id), { preserveScroll: true });
+        removedOpt.set(c.id, true);
+        router.delete(route('spending.categories.destroy', c.id), { preserveScroll: true, preserveState: true, ...settle(removedOpt, c.id) });
     };
 
     return (
@@ -66,7 +87,7 @@ export default function SpendingSettings({ currencies, defaultCurrency, categori
                         <p className="text-muted-foreground text-sm">{t('spending.default_currency_desc')}</p>
                     </div>
                     <select
-                        value={defaultCurrency ?? ''}
+                        value={currencyOpt.get('default', defaultCurrency ?? '')}
                         onChange={(e) => setCurrency(e.target.value)}
                         disabled={!canManage}
                         className="border-border bg-surface-card text-primary w-full rounded-lg border px-3 py-2 text-base disabled:opacity-60 md:max-w-xs md:text-sm"
@@ -89,16 +110,17 @@ export default function SpendingSettings({ currencies, defaultCurrency, categori
                     </div>
 
                     <ul className="flex flex-col divide-y">
-                        {categories.map((c) => {
+                        {visibleCategories.map((c) => {
                             // Custom categories are icon-editable: the coloured square is itself an IconPicker
                             // trigger. Built-in categories keep their curated icon as a static (non-editable) square.
                             const editable = canManage && !c.isDefault;
+                            const icon = iconOpt.get(c.id, c.icon);
                             return (
                                 <li key={c.id} className="flex items-center justify-between gap-3 py-2.5">
                                     <div className="flex min-w-0 items-center gap-3">
                                         {editable ? (
                                             <IconPicker
-                                                value={c.icon}
+                                                value={icon}
                                                 onChange={(icon) => changeIcon(c, icon)}
                                                 style={{ background: c.color }}
                                                 className="size-8 rounded-lg border-transparent text-white hover:opacity-90"

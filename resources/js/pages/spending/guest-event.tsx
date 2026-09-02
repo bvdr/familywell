@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useOptimistic } from '@/hooks/use-optimistic';
 import { catLabel, categoryMap, type CategoryDef } from '@/lib/categories';
 import { useT } from '@/lib/i18n';
 import { money, selectAllOnFocus } from '@/lib/money';
@@ -68,6 +69,12 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
     const [editing, setEditing] = useState<Spend | null>(null);
     const [adding, setAdding] = useState(false);
     const [settling, setSettling] = useState(false); // hooks must run before the identity-gate early return
+    // Optimistic overlays (hooks, so also above the early return): a deleted spend row vanishes on tap and
+    // a marked-paid suggestion disappears on tap; both snap back only if the request fails.
+    const removedOpt = useOptimistic<boolean>();
+    const settledOpt = useOptimistic<boolean>();
+    const visibleSpends = spends.filter((s) => !removedOpt.get(s.id, false));
+    const visibleSuggestions = suggestions.filter((s) => !settledOpt.get(`${s.from.id}-${s.to.id}`, false));
     const showForm = adding || editing !== null;
 
     // Identity gate: until the visitor says who they are, show only the picker.
@@ -106,12 +113,15 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
     const myBalance = balances.find((b) => b.id === myKey);
 
     // One-click record of a suggested payment (records the exact suggested amount, no note).
-    const markPaid = (s: Suggestion) =>
+    const markPaid = (s: Suggestion) => {
+        const key = `${s.from.id}-${s.to.id}`;
+        settledOpt.set(key, true);
         router.post(
             `/m/spending/guest/${token}/settle`,
             { guest_id: me.id, from_key: s.from.id, to_key: s.to.id, amount: s.amount },
-            { preserveScroll: true },
+            { preserveScroll: true, preserveState: true, onSuccess: () => settledOpt.clear(key), onError: () => settledOpt.clear(key) },
         );
+    };
 
     return (
         <Shell title={event.name}>
@@ -171,10 +181,10 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
             </section>
 
             {/* Suggested settle-up. A guest can one-click record a suggestion that involves them. */}
-            {suggestions.length > 0 && (
+            {visibleSuggestions.length > 0 && (
                 <section className="flex flex-col gap-2">
                     <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('spending.suggested_payments')}</h2>
-                    {suggestions.map((s, i) => {
+                    {visibleSuggestions.map((s, i) => {
                         const involvesMe = s.from.id === myKey || s.to.id === myKey;
                         return (
                             <div key={i} className="bg-surface-card flex items-center justify-between gap-2 rounded-xl border p-3 text-sm">
@@ -223,7 +233,7 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
             {/* Spends */}
             <section className="flex flex-col gap-2 pb-24">
                 <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('spending.spends_heading')}</h2>
-                {spends.map((s) => {
+                {visibleSpends.map((s) => {
                     const mine = s.payer.guestId === me.id;
                     return (
                         <div key={s.id} className="bg-surface-card flex items-center gap-3 rounded-xl border p-3">
@@ -253,12 +263,16 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
                                         <Pencil className="size-4" />
                                     </button>
                                     <button
-                                        onClick={() =>
+                                        onClick={() => {
+                                            removedOpt.set(s.id, true);
                                             router.delete(`/m/spending/guest/${token}/spends/${s.id}`, {
                                                 data: { guest_id: me.id },
                                                 preserveScroll: true,
-                                            })
-                                        }
+                                                preserveState: true,
+                                                onSuccess: () => removedOpt.clear(s.id),
+                                                onError: () => removedOpt.clear(s.id),
+                                            });
+                                        }}
                                         aria-label={t('common.delete')}
                                         className="text-muted-foreground flex size-7 items-center justify-center hover:text-[var(--warning)]"
                                     >
@@ -269,7 +283,7 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
                         </div>
                     );
                 })}
-                {spends.length === 0 && <p className="text-muted-foreground text-sm">{t('spending.no_spends_yet')}</p>}
+                {visibleSpends.length === 0 && <p className="text-muted-foreground text-sm">{t('spending.no_spends_yet')}</p>}
             </section>
 
             {/* Editor add button */}
