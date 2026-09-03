@@ -6,7 +6,6 @@
     "no_events_empty": "Niciun eveniment de cheltuieli încă. Creează unul pentru a urmări costurile comune.",
     "archived": "Arhivate",
     "restore_event": "Restaurează evenimentul",
-
     "stats": "Statistici",
     "stats_empty": "Nicio cheltuială încă, adaugă câteva și cifrele își vor spune povestea aici.",
     "stats_summary": "în :count :spendNoun, pe parcursul a :days :dayNoun",
@@ -35,7 +34,6 @@
     "top_category": "Categoria principală",
     "pct_of_spend": ":pct% din cheltuieli",
     "cumulative_chart_aria": "Cheltuieli cumulate în timp",
-
     "shared_with_you": "partajat cu tine",
     "who_are_you": "Cine ești?",
     "no_guests_yet": "Niciun invitat adăugat încă.",
@@ -43,7 +41,6 @@
     "view_only": "Doar vizualizare",
     "you_are": "Tu ești :name",
     "change": "schimbă",
-
     "total_spent": "Total cheltuit",
     "person_one": "persoană",
     "person_other": "persoane",
@@ -72,7 +69,6 @@
     "optional_placeholder": "Opțional",
     "note_placeholder": "Cină la tavernă",
     "date": "Dată",
-
     "share_with_family": "Distribuie familiei",
     "guest_link": "Link pentru invitați",
     "event_options": "Opțiuni eveniment",
@@ -81,12 +77,10 @@
     "unarchive_event": "Dezarhivează evenimentul",
     "archive_event": "Arhivează evenimentul",
     "event_title_aria": "Titlul evenimentului",
-
     "tab_expenses": "Cheltuieli",
     "tab_transfers": "Transferuri",
     "tab_balances": "Solduri",
     "tab_settings": "Setări",
-
     "new_payment_source": "Sursă de plată nouă",
     "new_source_desc": "O modalitate reutilizabilă de a înregistra cum a fost plătită o cheltuială.",
     "name": "Nume",
@@ -98,13 +92,11 @@
     "source_card": "Card",
     "source_bank": "Bancă",
     "source_other": "Altele",
-
     "record_payment": "Înregistrează o plată",
     "record_payment_desc": "Bani pe care un membru îi trimite altuia pentru a achita. Contează în solduri.",
     "from": "De la",
     "to": "Către",
     "amount_currency": "Sumă (:currency)",
-
     "transfers_between_you": "Transferuri între voi",
     "transfers": "Transferuri",
     "i_paid": "Am plătit",
@@ -112,7 +104,6 @@
     "transfer_note_placeholder": "ex. numerar, transfer bancar",
     "record": "Înregistrează",
     "no_transfers_yet": "Niciun transfer încă.",
-
     "your_summary": "Rezumatul tău",
     "you_paid": "Ai plătit",
     "your_share": "Cota ta",
@@ -120,7 +111,6 @@
     "transfers_received": "Transferuri primite",
     "everyone": "Toată lumea",
     "mark_paid": "Marchează achitat",
-
     "people_and_split": "Persoane și împărțire",
     "people_split_desc": "Numărul de persoane arată pentru câți plătește fiecare. „Acoperit de” mută cota cuiva către altă persoană.",
     "guest_word": "Invitat",
@@ -133,12 +123,10 @@
     "their_own_share": "propria cotă",
     "event_word": "Eveniment",
     "see_stats": "Vezi statisticile",
-
     "reading_receipt": "Se citește bonul…",
     "scan_receipt": "Scanează bonul",
     "scan_error_default": "Bonul nu a putut fi citit.",
     "add_spend": "Adaugă cheltuială",
-
     "new_spend": "Cheltuială nouă",
     "edit_spend": "Editează cheltuiala",
     "advanced": "Avansat",
@@ -156,7 +144,6 @@
     "move_same_list": "Este aceeași listă.",
     "move_failed": "Nu s-a putut muta. Încearcă din nou.",
     "you_suffix": " (Tu)",
-
     "split_label": "Împărțire",
     "split_everyone": "Toți",
     "split_only_some": "Doar unii",
@@ -167,16 +154,13 @@
     "left": "rămas",
     "over": "în plus",
     "of": "din",
-
     "paid_with": "Plătit cu",
     "not_specified": "Nespecificat",
     "new_source": "Sursă nouă",
-
     "receipts_label": "Poze cu bonul (opțional)",
     "remove_photo": "Elimină poza",
     "receipt_alt": "Bon",
     "new_photo_alt": "Poză nouă",
-
     "spend_log": "Jurnal de cheltuieli",
     "view_receipt_photo": "Vezi :count poză cu bonul",
     "view_receipt_photos": "Vezi :count poze cu bonul",
@@ -184,13 +168,10 @@
     "custom_split": "împărțire personalizată",
     "spend_actions_aria": "Acțiuni cheltuială",
     "duplicate": "Duplică",
-
     "receipt_photos_title": "Poze cu bonul",
     "previous_photo": "Poza anterioară",
     "next_photo": "Poza următoare",
-
     "yesterday": "Ieri",
-
     "analytics": "Analize",
     "analytics_sub": "Totaluri si tendinte pentru toate listele tale",
     "period_mtd": "Luna aceasta",
@@ -206,7 +187,6 @@
     "all_categories": "Toate categoriile",
     "peak_day": "zi de varf",
     "daily_chart_aria": "Grafic liniar al cheltuielilor pe zi in perioada selectata",
-
     "settings": "Setări cheltuieli",
     "settings_sub": "Moneda implicită și categoriile de cheltuieli ale familiei",
     "default_currency": "Moneda implicită",
@@ -218,5 +198,6 @@
     "category_name_placeholder": "ex. Cadouri, Animale",
     "delete_category": "Șterge categoria",
     "change_category_icon": "Schimbă pictograma",
-    "category_in_use": "Această categorie este folosită și nu poate fi ștearsă."
+    "category_in_use": "Această categorie este folosită și nu poate fi ștearsă.",
+    "peak_month": "luna de vârf"
 }
