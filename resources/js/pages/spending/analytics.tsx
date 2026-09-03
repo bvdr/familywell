@@ -45,7 +45,7 @@ function DailyCurve({ points, currency, granularity, t }: { points: Day[]; curre
             ariaLabel={t('spending.daily_chart_aria')}
             renderPeak={(peak) => (
                 <span className="text-primary font-semibold">
-                    {money(peak.value, currency)} {t('spending.peak_day')}
+                    {money(peak.value, currency)} {t(granularity === 'month' ? 'spending.peak_month' : 'spending.peak_day')}
                 </span>
             )}
         />
@@ -221,7 +221,11 @@ export default function Analytics({
                         })
                     )}
                     {activeCategory && (
-                        <button type="button" onClick={() => toggleCategory(activeCategory)} className="text-muted-foreground self-start text-xs underline">
+                        <button
+                            type="button"
+                            onClick={() => toggleCategory(activeCategory)}
+                            className="text-muted-foreground self-start text-xs underline"
+                        >
                             {t('spending.all_categories')}
                         </button>
                     )}

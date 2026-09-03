@@ -6,7 +6,6 @@
     "no_events_empty": "No spend events yet. Create one to start tracking shared costs.",
     "archived": "Archived",
     "restore_event": "Restore event",
-
     "stats": "Stats",
     "stats_empty": "No spends yet, add a few and the numbers will tell their story here.",
     "stats_summary": "across :count :spendNoun over :days :dayNoun",
@@ -35,7 +34,6 @@
     "top_category": "Top category",
     "pct_of_spend": ":pct% of spend",
     "cumulative_chart_aria": "Cumulative spending over time",
-
     "shared_with_you": "shared with you",
     "who_are_you": "Who are you?",
     "no_guests_yet": "No guests have been added yet.",
@@ -43,7 +41,6 @@
     "view_only": "View only",
     "you_are": "You are :name",
     "change": "change",
-
     "total_spent": "Total spent",
     "person_one": "person",
     "person_other": "people",
@@ -72,7 +69,6 @@
     "optional_placeholder": "Optional",
     "note_placeholder": "Dinner at the taverna",
     "date": "Date",
-
     "share_with_family": "Share with family",
     "guest_link": "Guest link",
     "event_options": "Event options",
@@ -81,12 +77,10 @@
     "unarchive_event": "Unarchive event",
     "archive_event": "Archive event",
     "event_title_aria": "Event title",
-
     "tab_expenses": "Expenses",
     "tab_transfers": "Transfers",
     "tab_balances": "Balances",
     "tab_settings": "Settings",
-
     "new_payment_source": "New payment source",
     "new_source_desc": "A reusable way to record how a spend was paid.",
     "name": "Name",
@@ -98,13 +92,11 @@
     "source_card": "Card",
     "source_bank": "Bank",
     "source_other": "Other",
-
     "record_payment": "Record a payment",
     "record_payment_desc": "Money one member sends another to settle up. It counts in the balances.",
     "from": "From",
     "to": "To",
     "amount_currency": "Amount (:currency)",
-
     "transfers_between_you": "Transfers between you",
     "transfers": "Transfers",
     "i_paid": "I paid",
@@ -112,7 +104,6 @@
     "transfer_note_placeholder": "e.g. cash, bank transfer",
     "record": "Record",
     "no_transfers_yet": "No transfers yet.",
-
     "your_summary": "Your summary",
     "you_paid": "You paid",
     "your_share": "Your share",
@@ -120,7 +111,6 @@
     "transfers_received": "Transfers received",
     "everyone": "Everyone",
     "mark_paid": "Mark paid",
-
     "people_and_split": "People & split",
     "people_split_desc": "Headcount is how many people each one pays for. “Covered by” moves someone's share onto another person.",
     "guest_word": "Guest",
@@ -133,12 +123,10 @@
     "their_own_share": "their own share",
     "event_word": "Event",
     "see_stats": "See stats",
-
     "reading_receipt": "Reading receipt…",
     "scan_receipt": "Scan receipt",
     "scan_error_default": "Could not read the receipt.",
     "add_spend": "Add spend",
-
     "new_spend": "New spend",
     "edit_spend": "Edit spend",
     "advanced": "Advanced",
@@ -156,7 +144,6 @@
     "move_same_list": "That's the same list.",
     "move_failed": "Couldn't move it. Try again.",
     "you_suffix": " (You)",
-
     "split_label": "Split",
     "split_everyone": "Everyone",
     "split_only_some": "Only some",
@@ -167,16 +154,13 @@
     "left": "left",
     "over": "over",
     "of": "of",
-
     "paid_with": "Paid with",
     "not_specified": "Not specified",
     "new_source": "New source",
-
     "receipts_label": "Receipt photos (optional)",
     "remove_photo": "Remove photo",
     "receipt_alt": "Receipt",
     "new_photo_alt": "New photo",
-
     "spend_log": "Spend log",
     "view_receipt_photo": "View :count receipt photo",
     "view_receipt_photos": "View :count receipt photos",
@@ -184,13 +168,10 @@
     "custom_split": "custom split",
     "spend_actions_aria": "Spend actions",
     "duplicate": "Duplicate",
-
     "receipt_photos_title": "Receipt photos",
     "previous_photo": "Previous photo",
     "next_photo": "Next photo",
-
     "yesterday": "Yesterday",
-
     "analytics": "Analytics",
     "analytics_sub": "Totals and trends across all your lists",
     "period_mtd": "This month",
@@ -206,7 +187,6 @@
     "all_categories": "All categories",
     "peak_day": "peak day",
     "daily_chart_aria": "Line chart of spending per day over the selected period",
-
     "settings": "Spending settings",
     "settings_sub": "Default currency and expense categories for your family",
     "default_currency": "Default currency",
@@ -218,5 +198,6 @@
     "category_name_placeholder": "e.g. Gifts, Pets",
     "delete_category": "Delete category",
     "change_category_icon": "Change icon",
-    "category_in_use": "This category is in use and can't be deleted."
+    "category_in_use": "This category is in use and can't be deleted.",
+    "peak_month": "peak month"
 }
