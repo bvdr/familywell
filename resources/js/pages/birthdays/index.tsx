@@ -77,14 +77,23 @@ function DateParts({ value, onChange, t, months }: { value: Parts; onChange: (v:
     );
 }
 
-// Diacritics/case-insensitive "contains" so typing "balan" finds "Bălan". Filtering the list while
-// you type the new name is how you spot that someone is already in it before adding them twice.
+// Diacritics/case-insensitive fuzzy match, so typing "balan", "vbal" or "teodra" finds "Vlad Bălan" /
+// "Teodora". Filtering the list while you type the new name is how you spot that someone is already
+// in it before adding them twice. ponytail: subsequence match (every query character appears in the
+// name, in order) covers skipped letters and initials; add a typo-tolerant scorer only if it's missed.
 const fold = (s: string) =>
     s
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()
-        .trim();
+        .replace(/\s+/g, '');
+const fuzzy = (query: string, name: string) => {
+    const q = fold(query);
+    const n = fold(name);
+    let i = 0;
+    for (const ch of n) if (ch === q[i]) i++;
+    return i === q.length;
+};
 
 const payload = (p: Parts) => ({ birth_day: Number(p.day), birth_month: Number(p.month), birth_year: p.year ? Number(p.year) : null });
 const complete = (p: Parts) => Number(p.day) >= 1 && Number(p.month) >= 1;
@@ -101,8 +110,8 @@ export default function BirthdaysIndex({ birthdays }: { birthdays: Birthday[] })
 
     // Optimistic removal: the row disappears on tap, reappearing only if the delete fails.
     const removed = useOptimistic<boolean>();
-    const query = fold(newName);
-    const visible = birthdays.filter((b) => !removed.get(b.id, false) && (!query || fold(b.name).includes(query)));
+    const query = newName.trim();
+    const visible = birthdays.filter((b) => !removed.get(b.id, false) && (!query || fuzzy(query, b.name)));
     // Month separators: the list stays soonest-first, so months run from the current one forward and
     // wrap into next year; the header carries the year only once it wraps, to make that visible.
     const monthHeader = (b: Birthday) => {
