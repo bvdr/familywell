@@ -122,6 +122,30 @@
     h3 {
         font-family: var(--font-heading);
     }
+
+    /* Native date/time pickers. iOS Safari styles these as `-webkit-appearance: menulist-button` with an
+       intrinsic width, and because our form fields are grid/flex items whose min-width defaults to `auto`,
+       that intrinsic width becomes the item's minimum: the input ignores w-full, sticks out past its column
+       and the whole page scrolls sideways (seen on Vehicles > maintenance "last done" date). Reset the
+       appearance and drop the automatic minimum so they shrink to their container like text inputs. Global
+       on purpose: every module (vehicles, inventory, shopping, projects, tasks, spending) uses these natively,
+       whether through <Input type="date"> or a raw <input>. Width itself is left to the markup because the
+       analytics from/to range pickers sit inline and must keep their auto width. */
+    input[type='date'],
+    input[type='time'],
+    input[type='datetime-local'],
+    input[type='month'],
+    input[type='week'] {
+        appearance: none;
+        -webkit-appearance: none;
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    /* iOS centres the picked value; left-align it so it lines up with neighbouring text inputs. */
+    input::-webkit-date-and-time-value {
+        text-align: left;
+    }
 }
 
 /* Live note editor (TipTap/ProseMirror). Scoped to .note-prose so it never leaks into other UI.
