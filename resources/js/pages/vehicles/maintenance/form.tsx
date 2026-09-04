@@ -3,6 +3,7 @@ import { ArrowLeft, Check, Trash2 } from 'lucide-react';
 import { type ReactNode } from 'react';
 
 import InputError from '@/components/input-error';
+import { FormActions } from '@/components/form-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -191,7 +192,7 @@ export default function MaintenanceForm({ vehicle, schedule, templates }: Props)
                         </label>
                     )}
 
-                    <div className="flex items-center gap-3">
+                    <FormActions>
                         <Button type="submit" disabled={!canSubmit} className="flex-1">
                             <Check className="size-4" /> {editing ? t('vehicles.save') : t('vehicles.add_maintenance')}
                         </Button>
@@ -200,7 +201,7 @@ export default function MaintenanceForm({ vehicle, schedule, templates }: Props)
                                 <Trash2 className="size-4" /> {t('vehicles.delete')}
                             </Button>
                         )}
-                    </div>
+                    </FormActions>
                 </form>
             </div>
         </AppLayout>
