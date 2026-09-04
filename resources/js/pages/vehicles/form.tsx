@@ -3,6 +3,7 @@ import { ArrowLeft, Trash2 } from 'lucide-react';
 import { type ReactNode } from 'react';
 
 import InputError from '@/components/input-error';
+import { FormActions } from '@/components/form-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -210,7 +211,7 @@ export default function VehicleForm({ vehicle, members, fuelTypes, transmissions
                         />
                     </Field>
 
-                    <div className="flex items-center gap-3">
+                    <FormActions>
                         <Button type="submit" disabled={processing || !data.make.trim() || !data.model.trim()} className="flex-1">
                             {editing ? t('vehicles.save') : t('vehicles.add_vehicle')}
                         </Button>
@@ -219,7 +220,7 @@ export default function VehicleForm({ vehicle, members, fuelTypes, transmissions
                                 <Trash2 className="size-4" /> {t('vehicles.delete')}
                             </Button>
                         )}
-                    </div>
+                    </FormActions>
                 </form>
             </div>
         </AppLayout>
