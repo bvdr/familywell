@@ -16,6 +16,7 @@ type Props = {
     items: InvItem[];
     categories: InvCategory[];
     locations: InvLocation[];
+    shops: string[];
     statuses: InvState[];
 };
 
@@ -25,7 +26,7 @@ function initialParam(name: string): string {
     return new URLSearchParams(window.location.search).get(name) ?? 'all';
 }
 
-export default function InventoryItems({ items, categories, locations, statuses }: Props) {
+export default function InventoryItems({ items, categories, locations, shops, statuses }: Props) {
     const t = useT();
     const catMap = byKey(categories);
     const locMap = byKey(locations);
@@ -139,6 +140,7 @@ export default function InventoryItems({ items, categories, locations, statuses 
                 onOpenChange={setAdding}
                 categories={categories}
                 locations={locations}
+                shops={shops}
                 names={items.map((i) => i.name)}
             />
         </AppLayout>

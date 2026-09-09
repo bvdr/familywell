@@ -171,5 +171,10 @@
     "notify_expired": "Expirat",
     "notify_stale": "Neverificat de mult timp",
     "notify_footnote": "Dezactivarea uneia oprește acea alertă pentru toți. Fiecare persoană poate opri și notificările push de inventar din propriile setări de Notificări.",
-    "taxonomy_settings": "Categorii și locații"
+    "taxonomy_settings": "Categorii și locații",
+    "shop_label": "Magazin",
+    "pick_shop": "Alege un magazin",
+    "replenishment_list": "Lista de cumpărături",
+    "replenishment_list_hint": "Produsele pe terminate sunt adăugate pe această listă dedicată.",
+    "replenishment_list_none": "Se creează la prima folosire"
 }

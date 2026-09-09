@@ -14,6 +14,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Shopping\ShoppingShop;
 use Modules\Spending\IconLibrary;
 
 /**
@@ -74,6 +75,7 @@ class InventoryController extends Controller
             'categoryCounts' => $catCounts,
             // Existing item names, for the Add-item modal's autocomplete (cheap: names only).
             'itemNames' => $items->pluck('name')->unique()->values(),
+            'shops' => $this->shopNames(),                       // for the Add-item modal's shop picker
         ]);
     }
 
@@ -87,6 +89,7 @@ class InventoryController extends Controller
             'items' => $items,
             'categories' => InventoryCategory::payloadFor(),
             'locations' => InventoryLocation::payloadFor(),
+            'shops' => $this->shopNames(),
             'statuses' => InventoryItem::STATES,
         ]);
     }
@@ -115,6 +118,7 @@ class InventoryController extends Controller
             'item' => $item->toPayload(),
             'categories' => InventoryCategory::payloadFor(),
             'locations' => InventoryLocation::payloadFor(),
+            'shops' => $this->shopNames(),
             'history' => $history,
         ]);
     }
@@ -214,13 +218,16 @@ class InventoryController extends Controller
      * notification policy, plus links to manage categories/locations. Readable by every member; the
      * write endpoint is admin-only, so `canManage` gates the controls in the UI (server enforces it too).
      */
-    public function settings(Request $request): Response
+    public function settings(Request $request, InventoryReplenishment $replenish): Response
     {
         $family = Family::findOrFail(CurrentFamily::id());
 
         return Inertia::render('inventory/settings', [
             'settings' => InventorySetting::current()->toPayload(),
             'unitSystems' => InventorySetting::UNIT_SYSTEMS,
+            // The dedicated replenishment list, for a deep-link — null until the first item is surfaced
+            // (it is created lazily by the loop, never by opening Settings).
+            'replenishmentList' => ($l = $replenish->existingList()) ? ['id' => $l->id, 'name' => $l->name] : null,
             'canManage' => $request->user()->can('manageMembers', $family),
         ]);
     }
@@ -345,6 +352,7 @@ class InventoryController extends Controller
             'unit' => $data['unit'],
             'category' => $this->resolveCategory($data['category'] ?? null),
             'location' => $this->resolveLocation($data['location'] ?? null),
+            'shop' => $this->resolveShop($data['shop'] ?? null),
             'min_quantity' => $data['min_quantity'] ?? 0,
             'target_quantity' => $data['target_quantity'] ?? null,
             'expires_at' => $data['expires_at'] ?? null,
@@ -374,6 +382,7 @@ class InventoryController extends Controller
             'unit' => $data['unit'],
             'category' => $this->resolveCategory($data['category'] ?? null),
             'location' => $this->resolveLocation($data['location'] ?? null),
+            'shop' => $this->resolveShop($data['shop'] ?? null),
             'min_quantity' => $data['min_quantity'] ?? 0,
             'target_quantity' => $data['target_quantity'] ?? null,
             'expires_at' => $data['expires_at'] ?? null,
@@ -650,12 +659,29 @@ class InventoryController extends Controller
             'unit' => ['required', Rule::in(InventoryItem::UNITS)],
             'category' => ['nullable', 'string', 'max:60'],
             'location' => ['nullable', 'string', 'max:60'],
+            'shop' => ['nullable', 'string', 'max:255'],             // a shop NAME, as Shopping stores it
             'min_quantity' => ['nullable', 'numeric', 'min:0'],
             'target_quantity' => ['nullable', 'numeric', 'min:0'],
             'expires_at' => ['nullable', 'date'],
             'auto_replenish' => ['boolean'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
+    }
+
+    /**
+     * Normalise the chosen shop: a trimmed shop NAME (never a key — Shopping links items to shops by
+     * name), or null for none. Also makes sure a ShoppingShop row exists for it, exactly as Shopping does
+     * when a store is typed on an item, so a shop first named here already shows in the Shops view.
+     */
+    private function resolveShop(?string $value): ?string
+    {
+        return ShoppingShop::ensure($value)?->name;
+    }
+
+    /** The family's shop names, for the item form's shop picker (same source as Shopping's own picker). */
+    private function shopNames(): array
+    {
+        return ShoppingShop::orderBy('name')->pluck('name')->all();
     }
 
     /**

@@ -14,6 +14,7 @@ use Modules\Inventory\InventorySetting;
 use Modules\Notifications\PushAlert;
 use Modules\Shopping\ShoppingItem;
 use Modules\Shopping\ShoppingList;
+use Modules\Shopping\ShoppingShop;
 
 use function Pest\Laravel\actingAs;
 
@@ -808,6 +809,97 @@ it('scopes the loop to the acting family', function () {
     actingAs($userB)->patch("/m/shopping/items/{$shopA->id}")->assertNotFound();
     expect($itemA->fresh()->quantity)->toEqual(1.0)          // untouched
         ->and($itemA->fresh()->shopping_item_id)->toBe($shopA->id);
+});
+
+// The dedicated "Inventory" shopping list + per-item shop (Inventory -> Shopping targeting).
+
+it('surfaces items onto one dedicated Inventory list and reuses it every time', function () {
+    [$family, $users] = inventoryFamily();
+    enableShopping($family);
+    // The acting user's own latest list must NOT be the target any more.
+    $mine = ShoppingList::create(['name' => 'Weekend', 'created_by' => $users[0]->id]);
+    $milk = makeItem(['name' => 'Milk', 'quantity' => 1, 'min_quantity' => 2]);
+    $eggs = makeItem(['name' => 'Eggs', 'quantity' => 0, 'min_quantity' => 6]);
+
+    actingAs($users[0])->post("/m/inventory/items/{$milk->id}/shopping")->assertRedirect();
+    actingAs($users[0])->post("/m/inventory/items/{$eggs->id}/shopping")->assertRedirect();
+
+    $lists = ShoppingList::withoutGlobalScopes()->where('name', 'Inventory')->get();
+    expect($lists)->toHaveCount(1);
+    $list = $lists->first();
+    expect(ShoppingItem::withoutGlobalScopes()->where('shopping_list_id', $list->id)->count())->toBe(2)
+        ->and($mine->items()->count())->toBe(0)
+        ->and(InventorySetting::current()->shopping_list_id)->toBe($list->id)
+        ->and($list->visibility())->toBe('family');
+
+    // Even with the remembered pointer gone, the live list is adopted by name — never duplicated.
+    InventorySetting::current()->forceFill(['shopping_list_id' => null])->save();
+    $rice = makeItem(['name' => 'Rice', 'quantity' => 1, 'min_quantity' => 3]);
+    actingAs($users[0])->post("/m/inventory/items/{$rice->id}/shopping")->assertRedirect();
+    expect(ShoppingList::withoutGlobalScopes()->where('name', 'Inventory')->count())->toBe(1)
+        ->and(InventorySetting::current()->shopping_list_id)->toBe($list->id);
+
+    // Archiving it makes the next add mint a fresh live one (the archived list is left alone).
+    $list->update(['archived_at' => now()]);
+    $soap = makeItem(['name' => 'Soap', 'quantity' => 0, 'min_quantity' => 1]);
+    actingAs($users[0])->post("/m/inventory/items/{$soap->id}/shopping")->assertRedirect();
+    expect(ShoppingList::withoutGlobalScopes()->where('name', 'Inventory')->whereNull('archived_at')->count())->toBe(1)
+        ->and(InventorySetting::current()->shopping_list_id)->not->toBe($list->id);
+});
+
+it('carries the item shop onto the shopping row and leaves it empty when none is chosen', function () {
+    [$family, $users] = inventoryFamily();
+    enableShopping($family);
+    $milk = makeItem(['name' => 'Milk', 'quantity' => 1, 'min_quantity' => 2, 'shop' => 'Lidl']);
+    $eggs = makeItem(['name' => 'Eggs', 'quantity' => 0, 'min_quantity' => 6]);
+
+    actingAs($users[0])->post('/m/inventory/shopping/add-low')->assertRedirect();
+
+    $rows = ShoppingItem::withoutGlobalScopes()->get()->keyBy('name');
+    expect($rows['Milk']->store)->toBe('Lidl')
+        ->and($rows['Eggs']->store)->toBeNull()
+        ->and($rows['Milk']->shopping_list_id)->toBe($rows['Eggs']->shopping_list_id)
+        ->and(ShoppingShop::withoutGlobalScopes()->where('name', 'Lidl')->exists())->toBeTrue(); // Shops view stays complete
+    expect($milk->fresh()->shopping_item_id)->toBe($rows['Milk']->id);
+
+    // Buying the shopped row still closes the loop (reverse half unchanged).
+    actingAs($users[0])->patch("/m/shopping/items/{$rows['Milk']->id}")->assertRedirect();
+    expect($milk->fresh()->quantity)->toEqual(4.0)->and($milk->fresh()->shopping_item_id)->toBeNull();
+});
+
+it('stores a chosen shop on create and edit and ensures the shop row exists', function () {
+    [$family, $users] = inventoryFamily();
+    enableShopping($family);
+
+    actingAs($users[0])->post('/m/inventory/items', ['name' => 'Butter', 'unit' => 'g', 'quantity' => 200, 'shop' => ' Kaufland '])->assertRedirect();
+    $item = InventoryItem::first();
+    expect($item->shop)->toBe('Kaufland')
+        ->and(ShoppingShop::where('name', 'Kaufland')->exists())->toBeTrue();
+
+    actingAs($users[0])->patch("/m/inventory/items/{$item->id}", ['name' => 'Butter', 'unit' => 'g', 'quantity' => 200, 'shop' => null])->assertRedirect();
+    expect($item->fresh()->shop)->toBeNull();
+
+    actingAs($users[0])->get('/m/inventory/items')->assertOk()->assertInertia(
+        fn ($p) => $p->component('inventory/items')->where('shops', ['Kaufland'])->where('items.0.shop', null)->etc()
+    );
+});
+
+it('gives each family its own dedicated Inventory list', function () {
+    [$familyA, $usersA] = inventoryFamily();
+    enableShopping($familyA);
+    $a = makeItem(['name' => 'Milk', 'quantity' => 0, 'min_quantity' => 2]);
+    actingAs($usersA[0])->post("/m/inventory/items/{$a->id}/shopping")->assertRedirect();
+
+    [$familyB, $usersB] = inventoryFamily();
+    enableShopping($familyB);
+    $b = makeItem(['name' => 'Milk', 'quantity' => 0, 'min_quantity' => 2]);
+    actingAs($usersB[0])->post("/m/inventory/items/{$b->id}/shopping")->assertRedirect();
+
+    $lists = ShoppingList::withoutGlobalScopes()->where('name', 'Inventory')->get();
+    expect($lists)->toHaveCount(2)
+        ->and($lists->pluck('family_id')->sort()->values()->all())->toBe([$familyA->id, $familyB->id])
+        ->and(InventorySetting::withoutGlobalScopes()->where('family_id', $familyA->id)->value('shopping_list_id'))->toBe($lists->firstWhere('family_id', $familyA->id)->id)
+        ->and(InventorySetting::withoutGlobalScopes()->where('family_id', $familyB->id)->value('shopping_list_id'))->toBe($lists->firstWhere('family_id', $familyB->id)->id);
 });
 
 // ---------------------------------------------------------------------------------------------------

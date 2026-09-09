@@ -24,9 +24,10 @@ type Props = {
     locations: InvLocation[];
     categoryCounts: CatCounts;
     itemNames: string[];
+    shops: string[];
 };
 
-export default function InventoryOverview({ summary, attention, recent, categories, locations, categoryCounts, itemNames }: Props) {
+export default function InventoryOverview({ summary, attention, recent, categories, locations, categoryCounts, itemNames, shops }: Props) {
     const t = useT();
     const catMap = byKey(categories);
     const breadcrumbs: BreadcrumbItem[] = [{ title: t('inventory.title'), href: '/m/inventory' }];
@@ -188,7 +189,7 @@ export default function InventoryOverview({ summary, attention, recent, categori
                 )}
             </div>
 
-            <ItemFormModal open={adding} onOpenChange={setAdding} categories={categories} locations={locations} names={itemNames} />
+            <ItemFormModal open={adding} onOpenChange={setAdding} categories={categories} locations={locations} shops={shops} names={itemNames} />
         </AppLayout>
     );
 }

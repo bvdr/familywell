@@ -171,5 +171,10 @@
     "notify_expired": "Expired",
     "notify_stale": "Not checked in a while",
     "notify_footnote": "Turning one off stops that alert for everyone. Each person can also mute inventory push on their own Notifications settings.",
-    "taxonomy_settings": "Categories & locations"
+    "taxonomy_settings": "Categories & locations",
+    "shop_label": "Shop",
+    "pick_shop": "Pick a shop",
+    "replenishment_list": "Shopping list",
+    "replenishment_list_hint": "Short items are added to this dedicated list.",
+    "replenishment_list_none": "Created on first use"
 }
