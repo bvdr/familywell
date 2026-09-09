@@ -15,7 +15,7 @@ use Modules\Shopping\ShoppingShop;
  * The Inventory <-> Shopping core loop, in one place so the controller endpoints and the
  * `shopping.item.bought` hook listener share exactly the same rules.
  *
- * Inventory -> Shopping: a short item is surfaced as a shopping row on the family's dedicated "Inventory"
+ * Inventory -> Shopping: a short item is surfaced as a shopping row on the family's dedicated "Replenish"
  * shopping list (see list()), carrying the item's chosen shop as the row's store, and the
  * inventory item keeps a pointer to that open row (shopping_item_id). That pointer is the whole idempotency
  * story — while it is set the item already has a live shopping row, so we never create a second.
@@ -36,10 +36,13 @@ class InventoryReplenishment
     // The name of the family's dedicated replenishment list. A plain constant (not translated): list
     // names are stored verbatim by Shopping and the family can rename the list freely — the pointer in
     // inventory_settings keeps following it, the name is only the fallback for resolving/creating it.
-    public const LIST_NAME = 'Inventory';
+    // Named "Replenish" (was "Inventory" until 2026-09-09 — the rename migration
+    // 2026_09_09_120000 moved existing tracked lists over): "Inventory" read like the module, not like
+    // a list you shop from.
+    public const LIST_NAME = 'Replenish';
 
     /**
-     * The family's dedicated "Inventory" shopping list — resolved, or created on first use, and
+     * The family's dedicated "Replenish" shopping list — resolved, or created on first use, and
      * remembered in inventory_settings.shopping_list_id so every replenishment lands on the same list.
      * Resolution order: the remembered list if it still exists and isn't archived; else a live list by
      * the default name (so a list the family already made by hand is adopted rather than duplicated);
@@ -79,7 +82,7 @@ class InventoryReplenishment
     }
 
     /**
-     * Surface one inventory item onto the family's dedicated Inventory shopping list, idempotently. Returns the
+     * Surface one inventory item onto the family's dedicated Replenish shopping list, idempotently. Returns the
      * shopping item (existing or freshly created), or null if the item can't currently be added.
      */
     public function addToShopping(InventoryItem $item, User $user): ?ShoppingItem
