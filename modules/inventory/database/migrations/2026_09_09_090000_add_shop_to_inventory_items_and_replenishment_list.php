@@ -11,7 +11,8 @@ use Illuminate\Support\Facades\Schema;
 //     it). When the item is surfaced onto Shopping the created row carries this as its store, so the
 //     item lands under the right shop in the Shops view. Nullable: no shop chosen => plain line.
 //
-//  2. inventory_settings.shopping_list_id — the family's dedicated "Inventory" shopping list that
+//  2. inventory_settings.shopping_list_id — the family's dedicated replenishment shopping list (named "Replenish" since
+//     2026_09_09_120000; "Inventory" before) that
 //     replenishment adds to (instead of whichever list happened to be the acting user's latest). A
 //     PLAIN id, not a DB foreign key, for the same reason as inventory_items.shopping_item_id: the two
 //     modules' schemas must stay independent (inventory migrates before shopping on a fresh install),

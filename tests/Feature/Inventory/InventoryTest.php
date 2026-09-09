@@ -10,6 +10,7 @@ use Modules\Inventory\InventoryCategory;
 use Modules\Inventory\InventoryItem;
 use Modules\Inventory\InventoryLocation;
 use Modules\Inventory\InventoryLog;
+use Modules\Inventory\InventoryReplenishment;
 use Modules\Inventory\InventorySetting;
 use Modules\Notifications\PushAlert;
 use Modules\Shopping\ShoppingItem;
@@ -811,9 +812,9 @@ it('scopes the loop to the acting family', function () {
         ->and($itemA->fresh()->shopping_item_id)->toBe($shopA->id);
 });
 
-// The dedicated "Inventory" shopping list + per-item shop (Inventory -> Shopping targeting).
+// The dedicated "Replenish" shopping list + per-item shop (Inventory -> Shopping targeting).
 
-it('surfaces items onto one dedicated Inventory list and reuses it every time', function () {
+it('surfaces items onto one dedicated Replenish list and reuses it every time', function () {
     [$family, $users] = inventoryFamily();
     enableShopping($family);
     // The acting user's own latest list must NOT be the target any more.
@@ -824,7 +825,7 @@ it('surfaces items onto one dedicated Inventory list and reuses it every time', 
     actingAs($users[0])->post("/m/inventory/items/{$milk->id}/shopping")->assertRedirect();
     actingAs($users[0])->post("/m/inventory/items/{$eggs->id}/shopping")->assertRedirect();
 
-    $lists = ShoppingList::withoutGlobalScopes()->where('name', 'Inventory')->get();
+    $lists = ShoppingList::withoutGlobalScopes()->where('name', 'Replenish')->get();
     expect($lists)->toHaveCount(1);
     $list = $lists->first();
     expect(ShoppingItem::withoutGlobalScopes()->where('shopping_list_id', $list->id)->count())->toBe(2)
@@ -836,14 +837,14 @@ it('surfaces items onto one dedicated Inventory list and reuses it every time', 
     InventorySetting::current()->forceFill(['shopping_list_id' => null])->save();
     $rice = makeItem(['name' => 'Rice', 'quantity' => 1, 'min_quantity' => 3]);
     actingAs($users[0])->post("/m/inventory/items/{$rice->id}/shopping")->assertRedirect();
-    expect(ShoppingList::withoutGlobalScopes()->where('name', 'Inventory')->count())->toBe(1)
+    expect(ShoppingList::withoutGlobalScopes()->where('name', 'Replenish')->count())->toBe(1)
         ->and(InventorySetting::current()->shopping_list_id)->toBe($list->id);
 
     // Archiving it makes the next add mint a fresh live one (the archived list is left alone).
     $list->update(['archived_at' => now()]);
     $soap = makeItem(['name' => 'Soap', 'quantity' => 0, 'min_quantity' => 1]);
     actingAs($users[0])->post("/m/inventory/items/{$soap->id}/shopping")->assertRedirect();
-    expect(ShoppingList::withoutGlobalScopes()->where('name', 'Inventory')->whereNull('archived_at')->count())->toBe(1)
+    expect(ShoppingList::withoutGlobalScopes()->where('name', 'Replenish')->whereNull('archived_at')->count())->toBe(1)
         ->and(InventorySetting::current()->shopping_list_id)->not->toBe($list->id);
 });
 
@@ -884,7 +885,7 @@ it('stores a chosen shop on create and edit and ensures the shop row exists', fu
     );
 });
 
-it('gives each family its own dedicated Inventory list', function () {
+it('gives each family its own dedicated Replenish list', function () {
     [$familyA, $usersA] = inventoryFamily();
     enableShopping($familyA);
     $a = makeItem(['name' => 'Milk', 'quantity' => 0, 'min_quantity' => 2]);
@@ -895,11 +896,80 @@ it('gives each family its own dedicated Inventory list', function () {
     $b = makeItem(['name' => 'Milk', 'quantity' => 0, 'min_quantity' => 2]);
     actingAs($usersB[0])->post("/m/inventory/items/{$b->id}/shopping")->assertRedirect();
 
-    $lists = ShoppingList::withoutGlobalScopes()->where('name', 'Inventory')->get();
+    $lists = ShoppingList::withoutGlobalScopes()->where('name', 'Replenish')->get();
     expect($lists)->toHaveCount(2)
         ->and($lists->pluck('family_id')->sort()->values()->all())->toBe([$familyA->id, $familyB->id])
         ->and(InventorySetting::withoutGlobalScopes()->where('family_id', $familyA->id)->value('shopping_list_id'))->toBe($lists->firstWhere('family_id', $familyA->id)->id)
         ->and(InventorySetting::withoutGlobalScopes()->where('family_id', $familyB->id)->value('shopping_list_id'))->toBe($lists->firstWhere('family_id', $familyB->id)->id);
+});
+
+// Rename "Inventory" -> "Replenish" (2026-09-09): the constant, fresh families, and the data migration.
+
+it('names the dedicated list Replenish and mints it under that name for a fresh family', function () {
+    expect(InventoryReplenishment::LIST_NAME)->toBe('Replenish');
+
+    [$family, $users] = inventoryFamily();
+    enableShopping($family);
+    $milk = makeItem(['name' => 'Milk', 'quantity' => 0, 'min_quantity' => 2]);
+    actingAs($users[0])->post("/m/inventory/items/{$milk->id}/shopping")->assertRedirect();
+
+    expect(ShoppingList::withoutGlobalScopes()->pluck('name')->all())->toBe(['Replenish']);
+});
+
+it('migrates an existing tracked Inventory list to Replenish without duplicating it', function () {
+    [$family, $users] = inventoryFamily();
+    enableShopping($family);
+    // A family from before the rename: a tracked "Inventory" list plus a hand-made list that also happens
+    // to be called "Inventory" (must NOT be touched).
+    $tracked = ShoppingList::create(['name' => 'Inventory', 'created_by' => $users[0]->id]);
+    $decoy = ShoppingList::create(['name' => 'Inventory', 'created_by' => $users[0]->id]);
+    InventorySetting::current()->forceFill(['shopping_list_id' => $tracked->id])->save();
+
+    $migration = require base_path('modules/inventory/database/migrations/2026_09_09_120000_rename_inventory_replenishment_list_to_replenish.php');
+    $migration->up();
+    $migration->up(); // idempotent: the second run changes nothing
+
+    expect($tracked->fresh()->name)->toBe('Replenish')
+        ->and($decoy->fresh()->name)->toBe('Inventory')
+        ->and(InventorySetting::current()->shopping_list_id)->toBe($tracked->id)
+        ->and(app(InventoryReplenishment::class)->existingList()?->id)->toBe($tracked->id); // resolution still finds it
+
+    // And replenishing after the migration lands on the renamed list — no second "Replenish".
+    $milk = makeItem(['name' => 'Milk', 'quantity' => 0, 'min_quantity' => 2]);
+    actingAs($users[0])->post("/m/inventory/items/{$milk->id}/shopping")->assertRedirect();
+    expect(ShoppingList::withoutGlobalScopes()->where('name', 'Replenish')->count())->toBe(1)
+        ->and($milk->fresh()->shopping_item_id)->not->toBeNull()
+        ->and(ShoppingItem::withoutGlobalScopes()->find($milk->fresh()->shopping_item_id)->shopping_list_id)->toBe($tracked->id);
+});
+
+it('migrates a name-fallback Inventory list only when it is unambiguous', function () {
+    // Family A: settings row, no pointer, exactly one live "Inventory" list -> renamed and now tracked.
+    [$familyA, $usersA] = inventoryFamily();
+    enableShopping($familyA);
+    InventorySetting::current();
+    $a = ShoppingList::create(['name' => 'Inventory', 'created_by' => $usersA[0]->id]);
+
+    // Family B: settings row, no pointer, two "Inventory" lists -> ambiguous, left alone.
+    [$familyB, $usersB] = inventoryFamily();
+    enableShopping($familyB);
+    InventorySetting::current();
+    $b1 = ShoppingList::create(['name' => 'Inventory', 'created_by' => $usersB[0]->id]);
+    $b2 = ShoppingList::create(['name' => 'Inventory', 'created_by' => $usersB[0]->id]);
+
+    // Family C: an "Inventory" list but no inventory settings at all -> not the inventory list, left alone.
+    [$familyC, $usersC] = inventoryFamily();
+    enableShopping($familyC);
+    $c = ShoppingList::create(['name' => 'Inventory', 'created_by' => $usersC[0]->id]);
+
+    $migration = require base_path('modules/inventory/database/migrations/2026_09_09_120000_rename_inventory_replenishment_list_to_replenish.php');
+    $migration->up();
+
+    expect($a->fresh()->name)->toBe('Replenish')
+        ->and(InventorySetting::withoutGlobalScopes()->where('family_id', $familyA->id)->value('shopping_list_id'))->toBe($a->id)
+        ->and($b1->fresh()->name)->toBe('Inventory')
+        ->and($b2->fresh()->name)->toBe('Inventory')
+        ->and(InventorySetting::withoutGlobalScopes()->where('family_id', $familyB->id)->value('shopping_list_id'))->toBeNull()
+        ->and($c->fresh()->name)->toBe('Inventory');
 });
 
 // ---------------------------------------------------------------------------------------------------
