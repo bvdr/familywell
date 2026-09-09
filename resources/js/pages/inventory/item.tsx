@@ -12,9 +12,9 @@ import { relativeTime } from '@/lib/notifications';
 import type { BreadcrumbItem } from '@/types';
 
 type HistoryEntry = { id: number; type: string; delta: number | null; user: string | null; at: string | null };
-type Props = { item: InvItem; categories: InvCategory[]; locations: InvLocation[]; history: HistoryEntry[] };
+type Props = { item: InvItem; categories: InvCategory[]; locations: InvLocation[]; shops: string[]; history: HistoryEntry[] };
 
-export default function InventoryItem({ item, categories, locations, history }: Props) {
+export default function InventoryItem({ item, categories, locations, shops, history }: Props) {
     const t = useT();
     const catMap = byKey(categories);
     const locMap = byKey(locations);
@@ -157,7 +157,7 @@ export default function InventoryItem({ item, categories, locations, history }: 
                 onOptimistic={(nextQty) => qtyOpt.set(item.id, nextQty)}
                 onReconcile={() => qtyOpt.clear(item.id)}
             />
-            <ItemFormModal open={editing} onOpenChange={setEditing} item={item} categories={categories} locations={locations} names={[item.name]} />
+            <ItemFormModal open={editing} onOpenChange={setEditing} item={item} categories={categories} locations={locations} shops={shops} names={[item.name]} />
         </AppLayout>
     );
 }

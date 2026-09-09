@@ -24,7 +24,7 @@ class InventorySetting extends Model
 
     protected $fillable = [
         'unit_system',
-        'auto_add_low', 'auto_add_empty',
+        'auto_add_low', 'auto_add_empty', 'shopping_list_id',
         'notify_low', 'notify_empty', 'notify_expired', 'notify_stale',
         'family_id',
     ];

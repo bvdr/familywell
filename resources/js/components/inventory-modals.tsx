@@ -1,5 +1,5 @@
 import { router, useForm } from '@inertiajs/react';
-import { MapPin, Minus, Package, Plus, Trash2 } from 'lucide-react';
+import { MapPin, Minus, Package, Plus, Store, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import InputError from '@/components/input-error';
@@ -49,6 +49,7 @@ type ItemFields = {
     unit: string;
     category: string;
     location: string;
+    shop: string; // shop NAME (as Shopping stores it); '' => none
     min_quantity: string;
     target_quantity: string;
     expires_at: string;
@@ -63,6 +64,7 @@ function initialFields(item?: InvItem | null): ItemFields {
         unit: item?.unit ?? 'pieces',
         category: item?.category ?? '',
         location: item?.location ?? '',
+        shop: item?.shop ?? '',
         min_quantity: item?.minQuantity ? fmtNumber(item.minQuantity) : '',
         target_quantity: item?.targetQuantity ? fmtNumber(item.targetQuantity) : '',
         expires_at: item?.expiresAt ?? '',
@@ -82,6 +84,7 @@ export function ItemFormModal({
     item,
     categories,
     locations,
+    shops = [],
     names = [],
 }: {
     open: boolean;
@@ -89,6 +92,7 @@ export function ItemFormModal({
     item?: InvItem | null;
     categories: InvCategory[];
     locations: InvLocation[];
+    shops?: string[]; // the family's shop names (Shopping's ShoppingShop rows), for the shop picker
     names?: string[]; // existing item names, for the name autocomplete
 }) {
     const t = useT();
@@ -97,6 +101,7 @@ export function ItemFormModal({
     const locMap = byKey(locations);
     const nameRef = useRef<HTMLInputElement>(null);
     const [confirmDelete, setConfirmDelete] = useState(false);
+    const [extraShops, setExtraShops] = useState<string[]>([]); // shops typed in this session (same as Shopping's item sheet)
 
     const { data, setData, post, patch, processing, errors, reset, transform } = useForm<ItemFields>(initialFields(item));
 
@@ -122,6 +127,7 @@ export function ItemFormModal({
             target_quantity: d.target_quantity === '' ? null : num(d.target_quantity),
             category: d.category || null,
             location: d.location || null,
+            shop: d.shop || null,
             expires_at: d.expires_at || null,
             notes: d.notes.trim() || null,
         }));
@@ -244,6 +250,23 @@ export function ItemFormModal({
                         onChange={(next) => setData('location', next[0] ?? '')}
                         onCreate={(name) => setData('location', name)}
                     />
+                </div>
+
+                {/* Shop: where the family buys this. Pick one of Shopping's shops or type a new name; the
+                    shopping row created when the item runs low carries it as its store, so it files under
+                    that shop in the Shops view. Optional. */}
+                <div className="grid gap-1.5">
+                    <FieldLabel>{t('inventory.shop_label')}</FieldLabel>
+                    <Picker
+                        searchable
+                        fallbackIcon={Store}
+                        placeholder={t('inventory.pick_shop')}
+                        options={[...new Set([...shops, ...extraShops, data.shop].filter(Boolean))].map((s) => ({ value: s, label: s }))}
+                        selected={data.shop ? [data.shop] : []}
+                        onChange={(next) => setData('shop', next[0] ?? '')}
+                        onCreate={(name) => setExtraShops((prev) => [...new Set([...prev, name])])}
+                    />
+                    <InputError message={errors.shop} />
                 </div>
 
                 {/* Minimum + target. Minimum drives the low state (and the Shopping loop); target is the

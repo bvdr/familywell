@@ -9,12 +9,14 @@ use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Support\Collection;
 use Modules\Shopping\ShoppingItem;
 use Modules\Shopping\ShoppingList;
+use Modules\Shopping\ShoppingShop;
 
 /**
  * The Inventory <-> Shopping core loop, in one place so the controller endpoints and the
  * `shopping.item.bought` hook listener share exactly the same rules.
  *
- * Inventory -> Shopping: a short item is surfaced as a shopping row on the family's default list, and the
+ * Inventory -> Shopping: a short item is surfaced as a shopping row on the family's dedicated "Inventory"
+ * shopping list (see list()), carrying the item's chosen shop as the row's store, and the
  * inventory item keeps a pointer to that open row (shopping_item_id). That pointer is the whole idempotency
  * story — while it is set the item already has a live shopping row, so we never create a second.
  *
@@ -31,8 +33,53 @@ use Modules\Shopping\ShoppingList;
  */
 class InventoryReplenishment
 {
+    // The name of the family's dedicated replenishment list. A plain constant (not translated): list
+    // names are stored verbatim by Shopping and the family can rename the list freely — the pointer in
+    // inventory_settings keeps following it, the name is only the fallback for resolving/creating it.
+    public const LIST_NAME = 'Inventory';
+
     /**
-     * Surface one inventory item onto the family's default shopping list, idempotently. Returns the
+     * The family's dedicated "Inventory" shopping list — resolved, or created on first use, and
+     * remembered in inventory_settings.shopping_list_id so every replenishment lands on the same list.
+     * Resolution order: the remembered list if it still exists and isn't archived; else a live list by
+     * the default name (so a list the family already made by hand is adopted rather than duplicated);
+     * else a fresh family-visible list. Never creates a second one while a live one exists.
+     */
+    public function list(User $user): ShoppingList
+    {
+        $settings = InventorySetting::current();
+        $list = $this->existingList($settings);
+
+        if (! $list) {
+            // Same shape as ShoppingList::defaultFor: owner share + family visibility, so every member
+            // sees it on the Shopping index (not only the user/actor who happened to trigger the create).
+            $list = ShoppingList::create(['name' => self::LIST_NAME, 'icon' => 'home', 'created_by' => $user->id]);
+            $list->shares()->firstOrCreate(['user_id' => $user->id], ['role' => 'owner']);
+            $list->setVisibility('family');
+        }
+
+        if ($settings->shopping_list_id !== $list->id) {
+            $settings->forceFill(['shopping_list_id' => $list->id])->save(); // remember it (also heals a stale pointer)
+        }
+
+        return $list;
+    }
+
+    /**
+     * The dedicated list if one is already live (remembered pointer, else by name), without creating
+     * anything — for read-only screens (Settings) that only want to link to it.
+     */
+    public function existingList(?InventorySetting $settings = null): ?ShoppingList
+    {
+        $settings ??= InventorySetting::current();
+
+        $list = $settings->shopping_list_id ? ShoppingList::whereNull('archived_at')->find($settings->shopping_list_id) : null;
+
+        return $list ?? ShoppingList::whereNull('archived_at')->where('name', self::LIST_NAME)->orderBy('id')->first();
+    }
+
+    /**
+     * Surface one inventory item onto the family's dedicated Inventory shopping list, idempotently. Returns the
      * shopping item (existing or freshly created), or null if the item can't currently be added.
      */
     public function addToShopping(InventoryItem $item, User $user): ?ShoppingItem
@@ -49,12 +96,18 @@ class InventoryReplenishment
             $item->forceFill(['shopping_item_id' => null])->save();
         }
 
-        $list = ShoppingList::defaultFor($user);
+        $list = $this->list($user);
+
+        // The row's store is the item's chosen shop (or none), so it files under that shop in the Shops
+        // view. ensure() keeps a ShoppingShop row for the name, exactly as Shopping does when a store is
+        // typed on an item — the Shops list stays complete even if the shop was only ever named here.
+        ShoppingShop::ensure($item->shop);
 
         $shoppingItem = $list->items()->create([
             'name' => $item->name,
             'quantity' => $this->quantityLabel($item), // e.g. "to 500 g" — informs how much to buy
             'note' => 'From inventory',                // the Shopping module renders this verbatim (see note below)
+            'store' => $item->shop ?: null,
             'created_by' => $user->id,
         ]);
 

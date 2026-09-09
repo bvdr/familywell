@@ -21,7 +21,7 @@ class InventoryItem extends Model
     protected $table = 'inventory_items';
 
     protected $fillable = [
-        'name', 'quantity', 'unit', 'category', 'location', 'min_quantity',
+        'name', 'quantity', 'unit', 'category', 'location', 'shop', 'min_quantity',
         'target_quantity', 'expires_at', 'auto_replenish', 'shopping_item_id', 'notes', 'created_by', 'family_id',
     ];
 
@@ -216,6 +216,7 @@ class InventoryItem extends Model
             'unit' => $this->unit,
             'category' => $this->category,         // category key
             'location' => $this->location,         // location key
+            'shop' => $this->shop,                 // shop NAME (matches shopping_items.store), or null
             'minQuantity' => $this->min_quantity,
             'targetQuantity' => $this->target_quantity,
             'expiresAt' => optional($this->expires_at)->toDateString(),

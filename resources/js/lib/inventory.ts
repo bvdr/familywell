@@ -14,6 +14,7 @@ export type InvItem = {
     unit: string;
     category: string | null;
     location: string | null;
+    shop: string | null; // shop NAME (as Shopping stores it), or null for none
     minQuantity: number;
     targetQuantity: number | null;
     expiresAt: string | null;

@@ -21,10 +21,11 @@ type Settings = {
 type Props = {
     settings: Settings;
     unitSystems: string[];
+    replenishmentList: { id: number; name: string } | null; // the dedicated Shopping list replenishment adds to (null until first use)
     canManage: boolean; // family admin? gates every write on this screen (server enforces it too)
 };
 
-export default function InventorySettings({ settings, unitSystems, canManage }: Props) {
+export default function InventorySettings({ settings, unitSystems, replenishmentList, canManage }: Props) {
     const t = useT();
     const breadcrumbs: BreadcrumbItem[] = [
         { title: t('inventory.title'), href: '/m/inventory' },
@@ -98,6 +99,20 @@ export default function InventorySettings({ settings, unitSystems, canManage }: 
                     <div className="mb-2">
                         <h2 className="font-heading text-primary text-lg">{t('inventory.replenishment_settings')}</h2>
                         <p className="text-muted-foreground text-sm">{t('inventory.replenishment_settings_desc')}</p>
+                    </div>
+                    {/* Where surfaced items land: the family's dedicated list (created on first use). */}
+                    <div className="border-border/60 flex items-center justify-between gap-3 border-b py-3">
+                        <div className="min-w-0">
+                            <div className="text-primary text-sm font-medium">{t('inventory.replenishment_list')}</div>
+                            <div className="text-muted-foreground text-xs">{t('inventory.replenishment_list_hint')}</div>
+                        </div>
+                        {replenishmentList ? (
+                            <Link href={`/m/shopping/lists/${replenishmentList.id}`} className="text-primary shrink-0 text-sm font-medium underline-offset-2 hover:underline">
+                                {replenishmentList.name}
+                            </Link>
+                        ) : (
+                            <span className="text-muted-foreground shrink-0 text-sm">{t('inventory.replenishment_list_none')}</span>
+                        )}
                     </div>
                     <ToggleRow
                         label={t('inventory.auto_add_low')}
