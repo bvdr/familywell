@@ -11,6 +11,7 @@ import { IconPicker } from '@/components/icon-picker';
 import InputError from '@/components/input-error';
 import { LucideIcon } from '@/components/lucide-icon';
 import { MemberAvatar } from '@/components/member-avatar';
+import { Picker } from '@/components/picker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -302,19 +303,20 @@ export default function Events({
                         {/* Which list the expense goes to. Optional: no pick => the family's "Others" list. */}
                         <div className="grid gap-2">
                             <Label>{t('spending.list')}</Label>
-                            <Select value={spend.data.event_id || '__others'} onValueChange={(v) => pickList(v === '__others' ? '' : v)}>
-                                <SelectTrigger className="w-full">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="__others">{t('spending.others_list_hint')}</SelectItem>
-                                    {editable.map((ev) => (
-                                        <SelectItem key={ev.id} value={String(ev.id)}>
-                                            {ev.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            {/* Searchable (families end up with dozens of lists): type to filter. '__others' stands in
+                                for the '' default because the Picker treats an empty selection as "nothing picked".
+                                ponytail: no create-on-the-fly — events.store redirects to the new list's page, which
+                                would drop the half-filled drawer; add when a JSON create endpoint exists. */}
+                            <Picker
+                                searchable
+                                fallbackIcon={Wallet}
+                                options={[
+                                    { value: '__others', label: t('spending.others_list_hint') },
+                                    ...editable.map((ev) => ({ value: String(ev.id), label: ev.name })),
+                                ]}
+                                selected={[spend.data.event_id || '__others']}
+                                onChange={(next) => pickList(next[0] === '__others' ? '' : (next[0] ?? ''))}
+                            />
                             <InputError message={spend.errors.event_id} />
                         </div>
                         <div className="grid grid-cols-2 gap-3">
