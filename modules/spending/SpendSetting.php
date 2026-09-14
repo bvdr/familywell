@@ -6,15 +6,16 @@ use App\Support\Tenancy\BelongsToFamily;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Database\Eloquent\Model;
 
-// Per-family spending-module settings (one row per family). Currently just the default currency, used
-// to pre-select the create-event form and as the analytics default display currency.
+// Per-family spending-module settings (one row per family): the default currency (pre-selects the
+// create-event form, analytics default display currency) and the pointer to the family's "Others" list
+// (where an expense added without choosing a list goes — see SpendEvent::others()).
 class SpendSetting extends Model
 {
     use BelongsToFamily;
 
     protected $table = 'spending_settings';
 
-    protected $fillable = ['default_currency'];
+    protected $fillable = ['default_currency', 'others_event_id'];
 
     /** The family's own settings row, created on demand (defaults blank). */
     public static function current(?int $familyId = null): self

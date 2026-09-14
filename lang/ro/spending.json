@@ -199,5 +199,13 @@
     "delete_category": "Șterge categoria",
     "change_category_icon": "Schimbă pictograma",
     "category_in_use": "Această categorie este folosită și nu poate fi ștearsă.",
-    "peak_month": "luna de vârf"
+    "peak_month": "luna de vârf",
+    "tab_lists": "Liste",
+    "others_list": "Altele",
+    "list": "Listă",
+    "others_list_hint": "Altele (implicit)",
+    "new_list": "Listă nouă",
+    "no_expenses_empty": "Nicio cheltuială încă. Apasă + ca să adaugi prima.",
+    "feed_capped": "Se afișează ultimele :count cheltuieli. Deschide o listă sau Analiza pentru cele mai vechi.",
+    "paid_by_label": "Plătit de"
 }

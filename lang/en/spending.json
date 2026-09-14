@@ -199,5 +199,13 @@
     "delete_category": "Delete category",
     "change_category_icon": "Change icon",
     "category_in_use": "This category is in use and can't be deleted.",
-    "peak_month": "peak month"
+    "peak_month": "peak month",
+    "tab_lists": "Lists",
+    "others_list": "Others",
+    "list": "List",
+    "others_list_hint": "Others (default)",
+    "new_list": "New list",
+    "no_expenses_empty": "No expenses yet. Tap + to add your first one.",
+    "feed_capped": "Showing the :count most recent expenses. Open a list or Analytics for older ones.",
+    "paid_by_label": "Paid by"
 }
