@@ -14,6 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -43,7 +44,30 @@ class SpendingController extends Controller
             // The BelongsToFamily scope already limits to the current family (and the `family`
             // middleware guarantees the user is a member), so any `family`-visibility event is
             // visible; `invited`/`private` ones need an explicit share row.
-            ->filter(fn (SpendEvent $e) => $e->visibility() === 'family' || $e->shares->contains('user_id', $userId))
+            ->filter(fn (SpendEvent $e) => $e->visibility() === 'family' || $e->shares->contains('user_id', $userId));
+
+        // "This month" widget: month-to-date total across the visible, non-archived lists, rolled up into
+        // one display currency exactly like analytics(period=mtd) does (the widget deep-links there, so
+        // the two numbers must agree). Computed server-side over every spend in range — the per-card
+        // totals below are all-time and each in its own display currency, so they cannot be summed.
+        // One grouped SUM query (not one row per spend) + one cached rate per distinct base currency.
+        $eventCcy = $events->whereNull('archived_at')->pluck('currency', 'id');
+        $monthCurrency = $this->displayCurrencyFor($eventCcy);
+        $monthTotal = 0;
+        if ($eventCcy->isNotEmpty()) {
+            $sums = Spend::query()
+                ->whereIn('spend_event_id', $eventCcy->keys())
+                // Same bounds as analyticsPeriod('mtd'): start of month .. end of today (spent_at may carry a time).
+                ->whereBetween('spent_at', [now()->startOfMonth()->toDateString(), now()->endOfDay()->toDateTimeString()])
+                ->groupBy('spend_event_id')
+                ->selectRaw('spend_event_id, SUM(base_amount) AS total')
+                ->pluck('total', 'spend_event_id');
+            foreach ($sums as $eventId => $baseCents) {
+                $monthTotal += (int) round((int) $baseCents * Fx::rate($eventCcy[$eventId], $monthCurrency));
+            }
+        }
+
+        $events = $events
             ->map(function (SpendEvent $e) {
                 // Show the card total in the list's chosen display currency (the header selector on the
                 // detail page), not the frozen base currency. Base amounts stay in $e->currency; we
@@ -74,7 +98,20 @@ class SpendingController extends Controller
             // Pre-select the family's default currency on the create form (falls back to the first
             // supported currency client-side when unset).
             'defaultCurrency' => SpendSetting::defaultCurrency(),
+            // Current-month spend for the top widget (display cents + the currency they are in).
+            'thisMonth' => ['total' => $monthTotal, 'currency' => $monthCurrency],
         ]);
+    }
+
+    /**
+     * Roll-up display currency shared by the overview widget and analytics(): the family's default
+     * currency, else the most common base among the given lists (event id => base currency) so the
+     * default already reads in whatever currency most lists use, else the first supported one.
+     */
+    private function displayCurrencyFor(Collection $eventCcy): string
+    {
+        return SpendSetting::defaultCurrency()
+            ?: ($eventCcy->countBy()->sortDesc()->keys()->first() ?? self::CURRENCIES[0]);
     }
 
     // Module settings screen (reached from the overview header's gear): the family default currency and
@@ -213,13 +250,10 @@ class SpendingController extends Controller
             $activeCategory = null;
         }
 
-        // Display currency: an explicit pick, else the family's default currency, else the most common
-        // base among the visible lists so the default already reads in whatever currency most lists use.
-        $default = SpendSetting::defaultCurrency()
-            ?: ($eventCcy->countBy()->sortDesc()->keys()->first() ?? self::CURRENCIES[0]);
+        // Display currency: an explicit pick, else the shared roll-up default (see displayCurrencyFor).
         $display = $request->query('currency');
         if (! in_array($display, self::CURRENCIES, true)) {
-            $display = $default;
+            $display = $this->displayCurrencyFor($eventCcy);
         }
 
         [$period, $start, $end] = $this->analyticsPeriod($request, $eventCcy->keys()->all());

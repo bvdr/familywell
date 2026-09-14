@@ -745,3 +745,58 @@ it('spans the full history (min..max spent_at) for the all_time period', functio
             ->where('count', 2)
             ->etc());
 });
+
+it('shows the current-month total on the overview, rolled up like analytics and scoped to visible lists', function () {
+    Http::fake([
+        // RON -> EUR for the roll-up conversion; EUR -> EUR short-circuits (no HTTP).
+        'api.frankfurter.dev/*' => Http::response(['rates' => ['EUR' => 0.2]]),
+        'open.er-api.com/*' => Http::response(['rates' => ['EUR' => 0.2]]),
+    ]);
+
+    [, $users] = spendingFamily();
+    // Family default currency = EUR, so the widget reads in EUR regardless of each list's base.
+    actingAs($users[0])->patch('/m/spending/settings', ['default_currency' => 'EUR'])->assertRedirect();
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Home', 'currency' => 'RON']);
+    $eur = SpendEvent::where('currency', 'EUR')->first();
+    $ron = SpendEvent::where('currency', 'RON')->first();
+
+    // Same mtd-safe dates as the analytics test: never in the future, always inside this month.
+    $thisMonth = now()->startOfMonth()->addDays(3)->min(now())->toDateString();
+    $lastMonth = now()->subMonthNoOverflow()->startOfMonth()->addDays(3)->toDateString();
+
+    // Zero spends yet: the widget still renders a 0 total in the display currency.
+    actingAs($users[0])->get('/m/spending')
+        ->assertInertia(fn ($p) => $p->component('spending/events')->where('thisMonth', ['total' => 0, 'currency' => 'EUR'])->etc());
+
+    // This month: 20.00 EUR (2000) + 100.00 RON (10000 RON -> 2000 EUR). Last month: 5.00 EUR, excluded.
+    actingAs($users[0])->post("/m/spending/events/{$eur->id}/spends", [
+        'amount' => '20.00', 'currency' => 'EUR', 'category' => 'other', 'payer_key' => 'u'.$users[0]->id, 'spent_at' => $thisMonth,
+    ])->assertRedirect();
+    actingAs($users[0])->post("/m/spending/events/{$ron->id}/spends", [
+        'amount' => '100.00', 'currency' => 'RON', 'category' => 'food', 'payer_key' => 'u'.$users[0]->id, 'spent_at' => $thisMonth,
+    ])->assertRedirect();
+    actingAs($users[0])->post("/m/spending/events/{$eur->id}/spends", [
+        'amount' => '5.00', 'currency' => 'EUR', 'category' => 'other', 'payer_key' => 'u'.$users[0]->id, 'spent_at' => $lastMonth,
+    ])->assertRedirect();
+
+    actingAs($users[0])->get('/m/spending')
+        ->assertInertia(fn ($p) => $p->component('spending/events')->where('thisMonth', ['total' => 4000, 'currency' => 'EUR'])->etc());
+
+    // Visibility: the RON list goes private (only its owner keeps a share), so a sibling member's widget
+    // drops its 2000 and only counts the family-visible EUR list.
+    $ron->setVisibility('private');
+    actingAs($users[1])->get('/m/spending')
+        ->assertInertia(fn ($p) => $p->where('thisMonth.total', 2000)->etc());
+    actingAs($users[0])->get('/m/spending')
+        ->assertInertia(fn ($p) => $p->where('thisMonth.total', 4000)->etc());
+
+    // Family scoping: a member of another family sees none of these spends.
+    $outsider = User::factory()->create();
+    $other = Family::factory()->create(['owner_id' => $outsider->id]);
+    $other->members()->attach($outsider, ['role' => 'admin']);
+    session(['active_family_id' => $other->id]);
+    app(ModuleRegistry::class)->enable('spending', $other->id);
+    actingAs($outsider)->get('/m/spending')
+        ->assertInertia(fn ($p) => $p->where('thisMonth.total', 0)->etc());
+});
