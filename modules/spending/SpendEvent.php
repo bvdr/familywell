@@ -2,12 +2,15 @@
 
 namespace Modules\Spending;
 
+use App\Models\Family;
 use App\Models\User;
 use App\Support\Guests\GuestShareable;
 use App\Support\Guests\ProvidesGuestView;
 use App\Support\Sharing\ProvidesPublicShareView;
 use App\Support\Sharing\Shareable;
 use App\Support\Tenancy\BelongsToFamily;
+use App\Support\Tenancy\CurrentFamily;
+use App\Support\Translations;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -23,6 +26,54 @@ class SpendEvent extends Model implements ProvidesGuestView, ProvidesPublicShare
     protected $fillable = ['name', 'currency', 'display_currency', 'icon', 'created_by'];
 
     protected $casts = ['archived_at' => 'datetime'];
+
+    /**
+     * Create a list the way the UI does: every family member joins (Phase 1: equal split among all),
+     * the creator owns the share, and visibility stays at the `family` default so everyone can add
+     * spends until the owner narrows it. Shared by storeEvent() and the auto-created "Others" list.
+     */
+    public static function createFor(User $user, array $attrs): self
+    {
+        $event = static::create([...$attrs, 'created_by' => $user->id]);
+        $event->members()->sync(Family::findOrFail(CurrentFamily::id())->members->pluck('id'));
+        $event->shares()->create(['user_id' => $user->id, 'role' => 'owner']);
+
+        return $event;
+    }
+
+    /**
+     * The family's default "Others" list — where an expense added from the overview without picking a
+     * list lands. Resolved, or created on first use, and remembered in spending_settings.others_event_id
+     * so every such expense goes to the same list (one per family, idempotent). Resolution order: the
+     * remembered list if it still exists and isn't archived; else a live list already named "Others" in
+     * any app locale (so a list the family made by hand is adopted, not duplicated); else a fresh one
+     * named in the acting user's locale, in the family's default currency. Mirrors
+     * InventoryReplenishment::list().
+     */
+    public static function others(User $user): self
+    {
+        $settings = SpendSetting::current();
+        $event = $settings->others_event_id ? static::whereNull('archived_at')->find($settings->others_event_id) : null;
+
+        if (! $event) {
+            $names = collect(array_keys(Translations::LOCALES))->map(fn (string $l) => Translations::get('spending.others_list', $l))->unique()->all();
+            $event = static::whereNull('archived_at')->whereIn('name', $names)->orderBy('id')->first();
+        }
+
+        if (! $event) {
+            $event = static::createFor($user, [
+                'name' => Translations::get('spending.others_list'),
+                'currency' => SpendSetting::defaultCurrency() ?? SpendingController::CURRENCIES[0],
+                'icon' => 'wallet',
+            ]);
+        }
+
+        if ($settings->others_event_id !== $event->id) {
+            $settings->forceFill(['others_event_id' => $event->id])->save(); // remember it (also heals a stale pointer)
+        }
+
+        return $event;
+    }
 
     /** Participants the spends are split among (snapshot of the family at creation). */
     public function members(): BelongsToMany

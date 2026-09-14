@@ -27,6 +27,9 @@ class SpendingController extends Controller
 {
     public const CURRENCIES = ['EUR', 'RON', 'USD', 'GBP'];
 
+    // Most recent spends shown on the overview's Expenses feed (see index()).
+    public const FEED_CAP = 200;
+
     public function __construct(private ShareAccess $access) {}
 
     public function index(Request $request): Response
@@ -67,8 +70,35 @@ class SpendingController extends Controller
             }
         }
 
+        // Expenses tab: one flat, newest-first feed of every spend across the visible lists (archived ones
+        // included — a finished trip's expenses are still expenses; the row names its list). Each row
+        // carries the original amount/currency plus the same amount rolled into the widget's display
+        // currency, so the feed and the this-month figure read in one currency. ponytail: capped at the
+        // most recent FEED_CAP rows (no paging); add cursor paging if a family ever spends past it.
+        $allCcy = $events->pluck('currency', 'id');
+        $eventName = $events->pluck('name', 'id');
+        $expenses = $allCcy->isEmpty() ? collect() : Spend::query()
+            ->whereIn('spend_event_id', $allCcy->keys())
+            ->with(['payer:id,name', 'payerGuest:id,name'])
+            ->latest('spent_at')->latest('id')
+            ->limit(self::FEED_CAP)
+            ->get()
+            ->map(fn (Spend $s) => [
+                'id' => $s->id,
+                'amount' => $s->amount, // original amount, in this spend's currency
+                'currency' => $s->currency,
+                'converted' => (int) round($s->base_amount * Fx::rate($allCcy[$s->spend_event_id], $monthCurrency)), // in thisMonth.currency
+                'category' => $s->category,
+                'note' => $s->note,
+                'payer' => $s->payer?->name ?? $s->payerGuest?->name,
+                'date' => $s->spent_at->toDateString(),
+                'list' => $eventName[$s->spend_event_id] ?? '',
+                'list_id' => $s->spend_event_id,
+            ])->values();
+
+        $user = $request->user();
         $events = $events
-            ->map(function (SpendEvent $e) {
+            ->map(function (SpendEvent $e) use ($user) {
                 // Show the card total in the list's chosen display currency (the header selector on the
                 // detail page), not the frozen base currency. Base amounts stay in $e->currency; we
                 // convert the sum to the display currency for the overview so the two views agree.
@@ -82,6 +112,11 @@ class SpendingController extends Controller
                     'archived' => $e->archived_at !== null,
                     // Chosen lucide icon key for the card; null falls back to Wallet client-side.
                     'icon' => $e->icon,
+                    // Base currency (what a spend is frozen into) — the quick-add form pre-selects it once a
+                    // list is picked. `currency` above is the DISPLAY currency, which may differ.
+                    'baseCurrency' => $e->currency,
+                    // Whether this viewer may add spends here: the quick-add list picker only offers these.
+                    'canEdit' => $this->access->canEdit($user, $e),
                     // Only members who can actually reach the event: everyone for `family` visibility,
                     // otherwise just those with a share. The pivot holds every family member (synced at
                     // creation), so without this filter an invited/private event shows people who have no
@@ -100,6 +135,14 @@ class SpendingController extends Controller
             'defaultCurrency' => SpendSetting::defaultCurrency(),
             // Current-month spend for the top widget (display cents + the currency they are in).
             'thisMonth' => ['total' => $monthTotal, 'currency' => $monthCurrency],
+            // Expenses tab feed (see above); `converted` is in thisMonth.currency. feedCap tells the client
+            // when the feed is truncated so it can say so.
+            'expenses' => $expenses,
+            'feedCap' => self::FEED_CAP,
+            // Quick-add form: the family's categories (also label/colour the feed rows) and the members
+            // to pick a payer from when no list is chosen (the "Others" list takes everyone).
+            'categories' => SpendCategory::payloadFor(),
+            'members' => Family::findOrFail(CurrentFamily::id())->members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),
         ]);
     }
 
@@ -424,20 +467,12 @@ class SpendingController extends Controller
             'icon' => ['nullable', 'string', Rule::in(IconLibrary::names())],
         ]);
 
-        $event = SpendEvent::create([
+        // Members/owner share/visibility are set up in createFor (shared with the auto-created "Others" list).
+        $event = SpendEvent::createFor($request->user(), [
             'name' => $data['name'],
             'currency' => $data['currency'],
             'icon' => $data['icon'] ?? null,
-            'created_by' => $request->user()->id,
         ]);
-
-        // Everyone in the family joins the event by default (Phase 1: equal split among all members).
-        $family = Family::findOrFail(CurrentFamily::id());
-        $event->members()->sync($family->members->pluck('id'));
-
-        // The creator owns the share (can manage visibility/roles/links). Visibility defaults to
-        // `family`, so all members can add spends until the owner narrows it.
-        $event->shares()->create(['user_id' => $request->user()->id, 'role' => 'owner']);
 
         Notify::toAccessOf($event, 'spending', $request->user()->id, 'New spend tracker', "{$request->user()->name} started: {$event->name}", route('spending.show', $event, false));
         Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
@@ -619,6 +654,20 @@ class SpendingController extends Controller
                 'perPerson' => $members->count() ? (int) round($total / $members->count()) : 0,
             ],
         ]);
+    }
+
+    /**
+     * Expense-first add from the overview: the same spend payload as storeSpend, plus an optional
+     * `event_id` picking the list. No list => the family's auto-created "Others" list
+     * (SpendEvent::others, one per family). Delegates to storeSpend so validation, FX freeze, receipts,
+     * split and notifications stay in one place.
+     */
+    public function storeQuickSpend(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['event_id' => ['nullable', 'integer']]);
+        $event = $data['event_id'] ?? null ? $this->event($data['event_id']) : SpendEvent::others($request->user());
+
+        return $this->storeSpend($request, $event->id);
     }
 
     public function storeSpend(Request $request, int $event): RedirectResponse

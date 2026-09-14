@@ -89,6 +89,8 @@ class SpendingServiceProvider extends ServiceProvider
                 Route::patch('/events/{event}/participants/{key}', [SpendingController::class, 'updateParticipant'])->name('participants.update');
                 Route::get('/events/{event}/stats', [SpendingController::class, 'stats'])->name('stats');
                 Route::post('/events/{event}/spends', [SpendingController::class, 'storeSpend'])->name('spends.store');
+                // Expense-first add from the overview: optional event_id, else the family's "Others" list.
+                Route::post('/spends', [SpendingController::class, 'storeQuickSpend'])->name('spends.quick');
                 Route::post('/events/{event}/settle', [SpendingController::class, 'settle'])->name('settle');
                 Route::patch('/spends/{spend}', [SpendingController::class, 'updateSpend'])->name('spends.update');
                 Route::post('/spends/{spend}/duplicate', [SpendingController::class, 'duplicateSpend'])->name('spends.duplicate');

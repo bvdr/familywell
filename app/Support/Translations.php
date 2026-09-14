@@ -40,6 +40,18 @@ class Translations
         return $map;
     }
 
+    /**
+     * One string by dotted key (e.g. 'spending.others_list') for SERVER-side use, English-filled. Laravel's
+     * __() can't reach these: it only resolves dotted keys against PHP lang files, and JSON keys only as
+     * flat lang/{locale}.json entries — so a namespaced module string used in PHP has to come through here.
+     */
+    public static function get(string $key, ?string $locale = null): string
+    {
+        $value = data_get(self::for($locale ?? app()->getLocale()), $key);
+
+        return is_string($value) ? $value : $key;
+    }
+
     /** @return array<int, array{code: string, label: string}> for the language picker. */
     public static function options(): array
     {
