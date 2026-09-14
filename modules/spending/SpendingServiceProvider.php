@@ -4,6 +4,7 @@ namespace Modules\Spending;
 
 use App\Models\EntityVisit;
 use App\Support\Dashboard\DashboardItems;
+use App\Support\Dashboard\DashboardWidgets;
 use App\Support\Guests\GuestableRegistry;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareableRegistry;
@@ -63,6 +64,20 @@ class SpendingServiceProvider extends ServiceProvider
                         'visitedAt' => $visits[$e->id]->toIso8601String(),
                     ];
                 })->values()->all();
+        });
+
+        // Dashboard headline card: this month's total across the lists the viewer can see, in the same
+        // display currency as the Spending overview widget (shared MonthToDate math). null = off the page.
+        DashboardWidgets::register('spending', function () {
+            $userId = auth()->id();
+            $familyId = CurrentFamily::id();
+            if (! $userId || ! $familyId || ! app(ModuleRegistry::class)->isEnabled('spending', $familyId)) {
+                return null;
+            }
+            $eventCcy = MonthToDate::visibleEventCurrencies($userId);
+            $currency = MonthToDate::displayCurrencyFor($eventCcy);
+
+            return ['total' => MonthToDate::total($eventCcy, $currency), 'currency' => $currency];
         });
 
         // Full Inertia pages (not a dashboard widget): Spending is a whole app section. Gated by

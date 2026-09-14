@@ -1,12 +1,13 @@
 import { LucideIcon as DynamicLucideIcon } from '@/components/lucide-icon';
 import AppLayout from '@/layouts/app-layout';
 import { useLocale, useT, type TFn } from '@/lib/i18n';
+import { money } from '@/lib/money';
 import { Slot } from '@/lib/modules';
 import { listColor as shoppingListColor, listIcon as shoppingListIcon } from '@/lib/shopping';
 import { listColor as taskListColor, listIcon as taskListIcon } from '@/lib/tasks';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Blocks, Check, FolderKanban, ListChecks, Settings, ShoppingCart, StickyNote, Users, Wallet, type LucideIcon } from 'lucide-react';
+import { Blocks, Check, FolderKanban, ListChecks, Plus, Settings, ShoppingCart, StickyNote, Users, Wallet, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' }];
@@ -178,10 +179,13 @@ export default function Dashboard({
     recent = [],
     today = [],
     thisWeek = [],
+    widgets = {},
 }: {
     recent?: DashItem[];
     today?: AgendaItem[];
     thisWeek?: AgendaItem[];
+    // Per-module headline data (DashboardWidgets): only present when that module is enabled.
+    widgets?: { spending?: { total: number; currency: string } };
 }) {
     const { auth, modules } = usePage<SharedData & { modules?: { enabled?: string[] } }>().props;
     const t = useT();
@@ -189,6 +193,8 @@ export default function Dashboard({
     const firstName = auth.user.name.split(' ')[0];
     const spendingOn = (modules?.enabled ?? []).includes('spending');
     const todayLabel = new Date().toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric' });
+    // Month name in the viewer's locale for the Spending card ("September" / "Septembrie").
+    const monthName = new Date().toLocaleDateString(locale, { month: 'long' });
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -218,6 +224,34 @@ export default function Dashboard({
                         </Link>
                     </div>
                 </div>
+
+                {/* Spending headline: this month's total (same figure + currency as the Spending overview
+                    widget). The card opens Spending on its default Expenses tab; the "+" opens it with the
+                    ?new=1 create-intent so the add-expense form is already open on arrival. Two sibling
+                    links (not a button inside a link) so both stay valid, focusable targets. */}
+                {widgets.spending && (
+                    <div className="bg-surface-card hover:border-accent flex items-center rounded-xl border transition-colors">
+                        <Link href="/m/spending" prefetch className="flex min-w-0 flex-1 items-center gap-3 p-4">
+                            <span className="bg-tile text-tile-foreground flex size-10 shrink-0 items-center justify-center rounded-lg">
+                                <Wallet className="size-5" />
+                            </span>
+                            <span className="flex min-w-0 flex-col">
+                                <span className="font-heading text-primary text-lg capitalize">{monthName}</span>
+                                <span className="text-primary font-mono text-2xl font-semibold tabular-nums">
+                                    {money(widgets.spending.total, widgets.spending.currency)}
+                                </span>
+                                <span className="text-muted-foreground text-xs">{t('spending.total_spent')}</span>
+                            </span>
+                        </Link>
+                        <Link
+                            href="/m/spending?new=1"
+                            aria-label={t('spending.add_expense')}
+                            className="bg-accent-strong text-accent-strong-foreground mr-4 flex size-11 shrink-0 items-center justify-center rounded-full transition-opacity hover:opacity-90"
+                        >
+                            <Plus className="size-5" />
+                        </Link>
+                    </div>
+                )}
 
                 {today.length > 0 && (
                     <section className="flex flex-col gap-3">
