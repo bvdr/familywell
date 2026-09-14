@@ -19,6 +19,7 @@ import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { catColor, catIconName, catLabel, categoryMap, type CategoryDef } from '@/lib/categories';
+import { groupByDateBucket, localToday } from '@/lib/date-groups';
 import { useLocale, useT } from '@/lib/i18n';
 import { money } from '@/lib/money';
 import { type BreadcrumbItem } from '@/types';
@@ -90,6 +91,25 @@ export default function Events({
     // Month name in the viewer's locale ("September" / "Septembrie"); the server only sends the total.
     const monthName = new Date().toLocaleDateString(locale, { month: 'long' });
     const shortDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString(locale, { month: 'short', day: 'numeric' });
+    // Expenses feed section headers: relative buckets (Today … Earlier this month) then one per month.
+    // The feed arrives newest-first, so the groups come out already in display order.
+    const viewerToday = localToday();
+    const expenseGroups = groupByDateBucket(expenses, (e) => e.date, viewerToday);
+    const bucketLabel = (key: string) => {
+        if (key === 'today') return t('dashboard.today');
+        if (key === 'yesterday') return t('spending.yesterday');
+        if (key === 'this_week') return t('spending.earlier_this_week');
+        if (key === 'last_week') return t('spending.last_week');
+        if (key === 'this_month') return t('spending.earlier_this_month');
+        // 'YYYY-MM': month name, with the year only when it is not the current one. Capitalised by hand
+        // (ro month names are lowercase) rather than CSS capitalize, which would also title-case the
+        // multi-word labels above.
+        const label = new Date(key + '-01T00:00:00').toLocaleDateString(locale, {
+            month: 'long',
+            year: key.slice(0, 4) === viewerToday.slice(0, 4) ? undefined : 'numeric',
+        });
+        return label.charAt(0).toUpperCase() + label.slice(1);
+    };
     const catMap = categoryMap(categories);
     const breadcrumbs: BreadcrumbItem[] = [{ title: t('nav.spending'), href: '/m/spending' }];
 
@@ -199,7 +219,9 @@ export default function Events({
                 >
                     <div className="flex flex-col gap-0.5">
                         <span className="font-heading text-primary text-lg capitalize">{monthName}</span>
-                        <span className="text-primary font-mono text-2xl font-semibold tabular-nums">{money(thisMonth.total, thisMonth.currency)}</span>
+                        <span className="text-primary font-mono text-2xl font-semibold tabular-nums">
+                            {money(thisMonth.total, thisMonth.currency)}
+                        </span>
                         <span className="text-muted-foreground text-xs">
                             {t('spending.total_spent')} · {t('spending.analytics')}
                         </span>
@@ -371,42 +393,53 @@ export default function Events({
                             <p className="text-sm">{t('spending.no_expenses_empty')}</p>
                         </div>
                     ) : (
-                        <div className="bg-surface-card flex flex-col rounded-xl border px-4 py-1">
-                            <ul className="flex flex-col divide-y">
-                                {expenses.map((e) => (
-                                    <li key={e.id}>
-                                        <Link
-                                            href={route('spending.show', e.list_id)}
-                                            className="hover:bg-surface active:bg-surface -mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2.5 transition-colors"
-                                        >
-                                            <div className="flex min-w-0 items-center gap-2.5">
-                                                <CategoryIcon
-                                                    icon={catIconName(catMap, e.category)}
-                                                    className="size-4 shrink-0"
-                                                    style={{ color: catColor(catMap, e.category) }}
-                                                />
-                                                <div className="min-w-0">
-                                                    <div className="text-primary truncate text-sm">{e.note || catLabel(t, catMap, e.category)}</div>
-                                                    <div className="text-muted-foreground truncate text-xs">
-                                                        {catLabel(t, catMap, e.category)} · {e.list} · {shortDate(e.date)}
-                                                        {e.payer && <> · {e.payer.split(' ')[0]}</>}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="shrink-0 text-right">
-                                                <div className="text-primary font-mono text-sm font-semibold tabular-nums">{money(e.amount, e.currency)}</div>
-                                                {e.currency !== thisMonth.currency && (
-                                                    <div className="text-muted-foreground font-mono text-xs tabular-nums">
-                                                        {money(e.converted, thisMonth.currency)}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </Link>
-                                    </li>
-                                ))}
-                            </ul>
+                        <div className="flex flex-col gap-4">
+                            {expenseGroups.map((group) => (
+                                <section key={group.key} className="flex flex-col gap-2">
+                                    <h3 className="text-text-secondary px-1 text-sm font-medium">{bucketLabel(group.key)}</h3>
+                                    <div className="bg-surface-card flex flex-col rounded-xl border px-4 py-1">
+                                        <ul className="flex flex-col divide-y">
+                                            {group.items.map((e) => (
+                                                <li key={e.id}>
+                                                    <Link
+                                                        href={route('spending.show', e.list_id)}
+                                                        className="hover:bg-surface active:bg-surface -mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2.5 transition-colors"
+                                                    >
+                                                        <div className="flex min-w-0 items-center gap-2.5">
+                                                            <CategoryIcon
+                                                                icon={catIconName(catMap, e.category)}
+                                                                className="size-4 shrink-0"
+                                                                style={{ color: catColor(catMap, e.category) }}
+                                                            />
+                                                            <div className="min-w-0">
+                                                                <div className="text-primary truncate text-sm">
+                                                                    {e.note || catLabel(t, catMap, e.category)}
+                                                                </div>
+                                                                <div className="text-muted-foreground truncate text-xs">
+                                                                    {catLabel(t, catMap, e.category)} · {e.list} · {shortDate(e.date)}
+                                                                    {e.payer && <> · {e.payer.split(' ')[0]}</>}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="shrink-0 text-right">
+                                                            <div className="text-primary font-mono text-sm font-semibold tabular-nums">
+                                                                {money(e.amount, e.currency)}
+                                                            </div>
+                                                            {e.currency !== thisMonth.currency && (
+                                                                <div className="text-muted-foreground font-mono text-xs tabular-nums">
+                                                                    {money(e.converted, thisMonth.currency)}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </Link>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                </section>
+                            ))}
                             {expenses.length >= feedCap && (
-                                <p className="text-muted-foreground border-t py-2.5 text-center text-xs">{t('spending.feed_capped', { count: feedCap })}</p>
+                                <p className="text-muted-foreground py-1 text-center text-xs">{t('spending.feed_capped', { count: feedCap })}</p>
                             )}
                         </div>
                     ))}
