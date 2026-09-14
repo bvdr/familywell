@@ -1,11 +1,12 @@
 import { useAddAction } from '@/lib/add-action';
 import { openNewOnArrival } from '@/lib/create-intent';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Archive, ChartLine, ChevronRight, Plus, RotateCcw, Settings, Wallet } from 'lucide-react';
-import { FormEventHandler, useState } from 'react';
+import { FormEventHandler, useRef, useState } from 'react';
 
 import { useOptimistic } from '@/hooks/use-optimistic';
 
+import { CategoryIcon } from '@/components/category-icon';
 import { IconPicker } from '@/components/icon-picker';
 import InputError from '@/components/input-error';
 import { LucideIcon } from '@/components/lucide-icon';
@@ -13,14 +14,43 @@ import { MemberAvatar } from '@/components/member-avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { catColor, catIconName, catLabel, categoryMap, type CategoryDef } from '@/lib/categories';
 import { useLocale, useT } from '@/lib/i18n';
 import { money } from '@/lib/money';
 import { type BreadcrumbItem } from '@/types';
 
 type Member = { id: number; name: string };
-type Event = { id: number; name: string; currency: string; total: number; archived: boolean; icon: string | null; members: Member[] };
+type Event = {
+    id: number;
+    name: string;
+    currency: string; // display currency of the card total
+    baseCurrency: string; // what a new spend is frozen into; pre-selected in the quick-add form
+    total: number;
+    archived: boolean;
+    icon: string | null;
+    canEdit: boolean;
+    members: Member[];
+};
+// One row of the Expenses feed. `amount` is in the spend's own currency; `converted` in the feed currency.
+type Expense = {
+    id: number;
+    amount: number;
+    currency: string;
+    converted: number;
+    category: string;
+    note: string | null;
+    payer: string | null;
+    date: string;
+    list: string;
+    list_id: number;
+};
+
+const today = () => new Date().toISOString().slice(0, 10);
+// Select the whole value when the amount input gains focus, so a tap-and-type overwrites it.
+const selectAllOnFocus = (e: React.FocusEvent<HTMLInputElement>) => e.target.select();
 
 function Avatars({ members }: { members: Member[] }) {
     return (
@@ -38,20 +68,80 @@ export default function Events({
     currencies,
     defaultCurrency = null,
     thisMonth,
+    expenses,
+    feedCap,
+    categories,
+    members,
 }: {
     events: Event[];
     currencies: string[];
     defaultCurrency?: string | null;
     // Month-to-date total across every visible list, already rolled up server-side into one currency.
     thisMonth: { total: number; currency: string };
+    expenses: Expense[];
+    feedCap: number;
+    categories: CategoryDef[];
+    members: Member[]; // whole family: payer options when no list is picked (the "Others" list takes everyone)
 }) {
     const t = useT();
     const locale = useLocale();
+    const authId = usePage<{ auth: { user: { id: number } } }>().props.auth.user.id;
     // Month name in the viewer's locale ("September" / "Septembrie"); the server only sends the total.
     const monthName = new Date().toLocaleDateString(locale, { month: 'long' });
+    const shortDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString(locale, { month: 'short', day: 'numeric' });
+    const catMap = categoryMap(categories);
     const breadcrumbs: BreadcrumbItem[] = [{ title: t('nav.spending'), href: '/m/spending' }];
-    const [creating, setCreating] = useState(openNewOnArrival);
-    useAddAction(() => setCreating(true));
+
+    // Expenses / Lists is a client-side tab (same pattern as Shopping's Lists / Shops): no navigation,
+    // identical header + widget on both, instant switch. Expenses is the default — Spending is
+    // expense-first; lists are the secondary way in.
+    const [view, setView] = useState<'expenses' | 'lists'>('expenses');
+
+    // The "+" (mobile nav + desktop header, and ?new=1 from the global quick-add) ADDS AN EXPENSE. Creating
+    // a list is reachable from the Lists tab only.
+    const [adding, setAdding] = useState(openNewOnArrival);
+    const [creating, setCreating] = useState(false);
+    useAddAction(() => setAdding(true));
+    const amountRef = useRef<HTMLInputElement>(null);
+
+    // Lists the viewer may add spends to; the picker offers these plus the "Others" default (value '').
+    const editable = events.filter((ev) => ev.canEdit && !ev.archived);
+    const defaultCategory = categories[0]?.key ?? 'other';
+    // ponytail: quick-add covers amount/currency/category/list/payer/date/note. Split, receipts, payment
+    // source and guests stay on the list page (tap the row to edit) — add here only if people ask.
+    const spend = useForm({
+        event_id: '' as string, // '' => the family's "Others" list (resolved server-side)
+        amount: '',
+        currency: defaultCurrency ?? currencies[0],
+        category: defaultCategory,
+        payer_key: 'u' + authId,
+        spent_at: today(),
+        note: '',
+    });
+    const chosen = editable.find((ev) => String(ev.id) === spend.data.event_id);
+    // Payer options follow the chosen list's roster; with no list, the "Others" list has everyone.
+    const payers = chosen ? chosen.members : members;
+    const pickList = (id: string) => {
+        const ev = editable.find((e) => String(e.id) === id);
+        spend.setData((d) => ({
+            ...d,
+            event_id: id,
+            // A list's spends are frozen into its base currency, so pre-select that; back to the family default otherwise.
+            currency: ev ? ev.baseCurrency : (defaultCurrency ?? currencies[0]),
+            // Keep the payer if still on the roster, else fall back to the viewer.
+            payer_key: (ev ? ev.members : members).some((m) => 'u' + m.id === d.payer_key) ? d.payer_key : 'u' + authId,
+        }));
+    };
+    const closeAdd = () => {
+        spend.reset();
+        setAdding(false);
+    };
+    const submitSpend: FormEventHandler = (e) => {
+        e.preventDefault();
+        spend.transform((d) => ({ ...d, event_id: d.event_id || null }));
+        spend.post(route('spending.spends.quick'), { preserveScroll: true, onSuccess: closeAdd });
+    };
+
     // Pre-select the family's default currency; fall back to the first supported one when unset.
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
@@ -91,9 +181,9 @@ export default function Events({
                                 <Settings className="size-4" />
                             </Link>
                         </Button>
-                        {/* Hidden on mobile: the nav's context-aware "+" creates an event there. Desktop has no nav "+". */}
-                        <Button className="hidden md:inline-flex" onClick={() => setCreating((v) => !v)}>
-                            <Plus className="size-4" /> {t('create.spending')}
+                        {/* Hidden on mobile: the nav's context-aware "+" adds an expense there. Desktop has no nav "+". */}
+                        <Button className="hidden md:inline-flex" onClick={() => setAdding(true)}>
+                            <Plus className="size-4" /> {t('spending.add_expense')}
                         </Button>
                     </div>
                 </div>
@@ -116,117 +206,331 @@ export default function Events({
                     <ChevronRight className="text-muted-foreground size-5 shrink-0" />
                 </Link>
 
-                {creating && (
-                    <form onSubmit={submit} className="bg-surface-card flex flex-col gap-3 rounded-xl border p-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="name">{t('spending.event_name')}</Label>
-                            {/* Icon picker sits left of the name: pick a lucide icon for the list (defaults to Wallet). */}
-                            <div className="flex items-start gap-2">
-                                <IconPicker value={data.icon} onChange={(icon) => setData('icon', icon)} />
-                                <div className="flex-1">
-                                    <Input
-                                        id="name"
-                                        autoFocus
-                                        value={data.name}
-                                        onChange={(e) => setData('name', e.target.value)}
-                                        placeholder={t('spending.event_name_placeholder')}
-                                    />
-                                    <InputError message={errors.name} />
-                                </div>
+                {/* Client-side Expenses / Lists tab — no page load, same bar in both. */}
+                <div className="border-border bg-surface flex rounded-full border p-1">
+                    {(['expenses', 'lists'] as const).map((v) => (
+                        <button
+                            key={v}
+                            type="button"
+                            onClick={() => setView(v)}
+                            className={`flex-1 rounded-full px-4 py-1.5 text-sm font-medium capitalize transition-colors ${
+                                view === v ? 'bg-accent-strong text-accent-strong-foreground' : 'text-primary'
+                            }`}
+                        >
+                            {t(v === 'expenses' ? 'spending.tab_expenses' : 'spending.tab_lists')}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Quick-add expense: bottom drawer on mobile, centered overlay on desktop. Closing cancels. */}
+                <ResponsiveModal
+                    open={adding}
+                    onOpenChange={(o) => !o && closeAdd()}
+                    title={t('spending.new_spend')}
+                    autoFocusRef={amountRef}
+                    footer={
+                        <Button type="submit" form="quick-spend" disabled={spend.processing || !spend.data.amount} className="w-full">
+                            {t('common.save')}
+                        </Button>
+                    }
+                >
+                    {/* The <form> holds no fields directly (inputs join via form="quick-spend"; the dropdowns
+                        stay outside) so Radix's hidden native <select>s don't break iOS's prev/next keys. */}
+                    <form id="quick-spend" onSubmit={submitSpend} className="hidden" />
+                    <div className="flex flex-col gap-3">
+                        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+                            <div className="grid gap-2">
+                                <Label htmlFor="quick-amount">{t('spending.amount')}</Label>
+                                {/* type=text + inputMode=decimal for the real iOS decimal pad; commas normalised to dots. */}
+                                <Input
+                                    id="quick-amount"
+                                    form="quick-spend"
+                                    ref={amountRef}
+                                    type="text"
+                                    inputMode="decimal"
+                                    onFocus={selectAllOnFocus}
+                                    value={spend.data.amount}
+                                    onChange={(e) => spend.setData('amount', e.target.value.replace(/,/g, '.').replace(/[^\d.]/g, ''))}
+                                    placeholder="0.00"
+                                />
+                                <InputError message={spend.errors.amount} />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>{t('spending.currency')}</Label>
+                                <Select value={spend.data.currency} onValueChange={(v) => spend.setData('currency', v)}>
+                                    <SelectTrigger className="w-[92px]">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {currencies.map((c) => (
+                                            <SelectItem key={c} value={c}>
+                                                {c}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
                         <div className="grid gap-2">
-                            <Label>{t('spending.home_currency')}</Label>
-                            <Select value={data.currency} onValueChange={(v) => setData('currency', v)}>
+                            <Label>{t('spending.category')}</Label>
+                            <Select value={spend.data.category} onValueChange={(v) => spend.setData('category', v)}>
                                 <SelectTrigger className="w-full">
-                                    <SelectValue />
+                                    <SelectValue>
+                                        <span className="flex items-center gap-2">
+                                            <CategoryIcon
+                                                icon={catIconName(catMap, spend.data.category)}
+                                                className="size-4 shrink-0"
+                                                style={{ color: catColor(catMap, spend.data.category) }}
+                                            />
+                                            <span className="truncate">{catLabel(t, catMap, spend.data.category)}</span>
+                                        </span>
+                                    </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {currencies.map((c) => (
-                                        <SelectItem key={c} value={c}>
-                                            {c}
+                                    {categories.map((c) => (
+                                        <SelectItem key={c.key} value={c.key}>
+                                            <span className="flex items-center gap-2">
+                                                <CategoryIcon icon={c.icon} className="size-4 shrink-0" style={{ color: c.color }} />
+                                                {catLabel(t, catMap, c.key)}
+                                            </span>
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
+                            <InputError message={spend.errors.category} />
                         </div>
-                        <div className="flex gap-2">
-                            <Button type="submit" disabled={processing}>
-                                {t('spending.create_event')}
-                            </Button>
-                            <Button type="button" variant="ghost" onClick={() => setCreating(false)}>
-                                {t('common.cancel')}
-                            </Button>
+                        {/* Which list the expense goes to. Optional: no pick => the family's "Others" list. */}
+                        <div className="grid gap-2">
+                            <Label>{t('spending.list')}</Label>
+                            <Select value={spend.data.event_id || '__others'} onValueChange={(v) => pickList(v === '__others' ? '' : v)}>
+                                <SelectTrigger className="w-full">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="__others">{t('spending.others_list_hint')}</SelectItem>
+                                    {editable.map((ev) => (
+                                        <SelectItem key={ev.id} value={String(ev.id)}>
+                                            {ev.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <InputError message={spend.errors.event_id} />
                         </div>
-                    </form>
-                )}
-
-                {active.length === 0 && !creating && (
-                    <div className="text-muted-foreground flex flex-col items-center gap-2 rounded-xl border border-dashed p-10 text-center">
-                        <Wallet className="size-6" />
-                        <p className="text-sm">{t('spending.no_events_empty')}</p>
-                    </div>
-                )}
-
-                <div className="flex flex-col gap-3">
-                    {active.map((ev) => (
-                        <Link
-                            key={ev.id}
-                            href={route('spending.show', ev.id)}
-                            prefetch
-                            className="bg-surface-card hover:border-accent flex items-center justify-between rounded-xl border p-4 text-left transition-colors"
-                        >
-                            <div className="flex items-center gap-3">
-                                <span className="bg-accent-subtle text-primary flex size-10 items-center justify-center rounded-lg">
-                                    <LucideIcon name={ev.icon} className="size-5" />
-                                </span>
-                                <div>
-                                    <div className="text-primary font-medium">{ev.name}</div>
-                                    <div className="text-muted-foreground font-mono text-sm tabular-nums">{money(ev.total, ev.currency)}</div>
-                                </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="grid gap-2">
+                                <Label>{t('spending.paid_by_label')}</Label>
+                                <Select value={spend.data.payer_key} onValueChange={(v) => spend.setData('payer_key', v)}>
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {payers.map((m) => (
+                                            <SelectItem key={m.id} value={'u' + m.id}>
+                                                {m.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <InputError message={spend.errors.payer_key} />
                             </div>
-                            <Avatars members={ev.members} />
-                        </Link>
+                            <div className="grid gap-2">
+                                <Label htmlFor="quick-date">{t('spending.date')}</Label>
+                                <Input
+                                    id="quick-date"
+                                    form="quick-spend"
+                                    type="date"
+                                    value={spend.data.spent_at}
+                                    onChange={(e) => spend.setData('spent_at', e.target.value)}
+                                />
+                                <InputError message={spend.errors.spent_at} />
+                            </div>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="quick-note">{t('spending.note')}</Label>
+                            <Input
+                                id="quick-note"
+                                form="quick-spend"
+                                value={spend.data.note}
+                                onChange={(e) => spend.setData('note', e.target.value)}
+                                placeholder={t('spending.note_placeholder')}
+                            />
+                            <InputError message={spend.errors.note} />
+                        </div>
+                    </div>
+                </ResponsiveModal>
+
+                {/* EXPENSES — flat feed of every spend across the visible lists, newest first. Rows follow the
+                    analytics drill-down style; tapping one opens its list (where it can be edited). */}
+                {view === 'expenses' &&
+                    (expenses.length === 0 ? (
+                        <div className="text-muted-foreground flex flex-col items-center gap-2 rounded-xl border border-dashed p-10 text-center">
+                            <Wallet className="size-6" />
+                            <p className="text-sm">{t('spending.no_expenses_empty')}</p>
+                        </div>
+                    ) : (
+                        <div className="bg-surface-card flex flex-col rounded-xl border px-4 py-1">
+                            <ul className="flex flex-col divide-y">
+                                {expenses.map((e) => (
+                                    <li key={e.id}>
+                                        <Link
+                                            href={route('spending.show', e.list_id)}
+                                            className="hover:bg-surface active:bg-surface -mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2.5 transition-colors"
+                                        >
+                                            <div className="flex min-w-0 items-center gap-2.5">
+                                                <CategoryIcon
+                                                    icon={catIconName(catMap, e.category)}
+                                                    className="size-4 shrink-0"
+                                                    style={{ color: catColor(catMap, e.category) }}
+                                                />
+                                                <div className="min-w-0">
+                                                    <div className="text-primary truncate text-sm">{e.note || catLabel(t, catMap, e.category)}</div>
+                                                    <div className="text-muted-foreground truncate text-xs">
+                                                        {catLabel(t, catMap, e.category)} · {e.list} · {shortDate(e.date)}
+                                                        {e.payer && <> · {e.payer.split(' ')[0]}</>}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="shrink-0 text-right">
+                                                <div className="text-primary font-mono text-sm font-semibold tabular-nums">{money(e.amount, e.currency)}</div>
+                                                {e.currency !== thisMonth.currency && (
+                                                    <div className="text-muted-foreground font-mono text-xs tabular-nums">
+                                                        {money(e.converted, thisMonth.currency)}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </Link>
+                                    </li>
+                                ))}
+                            </ul>
+                            {expenses.length >= feedCap && (
+                                <p className="text-muted-foreground border-t py-2.5 text-center text-xs">{t('spending.feed_capped', { count: feedCap })}</p>
+                            )}
+                        </div>
                     ))}
-                </div>
 
-                {archived.length > 0 && (
-                    <div className="mt-2 flex flex-col gap-2">
-                        <h2 className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
-                            <Archive className="size-3.5" /> {t('spending.archived')}
-                        </h2>
-                        {archived.map((ev) => (
-                            <div key={ev.id} className="bg-surface flex items-center gap-3 rounded-xl border p-3 opacity-70">
-                                <span className="text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-lg border">
-                                    <LucideIcon name={ev.icon} className="size-4.5" />
-                                </span>
-                                <Link href={route('spending.show', ev.id)} className="min-w-0 flex-1">
-                                    <div className="text-primary truncate text-sm font-medium">{ev.name}</div>
-                                    <div className="text-muted-foreground font-mono text-xs tabular-nums">{money(ev.total, ev.currency)}</div>
-                                </Link>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        archivedOpt.set(ev.id, false);
-                                        router.patch(
-                                            route('spending.events.update', ev.id),
-                                            { archived: false },
-                                            {
-                                                preserveScroll: true,
-                                                preserveState: true,
-                                                onSuccess: () => archivedOpt.clear(ev.id),
-                                                onError: () => archivedOpt.clear(ev.id),
-                                            },
-                                        );
-                                    }}
-                                    aria-label={t('spending.restore_event')}
-                                    className="text-muted-foreground hover:text-primary flex size-8 items-center justify-center rounded-lg transition-colors"
-                                >
-                                    <RotateCcw className="size-4" />
-                                </button>
+                {/* LISTS — the list cards (the former overview), with list creation living here now. */}
+                {view === 'lists' && (
+                    <>
+                        {!creating && (
+                            <Button variant="outline" className="self-start" onClick={() => setCreating(true)}>
+                                <Plus className="size-4" /> {t('spending.new_list')}
+                            </Button>
+                        )}
+
+                        {creating && (
+                            <form onSubmit={submit} className="bg-surface-card flex flex-col gap-3 rounded-xl border p-4">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="name">{t('spending.event_name')}</Label>
+                                    {/* Icon picker sits left of the name: pick a lucide icon for the list (defaults to Wallet). */}
+                                    <div className="flex items-start gap-2">
+                                        <IconPicker value={data.icon} onChange={(icon) => setData('icon', icon)} />
+                                        <div className="flex-1">
+                                            <Input
+                                                id="name"
+                                                autoFocus
+                                                value={data.name}
+                                                onChange={(e) => setData('name', e.target.value)}
+                                                placeholder={t('spending.event_name_placeholder')}
+                                            />
+                                            <InputError message={errors.name} />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>{t('spending.home_currency')}</Label>
+                                    <Select value={data.currency} onValueChange={(v) => setData('currency', v)}>
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {currencies.map((c) => (
+                                                <SelectItem key={c} value={c}>
+                                                    {c}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button type="submit" disabled={processing}>
+                                        {t('spending.create_event')}
+                                    </Button>
+                                    <Button type="button" variant="ghost" onClick={() => setCreating(false)}>
+                                        {t('common.cancel')}
+                                    </Button>
+                                </div>
+                            </form>
+                        )}
+
+                        {active.length === 0 && !creating && (
+                            <div className="text-muted-foreground flex flex-col items-center gap-2 rounded-xl border border-dashed p-10 text-center">
+                                <Wallet className="size-6" />
+                                <p className="text-sm">{t('spending.no_events_empty')}</p>
                             </div>
-                        ))}
-                    </div>
+                        )}
+
+                        <div className="flex flex-col gap-3">
+                            {active.map((ev) => (
+                                <Link
+                                    key={ev.id}
+                                    href={route('spending.show', ev.id)}
+                                    prefetch
+                                    className="bg-surface-card hover:border-accent flex items-center justify-between rounded-xl border p-4 text-left transition-colors"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <span className="bg-accent-subtle text-primary flex size-10 items-center justify-center rounded-lg">
+                                            <LucideIcon name={ev.icon} className="size-5" />
+                                        </span>
+                                        <div>
+                                            <div className="text-primary font-medium">{ev.name}</div>
+                                            <div className="text-muted-foreground font-mono text-sm tabular-nums">{money(ev.total, ev.currency)}</div>
+                                        </div>
+                                    </div>
+                                    <Avatars members={ev.members} />
+                                </Link>
+                            ))}
+                        </div>
+
+                        {archived.length > 0 && (
+                            <div className="mt-2 flex flex-col gap-2">
+                                <h2 className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
+                                    <Archive className="size-3.5" /> {t('spending.archived')}
+                                </h2>
+                                {archived.map((ev) => (
+                                    <div key={ev.id} className="bg-surface flex items-center gap-3 rounded-xl border p-3 opacity-70">
+                                        <span className="text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-lg border">
+                                            <LucideIcon name={ev.icon} className="size-4.5" />
+                                        </span>
+                                        <Link href={route('spending.show', ev.id)} className="min-w-0 flex-1">
+                                            <div className="text-primary truncate text-sm font-medium">{ev.name}</div>
+                                            <div className="text-muted-foreground font-mono text-xs tabular-nums">{money(ev.total, ev.currency)}</div>
+                                        </Link>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                archivedOpt.set(ev.id, false);
+                                                router.patch(
+                                                    route('spending.events.update', ev.id),
+                                                    { archived: false },
+                                                    {
+                                                        preserveScroll: true,
+                                                        preserveState: true,
+                                                        onSuccess: () => archivedOpt.clear(ev.id),
+                                                        onError: () => archivedOpt.clear(ev.id),
+                                                    },
+                                                );
+                                            }}
+                                            aria-label={t('spending.restore_event')}
+                                            className="text-muted-foreground hover:text-primary flex size-8 items-center justify-center rounded-lg transition-colors"
+                                        >
+                                            <RotateCcw className="size-4" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
         </AppLayout>
