@@ -1,7 +1,7 @@
 import { useAddAction } from '@/lib/add-action';
 import { openNewOnArrival } from '@/lib/create-intent';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Archive, ChartLine, Plus, RotateCcw, Settings, Wallet } from 'lucide-react';
+import { Archive, ChartLine, ChevronRight, Plus, RotateCcw, Settings, Wallet } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 import { useOptimistic } from '@/hooks/use-optimistic';
@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
-import { useT } from '@/lib/i18n';
+import { useLocale, useT } from '@/lib/i18n';
 import { money } from '@/lib/money';
 import { type BreadcrumbItem } from '@/types';
 
@@ -37,12 +37,18 @@ export default function Events({
     events,
     currencies,
     defaultCurrency = null,
+    thisMonth,
 }: {
     events: Event[];
     currencies: string[];
     defaultCurrency?: string | null;
+    // Month-to-date total across every visible list, already rolled up server-side into one currency.
+    thisMonth: { total: number; currency: string };
 }) {
     const t = useT();
+    const locale = useLocale();
+    // Month name in the viewer's locale ("September" / "Septembrie"); the server only sends the total.
+    const monthName = new Date().toLocaleDateString(locale, { month: 'long' });
     const breadcrumbs: BreadcrumbItem[] = [{ title: t('nav.spending'), href: '/m/spending' }];
     const [creating, setCreating] = useState(openNewOnArrival);
     useAddAction(() => setCreating(true));
@@ -91,6 +97,24 @@ export default function Events({
                         </Button>
                     </div>
                 </div>
+
+                {/* This-month widget: total spent month-to-date across all visible lists. Tapping opens
+                    Analytics pre-filtered to the same period (period=mtd), where the same number is broken
+                    down by category/day. Mirrors the analytics "Total spent" card so the two read alike. */}
+                <Link
+                    href={route('spending.analytics', { period: 'mtd' })}
+                    prefetch
+                    className="bg-surface-card hover:border-accent flex items-center justify-between rounded-xl border p-4 transition-colors"
+                >
+                    <div className="flex flex-col gap-0.5">
+                        <span className="font-heading text-primary text-lg capitalize">{monthName}</span>
+                        <span className="text-primary font-mono text-2xl font-semibold tabular-nums">{money(thisMonth.total, thisMonth.currency)}</span>
+                        <span className="text-muted-foreground text-xs">
+                            {t('spending.total_spent')} · {t('spending.analytics')}
+                        </span>
+                    </div>
+                    <ChevronRight className="text-muted-foreground size-5 shrink-0" />
+                </Link>
 
                 {creating && (
                     <form onSubmit={submit} className="bg-surface-card flex flex-col gap-3 rounded-xl border p-4">
