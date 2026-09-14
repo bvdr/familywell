@@ -6,6 +6,7 @@ namespace App\Support\Dashboard;
 //  - recent:   entities opened in the last few days, most-recent first ("Pick up where you left off")
 //  - today:    dated items due today or overdue ("Today")
 //  - thisWeek: dated items due later this week ("This Week")
+//  - widgets:  keyed headline data per module (e.g. widgets.spending = this month's total)
 class DashboardData
 {
     public static function build(): array
@@ -31,6 +32,6 @@ class DashboardData
             ->filter(fn ($i) => $i['dueDate'] > $today && $i['dueDate'] <= $weekEnd)
             ->sortBy('dueDate')->values()->all();
 
-        return ['recent' => $recent, 'today' => $todayItems, 'thisWeek' => $weekItems];
+        return ['recent' => $recent, 'today' => $todayItems, 'thisWeek' => $weekItems, 'widgets' => DashboardWidgets::collect()];
     }
 }

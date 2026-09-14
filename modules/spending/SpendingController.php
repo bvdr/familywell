@@ -14,7 +14,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -53,22 +52,10 @@ class SpendingController extends Controller
         // one display currency exactly like analytics(period=mtd) does (the widget deep-links there, so
         // the two numbers must agree). Computed server-side over every spend in range — the per-card
         // totals below are all-time and each in its own display currency, so they cannot be summed.
-        // One grouped SUM query (not one row per spend) + one cached rate per distinct base currency.
+        // The math lives in MonthToDate so the dashboard's Spending card shows the same figure.
         $eventCcy = $events->whereNull('archived_at')->pluck('currency', 'id');
-        $monthCurrency = $this->displayCurrencyFor($eventCcy);
-        $monthTotal = 0;
-        if ($eventCcy->isNotEmpty()) {
-            $sums = Spend::query()
-                ->whereIn('spend_event_id', $eventCcy->keys())
-                // Same bounds as analyticsPeriod('mtd'): start of month .. end of today (spent_at may carry a time).
-                ->whereBetween('spent_at', [now()->startOfMonth()->toDateString(), now()->endOfDay()->toDateTimeString()])
-                ->groupBy('spend_event_id')
-                ->selectRaw('spend_event_id, SUM(base_amount) AS total')
-                ->pluck('total', 'spend_event_id');
-            foreach ($sums as $eventId => $baseCents) {
-                $monthTotal += (int) round((int) $baseCents * Fx::rate($eventCcy[$eventId], $monthCurrency));
-            }
-        }
+        $monthCurrency = MonthToDate::displayCurrencyFor($eventCcy);
+        $monthTotal = MonthToDate::total($eventCcy, $monthCurrency);
 
         // Expenses tab: one flat, newest-first feed of every spend across the visible lists (archived ones
         // included — a finished trip's expenses are still expenses; the row names its list). Each row
@@ -151,12 +138,6 @@ class SpendingController extends Controller
      * currency, else the most common base among the given lists (event id => base currency) so the
      * default already reads in whatever currency most lists use, else the first supported one.
      */
-    private function displayCurrencyFor(Collection $eventCcy): string
-    {
-        return SpendSetting::defaultCurrency()
-            ?: ($eventCcy->countBy()->sortDesc()->keys()->first() ?? self::CURRENCIES[0]);
-    }
-
     // Module settings screen (reached from the overview header's gear): the family default currency and
     // the definable expense categories. Visible to any member; writes are admin-only (see below).
     public function settings(Request $request): Response
@@ -293,10 +274,10 @@ class SpendingController extends Controller
             $activeCategory = null;
         }
 
-        // Display currency: an explicit pick, else the shared roll-up default (see displayCurrencyFor).
+        // Display currency: an explicit pick, else the shared roll-up default (see MonthToDate).
         $display = $request->query('currency');
         if (! in_array($display, self::CURRENCIES, true)) {
-            $display = $this->displayCurrencyFor($eventCcy);
+            $display = MonthToDate::displayCurrencyFor($eventCcy);
         }
 
         [$period, $start, $end] = $this->analyticsPeriod($request, $eventCcy->keys()->all());
