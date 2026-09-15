@@ -1,9 +1,12 @@
 import { Check, ChevronDown, Plus, Search, X } from 'lucide-react';
 import { useT } from '@/lib/i18n';
-import { type LucideIcon, Store } from 'lucide-react';
-import { useState } from 'react';
+import { Store } from 'lucide-react';
+import { type ComponentType, useState } from 'react';
 
-export type PickerOption = { value: string; label: string; icon?: LucideIcon };
+// `icon` is any component taking className (a lucide icon, or a wrapper like <CategoryIcon> that adds its
+// own colour), so callers can pass per-option renderers, not just static lucide components.
+export type PickerIcon = ComponentType<{ className?: string }>;
+export type PickerOption = { value: string; label: string; icon?: PickerIcon };
 
 // A dropdown-style picker that expands INLINE (no portal), so it works inside the vaul drawer the
 // item editor lives in. Single or multi select, optional quick-search, optional create-on-the-fly.
@@ -25,7 +28,7 @@ export function Picker({
     searchable?: boolean;
     onCreate?: (name: string) => void; // when set, offer "Add '<query>'" for an unknown search term
     placeholder?: string;
-    fallbackIcon?: LucideIcon;
+    fallbackIcon?: PickerIcon;
 }) {
     const t = useT();
     const [open, setOpen] = useState(false);

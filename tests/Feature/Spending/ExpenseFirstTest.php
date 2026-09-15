@@ -152,3 +152,18 @@ it('adds an expense to the chosen list and rejects one the viewer cannot edit or
     ])->assertNotFound();
     expect(Spend::withoutGlobalScopes()->count())->toBe(1);
 });
+
+it('stores the category picked on quick-add, incl. the "other" default, and rejects an unknown key', function () {
+    [$family, $users] = expenseFamily();
+    $add = fn (string $category) => actingAs($users[0])->post('/m/spending/spends', [
+        'amount' => '5.00', 'currency' => 'EUR', 'category' => $category, 'payer_key' => 'u'.$users[0]->id, 'spent_at' => '2026-09-10',
+    ]);
+
+    // The quick-add form pre-selects the catch-all "other" (see defaultCategoryKey); it must round-trip as-is.
+    $add('other')->assertRedirect()->assertSessionHasNoErrors();
+    $add('transport')->assertRedirect()->assertSessionHasNoErrors(); // picked via the searchable picker
+    expect(Spend::orderBy('id')->pluck('category')->all())->toBe(['other', 'transport']);
+
+    $add('nope')->assertSessionHasErrors('category');
+    expect(Spend::count())->toBe(2);
+});

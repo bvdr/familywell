@@ -1,7 +1,7 @@
 import { useAddAction } from '@/lib/add-action';
 import { openNewOnArrival } from '@/lib/create-intent';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { Archive, ChartLine, ChevronRight, Plus, RotateCcw, Settings, Wallet } from 'lucide-react';
+import { Archive, ChartLine, ChevronRight, Plus, RotateCcw, Settings, Tag, Wallet } from 'lucide-react';
 import { FormEventHandler, useRef, useState } from 'react';
 
 import { useOptimistic } from '@/hooks/use-optimistic';
@@ -18,7 +18,7 @@ import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
-import { catColor, catIconName, catLabel, categoryMap, type CategoryDef } from '@/lib/categories';
+import { catColor, catIconName, catLabel, categoryMap, defaultCategoryKey, type CategoryDef } from '@/lib/categories';
 import { groupByDateBucket, localToday } from '@/lib/date-groups';
 import { useLocale, useT } from '@/lib/i18n';
 import { money } from '@/lib/money';
@@ -127,7 +127,17 @@ export default function Events({
 
     // Lists the viewer may add spends to; the picker offers these plus the "Others" default (value '').
     const editable = events.filter((ev) => ev.canEdit && !ev.archived);
-    const defaultCategory = categories[0]?.key ?? 'other';
+    // Catch-all defaults on both axes ("Other" category + "Others" list) so an expense can be added fast
+    // without picking anything.
+    const defaultCategory = defaultCategoryKey(categories);
+    // Category picker rows: the coloured category icon wrapped as a Picker-compatible component.
+    // ponytail: rebuilt per render (useT() returns a fresh closure, so memoising is moot) — the wrappers
+    // change identity and React remounts the ~8 tiny SVGs while the drawer is open; not measurable.
+    const categoryOptions = categories.map((c) => ({
+        value: c.key,
+        label: catLabel(t, catMap, c.key),
+        icon: ({ className }: { className?: string }) => <CategoryIcon icon={c.icon} className={className} style={{ color: c.color }} />,
+    }));
     // ponytail: quick-add covers amount/currency/category/list/payer/date/note. Split, receipts, payment
     // source and guests stay on the list page (tap the row to edit) — add here only if people ask.
     const spend = useForm({
@@ -296,30 +306,14 @@ export default function Events({
                         </div>
                         <div className="grid gap-2">
                             <Label>{t('spending.category')}</Label>
-                            <Select value={spend.data.category} onValueChange={(v) => spend.setData('category', v)}>
-                                <SelectTrigger className="w-full">
-                                    <SelectValue>
-                                        <span className="flex items-center gap-2">
-                                            <CategoryIcon
-                                                icon={catIconName(catMap, spend.data.category)}
-                                                className="size-4 shrink-0"
-                                                style={{ color: catColor(catMap, spend.data.category) }}
-                                            />
-                                            <span className="truncate">{catLabel(t, catMap, spend.data.category)}</span>
-                                        </span>
-                                    </SelectValue>
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {categories.map((c) => (
-                                        <SelectItem key={c.key} value={c.key}>
-                                            <span className="flex items-center gap-2">
-                                                <CategoryIcon icon={c.icon} className="size-4 shrink-0" style={{ color: c.color }} />
-                                                {catLabel(t, catMap, c.key)}
-                                            </span>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            {/* Searchable like the list picker below: type to filter the (possibly long) category list. */}
+                            <Picker
+                                searchable
+                                fallbackIcon={Tag}
+                                options={categoryOptions}
+                                selected={[spend.data.category]}
+                                onChange={(next) => spend.setData('category', next[0] ?? defaultCategory)}
+                            />
                             <InputError message={spend.errors.category} />
                         </div>
                         {/* Which list the expense goes to. Optional: no pick => the family's "Others" list. */}

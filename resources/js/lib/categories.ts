@@ -45,6 +45,12 @@ export const catLabel = (t: TFn, map: CategoryMap, key: string): string => {
 
 export const catColor = (map: CategoryMap, key: string): string => map[key]?.color ?? FALLBACK_COLOR;
 
+// Default category for a NEW expense: the catch-all "other" so quick-add needs no picking (it pairs with
+// the "Others" default list). Falls back to the first category if an admin deleted "other". Only for
+// new spends — editing keeps the spend's own category.
+export const defaultCategoryKey = (cats: Pick<CategoryDef, 'key'>[]): string =>
+    cats.some((c) => c.key === 'other') ? 'other' : (cats[0]?.key ?? 'other');
+
 // The stored icon string for a category key (PascalCase default name or kebab custom key), or undefined
 // for an unknown/legacy key. Pass it straight to <CategoryIcon icon={...} />.
 export const catIconName = (map: CategoryMap, key: string): string | undefined => map[key]?.icon;
