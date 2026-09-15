@@ -42,7 +42,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { avatarColorFor } from '@/lib/avatar';
-import { catColor, categoryMap, catIconName, catLabel, type CategoryDef } from '@/lib/categories';
+import { catColor, categoryMap, catIconName, catLabel, defaultCategoryKey, type CategoryDef } from '@/lib/categories';
 import { compressImage, makeThumbnail } from '@/lib/compress-image';
 import { useT, type TFn } from '@/lib/i18n';
 import { money, selectAllOnFocus } from '@/lib/money';
@@ -187,9 +187,9 @@ export default function Event({
 }) {
     const authId = usePage<{ auth: { user: { id: number } } }>().props.auth.user.id;
     const t = useT();
-    // Dynamic categories: a key→def lookup for rendering, and the first one as the new-spend default.
+    // Dynamic categories: a key→def lookup for rendering, and the catch-all "other" as the new-spend default.
     const catMap = categoryMap(event.categories);
-    const defaultCategory = event.categories[0]?.key ?? 'food';
+    const defaultCategory = defaultCategoryKey(event.categories);
     const [tab, setTab] = useState<TabKey>('expenses');
     const [adding, setAdding] = useState(false);
     useAddAction(() => setAdding(true));
