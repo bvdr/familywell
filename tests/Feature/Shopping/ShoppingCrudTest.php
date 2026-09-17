@@ -197,6 +197,52 @@ it('404s the voice parse endpoint when AI is not configured', function () {
     actingAs($users[0])->postJson("/m/shopping/lists/{$list->id}/parse", ['transcript' => 'milk and eggs'])->assertNotFound();
 });
 
+it('parses a pasted block into one item per line, stripping list noise and capturing counts', function () {
+    config()->set('services.gemini.key', null); // naive split only, no model call
+    [, $users] = shoppingFamily();
+    actingAs($users[0])->post('/m/shopping/lists', ['name' => 'Groceries']);
+    $list = ShoppingList::withoutGlobalScopes()->first();
+
+    $block = "- [ ] milk\n* 2x eggs\n1. Bananas 🍌\n\n\n3) flour x2\n☐ 2 kg potatoes\n";
+    $items = actingAs($users[0])->postJson("/m/shopping/lists/{$list->id}/paste", ['text' => $block])
+        ->assertOk()->json('items');
+
+    expect(array_column($items, 'name'))->toBe(['milk', 'eggs', 'Bananas', 'flour', 'potatoes'])
+        ->and(array_column($items, 'quantity'))->toBe([null, '2', null, '2', '2 kg']);
+
+    // The review screen then bulk-adds exactly what was parsed: one row per pasted line.
+    actingAs($users[0])->post("/m/shopping/lists/{$list->id}/items/bulk", ['items' => $items])->assertRedirect();
+    expect($list->items()->count())->toBe(5)
+        ->and($list->items()->where('name', 'eggs')->value('quantity'))->toBe('2');
+});
+
+it('splits a comma-separated pasted line into items', function () {
+    config()->set('services.gemini.key', null);
+    [, $users] = shoppingFamily();
+    actingAs($users[0])->post('/m/shopping/lists', ['name' => 'Groceries']);
+    $list = ShoppingList::withoutGlobalScopes()->first();
+
+    $items = actingAs($users[0])->postJson("/m/shopping/lists/{$list->id}/paste", ['text' => 'milk, eggs (3), 2 lapte'])->json('items');
+
+    expect(array_column($items, 'name'))->toBe(['milk', 'eggs', 'lapte'])
+        ->and(array_column($items, 'quantity'))->toBe([null, '3', '2']);
+});
+
+it('paste respects list permissions and family scope', function () {
+    config()->set('services.gemini.key', null);
+    [, $users] = shoppingFamily();
+    actingAs($users[0])->post('/m/shopping/lists', ['name' => 'Mine', 'visibility' => 'private']);
+    $list = ShoppingList::withoutGlobalScopes()->first();
+
+    // Same family, no share on a private list: no role => forbidden.
+    actingAs($users[1])->postJson("/m/shopping/lists/{$list->id}/paste", ['text' => 'milk'])->assertForbidden();
+    // Another family is denied too. 404 when the family scope catches it at binding time, 403 from
+    // the share check otherwise (route bindings resolve before SetActiveFamily runs, so the scope
+    // can't be relied on at bind time; roleFor() is the real guard). Either way: no access.
+    [, $others] = shoppingFamily();
+    expect(actingAs($others[0])->postJson("/m/shopping/lists/{$list->id}/paste", ['text' => 'milk'])->status())->toBeIn([403, 404]);
+});
+
 it('duplicates a list with its items reset to unbought', function () {
     [, $users] = shoppingFamily();
     actingAs($users[0])->post('/m/shopping/lists', ['name' => 'Original', 'store' => 'Target']);

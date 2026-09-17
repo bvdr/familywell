@@ -10,6 +10,7 @@ import {
     LayoutList,
     Loader2,
     Lock,
+    ClipboardPaste,
     Mic,
     Minus,
     MoreHorizontal,
@@ -154,7 +155,9 @@ export default function ListDetail({
 
     // Voice / AI dictation flow.
     const [voiceOpen, setVoiceOpen] = useState(false);
-    const [stage, setStage] = useState<'voice' | 'review'>('voice');
+    const [stage, setStage] = useState<'voice' | 'paste' | 'review'>('voice');
+    // Which input the review screen came from, so Redo / "add more" go back to the same one.
+    const [mode, setMode] = useState<'voice' | 'paste'>('voice');
     const [transcript, setTranscript] = useState('');
     const [listening, setListening] = useState(false);
     // Dictation language is chosen on the module Settings page; read the saved choice on mount.
@@ -383,12 +386,16 @@ export default function ListDetail({
             return { ...d, quantity: String(Math.max(0, (isNaN(n) ? 0 : n) + delta)) };
         });
 
-    const openVoice = () => {
+    const openVoice = (from: 'voice' | 'paste' = 'voice') => {
         setTranscript('');
         setParsed([]);
-        setStage('voice');
+        setMode(from);
+        setStage(from);
         setVoiceOpen(true);
     };
+    // "Paste a list": same overlay + review + bulk-add as voice, just a textarea and the line-aware
+    // server split (shopping.paste) instead of dictation.
+    const openPaste = () => openVoice('paste');
     const closeVoice = () => {
         recRef.current?.stop();
         setListening(false);
@@ -443,11 +450,13 @@ export default function ListDetail({
             const xsrf = decodeURIComponent(document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]+)/)?.[1] ?? '');
             // Relative URL (route(..., false)): a same-origin fetch must hit the exact origin the user is
             // on, or the session cookie isn't sent and the AI parse silently fails to the naive split.
-            const res = await fetch(route('shopping.parse', list.id, false), {
+            // Paste hits the always-available line splitter (AI-sorted when configured); voice hits the
+            // AI-only parse, which 404s without a key and drops us to the naive split.
+            const res = await fetch(route(mode === 'paste' ? 'shopping.paste' : 'shopping.parse', list.id, false), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-XSRF-TOKEN': xsrf, Accept: 'application/json' },
                 credentials: 'same-origin',
-                body: JSON.stringify({ transcript: text }),
+                body: JSON.stringify(mode === 'paste' ? { text } : { transcript: text }),
             });
             const items: Parsed[] = res.ok ? (await res.json()).items : naiveParse(text);
             setParsed((prev) => [...prev, ...items]);
@@ -682,8 +691,11 @@ export default function ListDetail({
                             <Button type="button" variant="outline" onClick={openNew} className="flex-1">
                                 <Plus className="size-4" /> {t('shopping.add_item')}
                             </Button>
-                            <Button type="button" variant="outline" size="icon" onClick={openVoice} aria-label={t('shopping.add_by_voice')}>
+                            <Button type="button" variant="outline" size="icon" onClick={() => openVoice()} aria-label={t('shopping.add_by_voice')}>
                                 <Mic className="size-4" />
+                            </Button>
+                            <Button type="button" variant="outline" size="icon" onClick={openPaste} aria-label={t('shopping.paste_list')}>
+                                <ClipboardPaste className="size-4" />
                             </Button>
                         </div>
                         {liveItems.some((i) => !isBought(i)) && (
@@ -820,7 +832,7 @@ export default function ListDetail({
             {voiceOpen &&
                 createPortal(
                     <div className="bg-primary text-primary-foreground fixed inset-0 z-[60] flex flex-col">
-                        {stage === 'voice' ? (
+                        {stage !== 'review' ? (
                             <>
                                 <div className="flex justify-end px-5 pt-[calc(1rem+env(safe-area-inset-top))]">
                                     <button
@@ -833,7 +845,7 @@ export default function ListDetail({
                                     </button>
                                 </div>
                                 <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
-                                    {speechSupported && (
+                                    {stage === 'voice' && speechSupported && (
                                         <button
                                             type="button"
                                             onClick={toggleListening}
@@ -855,7 +867,7 @@ export default function ListDetail({
                                             ))}
                                         </div>
                                     )}
-                                    {speechSupported ? (
+                                    {stage === 'voice' && speechSupported ? (
                                         transcript ? (
                                             <p className="text-lg leading-relaxed">{transcript}</p>
                                         ) : (
@@ -863,13 +875,15 @@ export default function ListDetail({
                                         )
                                     ) : (
                                         <>
-                                            <p className="text-accent-strong-foreground/70 text-sm">{t('shopping.type_prompt')}</p>
+                                            <p className="text-accent-strong-foreground/70 text-sm">
+                                                {t(stage === 'paste' ? 'shopping.paste_prompt' : 'shopping.type_prompt')}
+                                            </p>
                                             <textarea
                                                 autoFocus
                                                 value={transcript}
                                                 onChange={(e) => setTranscript(e.target.value)}
-                                                placeholder={t('shopping.voice_placeholder')}
-                                                className="border-primary-foreground/20 placeholder:text-accent-strong-foreground/40 min-h-28 w-full rounded-xl border bg-transparent p-3 text-base outline-none"
+                                                placeholder={t(stage === 'paste' ? 'shopping.paste_placeholder' : 'shopping.voice_placeholder')}
+                                                className={`border-primary-foreground/20 placeholder:text-accent-strong-foreground/40 w-full rounded-xl border bg-transparent p-3 text-base outline-none ${stage === 'paste' ? 'min-h-56' : 'min-h-28'}`}
                                             />
                                         </>
                                     )}
@@ -894,7 +908,7 @@ export default function ListDetail({
                                         onClick={() => {
                                             setParsed([]);
                                             setTranscript('');
-                                            setStage('voice');
+                                            setStage(mode);
                                         }}
                                         className="text-accent-strong-foreground/80 flex items-center gap-1 text-sm"
                                     >
@@ -908,8 +922,10 @@ export default function ListDetail({
                                 </div>
                                 <div className="flex-1 space-y-4 overflow-y-auto px-5 pb-[calc(9rem+env(safe-area-inset-bottom))]">
                                     <div>
-                                        <h2 className="font-heading text-2xl">{t('shopping.heard_heading')}</h2>
-                                        {transcript && <p className="text-accent-strong-foreground/70 mt-2 text-sm italic">"{transcript}"</p>}
+                                        <h2 className="font-heading text-2xl">{t(mode === 'paste' ? 'shopping.pasted_heading' : 'shopping.heard_heading')}</h2>
+                                        {transcript && mode === 'voice' && (
+                                            <p className="text-accent-strong-foreground/70 mt-2 text-sm italic">"{transcript}"</p>
+                                        )}
                                         <p className="text-accent-strong-foreground/70 mt-2 text-sm">
                                             {t(parsed.length === 1 ? 'shopping.items_sorted_one' : 'shopping.items_sorted_other', {
                                                 n: parsed.length,
@@ -979,11 +995,12 @@ export default function ListDetail({
                                         type="button"
                                         onClick={() => {
                                             setTranscript('');
-                                            setStage('voice');
+                                            setStage(mode);
                                         }}
                                         className="border-primary-foreground/25 flex w-full items-center justify-center gap-2 rounded-xl border py-3 text-sm font-medium"
                                     >
-                                        <Mic className="size-4" /> {t('shopping.add_more_by_voice')}
+                                        {mode === 'paste' ? <ClipboardPaste className="size-4" /> : <Mic className="size-4" />}{' '}
+                                        {t(mode === 'paste' ? 'shopping.add_more_by_paste' : 'shopping.add_more_by_voice')}
                                     </button>
                                     <button
                                         type="button"

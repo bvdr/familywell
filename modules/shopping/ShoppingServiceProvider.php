@@ -112,6 +112,7 @@ class ShoppingServiceProvider extends ServiceProvider
                 Route::post('/lists/{list}/items', [ShoppingController::class, 'storeItem'])->name('items.store');
                 Route::post('/lists/{list}/items/bulk', [ShoppingController::class, 'storeItems'])->name('items.bulk');
                 Route::post('/lists/{list}/parse', [ShoppingController::class, 'parseVoice'])->middleware('throttle:20,1')->name('parse');
+                Route::post('/lists/{list}/paste', [ShoppingController::class, 'parsePaste'])->middleware('throttle:20,1')->name('paste');
                 Route::patch('/items/{item}', [ShoppingController::class, 'updateItem'])->name('items.update');
                 Route::delete('/items/{item}', [ShoppingController::class, 'destroyItem'])->name('items.destroy');
 

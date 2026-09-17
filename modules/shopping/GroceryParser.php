@@ -77,6 +77,49 @@ class GroceryParser
     }
 
     /**
+     * Naive, no-AI split of a pasted block (WhatsApp / notes / another chat) into candidate items.
+     * One item per line AND per comma/semicolon; strips list noise (bullets, "1." numbering, "[ ]"
+     * checkboxes, emoji) and pulls an easy count into the quantity ("2x milk", "milk x2", "2 lapte",
+     * "milk (2)"). Aisle is always 'other': the AI pass (when configured) is what sorts aisles.
+     * ponytail: regex heuristics, not a grammar; units ("2 kg") stay in the name on purpose.
+     *
+     * @return list<array{name: string, quantity: string|null, department: string, note: string|null}>
+     */
+    public static function splitPasted(string $text): array
+    {
+        // Units we fold into the quantity so "2 kg flour" becomes qty "2 kg", name "flour".
+        $unit = '(?:kg|g|l|ml|pcs?|buc(?:[aă][țt]i)?|packs?|pachete?|boxe?s?|cutii?|bags?|pungi|bottles?|sticl[ăa]|sticle)';
+
+        $out = [];
+        foreach (preg_split('/[\r\n,;]+/u', $text) ?: [] as $line) {
+            // Leading noise: bullets/dashes, "1." / "1)" / "1:" numbering, markdown + unicode checkboxes.
+            $line = preg_replace('/^[\s\-\*\x{2022}\x{25E6}\x{25AA}\x{2013}\x{2014}>]+/u', '', $line);
+            $line = preg_replace('/^\d{1,3}(?:[\)\:]|\.(?=\s))\s*/u', '', $line);
+            $line = preg_replace('/^(?:\[\s*[xX\x{2713}\x{2714}]?\s*\]|[\x{2610}\x{2611}\x{2612}\x{2713}\x{2714}\x{2705}])\s*/u', '', $line);
+            // Emoji anywhere ("🍞 Bread", "Bread 🥛"); variation selectors + ZWJ ride along with them.
+            $line = preg_replace('/[\p{Extended_Pictographic}\x{FE0F}\x{200D}]+/u', ' ', $line);
+            $line = trim(preg_replace('/\s+/u', ' ', $line) ?? '', " \t.-");
+            if ($line === '') {
+                continue;
+            }
+
+            $qty = null;
+            if (preg_match('/^(?:x\s*)?(\d+(?:[\.,]\d+)?(?:\s*'.$unit.'\b)?)\s*(?:x|\x{00D7})?\s+(.+)$/iu', $line, $m)) {
+                // "2x milk" / "x2 milk" / "2 lapte" / "2 kg flour"
+                [$qty, $line] = [preg_replace('/\s+/', ' ', $m[1]), trim($m[2])];
+            } elseif (preg_match('/^(.+?)\s*(?:\(\s*(\d+)\s*\)|\s(?:x|\x{00D7})\s*(\d+)|\s(\d+)\s*(?:x|\x{00D7}))$/iu', $line, $m)) {
+                // "milk (2)" / "milk x2" / "milk 2x"
+                $qty = implode('', array_slice($m, 2)); // only one of the three groups is non-empty
+                $line = trim($m[1]);
+            }
+
+            $out[] = ['name' => $line, 'quantity' => $qty, 'department' => 'other', 'note' => null];
+        }
+
+        return $out;
+    }
+
+    /**
      * @param  array<int, mixed>  $items
      * @return list<array{name: string, quantity: string|null, department: string, note: string|null}>
      */
