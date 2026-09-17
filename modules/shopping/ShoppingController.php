@@ -634,6 +634,29 @@ class ShoppingController extends Controller
         return response()->json(['items' => $items]);
     }
 
+    // Paste a block of text (a list copied from WhatsApp / notes / another chat) and get candidate
+    // items back for the review screen. Always answers: the naive line/comma split needs no AI; when
+    // Gemini is configured the cleaned lines go through it for aisles + tidier quantities, falling back
+    // to the naive result if the model call fails, so paste never depends on the AI being up.
+    public function parsePaste(Request $request, ShoppingList $list): JsonResponse
+    {
+        abort_unless($this->access->roleFor($request->user(), $list) !== null, 403);
+        $data = $request->validate(['text' => ['required', 'string', 'max:5000']]);
+
+        $items = GroceryParser::splitPasted($data['text']);
+        if ($items !== [] && GroceryParser::configured()) {
+            try {
+                // Feed the de-noised lines (qty folded back in) so the model sorts aisles, not bullets.
+                $lines = array_map(fn ($i) => trim(($i['quantity'] ? $i['quantity'].' ' : '').$i['name']), $items);
+                $items = (new GroceryParser($this->aisleSlugs($list->store)))->parse(implode("\n", $lines)) ?: $items;
+            } catch (\RuntimeException) {
+                // keep the naive split
+            }
+        }
+
+        return response()->json(['items' => $items]);
+    }
+
     // Bulk-insert reviewed voice/AI items into the list in one go.
     public function storeItems(Request $request, ShoppingList $list): RedirectResponse
     {
