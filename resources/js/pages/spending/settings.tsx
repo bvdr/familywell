@@ -10,8 +10,8 @@ import { catLabel as catLabelOf, categoryMap, type CategoryDef } from '@/lib/cat
 import { useT } from '@/lib/i18n';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
-import { Plus, Trash2 } from 'lucide-react';
-import { FormEventHandler } from 'react';
+import { Plus, Sparkles, Trash2 } from 'lucide-react';
+import { FormEventHandler, useState } from 'react';
 
 // A category row carries its usage count so the UI can block deleting one that's still on spends.
 type Category = CategoryDef & { id: number; inUse: number };
@@ -21,9 +21,92 @@ type Props = {
     defaultCurrency: string | null;
     categories: Category[];
     canManage: boolean; // family admin? gates every write on this screen
+    aiCategorize: boolean; // TypeSafe key present => the bulk "sort Other" tool is available
 };
 
-export default function SpendingSettings({ currencies, defaultCurrency, categories, canManage }: Props) {
+// Bulk AI re-categorisation of expenses left in "Other". The server works in batches (cursor = last
+// spend id) so we can show real progress; we just loop until it reports nothing left. A failed batch
+// stops the loop with the progress kept: running again resumes, since only "Other" rows are touched.
+function AiSort({ total }: { total: number }) {
+    const t = useT();
+    const [state, setState] = useState<'idle' | 'running' | 'done' | 'failed'>('idle');
+    const [processed, setProcessed] = useState(0);
+    const [moved, setMoved] = useState(0);
+
+    const run = async () => {
+        setState('running');
+        setProcessed(0);
+        setMoved(0);
+        const xsrf = decodeURIComponent(document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]+)/)?.[1] ?? '');
+        let after: number | null = 0;
+        let done = 0;
+        let ok = 0;
+        try {
+            while (after !== null) {
+                // Relative URL so the same-origin session cookie is sent (see shopping/list.tsx).
+                const res = await fetch(route('spending.settings.recategorize', undefined, false), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-XSRF-TOKEN': xsrf, Accept: 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ after }),
+                });
+                if (!res.ok) throw new Error(String(res.status));
+                const batch: { processed: number; updated: number; next: number | null } = await res.json();
+                done += batch.processed;
+                ok += batch.updated;
+                setProcessed(done);
+                setMoved(ok);
+                after = batch.next;
+            }
+            setState('done');
+            router.reload({ only: ['categories'] }); // refresh the per-category usage counts
+        } catch {
+            setState('failed');
+        }
+    };
+
+    const pct = total === 0 ? 100 : Math.min(100, Math.round((processed / total) * 100));
+
+    return (
+        <div className="bg-surface-card flex flex-col gap-3 rounded-xl border p-5">
+            <div>
+                <h2 className="font-heading text-primary flex items-center gap-2 text-lg">
+                    <Sparkles className="size-4" /> {t('spending.ai_sort_title')}
+                </h2>
+                <p className="text-muted-foreground text-sm">{t('spending.ai_sort_desc')}</p>
+            </div>
+            {state === 'running' || state === 'done' || state === 'failed' ? (
+                <div className="flex flex-col gap-2">
+                    <div
+                        className="bg-muted h-2 w-full overflow-hidden rounded-full"
+                        role="progressbar"
+                        aria-valuenow={pct}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                    >
+                        <div className="bg-primary h-full rounded-full transition-[width] duration-300" style={{ width: `${pct}%` }} />
+                    </div>
+                    <p className="text-muted-foreground text-sm" aria-live="polite">
+                        {state === 'running' && `${t('spending.ai_sort_running')} ${processed}/${total}`}
+                        {state === 'done' && t('spending.ai_sort_done', { moved, total: processed })}
+                        {state === 'failed' && t('spending.ai_sort_failed')}
+                    </p>
+                </div>
+            ) : (
+                <p className="text-muted-foreground text-sm">
+                    {total === 0 ? t('spending.ai_sort_nothing') : t('spending.ai_sort_pending', { count: total })}
+                </p>
+            )}
+            <div>
+                <Button type="button" onClick={run} disabled={state === 'running' || (total === 0 && state === 'idle')}>
+                    <Sparkles className="size-4" /> {t('spending.ai_sort_run')}
+                </Button>
+            </div>
+        </div>
+    );
+}
+
+export default function SpendingSettings({ currencies, defaultCurrency, categories, canManage, aiCategorize }: Props) {
     const t = useT();
     const breadcrumbs: BreadcrumbItem[] = [
         { title: t('nav.spending'), href: '/m/spending' },
@@ -188,6 +271,9 @@ export default function SpendingSettings({ currencies, defaultCurrency, categori
                         </form>
                     )}
                 </div>
+
+                {/* Bulk AI re-categorisation: admins only, and only when a TypeSafe key is configured. */}
+                {canManage && aiCategorize && <AiSort total={categories.find((c) => c.key === 'other')?.inUse ?? 0} />}
             </div>
         </AppLayout>
     );
