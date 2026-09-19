@@ -1,8 +1,9 @@
+import { Confetti } from '@/components/confetti';
 import { LucideIcon as DynamicLucideIcon } from '@/components/lucide-icon';
 import AppLayout from '@/layouts/app-layout';
 import { useLocale, useT, type TFn } from '@/lib/i18n';
-import { money } from '@/lib/money';
 import { Slot } from '@/lib/modules';
+import { money } from '@/lib/money';
 import { listColor as shoppingListColor, listIcon as shoppingListIcon } from '@/lib/shopping';
 import { listColor as taskListColor, listIcon as taskListIcon } from '@/lib/tasks';
 import { type BreadcrumbItem, type SharedData } from '@/types';
@@ -185,7 +186,7 @@ export default function Dashboard({
     today?: AgendaItem[];
     thisWeek?: AgendaItem[];
     // Per-module headline data (DashboardWidgets): only present when that module is enabled.
-    widgets?: { spending?: { total: number; currency: string } };
+    widgets?: { spending?: { total: number; currency: string }; birthdays?: { personId: number; name: string; turning: number | null }[] };
 }) {
     const { auth, modules } = usePage<SharedData & { modules?: { enabled?: string[] } }>().props;
     const t = useT();
@@ -251,6 +252,32 @@ export default function Dashboard({
                             <Plus className="size-5" />
                         </Link>
                     </div>
+                )}
+
+                {/* Birthday today: one card per person celebrating, plus a single confetti fall on the first
+                    open of the day (keyed by date + who, so a second birthday still gets its moment). */}
+                {widgets.birthdays?.map((b) => (
+                    <Link
+                        key={b.personId}
+                        href="/m/birthdays"
+                        prefetch
+                        className="bg-surface-card hover:border-accent flex items-center gap-4 rounded-xl border p-4 transition-colors"
+                    >
+                        <span className="bg-tile flex size-14 shrink-0 items-center justify-center rounded-xl text-3xl" aria-hidden="true">
+                            🎂
+                        </span>
+                        <span className="flex min-w-0 flex-col">
+                            <span className="font-heading text-primary text-xl leading-tight">
+                                {b.turning !== null
+                                    ? t('birthdays.today_turns', { name: b.name, age: b.turning })
+                                    : t('birthdays.today_noage', { name: b.name })}
+                            </span>
+                            <span className="text-muted-foreground mt-1 text-sm">{t('birthdays.card_sub')}</span>
+                        </span>
+                    </Link>
+                ))}
+                {widgets.birthdays && widgets.birthdays.length > 0 && (
+                    <Confetti onceKey={`${new Date().toISOString().slice(0, 10)}:${widgets.birthdays.map((b) => b.personId).join(',')}`} />
                 )}
 
                 {today.length > 0 && (
