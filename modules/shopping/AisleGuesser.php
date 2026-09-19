@@ -4,8 +4,7 @@ namespace Modules\Shopping;
 
 use App\Events\ShoppingChanged;
 use App\Support\Realtime;
-use Illuminate\Support\Facades\Http;
-use RuntimeException;
+use App\Support\TypeSafe;
 
 // Sorts freshly added items that landed in the catch-all "Other" aisle into a real one using
 // TypeSafe's Jev (a System One model: it answers typed multiple-choice questions, it doesn't
@@ -23,7 +22,7 @@ class AisleGuesser
 
     public static function configured(): bool
     {
-        return filled(config('services.typesafe.key'));
+        return TypeSafe::configured();
     }
 
     public static function queue(ShoppingItem $item): void
@@ -75,7 +74,7 @@ class AisleGuesser
                 ];
             }
 
-            $answers = self::ask($state, $questions);
+            $answers = TypeSafe::ask($state, $questions);
             foreach ($group as $item) {
                 $choice = $answers['item_'.$item->id]['choice'] ?? 'other';
                 if ($choice === 'other' || ! isset($criteria[$choice])) {
@@ -94,30 +93,5 @@ class AisleGuesser
         foreach (array_keys($touchedFamilies) as $familyId) {
             Realtime::broadcast(new ShoppingChanged((int) $familyId));
         }
-    }
-
-    /**
-     * One TypeSafe System One call. Returns the `answers` map (empty on failure, which is reported
-     * but never thrown: a guess is a nicety, the item is already saved).
-     *
-     * @return array<string, array{choice?: string, probabilities?: array<string, float>, confidence?: float}>
-     */
-    private static function ask(array $state, array $questions): array
-    {
-        $response = Http::timeout(20)
-            ->withToken((string) config('services.typesafe.key'))
-            ->post('https://api.typesafe.ai/v1/systemone', [
-                'state' => $state,
-                'model' => config('services.typesafe.model'),
-                'questions' => $questions,
-            ]);
-
-        if ($response->failed()) {
-            report(new RuntimeException('TypeSafe aisle guess failed ('.$response->status().'): '.$response->body()));
-
-            return [];
-        }
-
-        return $response->json('answers') ?? [];
     }
 }
