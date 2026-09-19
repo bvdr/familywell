@@ -31,7 +31,7 @@ class BirthdaysController extends Controller
                 'nextBirthday' => $b->nextBirthday()?->toDateString(),
                 'daysUntil' => $b->daysUntil(),
                 'age' => $b->age(),
-                'turning' => $b->age() !== null ? $b->age() + 1 : null,
+                'turning' => $b->turning(),
             ])->values(),
         ]);
     }
@@ -87,7 +87,7 @@ class BirthdaysController extends Controller
                 'date' => $b->nextBirthday()->toDateString(),
                 'daysUntil' => $b->daysUntil(),
                 'age' => $b->age(),                                 // age today (null without a year)
-                'turning' => $b->age() !== null ? $b->age() + 1 : null, // age on the next birthday
+                'turning' => $b->turning(), // age on the next birthday
             ])
             ->values();
 

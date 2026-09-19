@@ -16,5 +16,10 @@
     "save": "Salvează",
     "cancel": "Anulează",
     "year": "An",
-    "no_match": "Nimeni cu acest nume încă. Adaugă mai sus."
+    "no_match": "Nimeni cu acest nume încă. Adaugă mai sus.",
+    "today_turns": ":name împlinește :age ani azi",
+    "today_noage": "Azi e ziua lui :name",
+    "push_body": "La mulți ani! 🎈",
+    "card_sub": "La mulți ani! 🎈",
+    "card_open": "Vezi toate zilele de naștere"
 }

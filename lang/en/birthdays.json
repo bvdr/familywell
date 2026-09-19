@@ -16,5 +16,10 @@
     "save": "Save",
     "cancel": "Cancel",
     "year": "Year",
-    "no_match": "No one by that name yet. Add them above."
+    "no_match": "No one by that name yet. Add them above.",
+    "today_turns": ":name turns :age today",
+    "today_noage": "It's :name's birthday today",
+    "push_body": "Happy birthday! 🎈",
+    "card_sub": "Happy birthday! 🎈",
+    "card_open": "See all birthdays"
 }
