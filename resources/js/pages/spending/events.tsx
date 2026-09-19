@@ -1,10 +1,11 @@
 import { useAddAction } from '@/lib/add-action';
 import { openNewOnArrival } from '@/lib/create-intent';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { Archive, ChartLine, ChevronRight, Plus, RotateCcw, Settings, Tag, Wallet } from 'lucide-react';
+import { Archive, Camera, ChartLine, ChevronRight, Loader2, Plus, RotateCcw, Settings, Tag, Wallet } from 'lucide-react';
 import { FormEventHandler, useRef, useState } from 'react';
 
 import { useOptimistic } from '@/hooks/use-optimistic';
+import { compressImage, makeThumbnail } from '@/lib/compress-image';
 
 import { CategoryIcon } from '@/components/category-icon';
 import { IconPicker } from '@/components/icon-picker';
@@ -74,9 +75,11 @@ export default function Events({
     feedCap,
     categories,
     members,
+    scanEnabled = false,
 }: {
     events: Event[];
     currencies: string[];
+    scanEnabled?: boolean; // Gemini key present => "Scan receipt" shows in the quick-add sheet
     defaultCurrency?: string | null;
     // Month-to-date total across every visible list, already rolled up server-side into one currency.
     thisMonth: { total: number; currency: string };
@@ -148,8 +151,54 @@ export default function Events({
         payer_key: 'u' + authId,
         spent_at: today(),
         note: '',
+        receipts: [] as File[], // the scanned photo, kept as the spend's receipt
+        receipts_thumb: [] as File[],
     });
     const chosen = editable.find((ev) => String(ev.id) === spend.data.event_id);
+
+    // Scan a receipt from inside the sheet: the endpoint reads the photo into amount/currency/date/
+    // category/note, we fill the open form (list + payer untouched) and keep the photo attached, so the
+    // user just reviews and taps Save. Same flow as the list page's "Scan receipt".
+    const scanInputRef = useRef<HTMLInputElement>(null);
+    const [scanning, setScanning] = useState(false);
+    const [scanError, setScanError] = useState<string | null>(null);
+    const handleScanFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        e.target.value = ''; // let the same photo be picked again after an error
+        if (!file) return;
+        setScanError(null);
+        setScanning(true);
+        try {
+            const photo = await compressImage(file, 800_000);
+            const photoThumb = await makeThumbnail(file, 640);
+            const body = new FormData();
+            body.append('photo', photo);
+            const xsrf = decodeURIComponent(document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]+)/)?.[1] ?? '');
+            // Relative URL: same-origin fetch must target the origin the user is on so the session cookie is sent.
+            const res = await fetch(route('spending.scan', undefined, false), {
+                method: 'POST',
+                headers: { 'X-XSRF-TOKEN': xsrf, Accept: 'application/json' },
+                body,
+                credentials: 'same-origin',
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || t('spending.scan_error_default'));
+            spend.setData((d) => ({
+                ...d,
+                amount: data.amount != null ? String(data.amount) : d.amount,
+                currency: data.currency ?? d.currency,
+                category: data.category ?? d.category,
+                note: data.note ?? d.note,
+                spent_at: data.date ?? d.spent_at,
+                receipts: [photo],
+                receipts_thumb: photoThumb ? [photoThumb] : [],
+            }));
+        } catch (err) {
+            setScanError(err instanceof Error ? err.message : t('spending.scan_error_default'));
+        } finally {
+            setScanning(false);
+        }
+    };
     // Payer options follow the chosen list's roster; with no list, the "Others" list has everyone.
     const payers = chosen ? chosen.members : members;
     const pickList = (id: string) => {
@@ -165,6 +214,7 @@ export default function Events({
     };
     const closeAdd = () => {
         spend.reset();
+        setScanError(null);
         setAdding(false);
     };
     const submitSpend: FormEventHandler = (e) => {
@@ -262,9 +312,37 @@ export default function Events({
                     title={t('spending.new_spend')}
                     autoFocusRef={amountRef}
                     footer={
-                        <Button type="submit" form="quick-spend" disabled={spend.processing || !spend.data.amount} className="w-full">
-                            {t('common.save')}
-                        </Button>
+                        <div className="flex flex-col gap-2">
+                            {/* Camera above Save: shoot or pick a receipt and the fields above fill themselves. No
+                                `capture` attribute on purpose (see the list page): iOS then offers Photos too. */}
+                            {scanEnabled && (
+                                <>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => scanInputRef.current?.click()}
+                                        disabled={scanning}
+                                        className="w-full"
+                                    >
+                                        {scanning ? (
+                                            <>
+                                                <Loader2 className="size-4 animate-spin" /> {t('spending.reading_receipt')}
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Camera className="size-4" />{' '}
+                                                {t(spend.data.receipts.length ? 'spending.rescan_receipt' : 'spending.scan_receipt')}
+                                            </>
+                                        )}
+                                    </Button>
+                                    <input ref={scanInputRef} type="file" accept="image/*" hidden onChange={handleScanFile} />
+                                    {scanError && <p className="text-destructive text-center text-sm">{scanError}</p>}
+                                </>
+                            )}
+                            <Button type="submit" form="quick-spend" disabled={spend.processing || !spend.data.amount} className="w-full">
+                                {t('common.save')}
+                            </Button>
+                        </div>
                     }
                 >
                     {/* The <form> holds no fields directly (inputs join via form="quick-spend"; the dropdowns

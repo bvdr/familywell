@@ -118,6 +118,7 @@ class SpendingController extends Controller
         return Inertia::render('spending/events', [
             'events' => $events,
             'currencies' => self::CURRENCIES,
+            'scanEnabled' => ReceiptScanner::configured(), // "Scan receipt" in the quick-add sheet
             // Pre-select the family's default currency on the create form (falls back to the first
             // supported currency client-side when unset).
             'defaultCurrency' => SpendSetting::defaultCurrency(),

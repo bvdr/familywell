@@ -218,5 +218,6 @@
     "ai_sort_run": "Sort now",
     "ai_sort_running": "Sorting…",
     "ai_sort_done": "Done: :moved of :total moved to a category.",
-    "ai_sort_failed": "Something went wrong. Run it again to resume."
+    "ai_sort_failed": "Something went wrong. Run it again to resume.",
+    "rescan_receipt": "Receipt attached · scan another"
 }
