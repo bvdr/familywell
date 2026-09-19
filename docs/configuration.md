@@ -79,7 +79,7 @@ Get a free key at [aistudio.google.com/apikey](https://aistudio.google.com/apike
 
 | Variable | Notes |
 |---|---|
-| `TYPESAFE_API_KEY` | A [TypeSafe](https://typesafe.ai) API key (Jev). When set: any shopping item saved into the catch-all **Other** aisle is sent (name, quantity, note) right after the response and moved to the best-fitting aisle of that shop; and Spending settings gains a **Sort "Other" with AI** tool that walks every expense still in "Other" (note, amount, list) with a progress bar and moves it to the best-fitting category. Leave blank to disable both. |
+| `TYPESAFE_API_KEY` | A [TypeSafe](https://typesafe.ai) API key (Jev). When set: any shopping item saved into the catch-all **Other** aisle is sent (name, quantity, note) right after the response and moved to the best-fitting aisle of that shop; every expense saved into the catch-all **Other** category gets the same treatment (note, amount, list); and Spending settings gains a **Sort "Other" with AI** tool that walks every expense still in "Other" with a progress bar for the backlog. Leave blank to disable both. |
 | `TYPESAFE_MODEL` | Optional override. Defaults to `jev-latest`. |
 
 Only records that sit in "Other" are ever sent or changed, so a manual choice always wins and the spending tool is safe to re-run.
