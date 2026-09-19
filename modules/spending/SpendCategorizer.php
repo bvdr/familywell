@@ -41,6 +41,53 @@ class SpendCategorizer
     ];
 
     /**
+     * The Choice criteria for a family: key => "Name: meaning" (custom categories: just the name),
+     * plus the explicit no-match option last. Empty when the family has no real category.
+     *
+     * @param  Collection<int, SpendCategory>  $categories
+     * @return array<string, string>
+     */
+    public static function criteria(Collection $categories): array
+    {
+        $criteria = [];
+        foreach ($categories as $c) {
+            if ($c->key !== 'other') {
+                $criteria[$c->key] = isset(self::DESCRIPTIONS[$c->key]) ? "{$c->name}: ".self::DESCRIPTIONS[$c->key] : $c->name;
+            }
+        }
+        if ($criteria !== []) {
+            $criteria['other'] = 'None of the categories above clearly fit';
+        }
+
+        return $criteria;
+    }
+
+    /**
+     * One expense => one category key, or null when the model mostly says nothing fits (or the call
+     * failed). `$expense` is the state shape both the bulk tool and the type-ahead suggestion send:
+     * note, amount ("12.50 EUR"), paid_with, list, date — any of them may be absent.
+     *
+     * @param  array<string, string|null>  $expense
+     * @param  array<string, string>  $criteria  from criteria()
+     */
+    public static function suggest(array $expense, array $criteria): ?string
+    {
+        if ($criteria === []) {
+            return null;
+        }
+        $answer = TypeSafe::ask(['expense' => array_filter($expense)], ['category' => [
+            'type' => 'choice',
+            'instructions' => 'Which expense category best describes the household expense `expense`? Judge mainly by its note (in any language), then the list it belongs to and the amount.',
+            'criteria' => $criteria,
+        ]])['category'] ?? null;
+
+        $choice = $answer['choice'] ?? 'other';
+        $pOther = (float) ($answer['probabilities']['other'] ?? 1);
+
+        return $choice !== 'other' && isset($criteria[$choice]) && $pOther <= self::MAX_OTHER_PROBABILITY ? $choice : null;
+    }
+
+    /**
      * Ask Jev for a category for each spend. Returns spend id => category key for the spends it
      * could place confidently; the rest (answered "other", below threshold, or failed) are absent.
      *
@@ -50,39 +97,25 @@ class SpendCategorizer
      */
     public static function categorize(Collection $spends, Collection $categories): array
     {
-        $criteria = [];
-        foreach ($categories as $c) {
-            if ($c->key !== 'other') {
-                $criteria[$c->key] = isset(self::DESCRIPTIONS[$c->key]) ? "{$c->name}: ".self::DESCRIPTIONS[$c->key] : $c->name;
-            }
-        }
+        $criteria = self::criteria($categories);
         if ($criteria === [] || $spends->isEmpty()) {
             return [];
         }
-        $criteria['other'] = 'None of the categories above clearly fit';
 
         // Event names give the model the trip/household context ("Greece 2026", "Groceries").
         $events = SpendEvent::withoutGlobalScope('family')->whereIn('id', $spends->pluck('spend_event_id')->unique())->pluck('name', 'id');
 
         $picks = [];
         foreach ($spends as $s) {
-            $expense = array_filter([
+            $key = self::suggest([
                 'note' => $s->note,
                 'amount' => number_format($s->amount / 100, 2, '.', '').' '.$s->currency,
                 'paid_with' => $s->source?->name,
                 'list' => $events[$s->spend_event_id] ?? null,
                 'date' => $s->spent_at?->toDateString(),
-            ]);
-            $answer = TypeSafe::ask(['expense' => $expense], ['category' => [
-                'type' => 'choice',
-                'instructions' => 'Which expense category best describes the household expense `expense`? Judge mainly by its note (in any language), then the list it belongs to and the amount.',
-                'criteria' => $criteria,
-            ]])['category'] ?? null;
-
-            $choice = $answer['choice'] ?? 'other';
-            $pOther = (float) ($answer['probabilities']['other'] ?? 1);
-            if ($choice !== 'other' && isset($criteria[$choice]) && $pOther <= self::MAX_OTHER_PROBABILITY) {
-                $picks[$s->id] = $choice;
+            ], $criteria);
+            if ($key !== null) {
+                $picks[$s->id] = $key;
             }
         }
 
