@@ -27,10 +27,18 @@ function recatFamily(): array
     return [$family, $admin, $member];
 }
 
+// Seeds a spend WITHOUT triggering the on-create guess (key unset while creating), so the bulk tests
+// count only the requests the bulk tool itself makes.
 function recatSpend(SpendEvent $event, int $payer, string $note, string $category = 'other'): Spend
 {
-    return Spend::create(['spend_event_id' => $event->id, 'payer_id' => $payer, 'amount' => 1250, 'currency' => 'EUR',
-        'base_amount' => 1250, 'rate' => 1, 'category' => $category, 'note' => $note, 'spent_at' => '2026-09-01', 'created_by' => $payer]);
+    $key = config('services.typesafe.key');
+    config(['services.typesafe.key' => null]);
+    try {
+        return Spend::create(['spend_event_id' => $event->id, 'payer_id' => $payer, 'amount' => 1250, 'currency' => 'EUR',
+            'base_amount' => 1250, 'rate' => 1, 'category' => $category, 'note' => $note, 'spent_at' => '2026-09-01', 'created_by' => $payer]);
+    } finally {
+        config(['services.typesafe.key' => $key]);
+    }
 }
 
 it('is admin-only and 404s without a key', function () {
@@ -92,4 +100,32 @@ it('caps a batch at BATCH spends and reports the remainder', function () {
 
     actingAs($admin)->postJson('/m/spending/settings/recategorize', ['after' => 0])
         ->assertOk()->assertJson(['processed' => SpendCategorizer::BATCH, 'updated' => 0, 'remaining' => 3]);
+});
+
+it('auto-categorises a new expense left in Other right after the response', function () {
+    [, $admin] = recatFamily();
+    actingAs($admin)->post('/m/spending/events', ['name' => 'Home', 'currency' => 'EUR'])->assertRedirect();
+    $event = SpendEvent::first();
+    Http::fake(['api.typesafe.ai/*' => Http::response(['answers' => ['category' => ['type' => 'choice', 'choice' => 'food', 'probabilities' => ['food' => 0.9], 'confidence' => 0.9]]])]);
+
+    actingAs($admin)->post("/m/spending/events/{$event->id}/spends", [
+        'amount' => '12.50', 'currency' => 'EUR', 'category' => 'other', 'note' => 'BanaNe Mega', 'payer_key' => 'u'.$admin->id, 'spent_at' => '2026-09-19',
+    ])->assertRedirect();
+
+    Http::assertSentCount(1);
+    expect(Spend::where('note', 'BanaNe Mega')->value('category'))->toBe('food');
+});
+
+it('leaves a new expense alone when a category was chosen by hand', function () {
+    [, $admin] = recatFamily();
+    actingAs($admin)->post('/m/spending/events', ['name' => 'Home', 'currency' => 'EUR'])->assertRedirect();
+    $event = SpendEvent::first();
+    Http::fake();
+
+    actingAs($admin)->post("/m/spending/events/{$event->id}/spends", [
+        'amount' => '12.50', 'currency' => 'EUR', 'category' => 'health', 'note' => 'Pharmacy', 'payer_key' => 'u'.$admin->id, 'spent_at' => '2026-09-19',
+    ])->assertSessionHasNoErrors()->assertRedirect();
+
+    Http::assertNothingSent();
+    expect(Spend::where('note', 'Pharmacy')->value('category'))->toBe('health');
 });
