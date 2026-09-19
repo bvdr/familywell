@@ -90,6 +90,14 @@ The feature is **entirely gated on the key**, without it there is no button and 
 GEMINI_API_KEY=your-key-here
 ```
 
+### AI aisle guessing (optional)
+
+With a [TypeSafe](https://typesafe.ai) key, shopping items added into the catch-all **Other** aisle are sorted into the shop's best-fit aisle (Dairy, Produce, Plumbing, ...) right after they're saved:
+
+```dotenv
+TYPESAFE_API_KEY=your-key-here
+```
+
 No secrets are ever committed; `.env` and every credential file are git-ignored.
 
 ---
