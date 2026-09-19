@@ -59,13 +59,14 @@ it('moves Other spends to the category Jev picks, one request per spend, and lea
 
     // One answer per request, matched on the note the request carries.
     Http::fake(['api.typesafe.ai/*' => function ($req) {
+        // [choice, p(choice), p(other)]
         $pick = match ($req->data()['state']['expense']['note']) {
-            'Taxi from airport' => ['transport', 0.9],
-            'Profi' => ['shopping', 0.45], // below MIN_PROBABILITY => stays in other
-            default => ['other', 0.8],
+            'Taxi from airport' => ['transport', 0.9, 0.05],
+            'Profi' => ['shopping', 0.45, 0.5], // model mostly says "none fit" => stays in other
+            default => ['other', 0.8, 0.8],
         };
 
-        return Http::response(['answers' => ['category' => ['type' => 'choice', 'choice' => $pick[0], 'probabilities' => [$pick[0] => $pick[1]], 'confidence' => $pick[1]]]]);
+        return Http::response(['answers' => ['category' => ['type' => 'choice', 'choice' => $pick[0], 'probabilities' => [$pick[0] => $pick[1], 'other' => $pick[2]], 'confidence' => $pick[1]]]]);
     }]);
 
     $first = actingAs($admin)->postJson('/m/spending/settings/recategorize', ['after' => 0])
@@ -106,7 +107,7 @@ it('auto-categorises a new expense left in Other right after the response', func
     [, $admin] = recatFamily();
     actingAs($admin)->post('/m/spending/events', ['name' => 'Home', 'currency' => 'EUR'])->assertRedirect();
     $event = SpendEvent::first();
-    Http::fake(['api.typesafe.ai/*' => Http::response(['answers' => ['category' => ['type' => 'choice', 'choice' => 'food', 'probabilities' => ['food' => 0.9], 'confidence' => 0.9]]])]);
+    Http::fake(['api.typesafe.ai/*' => Http::response(['answers' => ['category' => ['type' => 'choice', 'choice' => 'food', 'probabilities' => ['food' => 0.9, 'other' => 0.05], 'confidence' => 0.9]]])]);
 
     actingAs($admin)->post("/m/spending/events/{$event->id}/spends", [
         'amount' => '12.50', 'currency' => 'EUR', 'category' => 'other', 'note' => 'BanaNe Mega', 'payer_key' => 'u'.$admin->id, 'spent_at' => '2026-09-19',

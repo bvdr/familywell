@@ -20,9 +20,13 @@ class SpendCategorizer
     // that the progress bar visibly moves and the request stays well under any proxy timeout.
     public const BATCH = 5;
 
-    // A pick below this probability is ignored (the spend stays in "other"): a diffuse answer means
-    // nothing really fits, and a wrong category costs the user a manual fix.
-    public const MIN_PROBABILITY = 0.6;
+    // Apply the pick only when the model gives "none of these fit" at most this much probability. The
+    // Choice sums to 1, so a note torn between two sibling categories (a "BanaNe Mega" at Groceries 0.42
+    // / Food 0.33 / other 0.23) still has a clear answer: it IS a real expense, just not obviously which
+    // of two; either beats leaving it in "Other". A high "other" (bare "flori" 0.86, "Profi" 0.79) means
+    // the note itself is too thin, and the spend stays put. Measured 2026-09-19 on 30 real-looking notes:
+    // this rule matches a plain 0.6 top-probability threshold everywhere except the sibling splits.
+    public const MAX_OTHER_PROBABILITY = 0.3;
 
     // What the built-in categories mean, so "Food" vs a custom "Groceries" is defined, not guessed.
     // Custom categories only have their name; admins name them descriptively anyway.
@@ -76,8 +80,8 @@ class SpendCategorizer
             ]])['category'] ?? null;
 
             $choice = $answer['choice'] ?? 'other';
-            $p = (float) ($answer['probabilities'][$choice] ?? 0);
-            if ($choice !== 'other' && isset($criteria[$choice]) && $p >= self::MIN_PROBABILITY) {
+            $pOther = (float) ($answer['probabilities']['other'] ?? 1);
+            if ($choice !== 'other' && isset($criteria[$choice]) && $pOther <= self::MAX_OTHER_PROBABILITY) {
                 $picks[$s->id] = $choice;
             }
         }
