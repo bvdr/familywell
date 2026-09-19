@@ -75,14 +75,14 @@ Standard Laravel mail settings (`MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_U
 
 Get a free key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey). Receipts are personal financial data, so use a paid-tier key in production (Google's free tier may use submitted data for training).
 
-## AI aisle guessing (optional)
+## AI categorisation (optional)
 
 | Variable | Notes |
 |---|---|
-| `TYPESAFE_API_KEY` | A [TypeSafe](https://typesafe.ai) API key. When set, any shopping item saved into the catch-all **Other** aisle is sent (name, quantity, note) to Jev right after the response, and moved to the best-fitting aisle of that shop. Leave blank to disable. |
+| `TYPESAFE_API_KEY` | A [TypeSafe](https://typesafe.ai) API key (Jev). When set: any shopping item saved into the catch-all **Other** aisle is sent (name, quantity, note) right after the response and moved to the best-fitting aisle of that shop; and Spending settings gains a **Sort "Other" with AI** tool that walks every expense still in "Other" (note, amount, list) with a progress bar and moves it to the best-fitting category. Leave blank to disable both. |
 | `TYPESAFE_MODEL` | Optional override. Defaults to `jev-latest`. |
 
-Only items that land in "Other" are sent, and a manual re-aisle done in the meantime always wins over the guess.
+Only records that sit in "Other" are ever sent or changed, so a manual choice always wins and the spending tool is safe to re-run.
 
 ## After changing configuration
 

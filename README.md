@@ -90,9 +90,9 @@ The feature is **entirely gated on the key**, without it there is no button and 
 GEMINI_API_KEY=your-key-here
 ```
 
-### AI aisle guessing (optional)
+### AI categorisation (optional)
 
-With a [TypeSafe](https://typesafe.ai) key, shopping items added into the catch-all **Other** aisle are sorted into the shop's best-fit aisle (Dairy, Produce, Plumbing, ...) right after they're saved:
+With a [TypeSafe](https://typesafe.ai) key, shopping items added into the catch-all **Other** aisle are sorted into the shop's best-fit aisle (Dairy, Produce, Plumbing, ...) right after they're saved, and Spending settings gets a one-tap **Sort "Other" with AI** that moves every uncategorised expense into a real category, with a progress bar:
 
 ```dotenv
 TYPESAFE_API_KEY=your-key-here
