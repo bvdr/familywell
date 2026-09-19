@@ -4,6 +4,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Archive, Camera, ChartLine, ChevronRight, Loader2, Plus, RotateCcw, Settings, Tag, Wallet } from 'lucide-react';
 import { FormEventHandler, useRef, useState } from 'react';
 
+import { useCategorySuggest } from '@/hooks/use-category-suggest';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import { compressImage, makeThumbnail } from '@/lib/compress-image';
 
@@ -18,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { catColor, catIconName, catLabel, categoryMap, defaultCategoryKey, type CategoryDef } from '@/lib/categories';
 import { groupByDateBucket, localToday } from '@/lib/date-groups';
@@ -76,10 +78,12 @@ export default function Events({
     categories,
     members,
     scanEnabled = false,
+    aiCategorize = false,
 }: {
     events: Event[];
     currencies: string[];
     scanEnabled?: boolean; // Gemini key present => "Scan receipt" shows in the quick-add sheet
+    aiCategorize?: boolean; // TypeSafe key present => the note suggests a category as you type
     defaultCurrency?: string | null;
     // Month-to-date total across every visible list, already rolled up server-side into one currency.
     thisMonth: { total: number; currency: string };
@@ -212,6 +216,18 @@ export default function Events({
             payer_key: (ev ? ev.members : members).some((m) => 'u' + m.id === d.payer_key) ? d.payer_key : 'u' + authId,
         }));
     };
+    // Type-ahead category from the note (see useCategorySuggest). Active while the sheet is open.
+    const suggest = useCategorySuggest({
+        enabled: aiCategorize && adding,
+        note: spend.data.note,
+        amount: spend.data.amount,
+        currency: spend.data.currency,
+        eventId: spend.data.event_id || null,
+        category: spend.data.category,
+        defaultKey: defaultCategory,
+        setCategory: (key) => spend.setData('category', key),
+    });
+
     const closeAdd = () => {
         spend.reset();
         setScanError(null);
@@ -382,6 +398,19 @@ export default function Events({
                                 </Select>
                             </div>
                         </div>
+                        {/* Note right under the amount: with AI on, typing it fills the category below. */}
+                        <div className="grid gap-2">
+                            <Label htmlFor="quick-note">{t('spending.note')}</Label>
+                            <Textarea
+                                id="quick-note"
+                                form="quick-spend"
+                                rows={2}
+                                value={spend.data.note}
+                                onChange={(e) => spend.setData('note', e.target.value)}
+                                placeholder={t('spending.note_placeholder')}
+                            />
+                            <InputError message={spend.errors.note} />
+                        </div>
                         <div className="grid gap-2">
                             <Label>{t('spending.category')}</Label>
                             {/* Searchable like the list picker below: type to filter the (possibly long) category list. */}
@@ -390,7 +419,10 @@ export default function Events({
                                 fallbackIcon={Tag}
                                 options={categoryOptions}
                                 selected={[spend.data.category]}
-                                onChange={(next) => spend.setData('category', next[0] ?? defaultCategory)}
+                                onChange={(next) => {
+                                    suggest.onManualPick();
+                                    spend.setData('category', next[0] ?? defaultCategory);
+                                }}
                             />
                             <InputError message={spend.errors.category} />
                         </div>
@@ -441,17 +473,6 @@ export default function Events({
                                 />
                                 <InputError message={spend.errors.spent_at} />
                             </div>
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="quick-note">{t('spending.note')}</Label>
-                            <Input
-                                id="quick-note"
-                                form="quick-spend"
-                                value={spend.data.note}
-                                onChange={(e) => spend.setData('note', e.target.value)}
-                                placeholder={t('spending.note_placeholder')}
-                            />
-                            <InputError message={spend.errors.note} />
                         </div>
                     </div>
                 </ResponsiveModal>

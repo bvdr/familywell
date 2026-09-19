@@ -138,3 +138,19 @@ it('tells the overview whether receipt scanning is available for the quick-add s
     config(['services.gemini.key' => null]);
     actingAs($admin)->get('/m/spending')->assertInertia(fn ($page) => $page->where('scanEnabled', false));
 });
+
+it('suggests a category for a note being typed, without ever exposing the key', function () {
+    [, $admin] = recatFamily();
+    Http::fake(['api.typesafe.ai/*' => Http::response(['answers' => ['category' => ['type' => 'choice', 'choice' => 'transport', 'probabilities' => ['transport' => 0.9, 'other' => 0.05], 'confidence' => 0.9]]])]);
+
+    actingAs($admin)->postJson('/m/spending/spends/suggest-category', ['note' => 'Taxi aeroport', 'amount' => '45', 'currency' => 'RON'])
+        ->assertOk()->assertExactJson(['category' => 'transport']);
+    Http::assertSent(fn ($req) => $req->data()['state']['expense']['note'] === 'Taxi aeroport' && $req->data()['state']['expense']['amount'] === '45.00 RON');
+
+    // The spend sheet props only carry a boolean, never the key.
+    actingAs($admin)->get('/m/spending')->assertInertia(fn ($page) => $page->where('aiCategorize', true))
+        ->assertDontSee('test-key');
+
+    config(['services.typesafe.key' => null]);
+    actingAs($admin)->postJson('/m/spending/spends/suggest-category', ['note' => 'Taxi'])->assertNotFound();
+});

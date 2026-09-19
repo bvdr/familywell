@@ -119,6 +119,7 @@ class SpendingController extends Controller
             'events' => $events,
             'currencies' => self::CURRENCIES,
             'scanEnabled' => ReceiptScanner::configured(), // "Scan receipt" in the quick-add sheet
+            'aiCategorize' => TypeSafe::configured(), // type-ahead category suggestion in the sheet
             // Pre-select the family's default currency on the create form (falls back to the first
             // supported currency client-side when unset).
             'defaultCurrency' => SpendSetting::defaultCurrency(),
@@ -164,6 +165,30 @@ class SpendingController extends Controller
             'canManage' => $canManage,
             'aiCategorize' => TypeSafe::configured(), // shows the bulk "sort Other" tool
         ]);
+    }
+
+    // Type-ahead category suggestion for the add/edit spend sheets: the client sends what the user has
+    // typed so far (note, amount, currency, list) and gets back a category key or null. The TypeSafe
+    // key never leaves the server: the browser only ever talks to this endpoint. Throttled per user
+    // (each call is a paid model call); the client debounces typing on top of that. 404 without a key.
+    public function suggestCategory(Request $request): JsonResponse
+    {
+        abort_unless(TypeSafe::configured(), 404);
+        $data = $request->validate([
+            'note' => ['required', 'string', 'max:255'],
+            'amount' => ['nullable', 'numeric'],
+            'currency' => ['nullable', 'string', 'max:3'],
+            'event_id' => ['nullable', 'integer'],
+        ]);
+        $list = ! empty($data['event_id']) ? SpendEvent::find($data['event_id'])?->name : null;
+
+        $key = SpendCategorizer::suggest([
+            'note' => $data['note'],
+            'amount' => isset($data['amount']) ? number_format((float) $data['amount'], 2, '.', '').' '.($data['currency'] ?? '') : null,
+            'list' => $list,
+        ], SpendCategorizer::criteria(SpendCategory::forFamily()));
+
+        return response()->json(['category' => $key]);
     }
 
     // One batch of the bulk AI re-categorisation (admin only). The client loops: it sends the last
@@ -1018,6 +1043,7 @@ class SpendingController extends Controller
         return [
             'familyId' => (int) CurrentFamily::id(),
             'scanEnabled' => ReceiptScanner::configured(),
+            'aiCategorize' => TypeSafe::configured(), // type-ahead category suggestion in the spend sheet
             'sources' => $sources,
             'moveTargets' => $moveTargets,
             'event' => [

@@ -107,6 +107,8 @@ class SpendingServiceProvider extends ServiceProvider
                 Route::post('/events/{event}/spends', [SpendingController::class, 'storeSpend'])->name('spends.store');
                 // Expense-first add from the overview: optional event_id, else the family's "Others" list.
                 Route::post('/spends', [SpendingController::class, 'storeQuickSpend'])->name('spends.quick');
+                // Type-ahead AI category suggestion (paid model call per request => throttled).
+                Route::post('/spends/suggest-category', [SpendingController::class, 'suggestCategory'])->middleware('throttle:60,1')->name('spends.suggest');
                 Route::post('/events/{event}/settle', [SpendingController::class, 'settle'])->name('settle');
                 Route::patch('/spends/{spend}', [SpendingController::class, 'updateSpend'])->name('spends.update');
                 Route::post('/spends/{spend}/duplicate', [SpendingController::class, 'duplicateSpend'])->name('spends.duplicate');

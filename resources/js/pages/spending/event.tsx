@@ -39,6 +39,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { useCategorySuggest } from '@/hooks/use-category-suggest';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { avatarColorFor } from '@/lib/avatar';
@@ -169,6 +171,7 @@ export default function Event({
     share,
     guestShare,
     scanEnabled,
+    aiCategorize = false,
     moveTargets = [],
 }: {
     event: EventT;
@@ -183,6 +186,7 @@ export default function Event({
     share: ShareState;
     guestShare: GuestShareState;
     scanEnabled: boolean;
+    aiCategorize?: boolean; // TypeSafe key present => the note suggests a category as you type
     moveTargets?: { id: number; name: string; currency: string }[];
 }) {
     const authId = usePage<{ auth: { user: { id: number } } }>().props.auth.user.id;
@@ -584,6 +588,18 @@ export default function Event({
             setScanning(false);
         }
     };
+
+    // Type-ahead category from the note (see useCategorySuggest). Active while the sheet is open.
+    const suggest = useCategorySuggest({
+        enabled: aiCategorize && (adding || editing !== null),
+        note: form.data.note,
+        amount: form.data.amount,
+        currency: form.data.currency,
+        eventId: event.id,
+        category: form.data.category,
+        defaultKey: defaultCategory,
+        setCategory: (key) => form.setData('category', key),
+    });
 
     const duplicate = (s: Spend) => router.post(route('spending.spends.duplicate', s.id), {}, { preserveScroll: true });
     const remove = (s: Spend) => {
@@ -1265,6 +1281,18 @@ export default function Event({
                                         </Select>
                                     </div>
                                 </div>
+                                {/* Note sits right under the amount: with AI on, typing it fills the category below. */}
+                                <div className="grid gap-2">
+                                    <Label htmlFor="note">{t('spending.note_optional')}</Label>
+                                    <Textarea
+                                        id="note"
+                                        form="spend-form"
+                                        rows={2}
+                                        value={form.data.note}
+                                        onChange={(e) => form.setData('note', e.target.value)}
+                                        placeholder={t('spending.note_placeholder')}
+                                    />
+                                </div>
                                 <div className="grid gap-3">
                                     <div className="grid gap-2">
                                         <Label>{t('spending.category')}</Label>
@@ -1272,7 +1300,13 @@ export default function Event({
                                     The trigger mirrors the selected category's icon + label; each option shows the
                                     same, with the icon tinted by the category colour (custom categories fall back to
                                     the Tag icon + fallback colour). The chosen key still submits via form.data.category. */}
-                                        <Select value={form.data.category} onValueChange={(v) => form.setData('category', v)}>
+                                        <Select
+                                            value={form.data.category}
+                                            onValueChange={(v) => {
+                                                suggest.onManualPick();
+                                                form.setData('category', v);
+                                            }}
+                                        >
                                             <SelectTrigger className="w-full">
                                                 <SelectValue>
                                                     <span className="flex items-center gap-2">
@@ -1448,16 +1482,6 @@ export default function Event({
                                         className="appearance-none"
                                         value={form.data.spent_at}
                                         onChange={(e) => form.setData('spent_at', e.target.value)}
-                                    />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="note">{t('spending.note_optional')}</Label>
-                                    <Input
-                                        id="note"
-                                        form="spend-form"
-                                        value={form.data.note}
-                                        onChange={(e) => form.setData('note', e.target.value)}
-                                        placeholder={t('spending.note_placeholder')}
                                     />
                                 </div>
                                 <div className="grid gap-2">
