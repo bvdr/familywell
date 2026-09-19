@@ -769,12 +769,7 @@ class ShoppingController extends Controller
     /** This shop's aisles as {slug,name,icon}, falling back to the default Grocery set. */
     private function resolveAisles(?string $store): array
     {
-        $rows = $this->aisleRows($store);
-        if ($rows->isNotEmpty()) {
-            return $rows->map(fn (ShoppingAisle $a) => ['slug' => $a->slug, 'name' => $a->name, 'icon' => $a->icon])->all();
-        }
-
-        return array_map(fn ($t) => ['slug' => $t[0], 'name' => $t[1], 'icon' => $t[2]], StoreTemplates::default());
+        return ShoppingAisle::resolve($store, (int) CurrentFamily::id());
     }
 
     private function aisleSlugs(?string $store): array
