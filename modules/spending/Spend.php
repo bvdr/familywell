@@ -25,6 +25,16 @@ class Spend extends Model
         'spent_at' => 'date',
     ];
 
+    // Mirror the column default so a freshly created model reads 'other' without a refresh.
+    protected $attributes = ['category' => 'other'];
+
+    protected static function booted(): void
+    {
+        // Every create path (add, quick-add, duplicate, guest add, receipt scan) funnels through here:
+        // an expense left in "Other" gets an AI category guess after the response (see SpendAutoCategorizer).
+        static::created(fn (self $spend) => SpendAutoCategorizer::queue($spend));
+    }
+
     public function payer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'payer_id');
