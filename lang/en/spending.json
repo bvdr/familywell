@@ -210,5 +210,13 @@
     "new_list": "New list",
     "no_expenses_empty": "No expenses yet. Tap + to add your first one.",
     "feed_capped": "Showing the :count most recent expenses. Open a list or Analytics for older ones.",
-    "paid_by_label": "Paid by"
+    "paid_by_label": "Paid by",
+    "ai_sort_title": "Sort \"Other\" with AI",
+    "ai_sort_desc": "Every expense still in \"Other\" is sent to the AI (note, amount, list) and moved to the best-fitting category. It only touches expenses in \"Other\", so it's safe to run again.",
+    "ai_sort_nothing": "No expenses are in \"Other\".",
+    "ai_sort_pending": ":count in \"Other\"",
+    "ai_sort_run": "Sort now",
+    "ai_sort_running": "Sorting…",
+    "ai_sort_done": "Done: :moved of :total moved to a category.",
+    "ai_sort_failed": "Something went wrong. Run it again to resume."
 }

@@ -210,5 +210,13 @@
     "new_list": "Listă nouă",
     "no_expenses_empty": "Nicio cheltuială încă. Apasă + ca să adaugi prima.",
     "feed_capped": "Se afișează ultimele :count cheltuieli. Deschide o listă sau Analiza pentru cele mai vechi.",
-    "paid_by_label": "Plătit de"
+    "paid_by_label": "Plătit de",
+    "ai_sort_title": "Sortează „Altele” cu AI",
+    "ai_sort_desc": "Fiecare cheltuială rămasă în „Altele” este trimisă la AI (notă, sumă, listă) și mutată în categoria potrivită. Atinge doar cheltuielile din „Altele”, deci poate fi rulată din nou fără grijă.",
+    "ai_sort_nothing": "Nicio cheltuială în „Altele”.",
+    "ai_sort_pending": ":count în „Altele”",
+    "ai_sort_run": "Sortează acum",
+    "ai_sort_running": "Se sortează…",
+    "ai_sort_done": "Gata: :moved din :total mutate într-o categorie.",
+    "ai_sort_failed": "Ceva n-a mers. Rulează din nou pentru a continua."
 }

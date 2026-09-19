@@ -10,6 +10,7 @@ use App\Support\Media\StoredImage;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\TypeSafe;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -160,6 +161,40 @@ class SpendingController extends Controller
             'defaultCurrency' => SpendSetting::defaultCurrency(),
             'categories' => $categories,
             'canManage' => $canManage,
+            'aiCategorize' => TypeSafe::configured(), // shows the bulk "sort Other" tool
+        ]);
+    }
+
+    // One batch of the bulk AI re-categorisation (admin only). The client loops: it sends the last
+    // spend id it saw (`after`), we take the next BATCH spends still in `other`, ask Jev, and move the
+    // ones it could place. Cursor-based so a batch that fails or a closed tab can just resume; only
+    // `other` rows are ever touched, so re-running is idempotent. 404 without a TypeSafe key.
+    public function recategorize(Request $request): JsonResponse
+    {
+        abort_unless(TypeSafe::configured(), 404);
+        $family = Family::findOrFail(CurrentFamily::id());
+        $this->authorize('manageMembers', $family);
+        $data = $request->validate(['after' => ['nullable', 'integer', 'min:0']]);
+
+        $spends = Spend::query()->with('source')
+            ->where('category', 'other')->where('id', '>', (int) ($data['after'] ?? 0))
+            ->orderBy('id')->limit(SpendCategorizer::BATCH)->get();
+
+        $updated = 0;
+        foreach (SpendCategorizer::categorize($spends, SpendCategory::forFamily()) as $id => $key) {
+            $updated += Spend::whereKey($id)->where('category', 'other')->update(['category' => $key]);
+        }
+        if ($updated > 0) {
+            Realtime::broadcast(new SpendingChanged((int) $family->id));
+        }
+
+        $last = $spends->last()?->id;
+
+        return response()->json([
+            'processed' => $spends->count(),
+            'updated' => $updated,
+            'next' => $last, // null => nothing left to process
+            'remaining' => $last ? Spend::where('category', 'other')->where('id', '>', $last)->count() : 0,
         ]);
     }
 

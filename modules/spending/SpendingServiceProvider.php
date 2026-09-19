@@ -92,6 +92,7 @@ class SpendingServiceProvider extends ServiceProvider
                 // the write endpoints authorize admin-only inside the controller.
                 Route::get('/settings', [SpendingController::class, 'settings'])->name('settings');
                 Route::patch('/settings', [SpendingController::class, 'updateSettings'])->name('settings.update');
+                Route::post('/settings/recategorize', [SpendingController::class, 'recategorize'])->name('settings.recategorize');
                 Route::post('/categories', [SpendingController::class, 'storeCategory'])->name('categories.store');
                 Route::patch('/categories/{category}', [SpendingController::class, 'updateCategory'])->name('categories.update');
                 Route::delete('/categories/{category}', [SpendingController::class, 'destroyCategory'])->name('categories.destroy');
