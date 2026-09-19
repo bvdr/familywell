@@ -92,7 +92,7 @@ GEMINI_API_KEY=your-key-here
 
 ### AI categorisation (optional)
 
-With a [TypeSafe](https://typesafe.ai) key, shopping items added into the catch-all **Other** aisle are sorted into the shop's best-fit aisle (Dairy, Produce, Plumbing, ...) right after they're saved, and Spending settings gets a one-tap **Sort "Other" with AI** that moves every uncategorised expense into a real category, with a progress bar:
+With a [TypeSafe](https://typesafe.ai) key, shopping items added into the catch-all **Other** aisle are sorted into the shop's best-fit aisle (Dairy, Produce, Plumbing, ...) right after they're saved, expenses saved into "Other" get a category the same way, and Spending settings has a one-tap **Sort "Other" with AI** for the backlog, with a progress bar:
 
 ```dotenv
 TYPESAFE_API_KEY=your-key-here
