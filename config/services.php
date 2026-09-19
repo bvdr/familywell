@@ -44,4 +44,11 @@ return [
         'model' => env('GEMINI_MODEL', 'gemini-3-flash-preview'),
     ],
 
+    // TypeSafe (Jev), used only to guess a shopping item's aisle when it was added into the
+    // catch-all "Other". Gated on `key`: no key, no guess (see AisleGuesser::configured()).
+    'typesafe' => [
+        'key' => env('TYPESAFE_API_KEY'),
+        'model' => env('TYPESAFE_MODEL', 'jev-latest'),
+    ],
+
 ];
