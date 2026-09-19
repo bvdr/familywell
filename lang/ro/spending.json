@@ -218,5 +218,6 @@
     "ai_sort_run": "Sortează acum",
     "ai_sort_running": "Se sortează…",
     "ai_sort_done": "Gata: :moved din :total mutate într-o categorie.",
-    "ai_sort_failed": "Ceva n-a mers. Rulează din nou pentru a continua."
+    "ai_sort_failed": "Ceva n-a mers. Rulează din nou pentru a continua.",
+    "rescan_receipt": "Bon atașat · scanează altul"
 }

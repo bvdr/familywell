@@ -129,3 +129,11 @@ it('leaves a new expense alone when a category was chosen by hand', function () 
     Http::assertNothingSent();
     expect(Spend::where('note', 'Pharmacy')->value('category'))->toBe('health');
 });
+
+it('tells the overview whether receipt scanning is available for the quick-add sheet', function () {
+    [, $admin] = recatFamily();
+    config(['services.gemini.key' => 'g']);
+    actingAs($admin)->get('/m/spending')->assertInertia(fn ($page) => $page->where('scanEnabled', true));
+    config(['services.gemini.key' => null]);
+    actingAs($admin)->get('/m/spending')->assertInertia(fn ($page) => $page->where('scanEnabled', false));
+});
