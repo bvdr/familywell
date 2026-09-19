@@ -2,13 +2,17 @@
 
 namespace Modules\Birthdays;
 
+use App\Support\Dashboard\DashboardWidgets;
 use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\Birthdays\Console\NotifyBirthdays;
 use Modules\Contacts\Person;
+use Modules\Notifications\NotificationCategories;
 
 /**
  * Extends the Contacts `person` primitive with a birthday, through the person.* hooks (no
@@ -25,8 +29,36 @@ use Modules\Contacts\Person;
  */
 class BirthdaysServiceProvider extends ServiceProvider
 {
+    public function register(): void
+    {
+        $this->commands([NotifyBirthdays::class]);
+    }
+
     public function boot(Hooks $hooks): void
     {
+        // The birthday wish has its own on/off row on Settings > Notifications.
+        NotificationCategories::register('birthdays', 'Birthdays', 'cake');
+
+        // Morning push for today's birthdays. 06:00 UTC = 08:00/09:00 in Romania (the app runs on UTC and
+        // has no per-family timezone yet); idempotent per day, so a re-run is harmless.
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
+            $schedule->command('birthdays:notify')->dailyAt('06:00')->withoutOverlapping();
+        });
+
+        // Dashboard headline card(s): whoever celebrates today, above Today. null = nobody / module off.
+        DashboardWidgets::register('birthdays', function () {
+            if (! $this->enabledHere()) {
+                return null;
+            }
+            $today = BirthdayDate::with('person')->on()->get()->filter(fn (BirthdayDate $b) => $b->person);
+
+            return $today->isEmpty() ? null : $today->map(fn (BirthdayDate $b) => [
+                'personId' => $b->person_id,
+                'name' => $b->person->name,
+                'turning' => $b->turning(),
+            ])->values()->all();
+        });
+
         Route::middleware(['web', 'auth', 'family', 'module:birthdays'])
             ->prefix('m/birthdays')
             ->name('birthdays.')

@@ -3,6 +3,8 @@
 namespace Modules\Birthdays;
 
 use App\Support\Tenancy\BelongsToFamily;
+use App\Support\Translations;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Modules\Contacts\Person;
@@ -19,9 +21,34 @@ class BirthdayDate extends Model
 
     protected $table = 'birthdays_dates';
 
-    protected $fillable = ['person_id', 'month', 'day', 'birthdate', 'family_id'];
+    protected $fillable = ['person_id', 'month', 'day', 'birthdate', 'family_id', 'notified_on'];
 
-    protected $casts = ['birthdate' => 'date'];
+    protected $casts = ['birthdate' => 'date', 'notified_on' => 'date'];
+
+    /**
+     * Birthdays falling on the given day (default today). A Feb 29 birthday is celebrated on Mar 1
+     * in non-leap years, matching what nextBirthday() derives, so the card and the push agree with
+     * the list's "Today!".
+     */
+    public function scopeOn(Builder $query, ?Carbon $date = null): Builder
+    {
+        $date ??= Carbon::today();
+        $query->where(fn (Builder $q) => $q->where('month', $date->month)->where('day', $date->day));
+        if ($date->month === 3 && $date->day === 1 && ! $date->isLeapYear()) {
+            $query->orWhere(fn (Builder $q) => $q->where('month', 2)->where('day', 29));
+        }
+
+        return $query;
+    }
+
+    /** "Veronica turns 22 today" / "It's Veronica's birthday today", in the given locale. */
+    public function todayHeadline(?string $locale = null): string
+    {
+        $turning = $this->turning();
+        $key = $turning !== null ? 'birthdays.today_turns' : 'birthdays.today_noage';
+
+        return strtr(Translations::get($key, $locale), [':name' => $this->person->name, ':age' => (string) $turning]);
+    }
 
     public function person()
     {
@@ -32,6 +59,20 @@ class BirthdayDate extends Model
     public function age(): ?int
     {
         return $this->birthdate?->age;
+    }
+
+    /**
+     * The age they reach on their next birthday, or null when the year is unknown. On the day itself
+     * Carbon's age has already ticked over, so it IS the age (not age + 1): "turns 22" on the 19th, not 23.
+     */
+    public function turning(): ?int
+    {
+        $age = $this->age();
+        if ($age === null) {
+            return null;
+        }
+
+        return $this->daysUntil() === 0 ? $age : $age + 1;
     }
 
     /** Birth year, or null when unknown. */
