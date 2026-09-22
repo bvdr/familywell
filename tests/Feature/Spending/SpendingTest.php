@@ -659,7 +659,7 @@ it('rolls up global analytics across lists into one display currency for the per
             ->where('period', 'mtd')
             ->where('total', 4000)
             ->where('count', 2)
-            // A month-to-date range is <= 90 days, so the series stays daily.
+            // A month-to-date range is <= 31 days, so the series stays daily.
             ->where('granularity', 'day')
             ->where('byCategory', fn ($rows) => collect($rows)->firstWhere('key', 'food')['amount'] === 2000
                 && collect($rows)->firstWhere('key', 'other')['amount'] === 2000)
@@ -692,7 +692,7 @@ it('rolls up global analytics across lists into one display currency for the per
             ->etc());
 });
 
-it('aggregates the analytics series by month when the range spans more than 90 days', function () {
+it('aggregates the analytics series by month when the range spans more than 120 days', function () {
     Http::fake([
         'api.frankfurter.dev/*' => Http::response(['rates' => ['EUR' => 0.2]]),
         'open.er-api.com/*' => Http::response(['rates' => ['EUR' => 0.2]]),
@@ -704,15 +704,17 @@ it('aggregates the analytics series by month when the range spans more than 90 d
 
     actingAs($users[0])->post("/m/spending/events/{$eur->id}/spends", [
         'amount' => '20.00', 'currency' => 'EUR', 'category' => 'other', 'payer_key' => 'u'.$users[0]->id,
-        'spent_at' => now()->startOfYear()->addDays(3)->toDateString(),
+        'spent_at' => now()->subDays(100)->toDateString(),
     ])->assertRedirect();
 
-    // Year-to-date spans the whole year (> 90 days), so the series flips to monthly buckets. Every point
-    // is the first of a month.
-    actingAs($users[0])->get('/m/spending/analytics?period=ytd&currency=EUR')
+    // A 200-day custom range (> 120 days) flips the series to monthly buckets — every point is the first
+    // of a month. (Custom rather than ytd so the test doesn't depend on how far into the year it runs.)
+    $from = now()->subDays(200)->toDateString();
+    actingAs($users[0])->get("/m/spending/analytics?period=custom&from={$from}&to=".now()->toDateString().'&currency=EUR')
         ->assertInertia(fn ($p) => $p
             ->component('spending/analytics')
-            ->where('period', 'ytd')
+            ->where('period', 'custom')
+            ->where('count', 1)
             ->where('granularity', 'month')
             ->where('daily', fn ($rows) => collect($rows)->every(fn ($r) => str_ends_with($r['date'], '-01')))
             ->etc());
@@ -743,7 +745,7 @@ it('spans the full history (min..max spent_at) for the all_time period', functio
             ->where('period', 'all_time')
             ->where('range.from', '2023-02-10')
             ->where('range.to', '2026-08-19')
-            ->where('granularity', 'month') // > 90 days => monthly
+            ->where('granularity', 'month') // > 120 days => monthly
             ->where('count', 2)
             ->etc());
 });
@@ -801,4 +803,127 @@ it('shows the current-month total on the overview, rolled up like analytics and 
     app(ModuleRegistry::class)->enable('spending', $other->id);
     actingAs($outsider)->get('/m/spending')
         ->assertInertia(fn ($p) => $p->where('thisMonth.total', 0)->etc());
+});
+
+it('breaks analytics down by shop and filters the view to one shop', function () {
+    Http::fake([
+        'api.frankfurter.dev/*' => Http::response(['rates' => ['EUR' => 0.2]]),
+        'open.er-api.com/*' => Http::response(['rates' => ['EUR' => 0.2]]),
+    ]);
+
+    [, $users] = spendingFamily();
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Home', 'currency' => 'RON']);
+    $eur = SpendEvent::where('currency', 'EUR')->first();
+    $ron = SpendEvent::where('currency', 'RON')->first();
+    $thisMonth = now()->startOfMonth()->addDays(3)->min(now())->toDateString();
+    $u = 'u'.$users[0]->id;
+
+    // Lidl: 20 EUR (other) in the EUR list + 100 RON (food, -> 2000 EUR cents) in the RON list. The shop
+    // name is trimmed on save so "  Lidl " and "Lidl" land in the same bucket.
+    actingAs($users[0])->post("/m/spending/events/{$eur->id}/spends", [
+        'amount' => '20.00', 'currency' => 'EUR', 'category' => 'other', 'payer_key' => $u, 'spent_at' => $thisMonth, 'store' => '  Lidl ',
+    ])->assertRedirect();
+    actingAs($users[0])->post("/m/spending/events/{$ron->id}/spends", [
+        'amount' => '100.00', 'currency' => 'RON', 'category' => 'food', 'payer_key' => $u, 'spent_at' => $thisMonth, 'store' => 'Lidl',
+    ])->assertRedirect();
+    // Kaufland: 10 EUR; and one spend with no shop at all (5 EUR).
+    actingAs($users[0])->post("/m/spending/events/{$eur->id}/spends", [
+        'amount' => '10.00', 'currency' => 'EUR', 'category' => 'food', 'payer_key' => $u, 'spent_at' => $thisMonth, 'store' => 'Kaufland',
+    ])->assertRedirect();
+    actingAs($users[0])->post("/m/spending/events/{$eur->id}/spends", [
+        'amount' => '5.00', 'currency' => 'EUR', 'category' => 'other', 'payer_key' => $u, 'spent_at' => $thisMonth,
+    ])->assertRedirect();
+    expect(Spend::where('store', 'Lidl')->count())->toBe(2);
+
+    // Unfiltered: byShop sums per store in the display currency, biggest first, with the no-shop spend in
+    // its own "__none" bucket; pct is relative to the grand total (5500).
+    actingAs($users[0])->get('/m/spending/analytics?period=mtd&currency=EUR')
+        ->assertInertia(fn ($p) => $p
+            ->component('spending/analytics')
+            ->where('total', 5500)
+            ->where('activeShop', null)
+            ->where('byShop', [
+                ['key' => 'Lidl', 'amount' => 4000, 'pct' => 73],
+                ['key' => 'Kaufland', 'amount' => 1000, 'pct' => 18],
+                ['key' => '__none', 'amount' => 500, 'pct' => 9],
+            ])
+            // The event page offers every shop name used so far as a picker suggestion.
+            ->etc());
+    actingAs($users[0])->get("/m/spending/events/{$eur->id}")
+        ->assertInertia(fn ($p) => $p->where('event.shops', ['Kaufland', 'Lidl'])->etc());
+
+    // Filtered to Lidl: total/count/entries reflect only Lidl, while byShop AND byCategory stay complete.
+    actingAs($users[0])->get('/m/spending/analytics?period=mtd&currency=EUR&shop=Lidl')
+        ->assertInertia(fn ($p) => $p
+            ->where('activeShop', 'Lidl')
+            ->where('total', 4000)
+            ->where('count', 2)
+            ->where('entries', fn ($rows) => collect($rows)->count() === 2
+                && collect($rows)->every(fn ($r) => $r['store'] === 'Lidl'))
+            ->where('byShop', fn ($rows) => collect($rows)->pluck('key')->all() === ['Lidl', 'Kaufland', '__none'])
+            ->where('byCategory', fn ($rows) => collect($rows)->firstWhere('key', 'other')['amount'] === 2500)
+            ->etc());
+
+    // The "no shop" bucket is filterable too.
+    actingAs($users[0])->get('/m/spending/analytics?period=mtd&currency=EUR&shop=__none')
+        ->assertInertia(fn ($p) => $p
+            ->where('total', 500)
+            ->where('count', 1)
+            ->where('entries.0.store', null)
+            ->etc());
+
+    // Shop and category filters combine: Lidl + food is just the RON spend.
+    actingAs($users[0])->get('/m/spending/analytics?period=mtd&currency=EUR&shop=Lidl&category=food')
+        ->assertInertia(fn ($p) => $p->where('total', 2000)->where('count', 1)->etc());
+});
+
+it('buckets the analytics series by ISO week for ranges between a month and a quarter', function () {
+    Http::fake([
+        'api.frankfurter.dev/*' => Http::response(['rates' => ['EUR' => 0.2]]),
+        'open.er-api.com/*' => Http::response(['rates' => ['EUR' => 0.2]]),
+    ]);
+    Carbon::setTestNow('2026-09-22'); // a Tuesday
+
+    [, $users] = spendingFamily();
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
+    $eur = SpendEvent::first();
+
+    // Wed 12 Aug + Sun 16 Aug share the ISO week starting Mon 10 Aug (a Sunday belongs to the week
+    // BEFORE, Monday-first); Mon 17 Aug starts the next one.
+    foreach (['2026-08-12' => '20.00', '2026-08-16' => '5.00', '2026-08-17' => '3.00'] as $on => $amount) {
+        actingAs($users[0])->post("/m/spending/events/{$eur->id}/spends", [
+            'amount' => $amount, 'currency' => 'EUR', 'category' => 'other', 'payer_key' => 'u'.$users[0]->id, 'spent_at' => $on,
+        ])->assertRedirect();
+    }
+
+    // 1 Aug .. 20 Sep = 50 days: more than a month, less than ~a quarter => weekly points, each keyed by
+    // its Monday. The first point is the Monday of the week containing the range start (27 Jul).
+    actingAs($users[0])->get('/m/spending/analytics?period=custom&from=2026-08-01&to=2026-09-20&currency=EUR')
+        ->assertInertia(fn ($p) => $p
+            ->component('spending/analytics')
+            ->where('granularity', 'week')
+            ->where('count', 3)
+            ->where('daily.0.date', '2026-07-27')
+            ->where('daily', fn ($rows) => collect($rows)->every(fn ($r) => Carbon::parse($r['date'])->isMonday())
+                && collect($rows)->firstWhere('date', '2026-08-10')['amount'] === 2500
+                && collect($rows)->firstWhere('date', '2026-08-17')['amount'] === 300
+                && collect($rows)->last()['date'] === '2026-09-14')
+            ->etc());
+
+    Carbon::setTestNow();
+});
+
+it('resolves the this_week and last_week periods to ISO weeks', function () {
+    Http::fake();
+    Carbon::setTestNow('2026-09-22'); // a Tuesday
+    [, $users] = spendingFamily();
+
+    // This week: Monday to today. Last week: the full previous Monday..Sunday.
+    actingAs($users[0])->get('/m/spending/analytics?period=this_week')
+        ->assertInertia(fn ($p) => $p->where('period', 'this_week')->where('range', ['from' => '2026-09-21', 'to' => '2026-09-22'])->where('granularity', 'day')->etc());
+    actingAs($users[0])->get('/m/spending/analytics?period=last_week')
+        ->assertInertia(fn ($p) => $p->where('period', 'last_week')->where('range', ['from' => '2026-09-14', 'to' => '2026-09-20'])->etc());
+
+    Carbon::setTestNow();
 });

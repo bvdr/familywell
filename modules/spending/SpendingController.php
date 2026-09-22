@@ -30,6 +30,10 @@ class SpendingController extends Controller
     // Most recent spends shown on the overview's Expenses feed (see index()).
     public const FEED_CAP = 200;
 
+    // byShop bucket key (and `shop` filter value) for spends with no store. Can't collide with a real shop
+    // name: the form trims input and this isn't something anyone types.
+    public const NO_SHOP = '__none';
+
     public function __construct(private ShareAccess $access) {}
 
     public function index(Request $request): Response
@@ -335,6 +339,10 @@ class SpendingController extends Controller
         if (! in_array($activeCategory, $categoryKeys, true)) {
             $activeCategory = null;
         }
+        // Same idea for shops: `shop` is a store name, or the NO_SHOP sentinel for the "no shop" bucket.
+        // Free text (shops aren't a fixed list), so any non-empty string is accepted; an unknown name just
+        // yields an empty view. byShop itself is never filtered either.
+        $activeShop = trim((string) $request->query('shop')) ?: null;
 
         // Display currency: an explicit pick, else the shared roll-up default (see MonthToDate).
         $display = $request->query('currency');
@@ -360,38 +368,47 @@ class SpendingController extends Controller
             // plain date end would drop spends made on the last day (e.g. today for mtd, or the newest
             // spend for all_time, whose end is exactly that date). Kept as a range so the index still applies.
             ->whereBetween('spent_at', [$start->toDateString(), $end->copy()->endOfDay()->toDateTimeString()])
-            ->get(['id', 'spend_event_id', 'category', 'base_amount', 'note', 'spent_at']);
+            ->get(['id', 'spend_event_id', 'category', 'store', 'base_amount', 'note', 'spent_at']);
 
-        // For long ranges, group the series by month instead of by day (see below): decide up front so
-        // we bucket each spend into the right key while summing.
-        $byMonth = $start->diffInDays($end) > 90; // > 90 days spanned => monthly buckets
-        $granularity = $byMonth ? 'month' : 'day';
+        // Series granularity follows the span: daily up to a month, weekly (ISO, Monday-first) up to about a
+        // quarter, monthly beyond that (365 daily points render as a flat line + one spike). Decided up front
+        // so we bucket each spend into the right key while summing.
+        $days = $start->diffInDays($end);
+        $granularity = $days > 120 ? 'month' : ($days > 31 ? 'week' : 'day');
+        $bucketKey = fn (Carbon $d) => match ($granularity) {
+            'month' => $d->copy()->startOfMonth()->toDateString(),
+            'week' => $d->copy()->startOfWeek(Carbon::MONDAY)->toDateString(),
+            default => $d->toDateString(),
+        };
 
-        $total = 0;   // display cents — honours the active-category filter
-        $count = 0;   // number of spends — honours the active-category filter
+        $total = 0;   // display cents — honours the active category/shop filters
+        $count = 0;   // number of spends — honours the active category/shop filters
         $byCat = [];  // category => display cents — ALWAYS across every category (never filtered)
-        $bucket = []; // series key ('Y-m-d' day, or 'Y-m-01' month) => display cents — filtered
-        $entries = []; // individual spends of the active category (drill-down), unsorted here
+        $byShop = []; // store (or NO_SHOP) => display cents — ALWAYS across every shop (never filtered)
+        $bucket = []; // series key ('Y-m-d' day / Monday, or 'Y-m-01' month) => display cents — filtered
+        $entries = []; // individual spends of the active category/shop (drill-down), unsorted here
         foreach ($spends as $s) {
             $c = $conv((int) $s->base_amount, $eventCcy[$s->spend_event_id]);
-            // byCategory spans all categories so the user can switch between them while filtered.
+            $shop = $s->store ?? self::NO_SHOP;
+            // byCategory / byShop span everything so the user can switch between them while filtered.
             $byCat[$s->category] = ($byCat[$s->category] ?? 0) + $c;
+            $byShop[$shop] = ($byShop[$shop] ?? 0) + $c;
 
-            // Everything else (total, count, series, entries) reflects the active category only.
-            if ($activeCategory !== null && $s->category !== $activeCategory) {
+            // Everything else (total, count, series, entries) reflects the active filters only.
+            if (($activeCategory !== null && $s->category !== $activeCategory) || ($activeShop !== null && $shop !== $activeShop)) {
                 continue;
             }
             $total += $c;
             $count++;
-            // Bucket by first-of-month for monthly granularity, else by exact day.
-            $key = $byMonth ? $s->spent_at->copy()->startOfMonth()->toDateString() : $s->spent_at->toDateString();
+            $key = $bucketKey($s->spent_at);
             $bucket[$key] = ($bucket[$key] ?? 0) + $c;
-            if ($activeCategory !== null) {
+            if ($activeCategory !== null || $activeShop !== null) {
                 $entries[] = [
                     'id' => $s->id,
                     'amount' => $c, // already in display cents
                     'note' => $s->note, // client falls back to the category label when empty
                     'category' => $s->category,
+                    'store' => $s->store,
                     'date' => $s->spent_at->toDateString(),
                     'list' => $eventName[$s->spend_event_id] ?? '',
                     'list_id' => $s->spend_event_id, // parent SpendEvent id, so the row can link to its detail page
@@ -409,21 +426,22 @@ class SpendingController extends Controller
         $byCategory = collect($byCat)
             ->map(fn ($amount, $key) => ['key' => $key, 'amount' => $amount, 'pct' => $pct($amount)])
             ->sortByDesc('amount')->values();
+        // Same shape for shops (key = store name, or NO_SHOP for spends without one); same grand total.
+        $byShopRows = collect($byShop)
+            ->map(fn ($amount, $key) => ['key' => (string) $key, 'amount' => $amount, 'pct' => $pct($amount)])
+            ->sortByDesc('amount')->values();
 
         // Zero-fill every point across the range so the curve spans the whole selected period rather than
-        // jumping between only the buckets that had spending. Daily when the range is <= 90 days; when it
-        // spans more, one point per month (365 daily points render as an unreadable flat line + one spike).
+        // jumping between only the buckets that had spending: one point per day / ISO week (its Monday) /
+        // month, matching $granularity. The first week/month point may start before $start; spends are
+        // still range-bound, the key is just the bucket's calendar start.
         $daily = [];
-        if ($byMonth) {
-            for ($m = $start->copy()->startOfMonth(); $m <= $end; $m->addMonthNoOverflow()) {
-                $key = $m->toDateString();
-                $daily[] = ['date' => $key, 'amount' => $bucket[$key] ?? 0];
-            }
-        } else {
-            for ($d = $start->copy(); $d <= $end; $d->addDay()) {
-                $key = $d->toDateString();
-                $daily[] = ['date' => $key, 'amount' => $bucket[$key] ?? 0];
-            }
+        $step = match ($granularity) {
+            'month' => 'addMonthNoOverflow', 'week' => 'addWeek', default => 'addDay'
+        };
+        for ($d = Carbon::parse($bucketKey($start)); $d <= $end; $d->{$step}()) {
+            $key = $d->toDateString();
+            $daily[] = ['date' => $key, 'amount' => $bucket[$key] ?? 0];
         }
 
         return Inertia::render('spending/analytics', [
@@ -435,17 +453,20 @@ class SpendingController extends Controller
             'range' => ['from' => $start->toDateString(), 'to' => $end->toDateString()],
             'total' => $total,
             'byCategory' => $byCategory,
+            'byShop' => $byShopRows,
             'daily' => $daily,
             'granularity' => $granularity,
             'count' => $count,
             'activeCategory' => $activeCategory,
+            'activeShop' => $activeShop,
             'entries' => $entries,
         ]);
     }
 
     /**
      * Resolve the analytics period into a [label, start, end] Carbon range (inclusive days).
-     * Supported: mtd (default), last_month, ytd, all_time, custom (from/to query params).
+     * Supported: mtd (default), this_week, last_week, last_month, ytd, all_time, custom (from/to query
+     * params). Weeks are ISO weeks (Monday to Sunday).
      *
      * @param  list<int>  $eventIds  the visible lists, used only to bound the all_time range to real data
      */
@@ -453,6 +474,12 @@ class SpendingController extends Controller
     {
         $today = now();
         switch ($request->query('period')) {
+            case 'this_week':
+                return ['this_week', $today->copy()->startOfWeek(Carbon::MONDAY), $today->copy()];
+            case 'last_week':
+                $start = $today->copy()->subWeek()->startOfWeek(Carbon::MONDAY);
+
+                return ['last_week', $start, $start->copy()->endOfWeek(Carbon::SUNDAY)->startOfDay()];
             case 'last_month':
                 $start = $today->copy()->subMonthNoOverflow()->startOfMonth();
                 $end = $start->copy()->endOfMonth();
@@ -463,7 +490,7 @@ class SpendingController extends Controller
             case 'all_time':
                 // No date bound: span the visible lists' whole history, min..max spent_at. One aggregate
                 // query, not two. Falls back to this month when there are no spends yet so the range is
-                // still a valid single period. > 90 days almost always => monthly granularity (below).
+                // still a valid single period. > 120 days almost always => monthly granularity (below).
                 $bounds = $eventIds === [] ? null : Spend::query()
                     ->whereIn('spend_event_id', $eventIds)
                     ->selectRaw('MIN(spent_at) as mn, MAX(spent_at) as mx')
