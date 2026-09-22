@@ -10,7 +10,10 @@ import { useReducedMotion } from 'motion/react';
 type Cat = { key: string; amount: number; pct: number };
 type Day = { date: string; amount: number };
 // One individual expense in the drilled-down category (amounts already in display cents).
-type Entry = { id: number; amount: number; note: string | null; category: string; date: string; list: string; list_id: number };
+type Entry = { id: number; amount: number; note: string | null; category: string; store: string | null; date: string; list: string; list_id: number };
+// byShop row: key is the store name, or NO_SHOP for spends without one.
+type Shop = { key: string; amount: number; pct: number };
+const NO_SHOP = '__none'; // mirrors SpendingController::NO_SHOP
 type Props = {
     currency: string;
     currencies: string[];
@@ -19,12 +22,15 @@ type Props = {
     range: { from: string; to: string };
     total: number;
     byCategory: Cat[];
+    byShop: Shop[];
     daily: Day[];
-    granularity: 'day' | 'month';
+    granularity: 'day' | 'week' | 'month';
     count: number;
     activeCategory: string | null;
+    activeShop: string | null;
     entries: Entry[];
 };
+type Granularity = Props['granularity'];
 
 // Category colour/label now come from the family's dynamic category list (passed as a prop), resolved
 // through a key→def map so this page reads the same as the per-event stats page.
@@ -34,9 +40,12 @@ const monthDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString(un
 
 // The per-day/-month spend curve: the shared smooth TrendCurve, fed the spend series and a peak callout in
 // the display currency. Y is per-bucket spend (not cumulative), so the shape reads as the rhythm of spending.
-function DailyCurve({ points, currency, granularity, t }: { points: Day[]; currency: string; granularity: 'day' | 'month'; t: TFn }) {
-    // Monthly buckets get a month+year end label ("Jan 2026"); daily buckets keep "Jan 1".
-    const label = granularity === 'month' ? monthDate : shortDate;
+function DailyCurve({ points, currency, granularity, t }: { points: Day[]; currency: string; granularity: Granularity; t: TFn }) {
+    // Monthly buckets get a month+year end label ("Jan 2026"); weekly buckets read as the Monday they start
+    // on ("Week of Sep 21"); daily buckets keep "Jan 1".
+    const label =
+        granularity === 'month' ? monthDate : granularity === 'week' ? (d: string) => t('spending.week_of', { date: shortDate(d) }) : shortDate;
+    const peakKey = { day: 'spending.peak_day', week: 'spending.peak_week', month: 'spending.peak_month' }[granularity];
     return (
         <TrendCurve
             points={points.map((p) => ({ date: p.date, value: p.amount }))}
@@ -45,14 +54,16 @@ function DailyCurve({ points, currency, granularity, t }: { points: Day[]; curre
             ariaLabel={t('spending.daily_chart_aria')}
             renderPeak={(peak) => (
                 <span className="text-primary font-semibold">
-                    {money(peak.value, currency)} {t(granularity === 'month' ? 'spending.peak_month' : 'spending.peak_day')}
+                    {money(peak.value, currency)} {t(peakKey)}
                 </span>
             )}
         />
     );
 }
 
-const PERIODS = ['mtd', 'last_month', 'ytd', 'all_time', 'custom'] as const;
+const PERIODS = ['this_week', 'last_week', 'mtd', 'last_month', 'ytd', 'all_time', 'custom'] as const;
+// Chart heading per granularity.
+const BY_KEY: Record<Granularity, string> = { day: 'spending.by_day', week: 'spending.by_week', month: 'spending.by_month' };
 
 // The resolved period always spans a concrete date range; show it so "this year" / "all time" / a custom
 // range read unambiguously (a full date, with year, since all-time can reach back several years).
@@ -66,10 +77,12 @@ export default function Analytics({
     range,
     total,
     byCategory,
+    byShop,
     daily,
     granularity,
     count,
     activeCategory,
+    activeShop,
     entries,
 }: Props) {
     const t = useT();
@@ -77,6 +90,7 @@ export default function Analytics({
     const catMap: CategoryMap = categoryMap(categories);
     const catColor = (k: string) => catColorOf(catMap, k);
     const catLabel = (t: TFn, k: string) => catLabelOf(t, catMap, k);
+    const shopLabel = (k: string) => (k === NO_SHOP ? t('spending.no_shop') : k);
     const breadcrumbs: BreadcrumbItem[] = [
         { title: t('nav.spending'), href: '/m/spending' },
         { title: t('spending.analytics'), href: route('spending.analytics') },
@@ -86,18 +100,24 @@ export default function Analytics({
     const animatedTotal = useCountUp(total, reduced);
 
     // Navigating reloads the page with new query params; Inertia keeps scroll and swaps the props.
-    // The active category rides along so switching period/currency keeps the drill-down filter.
+    // The active category/shop ride along so switching period/currency keeps the drill-down filters.
     const reload = (params: Record<string, string>) =>
         router.get(
             route('spending.analytics'),
-            { period, currency, from: range.from, to: range.to, category: activeCategory ?? '', ...params },
+            { period, currency, from: range.from, to: range.to, category: activeCategory ?? '', shop: activeShop ?? '', ...params },
             { preserveScroll: true, preserveState: true },
         );
 
-    // Tapping a category filters to it; tapping the active one again clears back to all.
+    // Tapping a category/shop filters to it; tapping the active one again clears back to all.
     const toggleCategory = (key: string) => reload({ category: key === activeCategory ? '' : key });
+    const toggleShop = (key: string) => reload({ shop: key === activeShop ? '' : key });
+    const filtering = activeCategory !== null || activeShop !== null;
+    // Drill-down heading: "Expenses · Food · Lidl" (whichever filters are on).
+    const filterTitle = [activeCategory && catLabel(t, activeCategory), activeShop && shopLabel(activeShop)].filter(Boolean).join(' · ');
 
     const periodLabel: Record<string, string> = {
+        this_week: t('spending.period_this_week'),
+        last_week: t('spending.period_last_week'),
         mtd: t('spending.period_mtd'),
         last_month: t('spending.period_last_month'),
         ytd: t('spending.period_ytd'),
@@ -129,7 +149,7 @@ export default function Analytics({
                     </select>
                 </div>
 
-                {/* Period selector: four presets as a segmented control. */}
+                {/* Period selector: presets as a segmented control. */}
                 <div className="flex flex-wrap gap-2">
                     {PERIODS.map((p) => (
                         <button
@@ -184,9 +204,9 @@ export default function Analytics({
                     </span>
                 </div>
 
-                {/* Expenses by day, rounded curve. */}
+                {/* Expenses by day / week / month, rounded curve. */}
                 <div className="bg-surface-card flex flex-col gap-3 rounded-xl border p-5">
-                    <h2 className="font-heading text-primary text-lg">{granularity === 'month' ? t('spending.by_month') : t('spending.by_day')}</h2>
+                    <h2 className="font-heading text-primary text-lg">{t(BY_KEY[granularity])}</h2>
                     <DailyCurve points={daily} currency={currency} granularity={granularity} t={t} />
                 </div>
 
@@ -231,11 +251,54 @@ export default function Analytics({
                     )}
                 </div>
 
-                {/* Drill-down: every individual expense in the filtered category, biggest first. */}
-                {activeCategory && (
+                {/* Spending by shop — same interaction as categories: tap a shop to filter the whole view to it
+                    (combines with the category filter), tap again to clear. Spends without a shop sit in a
+                    "No shop" row so the rows still add up to the total. */}
+                <div className="bg-surface-card flex flex-col gap-4 rounded-xl border p-5">
+                    <h2 className="font-heading text-primary text-lg">{t('spending.by_shop')}</h2>
+                    {byShop.length === 0 ? (
+                        <p className="text-muted-foreground py-4 text-center text-sm">{t('spending.shop_empty')}</p>
+                    ) : (
+                        byShop.map((s, i) => {
+                            const active = s.key === activeShop;
+                            return (
+                                <button
+                                    key={s.key}
+                                    type="button"
+                                    onClick={() => toggleShop(s.key)}
+                                    aria-pressed={active}
+                                    className={`-mx-2 flex flex-col gap-1.5 rounded-lg px-2 py-1.5 text-left transition-colors ${
+                                        active ? 'bg-surface ring-primary/40 ring-1' : 'hover:bg-surface'
+                                    }`}
+                                >
+                                    <div className="flex items-baseline justify-between gap-3 text-sm">
+                                        <span
+                                            className={`truncate ${active ? 'text-primary font-semibold' : s.key === NO_SHOP ? 'text-muted-foreground' : 'text-primary'}`}
+                                        >
+                                            {shopLabel(s.key)}
+                                        </span>
+                                        <span className="text-muted-foreground shrink-0 font-mono tabular-nums">
+                                            {money(s.amount, currency)} · {s.pct}%
+                                        </span>
+                                    </div>
+                                    {/* Shops have no colour of their own; the muted bar for "No shop" sets it apart. */}
+                                    <Bar pct={s.pct} color={s.key === NO_SHOP ? 'var(--muted-foreground)' : 'var(--primary)'} index={i} />
+                                </button>
+                            );
+                        })
+                    )}
+                    {activeShop && (
+                        <button type="button" onClick={() => toggleShop(activeShop)} className="text-muted-foreground self-start text-xs underline">
+                            {t('spending.all_shops')}
+                        </button>
+                    )}
+                </div>
+
+                {/* Drill-down: every individual expense matching the active category/shop, biggest first. */}
+                {filtering && (
                     <div className="bg-surface-card flex flex-col gap-3 rounded-xl border p-5">
                         <h2 className="font-heading text-primary text-lg">
-                            {t('spending.entries_title')} · {catLabel(t, activeCategory)}
+                            {t('spending.entries_title')} · {filterTitle}
                         </h2>
                         {entries.length === 0 ? (
                             <p className="text-muted-foreground py-4 text-center text-sm">{t('spending.category_empty')}</p>
@@ -254,6 +317,7 @@ export default function Analytics({
                                                 <div className="min-w-0">
                                                     <div className="text-muted-foreground truncate text-xs">
                                                         {e.list} · {shortDate(e.date)}
+                                                        {e.store ? ` · ${e.store}` : ''}
                                                     </div>
                                                     <div className="text-primary truncate text-sm">{e.note || catLabel(t, e.category)}</div>
                                                 </div>

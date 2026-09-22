@@ -220,7 +220,15 @@
     "ai_sort_done": "Done: :moved of :total moved to a category.",
     "ai_sort_failed": "Something went wrong. Run it again to resume.",
     "rescan_receipt": "Receipt attached · scan another",
+    "period_this_week": "This week",
+    "period_last_week": "Last week",
+    "by_week": "Expenses by week",
+    "peak_week": "peak week",
+    "week_of": "Week of :date",
+    "by_shop": "By shop",
     "shop": "Shop",
     "shop_optional": "Shop (optional)",
-    "no_shop": "No shop"
+    "no_shop": "No shop",
+    "all_shops": "All shops",
+    "shop_empty": "Spending by shop appears once there are spends in the selected period."
 }
