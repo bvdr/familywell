@@ -19,6 +19,7 @@ import {
     MoreVertical,
     Pencil,
     Plus,
+    Store,
     Trash2,
     UserPlus,
     Wallet,
@@ -31,6 +32,7 @@ import { GuestSheet, type GuestShareState } from '@/components/guest-sheet';
 import { IconPicker } from '@/components/icon-picker';
 import InputError from '@/components/input-error';
 import { useMemberColors } from '@/components/member-avatar';
+import { Picker } from '@/components/picker';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -64,6 +66,7 @@ type EventT = {
     categories: CategoryDef[]; // the family's dynamic categories (key/label/icon/colour)
     currencies: string[];
     rates: Record<string, number>; // base currency -> each supported currency (latest)
+    shops: string[]; // shop picker suggestions (names used on spends + Shopping-module shops)
 };
 type Spend = {
     id: number;
@@ -71,6 +74,7 @@ type Spend = {
     currency: string;
     base_amount: number; // converted to the event currency
     category: string;
+    store: string | null; // shop / merchant name
     note: string | null;
     receipts: { id: number; url: string; thumbUrl: string }[];
     source: Source | null;
@@ -369,6 +373,7 @@ export default function Event({
         payer_key: string;
         source_id: number | null;
         note: string;
+        store: string;
         spent_at: string;
         receipts: File[];
         receipts_thumb: File[];
@@ -383,6 +388,7 @@ export default function Event({
         payer_key: 'u' + authId,
         source_id: null,
         note: '',
+        store: '',
         spent_at: today(),
         receipts: [],
         receipts_thumb: [],
@@ -518,6 +524,7 @@ export default function Event({
             payer_key: s.payer.key,
             source_id: s.source?.id ?? null,
             note: s.note ?? '',
+            store: s.store ?? '',
             spent_at: s.spent_at,
             receipts: [],
             receipts_thumb: [],
@@ -572,6 +579,7 @@ export default function Event({
                 payer_key: 'u' + authId,
                 source_id: null,
                 note: data.note ?? '',
+                store: data.store ?? '', // merchant read off the receipt header
                 spent_at: data.date ?? today(),
                 receipts: [photo], // keep the scanned photo attached to the spend
                 receipts_thumb: photoThumb ? [photoThumb] : [],
@@ -1334,6 +1342,27 @@ export default function Event({
                                                 ))}
                                             </SelectContent>
                                         </Select>
+                                    </div>
+                                    {/* Shop: searchable single-select over names already used (Spending + Shopping modules), with
+                                        "Add …" for a new one. '__none' stands in for '' because the Picker treats an empty
+                                        selection as "nothing picked" and single mode has no clear control. */}
+                                    <div className="grid gap-2">
+                                        <Label>{t('spending.shop_optional')}</Label>
+                                        <Picker
+                                            searchable
+                                            fallbackIcon={Store}
+                                            options={[
+                                                { value: '__none', label: t('spending.no_shop') },
+                                                // A scanned/typed name not in the suggestions still needs an option so it shows selected.
+                                                ...(form.data.store && !event.shops.includes(form.data.store)
+                                                    ? [{ value: form.data.store, label: form.data.store }]
+                                                    : []),
+                                                ...event.shops.map((name) => ({ value: name, label: name })),
+                                            ]}
+                                            selected={[form.data.store || '__none']}
+                                            onChange={(next) => form.setData('store', next[0] === '__none' ? '' : (next[0] ?? ''))}
+                                            onCreate={(name) => form.setData('store', name)}
+                                        />
                                     </div>
                                     <div className="grid gap-2">
                                         <Label>{t('spending.paid_by_field')}</Label>

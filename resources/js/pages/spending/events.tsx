@@ -1,7 +1,7 @@
 import { useAddAction } from '@/lib/add-action';
 import { openNewOnArrival } from '@/lib/create-intent';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { Archive, Camera, ChartLine, ChevronRight, Loader2, Plus, RotateCcw, Settings, Tag, Wallet } from 'lucide-react';
+import { Archive, Camera, ChartLine, ChevronRight, Loader2, Plus, RotateCcw, Settings, Store, Tag, Wallet } from 'lucide-react';
 import { FormEventHandler, useRef, useState } from 'react';
 
 import { useCategorySuggest } from '@/hooks/use-category-suggest';
@@ -77,6 +77,7 @@ export default function Events({
     feedCap,
     categories,
     members,
+    shops,
     scanEnabled = false,
     aiCategorize = false,
 }: {
@@ -91,6 +92,7 @@ export default function Events({
     feedCap: number;
     categories: CategoryDef[];
     members: Member[]; // whole family: payer options when no list is picked (the "Others" list takes everyone)
+    shops: string[]; // shop picker suggestions (names used on spends + Shopping-module shops)
 }) {
     const t = useT();
     const locale = useLocale();
@@ -155,6 +157,7 @@ export default function Events({
         payer_key: 'u' + authId,
         spent_at: today(),
         note: '',
+        store: '', // shop / merchant name ('' = none)
         receipts: [] as File[], // the scanned photo, kept as the spend's receipt
         receipts_thumb: [] as File[],
     });
@@ -193,6 +196,7 @@ export default function Events({
                 currency: data.currency ?? d.currency,
                 category: data.category ?? d.category,
                 note: data.note ?? d.note,
+                store: data.store ?? d.store, // merchant read off the receipt header
                 spent_at: data.date ?? d.spent_at,
                 receipts: [photo],
                 receipts_thumb: photoThumb ? [photoThumb] : [],
@@ -425,6 +429,27 @@ export default function Events({
                                 }}
                             />
                             <InputError message={spend.errors.category} />
+                        </div>
+                        {/* Shop: searchable single-select over names already used (Spending + Shopping modules), with
+                            "Add …" for a new one. '__none' stands in for '' because the Picker treats an empty
+                            selection as "nothing picked" and single mode has no clear control. */}
+                        <div className="grid gap-2">
+                            <Label>{t('spending.shop_optional')}</Label>
+                            <Picker
+                                searchable
+                                fallbackIcon={Store}
+                                options={[
+                                    { value: '__none', label: t('spending.no_shop') },
+                                    // A scanned/typed name not in the suggestions still needs an option so it shows selected.
+                                    ...(spend.data.store && !shops.includes(spend.data.store)
+                                        ? [{ value: spend.data.store, label: spend.data.store }]
+                                        : []),
+                                    ...shops.map((name) => ({ value: name, label: name })),
+                                ]}
+                                selected={[spend.data.store || '__none']}
+                                onChange={(next) => spend.setData('store', next[0] === '__none' ? '' : (next[0] ?? ''))}
+                                onCreate={(name) => spend.setData('store', name)}
+                            />
                         </div>
                         {/* Which list the expense goes to. Optional: no pick => the family's "Others" list. */}
                         <div className="grid gap-2">

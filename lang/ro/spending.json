@@ -219,5 +219,8 @@
     "ai_sort_running": "Se sortează…",
     "ai_sort_done": "Gata: :moved din :total mutate într-o categorie.",
     "ai_sort_failed": "Ceva n-a mers. Rulează din nou pentru a continua.",
-    "rescan_receipt": "Bon atașat · scanează altul"
+    "rescan_receipt": "Bon atașat · scanează altul",
+    "shop": "Magazin",
+    "shop_optional": "Magazin (opțional)",
+    "no_shop": "Fără magazin"
 }
