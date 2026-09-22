@@ -74,6 +74,20 @@ docker compose exec app php artisan modules:migrate
 
 A prebuilt image is published at `ghcr.io/bvdr/familywell`. See **[docs/self-hosting.md](docs/self-hosting.md)** for the full guide, including storage and Reverb configuration.
 
+### Public demo account (optional)
+
+A "Try the live demo" button appears on the login page once a demo family exists. Visitors are signed
+in as its owner with one click (`/demo`), can change anything, and the family is wiped and re-seeded
+every night at midnight US Eastern by the scheduler (`demo:reset`).
+
+```bash
+php artisan db:seed --class=DemoSeeder --force   # once: creates the demo family (flagged is_demo)
+php artisan demo:reset                           # any time: wipe + re-seed it (what the scheduler runs)
+```
+
+The reset locates the family **only** by the `families.is_demo` flag and refuses to run unless exactly
+one family carries it, so it can never touch a real family.
+
 ---
 
 ## Configuration
