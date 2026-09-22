@@ -155,7 +155,7 @@ class SpendEvent extends Model implements ProvidesGuestView, ProvidesPublicShare
         $amount = (int) round($data['amount'] * 100);
         $baseAmount = Fx::convert($amount, $data['currency'], $this->currency, $data['spent_at']);
 
-        return [
+        $attrs = [
             'source_id' => $data['source_id'] ?? null,
             'amount' => $amount,
             'currency' => $data['currency'],
@@ -165,6 +165,13 @@ class SpendEvent extends Model implements ProvidesGuestView, ProvidesPublicShare
             'note' => $data['note'] ?? null,
             'spent_at' => $data['spent_at'],
         ];
+        // Shop is only touched when the caller sends it (the member form always does, '' clearing it), so
+        // a guest edit or a move — which don't know about shops — leaves an existing store name intact.
+        if (array_key_exists('store', $data)) {
+            $attrs['store'] = trim((string) $data['store']) ?: null;
+        }
+
+        return $attrs;
     }
 
     public function spends(): HasMany

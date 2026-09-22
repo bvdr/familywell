@@ -28,7 +28,7 @@ class ReceiptScanner
     }
 
     /**
-     * @return array{amount: float|null, currency: string|null, date: string, category: string|null, note: string|null}
+     * @return array{amount: float|null, currency: string|null, date: string, category: string|null, note: string|null, store: string|null}
      *
      * @throws RuntimeException when the photo can't be read
      */
@@ -46,6 +46,7 @@ class ReceiptScanner
                 'date' => ['type' => 'string', 'description' => 'Purchase date, YYYY-MM-DD'],
                 'category' => ['type' => 'string', 'enum' => $this->categories],
                 'note' => ['type' => 'string', 'description' => 'Short human-friendly description, in English'],
+                'store' => ['type' => 'string', 'description' => 'Merchant / shop brand name as printed on the receipt header (e.g. "Lidl", "Kaufland"), without address, legal form (SRL, GmbH, Ltd) or branch number; empty if unreadable'],
                 'line_items' => [
                     'type' => 'array',
                     'items' => [
@@ -63,7 +64,8 @@ class ReceiptScanner
         $prompt = 'Extract the expense from this receipt photo. It may be rotated, low quality, or in any '
             .'language; give the note in English. amount = the grand total actually paid. Set has_printed_total '
             .'to true only when the receipt prints an explicit total line; otherwise list every line item so the '
-            .'total can be summed. Pick the single best category from the allowed list. Use YYYY-MM-DD for date.';
+            .'total can be summed. Pick the single best category from the allowed list. Use YYYY-MM-DD for date. '
+            .'store = the shop brand name only (no address or legal suffix), or empty when not readable.';
 
         // thinkingBudget 0: this is plain extraction, not reasoning, so we skip (billable) thinking tokens.
         $response = Http::timeout(30)
@@ -100,7 +102,7 @@ class ReceiptScanner
 
     /**
      * @param  array<string, mixed>  $d
-     * @return array{amount: float|null, currency: string|null, date: string, category: string|null, note: string|null}
+     * @return array{amount: float|null, currency: string|null, date: string, category: string|null, note: string|null, store: string|null}
      */
     private function normalise(array $d): array
     {
@@ -118,6 +120,8 @@ class ReceiptScanner
         $currency = strtoupper((string) ($d['currency'] ?? ''));
         $category = strtolower((string) ($d['category'] ?? ''));
         $note = trim((string) ($d['note'] ?? ''));
+        // Shop name, capped to the column width; the form's picker lets the user fix a misread.
+        $store = mb_substr(trim((string) ($d['store'] ?? '')), 0, 120);
 
         return [
             'amount' => $amount > 0 ? round($amount, 2) : null,
@@ -125,6 +129,7 @@ class ReceiptScanner
             'date' => $this->normaliseDate((string) ($d['date'] ?? '')),
             'category' => in_array($category, $this->categories, true) ? $category : null,
             'note' => $note !== '' ? $note : null,
+            'store' => $store !== '' ? $store : null,
         ];
     }
 

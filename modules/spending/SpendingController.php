@@ -133,6 +133,7 @@ class SpendingController extends Controller
             // to pick a payer from when no list is chosen (the "Others" list takes everyone).
             'categories' => SpendCategory::payloadFor(),
             'members' => Family::findOrFail(CurrentFamily::id())->members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),
+            'shops' => Spend::shopNames(), // shop picker suggestions (create-on-the-fly for new names)
         ]);
     }
 
@@ -919,6 +920,7 @@ class SpendingController extends Controller
             // Optional payment source; must be one of the family's (SpendSource is family-scoped).
             'source_id' => ['nullable', 'integer', 'in:'.implode(',', SpendSource::pluck('id')->all() ?: [0])],
             'note' => ['nullable', 'string', 'max:255'],
+            'store' => ['nullable', 'string', 'max:120'], // shop / merchant name, free text (see Spend::shopNames)
             'spent_at' => ['required', 'date'],
             'receipts' => ['nullable', 'array', 'max:10'], // up to 10 photos per spend
             'receipts.*' => ['image', 'max:12288'], // up to 12 MB each (PHP allows 16M, see Dockerfile)
@@ -1070,6 +1072,7 @@ class SpendingController extends Controller
                 // Latest rates from the base currency to every supported currency, so the client can
                 // convert any base figure to a chosen display currency without another round-trip.
                 'rates' => Fx::ratesFrom($event->currency, self::CURRENCIES),
+                'shops' => Spend::shopNames(), // shop picker suggestions on the add/edit sheet
             ],
             'spends' => $spends->map(fn (Spend $s) => [
                 'id' => $s->id,
@@ -1077,6 +1080,7 @@ class SpendingController extends Controller
                 'currency' => $s->currency,
                 'base_amount' => $s->base_amount, // converted to the event currency
                 'category' => $s->category,
+                'store' => $s->store,
                 'note' => $s->note,
                 'receipts' => $s->receipts->map(fn (SpendReceipt $r) => [
                     'id' => $r->id,

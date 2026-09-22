@@ -395,6 +395,7 @@ it('scans a receipt into prefill fields, summing line items when no total is pri
                     'date' => '2026-07-19',
                     'category' => 'FOOD',
                     'note' => 'Beach bar',
+                    'store' => '  Beach Bar  ', // merchant off the header, trimmed
                     'line_items' => [
                         ['name' => 'Coffee', 'price' => 5],
                         ['name' => 'Coffee', 'price' => 5],
@@ -414,6 +415,7 @@ it('scans a receipt into prefill fields, summing line items when no total is pri
             'date' => '2026-07-19',
             'category' => 'food', // lower-cased + validated
             'note' => 'Beach bar',
+            'store' => 'Beach Bar', // prefills the shop picker
         ]);
 
     Carbon::setTestNow();
