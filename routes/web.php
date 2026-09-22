@@ -10,8 +10,11 @@ use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PublicGuestController;
 use App\Http\Controllers\PublicShareController;
 use App\Http\Controllers\ShareController;
+use App\Models\User;
 use App\Support\Dashboard\DashboardData;
+use App\Support\Demo\DemoFamily;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -43,6 +46,21 @@ Route::get('/', function () {
 // family-less user creates their first family.
 // The invite landing is public: it handles guests itself (remember the token, send them to register).
 Route::get('invite/{token}', [FamilyInviteController::class, 'show'])->name('invite.show');
+
+// One-click public demo: signs the visitor in as the demo family's owner (no account needed) and
+// makes the demo family active. The family is found ONLY by its is_demo flag (DemoFamily::locate);
+// 404 until DemoSeeder has run. Anyone already signed in is switched to the demo account. Throttled
+// because it is an unauthenticated login endpoint. Its data is wiped nightly by `demo:reset`.
+Route::get('demo', function (Request $request) {
+    $family = DemoFamily::locate();
+    abort_unless($family, 404);
+
+    Auth::login(User::findOrFail($family->owner_id));
+    $request->session()->regenerate();
+    $request->session()->put('active_family_id', $family->id);
+
+    return redirect()->route('dashboard');
+})->middleware('throttle:30,1')->name('demo.enter');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('onboarding', [OnboardingController::class, 'index'])->name('onboarding.index');
