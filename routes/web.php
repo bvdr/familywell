@@ -50,7 +50,7 @@ Route::get('invite/{token}', [FamilyInviteController::class, 'show'])->name('inv
 // One-click public demo: signs the visitor in as the demo family's owner (no account needed) and
 // makes the demo family active. The family is found ONLY by its is_demo flag (DemoFamily::locate);
 // 404 until DemoSeeder has run. Anyone already signed in is switched to the demo account. Throttled
-// because it is an unauthenticated login endpoint. Its data is wiped nightly by `demo:reset`.
+// because it is an unauthenticated login endpoint. Its data is wiped hourly by `demo:reset`.
 Route::get('demo', function (Request $request) {
     $family = DemoFamily::locate();
     abort_unless($family, 404);

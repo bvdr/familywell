@@ -33,7 +33,7 @@ use Modules\Vehicles\VehicleSetting;
 /**
  * The public demo family ("The Millers", a US household of 2 parents + 3 kids), filled across every
  * module. Idempotent and deterministic: running it again wipes the demo family's data (DemoFamily::wipe)
- * and rebuilds exactly the same rows, so the demo looks identical after every nightly `demo:reset`.
+ * and rebuilds exactly the same rows, so the demo looks identical after every hourly `demo:reset`.
  * Dates are relative to today (so "this month" and "due" always mean something), which is the only
  * input — no randomness anywhere.
  *
