@@ -1,5 +1,5 @@
 import { Head, useForm } from '@inertiajs/react';
-import { LoaderCircle } from 'lucide-react';
+import { LoaderCircle, Sparkles } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
 import InputError from '@/components/input-error';
@@ -20,9 +20,10 @@ interface LoginForm {
 interface LoginProps {
     status?: string;
     canResetPassword: boolean;
+    canDemo: boolean;
 }
 
-export default function Login({ status, canResetPassword }: LoginProps) {
+export default function Login({ status, canResetPassword, canDemo }: LoginProps) {
     const t = useT();
     const { data, setData, post, processing, errors, reset } = useForm<LoginForm>({
         email: '',
@@ -99,6 +100,19 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                     </TextLink>
                 </div>
             </form>
+
+            {/* Public demo: a plain link (full page load) so the server can establish the session. */}
+            {canDemo && (
+                <div className="mt-6 flex flex-col items-center gap-2 border-t pt-6">
+                    <Button asChild variant="outline" className="w-full">
+                        <a href={route('demo.enter')} tabIndex={6}>
+                            <Sparkles className="h-4 w-4" />
+                            {t('auth.try_demo')}
+                        </a>
+                    </Button>
+                    <p className="text-muted-foreground text-center text-xs">{t('auth.try_demo_hint')}</p>
+                </div>
+            )}
 
             {status && <div className="mb-4 text-center text-sm font-medium text-green-600">{status}</div>}
         </AuthLayout>
