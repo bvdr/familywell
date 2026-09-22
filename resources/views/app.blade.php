@@ -7,7 +7,7 @@
              drawer's pinned footer sits right above it. --}}
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
-        <title inertia>{{ config('app.name', 'Laravel') }}</title>
+        <title inertia>{{ config('app.name', 'Familywell') }}</title>
 
         {{-- Installable PWA: added to the home screen it launches full-screen (no browser chrome).
              iOS reads the apple-* tags; Android/Chrome read the manifest. --}}

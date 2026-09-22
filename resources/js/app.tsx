@@ -34,7 +34,7 @@ declare global {
     }
 }
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const appName = import.meta.env.VITE_APP_NAME || 'Familywell';
 
 // Expose the shell runtime so pre-built module assets register UI without a bundler or a second React.
 window.Familywell = { React, registerSlot };
