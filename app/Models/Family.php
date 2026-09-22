@@ -16,7 +16,11 @@ class Family extends Model
 
     public const EMOJIS = ['🌿', '🏡', '☀️', '🐻', '🌸', '⭐'];
 
+    // `is_demo` is intentionally NOT fillable: only DemoSeeder sets it (via forceFill). It anchors the
+    // nightly demo reset, so a request must never be able to flag a family as the demo.
     protected $fillable = ['name', 'description', 'color', 'emoji', 'owner_id', 'theme'];
+
+    protected $casts = ['is_demo' => 'boolean'];
 
     public function members(): BelongsToMany
     {
