@@ -58,4 +58,35 @@ class MonthToDate
 
         return $total;
     }
+
+    /**
+     * Month-to-date total PER SHOP in $currency (display cents), same lists/bounds/rounding as total(). Feeds
+     * the "This month at Lidl: …" hint on the add-expense forms: the client looks up whatever shop is in
+     * the form, so the hint recomputes as the shop changes without a round-trip. Only shops with a store
+     * set are keyed (no-store spends have nothing to hint about). Amounts are the ALREADY-recorded spends,
+     * so the expense being typed is never counted.
+     *
+     * @param  Collection<int, string>  $eventCcy  id => base currency
+     * @return array<string, int> shop name => display cents
+     */
+    public static function byShop(Collection $eventCcy, string $currency): array
+    {
+        if ($eventCcy->isEmpty()) {
+            return [];
+        }
+        $rows = Spend::query()
+            ->whereIn('spend_event_id', $eventCcy->keys())
+            ->whereNotNull('store')
+            ->whereBetween('spent_at', [now()->startOfMonth()->toDateString(), now()->endOfDay()->toDateTimeString()])
+            ->groupBy('store', 'spend_event_id')
+            ->selectRaw('store, spend_event_id, SUM(base_amount) AS total')
+            ->get();
+
+        $totals = [];
+        foreach ($rows as $r) {
+            $totals[$r->store] = ($totals[$r->store] ?? 0) + (int) round((int) $r->total * Fx::rate($eventCcy[$r->spend_event_id], $currency));
+        }
+
+        return $totals;
+    }
 }

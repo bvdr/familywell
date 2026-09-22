@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
+import { ShopMonthHint, type ShopTotals } from '@/components/shop-month-hint';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
@@ -78,6 +79,7 @@ export default function Events({
     categories,
     members,
     shops,
+    shopTotals,
     scanEnabled = false,
     aiCategorize = false,
 }: {
@@ -93,6 +95,7 @@ export default function Events({
     categories: CategoryDef[];
     members: Member[]; // whole family: payer options when no list is picked (the "Others" list takes everyone)
     shops: string[]; // shop picker suggestions (names used on spends + Shopping-module shops)
+    shopTotals: ShopTotals; // month-to-date per shop for the hint under the shop picker
 }) {
     const t = useT();
     const locale = useLocale();
@@ -450,6 +453,7 @@ export default function Events({
                                 onChange={(next) => spend.setData('store', next[0] === '__none' ? '' : (next[0] ?? ''))}
                                 onCreate={(name) => spend.setData('store', name)}
                             />
+                            <ShopMonthHint shop={spend.data.store} shopTotals={shopTotals} />
                         </div>
                         {/* Which list the expense goes to. Optional: no pick => the family's "Others" list. */}
                         <div className="grid gap-2">

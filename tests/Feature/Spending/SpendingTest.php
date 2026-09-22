@@ -805,6 +805,57 @@ it('shows the current-month total on the overview, rolled up like analytics and 
         ->assertInertia(fn ($p) => $p->where('thisMonth.total', 0)->etc());
 });
 
+it('ships month-to-date per shop for the add-expense hint', function () {
+    Http::fake([
+        'api.frankfurter.dev/*' => Http::response(['rates' => ['EUR' => 0.2]]),
+        'open.er-api.com/*' => Http::response(['rates' => ['EUR' => 0.2]]),
+    ]);
+
+    [, $users] = spendingFamily();
+    actingAs($users[0])->patch('/m/spending/settings', ['default_currency' => 'EUR'])->assertRedirect();
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Home', 'currency' => 'RON']);
+    $eur = SpendEvent::where('currency', 'EUR')->first();
+    $ron = SpendEvent::where('currency', 'RON')->first();
+    $thisMonth = now()->startOfMonth()->addDays(3)->min(now())->toDateString();
+    $lastMonth = now()->subMonthNoOverflow()->startOfMonth()->addDays(3)->toDateString();
+    $u = 'u'.$users[0]->id;
+
+    // Nothing recorded yet: an empty map (the client shows no hint for any shop, never a "0").
+    actingAs($users[0])->get('/m/spending')
+        ->assertInertia(fn ($p) => $p->where('shopTotals', ['currency' => 'EUR', 'totals' => []])->etc());
+
+    // Lidl this month: 20 EUR + 100 RON (-> 2000 EUR cents) across two lists = 4000. Lidl LAST month and
+    // Kaufland this month must not leak into Lidl's figure; a spend with no shop is not keyed at all.
+    foreach ([
+        [$eur, '20.00', 'EUR', $thisMonth, 'Lidl'],
+        [$ron, '100.00', 'RON', $thisMonth, 'Lidl'],
+        [$eur, '5.00', 'EUR', $lastMonth, 'Lidl'],
+        [$eur, '10.00', 'EUR', $thisMonth, 'Kaufland'],
+        [$eur, '7.00', 'EUR', $thisMonth, null],
+    ] as [$list, $amount, $ccy, $date, $store]) {
+        actingAs($users[0])->post("/m/spending/events/{$list->id}/spends", [
+            'amount' => $amount, 'currency' => $ccy, 'category' => 'other', 'payer_key' => $u, 'spent_at' => $date, 'store' => $store,
+        ])->assertRedirect();
+    }
+
+    $expected = ['currency' => 'EUR', 'totals' => ['Lidl' => 4000, 'Kaufland' => 1000]];
+    actingAs($users[0])->get('/m/spending')
+        ->assertInertia(fn ($p) => $p->where('shopTotals', $expected)->etc());
+    // The list page's add sheet gets the same family-wide map (not just this list's spends).
+    actingAs($users[0])->get("/m/spending/events/{$ron->id}")
+        ->assertInertia(fn ($p) => $p->where('shopTotals', $expected)->etc());
+
+    // Family scoping: another family sees none of it.
+    $outsider = User::factory()->create();
+    $other = Family::factory()->create(['owner_id' => $outsider->id]);
+    $other->members()->attach($outsider, ['role' => 'admin']);
+    session(['active_family_id' => $other->id]);
+    app(ModuleRegistry::class)->enable('spending', $other->id);
+    actingAs($outsider)->get('/m/spending')
+        ->assertInertia(fn ($p) => $p->where('shopTotals.totals', [])->etc());
+});
+
 it('breaks analytics down by shop and filters the view to one shop', function () {
     Http::fake([
         'api.frankfurter.dev/*' => Http::response(['rates' => ['EUR' => 0.2]]),

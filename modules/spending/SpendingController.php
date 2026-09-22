@@ -138,6 +138,9 @@ class SpendingController extends Controller
             'categories' => SpendCategory::payloadFor(),
             'members' => Family::findOrFail(CurrentFamily::id())->members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),
             'shops' => Spend::shopNames(), // shop picker suggestions (create-on-the-fly for new names)
+            // "This month at <shop>: …" hint under the quick-add shop picker: month-to-date per shop, in the
+            // widget's currency, so the two figures agree (see MonthToDate::byShop).
+            'shopTotals' => ['currency' => $monthCurrency, 'totals' => MonthToDate::byShop($eventCcy, $monthCurrency)],
         ]);
     }
 
@@ -999,6 +1002,9 @@ class SpendingController extends Controller
     private function eventPayload(SpendEvent $event): array
     {
         $members = $event->members()->get(['users.id', 'name']);
+        $eventCcy = MonthToDate::visibleEventCurrencies((int) auth()->id());
+        $monthCurrency = MonthToDate::displayCurrencyFor($eventCcy);
+        $shopTotals = ['currency' => $monthCurrency, 'totals' => MonthToDate::byShop($eventCcy, $monthCurrency)];
 
         // Sharing state for the "Share event" sheet: each family member's effective role, the current
         // visibility, whether this viewer can manage, and the read-only invite link (if any).
@@ -1101,6 +1107,10 @@ class SpendingController extends Controller
                 'rates' => Fx::ratesFrom($event->currency, self::CURRENCIES),
                 'shops' => Spend::shopNames(), // shop picker suggestions on the add/edit sheet
             ],
+            // "This month at <shop>: …" hint under the add/edit sheet's shop picker. Family-wide (every
+            // list this viewer can see, not just this one) and in the overview widget's currency, so the
+            // hint reads the same here as on the quick-add sheet.
+            'shopTotals' => $shopTotals,
             'spends' => $spends->map(fn (Spend $s) => [
                 'id' => $s->id,
                 'amount' => $s->amount,           // original amount, in this spend's currency
