@@ -223,6 +223,7 @@
     "shop": "Magazin",
     "shop_optional": "Magazin (opțional)",
     "no_shop": "Fără magazin",
+    "this_month_at": "Luna aceasta la :shop: :amount",
     "period_this_week": "Săptămâna aceasta",
     "period_last_week": "Săptămâna trecută",
     "by_week": "Cheltuieli pe săptămână",

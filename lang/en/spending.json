@@ -229,6 +229,7 @@
     "shop": "Shop",
     "shop_optional": "Shop (optional)",
     "no_shop": "No shop",
+    "this_month_at": "This month at :shop: :amount",
     "all_shops": "All shops",
     "shop_empty": "Spending by shop appears once there are spends in the selected period."
 }

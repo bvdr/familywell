@@ -33,6 +33,7 @@ import { IconPicker } from '@/components/icon-picker';
 import InputError from '@/components/input-error';
 import { useMemberColors } from '@/components/member-avatar';
 import { Picker } from '@/components/picker';
+import { ShopMonthHint, type ShopTotals } from '@/components/shop-month-hint';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -175,6 +176,7 @@ export default function Event({
     share,
     guestShare,
     scanEnabled,
+    shopTotals,
     aiCategorize = false,
     moveTargets = [],
 }: {
@@ -190,6 +192,7 @@ export default function Event({
     share: ShareState;
     guestShare: GuestShareState;
     scanEnabled: boolean;
+    shopTotals: ShopTotals; // month-to-date per shop for the hint under the shop picker
     aiCategorize?: boolean; // TypeSafe key present => the note suggests a category as you type
     moveTargets?: { id: number; name: string; currency: string }[];
 }) {
@@ -1363,6 +1366,8 @@ export default function Event({
                                             onChange={(next) => form.setData('store', next[0] === '__none' ? '' : (next[0] ?? ''))}
                                             onCreate={(name) => form.setData('store', name)}
                                         />
+                                        {/* Add mode only: when editing, the spend on screen is already in the total, which would mislead. */}
+                                        {!editing && <ShopMonthHint shop={form.data.store} shopTotals={shopTotals} />}
                                     </div>
                                     <div className="grid gap-2">
                                         <Label>{t('spending.paid_by_field')}</Label>
