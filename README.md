@@ -82,7 +82,7 @@ Everything is configured through environment variables in `.env`. See **[docs/co
 
 ### AI receipt scanning (optional)
 
-When a Google Gemini API key is present, spends gain a **Scan receipt** action: snap a photo and the amount, currency, date, category, and a note are read from it and pre-filled for you to review and save. It costs roughly **$0.001 per scan** and reads rotated, low-quality, multilingual receipts.
+When a Google Gemini API key is present, spends gain a **Scan receipt** action: snap a photo and the amount, currency, date, category, shop, and a note are read from it and pre-filled for you to review and save. It costs roughly **$0.001 per scan** and reads rotated, low-quality, multilingual receipts.
 
 The feature is **entirely gated on the key**, without it there is no button and the endpoint returns 404. To enable it, get a free key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey) and set:
 

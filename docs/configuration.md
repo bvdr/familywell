@@ -70,7 +70,7 @@ Standard Laravel mail settings (`MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_U
 
 | Variable | Notes |
 |---|---|
-| `GEMINI_API_KEY` | A Google Gemini API key. When set, the **Scan receipt** action appears on spends and reads a photo into pre-filled fields. Leave blank to disable the feature entirely (no button, endpoint 404s). |
+| `GEMINI_API_KEY` | A Google Gemini API key. When set, the **Scan receipt** action appears on spends and reads a photo into pre-filled fields (amount, currency, date, category, shop, note). Leave blank to disable the feature entirely (no button, endpoint 404s). |
 | `GEMINI_MODEL` | Optional override. Defaults to `gemini-3-flash-preview`, which reads messy, rotated, multilingual receipts reliably at roughly $0.001 per scan. |
 
 Get a free key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey). Receipts are personal financial data, so use a paid-tier key in production (Google's free tier may use submitted data for training).
