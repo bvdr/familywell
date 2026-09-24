@@ -76,19 +76,28 @@ function whenLabel(b) {
 // renders nothing while loading or when there is nothing coming up.
 function BirthdaysWidget() {
     const [items, setItems] = React.useState(null);
+    const [total, setTotal] = React.useState(0);
     React.useEffect(function () {
         fetch('/m/birthdays/upcoming', { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
             .then((r) => (r.ok ? r.json() : { birthdays: [] }))
-            .then((d) => setItems(d.birthdays || []))
+            .then((d) => { setItems(d.birthdays || []); setTotal(d.total || 0); })
             .catch(() => setItems([]));
     }, []);
 
     if (items === null || items.length === 0) return null;
 
+    // The feed is capped server-side; "See all" leads to the full Birthdays page. Plain anchor
+    // (the shell runtime exposes no Inertia Link), so it's a full navigation — fine for a link.
     return h(
         'section',
         { className: 'flex flex-col gap-3', 'data-testid': 'birthdays-widget' },
-        h('h2', { className: 'font-heading text-primary px-1 text-lg' }, 'Upcoming birthdays'),
+        h(
+            'div',
+            { className: 'flex items-baseline justify-between px-1' },
+            h('h2', { className: 'font-heading text-primary text-lg' }, 'Upcoming birthdays'),
+            h('a', { href: '/m/birthdays', className: 'text-muted-foreground text-sm underline-offset-2 hover:underline' },
+                total > items.length ? 'See all (' + total + ')' : 'See all'),
+        ),
         h(
             'div',
             { className: 'bg-surface-card flex flex-col divide-y rounded-xl border' },
