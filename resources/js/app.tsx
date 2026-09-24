@@ -34,8 +34,6 @@ declare global {
     }
 }
 
-const appName = import.meta.env.VITE_APP_NAME || 'Familywell';
-
 // Expose the shell runtime so pre-built module assets register UI without a bundler or a second React.
 window.Familywell = { React, registerSlot };
 void loadModules(window.__familywellModules ?? []);
@@ -45,7 +43,8 @@ void loadModules(window.__familywellModules ?? []);
 armCrashRecovery();
 
 createInertiaApp({
-    title: (title) => `${title} - ${appName}`,
+    // No app-name suffix on page titles — just the page's own title.
+    title: (title) => title,
     resolve: (name) => resolvePageComponent(`./pages/${name}.tsx`, import.meta.glob('./pages/**/*.tsx')),
     setup({ el, App, props }) {
         const root = createRoot(el);
