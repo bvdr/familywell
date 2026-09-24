@@ -5,6 +5,7 @@ use App\Models\User;
 use App\Support\Modules\ModuleRegistry;
 use Illuminate\Support\Carbon;
 use Modules\Birthdays\BirthdayDate;
+use Modules\Birthdays\BirthdaysController;
 use Modules\Contacts\Person;
 
 use function Pest\Laravel\actingAs;
@@ -88,4 +89,23 @@ it('feeds the upcoming widget without a year', function () {
 
     actingAs($user)->getJson('/m/birthdays/upcoming')->assertOk()
         ->assertJsonPath('birthdays.0.name', 'Ana')->assertJsonPath('birthdays.0.daysUntil', 0)->assertJsonPath('birthdays.0.turning', null);
+});
+
+it('caps the upcoming widget feed to the nearest few, soonest first, and reports the total', function () {
+    [$family, $user] = birthdaysFamily();
+    Carbon::setTestNow('2026-09-02');
+    // Eight birthdays, one per day, posted out of order so the cap can't just be "first N inserted".
+    foreach ([7, 2, 5, 0, 3, 1, 6, 4] as $offset) {
+        actingAs($user)->post('/m/birthdays', ['name' => 'P'.$offset, 'birth_day' => 2 + $offset, 'birth_month' => 9]);
+    }
+
+    $json = actingAs($user)->getJson('/m/birthdays/upcoming')->assertOk()
+        ->assertJsonCount(BirthdaysController::WIDGET_LIMIT, 'birthdays')
+        ->assertJsonPath('total', 8)
+        ->json();
+    expect(array_column($json['birthdays'], 'daysUntil'))->toBe([0, 1, 2, 3, 4]);
+
+    // The full Birthdays page still lists everyone.
+    actingAs($user)->get('/m/birthdays')->assertOk()
+        ->assertInertia(fn ($page) => $page->component('birthdays/index')->has('birthdays', 8));
 });

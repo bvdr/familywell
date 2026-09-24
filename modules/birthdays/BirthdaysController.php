@@ -73,14 +73,20 @@ class BirthdaysController extends Controller
         return back();
     }
 
-    // JSON feed for the home-screen widget: the family's birthdays coming up within the window,
-    // soonest first.
+    /** How many upcoming birthdays the home widget shows; the Birthdays page has the rest. */
+    public const WIDGET_LIMIT = 5;
+
+    // JSON feed for the home-screen widget: the family's next few birthdays, soonest first. Capped
+    // server-side (the demo family has one every day, so an uncapped list buried the dashboard);
+    // `total` tells the widget how many are coming up so it can offer "See all".
     public function upcoming(Request $request): JsonResponse
     {
         $window = 60; // days ahead to show
 
-        $items = $this->all()
-            ->filter(fn (BirthdayDate $b) => $b->daysUntil() <= $window)
+        $upcoming = $this->all()->filter(fn (BirthdayDate $b) => $b->daysUntil() <= $window);
+
+        $items = $upcoming
+            ->take(self::WIDGET_LIMIT)
             ->map(fn (BirthdayDate $b) => [
                 'personId' => $b->person_id,
                 'name' => $b->person->name,
@@ -91,7 +97,7 @@ class BirthdaysController extends Controller
             ])
             ->values();
 
-        return response()->json(['birthdays' => $items]);
+        return response()->json(['birthdays' => $items, 'total' => $upcoming->count()]);
     }
 
     /** @return array{month:string[], day:string[], year:string[]} */
