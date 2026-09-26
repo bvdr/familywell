@@ -651,7 +651,7 @@ class ShoppingController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        return response()->json(['items' => ShoppingItem::dedupeNames($items)]);
+        return response()->json(['items' => ShoppingItem::flagOnList($list, ShoppingItem::dedupeNames($items))]);
     }
 
     // Paste a block of text (a list copied from WhatsApp / notes / another chat) and get candidate
@@ -674,9 +674,9 @@ class ShoppingController extends Controller
             }
         }
 
-        // Same name twice in one paste ("milk" on two lines) reviews as one row; items already on the
-        // list are left alone here — the review screen is for what you pasted, and a real repeat is legit.
-        return response()->json(['items' => ShoppingItem::dedupeNames($items)]);
+        // Same name twice in one paste ("milk" on two lines) reviews as one row; rows already on the list
+        // are tagged (on_list) for the review screen but kept — a real repeat is legit, the user decides.
+        return response()->json(['items' => ShoppingItem::flagOnList($list, ShoppingItem::dedupeNames($items))]);
     }
 
     // Bulk-insert reviewed voice/AI items into the list in one go.

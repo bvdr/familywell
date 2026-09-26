@@ -80,6 +80,20 @@ class ShoppingItem extends Model
         return $out;
     }
 
+    /**
+     * Mark parsed rows whose name is already on $list as an active item (`on_list` => true) so the
+     * voice/paste review screen can tag them. Rows are still added if the user keeps them.
+     *
+     * @param  list<array{name: string}>  $items
+     * @return list<array{name: string, on_list?: bool}>
+     */
+    public static function flagOnList(ShoppingList $list, array $items): array
+    {
+        $active = $list->items()->where('bought', false)->pluck('name')->map(fn ($n) => static::normalizeName($n))->flip();
+
+        return array_map(fn ($item) => $active->has(static::normalizeName($item['name'] ?? '')) ? $item + ['on_list' => true] : $item, $items);
+    }
+
     public function list(): BelongsTo
     {
         return $this->belongsTo(ShoppingList::class, 'shopping_list_id');

@@ -62,3 +62,10 @@ it('de-dupes repeated names within one pasted batch', function () {
     $res = actingAs($user)->postJson("/m/shopping/lists/{$list->id}/paste", ['text' => "milk\neggs\nMilk\nbread"])->assertOk();
     expect(collect($res->json('items'))->pluck('name')->map(fn ($n) => strtolower($n))->all())->toBe(['milk', 'eggs', 'bread']);
 });
+
+it('tags pasted rows that are already on the list, without dropping them', function () {
+    [$user, $list] = dupShoppingList();
+    actingAs($user)->post("/m/shopping/lists/{$list->id}/items", ['name' => 'Milk']);
+    $res = actingAs($user)->postJson("/m/shopping/lists/{$list->id}/paste", ['text' => "milk\neggs"])->assertOk();
+    expect(collect($res->json('items'))->map(fn ($i) => [$i['name'], $i['on_list'] ?? false])->all())->toBe([['milk', true], ['eggs', false]]);
+});

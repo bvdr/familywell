@@ -94,7 +94,7 @@ function AssigneeBadge({ member }: { member?: Member }) {
     return <MemberAvatar userId={member.id} name={member.name} className="size-6 text-[10px]" />;
 }
 
-type Parsed = { name: string; quantity: string; department: string; note: string };
+type Parsed = { name: string; quantity: string; department: string; note: string; on_list?: boolean }; // on_list: server says an active item with this name is already on the list
 // An aisle of the list's shop (custom per store, or the default Grocery set). `slug` is the value
 // stored on an item's `department`; `icon` is a slug from the AISLE_ICONS pack.
 type Aisle = { slug: string; name: string; icon: string };
@@ -972,6 +972,11 @@ export default function ListDetail({
                                                             className="border-primary-foreground/15 flex items-center gap-3 rounded-xl border p-3"
                                                         >
                                                             <div className="min-w-0 flex-1">
+                                                                {it.on_list && (
+                                                                    <span className="border-primary-foreground/25 mb-1 inline-block rounded-md border px-1.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase opacity-80">
+                                                                        {t('shopping.on_list_tag')}
+                                                                    </span>
+                                                                )}
                                                                 <input
                                                                     value={it.name}
                                                                     onChange={(e) =>
