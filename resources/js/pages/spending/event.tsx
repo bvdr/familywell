@@ -515,7 +515,7 @@ export default function Event({
             // PHP never parses a multipart body on a PATCH request, so a receipt upload on edit must
             // go as POST + _method spoofing. forceFormData makes it multipart so _method is read as a
             // form field for the override.
-            form.transform((d) => ({ ...withShares(d), _method: 'patch' }));
+            form.transform((d) => ({ ...withShares(d), _method: 'patch', add_anyway: addAnyway }));
             form.post(route('spending.spends.update', editing), { ...opts, forceFormData: true });
         } else {
             form.transform((d) => ({ ...withShares(d), add_anyway: addAnyway }));
@@ -1249,7 +1249,7 @@ export default function Event({
                                     {form.errors.add_anyway && (
                                         <DuplicateWarning message={form.errors.add_anyway}>
                                             <Button type="button" size="sm" disabled={form.processing} onClick={() => submit(true)}>
-                                                {t('spending.add_anyway')}
+                                                {t(editing ? 'spending.save_anyway' : 'spending.add_anyway')}
                                             </Button>
                                             <Button type="button" size="sm" variant="ghost" onClick={closeForm}>
                                                 {t('common.cancel')}

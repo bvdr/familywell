@@ -6,8 +6,10 @@ use App\Events\SpendingChanged;
 use App\Http\Controllers\Controller;
 use App\Support\Guests\GuestAccess;
 use App\Support\Realtime;
+use App\Support\Translations;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 // Guest-initiated spend writes through the guest link. No auth: every request is authorized by the
 // link token + the acting guest's role (GuestAccess). A guest may only touch spends they themselves
@@ -20,6 +22,7 @@ class GuestSpendController extends Controller
     {
         [$event, $guest] = $this->access->authorizeWrite($token, (int) $request->input('guest_id'));
         $data = $this->validateSpend($request, $event);
+        $this->warnIfDuplicate($request, $event, $data);
 
         $event->spends()->create([
             'payer_guest_id' => $guest->id,
@@ -37,7 +40,9 @@ class GuestSpendController extends Controller
     {
         [$event, $guest] = $this->access->authorizeWrite($token, (int) $request->input('guest_id'));
         $spend = $this->ownSpend($event, $guest, $spend);
-        $spend->update($event->buildSpend($this->validateSpend($request, $event)));
+        $data = $this->validateSpend($request, $event);
+        $this->warnIfDuplicate($request, $event, $data, $spend->id);
+        $spend->update($event->buildSpend($data));
 
         Realtime::broadcast(new SpendingChanged((int) $event->family_id));
 
@@ -92,6 +97,15 @@ class GuestSpendController extends Controller
             ->where('payer_guest_id', $guest->id)
             ->whereKey($spendId)
             ->firstOrFail();
+    }
+
+    // Same soft duplicate warning as the member form (see SpendingController::warnIfDuplicate), bounded to
+    // THIS list — the only one the guest link opens — so nothing else of the family is revealed.
+    private function warnIfDuplicate(Request $request, SpendEvent $event, array $data, ?int $exceptId = null): void
+    {
+        if (! $request->boolean('add_anyway') && Spend::looksDuplicate($data, [$event->id], $exceptId)) {
+            throw ValidationException::withMessages(['add_anyway' => Translations::get('spending.duplicate_warning')]);
+        }
     }
 
     private function validateSpend(Request $request, SpendEvent $event): array

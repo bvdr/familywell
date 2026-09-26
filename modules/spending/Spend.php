@@ -51,17 +51,21 @@ class Spend extends Model
     }
 
     /**
-     * Does a spend the viewer can already see read as the same purchase as this validated input? "Same"
-     * = same entered amount + currency, same day, and the same shop when one is given (else the same
-     * category). Deliberately simple: it powers a soft "looks like a duplicate" warning, not a block.
-     * Bounded to the lists the viewer can see, so the warning never reveals a private list's spend.
+     * Does a spend on one of $eventIds read as the same purchase as this validated input? "Same" = same
+     * entered amount + currency, same day, and the same shop when one is given (else the same category).
+     * Deliberately simple: it powers a soft "looks like a duplicate" warning, not a block. Callers bound
+     * $eventIds to what the actor may see (a member: their visible lists; a guest: the one linked list),
+     * so the warning never reveals a private list's spend. $exceptId skips the spend being edited.
+     *
+     * @param  iterable<int>  $eventIds
      */
-    public static function looksDuplicate(array $data, int $userId): bool
+    public static function looksDuplicate(array $data, iterable $eventIds, ?int $exceptId = null): bool
     {
         $store = trim((string) ($data['store'] ?? ''));
 
         return static::query()
-            ->whereIn('spend_event_id', MonthToDate::visibleEventCurrencies($userId)->keys())
+            ->whereIn('spend_event_id', $eventIds)
+            ->when($exceptId, fn ($q) => $q->whereKeyNot($exceptId))
             ->where('amount', (int) round($data['amount'] * 100)) // same rounding as SpendEvent::buildSpend
             ->where('currency', $data['currency'])
             ->whereDate('spent_at', Carbon::parse($data['spent_at'])->toDateString())
