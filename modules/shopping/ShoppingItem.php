@@ -28,6 +28,58 @@ class ShoppingItem extends Model
         static::created(fn (self $item) => AisleGuesser::queue($item));
     }
 
+    /**
+     * Fold a typed name down to what a human would call "the same item": case-insensitive, whitespace
+     * collapsed, surrounding punctuation dropped ("Milk", " milk ", "milk." all match). Used by the
+     * duplicate warning on add and the paste de-dupe. Not a SQL expression on purpose (sqlite/mysql
+     * disagree on unicode LOWER), so callers compare in PHP over a list's active items.
+     */
+    public static function normalizeName(string $name): string
+    {
+        $name = mb_strtolower(trim(preg_replace('/\s+/u', ' ', $name) ?? $name));
+
+        return preg_replace('/^[\p{P}\p{S}\s]+|[\p{P}\p{S}\s]+$/u', '', $name) ?? $name;
+    }
+
+    /**
+     * The not-yet-bought item on $list that reads as the same thing as $name, if any. Bought items
+     * don't count: buying milk again next week is not a duplicate. ponytail: loads the list's active
+     * names and compares in PHP — lists are tens of rows, not thousands.
+     */
+    public static function activeDuplicate(ShoppingList $list, string $name): ?self
+    {
+        $key = static::normalizeName($name);
+        if ($key === '') {
+            return null;
+        }
+
+        return $list->items()->where('bought', false)->get(['id', 'name', 'quantity'])
+            ->first(fn (self $i) => static::normalizeName($i->name) === $key);
+    }
+
+    /**
+     * Drop repeated names within one voice/paste batch (first occurrence wins) so "milk, eggs, milk"
+     * reviews as two items. Rows are the parser's ['name' => ..] arrays.
+     *
+     * @param  list<array{name: string}>  $items
+     * @return list<array{name: string}>
+     */
+    public static function dedupeNames(array $items): array
+    {
+        $seen = [];
+        $out = [];
+        foreach ($items as $item) {
+            $key = static::normalizeName($item['name'] ?? '');
+            if ($key !== '' && isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $out[] = $item;
+        }
+
+        return $out;
+    }
+
     public function list(): BelongsTo
     {
         return $this->belongsTo(ShoppingList::class, 'shopping_list_id');

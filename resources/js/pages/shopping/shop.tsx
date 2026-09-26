@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { AisleEditor } from '@/components/aisle-editor';
+import { DuplicateWarning } from '@/components/duplicate-warning';
 import { Picker } from '@/components/picker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -133,16 +134,26 @@ export default function ShopDetail({
         router.patch(route('shopping.items.update', id), buildPayload(draft), { preserveScroll: true, preserveState: true });
     // `adding` guards a double-tap from creating duplicate items.
     const [adding, setAdding] = useState(false);
-    const addItem = () => {
+    // Soft duplicate warning from the server ("Milk is already on this list"), shown in the footer with
+    // Add anyway / Cancel. Cleared when the name changes or the sheet closes.
+    const [dupWarning, setDupWarning] = useState<string | null>(null);
+    useEffect(() => setDupWarning(null), [draft.name, editingId]);
+    const addItem = (addAnyway = false) => {
         if (!draft.name.trim() || adding) return;
         setAdding(true);
-        const opts = { preserveScroll: true, onSuccess: () => setEditingId(null), onFinish: () => setAdding(false) };
+        const opts = {
+            preserveScroll: true,
+            onSuccess: () => setEditingId(null),
+            onError: (errors: Record<string, string>) => setDupWarning(errors.add_anyway ?? null),
+            onFinish: () => setAdding(false),
+        };
+        const payload = { ...buildPayload(draft), add_anyway: addAnyway };
         if (virtual) {
             // No shop to add "at": add straight to the chosen list (store stays whatever the picker set).
             if (!draft.list_id) return void setAdding(false);
-            router.post(route('shopping.items.store', draft.list_id), buildPayload(draft), opts);
+            router.post(route('shopping.items.store', draft.list_id), payload, opts);
         } else {
-            router.post(route('shopping.shops.items.store', shop.id), { ...buildPayload(draft), list_id: draft.list_id }, opts);
+            router.post(route('shopping.shops.items.store', shop.id), { ...payload, list_id: draft.list_id }, opts);
         }
     };
     // Editing auto-saves (debounced); new items commit via the Add button.
@@ -383,8 +394,17 @@ export default function ShopDetail({
                 }}
                 title={editingId ? t('shopping.edit_item') : t('shopping.add_item_title')}
                 footer={
-                    editingId ? undefined : (
-                        <Button className="w-full" disabled={!draft.name.trim() || adding} onClick={addItem}>
+                    editingId ? undefined : dupWarning ? (
+                        <DuplicateWarning message={dupWarning}>
+                            <Button size="sm" disabled={adding} onClick={() => addItem(true)}>
+                                {t('shopping.add_anyway')}
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
+                                {t('common.cancel')}
+                            </Button>
+                        </DuplicateWarning>
+                    ) : (
+                        <Button className="w-full" disabled={!draft.name.trim() || adding} onClick={() => addItem()}>
                             <Plus className="size-4" /> {t('shopping.add_item')}
                         </Button>
                     )

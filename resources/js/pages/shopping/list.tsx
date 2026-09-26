@@ -6,11 +6,11 @@ import {
     Check,
     ChevronLeft,
     ChevronRight,
+    ClipboardPaste,
     Copy,
     LayoutList,
     Loader2,
     Lock,
-    ClipboardPaste,
     Mic,
     Minus,
     MoreHorizontal,
@@ -30,6 +30,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { AisleEditor } from '@/components/aisle-editor';
+import { DuplicateWarning } from '@/components/duplicate-warning';
 import { MemberAvatar } from '@/components/member-avatar';
 import { Picker } from '@/components/picker';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
@@ -50,7 +51,7 @@ import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
-import { aisleIcon, getVoiceLang, LIST_COLORS, LIST_ICONS, listColor, listIcon } from '@/lib/shopping';
+import { aisleIcon, bumpQuantity, getVoiceLang, LIST_COLORS, LIST_ICONS, listColor, listIcon, normalizeItemName } from '@/lib/shopping';
 import { type BreadcrumbItem } from '@/types';
 
 type Member = { id: number; name: string };
@@ -350,15 +351,33 @@ export default function ListDetail({
     // Only the "Add item" (new item) button commits; editing an existing item auto-saves (below).
     // `adding` guards against a double-tap creating duplicate items.
     const [adding, setAdding] = useState(false);
-    const addItem = () => {
+    // Soft duplicate warning from the server ("Milk is already on this list"): shown in the footer with
+    // Add anyway / Bump / Cancel. Cleared whenever the name changes or the sheet closes.
+    const [dupWarning, setDupWarning] = useState<string | null>(null);
+    const addItem = (addAnyway = false) => {
         if (!draft.name.trim() || adding) return;
         setAdding(true);
-        router.post(route('shopping.items.store', list.id), buildPayload(draft), {
-            preserveScroll: true,
-            onSuccess: () => setEditingId(null),
-            onFinish: () => setAdding(false),
-        });
+        router.post(
+            route('shopping.items.store', list.id),
+            { ...buildPayload(draft), add_anyway: addAnyway },
+            {
+                preserveScroll: true,
+                onSuccess: () => setEditingId(null),
+                onError: (errors) => setDupWarning(errors.add_anyway ?? null),
+                onFinish: () => setAdding(false),
+            },
+        );
     };
+    // "Bump": +1 on the existing item instead of adding a second row. The match is by the same normalized
+    // name the server used; if the quantity is free text that can't be bumped the option isn't offered.
+    const dupItem = dupWarning ? liveItems.find((i) => !isBought(i) && normalizeItemName(i.name) === normalizeItemName(draft.name)) : undefined;
+    const dupBump = dupItem ? bumpQuantity(dupItem.quantity) : null;
+    const bumpExisting = () => {
+        if (!dupItem || dupBump === null) return;
+        router.patch(route('shopping.items.update', dupItem.id), { quantity: dupBump }, { preserveScroll: true, preserveState: true });
+        setEditingId(null);
+    };
+    useEffect(() => setDupWarning(null), [draft.name, editingId]);
     // Auto-save edits: debounce any field change to a PATCH; skip the draft set on open, and never
     // save an empty name. The modal's close handler flushes the last edit the debounce hasn't sent.
     const skipAutosave = useRef(true);
@@ -922,7 +941,9 @@ export default function ListDetail({
                                 </div>
                                 <div className="flex-1 space-y-4 overflow-y-auto px-5 pb-[calc(9rem+env(safe-area-inset-bottom))]">
                                     <div>
-                                        <h2 className="font-heading text-2xl">{t(mode === 'paste' ? 'shopping.pasted_heading' : 'shopping.heard_heading')}</h2>
+                                        <h2 className="font-heading text-2xl">
+                                            {t(mode === 'paste' ? 'shopping.pasted_heading' : 'shopping.heard_heading')}
+                                        </h2>
                                         {transcript && mode === 'voice' && (
                                             <p className="text-accent-strong-foreground/70 mt-2 text-sm italic">"{transcript}"</p>
                                         )}
@@ -1158,8 +1179,22 @@ export default function ListDetail({
                 title={editingId ? t('shopping.edit_item') : t('shopping.add_item_title')}
                 autoFocusRef={nameRef}
                 footer={
-                    editingId ? undefined : (
-                        <Button className="w-full" disabled={!draft.name.trim() || adding} onClick={addItem}>
+                    editingId ? undefined : dupWarning ? (
+                        <DuplicateWarning message={dupWarning}>
+                            <Button size="sm" disabled={adding} onClick={() => addItem(true)}>
+                                {t('shopping.add_anyway')}
+                            </Button>
+                            {dupBump !== null && (
+                                <Button size="sm" variant="outline" onClick={bumpExisting}>
+                                    {t('shopping.bump_to', { n: dupBump })}
+                                </Button>
+                            )}
+                            <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
+                                {t('common.cancel')}
+                            </Button>
+                        </DuplicateWarning>
+                    ) : (
+                        <Button className="w-full" disabled={!draft.name.trim() || adding} onClick={() => addItem()}>
                             <Plus className="size-4" /> {t('shopping.add_item')}
                         </Button>
                     )
