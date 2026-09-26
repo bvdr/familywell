@@ -10,6 +10,7 @@ use App\Support\Media\StoredImage;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Translations;
 use App\Support\TypeSafe;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -748,6 +749,13 @@ class SpendingController extends Controller
         $event = $this->event($event);
         abort_unless($this->access->canEdit($request->user(), $event), 403);
         $data = $this->validateSpend($request, $event);
+
+        // Soft duplicate warning: same amount + day + shop (or category) as a spend already recorded. Answers
+        // with a validation message on `add_anyway` instead of saving; the drawer shows it with "Add anyway"
+        // (re-posts with add_anyway=1) or cancel. Never a hard block — buying the same coffee twice is real.
+        if (! $request->boolean('add_anyway') && Spend::looksDuplicate($data, $request->user()->id)) {
+            throw ValidationException::withMessages(['add_anyway' => Translations::get('spending.duplicate_warning')]);
+        }
 
         $spend = $event->spends()->create([
             ...$this->spendAttributes($data, $event),

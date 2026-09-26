@@ -9,16 +9,17 @@ import { useOptimistic } from '@/hooks/use-optimistic';
 import { compressImage, makeThumbnail } from '@/lib/compress-image';
 
 import { CategoryIcon } from '@/components/category-icon';
+import { DuplicateWarning } from '@/components/duplicate-warning';
 import { IconPicker } from '@/components/icon-picker';
 import InputError from '@/components/input-error';
 import { LucideIcon } from '@/components/lucide-icon';
 import { MemberAvatar } from '@/components/member-avatar';
 import { Picker } from '@/components/picker';
+import { ShopMonthHint, type ShopTotals } from '@/components/shop-month-hint';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
-import { ShopMonthHint, type ShopTotals } from '@/components/shop-month-hint';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
@@ -163,6 +164,7 @@ export default function Events({
         store: '', // shop / merchant name ('' = none)
         receipts: [] as File[], // the scanned photo, kept as the spend's receipt
         receipts_thumb: [] as File[],
+        add_anyway: false, // set on "Add anyway" after the server's soft duplicate warning (errors.add_anyway)
     });
     const chosen = editable.find((ev) => String(ev.id) === spend.data.event_id);
 
@@ -237,13 +239,18 @@ export default function Events({
 
     const closeAdd = () => {
         spend.reset();
+        spend.clearErrors(); // else a duplicate warning would greet the next open
         setScanError(null);
         setAdding(false);
     };
+    // addAnyway: the user confirmed the server's soft duplicate warning, so the re-post skips the check.
+    const submitQuick = (addAnyway = false) => {
+        spend.transform((d) => ({ ...d, event_id: d.event_id || null, add_anyway: addAnyway }));
+        spend.post(route('spending.spends.quick'), { preserveScroll: true, onSuccess: closeAdd });
+    };
     const submitSpend: FormEventHandler = (e) => {
         e.preventDefault();
-        spend.transform((d) => ({ ...d, event_id: d.event_id || null }));
-        spend.post(route('spending.spends.quick'), { preserveScroll: true, onSuccess: closeAdd });
+        submitQuick();
     };
 
     // Pre-select the family's default currency; fall back to the first supported one when unset.
@@ -361,6 +368,17 @@ export default function Events({
                                     <input ref={scanInputRef} type="file" accept="image/*" hidden onChange={handleScanFile} />
                                     {scanError && <p className="text-destructive text-center text-sm">{scanError}</p>}
                                 </>
+                            )}
+                            {/* Soft duplicate warning from the server: Add anyway re-posts with add_anyway. */}
+                            {spend.errors.add_anyway && (
+                                <DuplicateWarning message={spend.errors.add_anyway}>
+                                    <Button type="button" size="sm" disabled={spend.processing} onClick={() => submitQuick(true)}>
+                                        {t('spending.add_anyway')}
+                                    </Button>
+                                    <Button type="button" size="sm" variant="ghost" onClick={closeAdd}>
+                                        {t('common.cancel')}
+                                    </Button>
+                                </DuplicateWarning>
                             )}
                             <Button type="submit" form="quick-spend" disabled={spend.processing || !spend.data.amount} className="w-full">
                                 {t('common.save')}

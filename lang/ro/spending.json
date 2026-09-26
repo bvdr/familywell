@@ -231,5 +231,7 @@
     "week_of": "Săptămâna din :date",
     "by_shop": "Pe magazin",
     "all_shops": "Toate magazinele",
-    "shop_empty": "Cheltuielile pe magazin apar după ce există cheltuieli în perioada selectată."
+    "shop_empty": "Cheltuielile pe magazin apar după ce există cheltuieli în perioada selectată.",
+    "duplicate_warning": "Pare un duplicat al unei cheltuieli deja adăugate.",
+    "add_anyway": "Adaugă oricum"
 }
