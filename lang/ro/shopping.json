@@ -132,5 +132,6 @@
     "other": "Altele",
     "already_on_list": ":name e deja pe această listă.",
     "add_anyway": "Adaugă oricum",
-    "bump_to": "Crește la :n"
+    "bump_to": "Crește la :n",
+    "on_list_tag": "Deja pe listă"
 }

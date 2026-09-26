@@ -132,5 +132,6 @@
     "other": "Other",
     "already_on_list": ":name is already on this list.",
     "add_anyway": "Add anyway",
-    "bump_to": "Bump to :n"
+    "bump_to": "Bump to :n",
+    "on_list_tag": "Already on list"
 }
