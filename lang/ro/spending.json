@@ -233,5 +233,6 @@
     "all_shops": "Toate magazinele",
     "shop_empty": "Cheltuielile pe magazin apar după ce există cheltuieli în perioada selectată.",
     "duplicate_warning": "Pare un duplicat al unei cheltuieli deja adăugate.",
-    "add_anyway": "Adaugă oricum"
+    "add_anyway": "Adaugă oricum",
+    "save_anyway": "Salvează oricum"
 }

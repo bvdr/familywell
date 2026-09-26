@@ -233,5 +233,6 @@
     "all_shops": "All shops",
     "shop_empty": "Spending by shop appears once there are spends in the selected period.",
     "duplicate_warning": "This looks like a duplicate of an expense you already added.",
-    "add_anyway": "Add anyway"
+    "add_anyway": "Add anyway",
+    "save_anyway": "Save anyway"
 }

@@ -77,3 +77,31 @@ it('is family-scoped: another family\'s identical spend does not warn', function
 
     actingAs($other)->post("/m/spending/events/{$theirs->id}/spends", spendPayload($other))->assertSessionDoesntHaveErrors();
 });
+
+it('warns when editing a spend into a copy of another one, but never against itself', function () {
+    [$user, $event] = dupSpendingFamily();
+    actingAs($user)->post("/m/spending/events/{$event->id}/spends", spendPayload($user));
+    actingAs($user)->post("/m/spending/events/{$event->id}/spends", spendPayload($user, ['amount' => '3.00']));
+    [$first, $second] = Spend::withoutGlobalScopes()->orderBy('id')->get();
+
+    // Re-saving a spend unchanged is not a duplicate of itself.
+    actingAs($user)->patch("/m/spending/spends/{$first->id}", spendPayload($user))->assertSessionDoesntHaveErrors();
+    // Editing the second into the first's amount warns; add_anyway saves.
+    actingAs($user)->patch("/m/spending/spends/{$second->id}", spendPayload($user))->assertSessionHasErrors('add_anyway');
+    expect($second->fresh()->amount)->toBe(300);
+    actingAs($user)->patch("/m/spending/spends/{$second->id}", spendPayload($user, ['add_anyway' => 1]))->assertSessionDoesntHaveErrors();
+    expect($second->fresh()->amount)->toBe(1250);
+});
+
+it('warns a guest adding through the link, bounded to that list', function () {
+    [$user, $event] = dupSpendingFamily();
+    $link = $event->enableGuestLink($user->id);
+    $alex = $event->guests()->create(['name' => 'Alex', 'role' => 'editor']);
+    $payload = ['guest_id' => $alex->id, 'amount' => '30.00', 'currency' => 'EUR', 'category' => 'food', 'spent_at' => '2026-07-16'];
+
+    test()->post("/m/spending/guest/{$link->token}/spends", $payload)->assertSessionDoesntHaveErrors();
+    test()->post("/m/spending/guest/{$link->token}/spends", $payload)->assertSessionHasErrors('add_anyway');
+    expect(Spend::withoutGlobalScopes()->count())->toBe(1);
+    test()->post("/m/spending/guest/{$link->token}/spends", $payload + ['add_anyway' => 1])->assertSessionDoesntHaveErrors();
+    expect(Spend::withoutGlobalScopes()->count())->toBe(2);
+});

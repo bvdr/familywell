@@ -750,12 +750,7 @@ class SpendingController extends Controller
         abort_unless($this->access->canEdit($request->user(), $event), 403);
         $data = $this->validateSpend($request, $event);
 
-        // Soft duplicate warning: same amount + day + shop (or category) as a spend already recorded. Answers
-        // with a validation message on `add_anyway` instead of saving; the drawer shows it with "Add anyway"
-        // (re-posts with add_anyway=1) or cancel. Never a hard block — buying the same coffee twice is real.
-        if (! $request->boolean('add_anyway') && Spend::looksDuplicate($data, $request->user()->id)) {
-            throw ValidationException::withMessages(['add_anyway' => Translations::get('spending.duplicate_warning')]);
-        }
+        $this->warnIfDuplicate($request, $data);
 
         $spend = $event->spends()->create([
             ...$this->spendAttributes($data, $event),
@@ -779,6 +774,7 @@ class SpendingController extends Controller
         $event = $this->event($spend->spend_event_id);
         abort_unless($this->access->canEdit($request->user(), $event), 403);
         $data = $this->validateSpend($request, $event);
+        $this->warnIfDuplicate($request, $data, $spend->id); // editing into a copy of another spend warns too
 
         // Re-freeze the conversion, since amount/currency/date may have changed.
         $spend->update($this->spendAttributes($data, $event));
@@ -942,6 +938,21 @@ class SpendingController extends Controller
     private function event(int $id): SpendEvent
     {
         return SpendEvent::findOrFail($id);
+    }
+
+    // Soft duplicate warning: same amount + day + shop (or category) as a spend already recorded on a list
+    // the viewer can see. Answers with a validation message on `add_anyway` instead of saving; the drawer
+    // shows it with "Add anyway" (re-posts with add_anyway=1) or cancel. Never a hard block — buying the
+    // same coffee twice is real. $exceptId = the spend being edited, so it doesn't match itself.
+    private function warnIfDuplicate(Request $request, array $data, ?int $exceptId = null): void
+    {
+        if ($request->boolean('add_anyway')) {
+            return;
+        }
+        $visible = MonthToDate::visibleEventCurrencies((int) $request->user()->id)->keys();
+        if (Spend::looksDuplicate($data, $visible, $exceptId)) {
+            throw ValidationException::withMessages(['add_anyway' => Translations::get('spending.duplicate_warning')]);
+        }
     }
 
     private function validateSpend(Request $request, SpendEvent $event): array

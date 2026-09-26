@@ -1,4 +1,5 @@
 import { CategoryIcon } from '@/components/category-icon';
+import { DuplicateWarning } from '@/components/duplicate-warning';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -348,16 +349,22 @@ function SpendForm({ token, me, event, editing, onClose }: { token: string; me: 
         category: editing?.category ?? defaultCategory,
         note: editing?.note ?? '',
         spent_at: editing?.spent_at ?? today(),
+        add_anyway: false, // set on "Add anyway" after the server's soft duplicate warning (errors.add_anyway)
     });
 
-    const submit: FormEventHandler = (e) => {
-        e.preventDefault();
+    // addAnyway: the guest confirmed the server's soft duplicate warning, so the re-post skips the check.
+    const send = (addAnyway = false) => {
         const opts = { preserveScroll: true, onSuccess: onClose };
+        form.transform((d) => ({ ...d, add_anyway: addAnyway }));
         if (editing) {
             form.patch(`/m/spending/guest/${token}/spends/${editing.id}`, opts);
         } else {
             form.post(`/m/spending/guest/${token}/spends`, opts);
         }
+    };
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
+        send();
     };
 
     return (
@@ -369,9 +376,22 @@ function SpendForm({ token, me, event, editing, onClose }: { token: string; me: 
             description={t('spending.paid_by', { name: me.name })}
             autoFocusRef={amountRef}
             footer={
-                <Button type="submit" form="guest-spend-form" disabled={!form.data.amount.trim() || form.processing} className="w-full">
-                    {form.processing ? t('spending.saving') : t(editing ? 'spending.save_changes' : 'spending.add_expense')}
-                </Button>
+                <div className="flex flex-col gap-2">
+                    {/* Soft duplicate warning from the server: Add anyway re-posts with add_anyway. */}
+                    {form.errors.add_anyway && (
+                        <DuplicateWarning message={form.errors.add_anyway}>
+                            <Button type="button" size="sm" disabled={form.processing} onClick={() => send(true)}>
+                                {t(editing ? 'spending.save_anyway' : 'spending.add_anyway')}
+                            </Button>
+                            <Button type="button" size="sm" variant="ghost" onClick={onClose}>
+                                {t('common.cancel')}
+                            </Button>
+                        </DuplicateWarning>
+                    )}
+                    <Button type="submit" form="guest-spend-form" disabled={!form.data.amount.trim() || form.processing} className="w-full">
+                        {form.processing ? t('spending.saving') : t(editing ? 'spending.save_changes' : 'spending.add_expense')}
+                    </Button>
+                </div>
             }
         >
             {/* The <form> carries no fields directly; inputs join it via form="guest-spend-form" so the
