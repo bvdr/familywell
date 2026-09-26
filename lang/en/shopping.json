@@ -129,5 +129,8 @@
     "new_department_placeholder": "New department",
     "add_department": "Add department",
     "start_from_template": "Start from a template",
-    "other": "Other"
+    "other": "Other",
+    "already_on_list": ":name is already on this list.",
+    "add_anyway": "Add anyway",
+    "bump_to": "Bump to :n"
 }

@@ -11,11 +11,13 @@ use App\Support\Modules\Hooks;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Translations;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Notifications\Notify;
@@ -215,6 +217,7 @@ class ShoppingController extends Controller
             }
         }
         $list ??= $this->defaultList($user);
+        $this->warnIfDuplicate($request, $list, $data['name']);
 
         $list->items()->create([
             'name' => $data['name'],
@@ -233,6 +236,22 @@ class ShoppingController extends Controller
         Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
 
         return back();
+    }
+
+    // Soft duplicate warning: an active (unbought) item with the same normalized name is already on the
+    // list, so answer with a validation message on `add_anyway` instead of creating. It is NOT a block —
+    // the client shows "X is already on this list" with Add anyway (re-posts with add_anyway=1), bump the
+    // existing quantity, or cancel. Someone really can want milk on the list twice, so nothing is refused.
+    private function warnIfDuplicate(Request $request, ShoppingList $list, string $name): void
+    {
+        if ($request->boolean('add_anyway')) {
+            return;
+        }
+        if ($dup = ShoppingItem::activeDuplicate($list, $name)) {
+            throw ValidationException::withMessages([
+                'add_anyway' => strtr(Translations::get('shopping.already_on_list'), [':name' => $dup->name]),
+            ]);
+        }
     }
 
     // The user's default grocery list. Lives on the model now (ShoppingList::defaultFor) so the Inventory
@@ -590,6 +609,7 @@ class ShoppingController extends Controller
             'alt_stores' => ['nullable', 'array'],                  // also-available-at shops
             'alt_stores.*' => ['string', 'max:120'],
         ]);
+        $this->warnIfDuplicate($request, $list, $data['name']);
 
         $list->items()->create([
             'name' => $data['name'],
@@ -631,7 +651,7 @@ class ShoppingController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        return response()->json(['items' => $items]);
+        return response()->json(['items' => ShoppingItem::dedupeNames($items)]);
     }
 
     // Paste a block of text (a list copied from WhatsApp / notes / another chat) and get candidate
@@ -654,7 +674,9 @@ class ShoppingController extends Controller
             }
         }
 
-        return response()->json(['items' => $items]);
+        // Same name twice in one paste ("milk" on two lines) reviews as one row; items already on the
+        // list are left alone here — the review screen is for what you pasted, and a real repeat is legit.
+        return response()->json(['items' => ShoppingItem::dedupeNames($items)]);
     }
 
     // Bulk-insert reviewed voice/AI items into the list in one go.

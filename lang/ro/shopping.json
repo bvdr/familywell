@@ -129,5 +129,8 @@
     "new_department_placeholder": "Raft nou",
     "add_department": "Adaugă raft",
     "start_from_template": "Pornește de la un șablon",
-    "other": "Altele"
+    "other": "Altele",
+    "already_on_list": ":name e deja pe această listă.",
+    "add_anyway": "Adaugă oricum",
+    "bump_to": "Crește la :n"
 }

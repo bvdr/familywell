@@ -143,3 +143,22 @@ export const setVoiceLang = (code: string): void => {
         /* private mode: fall back to session default */
     }
 };
+
+// "Bump" for the duplicate-item warning: the next quantity for an item already on the list. Leading
+// number +1 ("2" -> "3", "1 gallon" -> "2 gallon"); empty means one, so it becomes "2"; free text with no
+// leading number ("some") can't be bumped and returns null (the button is hidden).
+export const bumpQuantity = (q: string | null | undefined): string | null => {
+    const cur = (q ?? '').trim();
+    if (cur === '') return '2';
+    const m = /^(\d+)(.*)$/.exec(cur);
+    return m ? String(Number(m[1]) + 1) + m[2] : null;
+};
+
+// Mirror of ShoppingItem::normalizeName (PHP): lower-case, whitespace collapsed, surrounding punctuation
+// dropped. Used only to find the existing row the server's duplicate warning refers to (for "Bump").
+export const normalizeItemName = (name: string): string =>
+    name
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .replace(/^[\p{P}\p{S}\s]+|[\p{P}\p{S}\s]+$/gu, '');
