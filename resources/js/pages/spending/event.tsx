@@ -28,13 +28,14 @@ import {
 import { createContext, FormEventHandler, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { CategoryIcon } from '@/components/category-icon';
+import { DuplicateWarning } from '@/components/duplicate-warning';
 import { GuestSheet, type GuestShareState } from '@/components/guest-sheet';
 import { IconPicker } from '@/components/icon-picker';
 import InputError from '@/components/input-error';
 import { useMemberColors } from '@/components/member-avatar';
 import { Picker } from '@/components/picker';
-import { ShopMonthHint, type ShopTotals } from '@/components/shop-month-hint';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
+import { ShopMonthHint, type ShopTotals } from '@/components/shop-month-hint';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -384,6 +385,7 @@ export default function Event({
         split: 'all' | 'some' | 'exact';
         share_keys: string[];
         share_amounts: Record<string, string>;
+        add_anyway: boolean; // set on "Add anyway" after the server's soft duplicate warning (errors.add_anyway)
     }>({
         amount: '',
         currency: event.currency,
@@ -399,6 +401,7 @@ export default function Event({
         split: 'all',
         share_keys: allKeys,
         share_amounts: {},
+        add_anyway: false,
     });
 
     // --- Per-expense split helpers (used by the Split section of the form) ---
@@ -491,6 +494,7 @@ export default function Event({
 
     const closeForm = () => {
         form.reset();
+        form.clearErrors(); // else a duplicate warning would greet the next open
         setEditing(null);
         setAdding(false);
         setAdvancedOpen(false);
@@ -498,8 +502,8 @@ export default function Event({
         setMoveError(null);
     };
 
-    const submitSpend: FormEventHandler = (e) => {
-        e.preventDefault();
+    // addAnyway: the user confirmed the server's soft duplicate warning, so the re-post skips the check.
+    const submit = (addAnyway = false) => {
         // If a "move to another list" target is picked in Advanced, Save performs the move (not the
         // in-place update) — that's what the footer button reads as, so tapping it does what it says.
         if (editing && moveTarget) {
@@ -514,9 +518,13 @@ export default function Event({
             form.transform((d) => ({ ...withShares(d), _method: 'patch' }));
             form.post(route('spending.spends.update', editing), { ...opts, forceFormData: true });
         } else {
-            form.transform((d) => withShares(d));
+            form.transform((d) => ({ ...withShares(d), add_anyway: addAnyway }));
             form.post(route('spending.spends.store', event.id), opts);
         }
+    };
+    const submitSpend: FormEventHandler = (e) => {
+        e.preventDefault();
+        submit();
     };
 
     const startEdit = (s: Spend) => {
@@ -1236,18 +1244,31 @@ export default function Event({
                             className="sm:max-w-lg"
                             autoFocusRef={amountRef}
                             footer={
-                                // With a move target picked, the footer commits the MOVE (label says so);
-                                // otherwise it saves the edits. Split validity is irrelevant to a move.
-                                <Button
-                                    type="submit"
-                                    form="spend-form"
-                                    disabled={moveTarget ? moving : form.processing || !splitValid}
-                                    className="w-full"
-                                >
-                                    {moveTarget
-                                        ? t('spending.move_to_named', { name: moveTargets.find((m) => String(m.id) === moveTarget)?.name ?? '' })
-                                        : t('common.save')}
-                                </Button>
+                                <div className="flex flex-col gap-2">
+                                    {/* Soft duplicate warning from the server: Add anyway re-posts with add_anyway. */}
+                                    {form.errors.add_anyway && (
+                                        <DuplicateWarning message={form.errors.add_anyway}>
+                                            <Button type="button" size="sm" disabled={form.processing} onClick={() => submit(true)}>
+                                                {t('spending.add_anyway')}
+                                            </Button>
+                                            <Button type="button" size="sm" variant="ghost" onClick={closeForm}>
+                                                {t('common.cancel')}
+                                            </Button>
+                                        </DuplicateWarning>
+                                    )}
+                                    {/* With a move target picked, the footer commits the MOVE (label says so);
+                                        otherwise it saves the edits. Split validity is irrelevant to a move. */}
+                                    <Button
+                                        type="submit"
+                                        form="spend-form"
+                                        disabled={moveTarget ? moving : form.processing || !splitValid}
+                                        className="w-full"
+                                    >
+                                        {moveTarget
+                                            ? t('spending.move_to_named', { name: moveTargets.find((m) => String(m.id) === moveTarget)?.name ?? '' })
+                                            : t('common.save')}
+                                    </Button>
+                                </div>
                             }
                         >
                             {/* The <form> holds no fields directly; the text inputs join it via form="spend-form" and

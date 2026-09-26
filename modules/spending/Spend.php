@@ -8,6 +8,7 @@ use App\Support\Tenancy\BelongsToFamily;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Modules\Shopping\ShoppingShop;
 
 class Spend extends Model
@@ -47,6 +48,25 @@ class Spend extends Model
         return static::query()->whereNotNull('store')->distinct()->pluck('store')
             ->merge(ShoppingShop::pluck('name'))
             ->unique()->sort(SORT_NATURAL | SORT_FLAG_CASE)->values()->all();
+    }
+
+    /**
+     * Does a spend the viewer can already see read as the same purchase as this validated input? "Same"
+     * = same entered amount + currency, same day, and the same shop when one is given (else the same
+     * category). Deliberately simple: it powers a soft "looks like a duplicate" warning, not a block.
+     * Bounded to the lists the viewer can see, so the warning never reveals a private list's spend.
+     */
+    public static function looksDuplicate(array $data, int $userId): bool
+    {
+        $store = trim((string) ($data['store'] ?? ''));
+
+        return static::query()
+            ->whereIn('spend_event_id', MonthToDate::visibleEventCurrencies($userId)->keys())
+            ->where('amount', (int) round($data['amount'] * 100)) // same rounding as SpendEvent::buildSpend
+            ->where('currency', $data['currency'])
+            ->whereDate('spent_at', Carbon::parse($data['spent_at'])->toDateString())
+            ->when($store !== '', fn ($q) => $q->whereRaw('LOWER(store) = ?', [mb_strtolower($store)]), fn ($q) => $q->where('category', $data['category']))
+            ->exists();
     }
 
     public function payer(): BelongsTo
