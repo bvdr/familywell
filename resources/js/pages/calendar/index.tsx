@@ -1,15 +1,26 @@
 import { Head, router } from '@inertiajs/react';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Filter, Plus } from 'lucide-react';
 import { useState } from 'react';
 
 import { EventSheet } from '@/components/calendar/event-sheet';
+import { FilterSheet } from '@/components/calendar/filter-sheet';
 import { MonthView } from '@/components/calendar/month-view';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { useAddAction } from '@/lib/add-action';
-import { shiftDate, ymd, type CalItem } from '@/lib/calendar';
+import { filterItems, shiftDate, ymd, type CalFilter, type CalItem } from '@/lib/calendar';
 import { openNewOnArrival } from '@/lib/create-intent';
 import { useLocale, useT } from '@/lib/i18n';
+
+const FILTER_KEY = 'familywell:calendarFilter';
+const readFilter = (): CalFilter => {
+    try {
+        const v = JSON.parse(localStorage.getItem(FILTER_KEY) ?? '');
+        return { people: Array.isArray(v?.people) ? v.people : [], sources: Array.isArray(v?.sources) ? v.sources : [] };
+    } catch {
+        return { people: [], sources: [] };
+    }
+};
 
 type Named = { id: number; name: string };
 export type CalendarProps = {
@@ -27,7 +38,7 @@ export type CalendarProps = {
 
 // View, zoom and date live in the query string (back/forward + shareable); the server answers with the range
 // and its items. Navigation is a partial reload of only those props: members/contacts/projects stay put.
-export default function CalendarIndex({ view, zoom, date, range, items, members, contacts, projects }: CalendarProps) {
+export default function CalendarIndex({ view, zoom, date, range, items, sources, members, contacts, projects }: CalendarProps) {
     const t = useT();
     const locale = useLocale();
     const todayYmd = ymd(new Date());
@@ -36,6 +47,27 @@ export default function CalendarIndex({ view, zoom, date, range, items, members,
     const [sheet, setSheet] = useState<{ open: boolean; day: string }>(() => ({ open: openNewOnArrival(), day: selected }));
     const add = (day = selected) => setSheet({ open: true, day });
     useAddAction(() => add());
+
+    // Drop any remembered source/person no longer valid for this family (a module disabled since it was
+    // saved, or a removed member/contact) so a stale filter never silently hides everything.
+    const validSources = new Set(sources);
+    const validPeople = new Set([...members.map((m) => `user:${m.id}`), ...contacts.map((c) => `person:${c.id}`)]);
+    const sanitizeFilter = (f: CalFilter): CalFilter => ({
+        people: f.people.filter((p) => validPeople.has(p)),
+        sources: f.sources.filter((s) => validSources.has(s)),
+    });
+    const [filter, setFilterState] = useState<CalFilter>(() => sanitizeFilter(readFilter()));
+    const [filtering, setFiltering] = useState(false);
+    const setFilter = (f: CalFilter) => {
+        setFilterState(f);
+        try {
+            localStorage.setItem(FILTER_KEY, JSON.stringify(f));
+        } catch {
+            /* private mode: not remembered */
+        }
+    };
+    const shown = filterItems(items, filter);
+    const active = filter.people.length + filter.sources.length;
 
     const go = (q: Partial<Pick<CalendarProps, 'view' | 'zoom' | 'date'>>) => {
         if (q.date) setSelected(q.date);
@@ -67,14 +99,18 @@ export default function CalendarIndex({ view, zoom, date, range, items, members,
                     <Button variant="ghost" size="icon" aria-label={t('calendar.next')} onClick={() => go({ date: shiftDate(view, zoom, date, 1) })}>
                         <ChevronRight className="size-5" />
                     </Button>
+                    <Button variant="outline" size="sm" onClick={() => setFiltering(true)}>
+                        <Filter className="size-4" />
+                        {active > 0 ? ` ${active}` : ''}
+                    </Button>
                     {/* Hidden on mobile: the nav's context-aware "+" adds an event there. */}
                     <Button size="icon" className="ml-2 hidden rounded-full md:inline-flex" onClick={() => add()} aria-label={t('calendar.new')}>
                         <Plus className="size-5" />
                     </Button>
                 </div>
 
-                {/* Month | Timeline switch, filters and subscribe arrive with Tasks 7, 8 and 10; month is the only view so far. */}
-                <MonthView items={items} range={range} date={date} selected={selected} onSelect={setSelected} onAdd={add} />
+                {/* Timeline switch and subscribe arrive with Tasks 8 and 10; month is the only view so far. */}
+                <MonthView items={shown} range={range} date={date} selected={selected} onSelect={setSelected} onAdd={add} />
             </div>
             <EventSheet
                 open={sheet.open}
@@ -83,6 +119,15 @@ export default function CalendarIndex({ view, zoom, date, range, items, members,
                 members={members}
                 contacts={contacts}
                 projects={projects}
+            />
+            <FilterSheet
+                open={filtering}
+                onOpenChange={setFiltering}
+                value={filter}
+                onChange={setFilter}
+                sources={sources}
+                members={members}
+                contacts={contacts}
             />
         </AppLayout>
     );
