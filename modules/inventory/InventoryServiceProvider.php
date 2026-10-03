@@ -30,12 +30,12 @@ class InventoryServiceProvider extends ServiceProvider
         });
 
         // MCP: tools an AI assistant can use on the family's stock, gated by the `inventory:read` /
-        // `inventory:write` scopes granted on the consent screen (see docs/mcp.md). No delete tool: items
-        // have no trash and deleting drops their history, so removing one stays a deliberate action in the app.
+        // `inventory:write` scopes granted on the consent screen (see docs/mcp.md).
+        // Delete tools are permanent (these records have no trash), so they are marked destructive and ask the
+        // assistant to confirm with the person first.
         McpTools::register('inventory', 'Inventory', [
             Mcp\ListItems::class, Mcp\GetItem::class, Mcp\NeedsAttention::class,
-            Mcp\AddItem::class, Mcp\UpdateItem::class, Mcp\AdjustQuantity::class, Mcp\AddToShopping::class,
-        ]);
+            Mcp\AddItem::class, Mcp\UpdateItem::class, Mcp\AdjustQuantity::class, Mcp\AddToShopping::class, Mcp\DeleteItem::class, ]);
 
         // Our notification category, so inventory alerts show in the feed and get their own per-user
         // on/off row on the Notifications settings screen. Registration is idempotent (boot re-runs per

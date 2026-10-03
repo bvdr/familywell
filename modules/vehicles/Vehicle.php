@@ -3,6 +3,7 @@
 namespace Modules\Vehicles;
 
 use App\Models\User;
+use App\Support\Media\StoredImage;
 use App\Support\Tenancy\BelongsToFamily;
 use App\Support\Translations;
 use Illuminate\Database\Eloquent\Model;
@@ -262,6 +263,20 @@ class Vehicle extends Model
         }
 
         return $repair;
+    }
+
+    /**
+     * Delete the car for good. Child rows cascade in the DB, but their R2 files would not, so the photo,
+     * every repair attachment and every document file are freed first. Shared by the web delete and MCP.
+     */
+    public function deleteWithFiles(): void
+    {
+        StoredImage::delete($this->photo_path);
+        foreach ($this->repairs()->with('attachments')->get() as $repair) {
+            $repair->attachments->each(fn ($a) => StoredImage::delete($a->path));
+        }
+        $this->documents()->pluck('file_path')->each(fn ($p) => StoredImage::delete($p));
+        $this->delete();
     }
 
     /**

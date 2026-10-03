@@ -48,6 +48,15 @@ class Repair extends Model
         ]);
     }
 
+    /** Delete the repair and free its attachments' R2 objects (rows cascade). Web + MCP. */
+    public function deleteWithFiles(): void
+    {
+        foreach ($this->attachments as $a) {
+            StoredImage::delete($a->path);
+        }
+        $this->delete();
+    }
+
     public function attachments(): HasMany
     {
         return $this->hasMany(RepairAttachment::class)->latest('id');

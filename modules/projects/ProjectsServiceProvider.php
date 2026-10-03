@@ -24,13 +24,13 @@ class ProjectsServiceProvider extends ServiceProvider
         NotificationCategories::register('projects', 'Projects', 'folder-kanban');
 
         // MCP: tools an AI assistant can use on this module, gated by the `projects:read` /
-        // `projects:write` scopes the person grants on the consent screen (see docs/mcp.md). No
-        // projects_delete: deleting a project is a hard delete in the app, too risky for an assistant.
+        // `projects:write` scopes the person grants on the consent screen (see docs/mcp.md).
+        // projects_delete is permanent (projects have no trash), so it is marked destructive and asks the
+        // assistant to confirm with the person first. Deleted project tasks go to the trash like any task.
         McpTools::register('projects', 'Projects', [
             Mcp\ListProjects::class, Mcp\GetProject::class,
             Mcp\CreateProject::class, Mcp\UpdateProject::class,
-            Mcp\AddTask::class, Mcp\UpdateTask::class, Mcp\DeleteTask::class,
-        ]);
+            Mcp\AddTask::class, Mcp\UpdateTask::class, Mcp\DeleteTask::class, Mcp\DeleteProject::class, ]);
 
         // "Pick up where you left off": projects this user opened in the last few days, tagged with
         // when so the dashboard can order them across modules. Respects visibility.

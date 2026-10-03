@@ -72,11 +72,11 @@ class BirthdaysServiceProvider extends ServiceProvider
             });
 
         // MCP: birthday tools for an AI assistant, gated by the `birthdays:read` / `birthdays:write` scopes
-        // (see docs/mcp.md). No delete tool: birthdays are not soft-deleted (no trash), so removing one
-        // stays a deliberate in-app action.
+        // (see docs/mcp.md).
+        // Delete tools are permanent (these records have no trash), so they are marked destructive and ask the
+        // assistant to confirm with the person first.
         McpTools::register('birthdays', 'Birthdays', [
-            Mcp\ListBirthdays::class, Mcp\AddBirthday::class, Mcp\UpdateBirthday::class,
-        ]);
+            Mcp\ListBirthdays::class, Mcp\AddBirthday::class, Mcp\UpdateBirthday::class, Mcp\DeleteBirthday::class, ]);
 
         // DATA — add birthdate, age, next birthday + days-until to every person payload.
         $hooks->listen('person.serialize', function (array $payload, Person $person) {

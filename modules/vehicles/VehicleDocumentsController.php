@@ -81,8 +81,7 @@ class VehicleDocumentsController extends Controller
     public function destroy(Request $request, Vehicle $vehicle, VehicleDocument $document): RedirectResponse
     {
         $this->authorizeDocument($vehicle, $document);
-        StoredImage::delete($document->file_path);
-        $document->delete();
+        $document->deleteWithFile(); // shared with the MCP tools
 
         return back();
     }

@@ -77,6 +77,13 @@ class VehicleDocument extends Model
         ]);
     }
 
+    /** Delete the document and free its R2 file. Web + MCP. */
+    public function deleteWithFile(): void
+    {
+        StoredImage::delete($this->file_path);
+        $this->delete();
+    }
+
     public function isExpiring(?Carbon $today = null): bool
     {
         if (! $this->expires_on) {
