@@ -7,6 +7,8 @@ use App\Support\Theming\ThemeTokens;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\AppResource;
+use Laravel\Mcp\Server\Ui\AppMeta;
+use Laravel\Mcp\Server\Ui\Csp;
 
 /**
  * One MCP Apps widget (https://modelcontextprotocol.io/extensions/apps/overview): a self-contained HTML
@@ -35,10 +37,20 @@ class Widget extends AppResource
         'birthdays' => 'Upcoming birthdays with countdowns.',
         'note' => 'A note rendered with tickable checklists.',
         'contact' => 'A contact card with tap-to-call / email links.',
+        'recipe' => 'Recipes: photo, live calculator (servings / total / what you have), ingredients, steps, add to shopping.',
     ];
 
     /** Widgets that can go full screen (they show a full-screen button when the host offers it). */
-    public const FULLSCREEN = ['shopping'];
+    public const FULLSCREEN = ['shopping', 'recipe'];
+
+    /**
+     * Widgets that show images from Familywell (signed photo URLs). Only these get an img-src for our own
+     * origin in their CSP; every other widget keeps the no-external-resources default.
+     */
+    public const IMAGES = ['recipe'];
+
+    /** Extra shared scripts a widget inlines before its own file (paths under resources/). */
+    private const LIBS = ['recipe' => ['js/lib/recipe-scale.js']];
 
     public function __construct(public readonly string $widget)
     {
@@ -64,8 +76,31 @@ class Widget extends AppResource
             // token (McpFamilyContext has set the family), so this is their colours, not a shared default.
             'themeCss' => ThemeTokens::css(ThemeTokens::resolve(auth()->user(), CurrentFamily::id())),
             'css' => $read('core.css'),
-            'js' => $read('core.js')."\n".$read("{$this->widget}.js"),
+            'js' => $read('core.js')."\n".$this->libs()."\n".$read("{$this->widget}.js"),
         ]);
+    }
+
+    /**
+     * Shared ES modules inlined as plain script: the widget page is one classic <script>, so the `export`
+     * keywords are dropped (the declarations stay global). recipe-scale.js is written for exactly this.
+     */
+    private function libs(): string
+    {
+        return collect(self::LIBS[$this->widget] ?? [])
+            ->map(fn (string $f) => preg_replace('/^export /m', '', file_get_contents(resource_path($f))))
+            ->implode("\n");
+    }
+
+    public function appMeta(): AppMeta
+    {
+        if (! in_array($this->widget, self::IMAGES, true)) {
+            return parent::appMeta();
+        }
+        // Photos are served by this app (signed URLs built on the request's host, mcp.familywell.co for MCP
+        // calls) - allow both that host and the main app URL, nothing else.
+        $origins = collect([url('/'), config('app.url')])->map(fn ($u) => rtrim((string) $u, '/'))->unique()->values()->all();
+
+        return new AppMeta(csp: new Csp(resourceDomains: $origins));
     }
 
     /**

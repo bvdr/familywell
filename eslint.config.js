@@ -43,7 +43,8 @@ export default [
         files: ['resources/mcp-apps/**/*.js'],
         languageOptions: {
             sourceType: 'script',
-            globals: { ...globals.browser, FW: 'readonly' },
+            // recipe-scale.js is inlined before recipe.js (Widget::LIBS).
+            globals: { ...globals.browser, FW: 'readonly', factorFor: 'readonly', scaleIngredient: 'readonly', formatQty: 'readonly' },
         },
     },
     {
