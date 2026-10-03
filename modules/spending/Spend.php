@@ -91,6 +91,12 @@ class Spend extends Model
             ->exists();
     }
 
+    /** The spending list this expense belongs to. */
+    public function event(): BelongsTo
+    {
+        return $this->belongsTo(SpendEvent::class, 'spend_event_id');
+    }
+
     public function payer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'payer_id');

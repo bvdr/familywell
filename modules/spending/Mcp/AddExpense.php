@@ -1,0 +1,73 @@
+<?php
+
+namespace Modules\Spending\Mcp;
+
+use App\Mcp\Tool;
+use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Illuminate\Support\Facades\Validator;
+use Laravel\Mcp\Request;
+use Laravel\Mcp\Response;
+use Modules\Notifications\Notify;
+use Modules\Spending\Spend;
+use Modules\Spending\SpendEvent;
+
+class AddExpense extends Tool
+{
+    protected string $module = 'spending';
+
+    protected string $access = 'write';
+
+    protected string $name = 'spending_add_expense';
+
+    protected string $description = 'Record an expense. Without list_id it goes to the family\'s default "Others" list. Leave category out to let Familywell guess it. If an expense with the same amount, date and shop already exists it is still added, and the response says so in `warning`.';
+
+    public function schema(JsonSchema $schema): array
+    {
+        return [
+            'amount' => $schema->number()->description('Amount in major units, e.g. 12.50.')->required(),
+            'currency' => $schema->string()->description('EUR, RON, USD or GBP (default: the list\'s currency).'),
+            'title' => $schema->string()->description('What it was, e.g. "Groceries".'),
+            'category' => $schema->string()->description('Category key from spending_list_categories (default: auto-guessed).'),
+            'shop' => $schema->string()->description('Shop / merchant name.'),
+            'date' => $schema->string()->format('date')->description('YYYY-MM-DD (default: today).'),
+            'paid_by' => $schema->integer()->description('Member id who paid (default: this person).'),
+            'list_id' => $schema->integer()->description('Spending list id (default: the family\'s "Others" list).'),
+        ];
+    }
+
+    public function handle(Request $request): Response
+    {
+        $user = $this->user();
+        $request->validate(['list_id' => ['nullable', 'integer'], 'paid_by' => ['nullable', 'integer']]);
+        $event = $request->get('list_id')
+            ? SpendData::event($user, $request->get('list_id'), edit: true)
+            : SpendEvent::others($user);
+        if (! $event) {
+            return $this->notFound('List');
+        }
+
+        // Same rules as the web form (SpendEvent::spendRules): known currency, the family's categories,
+        // a payer who takes part in this list.
+        $data = Validator::validate([
+            'amount' => $request->get('amount'),
+            'currency' => $request->get('currency', $event->currency),
+            'category' => $request->get('category', 'other'), // 'other' => the auto-categorizer guesses it
+            'payer_key' => 'u'.($request->get('paid_by') ?: $user->id),
+            'note' => $request->get('title'),
+            'store' => $request->get('shop'),
+            'spent_at' => $request->get('date', now()->toDateString()),
+        ], $event->spendRules(), ['payer_key.in' => 'paid_by must be a member taking part in this list.']);
+
+        // Soft duplicate check, same as the add form: warn, never block (the same purchase twice is real).
+        $duplicate = Spend::looksDuplicate($data, SpendData::visibleEvents($user)->pluck('id'));
+        $spend = $event->spends()->create([...$event->spendColumns($data), 'created_by' => $user->id]);
+
+        $amount = $data['currency'].' '.number_format((float) $data['amount'], 2);
+        Notify::toAccessOf($event, 'spending', $user->id, $event->name, "{$user->name} added {$amount}".(! empty($data['note']) ? " · {$data['note']}" : ''), "/m/spending/events/{$event->id}");
+        SpendData::changed();
+
+        return Response::json(SpendData::payload($spend->fresh(['event', 'payer', 'payerGuest'])) + ($duplicate ? [
+            'warning' => 'This looks like a duplicate of an expense already recorded (same amount, date and shop/category).',
+        ] : []));
+    }
+}

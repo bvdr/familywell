@@ -6,6 +6,7 @@ use App\Models\EntityVisit;
 use App\Support\Dashboard\DashboardItems;
 use App\Support\Dashboard\DashboardWidgets;
 use App\Support\Guests\GuestableRegistry;
+use App\Support\Mcp\McpTools;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
@@ -20,6 +21,15 @@ class SpendingServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // MCP: tools an AI assistant can use on this module, gated by the `spending:read` / `spending:write`
+        // scopes the person grants on the consent screen (see docs/mcp.md). No split/balance editing,
+        // receipt upload or list management in v1.
+        McpTools::register('spending', 'Spending', [
+            Mcp\ListExpenses::class, Mcp\GetExpense::class, Mcp\Summary::class, Mcp\ListCategories::class,
+            Mcp\AddExpense::class, Mcp\UpdateExpense::class, Mcp\DeleteExpense::class,
+            Mcp\ListDeleted::class, Mcp\Restore::class,
+        ]);
+
         // Reversible delete: trashed rows are purged after the retention window (trash:purge).
         Trash::register(Spend::class);
         // Opt spend events into the core sharing system (addressable as `spend_event` in share URLs).

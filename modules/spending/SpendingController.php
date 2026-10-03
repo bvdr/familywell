@@ -951,20 +951,12 @@ class SpendingController extends Controller
 
     private function validateSpend(Request $request, SpendEvent $event): array
     {
-        // Payer can be any participant on the event: a family member ('u{id}') OR a guest we shared
-        // with ('g{id}'). Same namespaced keys as the split, so guests are payable just like members.
         $participantKeys = array_keys($event->participantNames());
 
+        // Core spend fields (amount, currency, category, payer, source, note, shop, date) are shared with
+        // the MCP tools via SpendEvent::spendRules(); the form adds receipts + the split on top.
         return $request->validate([
-            'amount' => ['required', 'numeric', 'gt:0'],
-            'currency' => ['required', 'in:'.implode(',', self::CURRENCIES)],
-            'category' => ['required', 'in:'.implode(',', SpendCategory::keysFor())],
-            'payer_key' => ['required', 'string', 'in:'.implode(',', $participantKeys)],
-            // Optional payment source; must be one of the family's (SpendSource is family-scoped).
-            'source_id' => ['nullable', 'integer', 'in:'.implode(',', SpendSource::pluck('id')->all() ?: [0])],
-            'note' => ['nullable', 'string', 'max:255'],
-            'store' => ['nullable', 'string', 'max:120'], // shop / merchant name, free text (see Spend::shopNames)
-            'spent_at' => ['required', 'date'],
+            ...$event->spendRules(),
             'receipts' => ['nullable', 'array', 'max:10'], // up to 10 photos per spend
             'receipts.*' => ['image', 'max:12288'], // up to 12 MB each (PHP allows 16M, see Dockerfile)
             'receipts_thumb' => ['nullable', 'array', 'max:10'],   // small client-generated variants, aligned by index
@@ -1001,15 +993,7 @@ class SpendingController extends Controller
     /** Build the stored columns from validated input, freezing the FX conversion at the spend's date. */
     private function spendAttributes(array $data, SpendEvent $event): array
     {
-        // 'u{id}' -> member payer, 'g{id}' -> guest payer. Exactly one column is set; the other stays null.
-        $isGuest = str_starts_with($data['payer_key'], 'g');
-        $payerId = (int) substr($data['payer_key'], 1);
-
-        return [
-            'payer_id' => $isGuest ? null : $payerId,
-            'payer_guest_id' => $isGuest ? $payerId : null,
-            ...$event->buildSpend($data),
-        ];
+        return $event->spendColumns($data); // payer mapping + frozen FX, shared with the MCP tools
     }
 
     private function eventPayload(SpendEvent $event): array

@@ -174,6 +174,40 @@ class SpendEvent extends Model implements ProvidesGuestView, ProvidesPublicShare
         return $attrs;
     }
 
+    /**
+     * Validation rules for a spend's own fields on this list. The payer can be any participant: a family
+     * member ('u{id}') or a guest ('g{id}'), same namespaced keys as the split. Shared by the web forms
+     * (which add receipt/split rules on top) and the MCP tools, so both validate identically.
+     */
+    public function spendRules(): array
+    {
+        return [
+            'amount' => ['required', 'numeric', 'gt:0'],
+            'currency' => ['required', 'in:'.implode(',', SpendingController::CURRENCIES)],
+            'category' => ['required', 'in:'.implode(',', SpendCategory::keysFor())],
+            'payer_key' => ['required', 'string', 'in:'.implode(',', array_keys($this->participantNames()))],
+            // Optional payment source; must be one of the family's (SpendSource is family-scoped).
+            'source_id' => ['nullable', 'integer', 'in:'.implode(',', SpendSource::pluck('id')->all() ?: [0])],
+            'note' => ['nullable', 'string', 'max:255'],
+            'store' => ['nullable', 'string', 'max:120'], // shop / merchant name, free text (see Spend::shopNames)
+            'spent_at' => ['required', 'date'],
+        ];
+    }
+
+    /** Stored columns for validated spend input: payer mapped from payer_key + buildSpend()'s money math. */
+    public function spendColumns(array $data): array
+    {
+        // 'u{id}' -> member payer, 'g{id}' -> guest payer. Exactly one column is set; the other stays null.
+        $isGuest = str_starts_with($data['payer_key'], 'g');
+        $payerId = (int) substr($data['payer_key'], 1);
+
+        return [
+            'payer_id' => $isGuest ? null : $payerId,
+            'payer_guest_id' => $isGuest ? $payerId : null,
+            ...$this->buildSpend($data),
+        ];
+    }
+
     public function spends(): HasMany
     {
         return $this->hasMany(Spend::class);
