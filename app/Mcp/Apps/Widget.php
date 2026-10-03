@@ -35,6 +35,9 @@ class Widget extends AppResource
         'contact' => 'A contact card with tap-to-call / email links.',
     ];
 
+    /** Widgets that can go full screen (they show a full-screen button when the host offers it). */
+    public const FULLSCREEN = ['shopping'];
+
     public function __construct(public readonly string $widget)
     {
         $this->uri = self::uriFor($widget);
@@ -54,8 +57,26 @@ class Widget extends AppResource
 
         return Response::view('mcp-app', [
             'title' => $this->title,
+            'sdk' => self::sdk(in_array($this->widget, self::FULLSCREEN, true) ? ['inline', 'fullscreen'] : []),
             'css' => $read('core.css'),
             'js' => $read('core.js')."\n".$read("{$this->widget}.js"),
         ]);
+    }
+
+    /**
+     * laravel/mcp's postMessage SDK with our display modes declared. The spec requires a view to list the
+     * modes it supports in ui/initialize's appCapabilities.availableDisplayModes (hosts may refuse a
+     * fullscreen request otherwise), but the SDK hardcodes `appCapabilities:{}` with no option. So we
+     * patch that one literal; tests/Feature/Mcp/AppsTest asserts it still matches after package updates.
+     */
+    public static function sdk(array $modes): string
+    {
+        $sdk = (string) app('mcp.sdk');
+
+        return $modes === [] ? $sdk : str_replace(
+            'appCapabilities:{}',
+            'appCapabilities:'.json_encode(['availableDisplayModes' => $modes]),
+            $sdk,
+        );
     }
 }

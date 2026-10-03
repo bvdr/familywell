@@ -40,6 +40,19 @@ it('lists and serves every widget as an MCP App page', function () {
     }
 });
 
+it('declares full screen to the host only for widgets that offer it', function () {
+    // Widget::sdk() patches this literal in laravel/mcp's SDK; if an update renames it, fail here, not silently.
+    expect(app('mcp.sdk'))->toContain('appCapabilities:{}');
+
+    [$family, $users] = mcpFamily();
+    $token = mcpConnect($users[0], $family->id)['access_token'];
+    $html = fn (string $w) => mcpCall($token, 'resources/read', ['uri' => Widget::uriFor($w)])->json('result.contents.0.text');
+
+    expect($html('shopping'))->toContain('appCapabilities:{"availableDisplayModes":["inline","fullscreen"]}')
+        ->and($html('tasks'))->toContain('appCapabilities:{}')
+        ->and($html('tasks'))->not->toContain('availableDisplayModes":[');
+});
+
 it('says what each get_today item is so the widget can tick it off', function () {
     [$family, $users] = mcpFamily(['tasks']);
     $token = mcpConnect($users[0], $family->id, ['tasks' => 'write'])['access_token'];
