@@ -1,4 +1,6 @@
 import { Link } from '@inertiajs/react';
+import { Item as MenuItem } from '@radix-ui/react-dropdown-menu';
+import { type ComponentProps } from 'react';
 
 import { LucideIcon } from '@/components/lucide-icon';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -126,7 +128,11 @@ export function MonthView({
                                                     })}
                                                 </p>
                                                 {itemsOn(items, d).map((i) => (
-                                                    <AgendaItem key={itemKey(i)} item={i} day={d} />
+                                                    // Raw (unstyled) Radix item, not the styled DropdownMenuItem, so the card keeps its look;
+                                                    // registering it as a menu item is what lets arrow keys + Enter reach it.
+                                                    <MenuItem key={itemKey(i)} asChild>
+                                                        <AgendaItem item={i} day={d} className="data-highlighted:border-primary outline-none" />
+                                                    </MenuItem>
                                                 ))}
                                             </DropdownMenuContent>
                                         </DropdownMenu>
@@ -152,7 +158,8 @@ export function MonthView({
     );
 }
 
-export function AgendaItem({ item, day }: { item: CalItem; day: string }) {
+// Extra Link props/ref pass through so a Radix menu item can wrap it (asChild) in the "+N more" popover.
+export function AgendaItem({ item, day, className = '', ...rest }: { item: CalItem; day: string } & Omit<ComponentProps<typeof Link>, 'href'>) {
     const t = useT();
     const total = daysBetween(item.start, item.end) + 1;
     const sub = item.startTime
@@ -161,7 +168,11 @@ export function AgendaItem({ item, day }: { item: CalItem; day: string }) {
           ? t('calendar.day_of', { n: daysBetween(item.start, day) + 1, total })
           : t('calendar.all_day');
     return (
-        <Link href={item.href} className="bg-surface-card hover:border-accent flex items-center gap-3 rounded-2xl border p-3 transition-colors">
+        <Link
+            {...rest}
+            href={item.href}
+            className={`bg-surface-card hover:border-accent flex items-center gap-3 rounded-2xl border p-3 transition-colors ${className}`}
+        >
             <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${itemTone(item.color)}`}>
                 <LucideIcon name={item.icon} className="size-5" />
             </span>
