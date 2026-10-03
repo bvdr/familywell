@@ -9,10 +9,7 @@ FW.start((d) => {
         const [y, m, dd] = String(s).slice(0, 10).split('-').map(Number);
         return new Date(y, m - 1, dd);
     };
-    const ymd = (t) => {
-        const x = new Date(t);
-        return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
-    };
+    const ymd = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
     const between = (a, b) => Math.round((parseDay(b) - parseDay(a)) / DAY);
 
     if (d.items === undefined && d.id) {
@@ -42,8 +39,11 @@ FW.start((d) => {
     for (const i of d.items || []) {
         const start = i.start < d.from ? d.from : i.start;
         const end = i.end > d.to ? d.to : i.end;
-        for (let t = parseDay(start).getTime(); t <= parseDay(end).getTime(); t += DAY) {
-            const k = ymd(t);
+        // Step by calendar date, not +24h: across a DST change local midnight + 86400000 ms lands on 23:00 the
+        // same day (or 01:00), which repeats one day and drops the last. Same approach as lib/calendar.ts addDays.
+        const last = parseDay(end);
+        for (const x = parseDay(start); x <= last; x.setDate(x.getDate() + 1)) {
+            const k = ymd(x);
             if (!days.has(k)) days.set(k, []);
             days.get(k).push(i);
         }
@@ -65,7 +65,11 @@ FW.start((d) => {
                           { class: 'rows' },
                           days.get(k).map((i) => {
                               const total = between(i.start, i.end) + 1;
-                              const sub = i.startTime ? `${i.startTime}–${i.endTime}` : total > 1 ? `day ${between(i.start, k) + 1} of ${total}` : null;
+                              const sub = i.startTime
+                                  ? `${i.startTime}–${i.endTime}`
+                                  : total > 1
+                                    ? `day ${between(i.start, k) + 1} of ${total}`
+                                    : null;
                               return h(
                                   'li',
                                   { style: 'align-items:center;cursor:pointer', onclick: () => FW.open(i.url) },
