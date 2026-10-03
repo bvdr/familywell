@@ -22,7 +22,7 @@ its own family and permissions.
 **Disconnecting:** Settings → Connected apps → *Disconnect*. Access stops immediately. Leaving a family
 also cuts off every connection made for it. A connection unused for 30 days expires; reconnect it.
 
-**Deletes are reversible.** Anything an assistant (or you, in the app) deletes goes to a 30-day trash.
+**Deletes:** tasks, lists, shopping items, expenses and notes go to a 30-day trash.
 Settings → Recently deleted and the `*_list_deleted` / `*_restore` tools bring it back (both read the same
 per-module `TrashSource`); `trash:purge` removes it for good afterwards.
 
@@ -35,11 +35,11 @@ per-module `TrashSource`); `trash:purge` removes it for good afterwards.
 | Shopping | `shopping_list_lists`, `shopping_get_list`, `shopping_search` | `shopping_create_list`, `shopping_update_list`, `shopping_add_item`, `shopping_update_item`, `shopping_delete_list`, `shopping_delete_item`, `shopping_list_deleted`, `shopping_restore` |
 | Spending | `spending_list_expenses`, `spending_get_expense`, `spending_summary`, `spending_list_categories` | `spending_add_expense`, `spending_update_expense`, `spending_delete_expense`, `spending_list_deleted`, `spending_restore` |
 | Notes | `notes_list`, `notes_get`, `notes_search` | `notes_create`, `notes_update`, `notes_delete`, `notes_list_deleted`, `notes_restore` |
-| Vehicles | `vehicles_list`, `vehicles_get`, `vehicles_history` | `vehicles_log_mileage`, `vehicles_log_fuel`, `vehicles_complete_maintenance`, `vehicles_add_repair`, `vehicles_add_expense`, `vehicles_add_document`, `vehicles_attach_file` |
-| Contacts | `contacts_list` (with search), `contacts_get` | `contacts_create`, `contacts_update` |
-| Birthdays | `birthdays_list` (soonest first, `within_days`) | `birthdays_add`, `birthdays_update` |
-| Inventory | `inventory_list`, `inventory_get`, `inventory_needs_attention` | `inventory_add_item`, `inventory_update_item`, `inventory_adjust_quantity`, `inventory_add_to_shopping` |
-| Projects | `projects_list`, `projects_get` | `projects_create`, `projects_update`, `projects_add_task`, `projects_update_task`, `projects_delete_task` |
+| Vehicles | `vehicles_list`, `vehicles_get`, `vehicles_history` | `vehicles_log_mileage`, `vehicles_log_fuel`, `vehicles_complete_maintenance`, `vehicles_add_repair`, `vehicles_add_expense`, `vehicles_add_document`, `vehicles_attach_file`, `vehicles_delete_record`, `vehicles_delete` |
+| Contacts | `contacts_list` (with search), `contacts_get` | `contacts_create`, `contacts_update`, `contacts_delete` |
+| Birthdays | `birthdays_list` (soonest first, `within_days`) | `birthdays_add`, `birthdays_update`, `birthdays_delete` |
+| Inventory | `inventory_list`, `inventory_get`, `inventory_needs_attention` | `inventory_add_item`, `inventory_update_item`, `inventory_adjust_quantity`, `inventory_add_to_shopping`, `inventory_delete_item` |
+| Projects | `projects_list`, `projects_get` | `projects_create`, `projects_update`, `projects_add_task`, `projects_update_task`, `projects_delete_task`, `projects_delete` |
 
 **Files:** MCP has no upload primitive, so tools that take a file (`vehicles_add_document`,
 `vehicles_attach_file`, and the optional file on `vehicles_add_repair` / `vehicles_complete_maintenance`) accept it
@@ -60,10 +60,13 @@ current odometer alone.
 tools run the same `task.serialize` and `task.saved` hooks as the web editor, and extensions add their tool
 parameters through the `task.mcp.schema` filter, so Tasks itself knows nothing about them.
 
-Contacts, birthdays, inventory and projects have no delete tools except project tasks (which go to the
-trash like any task); their other records are not soft-deleted, so removing them stays a deliberate action
-in the app. Vehicle distances are kilometres in and out (miles are only a display setting). There are no vehicle delete
-tools: car records have no trash, so deleting them stays a deliberate action in the app.
+Contacts, birthdays, inventory items, projects and car records have no trash: their delete tools are permanent,
+marked destructive (clients ask before running them) and tell the assistant to confirm with the person first.
+Each runs the same path as the app's delete button and frees stored files. `vehicles_delete_record` also removes a
+single mileage reading (the app has no button for that): deleting the newest reading, when the odometer still shows
+it, sets the odometer back to the previous reading.
+
+Vehicle distances are kilometres in and out (miles are only a display setting).
 
 Tools act **as the person who connected**: the same sharing rules as the web app apply (a private list
 of another member is invisible), the same validation, and the same notifications to the family.
