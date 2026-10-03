@@ -92,18 +92,8 @@ class TasksController extends Controller
             'visibility' => ['nullable', 'in:family,invited,private'],
         ]);
 
-        $list = TaskList::create([
-            'name' => $data['name'],
-            'color' => $data['color'] ?? 'green',
-            'icon' => $data['icon'] ?? 'list',
-            'created_by' => $request->user()->id,
-        ]);
-
         // Creator owns the share (can manage visibility/roles); defaults to `family` visibility.
-        $list->shares()->create(['user_id' => $request->user()->id, 'role' => 'owner']);
-        if (! empty($data['visibility'])) {
-            $list->setVisibility($data['visibility']);
-        }
+        $list = TaskList::createFor($request->user(), $data, $data['visibility'] ?? null);
 
         Realtime::broadcast(new TasksChanged((int) CurrentFamily::id()));
 
@@ -270,21 +260,8 @@ class TasksController extends Controller
             'parent_id' => ['nullable', 'integer'],
         ]);
 
-        // Sub-task: the parent must live in this list and be top-level (one level deep only).
-        if (! empty($data['parent_id'])) {
-            $parent = $list->tasks()->findOrFail($data['parent_id']);
-            abort_if($parent->parent_id !== null, 422, 'Sub-tasks cannot have sub-tasks.');
-        }
-
-        $task = $list->tasks()->create([
-            'parent_id' => $data['parent_id'] ?? null,
-            'title' => $data['title'],
-            'note' => $data['note'] ?? null,
-            'due_date' => $data['due_date'] ?? null,
-            'assigned_to' => $data['assigned_to'] ?? null,
-            'position' => (int) $list->tasks()->where('parent_id', $data['parent_id'] ?? null)->max('position') + 1,
-            'created_by' => $request->user()->id,
-        ]);
+        // Sub-task rules (one level deep, parent in this list) live in TaskList::addTask.
+        $task = $list->addTask($request->user(), $data);
 
         // Behavior hook `task.saved`: a module persists its own per-task data from the request
         // (e.g. an `important` flag). No-op with no listener.
