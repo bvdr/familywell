@@ -55,6 +55,10 @@ return [
     // the mcp host must point clients at the main host. Null (local/dev/tests) = the request's own host.
     'authorization_server' => env('MCP_AUTHORIZATION_SERVER'),
 
+    // The address people paste into their assistant, shown on Settings > Connected apps.
+    // Null = this host's /mcp (local/dev).
+    'server_url' => env('MCP_SERVER_URL'),
+
     /*
     |--------------------------------------------------------------------------
     | Tool Search

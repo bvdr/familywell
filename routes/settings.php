@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Settings\ConnectedAppsController;
 use App\Http\Controllers\Settings\MediaLibraryController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
@@ -21,6 +22,10 @@ Route::middleware('auth')->group(function () {
         Route::get('settings/media', [MediaLibraryController::class, 'index'])->name('media');
         Route::delete('settings/media/{type}/{id}', [MediaLibraryController::class, 'destroy'])->name('media.destroy');
     });
+
+    // AI assistants / MCP clients connected through OAuth (see routes/mcp.php), and revoking them.
+    Route::get('settings/connected-apps', [ConnectedAppsController::class, 'index'])->name('connected-apps');
+    Route::delete('settings/connected-apps/{token}', [ConnectedAppsController::class, 'destroy'])->name('connected-apps.destroy');
 
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
