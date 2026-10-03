@@ -92,3 +92,8 @@ A module may ship a prebuilt frontend bundle (referenced by `frontend` in the ma
 4. `php artisan modules:migrate`, then enable it from **Settings → Modules**.
 
 Read `modules/spending` for a complete, production module: controllers, models, multi-currency handling, receipts, sharing, and realtime.
+
+## Exposing a module to AI assistants
+
+A module can offer tools to the MCP server (Claude, ChatGPT, Cursor...) by registering them with
+`McpTools::register()` from its provider. See [mcp.md](mcp.md).
