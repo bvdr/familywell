@@ -35,7 +35,7 @@ per-module `TrashSource`); `trash:purge` removes it for good afterwards.
 | Shopping | `shopping_list_lists`, `shopping_get_list`, `shopping_search` | `shopping_create_list`, `shopping_update_list`, `shopping_add_item`, `shopping_update_item`, `shopping_delete_list`, `shopping_delete_item`, `shopping_list_deleted`, `shopping_restore` |
 | Spending | `spending_list_expenses`, `spending_get_expense`, `spending_summary`, `spending_list_categories` | `spending_add_expense`, `spending_update_expense`, `spending_delete_expense`, `spending_list_deleted`, `spending_restore` |
 | Notes | `notes_list`, `notes_get`, `notes_search` | `notes_create`, `notes_update`, `notes_delete`, `notes_list_deleted`, `notes_restore` |
-| Vehicles | `vehicles_list`, `vehicles_get`, `vehicles_history` | `vehicles_log_mileage`, `vehicles_log_fuel`, `vehicles_complete_maintenance`, `vehicles_add_repair`, `vehicles_add_expense`, `vehicles_add_document`, `vehicles_attach_file`, `vehicles_delete_record`, `vehicles_delete` |
+| Vehicles | `vehicles_list`, `vehicles_get`, `vehicles_history` | `vehicles_log_mileage`, `vehicles_log_fuel`, `vehicles_add_maintenance`, `vehicles_update_maintenance`, `vehicles_complete_maintenance`, `vehicles_add_repair`, `vehicles_add_expense`, `vehicles_add_document`, `vehicles_attach_file`, `vehicles_delete_record`, `vehicles_delete` |
 | Contacts | `contacts_list` (with search), `contacts_get` | `contacts_create`, `contacts_update`, `contacts_delete` |
 | Birthdays | `birthdays_list` (soonest first, `within_days`) | `birthdays_add`, `birthdays_update`, `birthdays_delete` |
 | Inventory | `inventory_list`, `inventory_get`, `inventory_needs_attention` | `inventory_add_item`, `inventory_update_item`, `inventory_adjust_quantity`, `inventory_add_to_shopping`, `inventory_delete_item` |
@@ -54,6 +54,12 @@ assistant creates the record and links the person to the app page to upload the 
 **Mileage dates:** `vehicles_log_mileage` takes an optional past `date`. A reading dated before today goes into the
 history at that date, must fit between the readings around it (and not exceed today's odometer), and leaves the
 current odometer alone.
+
+**Planned maintenance:** `vehicles_add_maintenance` takes intervals (`every_km` / `every_months`, recurring) and/or
+a due point (`due_km` / `due_on`). With only a due point it is a one-off job, e.g. a quoted brake job "in about
+2,000 km": it shows as due like any service, and completing it records it in the history and removes the schedule.
+On a recurring service a due point brings this occurrence forward and is cleared on completion. Same rules as the
+app's maintenance form (`VehicleMaintenanceSchedule::rules`).
 
 **Task extensions:** when a family has Important to-dos or Recurring to-dos on, `tasks_create_task` and
 `tasks_update_task` gain `important` / `recurrence` parameters and task payloads carry those fields. The Tasks
