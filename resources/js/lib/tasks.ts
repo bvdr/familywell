@@ -28,6 +28,8 @@ export const LIST_COLORS: Record<string, string> = {
 
 export const listColor = (slug: string) => LIST_COLORS[slug] ?? LIST_COLORS.green;
 export const LIST_COLOR_KEYS = Object.keys(LIST_COLORS);
+// Tile/bar classes for an optional colour (calendar items/events): the palette, or the neutral tile token when unset.
+export const itemTone = (color: string | null) => (color ? listColor(color) : 'bg-tile text-tile-foreground');
 
 // A due date rendered as a short label + urgency tone for the chip. Null => no due date.
 export function dueLabel(iso: string | null): { label: string; tone: string } | null {

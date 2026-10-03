@@ -89,6 +89,9 @@ export function clip(item: CalItem, from: string, to: string): { offset: number;
     return { offset: daysBetween(from, s), span: daysBetween(s, e) + 1 };
 }
 
+// Stable React key for an item occurrence (a repeating event yields one item per start date).
+export const itemKey = (i: CalItem) => `${i.source}-${i.kind}-${i.id}-${i.start}`;
+
 export const personKey = (p: { type: string; id: number }) => `${p.type}:${p.id}`;
 
 export function filterItems(items: CalItem[], f: CalFilter): CalItem[] {
