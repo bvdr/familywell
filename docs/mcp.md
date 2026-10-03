@@ -41,6 +41,7 @@ per-module `TrashSource`); `trash:purge` removes it for good afterwards.
 | Recipes | `recipes_list` (search title / tag / ingredient), `recipes_get`, `recipes_scale` | `recipes_create`, `recipes_update`, `recipes_set_photo`, `recipes_add_to_shopping`, `recipes_delete` |
 | Inventory | `inventory_list`, `inventory_get`, `inventory_needs_attention` | `inventory_add_item`, `inventory_update_item`, `inventory_adjust_quantity`, `inventory_add_to_shopping`, `inventory_delete_item` |
 | Projects | `projects_list`, `projects_get` | `projects_create`, `projects_update`, `projects_add_task`, `projects_update_task`, `projects_delete_task`, `projects_delete` |
+| Calendar | `calendar_list`, `calendar_get_event` | `calendar_create_event`, `calendar_update_event`, `calendar_delete_event`, `calendar_add_todo` |
 
 **Files:** MCP has no upload primitive, so tools that take a file (`vehicles_add_document`,
 `vehicles_attach_file`, and the optional file on `vehicles_add_repair` / `vehicles_complete_maintenance`) accept it
@@ -86,6 +87,15 @@ Vehicle distances are kilometres in and out (miles are only a display setting).
 Tools act **as the person who connected**: the same sharing rules as the web app apply (a private list
 of another member is invisible), the same validation, and the same notifications to the family.
 
+**Calendar:** `calendar_list` returns every event in a date range (repeats expanded) plus, from modules
+this connection may read, task due dates, birthdays, car maintenance due dates and project starts — all
+as one unified `items` list. A module's items appear only when the token can also read that module
+(e.g. without Tasks access, `calendar_list` carries calendar events and birthdays but not task due
+dates). `calendar_get_event` returns one event with its people and to-dos. `calendar_create_event`,
+`calendar_update_event` and `calendar_delete_event` take a `repeat`; editing or deleting a repeating
+event applies to the whole series, not a single occurrence. `calendar_add_todo` adds a to-do linked to
+an event (shown on the event's page, with no page of its own). Range requests are capped at 400 days.
+
 ## Widgets (MCP Apps)
 
 Hosts that support [MCP Apps](https://modelcontextprotocol.io/extensions/apps/overview) (Claude, Claude
@@ -105,6 +115,7 @@ of only the JSON. Other clients see the same JSON as before.
 | `note` | `notes_get` | tick the note's `- [ ]` checklists |
 | `contact` | `contacts_get` | call / email / map links |
 | `recipe` | `recipes_list`, `recipes_get`, `recipes_scale`, `recipes_create`, `recipes_update` | photo, calculator (servings / total / I have…), scaled ingredients, tickable steps, add to shopping, full screen |
+| `calendar` | `calendar_list`, `calendar_get_event` | agenda by day (a multi-day item shows as day N of M), or one event with its people and to-dos (read only) |
 
 Only image widgets (`Widget::IMAGES`, the recipe widget) get a CSP `resourceDomains` entry, for this app's own
 origin (signed photo URLs). Widgets change data only by calling the normal write tools through the host, so a *Read* connection gets
