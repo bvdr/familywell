@@ -5,6 +5,7 @@ namespace Modules\Calendar;
 use App\Support\Calendar\CalendarSources;
 use App\Support\Dashboard\DashboardAgenda;
 use App\Support\Dashboard\DashboardWidgets;
+use App\Support\Mcp\McpTools;
 use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareableRegistry;
@@ -25,6 +26,12 @@ class CalendarServiceProvider extends ServiceProvider
         Trash::source('calendar', CalendarTrash::class);
         Trash::register(CalendarEvent::class);
         ShareableRegistry::register('calendar_event', CalendarEvent::class);
+
+        // MCP: calendar:read / calendar:write scopes.
+        McpTools::register('calendar', 'Calendar', [
+            Mcp\ListCalendar::class, Mcp\GetEvent::class, Mcp\CreateEvent::class,
+            Mcp\UpdateEvent::class, Mcp\DeleteEvent::class, Mcp\AddTodo::class,
+        ]);
 
         // The calendar's own events, through the same registry other modules use.
         CalendarSources::register('calendar', function (string $from, string $to, int $userId) {
