@@ -17,6 +17,18 @@ class Folder extends Model
 
     protected $fillable = ['name', 'color', 'position', 'created_by'];
 
+    /**
+     * The family folder called $name (case-insensitive), created at the end of the folder list when there
+     * is none. Lets an assistant file a note "under Recipes" without managing folders separately.
+     */
+    public static function findOrCreateNamed(string $name, int $userId): self
+    {
+        $name = trim($name);
+
+        return static::query()->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->first()
+            ?? static::create(['name' => $name, 'color' => 'gray', 'position' => (int) static::max('position') + 1, 'created_by' => $userId]);
+    }
+
     public function notes(): HasMany
     {
         return $this->hasMany(Note::class);
