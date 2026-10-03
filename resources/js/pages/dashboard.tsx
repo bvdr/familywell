@@ -10,6 +10,7 @@ import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     Blocks,
+    CalendarDays,
     Check,
     ChefHat,
     FolderKanban,
@@ -32,7 +33,8 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' 
 type DashItem = { title: string; subtitle: string; href: string; icon: string; category?: string; color?: string | null };
 // A dated leaf item (a task / shopping item due on a day) for the Today / This Week sections.
 // toggleUrl: empty-body PATCH marks it done/bought (and it drops off on the next dashboard load).
-type AgendaItem = DashItem & { dueDate: string; toggleUrl: string };
+// toggleUrl is absent for display-only rows (e.g. calendar events: they aren't "done").
+type AgendaItem = DashItem & { dueDate: string; toggleUrl?: string };
 
 // Map a provider's icon key to a lucide icon; fall back to a neutral one.
 const ICONS: Record<string, LucideIcon> = {
@@ -42,6 +44,7 @@ const ICONS: Record<string, LucideIcon> = {
     'list-checks': ListChecks,
     'sticky-note': StickyNote,
     'chef-hat': ChefHat,
+    calendar: CalendarDays,
 };
 const iconFor = (key: string) => ICONS[key] ?? Blocks;
 
@@ -165,21 +168,27 @@ function AgendaRow({ item }: { item: AgendaItem }) {
     const badge = dueBadge(item.dueDate, t, locale);
     const [done, setDone] = useState(false);
     const toggle = () => {
+        if (!item.toggleUrl) return;
         setDone(true); // optimistic check; the redirect back reloads the dashboard and removes it
         router.patch(item.toggleUrl, {}, { preserveScroll: true });
     };
     return (
         <div className="bg-surface-card flex items-center gap-2.5 rounded-xl border px-3 py-2.5">
-            <button
-                type="button"
-                onClick={toggle}
-                aria-label={done ? t('dashboard.is_done') : t('dashboard.mark_done')}
-                className={`flex size-6 shrink-0 items-center justify-center rounded-full border transition-colors ${
-                    done ? 'border-primary bg-accent-strong text-accent-strong-foreground' : 'border-border'
-                }`}
-            >
-                {done && <Check className="size-3.5" />}
-            </button>
+            {item.toggleUrl ? (
+                <button
+                    type="button"
+                    onClick={toggle}
+                    aria-label={done ? t('dashboard.is_done') : t('dashboard.mark_done')}
+                    className={`flex size-6 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                        done ? 'border-primary bg-accent-strong text-accent-strong-foreground' : 'border-border'
+                    }`}
+                >
+                    {done && <Check className="size-3.5" />}
+                </button>
+            ) : (
+                // Display-only row (e.g. a calendar event): a dot instead of a tick, nothing to toggle.
+                <span className="bg-accent-strong mx-2 size-2 shrink-0 rounded-full" aria-hidden />
+            )}
             <Link href={item.href} prefetch className="flex min-w-0 flex-1 items-center gap-2.5">
                 <span className="min-w-0 flex-1">
                     <span className={`block truncate text-[15px] ${done ? 'text-muted-foreground line-through' : 'text-primary'}`}>{item.title}</span>
@@ -201,7 +210,21 @@ export default function Dashboard({
     today?: AgendaItem[];
     thisWeek?: AgendaItem[];
     // Per-module headline data (DashboardWidgets): only present when that module is enabled.
-    widgets?: { spending?: { total: number; currency: string }; birthdays?: { personId: number; name: string; turning: number | null }[] };
+    widgets?: {
+        spending?: { total: number; currency: string };
+        birthdays?: { personId: number; name: string; turning: number | null }[];
+        calendar?: {
+            id: number;
+            title: string;
+            icon: string;
+            color: string | null;
+            href: string;
+            now: boolean;
+            dayOf: number | null;
+            days: number;
+            inDays: number | null;
+        }[];
+    };
 }) {
     const { auth, modules } = usePage<SharedData & { modules?: { enabled?: string[] } }>().props;
     const t = useT();
@@ -266,6 +289,28 @@ export default function Dashboard({
                         >
                             <Plus className="size-5" />
                         </Link>
+                    </div>
+                )}
+
+                {/* Now & next: multi-day events happening now or starting within 30 days (calendar module). */}
+                {widgets.calendar && (
+                    <div className="bg-surface-card flex flex-col gap-1 rounded-xl border p-4">
+                        <span className="text-muted-foreground text-xs">{t('calendar.now_next')}</span>
+                        {widgets.calendar.map((e) => (
+                            <Link key={`${e.id}-${e.href}`} href={e.href} prefetch className="flex items-center gap-3 py-1.5">
+                                <span className="bg-tile text-tile-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
+                                    <DynamicLucideIcon name={e.icon} className="size-4" />
+                                </span>
+                                <span className="text-primary min-w-0 flex-1 truncate">{e.title}</span>
+                                <span
+                                    className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${e.now ? 'bg-accent-subtle text-primary' : 'bg-surface text-muted-foreground'}`}
+                                >
+                                    {e.now
+                                        ? t('calendar.day_of', { n: e.dayOf ?? 1, total: e.days })
+                                        : t('calendar.starts_in', { count: e.inDays ?? 0 })}
+                                </span>
+                            </Link>
+                        ))}
                     </div>
                 )}
 
