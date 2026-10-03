@@ -83,10 +83,33 @@ test('timelineRows keeps in-window items in start order with clipped geometry', 
     const c = item({ id: 3, title: 'Paște', start: '2026-04-12', end: '2026-04-12' });
     const rows = timelineRows([a, b, c], '2026-07-12', '2026-07-31');
     assert.deepEqual(
-        rows.map((r) => [r.item.title, r.offset, r.span]),
+        rows.map((r) => [r.item.title, r.bars.map((x) => [x.offset, x.span])]),
         [
-            ['Grecia', 5, 9],
-            ['Tabăra', 14, 6],
+            ['Grecia', [[5, 9]]],
+            ['Tabăra', [[14, 6]]],
         ],
+    );
+});
+
+test('timelineRows puts every occurrence of a repeating item on one row', () => {
+    const swim = (start) => item({ id: 7, title: 'Swim class', start, end: start });
+    const rows = timelineRows([swim('2026-07-22'), swim('2026-07-08'), swim('2026-07-15'), swim('2026-08-05')], '2026-07-01', '2026-07-31');
+    assert.equal(rows.length, 1);
+    assert.deepEqual(
+        rows[0].bars.map((x) => x.item.start),
+        ['2026-07-08', '2026-07-15', '2026-07-22'],
+    );
+    assert.equal(rows[0].item.start, '2026-07-08');
+});
+
+test('timelineRows breaks a same-start tie by title', () => {
+    const rows = timelineRows(
+        [item({ id: 1, title: 'Zoo' }), item({ id: 2, title: 'Art' }), item({ id: 3, kind: 'task', title: 'Bake' })],
+        '2026-07-01',
+        '2026-07-31',
+    );
+    assert.deepEqual(
+        rows.map((r) => r.item.title),
+        ['Art', 'Bake', 'Zoo'],
     );
 });

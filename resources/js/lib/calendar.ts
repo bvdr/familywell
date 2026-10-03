@@ -110,12 +110,22 @@ export function shiftDate(view: string, zoom: string, date: string, dir: 1 | -1)
     return ymd(new Date(d.getFullYear(), d.getMonth() + dir, 1));
 }
 
-// Timeline rows: one per item occurrence inside the window (items fully outside are dropped; Notion's
-// "off-screen arrow" rows are deliberately not copied), ordered by start then title.
-export function timelineRows(items: CalItem[], from: string, to: string) {
-    return items
-        .map((item) => ({ item, geo: clip(item, from, to) }))
-        .filter((r): r is { item: CalItem; geo: { offset: number; span: number } } => r.geo !== null)
-        .sort((a, b) => a.item.start.localeCompare(b.item.start) || a.item.title.localeCompare(b.item.title))
-        .map(({ item, geo }) => ({ item, ...geo }));
+// Timeline rows: one per item (a repeating series is one item, so its occurrences share a row as several bars),
+// keeping only occurrences inside the window (Notion's "off-screen arrow" rows are deliberately not copied).
+// Rows are ordered by their earliest in-window start, then title; `item` is that earliest occurrence.
+export type TimelineBar = { item: CalItem; offset: number; span: number };
+export function timelineRows(items: CalItem[], from: string, to: string): { key: string; item: CalItem; bars: TimelineBar[] }[] {
+    const rows = new Map<string, TimelineBar[]>();
+    for (const item of items) {
+        const geo = clip(item, from, to);
+        if (!geo) continue;
+        const key = `${item.source}-${item.kind}-${item.id}`;
+        rows.set(key, [...(rows.get(key) ?? []), { item, ...geo }]);
+    }
+    return [...rows]
+        .map(([key, bars]) => {
+            bars.sort((a, b) => a.offset - b.offset);
+            return { key, item: bars[0].item, bars };
+        })
+        .sort((a, b) => a.bars[0].offset - b.bars[0].offset || a.item.title.localeCompare(b.item.title));
 }

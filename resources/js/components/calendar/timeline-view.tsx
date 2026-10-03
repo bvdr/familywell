@@ -1,16 +1,19 @@
 import { Link } from '@inertiajs/react';
-import { useEffect, useRef } from 'react';
+import { Fragment, useEffect, useRef, type CSSProperties } from 'react';
 
 import { LucideIcon } from '@/components/lucide-icon';
 import { daysOf, itemKey, parseDay, timelineRows, ymd, type CalItem } from '@/lib/calendar';
 import { useLocale, useT } from '@/lib/i18n';
 import { itemTone } from '@/lib/tasks';
 
-const COL = 44; // min px per day column: fits a 2-digit date + weekday letter, keeps a month ~1350px wide
+// Min width per day column: 44px on phones (a comfortable tap/read width, the box scrolls), 24px from lg up so a
+// whole month fits a 1280px window like Notion's (the narrow weekday letter, a 2-digit date and the 24px today
+// circle still fit). Set as Tailwind classes over a --days var, since inline styles can't be responsive.
+const TRACK_MIN = 'min-w-[calc(var(--days)*44px)] lg:min-w-[calc(var(--days)*24px)]';
 const SHORT = 3; // bars under this many days are too narrow for a title: it goes beside the bar instead
 const isWeekend = (d: string) => [0, 6].includes(parseDay(d).getDay());
 // Percent of the track width, so the columns stretch to fill the box when the window is narrower than it
-// (a 14-day week zoom on desktop) and fall back to COL px + horizontal scroll when it is wider (a month on a phone).
+// (a 14-day week zoom on desktop) and fall back to the TRACK_MIN floor + horizontal scroll when it is wider (a month on a phone).
 const pct = (n: number, total: number) => `${(n / total) * 100}%`;
 
 // Notion-style timeline: a sticky name column, a sticky date header, shaded weekends, a today line and one row
@@ -30,7 +33,12 @@ export function TimelineView({ items, range }: { items: CalItem[]; range: { from
     useEffect(() => {
         const b = box.current;
         const c = todayCell.current;
-        if (!b || !c) return;
+        if (!b) return;
+        // Today outside this window: start at its first day, not wherever the previous window was scrolled to.
+        if (!c) {
+            b.scrollLeft = 0;
+            return;
+        }
         const br = b.getBoundingClientRect();
         const cr = c.getBoundingClientRect();
         b.scrollLeft += cr.left + cr.width / 2 - (br.left + br.width / 2);
@@ -40,11 +48,11 @@ export function TimelineView({ items, range }: { items: CalItem[]; range: { from
         <div ref={box} className="bg-surface-card max-h-[calc(100dvh-12rem)] max-w-full overflow-auto rounded-2xl border">
             <div className="flex w-max min-w-full">
                 {/* Name column: sticks to the left while the dates scroll under it. */}
-                <div className="bg-surface-card sticky left-0 z-20 w-12 shrink-0 border-r sm:w-56">
+                <div className="bg-surface-card sticky left-0 z-20 w-12 shrink-0 border-r sm:w-56 lg:w-48">
                     <div className="bg-surface-card sticky top-0 z-10 h-12 border-b" />
-                    {rows.map(({ item }) => (
+                    {rows.map(({ key, item }) => (
                         <Link
-                            key={itemKey(item)}
+                            key={key}
                             href={item.href}
                             title={item.title}
                             className="hover:bg-surface flex h-11 items-center justify-center gap-2 border-b px-3 text-sm sm:justify-start"
@@ -56,7 +64,7 @@ export function TimelineView({ items, range }: { items: CalItem[]; range: { from
                 </div>
 
                 {/* Track: day columns + bars, positioned in % of its width. */}
-                <div className="relative flex-1" style={{ minWidth: days.length * COL }}>
+                <div className={`relative flex-1 ${TRACK_MIN}`} style={{ '--days': days.length } as CSSProperties}>
                     {/* Weekend shading + today line: painted first, so the sticky header covers them and the bars sit on top. */}
                     <div className="pointer-events-none absolute inset-0 flex" aria-hidden>
                         {days.map((d) => (
@@ -86,26 +94,31 @@ export function TimelineView({ items, range }: { items: CalItem[]; range: { from
                             </div>
                         ))}
                     </div>
-                    {rows.map(({ item, offset, span }) => (
-                        <div key={itemKey(item)} className="relative h-11 overflow-hidden border-b">
-                            <Link
-                                href={item.href}
-                                title={item.title}
-                                className={`absolute top-1.5 flex h-8 items-center gap-1.5 overflow-hidden rounded-lg px-2 text-sm font-medium whitespace-nowrap shadow-xs hover:brightness-95 ${itemTone(item.color)} ${item.done ? 'line-through opacity-60' : ''}`}
-                                style={{ left: `calc(${pct(offset, days.length)} + 2px)`, width: `calc(${pct(span, days.length)} - 4px)` }}
-                            >
-                                <LucideIcon name={item.icon} className="size-4 shrink-0" />
-                                {span >= SHORT && <span className="truncate">{item.title}</span>}
-                            </Link>
-                            {/* Gantt-style outside label for short bars; the row clips it at the window's edge. */}
-                            {span < SHORT && (
-                                <span
-                                    className={`text-foreground pointer-events-none absolute top-1.5 flex h-8 items-center pl-1.5 text-sm whitespace-nowrap ${item.done ? 'text-muted-foreground line-through' : ''}`}
-                                    style={{ left: pct(offset + span, days.length) }}
-                                >
-                                    {item.title}
-                                </span>
-                            )}
+                    {rows.map(({ key, bars }) => (
+                        <div key={key} className="relative h-11 overflow-hidden border-b">
+                            {bars.map(({ item, offset, span }) => (
+                                <Fragment key={itemKey(item)}>
+                                    <Link
+                                        href={item.href}
+                                        title={item.title}
+                                        className={`absolute top-1.5 flex h-8 items-center gap-1.5 overflow-hidden rounded-lg text-sm font-medium whitespace-nowrap shadow-xs hover:brightness-95 ${span < SHORT ? 'justify-center px-0.5' : 'px-2'} ${itemTone(item.color)} ${item.done ? 'line-through opacity-60' : ''}`}
+                                        style={{ left: `calc(${pct(offset, days.length)} + 2px)`, width: `calc(${pct(span, days.length)} - 4px)` }}
+                                    >
+                                        <LucideIcon name={item.icon} className="size-4 shrink-0" />
+                                        {span >= SHORT && <span className="truncate">{item.title}</span>}
+                                    </Link>
+                                    {/* Gantt-style outside label for short bars (which carry only a centred icon, as one desktop day is
+                                        24px); the row clips the label at the window's edge. */}
+                                    {span < SHORT && (
+                                        <span
+                                            className={`text-foreground pointer-events-none absolute top-1.5 flex h-8 items-center pl-1.5 text-sm whitespace-nowrap ${item.done ? 'text-muted-foreground line-through' : ''}`}
+                                            style={{ left: pct(offset + span, days.length) }}
+                                        >
+                                            {item.title}
+                                        </span>
+                                    )}
+                                </Fragment>
+                            ))}
                         </div>
                     ))}
                 </div>
