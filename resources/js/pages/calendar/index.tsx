@@ -1,8 +1,9 @@
 import { Head, router } from '@inertiajs/react';
-import { ChevronLeft, ChevronRight, Filter, Plus } from 'lucide-react';
+import { CalendarPlus, ChevronLeft, ChevronRight, Filter, Plus } from 'lucide-react';
 import { useState } from 'react';
 
 import { EventSheet } from '@/components/calendar/event-sheet';
+import { FeedSheet } from '@/components/calendar/feed-sheet';
 import { FilterSheet } from '@/components/calendar/filter-sheet';
 import { MonthView } from '@/components/calendar/month-view';
 import { TimelineView } from '@/components/calendar/timeline-view';
@@ -39,7 +40,7 @@ export type CalendarProps = {
 
 // View, zoom and date live in the query string (back/forward + shareable); the server answers with the range
 // and its items. Navigation is a partial reload of only those props: members/contacts/projects stay put.
-export default function CalendarIndex({ view, zoom, date, range, items, sources, members, contacts, projects }: CalendarProps) {
+export default function CalendarIndex({ view, zoom, date, range, items, sources, members, contacts, projects, feedUrl }: CalendarProps) {
     const t = useT();
     const locale = useLocale();
     const todayYmd = ymd(new Date());
@@ -59,6 +60,7 @@ export default function CalendarIndex({ view, zoom, date, range, items, sources,
     });
     const [filter, setFilterState] = useState<CalFilter>(() => sanitizeFilter(readFilter()));
     const [filtering, setFiltering] = useState(false);
+    const [feedOpen, setFeedOpen] = useState(false);
     const setFilter = (f: CalFilter) => {
         setFilterState(f);
         try {
@@ -104,6 +106,9 @@ export default function CalendarIndex({ view, zoom, date, range, items, sources,
                         <Filter className="size-4" />
                         {active > 0 ? ` ${active}` : ''}
                     </Button>
+                    <Button variant="ghost" size="icon" aria-label={t('calendar.subscribe')} onClick={() => setFeedOpen(true)}>
+                        <CalendarPlus className="size-5" />
+                    </Button>
                     {/* Hidden on mobile: the nav's context-aware "+" adds an event there. */}
                     <Button size="icon" className="ml-2 hidden rounded-full md:inline-flex" onClick={() => add()} aria-label={t('calendar.new')}>
                         <Plus className="size-5" />
@@ -111,7 +116,7 @@ export default function CalendarIndex({ view, zoom, date, range, items, sources,
                 </div>
 
                 {/* View switch, plus the zoom on the timeline. Both are query params, so each tap is a partial reload
-                    and the server answers with the matching range. Subscribe arrives with Task 10. */}
+                    and the server answers with the matching range. */}
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <Segmented value={view} options={['month', 'timeline'] as const} onChange={(v) => go({ view: v })} />
                     {view === 'timeline' && <Segmented value={zoom} options={['week', 'month'] as const} onChange={(z) => go({ zoom: z })} />}
@@ -139,6 +144,7 @@ export default function CalendarIndex({ view, zoom, date, range, items, sources,
                 members={members}
                 contacts={contacts}
             />
+            <FeedSheet open={feedOpen} onOpenChange={setFeedOpen} url={feedUrl} />
         </AppLayout>
     );
 }

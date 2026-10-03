@@ -99,7 +99,14 @@ class CalendarServiceProvider extends ServiceProvider
                 Route::post('/events/{event}/tasks/reorder', [CalendarController::class, 'reorderTasks'])->name('tasks.reorder');
                 Route::patch('/tasks/{task}', [CalendarController::class, 'updateTask'])->name('tasks.update');
                 Route::delete('/tasks/{task}', [CalendarController::class, 'destroyTask'])->name('tasks.destroy');
+                Route::post('/feed', [CalendarFeedController::class, 'reset'])->name('feed.reset');
             });
+
+        // ICS subscribe feed: hit by Google/Apple servers with no session; the unguessable token authorizes.
+        Route::middleware(['throttle:60,1'])
+            ->get('/calendar/feed/{token}.ics', [CalendarFeedController::class, 'show'])
+            ->where('token', '[A-Za-z0-9]+')
+            ->name('calendar.feed');
     }
 
     // Self-gate for listeners/providers: providers boot for every family (rule 2 of the hooks pattern).
