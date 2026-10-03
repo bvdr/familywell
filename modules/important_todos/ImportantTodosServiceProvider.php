@@ -50,6 +50,16 @@ class ImportantTodosServiceProvider extends ServiceProvider
             );
         });
 
+        // MCP — offer `important` on the Tasks create/update tools (the tools then fire task.saved with it,
+        // which the listener above persists). Self-gated like every listener here.
+        $hooks->listen('task.mcp.schema', function (array $props, $schema) {
+            if (! $this->enabledHere()) {
+                return $props;
+            }
+
+            return $props + ['important' => $schema->boolean()->description('Star the task as important (important tasks sort first).')];
+        });
+
         // BEHAVIOR (query) — sort important tasks first. Left-join our own table and add a primary
         // DESC order; the tasks controller applies `position` as the secondary order afterwards, so
         // the visible result is "important first, then the usual order". `select` keeps the Task model
