@@ -45,6 +45,10 @@ class CalendarServiceProvider extends ServiceProvider
                 Route::get('/events/{event}', [CalendarController::class, 'show'])->name('events.show');
                 Route::patch('/events/{event}', [CalendarController::class, 'update'])->name('events.update');
                 Route::delete('/events/{event}', [CalendarController::class, 'destroy'])->name('events.destroy');
+                Route::post('/events/{event}/tasks', [CalendarController::class, 'storeTask'])->name('tasks.store');
+                Route::post('/events/{event}/tasks/reorder', [CalendarController::class, 'reorderTasks'])->name('tasks.reorder');
+                Route::patch('/tasks/{task}', [CalendarController::class, 'updateTask'])->name('tasks.update');
+                Route::delete('/tasks/{task}', [CalendarController::class, 'destroyTask'])->name('tasks.destroy');
             });
     }
 
