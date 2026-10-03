@@ -3,12 +3,14 @@
 namespace Modules\Notes\Mcp;
 
 use App\Mcp\Tool;
+use App\Support\Trash\Trash;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
-use Modules\Notes\Note;
+use Modules\Notes\NotesTrash;
 
+// Same list as Settings > Recently deleted (NotesTrash).
 #[IsReadOnly]
 class ListDeleted extends Tool
 {
@@ -27,13 +29,8 @@ class ListDeleted extends Tool
 
     public function handle(Request $request): Response
     {
-        $query = Note::onlyTrashed()->visibleTo($this->user()->id)->with(['folder', 'shareSetting'])
-            ->orderByDesc('deleted_at')->orderByDesc('id');
-        $page = $this->page($query, $request);
+        $page = $this->page(Trash::sorted(NotesTrash::list($this->user())), $request);
 
-        return Response::json([
-            'deleted' => $page['items']->map(fn (Note $n) => NoteData::payload($n, false) + NoteData::trashInfo($n))->values(),
-            'next_cursor' => $page['next_cursor'],
-        ]);
+        return Response::json(['deleted' => $page['items']->values(), 'next_cursor' => $page['next_cursor']]);
     }
 }

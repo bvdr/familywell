@@ -13,6 +13,7 @@ const sidebarNavItems: { key: string; url: string }[] = [
     { key: 'settings.language', url: '/settings/language' },
     { key: 'settings.notifications', url: '/settings/notifications' },
     { key: 'settings.media', url: '/settings/media' },
+    { key: 'trash.title', url: '/settings/recently-deleted' },
     { key: 'mcp.connected_apps', url: '/settings/connected-apps' },
 ];
 

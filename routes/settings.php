@@ -4,6 +4,7 @@ use App\Http\Controllers\Settings\ConnectedAppsController;
 use App\Http\Controllers\Settings\MediaLibraryController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
+use App\Http\Controllers\Settings\RecentlyDeletedController;
 use App\Models\Family;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Theming\ThemeTokens;
@@ -21,6 +22,11 @@ Route::middleware('auth')->group(function () {
     Route::middleware('family')->group(function () {
         Route::get('settings/media', [MediaLibraryController::class, 'index'])->name('media');
         Route::delete('settings/media/{type}/{id}', [MediaLibraryController::class, 'destroy'])->name('media.destroy');
+
+        // The family's 30-day trash (App\Support\Trash): list + restore, per module that registers a source.
+        Route::get('settings/recently-deleted', [RecentlyDeletedController::class, 'index'])->name('recently-deleted');
+        Route::post('settings/recently-deleted/{module}/{type}/{id}', [RecentlyDeletedController::class, 'restore'])
+            ->whereNumber('id')->name('recently-deleted.restore');
     });
 
     // AI assistants / MCP clients connected through OAuth (see routes/mcp.php), and revoking them.

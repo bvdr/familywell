@@ -26,6 +26,8 @@ class NotesServiceProvider extends ServiceProvider
         ]);
 
         // Reversible delete: trashed rows are purged after the retention window (trash:purge).
+        // What this module shows in Settings > Recently deleted and its MCP trash tools.
+        Trash::source('notes', NotesTrash::class);
         Trash::register(Note::class);
         // Opt notes into the core sharing system (addressable as `note` in share URLs).
         ShareableRegistry::register('note', Note::class);

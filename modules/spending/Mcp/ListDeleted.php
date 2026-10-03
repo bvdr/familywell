@@ -3,12 +3,14 @@
 namespace Modules\Spending\Mcp;
 
 use App\Mcp\Tool;
+use App\Support\Trash\Trash;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
-use Modules\Spending\Spend;
+use Modules\Spending\SpendingTrash;
 
+// Same list as Settings > Recently deleted (SpendingTrash).
 #[IsReadOnly]
 class ListDeleted extends Tool
 {
@@ -27,14 +29,8 @@ class ListDeleted extends Tool
 
     public function handle(Request $request): Response
     {
-        $query = Spend::onlyTrashed()->with(['event', 'payer', 'payerGuest'])
-            ->whereIn('spend_event_id', SpendData::visibleEvents($this->user())->pluck('id'))
-            ->orderByDesc('deleted_at')->orderByDesc('id');
-        $page = $this->page($query, $request);
+        $page = $this->page(Trash::sorted(SpendingTrash::list($this->user())), $request);
 
-        return Response::json([
-            'deleted' => $page['items']->map(fn (Spend $s) => SpendData::payload($s) + SpendData::trashInfo($s))->values(),
-            'next_cursor' => $page['next_cursor'],
-        ]);
+        return Response::json(['deleted' => $page['items']->values(), 'next_cursor' => $page['next_cursor']]);
     }
 }

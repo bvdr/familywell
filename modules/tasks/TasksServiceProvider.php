@@ -19,6 +19,8 @@ class TasksServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // Reversible delete: trashed rows are purged after the retention window (trash:purge).
+        // What this module shows in Settings > Recently deleted and its MCP trash tools.
+        Trash::source('tasks', TasksTrash::class);
         Trash::register(TaskList::class);
         Trash::register(Task::class);
         // MCP: tools an AI assistant can use on this module, gated by the `tasks:read` / `tasks:write`

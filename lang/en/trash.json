@@ -1,0 +1,13 @@
+{
+    "title": "Recently deleted",
+    "desc": "Deleted lists, tasks, shopping items, expenses and notes stay here for :days days, then they're removed for good.",
+    "empty": "Nothing deleted in the last :days days.",
+    "restore": "Restore",
+    "deleted_on": "Deleted :date",
+    "removed_on": "removed :date",
+    "type_list": "List",
+    "type_task": "Task",
+    "type_item": "Item",
+    "type_expense": "Expense",
+    "type_note": "Note"
+}

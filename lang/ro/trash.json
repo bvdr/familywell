@@ -1,0 +1,13 @@
+{
+    "title": "Șterse recent",
+    "desc": "Listele, sarcinile, produsele, cheltuielile și notițele șterse rămân aici :days de zile, apoi sunt eliminate definitiv.",
+    "empty": "Nimic șters în ultimele :days de zile.",
+    "restore": "Restaurează",
+    "deleted_on": "Șters :date",
+    "removed_on": "eliminat :date",
+    "type_list": "Listă",
+    "type_task": "Sarcină",
+    "type_item": "Produs",
+    "type_expense": "Cheltuială",
+    "type_note": "Notiță"
+}

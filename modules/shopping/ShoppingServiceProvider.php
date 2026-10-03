@@ -27,6 +27,8 @@ class ShoppingServiceProvider extends ServiceProvider
         ]);
 
         // Reversible delete: trashed rows are purged after the retention window (trash:purge).
+        // What this module shows in Settings > Recently deleted and its MCP trash tools.
+        Trash::source('shopping', ShoppingTrash::class);
         Trash::register(ShoppingList::class);
         Trash::register(ShoppingItem::class);
         // Opt shopping lists into the core sharing system (addressable as `shopping_list` in share URLs).

@@ -3,12 +3,12 @@
 namespace Modules\Spending\Mcp;
 
 use App\Mcp\Tool;
-use App\Support\Sharing\ShareAccess;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
-use Modules\Spending\Spend;
+use Modules\Spending\SpendingTrash;
 
+// Same restore as Settings > Recently deleted (SpendingTrash).
 class Restore extends Tool
 {
     protected string $module = 'spending';
@@ -26,14 +26,13 @@ class Restore extends Tool
 
     public function handle(Request $request): Response
     {
-        $spend = Spend::onlyTrashed()->with('event')->find((int) $request->get('expense_id'));
-        if (! $spend || ! $spend->event || ! app(ShareAccess::class)->canEdit($this->user(), $spend->event)) {
+        $id = (int) $request->validate(['expense_id' => ['required', 'integer']])['expense_id'];
+        $path = SpendingTrash::restore($this->user(), 'expense', $id);
+        if (! $path) {
             return Response::error('Not found in the trash (it may have been restored already or removed for good).');
         }
-
-        $spend->restore();
         SpendData::changed();
 
-        return Response::json(['restored' => true] + SpendData::payload($spend->fresh(['event', 'payer', 'payerGuest'])));
+        return Response::json(['restored' => true, 'id' => $id, 'url' => $this->url($path)]);
     }
 }

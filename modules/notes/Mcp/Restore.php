@@ -3,12 +3,12 @@
 namespace Modules\Notes\Mcp;
 
 use App\Mcp\Tool;
-use App\Support\Sharing\ShareAccess;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
-use Modules\Notes\Note;
+use Modules\Notes\NotesTrash;
 
+// Same restore as Settings > Recently deleted (NotesTrash).
 class Restore extends Tool
 {
     protected string $module = 'notes';
@@ -26,13 +26,12 @@ class Restore extends Tool
 
     public function handle(Request $request): Response
     {
-        $note = Note::onlyTrashed()->find((int) $request->get('note_id'));
-        if (! $note || app(ShareAccess::class)->roleFor($this->user(), $note) === null) {
+        $id = (int) $request->validate(['note_id' => ['required', 'integer']])['note_id'];
+        $path = NotesTrash::restore($this->user(), 'note', $id);
+        if (! $path) {
             return Response::error('Not found in the trash (it may have been restored already or removed for good).');
         }
 
-        $note->restore();
-
-        return Response::json(['restored' => true] + NoteData::payload($note->fresh('folder'), false));
+        return Response::json(['restored' => true, 'id' => $id, 'url' => $this->url($path)]);
     }
 }
