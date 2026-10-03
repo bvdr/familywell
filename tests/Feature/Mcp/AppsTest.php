@@ -71,6 +71,15 @@ it('paints widgets in the person\'s Familywell skin', function () {
     expect($html($users[0]))->toContain("--background:{$warm}");
 });
 
+it('gives the connector the rounded app icon', function () {
+    [$family, $users] = mcpFamily();
+    $token = mcpConnect($users[0], $family->id)['access_token'];
+    $init = mcpCall($token, 'initialize', ['protocolVersion' => '2025-11-25', 'capabilities' => (object) [], 'clientInfo' => ['name' => 't', 'version' => '1']]);
+
+    expect($init->json('result.serverInfo.icons.0.src'))->toEndWith('/icons/icon-rounded-512.png')
+        ->and(file_exists(public_path('icons/icon-rounded-512.png')))->toBeTrue();
+});
+
 it('says what each get_today item is so the widget can tick it off', function () {
     [$family, $users] = mcpFamily(['tasks']);
     $token = mcpConnect($users[0], $family->id, ['tasks' => 'write'])['access_token'];
