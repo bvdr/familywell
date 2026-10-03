@@ -66,7 +66,8 @@ class CompleteMaintenance extends Tool
             'notes' => $data['notes'] ?? null,
         ], $this->user());
 
-        $st = $schedule->fresh()->statusFor((int) $v->fresh()->current_mileage);
+        // A one-off planned job is closed by completing it (no next due).
+        $st = $schedule->exists ? $schedule->fresh()->statusFor((int) $v->fresh()->current_mileage) : ['nextDueMileage' => null, 'nextDueDate' => null];
 
         // Service records have no attachments of their own (not in the app either); an invoice for a service
         // lives with the car's documents as a `service_invoice`, which is where the app files one too.
@@ -86,7 +87,8 @@ class CompleteMaintenance extends Tool
             'invoice_document_id' => $document?->id,
             'next_due_km' => $st['nextDueMileage'],
             'next_due_date' => $st['nextDueDate'],
-            'url' => VehicleData::url("/m/vehicles/{$v->id}/maintenance/{$schedule->id}"),
+            'one_off_closed' => ! $schedule->exists,
+            'url' => VehicleData::url($schedule->exists ? "/m/vehicles/{$v->id}/maintenance/{$schedule->id}" : "/m/vehicles/{$v->id}/maintenance"),
         ]);
     }
 }

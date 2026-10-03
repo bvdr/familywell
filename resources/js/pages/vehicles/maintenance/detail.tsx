@@ -64,7 +64,9 @@ export default function MaintenanceDetail({ vehicle, schedule, history, linkedTa
                 <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                         <h2 className="font-heading text-primary truncate text-xl">{title}</h2>
-                        <p className="text-muted-foreground text-sm">{intervalText(t, schedule.intervalKm, schedule.intervalMonths)}</p>
+                        <p className="text-muted-foreground text-sm">
+                            {schedule.oneOff ? t('vehicles.one_off') : intervalText(t, schedule.intervalKm, schedule.intervalMonths)}
+                        </p>
                     </div>
                     <Link
                         href={`/m/vehicles/${vehicle.id}/maintenance/${schedule.id}/edit`}
@@ -183,7 +185,14 @@ function CompletePanel({
     // mileage to the car's current odometer; the expense sheet starts blank.
     useEffect(() => {
         if (panel === 'complete') {
-            setForm({ performed_at: todayIso(), mileage: String(vehicle.currentMileage), cost: '', provider: '', service_provider_id: null, notes: '' });
+            setForm({
+                performed_at: todayIso(),
+                mileage: String(vehicle.currentMileage),
+                cost: '',
+                provider: '',
+                service_provider_id: null,
+                notes: '',
+            });
             setErrors({});
         } else if (panel === 'expense') {
             setExpense({ amount: '', note: '', spent_at: todayIso() });
@@ -258,7 +267,12 @@ function CompletePanel({
                 title={t('vehicles.record_completion')}
                 className="sm:max-w-lg"
                 footer={
-                    <Button type="button" onClick={submit} disabled={processing || form.mileage.trim() === '' || form.performed_at === ''} className="w-full">
+                    <Button
+                        type="button"
+                        onClick={submit}
+                        disabled={processing || form.mileage.trim() === '' || form.performed_at === ''}
+                        className="w-full"
+                    >
                         <CheckCircle2 className="size-4" /> {t('vehicles.save_completion')}
                     </Button>
                 }
@@ -266,13 +280,24 @@ function CompletePanel({
                 <div className="flex flex-col gap-4 pb-1">
                     <div className="grid gap-4 sm:grid-cols-2">
                         <FormField label={t('vehicles.completed_date')} error={errors.performed_at}>
-                            <Input type="date" value={form.performed_at} onChange={(e) => set('performed_at', e.target.value)} className="text-base" />
+                            <Input
+                                type="date"
+                                value={form.performed_at}
+                                onChange={(e) => set('performed_at', e.target.value)}
+                                className="text-base"
+                            />
                         </FormField>
                         <FormField label={t('vehicles.completed_mileage')} error={errors.mileage}>
                             <Input value={form.mileage} onChange={(e) => set('mileage', e.target.value)} inputMode="numeric" className="text-base" />
                         </FormField>
                         <FormField label={t('vehicles.completed_cost')} error={errors.cost}>
-                            <Input value={form.cost} onChange={(e) => set('cost', e.target.value)} inputMode="decimal" placeholder="0.00" className="text-base" />
+                            <Input
+                                value={form.cost}
+                                onChange={(e) => set('cost', e.target.value)}
+                                inputMode="decimal"
+                                placeholder="0.00"
+                                className="text-base"
+                            />
                         </FormField>
                         <ProviderPicker
                             providers={providers}
@@ -312,14 +337,26 @@ function CompletePanel({
                 <div className="flex flex-col gap-4 pb-1">
                     <div className="grid gap-4 sm:grid-cols-2">
                         <FormField label={t('vehicles.expense_amount')} error={errors.amount}>
-                            <Input ref={amountRef} value={expense.amount} onChange={(e) => setExp('amount', e.target.value)} inputMode="decimal" placeholder="0.00" className="text-base" />
+                            <Input
+                                ref={amountRef}
+                                value={expense.amount}
+                                onChange={(e) => setExp('amount', e.target.value)}
+                                inputMode="decimal"
+                                placeholder="0.00"
+                                className="text-base"
+                            />
                         </FormField>
                         <FormField label={t('vehicles.completed_date')} error={errors.spent_at}>
                             <Input type="date" value={expense.spent_at} onChange={(e) => setExp('spent_at', e.target.value)} className="text-base" />
                         </FormField>
                     </div>
                     <FormField label={t('vehicles.expense_note')} error={errors.note}>
-                        <Input value={expense.note} onChange={(e) => setExp('note', e.target.value)} placeholder={schedule.name} className="text-base" />
+                        <Input
+                            value={expense.note}
+                            onChange={(e) => setExp('note', e.target.value)}
+                            placeholder={schedule.name}
+                            className="text-base"
+                        />
                     </FormField>
                 </div>
             </ResponsiveModal>
@@ -332,7 +369,9 @@ function MaintenanceHistoryList({ history, t }: { history: MaintenanceHistoryEnt
         <section className="flex flex-col gap-2">
             <h3 className="font-heading text-primary text-lg">{t('vehicles.maint_history')}</h3>
             {history.length === 0 ? (
-                <p className="text-muted-foreground bg-surface-card rounded-xl border px-4 py-6 text-center text-sm">{t('vehicles.maint_history_empty')}</p>
+                <p className="text-muted-foreground bg-surface-card rounded-xl border px-4 py-6 text-center text-sm">
+                    {t('vehicles.maint_history_empty')}
+                </p>
             ) : (
                 <ul className="bg-border grid gap-px overflow-hidden rounded-2xl border">
                     {history.map((h) => (

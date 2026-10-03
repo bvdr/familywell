@@ -86,7 +86,7 @@ function ScheduleRow({ vehicleId, schedule, t }: { vehicleId: number; schedule: 
                         )}
                     </div>
                     <span className="text-muted-foreground block truncate text-xs">
-                        {intervalText(t, schedule.intervalKm, schedule.intervalMonths)}
+                        {schedule.oneOff ? t('vehicles.one_off') : intervalText(t, schedule.intervalKm, schedule.intervalMonths)}
                     </span>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-0.5 text-right">

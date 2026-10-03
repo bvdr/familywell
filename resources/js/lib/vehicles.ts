@@ -55,7 +55,7 @@ export type VehicleHeader = {
 // The four maintenance statuses from the engine (MaintenanceStatus), most urgent last.
 export type MaintStatus = 'good' | 'due_soon' | 'due' | 'overdue';
 
-// A recurring maintenance schedule with its live computed status (VehicleMaintenanceSchedule::toPayload).
+// A maintenance schedule (recurring, or a one-off planned job) with its live computed status (VehicleMaintenanceSchedule::toPayload).
 export type MaintenanceSchedule = {
     id: number;
     vehicleId: number;
@@ -63,6 +63,10 @@ export type MaintenanceSchedule = {
     type: string;
     intervalKm: number | null;
     intervalMonths: number | null;
+    // Explicit due point; with no interval the schedule is a one-off planned job (closed when completed).
+    dueMileage: number | null;
+    dueOn: string | null;
+    oneOff: boolean;
     lastPerformedAt: string | null;
     lastPerformedMileage: number | null;
     notes: string | null;
@@ -356,12 +360,10 @@ export const MPG_L100_CONSTANT = 235.214583; // 1 L/100km == 235.214583 mpg (US)
 export const volumeUnitLabel = (unit: UnitSystem): string => (unit === 'imperial' ? 'gal' : 'L');
 
 /** Stored litres -> the display unit's value (litres, or US gallons for imperial). */
-export const litersToUnit = (liters: number, unit: UnitSystem): number =>
-    unit === 'imperial' ? liters / LITERS_PER_US_GALLON : liters;
+export const litersToUnit = (liters: number, unit: UnitSystem): number => (unit === 'imperial' ? liters / LITERS_PER_US_GALLON : liters);
 
 /** "52.0 L" / "13.7 gal" — a volume with its unit label, to one decimal. */
-export const volumeText = (liters: number, unit: UnitSystem): string =>
-    `${litersToUnit(liters, unit).toFixed(1)} ${volumeUnitLabel(unit)}`;
+export const volumeText = (liters: number, unit: UnitSystem): string => `${litersToUnit(liters, unit).toFixed(1)} ${volumeUnitLabel(unit)}`;
 
 /** The consumption-unit label ("L/100km" / "mpg"). */
 export const consumptionUnitLabel = (unit: UnitSystem): string => (unit === 'imperial' ? 'mpg' : 'L/100km');

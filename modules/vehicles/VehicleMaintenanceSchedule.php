@@ -11,8 +11,9 @@ use Illuminate\Support\Carbon;
 use Modules\Tasks\Task;
 
 /**
- * A recurring maintenance rule for one vehicle: two triggers (every `interval_km` and/or every
- * `interval_months`), a last-performed baseline, and a computed due status. The status/next-due are NOT
+ * A maintenance rule for one vehicle: two triggers (every `interval_km` and/or every `interval_months`),
+ * a last-performed baseline, and a computed due status. An explicit due point (`due_mileage` / `due_on`)
+ * overrides the computed next-due; with no interval at all it is a one-off planned job. The status/next-due are NOT
  * stored — they are derived on read from MaintenanceStatus so they always track the current odometer and
  * today's date (mileage moves daily; a stored status would rot). "Mark as completed" appends a history
  * row and advances the baseline, from which the next due point recomputes.
@@ -24,13 +25,15 @@ class VehicleMaintenanceSchedule extends Model
     protected $table = 'vehicles_maintenance_schedules';
 
     protected $fillable = [
-        'vehicle_id', 'name', 'type', 'interval_km', 'interval_months',
+        'vehicle_id', 'name', 'type', 'interval_km', 'interval_months', 'due_mileage', 'due_on',
         'last_performed_at', 'last_performed_mileage', 'notes', 'active', 'open_task_id', 'created_by', 'family_id',
     ];
 
     protected $casts = [
         'interval_km' => 'integer',
         'interval_months' => 'integer',
+        'due_mileage' => 'integer',
+        'due_on' => 'date',
         'last_performed_at' => 'date',
         'last_performed_mileage' => 'integer',
         'active' => 'boolean',
@@ -57,6 +60,34 @@ class VehicleMaintenanceSchedule extends Model
         return $this->belongsTo(Task::class, 'open_task_id');
     }
 
+    /** A planned job done once (no interval, only a due point): completing it closes it. */
+    public function isOneOff(): bool
+    {
+        return $this->interval_km === null && $this->interval_months === null;
+    }
+
+    /**
+     * Validation shared by the web form and the MCP tools. A schedule needs something to be due by: an
+     * interval (recurring) and/or an explicit due point (one-off, or an early due this time).
+     *
+     * @return array<string, mixed>
+     */
+    public static function rules(): array
+    {
+        return [
+            'name' => ['required', 'string', 'max:100'],
+            'type' => ['required', 'string', 'max:40'],
+            'interval_km' => ['nullable', 'required_without_all:interval_months,due_mileage,due_on', 'integer', 'min:1', 'max:1000000'],
+            'interval_months' => ['nullable', 'required_without_all:interval_km,due_mileage,due_on', 'integer', 'min:1', 'max:600'],
+            'due_mileage' => ['nullable', 'integer', 'min:0', 'max:10000000'],
+            'due_on' => ['nullable', 'date'],
+            'last_performed_at' => ['nullable', 'date'],
+            'last_performed_mileage' => ['nullable', 'integer', 'min:0'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+            'active' => ['sometimes', 'boolean'],
+        ];
+    }
+
     /** This rule's performed-maintenance records, newest first. */
     public function history(): HasMany
     {
@@ -80,6 +111,8 @@ class VehicleMaintenanceSchedule extends Model
             $this->last_performed_at,
             $currentMileage,
             $today ?? Carbon::today(),
+            $this->due_mileage,
+            $this->due_on,
         );
     }
 
@@ -98,6 +131,9 @@ class VehicleMaintenanceSchedule extends Model
             'type' => $this->type,
             'intervalKm' => $this->interval_km,
             'intervalMonths' => $this->interval_months,
+            'dueMileage' => $this->due_mileage,
+            'dueOn' => optional($this->due_on)->toDateString(),
+            'oneOff' => $this->isOneOff(),
             'lastPerformedAt' => optional($this->last_performed_at)->toDateString(),
             'lastPerformedMileage' => $this->last_performed_mileage,
             'notes' => $this->notes,

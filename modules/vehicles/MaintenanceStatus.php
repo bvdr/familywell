@@ -39,7 +39,7 @@ class MaintenanceStatus
     /**
      * Compute the full due picture for one schedule.
      *
-     * A trigger is "active" only when both its interval AND its baseline are known (you can't measure km
+     * A trigger is "active" when it has an explicit due point, or both its interval AND its baseline (you can't measure km
      * remaining without the last-performed odometer). A schedule with no active trigger at all — the
      * never-performed case — is surfaced as DUE: it exists because the maintenance matters, so it needs
      * its first record rather than being hidden.
@@ -53,21 +53,27 @@ class MaintenanceStatus
         ?CarbonInterface $lastAt,
         int $currentMileage,
         CarbonInterface $today,
+        ?int $dueMileage = null,
+        ?CarbonInterface $dueOn = null,
     ): array {
-        $kmActive = $intervalKm !== null && $lastMileage !== null;
-        $timeActive = $intervalMonths !== null && $lastAt !== null;
+        // An explicit due point (one-off job, or "this time it's due earlier") replaces the computed one
+        // for its trigger, and needs no baseline.
+        $kmActive = $dueMileage !== null || ($intervalKm !== null && $lastMileage !== null);
+        $timeActive = $dueOn !== null || ($intervalMonths !== null && $lastAt !== null);
 
-        $nextDueMileage = $kmActive ? $lastMileage + $intervalKm : null;
+        $nextDueMileage = $kmActive ? ($dueMileage ?? $lastMileage + $intervalKm) : null;
         $remainingKm = $kmActive ? $nextDueMileage - $currentMileage : null;
 
-        $nextDueDate = $timeActive ? $lastAt->copy()->startOfDay()->addMonths($intervalMonths) : null;
+        $nextDueDate = $timeActive ? ($dueOn?->copy()->startOfDay() ?? $lastAt->copy()->startOfDay()->addMonths($intervalMonths)) : null;
         // Signed whole days from today to the due date (positive = still ahead, negative = past). Both
         // sides normalised to start-of-day so the count is calendar days, not affected by the time part.
         $remainingDays = $timeActive
             ? (int) $today->copy()->startOfDay()->diffInDays($nextDueDate, false)
             : null;
 
-        $neverPerformed = $lastMileage === null && $lastAt === null;
+        // "Not recorded yet" only when there is nothing to measure against: a planned job with a due point
+        // is simply upcoming.
+        $neverPerformed = $lastMileage === null && $lastAt === null && $dueMileage === null && $dueOn === null;
 
         $statuses = [];
         if ($kmActive) {
