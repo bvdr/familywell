@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { addDays, clip, daysBetween, filterItems, itemsOn, layoutWeek, shiftDate, weeksOf } from './calendar.ts';
+import { addDays, clip, daysBetween, filterItems, itemsOn, layoutWeek, shiftDate, timelineRows, weeksOf } from './calendar.ts';
 
 const item = (over) => ({
     source: 'calendar',
@@ -75,4 +75,18 @@ test('shiftDate moves by month or week', () => {
     assert.equal(shiftDate('month', 'month', '2026-01-31', 1), '2026-02-01');
     assert.equal(shiftDate('timeline', 'week', '2026-07-15', -1), '2026-07-08');
     assert.equal(shiftDate('timeline', 'month', '2026-07-15', 1), '2026-08-01');
+});
+
+test('timelineRows keeps in-window items in start order with clipped geometry', () => {
+    const a = item({ id: 1, title: 'Tabăra', start: '2026-07-26', end: '2026-08-01' });
+    const b = item({ id: 2, title: 'Grecia', start: '2026-07-17', end: '2026-07-25' });
+    const c = item({ id: 3, title: 'Paște', start: '2026-04-12', end: '2026-04-12' });
+    const rows = timelineRows([a, b, c], '2026-07-12', '2026-07-31');
+    assert.deepEqual(
+        rows.map((r) => [r.item.title, r.offset, r.span]),
+        [
+            ['Grecia', 5, 9],
+            ['Tabăra', 14, 6],
+        ],
+    );
 });

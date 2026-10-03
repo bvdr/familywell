@@ -34,6 +34,7 @@
     "todos_empty": "Liste de bagaje, bilete, rezervări…",
     "more": "încă :count",
     "nothing": "Nimic în ziua asta.",
+    "nothing_range": "Nimic în perioada asta.",
     "filters": "Filtru",
     "clear": "Șterge",
     "sources": "Arată",
