@@ -31,6 +31,7 @@ class CalendarServiceProvider extends ServiceProvider
         McpTools::register('calendar', 'Calendar', [
             Mcp\ListCalendar::class, Mcp\GetEvent::class, Mcp\CreateEvent::class,
             Mcp\UpdateEvent::class, Mcp\DeleteEvent::class, Mcp\AddTodo::class,
+            Mcp\UpdateTodo::class, Mcp\DeleteTodo::class,
         ]);
 
         // The calendar's own events, through the same registry other modules use.

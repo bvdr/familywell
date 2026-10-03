@@ -11,8 +11,8 @@ use Laravel\Mcp\Response;
 use Modules\Calendar\CalendarEvent;
 use Modules\Tasks\Mcp\TaskData;
 
-// The tasks tools can't attach a task to an event, so this creates it; ticking/editing it afterwards goes
-// through the existing tasks_update_task.
+// The tasks tools can't reach event to-dos (they resolve tasks through a list), so the calendar owns them:
+// this creates one; calendar_update_todo / calendar_delete_todo edit, tick and delete it afterwards.
 class AddTodo extends Tool
 {
     protected string $module = 'calendar';
@@ -21,7 +21,7 @@ class AddTodo extends Tool
 
     protected string $name = 'calendar_add_todo';
 
-    protected string $description = 'Add a to-do inside a calendar event (e.g. "book hotel" on a trip). Use tasks_update_task to tick or edit it later.';
+    protected string $description = 'Add a to-do inside a calendar event (e.g. "book hotel" on a trip). Use calendar_update_todo to tick or edit it later.';
 
     public function schema(JsonSchema $schema): array
     {
