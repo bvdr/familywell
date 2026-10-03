@@ -6,7 +6,6 @@ use App\Events\ProjectsChanged;
 use App\Http\Controllers\Controller;
 use App\Models\EntityVisit;
 use App\Models\Family;
-use App\Models\User;
 use App\Support\Media\StoredImage;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
@@ -78,19 +77,7 @@ class ProjectsController extends Controller
             'target_start' => ['nullable', 'date'],
         ]);
 
-        $project = Project::create([
-            'name' => $data['name'],
-            'description' => $data['description'] ?? null,
-            'status' => $data['status'] ?? 'planning',
-            'progress' => $data['progress'] ?? 0,
-            'color' => $data['color'] ?? 'green',
-            'owner_id' => $request->user()->id,
-            'target_start' => $data['target_start'] ?? null,
-            'created_by' => $request->user()->id,
-        ]);
-        $project->shares()->create(['user_id' => $request->user()->id, 'role' => 'owner']);
-
-        Notify::toAccessOf($project, 'projects', $request->user()->id, 'New project', "{$request->user()->name} started: {$project->name}", route('projects.show', $project, false));
+        $project = Project::createFor($request->user(), $data); // owner share + notification (shared with MCP)
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
 
         return to_route('projects.show', $project);
@@ -187,18 +174,7 @@ class ProjectsController extends Controller
             'visibility' => ['sometimes', 'in:family,invited,private'],
         ]);
 
-        if (array_key_exists('archived', $data)) {
-            $project->archived_at = $data['archived'] ? now() : null;
-        }
-        $statusBefore = $project->status;
-        $project->fill(array_intersect_key($data, array_flip(['name', 'description', 'status', 'progress', 'color', 'owner_id', 'target_start', 'waiting_on'])))->save();
-        if (array_key_exists('visibility', $data)) {
-            $project->setVisibility($data['visibility']);
-        }
-        if (array_key_exists('status', $data) && $data['status'] !== $statusBefore) {
-            $label = str_replace('_', ' ', $project->status);
-            Notify::toAccessOf($project, 'projects', $request->user()->id, 'Project updated', "{$request->user()->name} set {$project->name} to {$label}", route('projects.show', $project, false));
-        }
+        $project->updateFrom($request->user(), $data);
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
 
         return back();
@@ -294,10 +270,8 @@ class ProjectsController extends Controller
     private function projectForTask(Request $request, Task $task): Project
     {
         abort_unless((int) $task->family_id === (int) CurrentFamily::id(), 404);
-        $topId = $task->parent_id ?? $task->id;
-        $link = ProjectLink::where(['linkable_type' => 'task', 'linkable_id' => $topId])->first();
-        abort_unless($link, 404);
-        $project = Project::findOrFail($link->project_id);
+        $project = Project::forTask($task);
+        abort_unless($project, 404);
         abort_unless($this->access->roleFor($request->user(), $project) !== null, 403);
 
         return $project;
@@ -314,29 +288,8 @@ class ProjectsController extends Controller
             'parent_id' => ['nullable', 'integer'],
         ]);
 
-        // Sub-task: parent must be one of this project's top-level tasks (one level deep only).
-        if (! empty($data['parent_id'])) {
-            $parent = Task::whereKey($data['parent_id'])->whereNull('parent_id')->firstOrFail();
-            abort_unless($project->links()->where(['linkable_type' => 'task', 'linkable_id' => $parent->id])->exists(), 404);
-        }
-
-        $siblingScope = Task::whereNull('task_list_id')->where('parent_id', $data['parent_id'] ?? null);
-        $task = Task::create([
-            'task_list_id' => null,
-            'parent_id' => $data['parent_id'] ?? null,
-            'title' => $data['title'],
-            'note' => $data['note'] ?? null,
-            'due_date' => $data['due_date'] ?? null,
-            'assigned_to' => $data['assigned_to'] ?? null,
-            'position' => (int) $siblingScope->max('position') + 1,
-            'created_by' => $request->user()->id,
-        ]);
-
-        // Only top-level tasks carry the project link; sub-tasks are reached through their parent.
-        if (empty($data['parent_id'])) {
-            $project->links()->firstOrCreate(['linkable_type' => 'task', 'linkable_id' => $task->id]);
-        }
-        Notify::toAccessOf($project, 'tasks', $request->user()->id, 'New task', "{$request->user()->name} added: {$data['title']}", route('projects.show', $project, false));
+        // Parent check (one level deep), position, project link and notification live on the model (shared with MCP).
+        $project->addTask($request->user(), $data);
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
 
         return back();
@@ -390,32 +343,18 @@ class ProjectsController extends Controller
     public function updateTask(Request $request, Task $task): RedirectResponse
     {
         $project = $this->projectForTask($request, $task);
-        $actor = $request->user();
-        $url = route('projects.show', $project, false);
 
-        if (! $request->hasAny(['title', 'note', 'due_date', 'assigned_to', 'done'])) {
-            $task->update(['done' => ! $task->done]);
-            if ($task->done) {
-                Notify::toAccessOf($project, 'tasks', $actor->id, 'Task done', "{$actor->name} completed: {$task->title}", $url);
-            }
-        } else {
-            $data = $request->validate([
+        // An empty body toggles done (the dashboard agenda's tick); same notifications either way.
+        $data = $request->hasAny(['title', 'note', 'due_date', 'assigned_to', 'done'])
+            ? $request->validate([
                 'title' => ['sometimes', 'string', 'max:255'],
                 'note' => ['sometimes', 'nullable', 'string', 'max:255'],
                 'due_date' => ['sometimes', 'nullable', 'date'],
                 'assigned_to' => ['sometimes', 'nullable', 'integer'],
                 'done' => ['sometimes', 'boolean'],
-            ]);
-            $before = $task->assigned_to;
-            $wasDone = $task->done;
-            $task->update($data);
-            if (array_key_exists('assigned_to', $data) && $data['assigned_to'] && $data['assigned_to'] !== $before) {
-                Notify::push(User::whereKey($data['assigned_to'])->get(), 'tasks', $actor->id, 'Assigned to you', "{$actor->name} assigned you: {$task->title}", $url);
-            }
-            if (array_key_exists('done', $data) && $data['done'] && ! $wasDone) {
-                Notify::toAccessOf($project, 'tasks', $actor->id, 'Task done', "{$actor->name} completed: {$task->title}", $url);
-            }
-        }
+            ])
+            : ['done' => ! $task->done];
+        $project->updateTask($request->user(), $task, $data);
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
 
         return back();
@@ -424,14 +363,7 @@ class ProjectsController extends Controller
     public function destroyTask(Request $request, Task $task): RedirectResponse
     {
         $project = $this->projectForTask($request, $task);
-        $title = $task->title;
-        // Remove the project link for a top-level task; sub-tasks cascade with their parent.
-        if ($task->parent_id === null) {
-            ProjectLink::where(['linkable_type' => 'task', 'linkable_id' => $task->id])->delete();
-        }
-        $task->delete(); // cascades to sub-tasks
-
-        Notify::toAccessOf($project, 'tasks', $request->user()->id, $project->name, "{$request->user()->name} deleted: {$title}", route('projects.show', $project, false));
+        $project->deleteTask($request->user(), $task); // unlink + trash + notify (shared with MCP)
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
 
         return back();

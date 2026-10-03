@@ -5,6 +5,7 @@ namespace Modules\Projects;
 use App\Models\EntityVisit;
 use App\Support\Dashboard\DashboardAgenda;
 use App\Support\Dashboard\DashboardItems;
+use App\Support\Mcp\McpTools;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
@@ -21,6 +22,15 @@ class ProjectsServiceProvider extends ServiceProvider
         ShareableRegistry::register('project', Project::class);
 
         NotificationCategories::register('projects', 'Projects', 'folder-kanban');
+
+        // MCP: tools an AI assistant can use on this module, gated by the `projects:read` /
+        // `projects:write` scopes the person grants on the consent screen (see docs/mcp.md). No
+        // projects_delete: deleting a project is a hard delete in the app, too risky for an assistant.
+        McpTools::register('projects', 'Projects', [
+            Mcp\ListProjects::class, Mcp\GetProject::class,
+            Mcp\CreateProject::class, Mcp\UpdateProject::class,
+            Mcp\AddTask::class, Mcp\UpdateTask::class, Mcp\DeleteTask::class,
+        ]);
 
         // "Pick up where you left off": projects this user opened in the last few days, tagged with
         // when so the dashboard can order them across modules. Respects visibility.
