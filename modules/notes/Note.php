@@ -2,6 +2,7 @@
 
 namespace Modules\Notes;
 
+use App\Models\User;
 use App\Support\Sharing\Shareable;
 use App\Support\Tenancy\BelongsToFamily;
 use Illuminate\Database\Eloquent\Model;
@@ -22,6 +23,21 @@ class Note extends Model
     protected $fillable = ['folder_id', 'title', 'body', 'color', 'pinned', 'position', 'created_by'];
 
     protected $casts = ['pinned' => 'boolean'];
+
+    /** Create a note owned by $user (owner share; `family` visibility by default). Web UI + MCP tools. */
+    public static function createFor(User $user, array $attrs): self
+    {
+        $note = static::create([
+            'folder_id' => $attrs['folder_id'] ?? null,
+            'title' => $attrs['title'] ?? '',
+            'body' => $attrs['body'] ?? '',
+            'color' => $attrs['color'] ?? 'default',
+            'created_by' => $user->id,
+        ]);
+        $note->shares()->create(['user_id' => $user->id, 'role' => 'owner']);
+
+        return $note;
+    }
 
     public function folder(): BelongsTo
     {

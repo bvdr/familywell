@@ -70,15 +70,8 @@ class NotesController extends Controller
             'color' => ['nullable', 'string', 'max:20'],
         ]);
 
-        $note = Note::create([
-            'folder_id' => $data['folder_id'] ?? null,
-            'title' => $data['title'] ?? '',
-            'color' => $data['color'] ?? 'default',
-            'created_by' => $request->user()->id,
-        ]);
-
         // Creator owns the share (can manage visibility/roles); defaults to `family` visibility.
-        $note->shares()->create(['user_id' => $request->user()->id, 'role' => 'owner']);
+        $note = Note::createFor($request->user(), $data);
 
         return to_route('notes.show', $note);
     }
