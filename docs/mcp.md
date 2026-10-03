@@ -38,6 +38,7 @@ per-module `TrashSource`); `trash:purge` removes it for good afterwards.
 | Vehicles | `vehicles_list`, `vehicles_get`, `vehicles_history` | `vehicles_log_mileage`, `vehicles_log_fuel`, `vehicles_add_maintenance`, `vehicles_update_maintenance`, `vehicles_complete_maintenance`, `vehicles_add_repair`, `vehicles_add_expense`, `vehicles_add_document`, `vehicles_attach_file`, `vehicles_delete_record`, `vehicles_delete` |
 | Contacts | `contacts_list` (with search), `contacts_get` | `contacts_create`, `contacts_update`, `contacts_delete` |
 | Birthdays | `birthdays_list` (soonest first, `within_days`) | `birthdays_add`, `birthdays_update`, `birthdays_delete` |
+| Recipes | `recipes_list` (search title / tag / ingredient), `recipes_get`, `recipes_scale` | `recipes_create`, `recipes_update`, `recipes_set_photo`, `recipes_add_to_shopping`, `recipes_delete` |
 | Inventory | `inventory_list`, `inventory_get`, `inventory_needs_attention` | `inventory_add_item`, `inventory_update_item`, `inventory_adjust_quantity`, `inventory_add_to_shopping`, `inventory_delete_item` |
 | Projects | `projects_list`, `projects_get` | `projects_create`, `projects_update`, `projects_add_task`, `projects_update_task`, `projects_delete_task`, `projects_delete` |
 
@@ -60,6 +61,14 @@ a due point (`due_km` / `due_on`). With only a due point it is a one-off job, e.
 2,000 km": it shows as due like any service, and completing it records it in the history and removes the schedule.
 On a recurring service a due point brings this occurrence forward and is cleared on completion. Same rules as the
 app's maintenance form (`VehicleMaintenanceSchedule::rules`).
+
+**Recipe calculator:** `recipes_scale` takes one target: `servings`, a total (`yield_amount` + `yield_unit`, e.g.
+800 g), or what you have of one ingredient (`have_ingredient` + `have_amount` + `have_unit`, e.g. 400 g of flour).
+g/kg, ml/l and spoons convert; "to taste" (no qty) and `scalable: false` items never change. The maths is
+`Modules\Recipes\RecipeScale`, the PHP twin of `resources/js/lib/recipe-scale.js` (web page + widget); both run
+`tests/fixtures/recipe-scale.json`, so change them together. `recipes_add_to_shopping` also needs Shopping on and
+*Read & write* for Shopping on the connection. Photos go out as signed URLs (valid ~2 days) because the widget and
+the public guest page have no session.
 
 **Task extensions:** when a family has Important to-dos or Recurring to-dos on, `tasks_create_task` and
 `tasks_update_task` gain `important` / `recurrence` parameters and task payloads carry those fields. The Tasks
@@ -95,8 +104,10 @@ of only the JSON. Other clients see the same JSON as before.
 | `birthdays` | `birthdays_list` | countdowns (read only) |
 | `note` | `notes_get` | tick the note's `- [ ]` checklists |
 | `contact` | `contacts_get` | call / email / map links |
+| `recipe` | `recipes_list`, `recipes_get`, `recipes_scale`, `recipes_create`, `recipes_update` | photo, calculator (servings / total / I have…), scaled ingredients, tickable steps, add to shopping, full screen |
 
-Widgets change data only by calling the normal write tools through the host, so a *Read* connection gets
+Only image widgets (`Widget::IMAGES`, the recipe widget) get a CSP `resourceDomains` entry, for this app's own
+origin (signed photo URLs). Widgets change data only by calling the normal write tools through the host, so a *Read* connection gets
 a view-only widget (a change says it needs *Read & write*). After a change the widget tells the model
 what the person did (`ui/update-model-context`), so the next turn knows.
 
