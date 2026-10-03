@@ -35,11 +35,24 @@ per-module `TrashSource`); `trash:purge` removes it for good afterwards.
 | Shopping | `shopping_list_lists`, `shopping_get_list`, `shopping_search` | `shopping_create_list`, `shopping_update_list`, `shopping_add_item`, `shopping_update_item`, `shopping_delete_list`, `shopping_delete_item`, `shopping_list_deleted`, `shopping_restore` |
 | Spending | `spending_list_expenses`, `spending_get_expense`, `spending_summary`, `spending_list_categories` | `spending_add_expense`, `spending_update_expense`, `spending_delete_expense`, `spending_list_deleted`, `spending_restore` |
 | Notes | `notes_list`, `notes_get`, `notes_search` | `notes_create`, `notes_update`, `notes_delete`, `notes_list_deleted`, `notes_restore` |
-| Vehicles | `vehicles_list`, `vehicles_get`, `vehicles_history` | `vehicles_log_mileage`, `vehicles_log_fuel`, `vehicles_complete_maintenance`, `vehicles_add_repair`, `vehicles_add_expense` |
+| Vehicles | `vehicles_list`, `vehicles_get`, `vehicles_history` | `vehicles_log_mileage`, `vehicles_log_fuel`, `vehicles_complete_maintenance`, `vehicles_add_repair`, `vehicles_add_expense`, `vehicles_add_document`, `vehicles_attach_file` |
 | Contacts | `contacts_list` (with search), `contacts_get` | `contacts_create`, `contacts_update` |
 | Birthdays | `birthdays_list` (soonest first, `within_days`) | `birthdays_add`, `birthdays_update` |
 | Inventory | `inventory_list`, `inventory_get`, `inventory_needs_attention` | `inventory_add_item`, `inventory_update_item`, `inventory_adjust_quantity`, `inventory_add_to_shopping` |
 | Projects | `projects_list`, `projects_get` | `projects_create`, `projects_update`, `projects_add_task`, `projects_update_task`, `projects_delete_task` |
+
+**Files:** MCP has no upload primitive, so tools that take a file (`vehicles_add_document`,
+`vehicles_attach_file`, and the optional file on `vehicles_add_repair` / `vehicles_complete_maintenance`) accept it
+three ways through `App\Support\Mcp\IncomingFile`: `file` = `{download_url}` (what ChatGPT passes for a file
+attached in the chat, enabled by the tool's `_meta['openai/fileParams']`), `file_url` (public https), or
+`file_base64` + `file_name` (clients that can read local files). PDF/JPEG/PNG/WebP/HEIC up to 12 MB, sniffed from
+the bytes. URL downloads are https-only, refuse private/reserved addresses on every hop, pin the vetted address,
+and stop reading past the size cap. A service invoice/deviz is filed as a `service_invoice` document (service
+records have no attachments of their own). Claude.ai cannot pass the bytes of a chat attachment; there the
+assistant creates the record and links the person to the app page to upload the file.
+
+**Mileage dates:** `vehicles_log_mileage` takes an optional past `date`. A reading older than the newest one goes
+into the history at that date, must fit between the readings around it, and leaves the current odometer alone.
 
 **Task extensions:** when a family has Important to-dos or Recurring to-dos on, `tasks_create_task` and
 `tasks_update_task` gain `important` / `recurrence` parameters and task payloads carry those fields. The Tasks
