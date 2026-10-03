@@ -105,10 +105,16 @@ class CalendarServiceProvider extends ServiceProvider
                 Route::post('/feed', [CalendarFeedController::class, 'reset'])->name('feed.reset');
             });
 
-        // Keyed by TOKEN, not guest IP: Google/Apple fetch every subscriber's feed from shared IP pools, so
-        // an IP-keyed limit would 429 real subscribers as usage grows. Per-token keeps each subscription
-        // independent of how many others share its fetcher's IP.
-        RateLimiter::for('calendar-feed', fn (Request $request) => Limit::perMinute(30)->by((string) $request->route('token')));
+        // Two limits, not one: per-TOKEN (not guest IP) is the main guard — Google/Apple fetch every
+        // subscriber's feed from shared IP pools, so an IP-keyed limit alone would 429 real subscribers as
+        // usage grows. But per-token alone has no aggregate bound: a client can flood the endpoint by trying
+        // a different (guessed/garbage) token on every request, each a cheap 404 lookup. The per-IP cap is
+        // generous (20x the per-token one) so it never bites a shared polling pool, only a genuine flood from
+        // one source. Prefixed keys so the two limiters' buckets can never collide.
+        RateLimiter::for('calendar-feed', fn (Request $request) => [
+            Limit::perMinute(30)->by('t:'.$request->route('token')),
+            Limit::perMinute(600)->by('ip:'.$request->ip()),
+        ]);
 
         // ICS subscribe feed: hit by Google/Apple servers with no session; the unguessable token authorizes.
         Route::middleware(['throttle:calendar-feed'])

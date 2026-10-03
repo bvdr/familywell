@@ -70,6 +70,16 @@ it('404s a feed once its owner is no longer a member of the family', function ()
     $this->get("/calendar/feed/{$token}.ics")->assertNotFound();
 });
 
+it('throttles a flood of requests for the same token', function () {
+    [, $users] = calendarFamily();
+    $token = CalendarFeed::rotate($users[0]->id)->token;
+    auth()->logout();
+    for ($i = 0; $i < 30; $i++) {
+        $this->get("/calendar/feed/{$token}.ics")->assertOk();
+    }
+    $this->get("/calendar/feed/{$token}.ics")->assertStatus(429);
+});
+
 it('renders the birthday summary in the feed owner\'s locale', function () {
     [, $users] = calendarFamily(['calendar', 'contacts', 'birthdays']);
     $users[0]->update(['locale' => 'ro']);
