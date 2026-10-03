@@ -86,10 +86,7 @@ class VehicleRepairsController extends Controller
     {
         $this->authorizeRepair($vehicle, $repair);
 
-        foreach ($repair->attachments as $a) {
-            StoredImage::delete($a->path);
-        }
-        $repair->delete();
+        $repair->deleteWithFiles(); // shared with the MCP tools
 
         return back();
     }

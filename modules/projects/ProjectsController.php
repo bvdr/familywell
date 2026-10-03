@@ -182,9 +182,7 @@ class ProjectsController extends Controller
 
     public function destroyProject(Request $request, Project $project): RedirectResponse
     {
-        abort_unless($project->created_by === $request->user()->id, 403);
-        Notify::toAccessOf($project, 'projects', $request->user()->id, 'Projects', "{$request->user()->name} deleted project: {$project->name}", route('projects.index', [], false));
-        $project->delete();
+        $project->deleteFor($request->user()); // creator-only + notify + cover cleanup (shared with MCP)
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
 
         return to_route('projects.index');

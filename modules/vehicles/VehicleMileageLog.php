@@ -25,6 +25,25 @@ class VehicleMileageLog extends Model
         'recorded_at' => 'datetime',
     ];
 
+    /**
+     * Remove one reading from the history (e.g. a duplicate). The current odometer only changes when this
+     * was the newest reading AND the odometer still shows its value: it then falls back to the newest
+     * remaining reading. Any other reading (or a car with no other readings) leaves the odometer alone.
+     */
+    public function deleteReading(): void
+    {
+        $vehicle = $this->vehicle;
+        $newest = $vehicle->mileageLogs()->orderByDesc('recorded_at')->orderByDesc('id')->first();
+        $this->delete();
+
+        if ($newest?->is($this) && (int) $vehicle->current_mileage === (int) $this->mileage) {
+            $previous = $vehicle->mileageLogs()->orderByDesc('recorded_at')->orderByDesc('id')->value('mileage');
+            if ($previous !== null) {
+                $vehicle->update(['current_mileage' => (int) $previous]);
+            }
+        }
+    }
+
     public function vehicle(): BelongsTo
     {
         return $this->belongsTo(Vehicle::class, 'vehicle_id');

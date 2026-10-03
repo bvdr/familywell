@@ -3,6 +3,7 @@
 namespace Modules\Projects;
 
 use App\Models\User;
+use App\Support\Media\StoredImage;
 use App\Support\Sharing\Shareable;
 use App\Support\Tenancy\BelongsToFamily;
 use Illuminate\Database\Eloquent\Model;
@@ -30,6 +31,18 @@ class Project extends Model
     public function dependencies(): HasMany
     {
         return $this->hasMany(ProjectDependency::class);
+    }
+
+    /**
+     * Delete the project for good (creator only, same rule as the web UI), telling the people who could see
+     * it, and freeing its cover image from storage. Links cascade in the DB. Shared by the web delete + MCP.
+     */
+    public function deleteFor(User $actor): void
+    {
+        abort_unless($this->created_by === $actor->id, 403);
+        Notify::toAccessOf($this, 'projects', $actor->id, 'Projects', "{$actor->name} deleted project: {$this->name}", '/m/projects');
+        StoredImage::delete($this->cover_path);
+        $this->delete();
     }
 
     public function links(): HasMany

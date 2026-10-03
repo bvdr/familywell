@@ -29,12 +29,14 @@ class VehiclesServiceProvider extends ServiceProvider
         NotificationCategories::register('vehicles', 'Vehicles', 'car');
 
         // MCP: tools an AI assistant can use on the family's cars, gated by the `vehicles:read` /
-        // `vehicles:write` scopes granted on the consent screen (see docs/mcp.md). No delete tools: car
-        // records have no trash, so removing them stays a deliberate action in the app.
+        // `vehicles:write` scopes granted on the consent screen (see docs/mcp.md).
+        // Delete tools are permanent (these records have no trash), so they are marked destructive and ask the
+        // assistant to confirm with the person first.
         McpTools::register('vehicles', 'Vehicles', [
             Mcp\ListVehicles::class, Mcp\GetVehicle::class, Mcp\VehicleHistory::class,
             Mcp\LogMileage::class, Mcp\LogFuel::class, Mcp\CompleteMaintenance::class,
             Mcp\AddRepair::class, Mcp\AddExpense::class, Mcp\AddDocument::class, Mcp\AttachFile::class,
+            Mcp\DeleteRecord::class, Mcp\DeleteVehicle::class,
         ]);
 
         // MAINTENANCE -> TASKS, completion half. When a task is checked off, complete the maintenance it

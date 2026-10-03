@@ -394,8 +394,7 @@ class VehiclesController extends Controller
     public function destroy(Request $request, Vehicle $vehicle): RedirectResponse
     {
         $this->authorizeVehicle($vehicle);
-        StoredImage::delete($vehicle->photo_path);   // free the R2 objects before the row goes
-        $vehicle->delete();
+        $vehicle->deleteWithFiles(); // photo + repair attachments + document files, then the row (cascades)
 
         return redirect()->route('vehicles.index');
     }

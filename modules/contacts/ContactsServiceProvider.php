@@ -23,10 +23,10 @@ class ContactsServiceProvider extends ServiceProvider
             });
 
         // MCP: address-book tools for an AI assistant, gated by the `contacts:read` / `contacts:write`
-        // scopes (see docs/mcp.md). No delete tool: people are not soft-deleted (no trash) and deleting
-        // one cascades to its birthday and other extension rows, so that stays a deliberate in-app action.
+        // scopes (see docs/mcp.md).
+        // Delete tools are permanent (these records have no trash), so they are marked destructive and ask the
+        // assistant to confirm with the person first.
         McpTools::register('contacts', 'Contacts', [
-            Mcp\ListContacts::class, Mcp\GetContact::class, Mcp\CreateContact::class, Mcp\UpdateContact::class,
-        ]);
+            Mcp\ListContacts::class, Mcp\GetContact::class, Mcp\CreateContact::class, Mcp\UpdateContact::class, Mcp\DeleteContact::class, ]);
     }
 }
