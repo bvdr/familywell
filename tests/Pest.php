@@ -23,6 +23,15 @@ pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->in('Feature');
 
+// Unit tests get the app booted too (no RefreshDatabase: they're pure/no-DB), but NOT via RefreshDatabase.
+// Modules\* classes (e.g. Modules\Calendar\Occurrences) only resolve once ModuleServiceProvider has run
+// (it remaps each module's StudlyCase namespace onto its lowercase `modules/<id>` folder at runtime; plain
+// Composer PSR-4 is case-sensitive and never finds e.g. modules/Calendar for namespace Modules\Calendar).
+// `php artisan test` always runs a fresh subprocess per invocation, so without this a module's Unit test
+// only passed by accident when another booted-app test happened to run first in the same process (e.g.
+// alphabetically before it). Booting here makes every Unit test deterministic regardless of run order.
+pest()->extend(TestCase::class)->in('Unit');
+
 /*
 |--------------------------------------------------------------------------
 | Expectations
