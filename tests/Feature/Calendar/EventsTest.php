@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use App\Support\Tenancy\CurrentFamily;
+use Illuminate\Support\Facades\DB;
 use Modules\Calendar\CalendarEvent;
 use Modules\Contacts\Person;
 
@@ -87,6 +88,40 @@ it('expands a repeating event across the range', function () {
     trip($users[0], ['title' => 'Gym', 'start_date' => '2026-07-06', 'end_date' => '2026-07-06', 'repeat' => 'weekly']);
     $items = CalendarEvent::itemsFor($users[0]->id, '2026-07-01', '2026-07-31');
     expect(array_column($items, 'start'))->toBe(['2026-07-06', '2026-07-13', '2026-07-20', '2026-07-27']);
+});
+
+it('computes editable from shares and visibility, with no per-event query', function () {
+    [, $users] = calendarFamily();
+    $open = trip($users[0], ['title' => 'Family Trip']);
+    $restricted = trip($users[0], ['title' => 'Private Review']);
+    $restricted->setVisibility('invited');
+    $restricted->shares()->create(['user_id' => $users[1]->id, 'role' => 'viewer']);
+
+    DB::enableQueryLog();
+    $items = CalendarEvent::itemsFor($users[1]->id, '2026-07-01', '2026-07-31');
+    $queriesForTwo = count(DB::getQueryLog());
+    DB::flushQueryLog();
+
+    $byTitle = collect($items)->keyBy('title');
+    // Family-visible, no explicit share for $users[1]: visibility() === 'family' is enough (the query
+    // is already family-scoped + visibleTo-filtered, so membership is implied).
+    expect($byTitle['Family Trip']['editable'])->toBeTrue();
+    // Explicit 'viewer' share on a non-family-visible event: below the 'editor' bar ShareAccess::canEdit uses.
+    expect($byTitle['Private Review']['editable'])->toBeFalse();
+
+    // Adding more events must not add more queries: editable is read off the already-eager-loaded
+    // shares/shareSetting relations, not a ShareAccess query per event (that was the bug being fixed).
+    DB::disableQueryLog();
+    trip($users[0], ['title' => 'C', 'start_date' => '2026-07-02', 'end_date' => '2026-07-02']);
+    trip($users[0], ['title' => 'D', 'start_date' => '2026-07-03', 'end_date' => '2026-07-03']);
+    trip($users[0], ['title' => 'E', 'start_date' => '2026-07-04', 'end_date' => '2026-07-04']);
+
+    DB::enableQueryLog();
+    CalendarEvent::itemsFor($users[1]->id, '2026-07-01', '2026-07-31');
+    $queriesForFive = count(DB::getQueryLog());
+    DB::disableQueryLog();
+
+    expect($queriesForFive)->toBe($queriesForTwo);
 });
 
 it('trashes and restores an event', function () {
