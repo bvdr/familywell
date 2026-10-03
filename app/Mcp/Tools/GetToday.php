@@ -34,8 +34,8 @@ class GetToday extends Tool
                 'due_date' => $i['dueDate'],
                 'overdue' => $i['dueDate'] < $today,
                 'url' => $this->url($i['href']),
-                // What it is (task | shopping_item | project_task) + its id, so it can be ticked off with that
-                // module's update tool (the widget does exactly that).
+                // What it is (task | shopping_item | project_task | calendar_todo | event) + its id, so it can be
+                // ticked off with that module's update tool (the widget does exactly that; events have no tick).
                 'kind' => $i['kind'] ?? null,
                 'id' => $i['id'] ?? null,
             ]);
