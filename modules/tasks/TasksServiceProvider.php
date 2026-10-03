@@ -3,6 +3,7 @@
 namespace Modules\Tasks;
 
 use App\Models\EntityVisit;
+use App\Support\Calendar\CalendarSources;
 use App\Support\Dashboard\DashboardAgenda;
 use App\Support\Dashboard\DashboardItems;
 use App\Support\Mcp\McpTools;
@@ -99,6 +100,23 @@ class TasksServiceProvider extends ServiceProvider
                     'kind' => 'task', // kind + id: get_today's widget ticks it off via the MCP tool
                     'id' => $t->id,
                 ])->values()->all();
+        });
+
+        // Calendar: list tasks with a due date in the range, done ones too (struck through on the calendar).
+        // Visibility = the list's sharing, same rule as the dashboard agenda above.
+        CalendarSources::register('tasks', function (string $from, string $to, int $userId) {
+            if (! app(ModuleRegistry::class)->isEnabled('tasks', (int) CurrentFamily::id())) {
+                return [];
+            }
+
+            return Task::query()->whereNotNull('task_list_id')
+                ->whereDate('due_date', '>=', $from)->whereDate('due_date', '<=', $to)
+                ->with(['list.shareSetting', 'list.shares', 'assignee'])->get()
+                ->filter(fn (Task $t) => $t->list && ($t->list->visibility() === 'family' || $t->list->shares->contains('user_id', $userId)))
+                ->map(fn (Task $t) => CalendarSources::item('task', $t->id, $t->title, $t->due_date->toDateString(),
+                    href: "/m/tasks/lists/{$t->task_list_id}", icon: 'list-checks', color: $t->list->color,
+                    people: $t->assignee ? [['type' => 'user', 'id' => $t->assignee->id, 'name' => $t->assignee->name]] : [], done: $t->done))
+                ->values()->all();
         });
 
         // Full Inertia pages, gated by `module:tasks` so they are only reachable when the family

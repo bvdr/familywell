@@ -2,6 +2,7 @@
 
 namespace Modules\Vehicles;
 
+use App\Support\Calendar\CalendarSources;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
@@ -74,6 +75,33 @@ class VehiclesServiceProvider extends ServiceProvider
         // whether the scheduler worker is live in prod (`php artisan vehicles:check`).
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
             $schedule->command('vehicles:check')->dailyAt('07:00')->withoutOverlapping();
+        });
+
+        // Calendar: the next due date of each active maintenance schedule (explicit due_on, or computed from
+        // last-performed + interval by MaintenanceStatus) and document expiry dates. Vehicles are family-wide
+        // (no per-entity sharing), so no visibility filter.
+        CalendarSources::register('vehicles', function (string $from, string $to) {
+            if (! $this->enabledHere()) {
+                return [];
+            }
+            $items = [];
+            foreach (Vehicle::with(['maintenanceSchedules', 'documents'])->get() as $car) {
+                $name = trim("{$car->make} {$car->model}");
+                foreach ($car->maintenanceSchedules->where('active', true) as $s) {
+                    $due = $s->statusFor((int) $car->current_mileage)['nextDueDate'];
+                    if ($due && $due >= $from && $due <= $to) {
+                        $items[] = CalendarSources::item('vehicle_maintenance', $s->id, "{$name}: {$s->name}", $due, href: "/m/vehicles/{$car->id}", icon: 'wrench');
+                    }
+                }
+                foreach ($car->documents as $d) {
+                    $exp = $d->expires_on?->toDateString();
+                    if ($exp && $exp >= $from && $exp <= $to) {
+                        $items[] = CalendarSources::item('vehicle_document', $d->id, "{$name}: {$d->title}", $exp, href: "/m/vehicles/{$car->id}", icon: 'file-text');
+                    }
+                }
+            }
+
+            return $items;
         });
 
         // Full Inertia pages, gated by `module:vehicles` so they only exist for families that enabled

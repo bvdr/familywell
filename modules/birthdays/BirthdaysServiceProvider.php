@@ -2,11 +2,13 @@
 
 namespace Modules\Birthdays;
 
+use App\Support\Calendar\CalendarSources;
 use App\Support\Dashboard\DashboardWidgets;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Translations;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -58,6 +60,40 @@ class BirthdaysServiceProvider extends ServiceProvider
                 'name' => $b->person->name,
                 'turning' => $b->turning(),
             ])->values()->all();
+        });
+
+        // Calendar: every year on month+day (Feb 29 only in leap years, like the yearly repeat rule). Title says
+        // the age they turn when the birth year is known. Server strings via Translations (no :param support,
+        // hence strtr).
+        CalendarSources::register('birthdays', function (string $from, string $to) {
+            if (! $this->enabledHere()) {
+                return [];
+            }
+            $items = [];
+            $fromY = (int) substr($from, 0, 4);
+            $toY = (int) substr($to, 0, 4);
+            foreach (BirthdayDate::with('person')->get() as $b) {
+                if (! $b->person) {
+                    continue;
+                }
+                for ($y = $fromY; $y <= $toY; $y++) {
+                    if (! checkdate($b->month, $b->day, $y)) {
+                        continue;
+                    }
+                    $date = sprintf('%04d-%02d-%02d', $y, $b->month, $b->day);
+                    if ($date < $from || $date > $to) {
+                        continue;
+                    }
+                    $year = $b->year();
+                    $title = $year
+                        ? strtr(Translations::get('calendar.birthday_turns'), [':name' => $b->person->name, ':age' => $y - $year])
+                        : strtr(Translations::get('calendar.birthday'), [':name' => $b->person->name]);
+                    $items[] = CalendarSources::item('birthday', $b->id, $title, $date, href: '/m/birthdays', icon: 'cake',
+                        people: [['type' => 'person', 'id' => $b->person->id, 'name' => $b->person->name]]);
+                }
+            }
+
+            return $items;
         });
 
         Route::middleware(['web', 'auth', 'family', 'module:birthdays'])
