@@ -2,13 +2,16 @@
 
 namespace Modules\Shopping;
 
+use App\Events\ShoppingChanged;
 use App\Models\User;
+use App\Support\Realtime;
 use App\Support\Sharing\Shareable;
 use App\Support\Tenancy\BelongsToFamily;
 use App\Support\Trash\CascadesTrash;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Modules\Notifications\Notify;
 
 class ShoppingList extends Model
 {
@@ -73,5 +76,30 @@ class ShoppingList extends Model
         $list->setVisibility('family');
 
         return $list;
+    }
+
+    /**
+     * Add several items at once (the web bulk add, a recipe's ingredients), with ONE summary push to the
+     * people on the list instead of one per item, and one realtime refresh. Each item still goes through
+     * ShoppingItem's `created` hook (aisle guess).
+     *
+     * @param  list<array{name: string, quantity?: ?string, department?: ?string, note?: ?string}>  $items
+     */
+    public function addItems(User $by, array $items): void
+    {
+        foreach (array_values($items) as $i => $item) {
+            $this->items()->create([
+                'name' => $item['name'],
+                'quantity' => $item['quantity'] ?? null,
+                'department' => $item['department'] ?? 'other',
+                'note' => $item['note'] ?? null,
+                'position' => $i,
+                'created_by' => $by->id,
+            ]);
+        }
+
+        $n = count($items);
+        Notify::toAccessOf($this, 'shopping', $by->id, $this->name, "{$by->name} added {$n} items", route('shopping.show', $this, false));
+        Realtime::broadcast(new ShoppingChanged((int) $this->family_id));
     }
 }
