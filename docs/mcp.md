@@ -80,7 +80,7 @@ of only the JSON. Other clients see the same JSON as before.
 | Widget | Tools | What you can do in it |
 |---|---|---|
 | `tasks` | `tasks_get_list`, `tasks_search` | tick tasks and sub-tasks, add a task |
-| `shopping` | `shopping_get_list`, `shopping_search` | items by aisle, tick as bought, add an item |
+| `shopping` | `shopping_get_list`, `shopping_search` | items by aisle, tick as bought, add an item, full screen |
 | `project` | `projects_get` | progress, tick tasks, add a task, dependencies, linked lists |
 | `today` | `get_today` | tick off due tasks, shopping items and project tasks |
 | `spending` | `spending_summary`, `spending_list_expenses` | totals by category/shop, switch period |
@@ -99,6 +99,11 @@ what the person did (`ui/update-model-context`), so the next turn knows.
 `resources/mcp-apps/core.{css,js}` (shared runtime: `FW.start`, `FW.act`, `FW.h`, ...) and
 `resources/mcp-apps/<widget>.js`, all inlined, so the CSP needs no external domains. A tool opts in with
 `protected ?string $app = '<widget>';`. New widget: a line in `Widget::WIDGETS` plus its JS file.
+
+**Full screen:** a widget listed in `Widget::FULLSCREEN` and started with `FW.start(render, { fullscreen: true })`
+declares `availableDisplayModes: ["inline", "fullscreen"]` and shows a *Full screen* button when the host
+offers that mode (`ui/request-display-mode`). laravel/mcp's SDK hardcodes `appCapabilities: {}`, so
+`Widget::sdk()` patches that literal; `AppsTest` fails if a package update changes it.
 
 ## How it works
 
