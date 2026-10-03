@@ -3,6 +3,7 @@
 namespace Modules\Vehicles\Mcp;
 
 use App\Mcp\Tool;
+use App\Support\Mcp\IncomingFile;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
@@ -16,7 +17,12 @@ class CompleteMaintenance extends Tool
 
     protected string $name = 'vehicles_complete_maintenance';
 
-    protected string $description = 'Mark a maintenance schedule (from vehicles_get) as done: records it in the service history, resets when it is next due, moves the odometer forward, closes its reminder task, and records any cost in Spending.';
+    protected string $description = 'Mark a maintenance schedule (from vehicles_get) as done: records it in the service history, resets when it is next due, moves the odometer forward, closes its reminder task, and records any cost in Spending. An invoice/deviz file (file / file_url / file_base64) is filed with the car\'s documents as a service invoice.';
+
+    public function __construct()
+    {
+        $this->setMeta(IncomingFile::FILE_PARAMS_META); // lets ChatGPT pass a file the person attached
+    }
 
     public function schema(JsonSchema $schema): array
     {
@@ -28,6 +34,7 @@ class CompleteMaintenance extends Tool
             'cost' => $schema->number(),
             'provider' => $schema->string()->description('Garage / who did it.'),
             'notes' => $schema->string(),
+            ...IncomingFile::schema($schema),
         ];
     }
 
@@ -48,6 +55,8 @@ class CompleteMaintenance extends Tool
             return $this->notFound('Maintenance schedule');
         }
 
+        $file = IncomingFile::from($request); // validated (type, size) before anything is written
+
         // The same completion path as the app's "Mark as completed" form and a checked-off reminder task.
         $history = MaintenanceCompletion::complete($v, $schedule, [
             'performed_at' => $data['performed_on'] ?? now()->toDateString(),
@@ -59,9 +68,22 @@ class CompleteMaintenance extends Tool
 
         $st = $schedule->fresh()->statusFor((int) $v->fresh()->current_mileage);
 
+        // Service records have no attachments of their own (not in the app either); an invoice for a service
+        // lives with the car's documents as a `service_invoice`, which is where the app files one too.
+        $document = null;
+        if ($file) {
+            $document = $v->documents()->create([
+                'type' => 'service_invoice',
+                'title' => "{$schedule->name} — {$history->performed_at->toDateString()}",
+                'created_by' => $this->user()->id,
+            ]);
+            $document->attachFile($file);
+        }
+
         return Response::json([
             'completed' => $schedule->name,
             'history_id' => $history->id,
+            'invoice_document_id' => $document?->id,
             'next_due_km' => $st['nextDueMileage'],
             'next_due_date' => $st['nextDueDate'],
             'url' => VehicleData::url("/m/vehicles/{$v->id}/maintenance/{$schedule->id}"),

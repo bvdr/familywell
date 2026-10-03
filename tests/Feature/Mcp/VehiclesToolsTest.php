@@ -2,10 +2,15 @@
 
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Modules\Spending\Spend;
+use Modules\Vehicles\Repair;
 use Modules\Vehicles\Vehicle;
+use Modules\Vehicles\VehicleDocument;
 use Modules\Vehicles\VehicleFuelEntry;
 use Modules\Vehicles\VehicleMaintenanceHistory;
+use Modules\Vehicles\VehicleMileageLog;
 
 // Cars over MCP: read a car's full state + history, log mileage / fuel / service / repair / expense through
 // the same model paths the app uses. Cars are family-wide, so the family scope is the only access rule.
@@ -102,4 +107,81 @@ it('refuses an expense when Spending is off, and never reaches another family\'s
     expect(mcpTool($token, 'vehicles_get', ['vehicle_id' => $theirs->id])[0])->toBeTrue()
         ->and(mcpTool($token, 'vehicles_log_mileage', ['vehicle_id' => $theirs->id, 'mileage_km' => 2000])[0])->toBeTrue();
     expect($theirs->fresh()->current_mileage)->toBe(1000);
+});
+
+// ---- Dated mileage + files (vehicles_add_document / vehicles_attach_file / files on repairs + services) ----
+
+const TINY_PDF = "%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n";
+
+it('logs a past-dated reading into the history without moving the odometer', function () {
+    [, , $token, $car] = carsToken();
+    mcpTool($token, 'vehicles_log_mileage', ['vehicle_id' => $car->id, 'mileage_km' => 150500]); // today
+
+    [$err] = mcpTool($token, 'vehicles_log_mileage', ['vehicle_id' => $car->id, 'mileage_km' => 149000, 'date' => now()->subMonth()->toDateString()]);
+    expect($err)->toBeFalse()->and($car->fresh()->current_mileage)->toBe(150500)
+        ->and(VehicleMileageLog::where('mileage', 149000)->value('recorded_at')->toDateString())->toBe(now()->subMonth()->toDateString());
+
+    // A past reading that does not fit the readings after it is refused; so is a future date.
+    [$err, $msg] = mcpTool($token, 'vehicles_log_mileage', ['vehicle_id' => $car->id, 'mileage_km' => 160000, 'date' => now()->subWeek()->toDateString()]);
+    expect($err)->toBeTrue()->and($msg)->toContain('between');
+    expect(mcpTool($token, 'vehicles_log_mileage', ['vehicle_id' => $car->id, 'mileage_km' => 151000, 'date' => now()->addDay()->toDateString()])[0])->toBeTrue();
+});
+
+it('adds a document with a base64 file and attaches files to repairs and documents', function () {
+    Storage::fake('r2');
+    [, , $token, $car] = carsToken();
+    $pdf = base64_encode(TINY_PDF);
+
+    [$err, $doc] = mcpTool($token, 'vehicles_add_document', ['vehicle_id' => $car->id, 'type' => 'insurance', 'title' => 'RCA 2027', 'expires_on' => '2027-10-01', 'file_base64' => $pdf, 'file_name' => 'rca.pdf']);
+    expect($err)->toBeFalse()->and($doc['file'])->toBe('rca.pdf');
+    $stored = VehicleDocument::find($doc['document_id']);
+    Storage::disk('r2')->assertExists($stored->file_path);
+
+    [, $repair] = mcpTool($token, 'vehicles_add_repair', ['vehicle_id' => $car->id, 'title' => 'Brakes', 'file_base64' => $pdf, 'file_name' => 'factura.pdf']);
+    expect($repair['attachment'])->toBe('factura.pdf');
+    [, $more] = mcpTool($token, 'vehicles_attach_file', ['vehicle_id' => $car->id, 'target' => 'repair', 'id' => $repair['repair_id'], 'file_base64' => $pdf, 'file_name' => 'poza.pdf']);
+    expect($more['attached'])->toBe('poza.pdf')
+        ->and(Repair::find($repair['repair_id'])->attachments()->count())->toBe(2);
+
+    [, $replaced] = mcpTool($token, 'vehicles_attach_file', ['vehicle_id' => $car->id, 'target' => 'document', 'id' => $doc['document_id'], 'file_base64' => $pdf, 'file_name' => 'rca-v2.pdf']);
+    expect($replaced['attached'])->toBe('rca-v2.pdf')->and($stored->fresh()->file_name)->toBe('rca-v2.pdf');
+    Storage::disk('r2')->assertMissing($stored->file_path); // the old file was freed
+});
+
+it('files a service deviz as a service invoice when completing maintenance', function () {
+    Storage::fake('r2');
+    [, , $token, $car, $oil] = carsToken();
+
+    [, $done] = mcpTool($token, 'vehicles_complete_maintenance', ['vehicle_id' => $car->id, 'schedule_id' => $oil->id, 'file_base64' => base64_encode(TINY_PDF), 'file_name' => 'deviz.pdf']);
+    $doc = VehicleDocument::find($done['invoice_document_id']);
+    expect($doc->type)->toBe('service_invoice')->and($doc->title)->toStartWith('Oil & filter')->and($doc->file_name)->toBe('deviz.pdf');
+});
+
+it('takes a file from a URL or a ChatGPT file param, and refuses unsafe or wrong files', function () {
+    Storage::fake('r2');
+    // A closure, so each request gets a fresh response (a shared one's body stream is read to the end once).
+    Http::fake(['*' => fn () => Http::response(TINY_PDF)]);
+    [, , $token, $car] = carsToken();
+    $base = ['vehicle_id' => $car->id, 'type' => 'service_invoice', 'title' => 'Deviz'];
+
+    // A literal public IP host skips DNS (the sandbox may have none); the body comes from Http::fake.
+    [$err, $a] = mcpTool($token, 'vehicles_add_document', $base + ['file_url' => 'https://93.184.216.34/files/deviz.pdf']);
+    expect($err)->toBeFalse()->and($a['file'])->toBe('deviz.pdf');
+    [$err, $b] = mcpTool($token, 'vehicles_add_document', $base + ['file' => ['download_url' => 'https://93.184.216.34/dl?id=1', 'file_id' => 'file-1', 'file_name' => 'scan.pdf']]);
+    expect($err)->toBeFalse()->and($b['file'])->toBe('scan.pdf');
+
+    $refused = fn (array $extra) => mcpTool($token, 'vehicles_add_document', $base + $extra);
+    expect($refused(['file_url' => 'http://93.184.216.34/x.pdf'])[1])->toContain('https')
+        ->and($refused(['file_url' => 'https://127.0.0.1/x.pdf'])[1])->toContain('private')
+        ->and($refused(['file_url' => 'https://10.0.0.5/x.pdf'])[1])->toContain('private')
+        ->and($refused(['file_base64' => base64_encode('just text'), 'file_name' => 'x.txt'])[1])->toContain('Unsupported')
+        ->and($refused(['file_base64' => '***', 'file_name' => 'x.pdf'])[1])->toContain('base64');
+    expect(VehicleDocument::count())->toBe(3); // the two above + the fixture's RCA, nothing from refusals
+});
+
+it('marks the file parameter for ChatGPT file passing', function () {
+    [, , $token] = carsToken();
+    $tool = collect(mcpCall($token, 'tools/list')->json('result.tools'))->firstWhere('name', 'vehicles_add_document');
+    expect($tool['_meta']['openai/fileParams'])->toBe(['file'])
+        ->and($tool['inputSchema']['properties'])->toHaveKeys(['file', 'file_url', 'file_base64', 'file_name']);
 });

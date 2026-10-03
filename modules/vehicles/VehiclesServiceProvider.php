@@ -34,7 +34,7 @@ class VehiclesServiceProvider extends ServiceProvider
         McpTools::register('vehicles', 'Vehicles', [
             Mcp\ListVehicles::class, Mcp\GetVehicle::class, Mcp\VehicleHistory::class,
             Mcp\LogMileage::class, Mcp\LogFuel::class, Mcp\CompleteMaintenance::class,
-            Mcp\AddRepair::class, Mcp\AddExpense::class,
+            Mcp\AddRepair::class, Mcp\AddExpense::class, Mcp\AddDocument::class, Mcp\AttachFile::class,
         ]);
 
         // MAINTENANCE -> TASKS, completion half. When a task is checked off, complete the maintenance it

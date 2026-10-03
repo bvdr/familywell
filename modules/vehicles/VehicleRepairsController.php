@@ -137,10 +137,7 @@ class VehicleRepairsController extends Controller
     {
         $thumbs = (array) $request->file('attachments_thumb', []);
         foreach ((array) $request->file('attachments', []) as $i => $file) {
-            $repair->attachments()->create([
-                'path' => StoredImage::store($file, $thumbs[$i] ?? null, 'vehicles/'.CurrentFamily::id().'/repairs'),
-                'name' => $file->getClientOriginalName(),
-            ]);
+            $repair->attachFile($file, $thumbs[$i] ?? null); // shared with the MCP tools
         }
     }
 

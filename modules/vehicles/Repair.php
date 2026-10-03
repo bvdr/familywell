@@ -3,10 +3,12 @@
 namespace Modules\Vehicles;
 
 use App\Models\User;
+use App\Support\Media\StoredImage;
 use App\Support\Tenancy\BelongsToFamily;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Http\UploadedFile;
 
 /**
  * An unplanned repair (P4) — SEPARATE from the recurring maintenance schedules of P2/P3. A repair is a
@@ -35,6 +37,15 @@ class Repair extends Model
     public function vehicle(): BelongsTo
     {
         return $this->belongsTo(Vehicle::class, 'vehicle_id');
+    }
+
+    /** Add one attachment (invoice/photo). Shared by the Repairs form and the MCP tools. */
+    public function attachFile(UploadedFile $file, ?UploadedFile $thumb = null): RepairAttachment
+    {
+        return $this->attachments()->create([
+            'path' => StoredImage::store($file, $thumb, 'vehicles/'.$this->family_id.'/repairs'),
+            'name' => $file->getClientOriginalName(),
+        ]);
     }
 
     public function attachments(): HasMany
