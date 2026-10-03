@@ -8,6 +8,7 @@ use Modules\Contacts\Person;
 use Modules\Projects\Project;
 use Modules\Tasks\Task;
 use Modules\Tasks\TaskList;
+use Modules\Vehicles\MaintenanceTasks;
 use Modules\Vehicles\Vehicle;
 use Modules\Vehicles\VehicleDocument;
 use Modules\Vehicles\VehicleMaintenanceSchedule;
@@ -48,6 +49,22 @@ it('shows vehicle maintenance and document due dates', function () use ($kinds) 
 
     expect($kinds(CalendarSources::collect('2026-07-01', '2026-07-31', $users[0]->id)))
         ->toBe(['vehicles:vehicle_maintenance:Dacia Duster: Oil change:2026-07-10', 'vehicles:vehicle_document:Dacia Duster: ITP:2026-07-22']);
+});
+
+it('shows a due schedule once when it already opened a maintenance task', function () use ($kinds) {
+    [, $users] = calendarFamily(['calendar', 'tasks', 'contacts', 'spending', 'vehicles']);
+    test()->actingAs($users[0]);
+    $car = Vehicle::create(['make' => 'Dacia', 'model' => 'Duster', 'current_mileage' => 50000, 'created_by' => $users[0]->id]);
+    $s = VehicleMaintenanceSchedule::create(['vehicle_id' => $car->id, 'name' => 'Oil change', 'type' => 'oil', 'due_on' => '2026-07-10', 'active' => true, 'created_by' => $users[0]->id]);
+    $task = MaintenanceTasks::ensureForDue($s, $car, $users[0]);
+
+    expect($kinds(CalendarSources::collect('2026-07-01', '2026-07-31', $users[0]->id)))
+        ->toBe(['tasks:task:Oil change — Dacia Duster:2026-07-10']);
+
+    // Once the task is done (but the link not yet cleared), the schedule shows again as itself.
+    $task->update(['done' => true]);
+    expect($kinds(CalendarSources::collect('2026-07-01', '2026-07-31', $users[0]->id)))
+        ->toContain('vehicles:vehicle_maintenance:Dacia Duster: Oil change:2026-07-10');
 });
 
 it('shows a project start as a one-day marker, not when archived', function () use ($kinds) {
