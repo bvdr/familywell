@@ -7,7 +7,6 @@ use App\Models\User;
 use App\Support\Calendar\CalendarSources;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\Shareable;
-use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\BelongsToFamily;
 use App\Support\Tenancy\CurrentFamily;
 use Carbon\CarbonImmutable;
@@ -230,12 +229,11 @@ class CalendarEvent extends Model
             ->where(fn ($q) => $q->where('repeat', '!=', 'none')->orWhereDate('end_date', '>=', $from))
             ->get();
         $people = self::peopleFor($events);
-        $user = User::find($userId);
 
         $items = [];
         foreach ($events as $e) {
             $days = (int) $e->start_date->diffInDays($e->end_date);
-            $editable = $user && app(ShareAccess::class)->canEdit($user, $e);
+            $editable = self::editableBy($e, $userId);
             foreach (Occurrences::starts($e->start_date->toDateString(), $e->end_date->toDateString(), $e->repeat, $e->repeat_interval, $e->repeat_until?->toDateString(), $from, $to) as $start) {
                 $items[] = CalendarSources::item(
                     'event', $e->id, $e->title, $start, CarbonImmutable::parse($start)->addDays($days)->toDateString(),
@@ -246,6 +244,22 @@ class CalendarEvent extends Model
         }
 
         return $items;
+    }
+
+    /**
+     * Same verdict as ShareAccess::canEdit(), but read from the `shares`/`shareSetting` relations
+     * itemsFor() already eager-loaded instead of firing ShareAccess's own 2 queries per event (it does
+     * `shares()->where(...)->value()` and `$user->families()->whereKey()->exists()`), which would turn
+     * a month view into dozens of extra round trips. Membership for the `family` default is implied
+     * here: $events is already scoped to the current family (BelongsToFamily) and filtered by
+     * visibleTo($userId), so a family-visible row reaching this point means $userId can see it as a
+     * family member already — no need to re-query family membership.
+     */
+    private static function editableBy(self $e, int $userId): bool
+    {
+        $role = $e->shares->firstWhere('user_id', $userId)?->role;
+
+        return $role !== null ? in_array($role, ['owner', 'editor'], true) : $e->visibility() === 'family';
     }
 
     /** Detail page / MCP shape (to-dos are added by the controller, which also needs members). */
