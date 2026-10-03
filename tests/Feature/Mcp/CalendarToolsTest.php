@@ -47,15 +47,21 @@ it('only includes other modules the token may read', function () {
 });
 
 it('updates, adds a to-do, and deletes', function () {
-    [, , $token] = calendarToken();
-    [, $e] = mcpTool($token, 'calendar_create_event', ['title' => 'Grecia', 'start_date' => '2026-07-17', 'end_date' => '2026-07-25']);
+    [$family, $users, $token] = calendarToken(modules: ['calendar', 'tasks', 'contacts', 'projects']);
+    CurrentFamily::set($family->id);
+    $project = Project::createFor($users[0], ['name' => 'Kitchen', 'target_start' => '2026-07-15']);
+    [, $e] = mcpTool($token, 'calendar_create_event', ['title' => 'Grecia', 'start_date' => '2026-07-17', 'end_date' => '2026-07-25', 'project_id' => $project->id]);
     [$err, $u] = mcpTool($token, 'calendar_update_event', ['id' => $e['id'], 'end_date' => '2026-07-27', 'repeat' => 'yearly']);
-    expect($err)->toBeFalse()->and($u)->toMatchArray(['end_date' => '2026-07-27', 'repeat' => 'yearly']);
+    expect($err)->toBeFalse()->and($u)->toMatchArray(['end_date' => '2026-07-27', 'repeat' => 'yearly'])
+        ->and($u['project']['url'])->toStartWith('http');
 
     [$err, $t] = mcpTool($token, 'calendar_add_todo', ['event_id' => $e['id'], 'title' => 'Pack']);
-    expect($err)->toBeFalse()->and(Task::find($t['id'])->task_list_id)->toBeNull();
+    expect($err)->toBeFalse()->and(Task::find($t['id'])->task_list_id)->toBeNull()
+        ->and($t['url'])->toStartWith('http');
     [, $g] = mcpTool($token, 'calendar_get_event', ['id' => $e['id']]);
-    expect(collect($g['todos'])->pluck('title')->all())->toBe(['Pack']);
+    expect(collect($g['todos'])->pluck('title')->all())->toBe(['Pack'])
+        ->and($g['todos'][0]['url'])->toStartWith('http')
+        ->and($g['project']['url'])->toStartWith('http');
 
     [$err] = mcpTool($token, 'calendar_delete_event', ['id' => $e['id']]);
     expect($err)->toBeFalse()->and(CalendarEvent::withoutGlobalScope('family')->withTrashed()->find($e['id'])->trashed())->toBeTrue();
