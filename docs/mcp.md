@@ -41,7 +41,7 @@ per-module `TrashSource`); `trash:purge` removes it for good afterwards.
 | Recipes | `recipes_list` (search title / tag / ingredient), `recipes_get`, `recipes_scale` | `recipes_create`, `recipes_update`, `recipes_set_photo`, `recipes_add_to_shopping`, `recipes_delete` |
 | Inventory | `inventory_list`, `inventory_get`, `inventory_needs_attention` | `inventory_add_item`, `inventory_update_item`, `inventory_adjust_quantity`, `inventory_add_to_shopping`, `inventory_delete_item` |
 | Projects | `projects_list`, `projects_get` | `projects_create`, `projects_update`, `projects_add_task`, `projects_update_task`, `projects_delete_task`, `projects_delete` |
-| Calendar | `calendar_list`, `calendar_get_event` | `calendar_create_event`, `calendar_update_event`, `calendar_delete_event`, `calendar_add_todo` |
+| Calendar | `calendar_list`, `calendar_get_event` | `calendar_create_event`, `calendar_update_event`, `calendar_delete_event`, `calendar_add_todo`, `calendar_update_todo`, `calendar_delete_todo` |
 
 **Files:** MCP has no upload primitive, so tools that take a file (`vehicles_add_document`,
 `vehicles_attach_file`, and the optional file on `vehicles_add_repair` / `vehicles_complete_maintenance`) accept it
@@ -91,10 +91,14 @@ of another member is invisible), the same validation, and the same notifications
 this connection may read, task due dates, birthdays, car maintenance due dates and project starts — all
 as one unified `items` list. A module's items appear only when the token can also read that module
 (e.g. without Tasks access, `calendar_list` carries calendar events and birthdays but not task due
-dates). `calendar_get_event` returns one event with its people and to-dos. `calendar_create_event`,
+dates). Dated event to-dos are calendar items too (kind `task`, source `calendar`). `calendar_get_event`
+returns one event with its people and to-dos (sub-tasks included). `calendar_create_event`,
 `calendar_update_event` and `calendar_delete_event` take a `repeat`; editing or deleting a repeating
 event applies to the whole series, not a single occurrence. `calendar_add_todo` adds a to-do linked to
-an event (shown on the event's page, with no page of its own). Range requests are capped at 400 days.
+an event (shown on the event's page, with no page of its own); `calendar_update_todo` edits or ticks it
+and `calendar_delete_todo` deletes it (with its sub-tasks). Event to-dos are not reachable through
+`tasks_update_task`, which only covers tasks in a to-do list. A linked project only appears for people
+who can see it. Range requests are capped at 400 days.
 
 ## Widgets (MCP Apps)
 
@@ -107,7 +111,7 @@ of only the JSON. Other clients see the same JSON as before.
 | `tasks` | `tasks_get_list`, `tasks_search` | tick tasks and sub-tasks, add a task |
 | `shopping` | `shopping_get_list`, `shopping_search` | items by aisle, tick as bought, add an item, full screen |
 | `project` | `projects_get` | progress, tick tasks, add a task, dependencies, linked lists |
-| `today` | `get_today` | tick off due tasks, shopping items and project tasks |
+| `today` | `get_today` | tick off due tasks, shopping items, project tasks and event to-dos |
 | `spending` | `spending_summary`, `spending_list_expenses` | totals by category/shop, switch period |
 | `inventory` | `inventory_needs_attention`, `inventory_list` | -/+ stock, add to shopping |
 | `vehicle` | `vehicles_get`, `vehicles_list`, `vehicles_history` | odometer, mark maintenance done, documents, history |
