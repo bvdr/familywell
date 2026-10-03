@@ -34,9 +34,13 @@ final class CalendarData
     {
         $p = $e->toPayload();
         $p['url'] = $url($p['url']);
+        if ($p['project']) {
+            $p['project']['url'] = $url($p['project']['url']);
+        }
         if ($withTodos) {
+            // To-dos have no page of their own: they live on the event's page.
             $p['todos'] = Task::whereIn('id', $e->taskIds())->orderBy('position')->get()
-                ->map(fn (Task $t) => ['id' => $t->id, 'title' => $t->title, 'done' => $t->done])->values()->all();
+                ->map(fn (Task $t) => ['id' => $t->id, 'title' => $t->title, 'done' => $t->done, 'url' => $p['url']])->values()->all();
         }
 
         return $p;

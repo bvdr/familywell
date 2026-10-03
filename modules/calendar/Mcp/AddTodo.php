@@ -47,6 +47,7 @@ class AddTodo extends Tool
         }
         $t = $e->addTask($this->user(), $data);
 
-        return Response::json(['id' => $t->id, 'title' => $t->title, 'done' => false, 'event_id' => $e->id]);
+        // To-dos have no page of their own: link back to the event's page, same as CalendarData::payload.
+        return Response::json(['id' => $t->id, 'title' => $t->title, 'done' => false, 'event_id' => $e->id, 'url' => $this->url("/m/calendar/events/{$e->id}")]);
     }
 }
