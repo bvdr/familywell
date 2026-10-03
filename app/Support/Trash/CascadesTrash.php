@@ -18,6 +18,9 @@ use Illuminate\Database\Eloquent\Model;
  *   protected array $trashChildren = ['tasks'];   // HasMany relations to trash along
  *   protected array $trashParents = ['list'];     // BelongsTo relations to restore along
  * Child relations must be plain (no orderBy): Postgres UPDATE has no ORDER BY.
+ * ponytail: deleted_at has second precision, so a child trashed on its own in the SAME second as its
+ * parent is indistinguishable from the cascade and comes back with the parent. Harmless in practice; use
+ * a microsecond column + an explicit batch id if that ever matters.
  */
 trait CascadesTrash
 {
