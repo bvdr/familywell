@@ -2,6 +2,7 @@
 
 namespace Modules\Contacts;
 
+use App\Support\Mcp\McpTools;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -20,5 +21,12 @@ class ContactsServiceProvider extends ServiceProvider
                 Route::patch('/people/{person}', [ContactsController::class, 'update'])->name('people.update');
                 Route::delete('/people/{person}', [ContactsController::class, 'destroy'])->name('people.destroy');
             });
+
+        // MCP: address-book tools for an AI assistant, gated by the `contacts:read` / `contacts:write`
+        // scopes (see docs/mcp.md). No delete tool: people are not soft-deleted (no trash) and deleting
+        // one cascades to its birthday and other extension rows, so that stays a deliberate in-app action.
+        McpTools::register('contacts', 'Contacts', [
+            Mcp\ListContacts::class, Mcp\GetContact::class, Mcp\CreateContact::class, Mcp\UpdateContact::class,
+        ]);
     }
 }

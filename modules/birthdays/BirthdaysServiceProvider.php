@@ -3,6 +3,7 @@
 namespace Modules\Birthdays;
 
 use App\Support\Dashboard\DashboardWidgets;
+use App\Support\Mcp\McpTools;
 use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
@@ -69,6 +70,13 @@ class BirthdaysServiceProvider extends ServiceProvider
                 Route::delete('/{birthday}', [BirthdaysController::class, 'destroy'])->name('destroy');
                 Route::get('/upcoming', [BirthdaysController::class, 'upcoming'])->name('upcoming');
             });
+
+        // MCP: birthday tools for an AI assistant, gated by the `birthdays:read` / `birthdays:write` scopes
+        // (see docs/mcp.md). No delete tool: birthdays are not soft-deleted (no trash), so removing one
+        // stays a deliberate in-app action.
+        McpTools::register('birthdays', 'Birthdays', [
+            Mcp\ListBirthdays::class, Mcp\AddBirthday::class, Mcp\UpdateBirthday::class,
+        ]);
 
         // DATA — add birthdate, age, next birthday + days-until to every person payload.
         $hooks->listen('person.serialize', function (array $payload, Person $person) {
