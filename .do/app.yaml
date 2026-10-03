@@ -40,6 +40,10 @@ domains:
     type: PRIMARY
   - domain: www.familywell.co
     type: ALIAS
+  # MCP server address for AI assistants (https://mcp.familywell.co/mcp). Same app, no host routing:
+  # login/consent/tokens stay on familywell.co (MCP_AUTHORIZATION_SERVER below), see docs/mcp.md.
+  - domain: mcp.familywell.co
+    type: ALIAS
 
 envs:
   - key: APP_NAME
@@ -55,6 +59,15 @@ envs:
   # redirects, and password-reset emails use familywell.co.
   - key: APP_URL
     value: https://familywell.co
+    scope: RUN_TIME
+  # MCP: the protected-resource document served on mcp.familywell.co points clients at this host for
+  # OAuth (login, consent, tokens), and Settings > Connected apps shows the address to paste.
+  # PASSPORT_PRIVATE_KEY / PASSPORT_PUBLIC_KEY (token signing) are SECRETS injected by apply.sh.
+  - key: MCP_AUTHORIZATION_SERVER
+    value: https://familywell.co
+    scope: RUN_TIME
+  - key: MCP_SERVER_URL
+    value: https://mcp.familywell.co/mcp
     scope: RUN_TIME
   # App Platform captures stdout/stderr as app logs; a file log would just fill an ephemeral disk.
   - key: LOG_CHANNEL

@@ -46,6 +46,22 @@ if [ ! -f "$ENV_FILE" ]; then
     echo "==> wrote $ENV_FILE (gitignored). Back it up: losing APP_KEY makes existing encrypted data unreadable."
 fi
 
+# Passport (MCP OAuth) signing keys: generated once, appended if missing (so an older .env.do upgrades in
+# place), stored on one line with literal \n escapes, which Passport turns back into newlines. Rotating
+# them invalidates every connected MCP app (people reconnect), nothing else.
+if ! grep -q '^PASSPORT_PRIVATE_KEY=' "$ENV_FILE"; then
+    umask 077
+    KEYDIR="$(mktemp -d)"
+    openssl genrsa -out "$KEYDIR/private.key" 4096 2>/dev/null
+    openssl rsa -in "$KEYDIR/private.key" -pubout -out "$KEYDIR/public.key" 2>/dev/null
+    {
+        echo "PASSPORT_PRIVATE_KEY=$(awk 'BEGIN{ORS="\\n"} {print}' "$KEYDIR/private.key")"
+        echo "PASSPORT_PUBLIC_KEY=$(awk 'BEGIN{ORS="\\n"} {print}' "$KEYDIR/public.key")"
+    } >>"$ENV_FILE"
+    rm -rf "$KEYDIR"
+    echo "==> added Passport keys to $ENV_FILE"
+fi
+
 # Render into the private temp dir, not /tmp, and always clean up even on failure.
 RENDERED="$(mktemp)"
 trap 'rm -f "$RENDERED"' EXIT
@@ -61,7 +77,7 @@ import os, sys, yaml
 env_file, out_file, tag = sys.argv[1], sys.argv[2], sys.argv[3]
 
 # Only these keys are allowed through, so a stray line in .env.do can never become an app env var.
-SECRETS = ("APP_KEY", "REVERB_APP_ID", "REVERB_APP_KEY", "REVERB_APP_SECRET", "MAIL_PASSWORD", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "GEMINI_API_KEY", "TYPESAFE_API_KEY", "VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT")
+SECRETS = ("APP_KEY", "REVERB_APP_ID", "REVERB_APP_KEY", "REVERB_APP_SECRET", "MAIL_PASSWORD", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "GEMINI_API_KEY", "TYPESAFE_API_KEY", "VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT", "PASSPORT_PRIVATE_KEY", "PASSPORT_PUBLIC_KEY")
 
 values = {}
 for line in open(env_file):
