@@ -1,0 +1,37 @@
+{
+    "_": "Shared cases for the recipe calculator. resources/js/lib/recipe-scale.js (web + widget) and Modules\\Recipes\\RecipeScale (MCP) must both pass them.",
+    "recipe": {
+        "servings": 4,
+        "yieldAmount": 1200,
+        "yieldUnit": "g",
+        "ingredients": [
+            { "name": "flour", "qty": 500, "unit": "g" },
+            { "name": "milk", "qty": 0.3, "unit": "l" },
+            { "name": "salt", "qty": null, "unit": null }
+        ]
+    },
+    "factor": [
+        { "target": { "type": "servings", "value": 6 }, "expect": 1.5 },
+        { "target": { "type": "yield", "amount": 800, "unit": "g" }, "expect": 0.6667 },
+        { "target": { "type": "yield", "amount": 1.8, "unit": "kg" }, "expect": 1.5 },
+        { "target": { "type": "yield", "amount": 1, "unit": "l" }, "expect": null },
+        { "target": { "type": "ingredient", "index": 0, "amount": 400, "unit": "g" }, "expect": 0.8 },
+        { "target": { "type": "ingredient", "index": 0, "amount": 0.4, "unit": "kg" }, "expect": 0.8 },
+        { "target": { "type": "ingredient", "index": 1, "amount": 450, "unit": "ml" }, "expect": 1.5 },
+        { "target": { "type": "ingredient", "index": 0, "amount": 2, "unit": "tbsp" }, "expect": null },
+        { "target": { "type": "ingredient", "index": 2, "amount": 5, "unit": "g" }, "expect": null }
+    ],
+    "scale": [
+        { "ing": { "qty": 500, "unit": "g" }, "factor": 0.8, "expect": { "qty": 400, "unit": "g" } },
+        { "ing": { "qty": 500, "unit": "g" }, "factor": 2.5, "expect": { "qty": 1.25, "unit": "kg" } },
+        { "ing": { "qty": 1, "unit": "kg" }, "factor": 0.4, "expect": { "qty": 400, "unit": "g" } },
+        { "ing": { "qty": 0.3, "unit": "l" }, "factor": 0.5, "expect": { "qty": 150, "unit": "ml" } },
+        { "ing": { "qty": 1, "unit": "tsp" }, "factor": 0.8, "expect": { "qty": 0.75, "unit": "tsp" } },
+        { "ing": { "qty": 3, "unit": "pcs" }, "factor": 0.8, "expect": { "qty": 2.5, "unit": "pcs" } },
+        { "ing": { "qty": 2, "unit": "buc" }, "factor": 1.5, "expect": { "qty": 3, "unit": "buc" } },
+        { "ing": { "qty": 7, "unit": "g" }, "factor": 0.8, "expect": { "qty": 5.6, "unit": "g" } },
+        { "ing": { "qty": 250, "unit": "Grame" }, "factor": 1.5, "expect": { "qty": 375, "unit": "Grame" } },
+        { "ing": { "qty": 1, "unit": "tsp", "scalable": false }, "factor": 2, "expect": { "qty": 1, "unit": "tsp" } },
+        { "ing": { "qty": null, "unit": null }, "factor": 2, "expect": { "qty": null, "unit": null } }
+    ]
+}

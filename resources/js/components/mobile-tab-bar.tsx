@@ -6,6 +6,7 @@ import {
     Blocks,
     Cake,
     Car,
+    ChefHat,
     Contact,
     FolderKanban,
     LayoutGrid,
@@ -40,6 +41,7 @@ const MODULE_ITEMS: Item[] = [
     { key: 'shopping', labelKey: 'nav.shopping', url: '/m/shopping', icon: ShoppingCart },
     { key: 'spending', labelKey: 'nav.spending', url: '/m/spending', icon: Wallet },
     { key: 'notes', labelKey: 'nav.notes', url: '/m/notes', icon: StickyNote },
+    { key: 'recipes', labelKey: 'nav.recipes', url: '/m/recipes', icon: ChefHat },
     { key: 'contacts', labelKey: 'nav.contacts', url: '/m/contacts', icon: Contact },
     { key: 'birthdays', labelKey: 'nav.birthdays', url: '/m/birthdays', icon: Cake },
     { key: 'inventory', labelKey: 'nav.inventory', url: '/m/inventory', icon: Package },
@@ -60,6 +62,8 @@ const CREATE: Item[] = [
     { key: 'spending', labelKey: 'create.spending', url: '/m/spending?new=1', icon: Wallet },
     // A note has no create sheet: POST straight to notes.store, which redirects into the new editor.
     { key: 'notes', labelKey: 'create.notes', url: '/m/notes', method: 'post', icon: StickyNote },
+    // A recipe has a full editor (no sheet): deep-link straight to it.
+    { key: 'recipes', labelKey: 'create.recipes', url: '/m/recipes/new', icon: ChefHat },
     // A vehicle has a full add form (no sheet): deep-link straight to it.
     { key: 'vehicles', labelKey: 'create.vehicles', url: '/m/vehicles/new', icon: Car },
 ];

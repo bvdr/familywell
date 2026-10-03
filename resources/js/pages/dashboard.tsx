@@ -8,7 +8,20 @@ import { listColor as shoppingListColor, listIcon as shoppingListIcon } from '@/
 import { listColor as taskListColor, listIcon as taskListIcon } from '@/lib/tasks';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Blocks, Check, FolderKanban, ListChecks, Plus, Settings, ShoppingCart, StickyNote, Users, Wallet, type LucideIcon } from 'lucide-react';
+import {
+    Blocks,
+    Check,
+    ChefHat,
+    FolderKanban,
+    ListChecks,
+    Plus,
+    Settings,
+    ShoppingCart,
+    StickyNote,
+    Users,
+    Wallet,
+    type LucideIcon,
+} from 'lucide-react';
 import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' }];
@@ -28,6 +41,7 @@ const ICONS: Record<string, LucideIcon> = {
     'folder-kanban': FolderKanban,
     'list-checks': ListChecks,
     'sticky-note': StickyNote,
+    'chef-hat': ChefHat,
 };
 const iconFor = (key: string) => ICONS[key] ?? Blocks;
 
@@ -39,6 +53,7 @@ const CATEGORY: Record<string, string> = {
     spending: 'nav.spending',
     projects: 'nav.projects',
     notes: 'nav.notes',
+    recipes: 'nav.recipes',
     'list-checks': 'nav.tasks',
     'shopping-cart': 'nav.shopping',
     wallet: 'nav.spending',

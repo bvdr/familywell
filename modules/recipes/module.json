@@ -1,0 +1,9 @@
+{
+    "id": "recipes",
+    "name": "Recipes",
+    "description": "Family recipes with photos and a calculator: scale by servings, by how much you want to make, or by what you have.",
+    "version": "1.0.0",
+    "provider": "Modules\\Recipes\\RecipesServiceProvider",
+    "frontend": "",
+    "requires": []
+}
