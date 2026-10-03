@@ -85,9 +85,16 @@ class VehiclesServiceProvider extends ServiceProvider
                 return [];
             }
             $items = [];
-            foreach (Vehicle::with(['maintenanceSchedules', 'documents'])->get() as $car) {
+            // A due schedule that already opened a task (open, in the Vehicle maintenance list) is shown by the tasks
+            // source; skip it here so it isn't on the calendar twice. Eager-loaded (one query, trashed tasks
+            // excluded). Only when tasks is on, since otherwise that task item doesn't render.
+            $tasksOn = app(ModuleRegistry::class)->isEnabled('tasks', (int) CurrentFamily::id());
+            foreach (Vehicle::with(['maintenanceSchedules'.($tasksOn ? '.openTask' : ''), 'documents'])->get() as $car) {
                 $name = trim("{$car->make} {$car->model}");
                 foreach ($car->maintenanceSchedules->where('active', true) as $s) {
+                    if ($tasksOn && $s->openTask && ! $s->openTask->done) {
+                        continue;
+                    }
                     $due = $s->statusFor((int) $car->current_mileage)['nextDueDate'];
                     if ($due && $due >= $from && $due <= $to) {
                         $items[] = CalendarSources::item('vehicle_maintenance', $s->id, "{$name}: {$s->name}", $due, href: "/m/vehicles/{$car->id}", icon: 'wrench');
