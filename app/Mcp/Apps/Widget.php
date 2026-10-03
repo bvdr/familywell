@@ -35,6 +35,7 @@ class Widget extends AppResource
         'inventory' => 'Household stock with +/- steppers and add-to-shopping.',
         'vehicle' => 'Car cards: odometer, maintenance (mark done), documents, history.',
         'birthdays' => 'Upcoming birthdays with countdowns.',
+        'calendar' => 'Family calendar agenda grouped by day (multi-day trips as day N of M), or one event with its people and to-dos.',
         'note' => 'A note rendered with tickable checklists.',
         'contact' => 'A contact card with tap-to-call / email links.',
         'recipe' => 'Recipes: photo, live calculator (servings / total / what you have), ingredients, steps, add to shopping.',
