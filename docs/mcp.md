@@ -71,6 +71,35 @@ Vehicle distances are kilometres in and out (miles are only a display setting).
 Tools act **as the person who connected**: the same sharing rules as the web app apply (a private list
 of another member is invisible), the same validation, and the same notifications to the family.
 
+## Widgets (MCP Apps)
+
+Hosts that support [MCP Apps](https://modelcontextprotocol.io/extensions/apps/overview) (Claude, Claude
+Desktop, ChatGPT, VS Code Copilot, ...) show an interactive widget next to a read tool's result instead
+of only the JSON. Other clients see the same JSON as before.
+
+| Widget | Tools | What you can do in it |
+|---|---|---|
+| `tasks` | `tasks_get_list`, `tasks_search` | tick tasks and sub-tasks, add a task |
+| `shopping` | `shopping_get_list`, `shopping_search` | items by aisle, tick as bought, add an item |
+| `project` | `projects_get` | progress, tick tasks, add a task, dependencies, linked lists |
+| `today` | `get_today` | tick off due tasks, shopping items and project tasks |
+| `spending` | `spending_summary`, `spending_list_expenses` | totals by category/shop, switch period |
+| `inventory` | `inventory_needs_attention`, `inventory_list` | -/+ stock, add to shopping |
+| `vehicle` | `vehicles_get`, `vehicles_list`, `vehicles_history` | odometer, mark maintenance done, documents, history |
+| `birthdays` | `birthdays_list` | countdowns (read only) |
+| `note` | `notes_get` | tick the note's `- [ ]` checklists |
+| `contact` | `contacts_get` | call / email / map links |
+
+Widgets change data only by calling the normal write tools through the host, so a *Read* connection gets
+a view-only widget (a change says it needs *Read & write*). After a change the widget tells the model
+what the person did (`ui/update-model-context`), so the next turn knows.
+
+**How:** `App\Mcp\Apps\Widget` is one `AppResource` per widget (`ui://familywell/<widget>`, registered in
+`FamilywellServer::boot`). Its page is `resources/views/mcp-app.blade.php`: laravel/mcp's SDK shell plus
+`resources/mcp-apps/core.{css,js}` (shared runtime: `FW.start`, `FW.act`, `FW.h`, ...) and
+`resources/mcp-apps/<widget>.js`, all inlined, so the CSP needs no external domains. A tool opts in with
+`protected ?string $app = '<widget>';`. New widget: a line in `Widget::WIDGETS` plus its JS file.
+
 ## How it works
 
 ```
