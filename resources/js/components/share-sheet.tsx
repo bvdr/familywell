@@ -26,11 +26,14 @@ export function ShareSheet({
     onOpenChange,
     share,
     eventName,
+    withLink = true,
 }: {
     open: boolean;
     onOpenChange: (v: boolean) => void;
     share: ShareState;
     eventName: string;
+    // false hides the read-only invite link, for entities that go public through the guest link instead.
+    withLink?: boolean;
 }) {
     const [copied, setCopied] = useState(false);
     const t = useT();
@@ -155,34 +158,36 @@ export function ShareSheet({
                 </div>
 
                 {/* Invite link */}
-                <div className="mt-5 flex flex-col gap-2">
-                    <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('sharing.invite_link')}</p>
-                    {state.link ? (
-                        <>
-                            <div className="bg-surface flex items-center gap-2 rounded-xl border p-2 pl-3">
-                                <Link2 className="text-muted-foreground size-4 shrink-0" />
-                                <span className="text-primary flex-1 truncate text-sm">{state.link.url}</span>
-                                <button
-                                    onClick={copy}
-                                    className="bg-accent-strong text-accent-strong-foreground inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium"
-                                >
-                                    {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-                                    {copied ? t('common.copied') : t('common.copy')}
-                                </button>
-                            </div>
-                            <p className="text-muted-foreground text-xs">{t('sharing.link_view_desc')}</p>
-                        </>
-                    ) : state.canManage ? (
-                        <button
-                            onClick={createLink}
-                            className="bg-surface-card hover:border-accent text-primary inline-flex items-center justify-center gap-2 rounded-xl border p-3 text-sm font-medium transition-colors"
-                        >
-                            <Link2 className="size-4" /> {t('sharing.create_link')}
-                        </button>
-                    ) : (
-                        <p className="text-muted-foreground text-sm">{t('sharing.no_link')}</p>
-                    )}
-                </div>
+                {withLink && (
+                    <div className="mt-5 flex flex-col gap-2">
+                        <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('sharing.invite_link')}</p>
+                        {state.link ? (
+                            <>
+                                <div className="bg-surface flex items-center gap-2 rounded-xl border p-2 pl-3">
+                                    <Link2 className="text-muted-foreground size-4 shrink-0" />
+                                    <span className="text-primary flex-1 truncate text-sm">{state.link.url}</span>
+                                    <button
+                                        onClick={copy}
+                                        className="bg-accent-strong text-accent-strong-foreground inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium"
+                                    >
+                                        {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+                                        {copied ? t('common.copied') : t('common.copy')}
+                                    </button>
+                                </div>
+                                <p className="text-muted-foreground text-xs">{t('sharing.link_view_desc')}</p>
+                            </>
+                        ) : state.canManage ? (
+                            <button
+                                onClick={createLink}
+                                className="bg-surface-card hover:border-accent text-primary inline-flex items-center justify-center gap-2 rounded-xl border p-3 text-sm font-medium transition-colors"
+                            >
+                                <Link2 className="size-4" /> {t('sharing.create_link')}
+                            </button>
+                        ) : (
+                            <p className="text-muted-foreground text-sm">{t('sharing.no_link')}</p>
+                        )}
+                    </div>
+                )}
 
                 <button
                     onClick={() => onOpenChange(false)}
