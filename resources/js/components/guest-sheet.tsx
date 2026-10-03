@@ -25,11 +25,14 @@ export function GuestSheet({
     onOpenChange,
     guestShare,
     entityName,
+    people = true,
 }: {
     open: boolean;
     onOpenChange: (v: boolean) => void;
     guestShare: GuestShareState;
     entityName: string;
+    // false = a read-only public link (recipes): no named guests, just the link + optional password.
+    people?: boolean;
 }) {
     const [copied, setCopied] = useState(false);
     const [state, setState] = useState(guestShare);
@@ -80,7 +83,7 @@ export function GuestSheet({
             open={open}
             onOpenChange={onOpenChange}
             title="Guest link"
-            description={`Let people without an account join ${entityName}`}
+            description={people ? `Let people without an account join ${entityName}` : `Anyone with the link can view ${entityName}`}
             footer={
                 <button
                     onClick={() => onOpenChange(false)}
@@ -166,71 +169,73 @@ export function GuestSheet({
                         )}
 
                         {/* Guest list */}
-                        <div className="mt-5 flex flex-col gap-1">
-                            <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">People</p>
-                            {state.guests.length === 0 && <p className="text-muted-foreground py-2 text-sm">No guests yet. Add someone below.</p>}
-                            {state.guests.map((g) => (
-                                <div key={g.id} className="flex items-center gap-3 py-2">
-                                    <span className="bg-accent-subtle text-primary flex size-9 items-center justify-center rounded-full text-sm font-medium">
-                                        {initial(g.name)}
-                                    </span>
-                                    <div className="text-primary flex-1 text-sm font-medium">{g.name}</div>
-                                    {state.canManage ? (
-                                        <>
+                        {people && (
+                            <div className="mt-5 flex flex-col gap-1">
+                                <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">People</p>
+                                {state.guests.length === 0 && <p className="text-muted-foreground py-2 text-sm">No guests yet. Add someone below.</p>}
+                                {state.guests.map((g) => (
+                                    <div key={g.id} className="flex items-center gap-3 py-2">
+                                        <span className="bg-accent-subtle text-primary flex size-9 items-center justify-center rounded-full text-sm font-medium">
+                                            {initial(g.name)}
+                                        </span>
+                                        <div className="text-primary flex-1 text-sm font-medium">{g.name}</div>
+                                        {state.canManage ? (
+                                            <>
+                                                <select
+                                                    value={g.role}
+                                                    onChange={(e) => setRole(g.id, e.target.value as GuestPerson['role'])}
+                                                    className="border-border bg-surface-card text-primary rounded-lg border py-1.5 pr-7 pl-3 text-base md:text-sm"
+                                                >
+                                                    <option value="editor">Can add</option>
+                                                    <option value="viewer">View only</option>
+                                                </select>
+                                                <button
+                                                    onClick={() => removeGuest(g.id)}
+                                                    aria-label={`Remove ${g.name}`}
+                                                    className="text-muted-foreground flex size-8 items-center justify-center hover:text-[var(--warning)]"
+                                                >
+                                                    <Trash2 className="size-4" />
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <span className="text-muted-foreground text-sm">{g.role === 'editor' ? 'Can add' : 'View only'}</span>
+                                        )}
+                                    </div>
+                                ))}
+
+                                {/* Add guest. Name on its own row, then role + an explicit "Add person" button
+                                so the action is obvious (a lone icon crammed on the input row got clipped
+                                off the drawer edge, leaving Enter as the only non-obvious way to add). */}
+                                {state.canManage && (
+                                    <div className="border-border/60 mt-2 flex flex-col gap-2 border-t pt-3">
+                                        <input
+                                            value={newName}
+                                            onChange={(e) => setNewName(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && addGuest()}
+                                            placeholder="Guest name"
+                                            className="border-border bg-surface-card text-primary focus:border-accent w-full rounded-lg border px-3 py-2 text-base outline-none md:text-sm"
+                                        />
+                                        <div className="flex gap-2">
                                             <select
-                                                value={g.role}
-                                                onChange={(e) => setRole(g.id, e.target.value as GuestPerson['role'])}
-                                                className="border-border bg-surface-card text-primary rounded-lg border py-1.5 pr-7 pl-3 text-base md:text-sm"
+                                                value={newRole}
+                                                onChange={(e) => setNewRole(e.target.value as GuestPerson['role'])}
+                                                className="border-border bg-surface-card text-primary rounded-lg border py-2 pr-7 pl-3 text-base md:text-sm"
                                             >
                                                 <option value="editor">Can add</option>
                                                 <option value="viewer">View only</option>
                                             </select>
                                             <button
-                                                onClick={() => removeGuest(g.id)}
-                                                aria-label={`Remove ${g.name}`}
-                                                className="text-muted-foreground flex size-8 items-center justify-center hover:text-[var(--warning)]"
+                                                onClick={addGuest}
+                                                disabled={!newName.trim()}
+                                                className="bg-accent-strong text-accent-strong-foreground flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold disabled:opacity-40"
                                             >
-                                                <Trash2 className="size-4" />
+                                                <Plus className="size-4.5" /> Add person
                                             </button>
-                                        </>
-                                    ) : (
-                                        <span className="text-muted-foreground text-sm">{g.role === 'editor' ? 'Can add' : 'View only'}</span>
-                                    )}
-                                </div>
-                            ))}
-
-                            {/* Add guest. Name on its own row, then role + an explicit "Add person" button
-                                so the action is obvious (a lone icon crammed on the input row got clipped
-                                off the drawer edge, leaving Enter as the only non-obvious way to add). */}
-                            {state.canManage && (
-                                <div className="border-border/60 mt-2 flex flex-col gap-2 border-t pt-3">
-                                    <input
-                                        value={newName}
-                                        onChange={(e) => setNewName(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && addGuest()}
-                                        placeholder="Guest name"
-                                        className="border-border bg-surface-card text-primary focus:border-accent w-full rounded-lg border px-3 py-2 text-base outline-none md:text-sm"
-                                    />
-                                    <div className="flex gap-2">
-                                        <select
-                                            value={newRole}
-                                            onChange={(e) => setNewRole(e.target.value as GuestPerson['role'])}
-                                            className="border-border bg-surface-card text-primary rounded-lg border py-2 pr-7 pl-3 text-base md:text-sm"
-                                        >
-                                            <option value="editor">Can add</option>
-                                            <option value="viewer">View only</option>
-                                        </select>
-                                        <button
-                                            onClick={addGuest}
-                                            disabled={!newName.trim()}
-                                            className="bg-accent-strong text-accent-strong-foreground flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold disabled:opacity-40"
-                                        >
-                                            <Plus className="size-4.5" /> Add person
-                                        </button>
+                                        </div>
                                     </div>
-                                </div>
-                            )}
-                        </div>
+                                )}
+                            </div>
+                        )}
                     </>
                 )}
             </div>
