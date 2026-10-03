@@ -95,6 +95,89 @@ class CalendarController extends Controller
         return to_route('calendar.index');
     }
 
+    // ---- To-dos (listless tasks-module tasks linked to the event, same model as project tasks) ----
+
+    // Route binding runs before the family scope, so guard family_id explicitly, then the event's role.
+    private function eventForTask(Request $request, Task $task): CalendarEvent
+    {
+        abort_unless((int) $task->family_id === (int) CurrentFamily::id(), 403);
+        $event = CalendarEvent::forTask($task);
+        abort_unless($event && $this->access->canEdit($request->user(), $event), 403);
+
+        return $event;
+    }
+
+    public function storeTask(Request $request, CalendarEvent $event): RedirectResponse
+    {
+        abort_unless($this->access->canEdit($request->user(), $event), 403);
+        $event->addTask($request->user(), $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'note' => ['nullable', 'string', 'max:255'],
+            'due_date' => ['nullable', 'date'],
+            'assigned_to' => ['nullable', 'integer'],
+            'parent_id' => ['nullable', 'integer'],
+        ]));
+
+        return back();
+    }
+
+    public function updateTask(Request $request, Task $task): RedirectResponse
+    {
+        $event = $this->eventForTask($request, $task);
+        // An empty body toggles done (the task-tree's circle and the dashboard tick), like the project routes.
+        $data = $request->hasAny(['title', 'note', 'due_date', 'assigned_to', 'done'])
+            ? $request->validate([
+                'title' => ['sometimes', 'string', 'max:255'],
+                'note' => ['sometimes', 'nullable', 'string', 'max:255'],
+                'due_date' => ['sometimes', 'nullable', 'date'],
+                'assigned_to' => ['sometimes', 'nullable', 'integer'],
+                'done' => ['sometimes', 'boolean'],
+            ])
+            : ['done' => ! $task->done];
+        $event->updateTask($request->user(), $task, $data);
+
+        return back();
+    }
+
+    public function destroyTask(Request $request, Task $task): RedirectResponse
+    {
+        $this->eventForTask($request, $task)->deleteTask($task);
+
+        return back();
+    }
+
+    // Drag reorder + re-nest; same contract as ProjectsController::reorderTasks ({order:[{id,parent_id}]}).
+    public function reorderTasks(Request $request, CalendarEvent $event): RedirectResponse
+    {
+        abort_unless($this->access->canEdit($request->user(), $event), 403);
+        $data = $request->validate([
+            'order' => ['present', 'array'],
+            'order.*.id' => ['required', 'integer'],
+            'order.*.parent_id' => ['nullable', 'integer'],
+        ]);
+        $topIds = $event->taskIds();
+        $tasks = Task::where(fn ($q) => $q->whereIn('id', $topIds)->orWhereIn('parent_id', $topIds))->get()->keyBy('id');
+        abort_unless(collect($data['order'])->pluck('id')->every(fn ($id) => $tasks->has($id)), 422);
+        $parentIds = collect($data['order'])->pluck('parent_id')->filter()->unique();
+        foreach ($data['order'] as $row) {
+            if ($row['parent_id'] !== null) {
+                abort_unless($tasks->has($row['parent_id']), 422);
+                abort_if($parentIds->contains($row['id']), 422, 'Only one level of nesting is allowed.');
+            }
+        }
+        $counters = [];
+        foreach ($data['order'] as $row) {
+            $key = $row['parent_id'] ?? 'root';
+            $pos = $counters[$key] = ($counters[$key] ?? -1) + 1;
+            $tasks[$row['id']]->update(['parent_id' => $row['parent_id'], 'position' => $pos]);
+            $row['parent_id'] === null
+                ? $event->links()->firstOrCreate(['linkable_type' => 'task', 'linkable_id' => $row['id']])
+                : $event->links()->where(['linkable_type' => 'task', 'linkable_id' => $row['id']])->delete();
+        }
+
+        return back();
+    }
+
     // The ShareState the core ShareSheet expects. Same shape as RecipesController::shareState.
     private function shareState(CalendarEvent $event, Family $family): array
     {

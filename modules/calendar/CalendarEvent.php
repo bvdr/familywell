@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use InvalidArgumentException;
 use Modules\Contacts\Person;
+use Modules\Notifications\Notify;
 use Modules\Projects\Project;
 use Modules\Tasks\Task;
 
@@ -48,8 +49,10 @@ class CalendarEvent extends Model
     protected static function booted(): void
     {
         // To-dos aren't a HasMany (they're linked rows), so CascadesTrash can't reach them: trash the event's
-        // top-level tasks with the event's exact deleted_at (Task's own CascadesTrash takes their sub-tasks),
-        // and on restore bring back the ones that share that timestamp (ones trashed on their own stay trashed).
+        // top-level tasks with the event's exact deleted_at, and explicitly update sub-tasks too — this is a
+        // query-builder UPDATE, which fires no model events, so Task's own CascadesTrash (which only runs on
+        // $model->delete()) never sees it and never cascades to them on its own. On restore, bring back the
+        // ones that share that timestamp (ones trashed on their own stay trashed).
         static::softDeleted(function (self $e) {
             Task::whereIn('id', $e->taskIds())->update(['deleted_at' => $e->deleted_at]);
             Task::whereIn('parent_id', $e->taskIds())->update(['deleted_at' => $e->deleted_at]);
@@ -70,6 +73,65 @@ class CalendarEvent extends Model
     public function taskIds(): array
     {
         return $this->links()->where('linkable_type', 'task')->pluck('linkable_id')->all();
+    }
+
+    /** The event a to-do belongs to (via its top-level task link; a sub-task inherits its parent's). */
+    public static function forTask(Task $task): ?self
+    {
+        $link = CalendarEventLink::where(['linkable_type' => 'task', 'linkable_id' => $task->parent_id ?? $task->id])->first();
+
+        return $link ? static::find($link->event_id) : null;
+    }
+
+    public function hasTopTask(int $taskId): bool
+    {
+        return in_array($taskId, $this->taskIds(), true) && Task::whereKey($taskId)->whereNull('parent_id')->exists();
+    }
+
+    /**
+     * Add a to-do: a listless tasks-module task (task_list_id null), like project tasks, or a sub-task of one
+     * of this event's top-level to-dos (one level deep, 404 otherwise). Only top-level tasks get the link.
+     */
+    public function addTask(User $user, array $data): Task
+    {
+        $parentId = $data['parent_id'] ?? null;
+        abort_if($parentId && ! $this->hasTopTask((int) $parentId), 404);
+        $task = Task::create([
+            'task_list_id' => null,
+            'parent_id' => $parentId,
+            'title' => $data['title'],
+            'note' => $data['note'] ?? null,
+            'due_date' => $data['due_date'] ?? null,
+            'assigned_to' => $data['assigned_to'] ?? null,
+            'position' => (int) Task::whereNull('task_list_id')->where('parent_id', $parentId)->max('position') + 1,
+            'created_by' => $user->id,
+        ]);
+        if (! $parentId) {
+            $this->links()->firstOrCreate(['linkable_type' => 'task', 'linkable_id' => $task->id]);
+        }
+        if (! empty($data['assigned_to']) && (int) $data['assigned_to'] !== $user->id) {
+            Notify::push(User::whereKey($data['assigned_to'])->get(), 'tasks', $user->id, 'Assigned to you', "{$user->name} assigned you: {$task->title}", "/m/calendar/events/{$this->id}");
+        }
+
+        return $task;
+    }
+
+    public function updateTask(User $actor, Task $task, array $data): void
+    {
+        $before = $task->assigned_to;
+        $task->update($data);
+        if (! empty($data['assigned_to']) && $data['assigned_to'] !== $before && (int) $data['assigned_to'] !== $actor->id) {
+            Notify::push(User::whereKey($data['assigned_to'])->get(), 'tasks', $actor->id, 'Assigned to you', "{$actor->name} assigned you: {$task->title}", "/m/calendar/events/{$this->id}");
+        }
+    }
+
+    /** Trash a to-do (its sub-tasks follow via Task's CascadesTrash); a top-level one loses its link. */
+    public function deleteTask(Task $task): void
+    {
+        if ($task->parent_id === null) {
+            $this->links()->where(['linkable_type' => 'task', 'linkable_id' => $task->id])->delete();
+        }
+        $task->delete();
     }
 
     public static function rules(): array
