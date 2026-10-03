@@ -2,6 +2,7 @@
 
 namespace App\Mcp;
 
+use App\Mcp\Apps\Widget;
 use App\Models\User;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\ModuleRegistry;
@@ -30,6 +31,12 @@ abstract class Tool extends BaseTool
     /** 'read' | 'write' — which of the module's scopes the token must carry. */
     protected string $access = 'read';
 
+    /**
+     * MCP Apps widget that renders this tool's result (a Widget::WIDGETS key), or null for text only.
+     * Hosts without MCP Apps support ignore it and show the JSON text as before.
+     */
+    protected ?string $app = null;
+
     protected const DEFAULT_LIMIT = 50;
 
     protected const MAX_LIMIT = 100;
@@ -47,6 +54,15 @@ abstract class Tool extends BaseTool
 
         return app(ModuleRegistry::class)->isEnabled($this->module, $familyId)
             && $user->tokenCan("{$this->module}:{$this->access}");
+    }
+
+    public function toArray(): array
+    {
+        if ($this->app !== null) {
+            $this->setMeta('ui', ['resourceUri' => Widget::uriFor($this->app)]);
+        }
+
+        return parent::toArray();
     }
 
     protected function user(): User

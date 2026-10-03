@@ -107,6 +107,8 @@ class ProjectsServiceProvider extends ServiceProvider
                         'icon' => 'folder-kanban',
                         'dueDate' => $t->due_date->toDateString(),
                         'toggleUrl' => "/m/projects/tasks/{$t->id}", // empty-body PATCH toggles done
+                        'kind' => 'project_task', // kind + id: get_today's widget ticks it off via the MCP tool
+                        'id' => $t->id,
                     ];
                 })->values()->all();
         });

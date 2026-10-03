@@ -17,6 +17,8 @@ class GetToday extends Tool
 
     protected string $name = 'get_today';
 
+    protected ?string $app = 'today';
+
     protected string $description = "What's on for this person: open dated items (tasks, shopping items) due today or this week, overdue ones included, plus what they recently opened. Only covers modules this connection may read.";
 
     public function handle(Request $request): Response
@@ -32,6 +34,10 @@ class GetToday extends Tool
                 'due_date' => $i['dueDate'],
                 'overdue' => $i['dueDate'] < $today,
                 'url' => $this->url($i['href']),
+                // What it is (task | shopping_item | project_task) + its id, so it can be ticked off with that
+                // module's update tool (the widget does exactly that).
+                'kind' => $i['kind'] ?? null,
+                'id' => $i['id'] ?? null,
             ]);
 
         $recent = collect(DashboardItems::collect($readable))->sortByDesc('visitedAt')->values()

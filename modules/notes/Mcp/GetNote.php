@@ -15,6 +15,8 @@ class GetNote extends Tool
 
     protected string $name = 'notes_get';
 
+    protected ?string $app = 'note';
+
     protected string $description = 'One note with its full body (markdown-lite: # headings, - lists, [ ] checklists, **bold**).';
 
     public function schema(JsonSchema $schema): array

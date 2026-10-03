@@ -19,6 +19,8 @@ class GetVehicle extends Tool
 
     protected string $name = 'vehicles_get';
 
+    protected ?string $app = 'vehicle';
+
     protected string $description = 'One car in full: details, maintenance schedules with what is due (by km and date), documents and their expiry, fuel consumption stats, and recent services/repairs. Distances in km.';
 
     public function schema(JsonSchema $schema): array

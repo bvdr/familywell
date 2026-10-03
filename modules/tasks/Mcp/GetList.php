@@ -16,6 +16,8 @@ class GetList extends Tool
 
     protected string $name = 'tasks_get_list';
 
+    protected ?string $app = 'tasks';
+
     protected string $description = 'One to-do list with its tasks (each with its sub-tasks), in list order.';
 
     public function schema(JsonSchema $schema): array

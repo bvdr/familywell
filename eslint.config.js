@@ -38,6 +38,15 @@ export default [
         },
     },
     {
+        // MCP Apps widgets (App\\Mcp\\Apps\\Widget): plain browser scripts concatenated into one inline
+        // <script> per widget, after laravel/mcp's SDK (createMcpApp) and our core.js (FW).
+        files: ['resources/mcp-apps/**/*.js'],
+        languageOptions: {
+            sourceType: 'script',
+            globals: { ...globals.browser, FW: 'readonly' },
+        },
+    },
+    {
         // `design/` is the vendored Claude Design handoff bundle (generated JS/prompts), not our
         // source; `modules/*/resources/dist` are pre-built module bundles. Neither should be linted.
         ignores: ['vendor', 'node_modules', 'public', 'bootstrap/ssr', 'tailwind.config.js', 'design', 'modules/*/resources/dist'],

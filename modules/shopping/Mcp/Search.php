@@ -16,6 +16,8 @@ class Search extends Tool
 
     protected string $name = 'shopping_search';
 
+    protected ?string $app = 'shopping';
+
     protected string $description = 'Find shopping items across the lists this person can see (e.g. "is milk on any list?").';
 
     public function schema(JsonSchema $schema): array

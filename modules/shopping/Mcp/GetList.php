@@ -16,6 +16,8 @@ class GetList extends Tool
 
     protected string $name = 'shopping_get_list';
 
+    protected ?string $app = 'shopping';
+
     protected string $description = 'One shopping list with its items (name, quantity, note, aisle, bought).';
 
     public function schema(JsonSchema $schema): array
