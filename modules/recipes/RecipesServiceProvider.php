@@ -5,6 +5,7 @@ namespace Modules\Recipes;
 use App\Models\EntityVisit;
 use App\Support\Dashboard\DashboardItems;
 use App\Support\Guests\GuestableRegistry;
+use App\Support\Mcp\McpTools;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
@@ -16,6 +17,13 @@ class RecipesServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        // MCP: recipes for AI assistants, gated by the `recipes:read` / `recipes:write` scopes.
+        McpTools::register('recipes', 'Recipes', [
+            Mcp\ListRecipes::class, Mcp\GetRecipe::class, Mcp\ScaleRecipe::class,
+            Mcp\CreateRecipe::class, Mcp\UpdateRecipe::class, Mcp\SetPhoto::class,
+            Mcp\AddToShopping::class, Mcp\DeleteRecipe::class,
+        ]);
+
         // 30-day trash, the core sharing system (`recipe` in share URLs) and the public guest link.
         Trash::source('recipes', RecipesTrash::class);
         Trash::register(Recipe::class);

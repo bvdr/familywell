@@ -1,0 +1,42 @@
+<?php
+
+namespace Modules\Recipes\Mcp;
+
+use App\Mcp\Tool;
+use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Illuminate\Support\Facades\Validator;
+use Laravel\Mcp\Request;
+use Laravel\Mcp\Response;
+use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
+use Modules\Recipes\Recipe;
+
+#[IsIdempotent]
+class UpdateRecipe extends Tool
+{
+    protected string $module = 'recipes';
+
+    protected string $access = 'write';
+
+    protected string $name = 'recipes_update';
+
+    protected ?string $app = 'recipe';
+
+    protected string $description = 'Change a recipe. Only the fields you pass change; pass null to clear one. `ingredients` and `steps` replace the whole list, so send the complete list (read it with recipes_get first). To save a scaled version, pass the scaled ingredients and new servings/yield.';
+
+    public function schema(JsonSchema $schema): array
+    {
+        return ['recipe_id' => $schema->integer()->required(), ...RecipeData::fieldSchema($schema)];
+    }
+
+    public function handle(Request $request): Response
+    {
+        $recipe = RecipeData::recipe($this->user(), $request->get('recipe_id'));
+        if (! $recipe) {
+            return $this->notFound('Recipe');
+        }
+        $data = Validator::make($request->except('recipe_id'), Recipe::rules(creating: false))->validate();
+        $recipe->update(Recipe::clean($data));
+
+        return Response::json(RecipeData::payload($recipe->fresh()));
+    }
+}

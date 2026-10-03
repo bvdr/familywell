@@ -298,3 +298,86 @@ input[type='checkbox']:disabled {
     color: var(--fw-bg);
     font-size: 13px;
 } /* inline, not fixed: the iframe is sized to its content, so a floating toast would cover rows */
+
+/* Recipe widget (recipe.js) */
+.rec-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+}
+.rec-card {
+    padding: 0;
+    overflow: hidden;
+    text-align: left;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+}
+.rec-card img,
+.rec-noimg {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    display: block;
+    background: var(--fw-subtle);
+}
+.rec-noimg {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    font-weight: 700;
+    color: var(--fw-muted);
+}
+.rec-card-body {
+    padding: 8px 10px 10px;
+}
+.rec-card-title {
+    font-weight: 600;
+    line-height: 1.3;
+}
+.rec-hero {
+    width: 100%;
+    max-height: 260px;
+    object-fit: cover;
+    border-radius: var(--fw-radius);
+    display: block;
+}
+.rec-ctl {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.rec-num,
+.rec-unit,
+.rec-pick {
+    padding: 7px 9px;
+    border: 1px solid var(--fw-border);
+    border-radius: 10px;
+    background: var(--fw-card);
+    font-size: 16px; /* >= 16px or iOS zooms in on focus */
+}
+.rec-num {
+    width: 90px;
+}
+.rec-unit {
+    width: 64px;
+}
+.rec-pick {
+    flex: 1;
+    min-width: 0;
+}
+.rec-qty {
+    min-width: 72px;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+}
+.rec-group {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--fw-muted);
+    font-weight: 650;
+    background: var(--fw-subtle);
+}

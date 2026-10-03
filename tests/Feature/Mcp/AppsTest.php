@@ -36,7 +36,8 @@ it('lists and serves every widget as an MCP App page', function () {
             ->and($content['text'])->toContain('createMcpApp')  // laravel/mcp's host bridge
             ->and($content['text'])->toContain('const FW =')    // our shared runtime
             ->and($content['text'])->toContain('FW.start(')     // the widget itself
-            ->and($content['_meta']['ui'])->not->toHaveKey('csp'); // everything inlined: no external domains
+            // Everything inlined: no external domains (only image widgets may load from this app itself).
+            ->and(in_array($w, Widget::IMAGES, true) || ! isset($content['_meta']['ui']['csp']))->toBeTrue();
     }
 });
 
