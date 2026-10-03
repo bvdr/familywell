@@ -118,10 +118,19 @@ function mcpAuthorizeQuery(string $clientId, string $redirect = 'https://claude.
  */
 function mcpConnect(User $user, int $familyId, array $access = []): array
 {
+    // Routes cache their controller instance, and Passport's authorize controller holds the session guard
+    // it was built with (= the previous request's user). Octane flushes route controllers after every
+    // request in production (ApplicationGateway); the test app does not, so do the same here.
+    foreach (app('router')->getRoutes() as $route) {
+        $route->flushController();
+    }
+    // A previous bearer call made `api` the default guard (auth:api calls shouldUse); consent is a web page.
+    auth()->forgetGuards();
+    auth()->shouldUse('web');
     $clientId = mcpClient();
     [$query, $verifier] = mcpAuthorizeQuery($clientId);
-    test()->actingAs($user)->get("/oauth/authorize?{$query}")->assertOk();
-    $location = test()->actingAs($user)->post('/oauth/authorize', [
+    test()->actingAs($user, 'web')->get("/oauth/authorize?{$query}")->assertOk();
+    $location = test()->actingAs($user, 'web')->post('/oauth/authorize', [
         'auth_token' => session('authToken'), 'family_id' => $familyId, 'access' => $access,
     ])->assertRedirect()->headers->get('Location');
     parse_str((string) parse_url($location, PHP_URL_QUERY), $params);

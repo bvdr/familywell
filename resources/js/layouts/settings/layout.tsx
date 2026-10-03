@@ -13,6 +13,7 @@ const sidebarNavItems: { key: string; url: string }[] = [
     { key: 'settings.language', url: '/settings/language' },
     { key: 'settings.notifications', url: '/settings/notifications' },
     { key: 'settings.media', url: '/settings/media' },
+    { key: 'mcp.connected_apps', url: '/settings/connected-apps' },
 ];
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
