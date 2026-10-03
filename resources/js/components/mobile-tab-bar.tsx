@@ -5,6 +5,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 import {
     Blocks,
     Cake,
+    CalendarDays,
     Car,
     ChefHat,
     Contact,
@@ -37,6 +38,7 @@ const HOME: Item = { key: 'dashboard', labelKey: 'nav.home', url: '/dashboard', 
 // Page-modules earn a nav entry when the family has enabled them (order = preferred display order).
 const MODULE_ITEMS: Item[] = [
     { key: 'projects', labelKey: 'nav.projects', url: '/m/projects', icon: FolderKanban },
+    { key: 'calendar', labelKey: 'nav.calendar', url: '/m/calendar', icon: CalendarDays },
     { key: 'tasks', labelKey: 'nav.tasks', url: '/m/tasks', icon: ListChecks },
     { key: 'shopping', labelKey: 'nav.shopping', url: '/m/shopping', icon: ShoppingCart },
     { key: 'spending', labelKey: 'nav.spending', url: '/m/spending', icon: Wallet },
@@ -58,6 +60,7 @@ const SECONDARY: Item[] = [
 const CREATE: Item[] = [
     { key: 'shopping', labelKey: 'create.shopping', url: '/m/shopping?new=1', icon: ShoppingCart },
     { key: 'tasks', labelKey: 'create.tasks', url: '/m/tasks?new=1', icon: ListChecks },
+    { key: 'calendar', labelKey: 'create.calendar', url: '/m/calendar?new=1', icon: CalendarDays },
     { key: 'projects', labelKey: 'create.projects', url: '/m/projects?new=1', icon: FolderKanban },
     { key: 'spending', labelKey: 'create.spending', url: '/m/spending?new=1', icon: Wallet },
     // A note has no create sheet: POST straight to notes.store, which redirects into the new editor.

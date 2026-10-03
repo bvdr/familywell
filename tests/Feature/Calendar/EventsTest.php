@@ -140,3 +140,13 @@ it('rejects a range longer than 400 days', function () {
     [, $users] = calendarFamily();
     expect(fn () => CalendarEvent::itemsFor($users[0]->id, '2026-01-01', '2027-03-01'))->toThrow(InvalidArgumentException::class);
 });
+
+it('gives the event page the edit sheet pickers (contacts, projects only when that module is on)', function () {
+    [, $users] = calendarFamily();
+    Person::create(['name' => 'Simona', 'created_by' => $users[0]->id]);
+    $event = trip($users[0]);
+
+    actingAs($users[0])->get("/m/calendar/events/{$event->id}")->assertOk()
+        ->assertInertia(fn ($p) => $p->component('calendar/event')
+            ->where('contacts.0.name', 'Simona')->where('projects', null));
+});
