@@ -18,6 +18,10 @@
         <meta name="apple-mobile-web-app-status-bar-style" content="default">
         <meta name="apple-mobile-web-app-title" content="FamilyWell">
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+        {{-- Rounded tile for browser tabs and favicon lookups (e.g. the assistant connector icon). The
+             apple-touch-icon stays square: iOS masks it itself. --}}
+        <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-rounded-192.png">
+        <link rel="icon" type="image/png" sizes="64x64" href="/icons/icon-rounded-64.png">
 
         {{-- Brand fonts (Playfair, Inter, Geist Mono) are bundled via @fontsource in app.tsx; no CDN. --}}
 

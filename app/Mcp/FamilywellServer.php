@@ -4,6 +4,7 @@ namespace App\Mcp;
 
 use App\Mcp\Apps\Widget;
 use App\Support\Mcp\McpTools;
+use Laravel\Mcp\Schema\Icon;
 use Laravel\Mcp\Server;
 
 // The Familywell MCP server (POST /mcp). Serves every tool any module registered with McpTools; each
@@ -25,6 +26,23 @@ class FamilywellServer extends Server
 
     // tools/list pages at 15 by default; serve the whole (scope-filtered) set in one page.
     public int $defaultPaginationLength = 50;
+
+    /**
+     * The connector's icon in assistants (serverInfo.icons): the rounded app icon, so it reads as an app
+     * tile next to the name instead of a hard square. Absolute app URLs (served from public/icons).
+     *
+     * @return list<Icon>
+     */
+    protected function icons(): array
+    {
+        $url = rtrim((string) config('app.url'), '/');
+
+        return [
+            new Icon("{$url}/icons/icon-rounded-512.png", 'image/png', ['512x512']),
+            new Icon("{$url}/icons/icon-rounded-192.png", 'image/png', ['192x192']),
+            new Icon("{$url}/icons/icon-rounded-64.png", 'image/png', ['64x64']),
+        ];
+    }
 
     protected function boot(): void
     {
