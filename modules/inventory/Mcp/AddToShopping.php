@@ -1,0 +1,53 @@
+<?php
+
+namespace Modules\Inventory\Mcp;
+
+use App\Mcp\Tool;
+use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Laravel\Mcp\Request;
+use Laravel\Mcp\Response;
+use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
+use Modules\Inventory\InventoryReplenishment;
+
+#[IsIdempotent]
+class AddToShopping extends Tool
+{
+    protected string $module = 'inventory';
+
+    protected string $access = 'write';
+
+    protected string $name = 'inventory_add_to_shopping';
+
+    protected string $description = 'Put a stock item on the family\'s "Replenish" shopping list. Safe to repeat: while it is already on the list (not yet bought) nothing new is added. When it is marked bought in Shopping, the stock is topped back up automatically.';
+
+    public function schema(JsonSchema $schema): array
+    {
+        return ['item_id' => $schema->integer()->required()];
+    }
+
+    public function handle(Request $request): Response
+    {
+        $item = InventoryData::item($request->get('item_id'));
+        if (! $item) {
+            return $this->notFound('Item');
+        }
+        // The loop writes into Shopping's tables; with the module off the row would land on a list nobody
+        // can open, and the assistant would report a success the family never sees. So refuse clearly.
+        // (The web button does not check this today; the gap is only reachable by the stray click there.)
+        if (! InventoryData::shoppingEnabled()) {
+            return Response::error('Shopping is not turned on for this family, so the item cannot be added to a shopping list.');
+        }
+
+        $linkedBefore = $item->shopping_item_id;
+        // Same idempotent path as the app's "Add to Shopping" button (InventoryReplenishment owns the rules).
+        $row = app(InventoryReplenishment::class)->addToShopping($item, $this->user());
+
+        return Response::json([
+            'already_on_list' => $linkedBefore === $row->id, // a stale link is replaced by a new row, so compare ids
+            'shopping_item_id' => $row->id,
+            'list_id' => $row->shopping_list_id,
+            'quantity_hint' => $row->quantity,
+            'url' => InventoryData::url("/m/shopping/lists/{$row->shopping_list_id}"),
+        ]);
+    }
+}

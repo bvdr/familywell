@@ -7,7 +7,9 @@ use App\Support\Tenancy\BelongsToFamily;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Validation\Rule;
 use Modules\Shopping\ShoppingItem;
+use Modules\Shopping\ShoppingShop;
 
 /**
  * A thing the family keeps, consumes and replenishes. Its STATE (good/low/empty/expiring/expired/
@@ -233,5 +235,135 @@ class InventoryItem extends Model
             'createdBy' => $this->created_by,
             'updatedAt' => optional($this->updated_at)->toIso8601String(),
         ];
+    }
+
+    // ---------------------------------------------------------------------------------------------------
+    // Writes. Moved here from InventoryController so the web forms and the MCP tools apply the exact same
+    // validation, category/location/shop resolution and history logging (same pattern as
+    // TaskList::addTask / Vehicle::logFuel). The controller is a thin caller of these.
+    // ---------------------------------------------------------------------------------------------------
+
+    /**
+     * Validation for Add/Edit. `category`/`location` come in as a free string that is either an existing
+     * key (picked) or a new display name (typed) — resolved to a key by InventoryCategory/Location::resolve.
+     *
+     * @return array<string, mixed>
+     */
+    public static function rules(): array
+    {
+        return [
+            'name' => ['required', 'string', 'max:255'],
+            'quantity' => ['nullable', 'numeric', 'min:0'],           // null => "unknown"
+            'unit' => ['required', Rule::in(self::UNITS)],
+            'category' => ['nullable', 'string', 'max:60'],
+            'location' => ['nullable', 'string', 'max:60'],
+            'shop' => ['nullable', 'string', 'max:255'],             // a shop NAME, as Shopping stores it
+            'min_quantity' => ['nullable', 'numeric', 'min:0'],
+            'target_quantity' => ['nullable', 'numeric', 'min:0'],
+            'expires_at' => ['nullable', 'date'],
+            'auto_replenish' => ['boolean'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ];
+    }
+
+    /** Add Item: create from validated rules() data and log its opening stock. */
+    public static function createFrom(array $data, int $userId): self
+    {
+        $item = static::create([...self::attributesFrom($data), 'created_by' => $userId]);
+
+        // Every item starts its history with an "added" row carrying its opening quantity (null delta
+        // when the amount is unknown), so the overview feed and item history show the creation.
+        $item->logChange($item->quantity, 'added', $userId);
+
+        return $item;
+    }
+
+    /** Edit Item: replace every field from validated rules() data. A changed quantity is logged as an adjustment. */
+    public function applyEdit(array $data, int $userId): void
+    {
+        $before = $this->quantity; // float|null, captured before the update to detect a quantity change
+
+        $this->update(self::attributesFrom($data));
+
+        // Only log when the quantity actually moved (renaming or re-categorising isn't a stock change).
+        // delta is the signed change when both amounts are known; null when either side is "unknown".
+        if ($before != $this->quantity) {
+            $delta = ($before !== null && $this->quantity !== null) ? (float) $this->quantity - (float) $before : null;
+            $this->logChange($delta, 'adjusted', $userId);
+        }
+    }
+
+    /**
+     * Quick Quantity Update: set the new absolute quantity and record the movement — consumed vs added by
+     * its sign, so history stays consistent with the stored amount. A no-op (same amount) writes nothing.
+     */
+    public function setQuantity(float $after, int $userId): void
+    {
+        $before = $this->quantity;              // float|null ("unknown" counts as 0 for the delta)
+        $this->update(['quantity' => $after]);
+
+        $delta = $after - ($before ?? 0.0);
+        if (abs($delta) > 1e-9) {
+            $this->logChange($delta, $delta < 0 ? 'consumed' : 'added', $userId);
+        }
+    }
+
+    /** Write one history row. family_id is filled by BelongsToFamily on create. */
+    public function logChange(?float $delta, string $type, ?int $userId): void
+    {
+        InventoryLog::create([
+            'inventory_item_id' => $this->id,
+            'delta' => $delta,
+            'type' => $type,
+            'user_id' => $userId,
+        ]);
+    }
+
+    /** Column values for create/edit, with category/location/shop resolved (minting custom ones as typed). */
+    private static function attributesFrom(array $data): array
+    {
+        return [
+            'name' => $data['name'],
+            'quantity' => $data['quantity'] ?? null,                // null => the "unknown" state
+            'unit' => $data['unit'],
+            'category' => InventoryCategory::resolve($data['category'] ?? null),
+            'location' => InventoryLocation::resolve($data['location'] ?? null),
+            // A trimmed shop NAME (Shopping links items to shops by name). ensure() keeps a ShoppingShop row
+            // for it, exactly as Shopping does when a store is typed, so it already shows in the Shops view.
+            'shop' => ShoppingShop::ensure($data['shop'] ?? null)?->name,
+            'min_quantity' => $data['min_quantity'] ?? 0,
+            'target_quantity' => $data['target_quantity'] ?? null,
+            'expires_at' => $data['expires_at'] ?? null,
+            'auto_replenish' => $data['auto_replenish'] ?? true,
+            'notes' => $data['notes'] ?? null,
+        ];
+    }
+
+    /**
+     * The Needs Attention buckets: Empty, Running Low, Expiring Soon (expiring + already-expired), and
+     * Stale (fine on stock but gone quiet). An item lands in exactly one bucket (its most urgent signal),
+     * so a total is a straight sum. Expiring is soonest first (no date last); stale is quietest first.
+     * Shared by the Needs Attention screen and the MCP tool.
+     *
+     * @param  iterable<InventoryItem>  $items
+     * @return array{empty: list<InventoryItem>, low: list<InventoryItem>, expiring: list<InventoryItem>, stale: list<InventoryItem>}
+     */
+    public static function attentionBuckets(iterable $items): array
+    {
+        $b = ['empty' => [], 'low' => [], 'expiring' => [], 'stale' => []];
+        foreach ($items as $i) {
+            $state = $i->state();
+            if ($state === 'empty' || $state === 'low') {
+                $b[$state][] = $i;
+            } elseif ($state === 'expiring' || $state === 'expired') {
+                $b['expiring'][] = $i;
+            } elseif ($i->isStale()) {
+                $b['stale'][] = $i;
+            }
+        }
+        usort($b['expiring'], fn (self $a, self $c) => ($a->expires_at?->getTimestamp() ?? PHP_INT_MAX) <=> ($c->expires_at?->getTimestamp() ?? PHP_INT_MAX));
+        usort($b['stale'], fn (self $a, self $c) => ($a->updated_at?->getTimestamp() ?? 0) <=> ($c->updated_at?->getTimestamp() ?? 0));
+
+        return $b;
     }
 }
