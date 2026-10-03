@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { EventSheet } from '@/components/calendar/event-sheet';
 import { FilterSheet } from '@/components/calendar/filter-sheet';
 import { MonthView } from '@/components/calendar/month-view';
+import { TimelineView } from '@/components/calendar/timeline-view';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { useAddAction } from '@/lib/add-action';
@@ -109,8 +110,17 @@ export default function CalendarIndex({ view, zoom, date, range, items, sources,
                     </Button>
                 </div>
 
-                {/* Timeline switch and subscribe arrive with Tasks 8 and 10; month is the only view so far. */}
-                <MonthView items={shown} range={range} date={date} selected={selected} onSelect={setSelected} onAdd={add} />
+                {/* View switch, plus the zoom on the timeline. Both are query params, so each tap is a partial reload
+                    and the server answers with the matching range. Subscribe arrives with Task 10. */}
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Segmented value={view} options={['month', 'timeline'] as const} onChange={(v) => go({ view: v })} />
+                    {view === 'timeline' && <Segmented value={zoom} options={['week', 'month'] as const} onChange={(z) => go({ zoom: z })} />}
+                </div>
+                {view === 'timeline' ? (
+                    <TimelineView items={shown} range={range} />
+                ) : (
+                    <MonthView items={shown} range={range} date={date} selected={selected} onSelect={setSelected} onAdd={add} />
+                )}
             </div>
             <EventSheet
                 open={sheet.open}
@@ -130,5 +140,25 @@ export default function CalendarIndex({ view, zoom, date, range, items, sources,
                 contacts={contacts}
             />
         </AppLayout>
+    );
+}
+
+// Pill segmented control; labels are the calendar.<option> strings (month / timeline / week).
+function Segmented<T extends string>({ value, options, onChange }: { value: T; options: readonly T[]; onChange: (v: T) => void }) {
+    const t = useT();
+    return (
+        <div className="bg-surface-card flex rounded-full border p-0.5 text-sm">
+            {options.map((o) => (
+                <button
+                    key={o}
+                    type="button"
+                    aria-pressed={value === o}
+                    onClick={() => value !== o && onChange(o)}
+                    className={`rounded-full px-3 py-1 transition-colors ${value === o ? 'bg-accent-subtle text-primary font-medium' : 'text-muted-foreground hover:text-primary'}`}
+                >
+                    {t(`calendar.${o}`)}
+                </button>
+            ))}
+        </div>
     );
 }

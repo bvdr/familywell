@@ -109,3 +109,13 @@ export function shiftDate(view: string, zoom: string, date: string, dir: 1 | -1)
     const d = parseDay(date);
     return ymd(new Date(d.getFullYear(), d.getMonth() + dir, 1));
 }
+
+// Timeline rows: one per item occurrence inside the window (items fully outside are dropped; Notion's
+// "off-screen arrow" rows are deliberately not copied), ordered by start then title.
+export function timelineRows(items: CalItem[], from: string, to: string) {
+    return items
+        .map((item) => ({ item, geo: clip(item, from, to) }))
+        .filter((r): r is { item: CalItem; geo: { offset: number; span: number } } => r.geo !== null)
+        .sort((a, b) => a.item.start.localeCompare(b.item.start) || a.item.title.localeCompare(b.item.title))
+        .map(({ item, geo }) => ({ item, ...geo }));
+}

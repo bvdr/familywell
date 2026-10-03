@@ -34,6 +34,7 @@
     "todos_empty": "Packing lists, tickets, things to book…",
     "more": "+:count more",
     "nothing": "Nothing on this day.",
+    "nothing_range": "Nothing in this period.",
     "filters": "Filter",
     "clear": "Clear",
     "sources": "Show",
