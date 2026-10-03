@@ -9,7 +9,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -133,27 +132,7 @@ class InventoryController extends Controller
     public function needsAttention(): Response
     {
         $items = InventoryItem::query()->with('shoppingItem:id,shopping_list_id')->orderBy('name')->get();
-
-        $low = [];
-        $empty = [];
-        $expiring = [];
-        $stale = [];
-        foreach ($items as $i) {
-            $state = $i->state();
-            if ($state === 'empty') {
-                $empty[] = $i;
-            } elseif ($state === 'low') {
-                $low[] = $i;
-            } elseif ($state === 'expiring' || $state === 'expired') {
-                $expiring[] = $i;
-            } elseif ($i->isStale()) {
-                $stale[] = $i;
-            }
-        }
-
-        // Expiring: soonest first (empty dates last). Stale: quietest first (oldest updated_at first).
-        usort($expiring, fn (InventoryItem $a, InventoryItem $b) => ($a->expires_at?->getTimestamp() ?? PHP_INT_MAX) <=> ($b->expires_at?->getTimestamp() ?? PHP_INT_MAX));
-        usort($stale, fn (InventoryItem $a, InventoryItem $b) => ($a->updated_at?->getTimestamp() ?? 0) <=> ($b->updated_at?->getTimestamp() ?? 0));
+        ['empty' => $empty, 'low' => $low, 'expiring' => $expiring, 'stale' => $stale] = InventoryItem::attentionBuckets($items);
 
         $pay = fn (array $rows) => array_map(fn (InventoryItem $i) => $i->toPayload(), $rows);
 
@@ -344,26 +323,7 @@ class InventoryController extends Controller
     /** Add Item: create an item and log its opening stock. Category/location resolve by key or name. */
     public function store(Request $request): RedirectResponse
     {
-        $data = $this->validateItem($request);
-
-        $item = InventoryItem::create([
-            'name' => $data['name'],
-            'quantity' => $data['quantity'],                       // null => the "unknown" state
-            'unit' => $data['unit'],
-            'category' => $this->resolveCategory($data['category'] ?? null),
-            'location' => $this->resolveLocation($data['location'] ?? null),
-            'shop' => $this->resolveShop($data['shop'] ?? null),
-            'min_quantity' => $data['min_quantity'] ?? 0,
-            'target_quantity' => $data['target_quantity'] ?? null,
-            'expires_at' => $data['expires_at'] ?? null,
-            'auto_replenish' => $data['auto_replenish'] ?? true,
-            'notes' => $data['notes'] ?? null,
-            'created_by' => $request->user()->id,
-        ]);
-
-        // Every item starts its history with an "added" row carrying its opening quantity (null delta
-        // when the amount is unknown), so the overview feed and item history show the creation.
-        $this->log($item, $item->quantity, 'added', $request->user()->id);
+        InventoryItem::createFrom($request->validate(InventoryItem::rules()), $request->user()->id);
 
         return back();
     }
@@ -372,30 +332,7 @@ class InventoryController extends Controller
     public function update(Request $request, InventoryItem $item): RedirectResponse
     {
         $this->authorizeItem($item);
-        $data = $this->validateItem($request);
-
-        $before = $item->quantity; // float|null, captured before the update to detect a quantity change
-
-        $item->update([
-            'name' => $data['name'],
-            'quantity' => $data['quantity'],
-            'unit' => $data['unit'],
-            'category' => $this->resolveCategory($data['category'] ?? null),
-            'location' => $this->resolveLocation($data['location'] ?? null),
-            'shop' => $this->resolveShop($data['shop'] ?? null),
-            'min_quantity' => $data['min_quantity'] ?? 0,
-            'target_quantity' => $data['target_quantity'] ?? null,
-            'expires_at' => $data['expires_at'] ?? null,
-            'auto_replenish' => $data['auto_replenish'] ?? true,
-            'notes' => $data['notes'] ?? null,
-        ]);
-
-        // Only log when the quantity actually moved (renaming or re-categorising isn't a stock change).
-        // delta is the signed change when both amounts are known; null when either side is "unknown".
-        if ($before != $item->quantity) {
-            $delta = ($before !== null && $item->quantity !== null) ? (float) $item->quantity - (float) $before : null;
-            $this->log($item, $delta, 'adjusted', $request->user()->id);
-        }
+        $item->applyEdit($request->validate(InventoryItem::rules()), $request->user()->id);
 
         return back();
     }
@@ -410,16 +347,7 @@ class InventoryController extends Controller
         $this->authorizeItem($item);
         $data = $request->validate(['quantity' => ['required', 'numeric', 'min:0']]);
 
-        $before = $item->quantity;              // float|null ("unknown" counts as 0 for the delta)
-        $after = (float) $data['quantity'];
-        $item->update(['quantity' => $after]);
-
-        // Log the real movement so history stays consistent with the stored amount; consumed vs added by
-        // its sign. A no-op (same amount) writes nothing.
-        $delta = $after - ($before ?? 0.0);
-        if (abs($delta) > 1e-9) {
-            $this->log($item, $delta, $delta < 0 ? 'consumed' : 'added', $request->user()->id);
-        }
+        $item->setQuantity((float) $data['quantity'], $request->user()->id);
 
         return back();
     }
@@ -436,7 +364,7 @@ class InventoryController extends Controller
 
     // ---------------------------------------------------------------------------------------------------
     // Category + location management (admin only). Inline creation while adding an item stays open to any
-    // member (resolveCategory/resolveLocation); the explicit management here — add with a chosen icon,
+    // member (InventoryCategory/Location::resolve); the explicit management here — add with a chosen icon,
     // change a custom icon, delete — is family config, so it is gated on `manageMembers` like the
     // Spending category settings. Reads (the screens above) stay open to every member.
     // ---------------------------------------------------------------------------------------------------
@@ -645,119 +573,10 @@ class InventoryController extends Controller
         return $counts;
     }
 
-    /**
-     * Shared validation for Add/Edit. `category`/`location` come in as a free string that is either an
-     * existing key (picked) or a new display name (typed) — resolved to a key by resolve*().
-     *
-     * @return array<string, mixed>
-     */
-    private function validateItem(Request $request): array
-    {
-        return $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'quantity' => ['nullable', 'numeric', 'min:0'],           // null => "unknown"
-            'unit' => ['required', Rule::in(InventoryItem::UNITS)],
-            'category' => ['nullable', 'string', 'max:60'],
-            'location' => ['nullable', 'string', 'max:60'],
-            'shop' => ['nullable', 'string', 'max:255'],             // a shop NAME, as Shopping stores it
-            'min_quantity' => ['nullable', 'numeric', 'min:0'],
-            'target_quantity' => ['nullable', 'numeric', 'min:0'],
-            'expires_at' => ['nullable', 'date'],
-            'auto_replenish' => ['boolean'],
-            'notes' => ['nullable', 'string', 'max:2000'],
-        ]);
-    }
-
-    /**
-     * Normalise the chosen shop: a trimmed shop NAME (never a key — Shopping links items to shops by
-     * name), or null for none. Also makes sure a ShoppingShop row exists for it, exactly as Shopping does
-     * when a store is typed on an item, so a shop first named here already shows in the Shops view.
-     */
-    private function resolveShop(?string $value): ?string
-    {
-        return ShoppingShop::ensure($value)?->name;
-    }
-
     /** The family's shop names, for the item form's shop picker (same source as Shopping's own picker). */
     private function shopNames(): array
     {
         return ShoppingShop::orderBy('name')->pluck('name')->all();
-    }
-
-    /**
-     * Turn a category value into a stored key: pass an existing key straight through, and mint a custom
-     * category when the user typed a new name. Slug-matching first means typing "Food" reuses the
-     * built-in `food` rather than creating a duplicate.
-     */
-    private function resolveCategory(?string $value): ?string
-    {
-        $value = trim((string) $value);
-        if ($value === '') {
-            return null;
-        }
-
-        $keys = InventoryCategory::keysFor();               // also seeds the family's defaults
-        if (in_array($value, $keys, true)) {
-            return $value;                                  // already a key
-        }
-        $slug = Str::slug($value, '_');
-        if ($slug !== '' && in_array($slug, $keys, true)) {
-            return $slug;                                   // typed name maps onto an existing key
-        }
-
-        $familyId = (int) CurrentFamily::id();
-        $existing = InventoryCategory::forFamily();
-        InventoryCategory::create([
-            'key' => $key = InventoryCategory::makeKey($value, $familyId),
-            'name' => $value,
-            'icon' => InventoryCategory::CUSTOM_ICON,
-            'color' => InventoryCategory::CUSTOM_COLORS[$existing->count() % count(InventoryCategory::CUSTOM_COLORS)],
-            'is_default' => false,
-            'position' => ($existing->max('position') ?? 0) + 1,
-        ]);
-
-        return $key;
-    }
-
-    /** Same resolve-or-create as categories, for locations (no colour). */
-    private function resolveLocation(?string $value): ?string
-    {
-        $value = trim((string) $value);
-        if ($value === '') {
-            return null;
-        }
-
-        $keys = InventoryLocation::keysFor();
-        if (in_array($value, $keys, true)) {
-            return $value;
-        }
-        $slug = Str::slug($value, '_');
-        if ($slug !== '' && in_array($slug, $keys, true)) {
-            return $slug;
-        }
-
-        $familyId = (int) CurrentFamily::id();
-        $existing = InventoryLocation::forFamily();
-        InventoryLocation::create([
-            'key' => $key = InventoryLocation::makeKey($value, $familyId),
-            'name' => $value,
-            'icon' => InventoryLocation::CUSTOM_ICON,
-            'is_default' => false,
-            'position' => ($existing->max('position') ?? 0) + 1,
-        ]);
-
-        return $key;
-    }
-
-    /** Write one history row. family_id is filled by BelongsToFamily on create. */
-    private function log(InventoryItem $item, ?float $delta, string $type, ?int $userId): void
-    {
-        InventoryLog::create([
-            'inventory_item_id' => $item->id,
-            'delta' => $delta,
-            'type' => $type,
-            'user_id' => $userId,
-        ]);
     }
 
     /**

@@ -108,4 +108,38 @@ class InventoryLocation extends Model
 
         return $key;
     }
+
+    /**
+     * Turn a location value into a stored key: pass an existing key straight through, and mint a custom
+     * location when the user typed a new name. Slug-matching first means typing "Food" reuses the
+     * built-in `food` rather than creating a duplicate. Lives on the model (moved from the controller) so
+     * the web forms and the MCP tools resolve a typed location exactly the same way.
+     */
+    public static function resolve(?string $value): ?string
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+
+        $keys = self::keysFor();                            // also seeds the family's defaults
+        if (in_array($value, $keys, true)) {
+            return $value;                                  // already a key
+        }
+        $slug = Str::slug($value, '_');
+        if ($slug !== '' && in_array($slug, $keys, true)) {
+            return $slug;                                   // typed name maps onto an existing key
+        }
+
+        $existing = self::forFamily();
+        static::create([
+            'key' => $key = self::makeKey($value, (int) CurrentFamily::id()),
+            'name' => $value,
+            'icon' => self::CUSTOM_ICON,
+            'is_default' => false,
+            'position' => ($existing->max('position') ?? 0) + 1,
+        ]);
+
+        return $key;
+    }
 }
