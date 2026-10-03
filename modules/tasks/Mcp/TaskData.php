@@ -5,11 +5,14 @@ namespace Modules\Tasks\Mcp;
 use App\Events\TasksChanged;
 use App\Models\Family;
 use App\Models\User;
+use App\Support\Modules\Hooks;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Trash\Trash;
+use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
 use Modules\Tasks\Task;
 use Modules\Tasks\TaskList;
 
@@ -70,7 +73,32 @@ class TaskData
             $out['subtasks'] = $t->subtasks->map(fn (Task $s) => self::taskPayload($s))->values()->all();
         }
 
-        return $out;
+        // Same `task.serialize` data hook the web UI runs, so extension modules add their fields here too
+        // (important_todos -> `important`, recurring_todos -> `recurrence`), each only when enabled.
+        return app(Hooks::class)->filter('task.serialize', $out, $t);
+    }
+
+    /**
+     * Extra tool parameters contributed by extension modules via the `task.mcp.schema` filter (e.g.
+     * `important`, `recurrence`). Listeners self-gate on their module being enabled, so a family without
+     * them never sees the parameters.
+     */
+    public static function extensionSchema(JsonSchema $schema): array
+    {
+        return app(Hooks::class)->filter('task.mcp.schema', [], $schema);
+    }
+
+    /**
+     * Fire the same `task.saved` hook the web editor fires after a create/edit, with the tool's arguments
+     * as the request body. Extensions persist their own fields from it (important flag, recurrence rule),
+     * and Vehicles completes a linked maintenance schedule when its task is marked done, exactly as in the
+     * app. The synthetic request resolves user() to the token's user, which those listeners rely on.
+     */
+    public static function fireSaved(Task $task, User $user, array $args): void
+    {
+        $request = Request::create('/', 'POST', $args);
+        $request->setUserResolver(fn () => $user);
+        app(Hooks::class)->fire('task.saved', $task, $request);
     }
 
     /** deleted_at + the day trash:purge removes it, for *_list_deleted. */

@@ -28,6 +28,7 @@ class CreateTask extends Tool
             'due_date' => $schema->string()->format('date')->description('YYYY-MM-DD.'),
             'assigned_to' => $schema->integer()->description('Member id from get_family.'),
             'parent_id' => $schema->integer()->description('Make it a sub-task of this top-level task in the same list.'),
+            ...TaskData::extensionSchema($schema),
         ];
     }
 
@@ -54,6 +55,7 @@ class CreateTask extends Tool
         }
 
         $task = $list->addTask($user, $data);
+        TaskData::fireSaved($task, $user, $request->all()); // extension fields (important, recurrence...)
         Notify::toAccessOf($list, 'tasks', $user->id, 'New task', "{$user->name} added: {$task->title}", "/m/tasks/lists/{$list->id}");
         TaskData::changed();
 

@@ -31,6 +31,7 @@ class UpdateTask extends Tool
             'due_date' => $schema->string()->format('date')->nullable(),
             'assigned_to' => $schema->integer()->nullable(),
             'done' => $schema->boolean(),
+            ...TaskData::extensionSchema($schema),
         ];
     }
 
@@ -53,6 +54,7 @@ class UpdateTask extends Tool
         $before = $task->assigned_to;
         $wasDone = $task->done;
         $task->update(array_intersect_key($data, array_flip(['title', 'note', 'due_date', 'assigned_to', 'done'])));
+        TaskData::fireSaved($task, $user, $request->all()); // extension fields + Vehicles' "maintenance done"
 
         // Same pings as the web UI: a genuine (re)assignment, and a task newly completed.
         $url = "/m/tasks/lists/{$task->task_list_id}";

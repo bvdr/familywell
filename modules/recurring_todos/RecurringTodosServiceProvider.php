@@ -47,6 +47,17 @@ class RecurringTodosServiceProvider extends ServiceProvider
             return $payload;
         });
 
+        // MCP — offer `recurrence` on the Tasks create/update tools (the tools then fire task.saved with it,
+        // which the listener below persists). Self-gated like every listener here.
+        $hooks->listen('task.mcp.schema', function (array $props, $schema) {
+            if (! $this->enabledHere()) {
+                return $props;
+            }
+
+            return $props + ['recurrence' => $schema->string()->enum([...RecurringRule::INTERVALS, 'none'])
+                ->description('Repeat the task: once done it resets to "to do" on the next occurrence. "none" stops repeating. Anchored to the due date (today if none).')];
+        });
+
         // BEHAVIOR (save) — persist the chosen recurrence, and keep next_occurrence anchored to the
         // task's due date. A recurring task keeps its stored done state until the scheduler resets it
         // on the next occurrence (that is the whole point of the "stays done until due again" model).
