@@ -2,8 +2,8 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft, Check, Trash2 } from 'lucide-react';
 import { type ReactNode } from 'react';
 
-import InputError from '@/components/input-error';
 import { FormActions } from '@/components/form-actions';
+import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,6 +25,8 @@ type Fields = {
     type: string;
     interval_km: string;
     interval_months: string;
+    due_mileage: string;
+    due_on: string;
     last_performed_at: string;
     last_performed_mileage: string;
     notes: string;
@@ -37,6 +39,8 @@ function initialFields(s: MaintenanceSchedule | null): Fields {
         type: s?.type ?? 'custom',
         interval_km: s?.intervalKm != null ? String(s.intervalKm) : '',
         interval_months: s?.intervalMonths != null ? String(s.intervalMonths) : '',
+        due_mileage: s?.dueMileage != null ? String(s.dueMileage) : '',
+        due_on: s?.dueOn ?? '',
         last_performed_at: s?.lastPerformedAt ?? '',
         last_performed_mileage: s?.lastPerformedMileage != null ? String(s.lastPerformedMileage) : '',
         notes: s?.notes ?? '',
@@ -84,9 +88,11 @@ export default function MaintenanceForm({ vehicle, schedule, templates }: Props)
         }
     };
 
-    // At least one interval must be set (server enforces it too); disable submit until name + one interval.
+    // Something to be due by: an interval (recurring) or a due point (one-off / early this time). The
+    // server enforces the same rule (VehicleMaintenanceSchedule::rules).
     const hasInterval = data.interval_km.trim() !== '' || data.interval_months.trim() !== '';
-    const canSubmit = data.name.trim() !== '' && hasInterval && !processing;
+    const hasDue = data.due_mileage.trim() !== '' || data.due_on.trim() !== '';
+    const canSubmit = data.name.trim() !== '' && (hasInterval || hasDue) && !processing;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -96,9 +102,7 @@ export default function MaintenanceForm({ vehicle, schedule, templates }: Props)
                     <Link href={back} className="text-muted-foreground hover:text-primary" aria-label={t('vehicles.back')}>
                         <ArrowLeft className="size-5" />
                     </Link>
-                    <h1 className="font-heading text-primary text-2xl">
-                        {editing ? t('vehicles.edit_maintenance') : t('vehicles.add_maintenance')}
-                    </h1>
+                    <h1 className="font-heading text-primary text-2xl">{editing ? t('vehicles.edit_maintenance') : t('vehicles.add_maintenance')}</h1>
                 </header>
 
                 {!editing && (
@@ -112,7 +116,7 @@ export default function MaintenanceForm({ vehicle, schedule, templates }: Props)
                                     onClick={() => applyTemplate(tpl)}
                                     className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
                                         data.type === tpl.key
-                                            ? 'border-[var(--primary)] bg-accent-subtle text-primary'
+                                            ? 'bg-accent-subtle text-primary border-[var(--primary)]'
                                             : 'border-border text-primary hover:bg-surface'
                                     }`}
                                 >
@@ -124,7 +128,7 @@ export default function MaintenanceForm({ vehicle, schedule, templates }: Props)
                                 onClick={applyCustom}
                                 className={`rounded-lg border border-dashed px-3 py-1.5 text-sm font-medium transition-colors ${
                                     data.type === 'custom'
-                                        ? 'border-[var(--primary)] bg-accent-subtle text-primary'
+                                        ? 'bg-accent-subtle text-primary border-[var(--primary)]'
                                         : 'border-border text-primary hover:bg-surface'
                                 }`}
                             >
@@ -142,15 +146,32 @@ export default function MaintenanceForm({ vehicle, schedule, templates }: Props)
                     className="flex flex-col gap-5"
                 >
                     <Field label={t('vehicles.maint_name_label')} error={errors.name}>
-                        <Input value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder={t('vehicles.maint_name_placeholder')} className="text-base" />
+                        <Input
+                            value={data.name}
+                            onChange={(e) => setData('name', e.target.value)}
+                            placeholder={t('vehicles.maint_name_placeholder')}
+                            className="text-base"
+                        />
                     </Field>
 
                     <div className="grid gap-4 sm:grid-cols-2">
                         <Field label={t('vehicles.interval_km_label')} error={errors.interval_km} hint={t('vehicles.interval_km_hint')}>
-                            <Input value={data.interval_km} onChange={(e) => setData('interval_km', e.target.value)} inputMode="numeric" placeholder="15000" className="text-base" />
+                            <Input
+                                value={data.interval_km}
+                                onChange={(e) => setData('interval_km', e.target.value)}
+                                inputMode="numeric"
+                                placeholder="15000"
+                                className="text-base"
+                            />
                         </Field>
                         <Field label={t('vehicles.interval_months_label')} error={errors.interval_months} hint={t('vehicles.interval_months_hint')}>
-                            <Input value={data.interval_months} onChange={(e) => setData('interval_months', e.target.value)} inputMode="numeric" placeholder="12" className="text-base" />
+                            <Input
+                                value={data.interval_months}
+                                onChange={(e) => setData('interval_months', e.target.value)}
+                                inputMode="numeric"
+                                placeholder="12"
+                                className="text-base"
+                            />
                         </Field>
                     </div>
                     {hasInterval && (
@@ -162,11 +183,37 @@ export default function MaintenanceForm({ vehicle, schedule, templates }: Props)
                     )}
 
                     <div className="grid gap-4 sm:grid-cols-2">
+                        <Field label={t('vehicles.due_mileage_label')} error={errors.due_mileage} hint={t('vehicles.due_hint')}>
+                            <Input
+                                value={data.due_mileage}
+                                onChange={(e) => setData('due_mileage', e.target.value)}
+                                inputMode="numeric"
+                                placeholder={String(vehicle.currentMileage + 2000)}
+                                className="text-base"
+                            />
+                        </Field>
+                        <Field label={t('vehicles.due_on_label')} error={errors.due_on}>
+                            <Input type="date" value={data.due_on} onChange={(e) => setData('due_on', e.target.value)} className="text-base" />
+                        </Field>
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
                         <Field label={t('vehicles.last_done_date_label')} error={errors.last_performed_at} hint={t('vehicles.last_done_hint')}>
-                            <Input type="date" value={data.last_performed_at} onChange={(e) => setData('last_performed_at', e.target.value)} className="text-base" />
+                            <Input
+                                type="date"
+                                value={data.last_performed_at}
+                                onChange={(e) => setData('last_performed_at', e.target.value)}
+                                className="text-base"
+                            />
                         </Field>
                         <Field label={t('vehicles.last_done_mileage_label')} error={errors.last_performed_mileage}>
-                            <Input value={data.last_performed_mileage} onChange={(e) => setData('last_performed_mileage', e.target.value)} inputMode="numeric" placeholder={String(vehicle.currentMileage)} className="text-base" />
+                            <Input
+                                value={data.last_performed_mileage}
+                                onChange={(e) => setData('last_performed_mileage', e.target.value)}
+                                inputMode="numeric"
+                                placeholder={String(vehicle.currentMileage)}
+                                className="text-base"
+                            />
                         </Field>
                     </div>
 
@@ -185,7 +232,7 @@ export default function MaintenanceForm({ vehicle, schedule, templates }: Props)
                                 type="checkbox"
                                 checked={data.active}
                                 onChange={(e) => setData('active', e.target.checked)}
-                                className="size-4 rounded border-input"
+                                className="border-input size-4 rounded"
                             />
                             <span className="text-primary">{t('vehicles.maint_active_label')}</span>
                             <span className="text-muted-foreground text-xs">{t('vehicles.maint_active_hint')}</span>

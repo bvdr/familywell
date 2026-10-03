@@ -5,6 +5,7 @@ use App\Models\User;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Support\Carbon;
+use Modules\Vehicles\MaintenanceStatus;
 use Modules\Vehicles\Vehicle;
 use Modules\Vehicles\VehicleMaintenanceHistory;
 use Modules\Vehicles\VehicleMaintenanceSchedule;
@@ -238,4 +239,54 @@ it('surfaces the worst schedule status on the My Cars card', function () {
             ->where('vehicles.0.attention', 1)
             ->etc()
     );
+});
+
+// ---- Planned / one-off jobs: an explicit due point (due_mileage / due_on) ------------------------------
+
+it('computes status from an explicit due point, with no baseline needed', function () {
+    $today = Carbon::parse('2026-10-03');
+    $st = MaintenanceStatus::compute(null, null, null, null, 87634, $today, 89600, null);
+    expect($st)->toMatchArray(['status' => 'good', 'nextDueMileage' => 89600, 'remainingKm' => 1966, 'neverPerformed' => false]);
+
+    expect(MaintenanceStatus::compute(null, null, null, null, 88700, $today, 89600, null)['status'])->toBe('due_soon')
+        ->and(MaintenanceStatus::compute(null, null, null, null, 87634, $today, null, Carbon::parse('2026-10-01'))['status'])->toBe('due')
+        // On a recurring rule the due point wins over last + interval (early this time).
+        ->and(MaintenanceStatus::compute(15000, null, 134200, null, 142340, $today, 143000, null)['nextDueMileage'])->toBe(143000);
+});
+
+it('adds a one-off job from the web form and closes it when completed', function () {
+    [$family, $users] = maintFamily();
+    $vehicle = maintVehicle(['current_mileage' => 87634]);
+
+    // Nothing to be due by is still refused.
+    actingAs($users[0])->post("/m/vehicles/{$vehicle->id}/maintenance", ['name' => 'Brakes', 'type' => 'custom'])
+        ->assertSessionHasErrors('interval_km');
+
+    actingAs($users[0])->post("/m/vehicles/{$vehicle->id}/maintenance", [
+        'name' => 'Brakes front + rear', 'type' => 'custom', 'due_mileage' => 89600, 'notes' => 'Quote 2,910 RON',
+    ])->assertRedirect();
+    $schedule = VehicleMaintenanceSchedule::firstWhere('name', 'Brakes front + rear');
+    expect($schedule->toPayload(87634))->toMatchArray(['oneOff' => true, 'dueMileage' => 89600, 'status' => 'good', 'nextDueMileage' => 89600]);
+
+    actingAs($users[0])->post("/m/vehicles/{$vehicle->id}/maintenance/{$schedule->id}/complete", [
+        'performed_at' => '2026-10-20', 'mileage' => 89500,
+    ])->assertRedirect("/m/vehicles/{$vehicle->id}/maintenance");
+
+    expect(VehicleMaintenanceSchedule::find($schedule->id))->toBeNull()
+        ->and(VehicleMaintenanceHistory::where('name', 'Brakes front + rear')->first())->not->toBeNull()
+        ->and(VehicleMaintenanceHistory::where('name', 'Brakes front + rear')->first()->schedule_id)->toBeNull();
+});
+
+it('uses up an early due point on a recurring service and goes back to its interval', function () {
+    [$family, $users] = maintFamily();
+    $vehicle = maintVehicle();
+    $schedule = makeSchedule($vehicle, ['due_mileage' => 143000]);
+
+    actingAs($users[0])->post("/m/vehicles/{$vehicle->id}/maintenance/{$schedule->id}/complete", [
+        'performed_at' => '2026-10-03', 'mileage' => 142900,
+    ])->assertRedirect();
+
+    $schedule->refresh();
+    expect($schedule->due_mileage)->toBeNull()
+        ->and($schedule->statusFor(142900)['nextDueMileage'])->toBe(157900);
 });

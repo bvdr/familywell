@@ -173,7 +173,8 @@ class VehicleMaintenanceController extends Controller
         // the linked task. See MaintenanceCompletion.
         MaintenanceCompletion::complete($vehicle, $schedule, $data, $request->user());
 
-        return back();
+        // A completed one-off is removed (see MaintenanceCompletion), so its page is gone: go to the list.
+        return $schedule->exists ? back() : redirect()->route('vehicles.maintenance.index', $vehicle);
     }
 
     /**
@@ -218,25 +219,10 @@ class VehicleMaintenanceController extends Controller
 
     // ---- helpers ---------------------------------------------------------------------------------------
 
-    /**
-     * Shared validation for add/edit. At least one interval must be set (required_without pair): a rule
-     * with neither trigger would never be computable. current_mileage / today are not inputs here — the
-     * baseline is `last_performed_*` and the status is derived on read.
-     *
-     * @return array<string, mixed>
-     */
+    /** Shared validation for add/edit, the same rules the MCP tools use (VehicleMaintenanceSchedule::rules). */
     private function validateSchedule(Request $request): array
     {
-        return $request->validate([
-            'name' => ['required', 'string', 'max:100'],
-            'type' => ['required', 'string', 'max:40'],
-            'interval_km' => ['nullable', 'required_without:interval_months', 'integer', 'min:1', 'max:1000000'],
-            'interval_months' => ['nullable', 'required_without:interval_km', 'integer', 'min:1', 'max:600'],
-            'last_performed_at' => ['nullable', 'date'],
-            'last_performed_mileage' => ['nullable', 'integer', 'min:0'],
-            'notes' => ['nullable', 'string', 'max:2000'],
-            'active' => ['sometimes', 'boolean'],
-        ]);
+        return $request->validate(VehicleMaintenanceSchedule::rules());
     }
 
     /** The compact vehicle header shape every maintenance screen needs (title + odometer + state dot). */

@@ -38,10 +38,13 @@ class MaintenanceCompletion
             'created_by' => $actor->id,
         ]);
 
-        // Advance the baseline — the next due km/date recompute from this performance.
+        // Advance the baseline — the next due km/date recompute from this performance. An explicit due point
+        // was for THIS occurrence, so it is used up.
         $schedule->update([
             'last_performed_at' => $data['performed_at'],
             'last_performed_mileage' => $mileage,
+            'due_mileage' => null,
+            'due_on' => null,
         ]);
 
         // A completion at/above the current reading is also the latest odometer value; keep the two in step
@@ -77,6 +80,13 @@ class MaintenanceCompletion
             $taskId = $schedule->open_task_id;
             $schedule->update(['open_task_id' => null]);
             Task::where('id', $taskId)->update(['done' => true]);
+        }
+
+        // A one-off planned job is finished for good: its record lives on in the history (the FK nulls
+        // schedule_id, the name is snapshotted), so drop the schedule rather than leave a rule with nothing
+        // left to be due by. Callers check $schedule->exists.
+        if ($schedule->isOneOff()) {
+            $schedule->delete();
         }
 
         return $history;
