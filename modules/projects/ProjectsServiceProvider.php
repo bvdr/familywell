@@ -3,6 +3,7 @@
 namespace Modules\Projects;
 
 use App\Models\EntityVisit;
+use App\Support\Calendar\CalendarSources;
 use App\Support\Dashboard\DashboardAgenda;
 use App\Support\Dashboard\DashboardItems;
 use App\Support\Mcp\McpTools;
@@ -111,6 +112,21 @@ class ProjectsServiceProvider extends ServiceProvider
                         'id' => $t->id,
                     ];
                 })->values()->all();
+        });
+
+        // Calendar: a project's target start as a one-day marker (projects have no end date; the user chose
+        // not to add one). Archived projects stay off the calendar.
+        CalendarSources::register('projects', function (string $from, string $to, int $userId) {
+            if (! app(ModuleRegistry::class)->isEnabled('projects', (int) CurrentFamily::id())) {
+                return [];
+            }
+
+            return Project::query()->visibleTo($userId)->whereNull('archived_at')
+                ->whereDate('target_start', '>=', $from)->whereDate('target_start', '<=', $to)->with('owner')->get()
+                ->map(fn (Project $p) => CalendarSources::item('project', $p->id, $p->name, $p->target_start->toDateString(),
+                    href: "/m/projects/{$p->id}", icon: 'folder-kanban', color: $p->color,
+                    people: $p->owner ? [['type' => 'user', 'id' => $p->owner->id, 'name' => $p->owner->name]] : []))
+                ->values()->all();
         });
 
         Route::middleware(['web', 'auth', 'family', 'module:projects'])
