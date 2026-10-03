@@ -194,3 +194,43 @@ it('accepts a past reading even when the newest logged reading is older than it'
     // But it can't be above what the odometer reads today.
     expect(mcpTool($token, 'vehicles_log_mileage', ['vehicle_id' => $car->id, 'mileage_km' => 150100, 'date' => now()->subDay()->toDateString()])[0])->toBeTrue();
 });
+
+it('plans a one-off job, shows it, and closes it on completion', function () {
+    [, , $token, $car] = carsToken();
+
+    [$err, $msg] = mcpTool($token, 'vehicles_add_maintenance', ['vehicle_id' => $car->id, 'name' => 'Brakes']);
+    expect($err)->toBeTrue()->and(json_encode($msg))->toContain('interval');
+
+    [$err, $job] = mcpTool($token, 'vehicles_add_maintenance', [
+        'vehicle_id' => $car->id, 'name' => 'Brakes front + rear', 'due_km' => 152000, 'notes' => 'Quote 2,910 RON',
+    ]);
+    expect($err)->toBeFalse()
+        ->and($job)->toMatchArray(['one_off' => true, 'due_km' => 152000, 'next_due_km' => 152000, 'km_remaining' => 2000, 'status' => 'good', 'notes' => 'Quote 2,910 RON']);
+
+    [, $got] = mcpTool($token, 'vehicles_get', ['vehicle_id' => $car->id]);
+    expect(collect($got['maintenance'])->pluck('name'))->toContain('Brakes front + rear');
+
+    [, $done] = mcpTool($token, 'vehicles_complete_maintenance', ['vehicle_id' => $car->id, 'schedule_id' => $job['schedule_id'], 'mileage_km' => 151800]);
+    expect($done)->toMatchArray(['completed' => 'Brakes front + rear', 'one_off_closed' => true, 'next_due_km' => null]);
+    [, $after] = mcpTool($token, 'vehicles_get', ['vehicle_id' => $car->id]);
+    expect(collect($after['maintenance'])->pluck('name'))->not->toContain('Brakes front + rear')
+        ->and(VehicleMaintenanceHistory::where('name', 'Brakes front + rear')->exists())->toBeTrue();
+});
+
+it('changes a schedule: bring a service forward, pause it, keep the due rule', function () {
+    [$family, $users, $token, $car, $oil] = carsToken();
+
+    [, $early] = mcpTool($token, 'vehicles_update_maintenance', ['vehicle_id' => $car->id, 'schedule_id' => $oil->id, 'due_km' => 151000]);
+    expect($early)->toMatchArray(['every_km' => 15000, 'due_km' => 151000, 'next_due_km' => 151000, 'one_off' => false]);
+
+    // Clearing every trigger would leave nothing to be due by.
+    [$err] = mcpTool($token, 'vehicles_update_maintenance', ['vehicle_id' => $car->id, 'schedule_id' => $oil->id, 'every_km' => null, 'every_months' => null, 'due_km' => null]);
+    expect($err)->toBeTrue();
+
+    [, $paused] = mcpTool($token, 'vehicles_update_maintenance', ['vehicle_id' => $car->id, 'schedule_id' => $oil->id, 'active' => false]);
+    expect($paused['active'])->toBeFalse()->and($oil->fresh()->interval_km)->toBe(15000);
+
+    $read = mcpConnect($users[0], $family->id, ['vehicles' => 'read'])['access_token'];
+    [$denied, $msg] = mcpTool($read, 'vehicles_add_maintenance', ['vehicle_id' => $car->id, 'name' => 'X', 'due_km' => 1]);
+    expect($denied)->toBeTrue()->and($msg)->toContain('not found');
+});

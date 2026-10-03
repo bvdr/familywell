@@ -99,6 +99,7 @@ FW.start((d) => {
     };
     const due = (s) =>
         [
+            s.one_off ? 'one-off' : null,
             s.next_due_date ? `due ${FW.day(s.next_due_date)}` : null,
             s.next_due_km ? `at ${dist(s.next_due_km)}` : null,
             s.last_done_on ? `last ${FW.day(s.last_done_on)}` : null,
