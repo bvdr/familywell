@@ -31,6 +31,8 @@ class SpendingServiceProvider extends ServiceProvider
         ]);
 
         // Reversible delete: trashed rows are purged after the retention window (trash:purge).
+        // What this module shows in Settings > Recently deleted and its MCP trash tools.
+        Trash::source('spending', SpendingTrash::class);
         Trash::register(Spend::class);
         // Opt spend events into the core sharing system (addressable as `spend_event` in share URLs).
         ShareableRegistry::register('spend_event', SpendEvent::class);

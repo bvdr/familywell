@@ -3,13 +3,12 @@
 namespace Modules\Tasks\Mcp;
 
 use App\Mcp\Tool;
-use App\Support\Sharing\ShareAccess;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
-use Modules\Tasks\Task;
-use Modules\Tasks\TaskList;
+use Modules\Tasks\TasksTrash;
 
+// Same restore as Settings > Recently deleted (TasksTrash).
 class Restore extends Tool
 {
     protected string $module = 'tasks';
@@ -30,21 +29,13 @@ class Restore extends Tool
 
     public function handle(Request $request): Response
     {
-        $data = $request->validate(['type' => ['required', 'in:list,task'], 'id' => ['required', 'integer']]);
-        $user = $this->user();
-        $access = app(ShareAccess::class);
-
-        $model = $data['type'] === 'list'
-            ? TaskList::onlyTrashed()->find($data['id'])
-            : Task::onlyTrashed()->with(['list' => fn ($q) => $q->withTrashed()])->find($data['id']);
-        $list = $model instanceof Task ? $model->list : $model;
-        if (! $model || ! $list || $access->roleFor($user, $list) === null) {
+        $data = $request->validate(['type' => ['required', 'in:'.implode(',', ['list', 'task'])], 'id' => ['required', 'integer']]);
+        $path = TasksTrash::restore($this->user(), $data['type'], (int) $data['id']);
+        if (! $path) {
             return Response::error('Not found in the trash (it may have been restored already or removed for good).');
         }
-
-        $model->restore();
         TaskData::changed();
 
-        return Response::json(['restored' => true, 'type' => $data['type'], 'id' => $model->id, 'url' => rtrim((string) config('app.url'), '/')."/m/tasks/lists/{$list->id}"]);
+        return Response::json(['restored' => true, 'type' => $data['type'], 'id' => (int) $data['id'], 'url' => $this->url($path)]);
     }
 }

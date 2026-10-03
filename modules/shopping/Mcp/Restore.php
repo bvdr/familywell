@@ -3,13 +3,12 @@
 namespace Modules\Shopping\Mcp;
 
 use App\Mcp\Tool;
-use App\Support\Sharing\ShareAccess;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
-use Modules\Shopping\ShoppingItem;
-use Modules\Shopping\ShoppingList;
+use Modules\Shopping\ShoppingTrash;
 
+// Same restore as Settings > Recently deleted (ShoppingTrash).
 class Restore extends Tool
 {
     protected string $module = 'shopping';
@@ -30,18 +29,13 @@ class Restore extends Tool
 
     public function handle(Request $request): Response
     {
-        $data = $request->validate(['type' => ['required', 'in:list,item'], 'id' => ['required', 'integer']]);
-        $model = $data['type'] === 'list'
-            ? ShoppingList::onlyTrashed()->find($data['id'])
-            : ShoppingItem::onlyTrashed()->with(['list' => fn ($q) => $q->withTrashed()])->find($data['id']);
-        $list = $model instanceof ShoppingItem ? $model->list : $model;
-        if (! $model || ! $list || app(ShareAccess::class)->roleFor($this->user(), $list) === null) {
+        $data = $request->validate(['type' => ['required', 'in:'.implode(',', ['list', 'item'])], 'id' => ['required', 'integer']]);
+        $path = ShoppingTrash::restore($this->user(), $data['type'], (int) $data['id']);
+        if (! $path) {
             return Response::error('Not found in the trash (it may have been restored already or removed for good).');
         }
-
-        $model->restore();
         ShoppingData::changed();
 
-        return Response::json(['restored' => true, 'type' => $data['type'], 'id' => $model->id, 'url' => rtrim((string) config('app.url'), '/')."/m/shopping/lists/{$list->id}"]);
+        return Response::json(['restored' => true, 'type' => $data['type'], 'id' => (int) $data['id'], 'url' => $this->url($path)]);
     }
 }

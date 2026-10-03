@@ -3,13 +3,14 @@
 namespace Modules\Shopping\Mcp;
 
 use App\Mcp\Tool;
+use App\Support\Trash\Trash;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
-use Modules\Shopping\ShoppingItem;
-use Modules\Shopping\ShoppingList;
+use Modules\Shopping\ShoppingTrash;
 
+// Same list as Settings > Recently deleted (ShoppingTrash).
 #[IsReadOnly]
 class ListDeleted extends Tool
 {
@@ -28,13 +29,7 @@ class ListDeleted extends Tool
 
     public function handle(Request $request): Response
     {
-        $userId = $this->user()->id;
-        $lists = ShoppingList::onlyTrashed()->visibleTo($userId)->get()
-            ->map(fn (ShoppingList $l) => ['type' => 'list', 'id' => $l->id, 'name' => $l->name] + ShoppingData::trashInfo($l));
-        $items = ShoppingItem::onlyTrashed()->whereHas('list', fn ($q) => $q->withTrashed()->visibleTo($userId))->with(['list' => fn ($q) => $q->withTrashed()])->get()
-            ->map(fn (ShoppingItem $i) => ['type' => 'item', 'id' => $i->id, 'name' => $i->name, 'list' => $i->list->name] + ShoppingData::trashInfo($i));
-
-        $page = $this->page($lists->concat($items)->sortByDesc('deleted_at')->values(), $request);
+        $page = $this->page(Trash::sorted(ShoppingTrash::list($this->user())), $request);
 
         return Response::json(['deleted' => $page['items']->values(), 'next_cursor' => $page['next_cursor']]);
     }
