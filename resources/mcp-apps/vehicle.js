@@ -72,7 +72,7 @@ FW.start((d) => {
                               .filter(Boolean)
                               .join(' · ') || 'Needs attention',
                       )
-                    : h('div', { class: 'small', style: 'color:var(--fw-primary)' }, 'All good'),
+                    : h('div', { class: 'small', style: 'color:var(--fw-ink)' }, 'All good'),
             ),
             h('button', { class: 'link', type: 'button', onclick: () => FW.open(v.url) }, 'Open ↗'),
         );

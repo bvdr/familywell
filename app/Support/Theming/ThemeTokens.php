@@ -2,6 +2,9 @@
 
 namespace App\Support\Theming;
 
+use App\Models\Family;
+use App\Models\User;
+
 // Reads a theme's theme.json and flattens it to CSS custom-property blocks. A theme owns the FULL
 // token set (shadcn tokens like --primary/--background/--radius AND the brand DS tokens like
 // --surface-card/--accent-subtle), so swapping a theme reskins the whole app with no asset rebuild.
@@ -11,6 +14,21 @@ namespace App\Support\Theming;
 // -> :root, `tokensDark` -> .dark (dark-mode overrides), `fonts` -> --font-{sans,heading,mono}.
 class ThemeTokens
 {
+    /**
+     * The skin a person sees: their personal choice wins, else the family's default, else the built-in
+     * default (minimal-mono; css() also falls back to it for an unknown name). The family is only queried
+     * when the person has no personal skin. Shared by the web app (ShareTheme) and the MCP widgets.
+     */
+    public static function resolve(?User $user, ?int $familyId): string
+    {
+        $theme = $user?->theme;
+        if (! $theme && $familyId) {
+            $theme = Family::find($familyId)?->theme;
+        }
+
+        return $theme ?: 'minimal-mono';
+    }
+
     public static function css(string $theme = 'minimal-mono'): string
     {
         $path = resource_path("themes/{$theme}/theme.json");

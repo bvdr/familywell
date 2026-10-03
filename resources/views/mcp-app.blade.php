@@ -8,6 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $title }}</title>
     <script>{!! $sdk !!}</script>
+    <style id="theme">{!! $themeCss !!}</style>
     <style>{!! $css !!}</style>
 </head>
 <body>
