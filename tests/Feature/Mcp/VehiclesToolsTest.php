@@ -185,3 +185,12 @@ it('marks the file parameter for ChatGPT file passing', function () {
     expect($tool['_meta']['openai/fileParams'])->toBe(['file'])
         ->and($tool['inputSchema']['properties'])->toHaveKeys(['file', 'file_url', 'file_base64', 'file_name']);
 });
+
+it('accepts a past reading even when the newest logged reading is older than it', function () {
+    [, , $token, $car] = carsToken(); // current 150000 km, no log rows yet
+
+    [$err, $r] = mcpTool($token, 'vehicles_log_mileage', ['vehicle_id' => $car->id, 'mileage_km' => 149900, 'date' => now()->subDay()->toDateString()]);
+    expect($err)->toBeFalse()->and($r['current_mileage_km'])->toBe(150000);
+    // But it can't be above what the odometer reads today.
+    expect(mcpTool($token, 'vehicles_log_mileage', ['vehicle_id' => $car->id, 'mileage_km' => 150100, 'date' => now()->subDay()->toDateString()])[0])->toBeTrue();
+});

@@ -167,13 +167,14 @@ class Vehicle extends Model
     public function recordMileage(int $km, User $actor, bool $correction = false, ?Carbon $at = null): void
     {
         $at ??= now();
-        // A dated reading older than the newest one is HISTORY (e.g. read off an old invoice): it is logged
-        // at its date, must fit between the readings around it, and never moves the current odometer.
-        $latest = $this->mileageLogs()->max('recorded_at');
-        if ($latest && $at->lt(Carbon::parse($latest))) {
+        // A reading dated before today is HISTORY (e.g. read off an old invoice): logged at its date, it must
+        // fit between the logged readings around it AND not exceed the current odometer (which is the reading
+        // as of now, even when its log row is older), and it never moves the current odometer.
+        if ($at->lt(today())) {
             $min = $this->mileageLogs()->where('recorded_at', '<=', $at)->max('mileage');
-            $max = $this->mileageLogs()->where('recorded_at', '>', $at)->min('mileage');
-            if (($min !== null && $km < $min) || ($max !== null && $km > $max)) {
+            $later = $this->mileageLogs()->where('recorded_at', '>', $at)->min('mileage');
+            $max = min($later ?? PHP_INT_MAX, (int) $this->current_mileage);
+            if (($min !== null && $km < $min) || $km > $max) {
                 throw ValidationException::withMessages([
                     'mileage' => strtr(Translations::get('vehicles.mileage_out_of_order'), [':min' => (string) ($min ?? 0), ':max' => (string) $max]),
                 ]);

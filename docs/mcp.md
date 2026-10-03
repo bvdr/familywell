@@ -51,8 +51,9 @@ and stop reading past the size cap. A service invoice/deviz is filed as a `servi
 records have no attachments of their own). Claude.ai cannot pass the bytes of a chat attachment; there the
 assistant creates the record and links the person to the app page to upload the file.
 
-**Mileage dates:** `vehicles_log_mileage` takes an optional past `date`. A reading older than the newest one goes
-into the history at that date, must fit between the readings around it, and leaves the current odometer alone.
+**Mileage dates:** `vehicles_log_mileage` takes an optional past `date`. A reading dated before today goes into the
+history at that date, must fit between the readings around it (and not exceed today's odometer), and leaves the
+current odometer alone.
 
 **Task extensions:** when a family has Important to-dos or Recurring to-dos on, `tasks_create_task` and
 `tasks_update_task` gain `important` / `recurrence` parameters and task payloads carry those fields. The Tasks
