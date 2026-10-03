@@ -14,6 +14,10 @@ const FW = (() => {
     let data = null;
     let render = null;
     let toastTimer = null;
+    // Display mode (MCP Apps spec): 'inline' in the chat or 'fullscreen'. canFullscreen = this widget opted
+    // in (FW.start option, declared to the host by Widget::sdk) AND the host offers it.
+    let mode = 'inline';
+    let canFullscreen = false;
 
     // h('li', {class: 'x', onclick: fn}, child, 'text', [more]) -> Element. Text is always a text node,
     // never HTML, so nothing from the server can inject markup.
@@ -170,8 +174,35 @@ const FW = (() => {
             'div',
             { class: 'head' },
             h('div', null, h('h1', null, title), sub ? h('div', { class: 'sub' }, sub) : null),
-            url ? h('button', { class: 'link', type: 'button', onclick: () => open(url) }, 'Open in Familywell ↗') : null,
+            h(
+                'div',
+                { class: 'head-actions' },
+                canFullscreen
+                    ? h(
+                          'button',
+                          { class: 'link', type: 'button', onclick: toggleFullscreen },
+                          mode === 'fullscreen' ? 'Exit full screen' : 'Full screen ⤢',
+                      )
+                    : null,
+                url ? h('button', { class: 'link', type: 'button', onclick: () => open(url) }, 'Open in Familywell ↗') : null,
+            ),
         );
+    }
+
+    function setMode(m) {
+        mode = m || 'inline';
+        document.documentElement.classList.toggle('fs', mode === 'fullscreen');
+    }
+
+    // The host decides: it answers with the mode actually set, which may not be the one we asked for.
+    async function toggleFullscreen() {
+        try {
+            const res = await app.requestDisplayMode(mode === 'fullscreen' ? 'inline' : 'fullscreen');
+            setMode(res?.mode);
+            draw();
+        } catch (e) {
+            toast(friendly(e));
+        }
     }
 
     // Quick-add field; onAdd(text) resolves when saved. Deliberately NOT a <form>: hosts sandbox the
@@ -200,11 +231,22 @@ const FW = (() => {
         return h('div', { class: 'add' }, input, btn);
     }
 
-    function start(fn) {
+    // opts.fullscreen: offer a full-screen button (needs the widget in Widget::FULLSCREEN too).
+    function start(fn, opts = {}) {
         render = fn;
         window.createMcpApp(async (a) => {
             app = a;
-            locale = a.getHostContext()?.locale;
+            const ctx = a.getHostContext() || {};
+            locale = ctx.locale;
+            canFullscreen = !!opts.fullscreen && (ctx.availableDisplayModes || []).includes('fullscreen');
+            setMode(ctx.displayMode);
+            // The host reports mode changes it makes itself too (e.g. its own close button, Esc).
+            a.onHostContextChanged((c) => {
+                if (c.displayMode && c.displayMode !== mode) {
+                    setMode(c.displayMode);
+                    draw();
+                }
+            });
             a.onToolInput((p) => {
                 args = p?.arguments || {};
             });
