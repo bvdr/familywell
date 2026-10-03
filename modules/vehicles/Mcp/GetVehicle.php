@@ -21,7 +21,7 @@ class GetVehicle extends Tool
 
     protected ?string $app = 'vehicle';
 
-    protected string $description = 'One car in full: details, maintenance schedules with what is due (by km and date), documents and their expiry, fuel consumption stats, and recent services/repairs. Distances in km.';
+    protected string $description = 'One car in full: details, maintenance schedules (recurring, and one-off planned jobs) with what is due (by km and date), documents and their expiry, fuel consumption stats, and recent services/repairs. Distances in km.';
 
     public function schema(JsonSchema $schema): array
     {
@@ -48,23 +48,7 @@ class GetVehicle extends Tool
             'insurance_company' => $v->insurance_company,
             'notes' => $v->notes,
             'display_unit' => VehicleData::displayUnit(),
-            'maintenance' => $v->maintenanceSchedules->where('active', true)->map(function (VehicleMaintenanceSchedule $s) use ($km) {
-                $st = $s->statusFor($km);
-
-                return [
-                    'schedule_id' => $s->id,
-                    'name' => $s->name,
-                    'status' => $st['status'], // good | due_soon | due | overdue
-                    'every_km' => $s->interval_km,
-                    'every_months' => $s->interval_months,
-                    'last_done_on' => $s->last_performed_at?->toDateString(),
-                    'last_done_km' => $s->last_performed_mileage,
-                    'next_due_km' => $st['nextDueMileage'],
-                    'next_due_date' => $st['nextDueDate'],
-                    'km_remaining' => $st['remainingKm'],
-                    'days_remaining' => $st['remainingDays'],
-                ];
-            })->values(),
+            'maintenance' => $v->maintenanceSchedules->where('active', true)->map(fn (VehicleMaintenanceSchedule $s) => VehicleData::maintenancePayload($s, $km))->values(),
             'documents' => $v->documents->sortBy(fn ($d) => $d->expires_on?->timestamp ?? PHP_INT_MAX)->map(fn (VehicleDocument $d) => [
                 'document_id' => $d->id,
                 'type' => $d->type,

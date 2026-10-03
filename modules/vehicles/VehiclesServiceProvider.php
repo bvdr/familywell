@@ -34,7 +34,7 @@ class VehiclesServiceProvider extends ServiceProvider
         // assistant to confirm with the person first.
         McpTools::register('vehicles', 'Vehicles', [
             Mcp\ListVehicles::class, Mcp\GetVehicle::class, Mcp\VehicleHistory::class,
-            Mcp\LogMileage::class, Mcp\LogFuel::class, Mcp\CompleteMaintenance::class,
+            Mcp\LogMileage::class, Mcp\LogFuel::class, Mcp\AddMaintenance::class, Mcp\UpdateMaintenance::class, Mcp\CompleteMaintenance::class,
             Mcp\AddRepair::class, Mcp\AddExpense::class, Mcp\AddDocument::class, Mcp\AttachFile::class,
             Mcp\DeleteRecord::class, Mcp\DeleteVehicle::class,
         ]);
