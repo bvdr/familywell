@@ -23,6 +23,7 @@
     "manual_mileage_placeholder": "Enter new mileage",
     "save_as_correction": "The reading is lower — save as a correction",
     "mileage_backwards": "That's below the current reading of :current km. Save it as a correction if you're fixing a wrong value.",
+    "mileage_out_of_order": "A reading on that date must be between :min and :max km, to fit the readings around it.",
     "mileage_history": "Mileage history",
     "mileage_history_empty": "No mileage recorded yet.",
 

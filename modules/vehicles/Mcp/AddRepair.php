@@ -3,6 +3,7 @@
 namespace Modules\Vehicles\Mcp;
 
 use App\Mcp\Tool;
+use App\Support\Mcp\IncomingFile;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
@@ -15,7 +16,12 @@ class AddRepair extends Tool
 
     protected string $name = 'vehicles_add_repair';
 
-    protected string $description = 'Record a repair (something fixed outside the regular maintenance schedule). Set add_expense=true (with a cost) to also record it in Spending, linked to the car.';
+    protected string $description = 'Record a repair (something fixed outside the regular maintenance schedule). Set add_expense=true (with a cost) to also record it in Spending, linked to the car. An invoice or photo can be attached (file / file_url / file_base64).';
+
+    public function __construct()
+    {
+        $this->setMeta(IncomingFile::FILE_PARAMS_META); // lets ChatGPT pass a file the person attached
+    }
 
     public function schema(JsonSchema $schema): array
     {
@@ -28,6 +34,7 @@ class AddRepair extends Tool
             'provider' => $schema->string()->description('Garage / who fixed it.'),
             'notes' => $schema->string(),
             'add_expense' => $schema->boolean()->description('Also record the cost in Spending (default false, like the app).'),
+            ...IncomingFile::schema($schema),
         ];
     }
 
@@ -51,6 +58,7 @@ class AddRepair extends Tool
             return Response::error('Spending is not turned on for this family, so the repair cannot be recorded as an expense. Log it without add_expense.');
         }
 
+        $file = IncomingFile::from($request); // validated (type, size) before anything is written
         $repair = $v->logRepair([
             'title' => $data['title'],
             'occurred_on' => $data['occurred_on'] ?? now()->toDateString(),
@@ -61,8 +69,13 @@ class AddRepair extends Tool
             'create_expense' => $data['add_expense'] ?? false,
         ], $this->user());
 
+        if ($file) {
+            $repair->attachFile($file);
+        }
+
         return Response::json([
             'repair_id' => $repair->id,
+            'attachment' => $file?->getClientOriginalName(),
             'title' => $repair->title,
             'expense_recorded' => ($data['add_expense'] ?? false) && ! empty($data['cost']),
             'url' => VehicleData::url("/m/vehicles/{$v->id}/repairs"),

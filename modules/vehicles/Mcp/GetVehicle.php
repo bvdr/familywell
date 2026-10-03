@@ -64,7 +64,9 @@ class GetVehicle extends Tool
                 ];
             })->values(),
             'documents' => $v->documents->sortBy(fn ($d) => $d->expires_on?->timestamp ?? PHP_INT_MAX)->map(fn (VehicleDocument $d) => [
+                'document_id' => $d->id,
                 'type' => $d->type,
+                'has_file' => $d->file_path !== null,
                 'title' => $d->title,
                 'expires_on' => $d->expires_on?->toDateString(),
                 'expiring_soon' => $d->isExpiring(),

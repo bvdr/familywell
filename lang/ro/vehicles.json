@@ -23,6 +23,7 @@
     "manual_mileage_placeholder": "Introdu noul kilometraj",
     "save_as_correction": "Valoarea e mai mică — salvează ca o corecție",
     "mileage_backwards": "E sub valoarea curentă de :current km. Salveaz-o ca o corecție dacă îndrepți o valoare greșită.",
+    "mileage_out_of_order": "O citire la acea dată trebuie să fie între :min și :max km, ca să se potrivească cu citirile din jur.",
     "mileage_history": "Istoric kilometraj",
     "mileage_history_empty": "Niciun kilometraj înregistrat încă.",
 

@@ -164,8 +164,25 @@ class Vehicle extends Model
      * correction (a lower typo fix is authoritative); a backwards reading otherwise fails validation. Shared
      * by the Overview mileage form and the MCP tool.
      */
-    public function recordMileage(int $km, User $actor, bool $correction = false): void
+    public function recordMileage(int $km, User $actor, bool $correction = false, ?Carbon $at = null): void
     {
+        $at ??= now();
+        // A dated reading older than the newest one is HISTORY (e.g. read off an old invoice): it is logged
+        // at its date, must fit between the readings around it, and never moves the current odometer.
+        $latest = $this->mileageLogs()->max('recorded_at');
+        if ($latest && $at->lt(Carbon::parse($latest))) {
+            $min = $this->mileageLogs()->where('recorded_at', '<=', $at)->max('mileage');
+            $max = $this->mileageLogs()->where('recorded_at', '>', $at)->min('mileage');
+            if (($min !== null && $km < $min) || ($max !== null && $km > $max)) {
+                throw ValidationException::withMessages([
+                    'mileage' => strtr(Translations::get('vehicles.mileage_out_of_order'), [':min' => (string) ($min ?? 0), ':max' => (string) $max]),
+                ]);
+            }
+            $this->logMileage($km, $actor->id, $at);
+
+            return;
+        }
+
         if ($km < (int) $this->current_mileage && ! $correction) {
             throw ValidationException::withMessages([
                 // The app's strings live in lang/{locale}/vehicles.json (App\Support\Translations), not Laravel's
@@ -174,7 +191,7 @@ class Vehicle extends Model
             ]);
         }
         $this->update(['current_mileage' => $km]);
-        $this->logMileage($km, $actor->id);
+        $this->logMileage($km, $actor->id, $at);
     }
 
     /** Bump the odometer only when $km is ahead of it (a fill/repair reading), logging it once; never rewinds. */
@@ -186,9 +203,9 @@ class Vehicle extends Model
         }
     }
 
-    private function logMileage(int $km, ?int $userId): void
+    private function logMileage(int $km, ?int $userId, ?Carbon $at = null): void
     {
-        VehicleMileageLog::create(['vehicle_id' => $this->id, 'mileage' => $km, 'recorded_by' => $userId, 'recorded_at' => now()]);
+        VehicleMileageLog::create(['vehicle_id' => $this->id, 'mileage' => $km, 'recorded_by' => $userId, 'recorded_at' => $at ?? now()]);
     }
 
     /**

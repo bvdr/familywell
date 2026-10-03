@@ -3,9 +3,11 @@
 namespace Modules\Vehicles;
 
 use App\Models\User;
+use App\Support\Media\StoredImage;
 use App\Support\Tenancy\BelongsToFamily;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Modules\Tasks\Task;
 
@@ -62,6 +64,19 @@ class VehicleDocument extends Model
      * True when the document has an expiry that is within EXPIRY_LEAD_DAYS from `today` (or already past).
      * This is the trigger for spawning a renewal task; a document with no expiry never triggers.
      */
+    /**
+     * Store a file for this document, replacing any previous one (its R2 objects are freed). Shared by the
+     * Documents form and the MCP tools. $thumb is the optional client-made preview for images.
+     */
+    public function attachFile(UploadedFile $file, ?UploadedFile $thumb = null): void
+    {
+        StoredImage::delete($this->file_path);
+        $this->update([
+            'file_path' => StoredImage::store($file, $thumb, 'vehicles/'.$this->family_id.'/documents'),
+            'file_name' => $file->getClientOriginalName(),
+        ]);
+    }
+
     public function isExpiring(?Carbon $today = null): bool
     {
         if (! $this->expires_on) {

@@ -136,12 +136,8 @@ class VehicleDocumentsController extends Controller
         if (! $request->hasFile('file')) {
             return;
         }
-        StoredImage::delete($document->file_path);   // replace the old file, if any
-        $file = $request->file('file');
-        $document->update([
-            'file_path' => StoredImage::store($file, $request->file('file_thumb'), 'vehicles/'.CurrentFamily::id().'/documents'),
-            'file_name' => $file->getClientOriginalName(),
-        ]);
+        // Replaces any old file; shared with the MCP tools (VehicleDocument::attachFile).
+        $document->attachFile($request->file('file'), $request->file('file_thumb'));
     }
 
     /** The auth-gated streaming URL for a document's file, or null when it has none. */
