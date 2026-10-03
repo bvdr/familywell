@@ -35,6 +35,9 @@ type DashItem = { title: string; subtitle: string; href: string; icon: string; c
 // toggleUrl: empty-body PATCH marks it done/bought (and it drops off on the next dashboard load).
 // toggleUrl is absent for display-only rows (e.g. calendar events: they aren't "done").
 type AgendaItem = DashItem & { dueDate: string; toggleUrl?: string };
+// Unique per row: a repeating event recurs under one href+title, and two to-dos of one event share href and
+// maybe title, so the date and the per-task toggle URL go into the key too.
+const agendaKey = (it: AgendaItem) => `${it.toggleUrl ?? it.href}-${it.title}-${it.dueDate}`;
 
 // Map a provider's icon key to a lucide icon; fall back to a neutral one.
 const ICONS: Record<string, LucideIcon> = {
@@ -219,6 +222,8 @@ export default function Dashboard({
             icon: string;
             color: string | null;
             href: string;
+            start: string;
+            end: string;
             now: boolean;
             dayOf: number | null;
             days: number;
@@ -297,7 +302,7 @@ export default function Dashboard({
                     <div className="bg-surface-card flex flex-col gap-1 rounded-xl border p-4">
                         <span className="text-muted-foreground text-xs">{t('calendar.now_next')}</span>
                         {widgets.calendar.map((e) => (
-                            <Link key={`${e.id}-${e.href}`} href={e.href} prefetch className="flex items-center gap-3 py-1.5">
+                            <Link key={`${e.id}-${e.href}-${e.start}`} href={e.href} prefetch className="flex items-center gap-3 py-1.5">
                                 <span className="bg-tile text-tile-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
                                     <DynamicLucideIcon name={e.icon} className="size-4" />
                                 </span>
@@ -345,7 +350,7 @@ export default function Dashboard({
                         <h2 className="font-heading text-primary px-1 text-lg">{t('dashboard.today')}</h2>
                         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                             {today.map((it) => (
-                                <AgendaRow key={it.href + it.title} item={it} />
+                                <AgendaRow key={agendaKey(it)} item={it} />
                             ))}
                         </div>
                     </section>
@@ -356,7 +361,7 @@ export default function Dashboard({
                         <h2 className="font-heading text-primary px-1 text-lg">{t('dashboard.this_week')}</h2>
                         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                             {thisWeek.map((it) => (
-                                <AgendaRow key={it.href + it.title} item={it} />
+                                <AgendaRow key={agendaKey(it)} item={it} />
                             ))}
                         </div>
                     </section>
