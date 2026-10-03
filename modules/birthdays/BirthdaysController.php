@@ -3,25 +3,21 @@
 namespace Modules\Birthdays;
 
 use App\Http\Controllers\Controller;
-use App\Support\Modules\Hooks;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
-use Modules\Contacts\Person;
 
 class BirthdaysController extends Controller
 {
-    public function __construct(private Hooks $hooks) {}
-
     // The Birthdays page: everyone with a birthday, soonest first. Family-scoped (BelongsToFamily)
     // and gated by module:birthdays on the route.
     public function index(): Response
     {
         return Inertia::render('birthdays/index', [
-            'birthdays' => $this->all()->map(fn (BirthdayDate $b) => [
+            'birthdays' => BirthdayDate::soonestFirst()->map(fn (BirthdayDate $b) => [
                 'id' => $b->id,
                 'personId' => $b->person_id,
                 'name' => $b->person->name,
@@ -36,23 +32,13 @@ class BirthdaysController extends Controller
         ]);
     }
 
-    /**
-     * Quick-add from the Birthdays page: a name + day/month (+ optional year). The person is the
-     * Contacts `person` primitive, created here so they show up in Contacts too; person.saved fires
-     * so every extension sees the new person. If a contact with that exact name already exists, the
-     * birthday attaches to them instead of creating a duplicate person (ponytail: exact
-     * case-insensitive match; fuzzy matching can wait until someone actually asks).
-     */
+    // Quick-add from the Birthdays page. The find-or-create-person logic lives in BirthdayDate::addFor
+    // so the MCP birthdays_add tool behaves identically.
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate(array_merge(['name' => ['required', 'string', 'max:255']], self::rules()));
 
-        $person = Person::whereRaw('lower(name) = ?', [mb_strtolower(trim($data['name']))])->first()
-            ?? Person::create(['name' => trim($data['name']), 'created_by' => $request->user()->id]);
-
-        BirthdayDate::updateOrCreate(['person_id' => $person->id], self::attributesFromRequest($request));
-        // The listener in the provider also reacts to birth_month, harmlessly re-saving the same row.
-        $this->hooks->fire('person.saved', $person, $request);
+        BirthdayDate::addFor($data['name'], $request, $request->user());
 
         return back();
     }
@@ -83,7 +69,7 @@ class BirthdaysController extends Controller
     {
         $window = 60; // days ahead to show
 
-        $upcoming = $this->all()->filter(fn (BirthdayDate $b) => $b->daysUntil() <= $window);
+        $upcoming = BirthdayDate::soonestFirst()->filter(fn (BirthdayDate $b) => $b->daysUntil() <= $window);
 
         $items = $upcoming
             ->take(self::WIDGET_LIMIT)
@@ -138,14 +124,5 @@ class BirthdaysController extends Controller
             'day' => $day,
             'birthdate' => $year ? Carbon::create($year, $month, $day)->toDateString() : null,
         ];
-    }
-
-    /** Every birthday in the family with its person, soonest first (people deleted → row cascaded). */
-    private function all()
-    {
-        return BirthdayDate::with('person')->get()
-            ->filter(fn (BirthdayDate $b) => $b->person && $b->nextBirthday())
-            ->sortBy([fn ($a, $b) => $a->daysUntil() <=> $b->daysUntil(), fn ($a, $b) => strcmp($a->person->name, $b->person->name)])
-            ->values();
     }
 }

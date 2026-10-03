@@ -2,10 +2,14 @@
 
 namespace Modules\Birthdays;
 
+use App\Models\User;
+use App\Support\Modules\Hooks;
 use App\Support\Tenancy\BelongsToFamily;
 use App\Support\Translations;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Modules\Contacts\Person;
 
@@ -103,5 +107,34 @@ class BirthdayDate extends Model
         $next = $this->nextBirthday();
 
         return $next ? Carbon::today()->diffInDays($next, false) : null;
+    }
+
+    /**
+     * Quick-add (Birthdays page + MCP birthdays_add): a name + day/month (+ optional year). The person is
+     * the Contacts `person` primitive, created here so they show up in Contacts too; person.saved fires
+     * so every extension sees the new person. If a contact with that exact name already exists, the
+     * birthday attaches to them instead of creating a duplicate person (ponytail: exact
+     * case-insensitive match; fuzzy matching can wait until someone actually asks). $request must
+     * already be validated against BirthdaysController::rules() + name.
+     */
+    public static function addFor(string $name, Request $request, User $by): self
+    {
+        $person = Person::whereRaw('lower(name) = ?', [mb_strtolower(trim($name))])->first()
+            ?? Person::create(['name' => trim($name), 'created_by' => $by->id]);
+
+        $birthday = self::updateOrCreate(['person_id' => $person->id], BirthdaysController::attributesFromRequest($request));
+        // The listener in the provider also reacts to birth_month, harmlessly re-saving the same row.
+        app(Hooks::class)->fire('person.saved', $person, $request);
+
+        return $birthday->setRelation('person', $person);
+    }
+
+    /** Every birthday in the family with its person, soonest first (people deleted → row cascaded). */
+    public static function soonestFirst(): Collection
+    {
+        return self::with('person')->get()
+            ->filter(fn (self $b) => $b->person && $b->nextBirthday())
+            ->sortBy([fn ($a, $b) => $a->daysUntil() <=> $b->daysUntil(), fn ($a, $b) => strcmp($a->person->name, $b->person->name)])
+            ->values();
     }
 }
