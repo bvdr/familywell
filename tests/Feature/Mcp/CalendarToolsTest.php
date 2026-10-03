@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\User;
 use App\Support\Tenancy\CurrentFamily;
+use Illuminate\Support\Facades\Notification;
 use Modules\Calendar\CalendarEvent;
 use Modules\Projects\Project;
 use Modules\Tasks\Task;
@@ -70,4 +72,20 @@ it('updates, adds a to-do, and deletes', function () {
 it('hides write tools from a read-only token', function () {
     [, , $token] = calendarToken(['calendar' => 'read']);
     expect(mcpToolNames($token))->toContain('calendar_list')->not->toContain('calendar_create_event');
+});
+
+it('refuses a to-do assignee from another family without notifying them', function () {
+    Notification::fake();
+    [, $users, $token] = calendarToken();
+    $stranger = User::factory()->create();
+    [, $e] = mcpTool($token, 'calendar_create_event', ['title' => 'Grecia', 'start_date' => '2026-07-17', 'end_date' => '2026-07-25']);
+    [$err] = mcpTool($token, 'calendar_add_todo', ['event_id' => $e['id'], 'title' => 'Pack', 'assigned_to' => $stranger->id]);
+    expect($err)->toBeTrue()->and(Task::withoutGlobalScope('family')->where('title', 'Pack')->exists())->toBeFalse();
+    Notification::assertNothingSent();
+});
+
+it('returns a tool error, not an exception, for an unparseable from date', function () {
+    [, , $token] = calendarToken();
+    [$err, $msg] = mcpTool($token, 'calendar_list', ['from' => 'abc', 'to' => '2026-07-31']);
+    expect($err)->toBeTrue()->and($msg)->toContain('from'); // the validation message, not a Carbon parse error
 });

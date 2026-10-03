@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\User;
+use Illuminate\Support\Facades\Notification;
 use Modules\Calendar\CalendarEvent;
 use Modules\Tasks\Task;
 
@@ -59,4 +61,18 @@ it('reorders and re-nests to-dos', function () {
         ['id' => $b->id, 'parent_id' => null], ['id' => $a->id, 'parent_id' => $b->id],
     ]])->assertRedirect();
     expect($a->fresh()->parent_id)->toBe($b->id)->and($e->fresh()->taskIds())->toBe([$b->id]);
+});
+
+it('refuses an assignee from another family, without notifying them', function () {
+    Notification::fake();
+    [, $users] = calendarFamily();
+    $stranger = User::factory()->create();
+    $e = trip($users[0]);
+    actingAs($users[0])->post("/m/calendar/events/{$e->id}/tasks", ['title' => 'Pack', 'assigned_to' => $stranger->id])
+        ->assertSessionHasErrors('assigned_to');
+    $t = $e->addTask($users[0], ['title' => 'Book hotel']);
+    actingAs($users[0])->patch("/m/calendar/tasks/{$t->id}", ['assigned_to' => $stranger->id])->assertSessionHasErrors('assigned_to');
+
+    expect(Task::where('title', 'Pack')->exists())->toBeFalse()->and($t->fresh()->assigned_to)->toBeNull();
+    Notification::assertNothingSent();
 });

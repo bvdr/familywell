@@ -33,11 +33,13 @@ class ListCalendar extends Tool
 
     public function handle(Request $request): Response
     {
+        // Two steps: the 400-day cap needs a parsed `from`, and parsing an unvalidated one ("abc") would throw.
         $d = $request->validate([
             'from' => ['required', 'date_format:Y-m-d'],
-            'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from', 'before_or_equal:'.now()->parse((string) $request->get('from'))->addDays(Occurrences::MAX_RANGE_DAYS)->toDateString()],
+            'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from'],
             'person' => ['nullable', 'regex:/^(user|person):\d+$/'],
         ]);
+        $request->validate(['to' => ['before_or_equal:'.now()->parse($d['from'])->addDays(Occurrences::MAX_RANGE_DAYS)->toDateString()]]);
         // Only modules the token can read (the calendar itself always, since this tool needs calendar:read).
         $readable = array_keys(McpTools::accessFromScopes($this->tokenScopes()));
         $items = collect(CalendarSources::collect($d['from'], $d['to'], $this->user()->id, [...$readable, 'calendar']))

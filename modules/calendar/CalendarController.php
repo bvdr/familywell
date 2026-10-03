@@ -10,10 +10,12 @@ use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Contacts\Person;
 use Modules\Projects\Project;
+use Modules\Tasks\Mcp\TaskData;
 use Modules\Tasks\Task;
 
 class CalendarController extends Controller
@@ -114,7 +116,8 @@ class CalendarController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'note' => ['nullable', 'string', 'max:255'],
             'due_date' => ['nullable', 'date'],
-            'assigned_to' => ['nullable', 'integer'],
+            // Members only (same rule as the tasks/projects tools): no cross-family assignee or notification.
+            'assigned_to' => ['nullable', 'integer', Rule::in(TaskData::memberIds())],
             'parent_id' => ['nullable', 'integer'],
         ]));
 
@@ -130,7 +133,7 @@ class CalendarController extends Controller
                 'title' => ['sometimes', 'string', 'max:255'],
                 'note' => ['sometimes', 'nullable', 'string', 'max:255'],
                 'due_date' => ['sometimes', 'nullable', 'date'],
-                'assigned_to' => ['sometimes', 'nullable', 'integer'],
+                'assigned_to' => ['sometimes', 'nullable', 'integer', Rule::in(TaskData::memberIds())],
                 'done' => ['sometimes', 'boolean'],
             ])
             : ['done' => ! $task->done];

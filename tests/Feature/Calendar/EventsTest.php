@@ -5,6 +5,7 @@ use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Support\Facades\DB;
 use Modules\Calendar\CalendarEvent;
 use Modules\Contacts\Person;
+use Modules\Projects\Project;
 
 use function Pest\Laravel\actingAs;
 
@@ -149,4 +150,27 @@ it('gives the event page the edit sheet pickers (contacts, projects only when th
     actingAs($users[0])->get("/m/calendar/events/{$event->id}")->assertOk()
         ->assertInertia(fn ($p) => $p->component('calendar/event')
             ->where('contacts.0.name', 'Simona')->where('projects', null));
+});
+
+it('hides a linked project the viewer cannot see, and keeps the link when they save the event', function () {
+    [, $users] = calendarFamily(['calendar', 'tasks', 'contacts', 'projects']);
+    $secret = Project::createFor($users[0], ['name' => 'Surprise party']);
+    $secret->setVisibility('private');
+    $this->actingAs($users[0]); // the link is only made for a project the acting user can see
+    $e = trip($users[0], ['project_id' => $secret->id]);
+    expect($e->toPayload()['project']['name'])->toBe('Surprise party');
+
+    $this->actingAs($users[1]);
+    expect($e->toPayload()['project'])->toBeNull();
+    // The edit sheet sends project_id null (it saw none): the hidden link must survive.
+    $this->patch("/m/calendar/events/{$e->id}", ['title' => 'Grecia!', 'project_id' => null])->assertRedirect();
+    $this->actingAs($users[0]);
+    expect($e->fresh()->toPayload()['project']['name'])->toBe('Surprise party');
+
+    // A project the editor CAN see replaces it; clearing a visible one clears it.
+    $shared = Project::createFor($users[1], ['name' => 'Kitchen']);
+    $this->actingAs($users[1])->patch("/m/calendar/events/{$e->id}", ['project_id' => $shared->id])->assertRedirect();
+    expect($e->fresh()->toPayload()['project']['name'])->toBe('Kitchen');
+    $this->patch("/m/calendar/events/{$e->id}", ['project_id' => null])->assertRedirect();
+    expect($e->fresh()->toPayload()['project'])->toBeNull();
 });
