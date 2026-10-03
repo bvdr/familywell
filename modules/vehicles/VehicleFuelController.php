@@ -49,44 +49,9 @@ class VehicleFuelController extends Controller
         $this->authorizeVehicle($vehicle);
         $data = $this->validateEntry($request);
 
-        $entry = $vehicle->fuelEntries()->create([
-            'filled_on' => $data['filled_on'],
-            'liters' => $data['liters'],
-            'cost' => $data['cost'] ?? null,
-            'mileage' => $data['mileage'],
-            'is_full_tank' => $data['is_full_tank'] ?? true,
-            'station' => $data['station'] ?? null,
-            'note' => $data['note'] ?? null,
-            'created_by' => $request->user()->id,
-        ]);
-
-        // Reuse the mileage flow WITHOUT double-counting: a fill at/above the current reading is also the
-        // latest odometer value, so bump + log it exactly once (same forward-only guard as a completion). A
-        // back-dated, lower-mileage fill never rewinds the odometer.
-        if ((int) $entry->mileage > (int) $vehicle->current_mileage) {
-            $vehicle->update(['current_mileage' => (int) $entry->mileage]);
-            VehicleMileageLog::create([
-                'vehicle_id' => $vehicle->id,
-                'mileage' => (int) $entry->mileage,
-                'recorded_by' => $request->user()->id,
-                'recorded_at' => now(),
-            ]);
-        }
-
-        // A costed fill can mirror into Spending, linked to the car AND the fuel entry (so the Timeline shows
-        // the cost once, as the fill). Opt-in like a repair — kept to store() so an edit never duplicates it.
-        if (($data['create_expense'] ?? false) && ! empty($data['cost'])) {
-            VehicleExpenses::record(
-                $vehicle,
-                $request->user(),
-                (float) $data['cost'],
-                $this->expenseNote($vehicle, $entry),
-                $data['filled_on'],
-                null,          // not a maintenance completion
-                null,          // not a repair
-                $entry->id,    // tag the fuel entry
-            );
-        }
+        // Entry + forward-only odometer bump + opt-in Spending record (store-time only, so an edit never
+        // duplicates it). Shared with the MCP tool: see Vehicle::logFuel.
+        $vehicle->logFuel($data, $request->user());
 
         return back();
     }
@@ -142,14 +107,6 @@ class VehicleFuelController extends Controller
             'note' => ['nullable', 'string', 'max:255'],
             'create_expense' => ['sometimes', 'boolean'],
         ]);
-    }
-
-    /** The Spending note for a costed fill: "Fuel — {station}" or "Fuel — {make} {model}". */
-    private function expenseNote(Vehicle $vehicle, VehicleFuelEntry $entry): string
-    {
-        $where = $entry->station ?: trim("{$vehicle->make} {$vehicle->model}");
-
-        return trim('Fuel — '.$where);
     }
 
     /** The compact vehicle header shape every per-car screen needs (title + odometer + state dot). */

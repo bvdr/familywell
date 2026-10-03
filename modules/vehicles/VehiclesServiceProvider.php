@@ -2,6 +2,7 @@
 
 namespace Modules\Vehicles;
 
+use App\Support\Mcp\McpTools;
 use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
@@ -26,6 +27,15 @@ class VehiclesServiceProvider extends ServiceProvider
         // Our notification category (maintenance-due pushes), so it gets its own on/off row on the
         // Notifications settings screen. Registration is idempotent (boot re-runs per request/worker).
         NotificationCategories::register('vehicles', 'Vehicles', 'car');
+
+        // MCP: tools an AI assistant can use on the family's cars, gated by the `vehicles:read` /
+        // `vehicles:write` scopes granted on the consent screen (see docs/mcp.md). No delete tools: car
+        // records have no trash, so removing them stays a deliberate action in the app.
+        McpTools::register('vehicles', 'Vehicles', [
+            Mcp\ListVehicles::class, Mcp\GetVehicle::class, Mcp\VehicleHistory::class,
+            Mcp\LogMileage::class, Mcp\LogFuel::class, Mcp\CompleteMaintenance::class,
+            Mcp\AddRepair::class, Mcp\AddExpense::class,
+        ]);
 
         // MAINTENANCE -> TASKS, completion half. When a task is checked off, complete the maintenance it
         // was linked to: write history, advance the schedule, recompute next due, and clear the link so the

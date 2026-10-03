@@ -51,33 +51,10 @@ class VehicleRepairsController extends Controller
         $this->authorizeVehicle($vehicle);
         $data = $this->validateRepair($request);
 
-        $repair = $vehicle->repairs()->create([
-            'title' => $data['title'],
-            'occurred_on' => $data['occurred_on'],
-            'mileage' => $data['mileage'] ?? null,
-            'cost' => $data['cost'] ?? null,
-            'provider' => $data['provider'] ?? null,                          // free-text fallback
-            'service_provider_id' => $data['service_provider_id'] ?? null,    // preferred link (V1.1)
-            'notes' => $data['notes'] ?? null,
-            'created_by' => $request->user()->id,
-        ]);
-
+        // Repair + opt-in Spending record (store-time only, so an edit never duplicates it). Shared with the
+        // MCP tool: see Vehicle::logRepair. Attachments stay a web-form concern.
+        $repair = $vehicle->logRepair($data, $request->user());
         $this->storeAttachments($request, $repair);
-
-        // A repair with a cost can become a Spending record linked to the car — but only when the user asks
-        // (unlike a maintenance completion, where the cost is always the service's cost). Kept to store()
-        // only, so editing a repair never risks creating a duplicate expense.
-        if (($data['create_expense'] ?? false) && ! empty($data['cost'])) {
-            VehicleExpenses::record(
-                $vehicle,
-                $request->user(),
-                (float) $data['cost'],
-                trim($data['title']),
-                $data['occurred_on'],
-                null,          // not a maintenance completion
-                $repair->id,   // tag the link so the Timeline shows this cost as the repair, not a 2nd expense
-            );
-        }
 
         return back();
     }

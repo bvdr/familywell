@@ -11,7 +11,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -358,19 +357,8 @@ class VehiclesController extends Controller
             'correction' => ['sometimes', 'boolean'],
         ]);
 
-        $mileage = (int) $data['mileage'];
-        $isCorrection = (bool) ($data['correction'] ?? false);
-
-        if ($mileage < $vehicle->current_mileage && ! $isCorrection) {
-            throw ValidationException::withMessages([
-                'mileage' => __('vehicles.mileage_backwards', ['current' => $vehicle->current_mileage]),
-            ]);
-        }
-
-        // A correction (even a lower one) is authoritative: it becomes the new odometer and is recorded
-        // in the history like any other reading. A normal update is monotonic by the guard above.
-        $vehicle->update(['current_mileage' => $mileage]);
-        $this->logMileage($vehicle, $mileage, $request->user()->id);
+        // Forward-only unless it's a correction (then authoritative), always logged. See Vehicle::recordMileage.
+        $vehicle->recordMileage((int) $data['mileage'], $request->user(), (bool) ($data['correction'] ?? false));
 
         return back();
     }
