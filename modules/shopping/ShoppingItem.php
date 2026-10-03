@@ -3,11 +3,13 @@
 namespace Modules\Shopping;
 
 use App\Models\User;
+use App\Support\Modules\Hooks;
 use App\Support\Tenancy\BelongsToFamily;
 use App\Support\Trash\CascadesTrash;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Modules\Notifications\Notify;
 
 class ShoppingItem extends Model
 {
@@ -99,6 +101,27 @@ class ShoppingItem extends Model
         $active = $list->items()->where('bought', false)->pluck('name')->map(fn ($n) => static::normalizeName($n))->flip();
 
         return array_map(fn ($item) => $active->has(static::normalizeName($item['name'] ?? '')) ? $item + ['on_list' => true] : $item, $items);
+    }
+
+    /**
+     * Side effects of an item's bought flag having been saved (web toggle or MCP update). Shared so both
+     * paths behave the same:
+     *  - "Shopping done": ping everyone when the last unbought item just got checked off;
+     *  - the `shopping.item.bought` hook on the not-bought -> bought edge only (Inventory restocks from it,
+     *    so re-checking an already-bought item can't replenish twice).
+     */
+    public function settleBought(bool $wasBought, User $actor): void
+    {
+        if (! $this->bought) {
+            return;
+        }
+        $list = $this->list;
+        if ($list && $list->items()->where('bought', false)->doesntExist() && $list->items()->count() > 0) {
+            Notify::toAccessOf($list, 'shopping', $actor->id, 'Shopping done', "{$actor->name} finished {$list->name}", "/m/shopping/lists/{$list->id}");
+        }
+        if (! $wasBought) {
+            app(Hooks::class)->fire('shopping.item.bought', $this);
+        }
     }
 
     public function list(): BelongsTo

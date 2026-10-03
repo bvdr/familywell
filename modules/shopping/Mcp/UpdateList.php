@@ -1,0 +1,57 @@
+<?php
+
+namespace Modules\Shopping\Mcp;
+
+use App\Mcp\Tool;
+use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Laravel\Mcp\Request;
+use Laravel\Mcp\Response;
+use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
+use Modules\Shopping\ShoppingShop;
+
+#[IsIdempotent]
+class UpdateList extends Tool
+{
+    protected string $module = 'shopping';
+
+    protected string $access = 'write';
+
+    protected string $name = 'shopping_update_list';
+
+    protected string $description = 'Rename a shopping list, change its store, or archive/unarchive it. Only the fields you pass change.';
+
+    public function schema(JsonSchema $schema): array
+    {
+        return [
+            'list_id' => $schema->integer()->required(),
+            'name' => $schema->string(),
+            'store' => $schema->string()->nullable(),
+            'archived' => $schema->boolean(),
+        ];
+    }
+
+    public function handle(Request $request): Response
+    {
+        $data = $request->validate([
+            'list_id' => ['required', 'integer'],
+            'name' => ['sometimes', 'string', 'max:255'],
+            'store' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'archived' => ['sometimes', 'boolean'],
+        ]);
+        $list = ShoppingData::list($this->user(), $data['list_id']);
+        if (! $list) {
+            return $this->notFound('List');
+        }
+
+        if (array_key_exists('archived', $data)) {
+            $list->archived_at = $data['archived'] ? now() : null;
+        }
+        $list->fill(array_intersect_key($data, array_flip(['name', 'store'])))->save();
+        if (array_key_exists('store', $data)) {
+            ShoppingShop::ensure($data['store']); // same as the web UI: a list's store becomes a shop
+        }
+        ShoppingData::changed();
+
+        return Response::json(ShoppingData::listPayload($list));
+    }
+}

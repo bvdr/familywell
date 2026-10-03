@@ -5,6 +5,7 @@ namespace Modules\Shopping;
 use App\Models\EntityVisit;
 use App\Support\Dashboard\DashboardAgenda;
 use App\Support\Dashboard\DashboardItems;
+use App\Support\Mcp\McpTools;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
@@ -17,6 +18,14 @@ class ShoppingServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        // MCP: tools an AI assistant can use on this module, gated by the `shopping:read` / `shopping:write`
+        // scopes the person grants on the consent screen (see docs/mcp.md).
+        McpTools::register('shopping', 'Shopping', [
+            Mcp\ListLists::class, Mcp\GetList::class, Mcp\Search::class,
+            Mcp\CreateList::class, Mcp\UpdateList::class, Mcp\AddItem::class, Mcp\UpdateItem::class,
+            Mcp\DeleteList::class, Mcp\DeleteItem::class, Mcp\ListDeleted::class, Mcp\Restore::class,
+        ]);
+
         // Reversible delete: trashed rows are purged after the retention window (trash:purge).
         Trash::register(ShoppingList::class);
         Trash::register(ShoppingItem::class);

@@ -7,7 +7,6 @@ use App\Http\Controllers\Controller;
 use App\Models\EntityVisit;
 use App\Models\Family;
 use App\Models\User;
-use App\Support\Modules\Hooks;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
@@ -24,7 +23,7 @@ use Modules\Notifications\Notify;
 
 class ShoppingController extends Controller
 {
-    public function __construct(private ShareAccess $access, private Hooks $hooks) {}
+    public function __construct(private ShareAccess $access) {}
 
     // Module-level settings (e.g. the voice dictation language). The settings themselves are a
     // per-device client preference (localStorage), so the page needs no server payload today.
@@ -447,23 +446,8 @@ class ShoppingController extends Controller
             'visibility' => ['nullable', 'in:family,invited,private'],
         ]);
 
-        $list = ShoppingList::create([
-            'name' => $data['name'],
-            'store' => $data['store'] ?? null,
-            'color' => $data['color'] ?? 'green',
-            'icon' => $data['icon'] ?? 'cart',
-            'created_by' => $request->user()->id,
-        ]);
-
-        // Promote the list's store to a real shop so it shows in the Shops tab (parity with updateList).
-        ShoppingShop::ensure($data['store'] ?? null);
-
-        // Creator owns the share (can manage visibility/roles). Defaults to `family` visibility so
-        // every member sees it until the owner narrows it.
-        $list->shares()->create(['user_id' => $request->user()->id, 'role' => 'owner']);
-        if (! empty($data['visibility'])) {
-            $list->setVisibility($data['visibility']);
-        }
+        // Creator owns the share; store promoted to a shop; `family` visibility unless narrowed. See createFor().
+        $list = ShoppingList::createFor($request->user(), $data, $data['visibility'] ?? null);
 
         Notify::toAccessOf($list, 'shopping', $request->user()->id, 'New shopping list', "{$request->user()->name} started: {$list->name}", route('shopping.show', $list, false));
         Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
@@ -741,21 +725,9 @@ class ShoppingController extends Controller
             }
         }
 
-        // "Shopping done": ping everyone when the last unbought item just got checked off.
-        if ($item->bought) {
-            $list = $item->list;
-            if ($list && $list->items()->where('bought', false)->doesntExist() && $list->items()->count() > 0) {
-                Notify::toAccessOf($list, 'shopping', $request->user()->id, 'Shopping done', "{$request->user()->name} finished {$list->name}", route('shopping.show', $list, false));
-            }
-        }
-
-        // Publish the "just got bought" edge on the hooks bus (WordPress-style, same mechanism Tasks uses
-        // for task.saved). Other modules listen without touching Shopping — the Inventory module uses this
-        // to close its replenishment loop (bought -> restock the linked inventory item). Fires only on the
-        // false -> true transition, so re-checking an already-bought item can't replenish twice.
-        if ($item->bought && ! $wasBought) {
-            $this->hooks->fire('shopping.item.bought', $item);
-        }
+        // "Shopping done" ping + the `shopping.item.bought` hook (Inventory's replenishment loop listens),
+        // shared with the MCP tools. Hook fires only on the false -> true edge. See ShoppingItem::settleBought.
+        $item->settleBought($wasBought, $request->user());
 
         Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
 
