@@ -5,6 +5,7 @@ namespace Modules\Tasks;
 use App\Models\EntityVisit;
 use App\Support\Dashboard\DashboardAgenda;
 use App\Support\Dashboard\DashboardItems;
+use App\Support\Mcp\McpTools;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
@@ -20,6 +21,14 @@ class TasksServiceProvider extends ServiceProvider
         // Reversible delete: trashed rows are purged after the retention window (trash:purge).
         Trash::register(TaskList::class);
         Trash::register(Task::class);
+        // MCP: tools an AI assistant can use on this module, gated by the `tasks:read` / `tasks:write`
+        // scopes the person grants on the consent screen (see docs/mcp.md).
+        McpTools::register('tasks', 'Tasks', [
+            Mcp\ListLists::class, Mcp\GetList::class, Mcp\Search::class,
+            Mcp\CreateList::class, Mcp\UpdateList::class, Mcp\CreateTask::class, Mcp\UpdateTask::class,
+            Mcp\DeleteList::class, Mcp\DeleteTask::class, Mcp\ListDeleted::class, Mcp\Restore::class,
+        ]);
+
         // Opt to-do lists into the core sharing system (addressable as `task_list` in share URLs).
         ShareableRegistry::register('task_list', TaskList::class);
 
