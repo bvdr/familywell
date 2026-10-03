@@ -99,5 +99,6 @@ it('only the creator can delete a note', function () {
 
     actingAs($users[1])->delete("/m/notes/{$note->id}")->assertForbidden();
     actingAs($users[0])->delete("/m/notes/{$note->id}")->assertRedirect();
-    expect(Note::withoutGlobalScopes()->find($note->id))->toBeNull();
+    expect(Note::withoutGlobalScope('family')->find($note->id))->toBeNull();
+    $this->assertSoftDeleted($note); // 30-day trash
 });

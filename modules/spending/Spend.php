@@ -4,16 +4,23 @@ namespace Modules\Spending;
 
 use App\Models\Guest;
 use App\Models\User;
+use App\Support\Media\StoredImage;
 use App\Support\Tenancy\BelongsToFamily;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Modules\Shopping\ShoppingShop;
 
 class Spend extends Model
 {
     use BelongsToFamily;
+
+    // Deleting an expense goes to the 30-day trash; its shares + receipt rows stay attached so a restore
+    // is complete. Receipt photos leave storage only when the trash is purged (forceDeleting below).
+    use SoftDeletes;
 
     protected $table = 'spending_spends';
 
@@ -35,6 +42,17 @@ class Spend extends Model
         // Every create path (add, quick-add, duplicate, guest add, receipt scan) funnels through here:
         // an expense left in "Other" gets an AI category guess after the response (see SpendAutoCategorizer).
         static::created(fn (self $spend) => SpendAutoCategorizer::queue($spend));
+
+        // Final delete (trash purge): remove the receipt photos from R2. Moved here from destroySpend so a
+        // trashed expense keeps its photos until it can no longer be restored. Rows cascade in the DB.
+        static::forceDeleting(function (self $spend) {
+            foreach ($spend->receipts as $r) {
+                StoredImage::delete($r->path); // removes the original + its thumb
+            }
+            if ($spend->receipt_path) {
+                Storage::disk('r2')->delete($spend->receipt_path); // legacy single receipt, if present
+            }
+        });
     }
 
     /**

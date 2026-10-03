@@ -188,6 +188,7 @@ class VehicleAnalytics
                 $bounds = VehicleExpenseLink::query()
                     ->where('vehicle_id', $vehicle->id)
                     ->join('spending_spends', 'spending_spends.id', '=', 'vehicles_expense_links.spend_id')
+                    ->whereNull('spending_spends.deleted_at') // a raw join skips the SoftDeletes scope: leave trashed spends out
                     ->selectRaw('MIN(spending_spends.spent_at) as mn, MAX(spending_spends.spent_at) as mx')
                     ->first();
                 if (! $bounds || ! $bounds->mn || ! $bounds->mx) {

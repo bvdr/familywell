@@ -64,7 +64,9 @@ it('adds, toggles, and deletes a task', function () {
     expect($task->fresh()->done)->toBeTrue();
 
     actingAs($users[0])->delete("/m/tasks/tasks/{$task->id}")->assertRedirect();
-    expect(Task::withoutGlobalScopes()->count())->toBe(0);
+    // Deletes go to the 30-day trash (soft delete), not straight out of the database.
+    expect(Task::withoutGlobalScope('family')->count())->toBe(0);
+    $this->assertSoftDeleted($task);
 });
 
 it('adds a sub-task but rejects a second level of nesting', function () {
@@ -217,10 +219,19 @@ it('deletes a task carrying the important flag + a recurring rule and cleans up 
         ->delete("/m/tasks/tasks/{$task->id}")
         ->assertRedirect(); // not a 404
 
-    // The task and both extension rows are gone — the FK cascade cleaned up, no orphans left behind.
-    expect(Task::withoutGlobalScopes()->count())->toBe(0)
+    // The task goes to the trash; its extension rows stay attached so a restore brings them back...
+    expect(Task::withoutGlobalScope('family')->count())->toBe(0)
+        ->and(ImportantFlag::withoutGlobalScopes()->count())->toBe(1)
+        ->and(RecurringRule::withoutGlobalScopes()->count())->toBe(1);
+    $this->assertSoftDeleted($task);
+
+    // ...and once the trash is purged the task is gone and the FK cascade takes both rows with it.
+    $this->travel(31)->days();
+    $this->artisan('trash:purge')->assertSuccessful();
+    expect(Task::withoutGlobalScopes()->withTrashed()->count())->toBe(0)
         ->and(ImportantFlag::withoutGlobalScopes()->count())->toBe(0)
         ->and(RecurringRule::withoutGlobalScopes()->count())->toBe(0);
+    $this->travelBack();
 
     // The page the delete redirects back to still resolves (no branded "Nothing here").
     actingAs($users[0])->get("/m/tasks/lists/{$list->id}")->assertOk();

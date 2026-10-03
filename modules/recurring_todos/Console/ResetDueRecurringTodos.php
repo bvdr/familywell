@@ -29,10 +29,15 @@ class ResetDueRecurringTodos extends Command
 
         $reset = 0;
         foreach ($rules as $rule) {
-            $task = Task::find($rule->task_id); // no family scope in console → global lookup
+            // withTrashed: a task in the 30-day trash keeps its rule (so a restore brings the repeat back) but
+            // is not reset; the rule goes when the task is purged (FK cascade) or is truly missing.
+            $task = Task::withTrashed()->find($rule->task_id); // no family scope in console → global lookup
             if (! $task) {
                 $rule->delete(); // task gone (belt-and-suspenders; the FK cascade normally handles this)
 
+                continue;
+            }
+            if ($task->trashed()) {
                 continue;
             }
 

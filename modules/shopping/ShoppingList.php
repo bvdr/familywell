@@ -5,13 +5,21 @@ namespace Modules\Shopping;
 use App\Models\User;
 use App\Support\Sharing\Shareable;
 use App\Support\Tenancy\BelongsToFamily;
+use App\Support\Trash\CascadesTrash;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ShoppingList extends Model
 {
     use BelongsToFamily;
-    use Shareable; // shares() + visibility()/roleFor() come from here
+    // shares() + visibility()/roleFor() come from here
+
+    // Deleting a list goes to the 30-day trash and takes its items along (see CascadesTrash).
+    use CascadesTrash, SoftDeletes;
+    use Shareable;
+
+    protected array $trashChildren = ['items'];
 
     protected $table = 'shopping_lists';
 

@@ -9,6 +9,7 @@ use App\Support\Guests\GuestableRegistry;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Trash\Trash;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\Notifications\NotificationCategories;
@@ -19,6 +20,8 @@ class SpendingServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Reversible delete: trashed rows are purged after the retention window (trash:purge).
+        Trash::register(Spend::class);
         // Opt spend events into the core sharing system (addressable as `spend_event` in share URLs).
         ShareableRegistry::register('spend_event', SpendEvent::class);
 

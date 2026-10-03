@@ -16,7 +16,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -892,13 +891,8 @@ class SpendingController extends Controller
         // another family 404s here instead of leaking.
         $spend = Spend::findOrFail($spend);
         abort_unless($this->access->canEdit(request()->user(), $this->event($spend->spend_event_id)), 403);
-        // Remove each receipt's R2 object; the rows cascade-delete with the spend.
-        foreach ($spend->receipts as $r) {
-            StoredImage::delete($r->path); // removes the original + its thumb
-        }
-        if ($spend->receipt_path) {
-            Storage::disk('r2')->delete($spend->receipt_path); // legacy single receipt, if present
-        }
+        // Soft delete (30-day trash). Receipt photos stay in storage until the trash is purged, so a restore
+        // is complete; Spend's forceDeleting hook removes them then.
         $event = $this->event($spend->spend_event_id);
         $amount = $spend->currency.' '.number_format($spend->amount / 100, 2);
         $spend->delete();
