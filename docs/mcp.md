@@ -35,6 +35,10 @@ per-module `TrashSource`); `trash:purge` removes it for good afterwards.
 | Shopping | `shopping_list_lists`, `shopping_get_list`, `shopping_search` | `shopping_create_list`, `shopping_update_list`, `shopping_add_item`, `shopping_update_item`, `shopping_delete_list`, `shopping_delete_item`, `shopping_list_deleted`, `shopping_restore` |
 | Spending | `spending_list_expenses`, `spending_get_expense`, `spending_summary`, `spending_list_categories` | `spending_add_expense`, `spending_update_expense`, `spending_delete_expense`, `spending_list_deleted`, `spending_restore` |
 | Notes | `notes_list`, `notes_get`, `notes_search` | `notes_create`, `notes_update`, `notes_delete`, `notes_list_deleted`, `notes_restore` |
+| Vehicles | `vehicles_list`, `vehicles_get`, `vehicles_history` | `vehicles_log_mileage`, `vehicles_log_fuel`, `vehicles_complete_maintenance`, `vehicles_add_repair`, `vehicles_add_expense` |
+
+Vehicle distances are kilometres in and out (miles are only a display setting). There are no vehicle delete
+tools: car records have no trash, so deleting them stays a deliberate action in the app.
 
 Tools act **as the person who connected**: the same sharing rules as the web app apply (a private list
 of another member is invisible), the same validation, and the same notifications to the family.
@@ -115,4 +119,4 @@ OAuth       POST /oauth/register (RFC 7591)   GET|POST|DELETE /oauth/authorize (
 - **Tests:** `tests/Feature/Mcp/` drives the real OAuth flow (`mcpConnect()` in `tests/Pest.php`) with
   keys generated at runtime.
 
-Not in v1: personal access tokens, MCP resources/prompts, tools for the other modules, split/balance editing and receipts over MCP, a "last used" date.
+Not in v1: personal access tokens, MCP resources/prompts, tools for the remaining modules, split/balance editing and receipts over MCP, a "last used" date.
