@@ -40,7 +40,14 @@ class CalendarServiceProvider extends ServiceProvider
                 return [];
             }
 
-            return CalendarEvent::itemsFor($userId, $from, $to);
+            // Plus the events' dated to-dos: the tasks source only covers list tasks, so these would show nowhere.
+            $todos = array_map(fn (array $p) => CalendarSources::item(
+                'task', $p[0]->id, $p[0]->title, $p[0]->due_date->toDateString(), href: "/m/calendar/events/{$p[1]->id}",
+                icon: 'list-checks', color: $p[1]->color, done: $p[0]->done,
+                people: $p[0]->assignee ? [['type' => 'user', 'id' => $p[0]->assignee->id, 'name' => $p[0]->assignee->name]] : [],
+            ), CalendarEvent::datedTodos($userId, fn ($q) => $q->whereDate('due_date', '>=', $from)->whereDate('due_date', '<=', $to)));
+
+            return [...CalendarEvent::itemsFor($userId, $from, $to), ...$todos];
         });
 
         // Today / This Week: occurrences overlapping today..end of week. An ongoing multi-day event appears ONCE,
@@ -64,7 +71,16 @@ class CalendarServiceProvider extends ServiceProvider
 
                     return ['title' => $i['title'], 'subtitle' => $subtitle, 'href' => $i['href'], 'icon' => $i['icon'],
                         'dueDate' => max($i['start'], $today), 'kind' => 'event', 'id' => $i['id']];
-                })->values()->all();
+                })
+                // Open, dated event to-dos due by the end of the week (overdue included), like project tasks:
+                // the tasks provider skips listless tasks, so they'd never surface otherwise.
+                ->concat(array_map(fn (array $p) => [
+                    'title' => $p[0]->title, 'subtitle' => $p[1]->title, 'href' => "/m/calendar/events/{$p[1]->id}", 'icon' => 'list-checks',
+                    'dueDate' => $p[0]->due_date->toDateString(),
+                    'toggleUrl' => "/m/calendar/tasks/{$p[0]->id}", // empty-body PATCH toggles done
+                    'kind' => 'calendar_todo', 'id' => $p[0]->id, // get_today's widget ticks it via calendar_update_todo
+                ], CalendarEvent::datedTodos($userId, fn ($q) => $q->where('done', false)->whereDate('due_date', '<=', now()->endOfWeek()->toDateString()))))
+                ->values()->all();
         });
 
         // Now & next card: multi-day events happening now, then ones starting within 30 days (max 4).

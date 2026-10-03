@@ -3,6 +3,7 @@
 const TODAY_TOGGLE = {
     task: (id) => ['tasks_update_task', { task_id: id, done: true }, { task_id: id, done: false }],
     project_task: (id) => ['projects_update_task', { task_id: id, done: true }, { task_id: id, done: false }],
+    calendar_todo: (id) => ['calendar_update_todo', { task_id: id, done: true }, { task_id: id, done: false }],
     shopping_item: (id) => ['shopping_update_item', { item_id: id, bought: true }, { item_id: id, bought: false }],
 };
 

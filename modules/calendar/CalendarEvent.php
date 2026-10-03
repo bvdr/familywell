@@ -10,6 +10,8 @@ use App\Support\Sharing\Shareable;
 use App\Support\Tenancy\BelongsToFamily;
 use App\Support\Tenancy\CurrentFamily;
 use Carbon\CarbonImmutable;
+use Closure;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -326,6 +328,37 @@ class CalendarEvent extends Model
         }
 
         return $items;
+    }
+
+    /**
+     * Dated to-dos (top-level + sub-tasks) of events $userId can see, each with its event, in 3 queries however
+     * many: the small set first (listless dated tasks, narrowed by $scope), then their event links, then the
+     * visible events among those. Listless tasks also include project tasks; they have no calendar link and drop out.
+     *
+     * @param  Closure(Builder): mixed  $scope  extra task constraints (range, open only)
+     * @return list<array{0: Task, 1: self}>
+     */
+    public static function datedTodos(int $userId, Closure $scope): array
+    {
+        $tasks = Task::query()->whereNull('task_list_id')->whereNotNull('due_date')->tap($scope)->with('assignee')->get();
+        if ($tasks->isEmpty()) {
+            return [];
+        }
+        // A sub-task belongs to its parent's event (only top-level to-dos carry the link).
+        $topId = fn (Task $t) => $t->parent_id ?? $t->id;
+        $eventOf = CalendarEventLink::where('linkable_type', 'task')->whereIn('linkable_id', $tasks->map($topId)->unique()->values())
+            ->pluck('event_id', 'linkable_id');
+        $events = $eventOf->isEmpty() ? collect() : static::query()->visibleTo($userId)->whereIn('id', $eventOf->unique()->values())->get()->keyBy('id');
+
+        $out = [];
+        foreach ($tasks as $t) {
+            $event = $events->get($eventOf->get($topId($t)));
+            if ($event) {
+                $out[] = [$t, $event];
+            }
+        }
+
+        return $out;
     }
 
     /**
