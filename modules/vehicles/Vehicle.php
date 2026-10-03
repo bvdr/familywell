@@ -4,10 +4,12 @@ namespace Modules\Vehicles;
 
 use App\Models\User;
 use App\Support\Tenancy\BelongsToFamily;
+use App\Support\Translations;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 
 /**
  * A family vehicle — the object at the centre of the module. Phase 1 owns identity + the first-class
@@ -155,6 +157,93 @@ class Vehicle extends Model
             'nextServiceKm' => $nextServiceKm,
             'attention' => $attention,
         ];
+    }
+
+    /**
+     * Set the odometer to a new reading and log it. Readings only move forward unless the person says it is a
+     * correction (a lower typo fix is authoritative); a backwards reading otherwise fails validation. Shared
+     * by the Overview mileage form and the MCP tool.
+     */
+    public function recordMileage(int $km, User $actor, bool $correction = false): void
+    {
+        if ($km < (int) $this->current_mileage && ! $correction) {
+            throw ValidationException::withMessages([
+                // The app's strings live in lang/{locale}/vehicles.json (App\Support\Translations), not Laravel's
+                // PHP lang files, so __() would return the bare key here.
+                'mileage' => strtr(Translations::get('vehicles.mileage_backwards'), [':current' => (string) $this->current_mileage]),
+            ]);
+        }
+        $this->update(['current_mileage' => $km]);
+        $this->logMileage($km, $actor->id);
+    }
+
+    /** Bump the odometer only when $km is ahead of it (a fill/repair reading), logging it once; never rewinds. */
+    public function bumpMileage(int $km, User $actor): void
+    {
+        if ($km > (int) $this->current_mileage) {
+            $this->update(['current_mileage' => $km]);
+            $this->logMileage($km, $actor->id);
+        }
+    }
+
+    private function logMileage(int $km, ?int $userId): void
+    {
+        VehicleMileageLog::create(['vehicle_id' => $this->id, 'mileage' => $km, 'recorded_by' => $userId, 'recorded_at' => now()]);
+    }
+
+    /**
+     * Log a fuel fill: the entry, the odometer (forward only, a back-dated fill never rewinds it), and when
+     * asked + costed, a Spending record tagged with the fill. Shared by the Fuel form and the MCP tool.
+     *
+     * @param  array{filled_on:string, liters:float|string, mileage:int, cost?:?float, is_full_tank?:bool, station?:?string, note?:?string, create_expense?:bool}  $data
+     */
+    public function logFuel(array $data, User $actor): VehicleFuelEntry
+    {
+        $entry = $this->fuelEntries()->create([
+            'filled_on' => $data['filled_on'],
+            'liters' => $data['liters'],
+            'cost' => $data['cost'] ?? null,
+            'mileage' => $data['mileage'],
+            'is_full_tank' => $data['is_full_tank'] ?? true,
+            'station' => $data['station'] ?? null,
+            'note' => $data['note'] ?? null,
+            'created_by' => $actor->id,
+        ]);
+        $this->bumpMileage((int) $entry->mileage, $actor);
+
+        if (($data['create_expense'] ?? false) && ! empty($data['cost'])) {
+            // "Fuel — {station}" or "Fuel — {make} {model}"; tagged with the fill so the Timeline shows it once.
+            $where = $entry->station ?: trim("{$this->make} {$this->model}");
+            VehicleExpenses::record($this, $actor, (float) $data['cost'], trim('Fuel — '.$where), $data['filled_on'], null, null, $entry->id);
+        }
+
+        return $entry;
+    }
+
+    /**
+     * Log a repair, and when asked + costed, a Spending record tagged with it (opt-in, unlike a service
+     * completion). Attachments are the web form's business. Shared by the Repairs form and the MCP tool.
+     *
+     * @param  array{title:string, occurred_on:string, mileage?:?int, cost?:?float, provider?:?string, service_provider_id?:?int, notes?:?string, create_expense?:bool}  $data
+     */
+    public function logRepair(array $data, User $actor): Repair
+    {
+        $repair = $this->repairs()->create([
+            'title' => $data['title'],
+            'occurred_on' => $data['occurred_on'],
+            'mileage' => $data['mileage'] ?? null,
+            'cost' => $data['cost'] ?? null,
+            'provider' => $data['provider'] ?? null,                          // free-text fallback
+            'service_provider_id' => $data['service_provider_id'] ?? null,    // preferred link (V1.1)
+            'notes' => $data['notes'] ?? null,
+            'created_by' => $actor->id,
+        ]);
+
+        if (($data['create_expense'] ?? false) && ! empty($data['cost'])) {
+            VehicleExpenses::record($this, $actor, (float) $data['cost'], trim($data['title']), $data['occurred_on'], null, $repair->id);
+        }
+
+        return $repair;
     }
 
     /**
