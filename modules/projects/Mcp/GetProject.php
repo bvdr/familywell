@@ -18,6 +18,8 @@ class GetProject extends Tool
 
     protected string $name = 'projects_get';
 
+    protected ?string $app = 'project';
+
     protected string $description = 'One project with its details, tasks (each with sub-tasks and done state), blockers (dependencies) and linked shopping lists.';
 
     public function schema(JsonSchema $schema): array

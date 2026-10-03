@@ -16,6 +16,8 @@ class GetContact extends Tool
 
     protected string $name = 'contacts_get';
 
+    protected ?string $app = 'contact';
+
     protected string $description = 'One person in full: contact methods plus what other enabled modules add (e.g. birthday, age, next birthday).';
 
     public function schema(JsonSchema $schema): array

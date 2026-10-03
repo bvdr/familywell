@@ -18,6 +18,8 @@ class Summary extends Tool
 
     protected string $name = 'spending_summary';
 
+    protected ?string $app = 'spending';
+
     protected string $description = 'Total spent over a period (default: this month so far) across the lists this person can see, in one display currency, broken down by category and by shop.';
 
     public function schema(JsonSchema $schema): array

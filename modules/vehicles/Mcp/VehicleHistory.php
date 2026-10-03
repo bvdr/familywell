@@ -16,6 +16,8 @@ class VehicleHistory extends Tool
 
     protected string $name = 'vehicles_history';
 
+    protected ?string $app = 'vehicle';
+
     protected string $description = 'A car\'s history, newest first: services done, repairs, mileage readings, tyre changes, documents and expenses (costed fuel fills appear as expenses), each with date, km and cost. Use it for questions like "when did we last change the oil?".';
 
     public function schema(JsonSchema $schema): array

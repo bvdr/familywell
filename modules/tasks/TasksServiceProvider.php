@@ -96,6 +96,8 @@ class TasksServiceProvider extends ServiceProvider
                     'icon' => 'list-checks',
                     'dueDate' => $t->due_date->toDateString(),
                     'toggleUrl' => "/m/tasks/tasks/{$t->id}", // empty-body PATCH toggles done
+                    'kind' => 'task', // kind + id: get_today's widget ticks it off via the MCP tool
+                    'id' => $t->id,
                 ])->values()->all();
         });
 

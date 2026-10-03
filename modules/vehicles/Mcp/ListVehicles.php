@@ -15,6 +15,8 @@ class ListVehicles extends Tool
 
     protected string $name = 'vehicles_list';
 
+    protected ?string $app = 'vehicle';
+
     protected string $description = 'The family\'s cars with their odometer (km) and whether anything needs attention (maintenance due, documents expiring).';
 
     public function handle(Request $request): Response

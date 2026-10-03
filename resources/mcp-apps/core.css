@@ -1,0 +1,287 @@
+/* Shared look for the MCP Apps widgets (App\Mcp\Apps\Widget). Colours are the Warm skin's tokens
+   (resources/themes/default/theme.json) so a widget reads as Familywell inside Claude/ChatGPT. The font
+   is the HOST's (--font-sans, set by the SDK from hostContext) so it sits naturally in the chat; we can't
+   load Inter anyway without opening the CSP. Dark mode follows the host: the SDK sets data-theme. */
+:root {
+    --fw-bg: hsl(42.9, 25.9%, 94.7%);
+    --fw-card: #fff;
+    --fw-fg: hsl(145.2, 36.5%, 16.7%);
+    --fw-muted: hsl(134.5, 18.2%, 35.5%);
+    --fw-subtle: hsl(40, 20.7%, 88.6%);
+    --fw-border: hsl(40, 12.2%, 80.8%);
+    --fw-primary: hsl(135.9, 35.3%, 27.3%);
+    --fw-on-primary: #fff;
+    --fw-danger: hsl(4.9, 54%, 49.4%);
+    --fw-warn: hsl(32, 80%, 42%);
+    --fw-radius: 12px;
+    color-scheme: light;
+}
+:root[data-theme='dark'] {
+    --fw-bg: hsl(142.1, 32.2%, 11.6%);
+    --fw-card: hsl(145.2, 36.5%, 16.7%);
+    --fw-fg: hsl(42.9, 25.9%, 94.7%);
+    --fw-muted: hsl(131.3, 13.7%, 54.1%);
+    --fw-subtle: hsl(141.4, 28%, 19.6%);
+    --fw-border: hsl(141.4, 23.3%, 23.5%);
+    --fw-primary: hsl(96.8, 30.1%, 79.8%);
+    --fw-on-primary: hsl(142.1, 32.2%, 11.6%);
+    --fw-warn: hsl(38, 85%, 62%);
+    color-scheme: dark;
+}
+* {
+    box-sizing: border-box;
+}
+html,
+body {
+    margin: 0;
+}
+body {
+    background: var(--fw-bg);
+    color: var(--fw-fg);
+    font: 14px/1.45 var(--font-sans, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif);
+    -webkit-font-smoothing: antialiased;
+}
+button,
+input {
+    font: inherit;
+    color: inherit;
+}
+#app {
+    padding: 14px 16px 16px;
+}
+.stack {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.pad {
+    padding: 4px 0;
+    margin: 0;
+}
+.muted {
+    color: var(--fw-muted);
+}
+.small {
+    font-size: 12px;
+}
+.danger {
+    color: var(--fw-danger);
+}
+.warn {
+    color: var(--fw-warn);
+}
+.strike {
+    text-decoration: line-through;
+    color: var(--fw-muted);
+}
+
+/* Header: title + "Open in Familywell" */
+.head {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    justify-content: space-between;
+}
+.head h1 {
+    font-size: 16px;
+    font-weight: 650;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+.head .sub {
+    font-size: 12px;
+    color: var(--fw-muted);
+}
+.link {
+    background: none;
+    border: 0;
+    padding: 0;
+    color: var(--fw-primary);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.link:hover {
+    text-decoration: underline;
+}
+
+.card {
+    background: var(--fw-card);
+    border: 1px solid var(--fw-border);
+    border-radius: var(--fw-radius);
+}
+.section > h2 {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--fw-muted);
+    margin: 0 0 6px;
+    font-weight: 650;
+}
+
+/* Rows (one per task/item/...) */
+.rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.rows > li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 9px 12px;
+    border-top: 1px solid var(--fw-border);
+}
+.rows > li:first-child {
+    border-top: 0;
+}
+.rows .grow {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.rows .meta {
+    font-size: 12px;
+    color: var(--fw-muted);
+}
+.rows .end {
+    margin-left: auto;
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+.sub-rows {
+    list-style: none;
+    margin: 6px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.sub-rows li {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+/* Native checkbox: accessible for free, tinted to the brand. 18px tap-friendly-ish inside a chat. */
+input[type='checkbox'] {
+    width: 18px;
+    height: 18px;
+    margin: 1px 0 0;
+    accent-color: var(--fw-primary);
+    cursor: pointer;
+    flex: none;
+}
+input[type='checkbox']:disabled {
+    cursor: progress;
+}
+
+/* Quick-add form */
+.add {
+    display: flex;
+    gap: 8px;
+}
+.add input {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 10px;
+    border: 1px solid var(--fw-border);
+    border-radius: 10px;
+    background: var(--fw-card);
+}
+.add input:focus {
+    outline: 2px solid var(--fw-primary);
+    outline-offset: -1px;
+}
+.btn {
+    border: 0;
+    border-radius: 10px;
+    padding: 8px 12px;
+    background: var(--fw-primary);
+    color: var(--fw-on-primary);
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.btn.ghost {
+    background: var(--fw-subtle);
+    color: var(--fw-fg);
+}
+.btn.sm {
+    padding: 4px 9px;
+    font-size: 12px;
+    border-radius: 8px;
+}
+.btn:disabled {
+    opacity: 0.55;
+    cursor: progress;
+}
+
+.pill {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--fw-subtle);
+    color: var(--fw-muted);
+    white-space: nowrap;
+}
+.pill.bad {
+    background: color-mix(in srgb, var(--fw-danger) 16%, transparent);
+    color: var(--fw-danger);
+}
+.pill.warn {
+    background: color-mix(in srgb, var(--fw-warn) 18%, transparent);
+    color: var(--fw-warn);
+}
+.pill.good {
+    background: color-mix(in srgb, var(--fw-primary) 15%, transparent);
+    color: var(--fw-primary);
+}
+
+/* Progress / bar chart */
+.bar {
+    height: 8px;
+    border-radius: 999px;
+    background: var(--fw-subtle);
+    overflow: hidden;
+}
+.bar > i {
+    display: block;
+    height: 100%;
+    background: var(--fw-primary);
+    border-radius: inherit;
+}
+.stat {
+    font-size: 26px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+}
+
+.tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.tabs .btn[aria-pressed='false'] {
+    background: var(--fw-subtle);
+    color: var(--fw-fg);
+}
+
+.empty {
+    text-align: center;
+    color: var(--fw-muted);
+    padding: 18px 12px;
+}
+.toast {
+    margin: 0 16px 16px;
+    padding: 9px 12px;
+    border-radius: 10px;
+    background: var(--fw-fg);
+    color: var(--fw-bg);
+    font-size: 13px;
+} /* inline, not fixed: the iframe is sized to its content, so a floating toast would cover rows */
