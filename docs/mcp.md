@@ -23,7 +23,8 @@ its own family and permissions.
 also cuts off every connection made for it. A connection unused for 30 days expires; reconnect it.
 
 **Deletes are reversible.** Anything an assistant (or you, in the app) deletes goes to a 30-day trash.
-The `*_list_deleted` and `*_restore` tools bring it back; `trash:purge` removes it for good afterwards.
+Settings → Recently deleted and the `*_list_deleted` / `*_restore` tools bring it back (both read the same
+per-module `TrashSource`); `trash:purge` removes it for good afterwards.
 
 ## Tools
 
@@ -98,7 +99,9 @@ OAuth       POST /oauth/register (RFC 7591)   GET|POST|DELETE /oauth/authorize (
 
 3. **Trash:** give deletable models `SoftDeletes` (plus `CascadesTrash` with `$trashChildren` /
    `$trashParents` for parent/child rows) and register them with `Trash::register(Model::class)` so
-   `trash:purge` cleans them up after `config('familywell.trash_days')`.
+   `trash:purge` cleans them up after `config('familywell.trash_days')`. Implement `App\Support\Trash\TrashSource`
+   (list + restore, applying your sharing rules) and register it with `Trash::source('things', ThingsTrash::class)`:
+   it feeds Settings → Recently deleted, and your MCP trash tools should call it too.
 
 ## Operations
 
@@ -112,5 +115,4 @@ OAuth       POST /oauth/register (RFC 7591)   GET|POST|DELETE /oauth/authorize (
 - **Tests:** `tests/Feature/Mcp/` drives the real OAuth flow (`mcpConnect()` in `tests/Pest.php`) with
   keys generated at runtime.
 
-Not in v1: personal access tokens, MCP resources/prompts, tools for the other modules, a "Recently
-deleted" screen in the app, split/balance editing and receipts over MCP, a "last used" date.
+Not in v1: personal access tokens, MCP resources/prompts, tools for the other modules, split/balance editing and receipts over MCP, a "last used" date.
