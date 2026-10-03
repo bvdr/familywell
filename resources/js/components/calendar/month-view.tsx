@@ -1,22 +1,18 @@
 import { Link } from '@inertiajs/react';
 
 import { LucideIcon } from '@/components/lucide-icon';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { daysBetween, itemsOn, layoutWeek, weeksOf, ymd, type CalItem } from '@/lib/calendar';
+import { daysBetween, itemKey, itemsOn, layoutWeek, weeksOf, ymd, type CalItem } from '@/lib/calendar';
 import { useLocale, useT } from '@/lib/i18n';
-import { listColor } from '@/lib/tasks';
+import { itemTone } from '@/lib/tasks';
 
 const LANES = 3; // bars per week row on desktop before "+N more"
 const LANE_PX = 22; // bar height (20) + gap
 
-// Tile/bar classes for an item colour: the task-list palette, or the neutral tile token when uncoloured.
-export const itemTone = (color: string | null) => (color ? listColor(color) : 'bg-tile text-tile-foreground');
-
 // Day number circle: the phone's selected day is solid (it drives the list below), today is a pale well.
 const dayTone = (selected: boolean, today: boolean) =>
     selected ? 'bg-primary text-primary-foreground font-semibold' : today ? 'bg-accent-subtle text-primary font-semibold' : '';
-
-export const itemKey = (i: CalItem) => `${i.source}-${i.kind}-${i.id}-${i.start}`;
 
 // Classic month grid over the server's 6-week range. Desktop: each week row lays multi-day items as bars across
 // their days (layoutWeek lanes), caps at LANES with "+N more", and tapping a day opens the add sheet for it.
@@ -62,7 +58,6 @@ export function MonthView({
                         <div key={week[0]} className="relative grid grid-cols-7 border-b last:border-b-0">
                             {week.map((d, col) => {
                                 const busy = placed.some((p) => p.col <= col && p.col + p.span > col);
-                                const hidden = placed.filter((p) => p.lane >= LANES && p.col <= col && p.col + p.span > col).length;
                                 const outside = d.slice(0, 7) !== month;
                                 return (
                                     <button
@@ -79,11 +74,6 @@ export function MonthView({
                                             {Number(d.slice(8))}
                                         </span>
                                         {busy && <span className="bg-primary mt-1 size-1.5 rounded-full md:hidden" aria-hidden />}
-                                        {hidden > 0 && (
-                                            <span className="text-muted-foreground absolute bottom-1 left-1.5 hidden text-[11px] md:block">
-                                                {t('calendar.more', { count: hidden })}
-                                            </span>
-                                        )}
                                     </button>
                                 );
                             })}
@@ -110,6 +100,39 @@ export function MonthView({
                                         </Link>
                                     ))}
                             </div>
+                            {/* "+N more" (desktop): its own trigger, a sibling of the day cells rather than inside one
+                                (no button-in-button, and tapping it must not open the add sheet). Opens that day's full
+                                list, so items past the lane cap stay reachable. */}
+                            {week.map((d, col) => {
+                                const hidden = placed.filter((p) => p.lane >= LANES && p.col <= col && p.col + p.span > col).length;
+                                return (
+                                    hidden > 0 && (
+                                        <DropdownMenu key={d}>
+                                            <DropdownMenuTrigger asChild>
+                                                <button
+                                                    type="button"
+                                                    className="text-muted-foreground hover:text-primary absolute bottom-1 hidden rounded px-1.5 text-[11px] font-medium md:block"
+                                                    style={{ left: `calc(${col} * 100% / 7 + 1px)` }}
+                                                >
+                                                    {t('calendar.more', { count: hidden })}
+                                                </button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="start" className="flex w-72 flex-col gap-1.5 p-2">
+                                                <p className="text-muted-foreground px-1 text-xs font-semibold tracking-widest uppercase">
+                                                    {new Date(d + 'T12:00').toLocaleDateString(locale, {
+                                                        weekday: 'long',
+                                                        day: 'numeric',
+                                                        month: 'long',
+                                                    })}
+                                                </p>
+                                                {itemsOn(items, d).map((i) => (
+                                                    <AgendaItem key={itemKey(i)} item={i} day={d} />
+                                                ))}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    )
+                                );
+                            })}
                         </div>
                     );
                 })}

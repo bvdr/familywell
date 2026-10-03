@@ -3,7 +3,6 @@ import { ChevronRight, FolderKanban, MoreHorizontal, Pencil, Share2, Trash2 } fr
 import { useRef, useState } from 'react';
 
 import { EventSheet, type EventForm } from '@/components/calendar/event-sheet';
-import { itemTone } from '@/components/calendar/month-view';
 import { LucideIcon } from '@/components/lucide-icon';
 import { MemberAvatar } from '@/components/member-avatar';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
@@ -14,6 +13,7 @@ import AppLayout from '@/layouts/app-layout';
 import { useAddAction } from '@/lib/add-action';
 import { daysBetween } from '@/lib/calendar';
 import { useLocale, useT } from '@/lib/i18n';
+import { itemTone } from '@/lib/tasks';
 
 type Payload = Omit<EventForm, 'project'> & {
     id: number;
