@@ -25,10 +25,14 @@ class DashboardAgenda
      *
      * @return array<int, array{title: string, subtitle: string, href: string, icon: string, dueDate: string}>
      */
-    public static function collect(): array
+    public static function collect(?array $only = null): array
     {
         $items = [];
         foreach (self::$providers as $moduleId => $provider) {
+            // $only: restrict to these module ids (the MCP get_today tool passes the modules its token may read).
+            if ($only !== null && ! in_array($moduleId, $only, true)) {
+                continue;
+            }
             try {
                 foreach ($provider() as $item) {
                     $items[] = $item;

@@ -6,6 +6,7 @@ use App\Models\Share;
 use App\Models\ShareLink;
 use App\Models\ShareSetting;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 
@@ -27,6 +28,19 @@ trait Shareable
     public function shareSetting(): MorphOne
     {
         return $this->morphOne(ShareSetting::class, 'shareable');
+    }
+
+    /**
+     * Rows $userId can see, in SQL: `family` visibility (no setting row, or one saying family) or an explicit
+     * share row. Same rule as the `->filter(visibility() === 'family' || shares->contains(...))` the module
+     * index pages run in PHP, but usable before pagination (the MCP list tools page in the database).
+     * The family itself is already narrowed by the BelongsToFamily scope.
+     */
+    public function scopeVisibleTo(Builder $query, int $userId): Builder
+    {
+        return $query->where(fn (Builder $q) => $q
+            ->whereDoesntHave('shareSetting', fn (Builder $s) => $s->where('visibility', '!=', 'family'))
+            ->orWhereHas('shares', fn (Builder $s) => $s->where('user_id', $userId)));
     }
 
     public function visibility(): string
