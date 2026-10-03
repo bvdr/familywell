@@ -25,6 +25,7 @@
         "spending": "Spending",
         "tasks": "Tasks",
         "notes": "Notes",
+        "recipes": "Recipes",
         "contacts": "Contacts",
         "inventory": "Inventory",
         "vehicles": "Vehicles",
@@ -71,6 +72,7 @@
         "projects": "New project",
         "spending": "New expense",
         "notes": "New note",
+        "recipes": "New recipe",
         "vehicles": "Add a vehicle"
     }
 }

@@ -25,6 +25,7 @@
         "spending": "Cheltuieli",
         "tasks": "Sarcini",
         "notes": "Notițe",
+        "recipes": "Rețete",
         "contacts": "Contacte",
         "inventory": "Inventar",
         "vehicles": "Vehicule",
@@ -71,6 +72,7 @@
         "projects": "Proiect nou",
         "spending": "Cheltuială nouă",
         "notes": "Notiță nouă",
+        "recipes": "Rețetă nouă",
         "vehicles": "Adaugă un vehicul"
     }
 }
