@@ -19,6 +19,8 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
+        // MCP server + OAuth routes live outside the `web` group (bearer auth, no session). See routes/mcp.php.
+        then: fn () => require base_path('routes/mcp.php'),
     )
     ->withMiddleware(function (Middleware $middleware) {
         // App Platform terminates TLS at its load balancer and forwards plain HTTP to the container,

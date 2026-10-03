@@ -25,10 +25,14 @@ class DashboardItems
      *
      * @return array<int, array{title: string, subtitle: string, href: string, category: string, icon: string, color?: ?string, visitedAt: string}> `category` is the module id (groups the dashboard cards); `icon`/`color` are the ENTITY's own (a spend event's lucide key, a list's icon slug + swatch), so a card shows what the user picked, not a generic module glyph.
      */
-    public static function collect(): array
+    public static function collect(?array $only = null): array
     {
         $items = [];
         foreach (self::$providers as $moduleId => $provider) {
+            // $only: restrict to these module ids (the MCP get_today tool passes the modules its token may read).
+            if ($only !== null && ! in_array($moduleId, $only, true)) {
+                continue;
+            }
             try {
                 foreach ($provider() as $item) {
                     $items[] = $item;
