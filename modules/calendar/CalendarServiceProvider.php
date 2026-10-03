@@ -11,6 +11,9 @@ use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Translations;
 use App\Support\Trash\Trash;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\Contacts\Person;
@@ -102,8 +105,13 @@ class CalendarServiceProvider extends ServiceProvider
                 Route::post('/feed', [CalendarFeedController::class, 'reset'])->name('feed.reset');
             });
 
+        // Keyed by TOKEN, not guest IP: Google/Apple fetch every subscriber's feed from shared IP pools, so
+        // an IP-keyed limit would 429 real subscribers as usage grows. Per-token keeps each subscription
+        // independent of how many others share its fetcher's IP.
+        RateLimiter::for('calendar-feed', fn (Request $request) => Limit::perMinute(30)->by((string) $request->route('token')));
+
         // ICS subscribe feed: hit by Google/Apple servers with no session; the unguessable token authorizes.
-        Route::middleware(['throttle:60,1'])
+        Route::middleware(['throttle:calendar-feed'])
             ->get('/calendar/feed/{token}.ics', [CalendarFeedController::class, 'show'])
             ->where('token', '[A-Za-z0-9]+')
             ->name('calendar.feed');
