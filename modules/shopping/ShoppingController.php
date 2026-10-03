@@ -676,21 +676,7 @@ class ShoppingController extends Controller
             'items.*.note' => ['nullable', 'string', 'max:255'],
         ]);
 
-        foreach ($data['items'] as $i => $item) {
-            $list->items()->create([
-                'name' => $item['name'],
-                'quantity' => $item['quantity'] ?? null,
-                'department' => $item['department'] ?? 'other',
-                'note' => $item['note'] ?? null,
-                'position' => $i,
-                'created_by' => $request->user()->id,
-            ]);
-        }
-
-        // One summary push for the batch (not one per item).
-        $n = count($data['items']);
-        Notify::toAccessOf($list, 'shopping', $request->user()->id, $list->name, "{$request->user()->name} added {$n} items", route('shopping.show', $list, false));
-        Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
+        $list->addItems($request->user(), $data['items']);
 
         return back();
     }
