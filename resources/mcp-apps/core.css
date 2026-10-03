@@ -1,31 +1,24 @@
-/* Shared look for the MCP Apps widgets (App\Mcp\Apps\Widget). Colours are the Warm skin's tokens
-   (resources/themes/default/theme.json) so a widget reads as Familywell inside Claude/ChatGPT. The font
-   is the HOST's (--font-sans, set by the SDK from hostContext) so it sits naturally in the chat; we can't
-   load Inter anyway without opening the CSP. Dark mode follows the host: the SDK sets data-theme. */
+/* Shared look for the MCP Apps widgets (App\Mcp\Apps\Widget). Colours come from the person's Familywell
+   skin: Widget injects that skin's theme.json tokens (ThemeTokens::css, `:root` + `.dark`) and these --fw-*
+   names just point at them, the same token roles as the app (--primary = ink/text, --accent-strong = action
+   fills). The font is the HOST's (--font-sans, set by the SDK from hostContext) so it sits naturally in the
+   chat; skin fonts would need the CSP opened. Dark mode follows the host: core.js sets .dark from its theme. */
 :root {
-    --fw-bg: hsl(42.9, 25.9%, 94.7%);
-    --fw-card: #fff;
-    --fw-fg: hsl(145.2, 36.5%, 16.7%);
-    --fw-muted: hsl(134.5, 18.2%, 35.5%);
-    --fw-subtle: hsl(40, 20.7%, 88.6%);
-    --fw-border: hsl(40, 12.2%, 80.8%);
-    --fw-primary: hsl(135.9, 35.3%, 27.3%);
-    --fw-on-primary: #fff;
-    --fw-danger: hsl(4.9, 54%, 49.4%);
-    --fw-warn: hsl(32, 80%, 42%);
-    --fw-radius: 12px;
+    --fw-bg: var(--background);
+    --fw-card: var(--card);
+    --fw-fg: var(--foreground);
+    --fw-muted: var(--muted-foreground);
+    --fw-subtle: var(--muted);
+    --fw-border: var(--border);
+    --fw-ink: var(--primary);
+    --fw-primary: var(--accent-strong);
+    --fw-on-primary: var(--accent-strong-foreground);
+    --fw-danger: var(--destructive);
+    --fw-warn: var(--warning);
+    --fw-radius: var(--radius, 12px);
     color-scheme: light;
 }
-:root[data-theme='dark'] {
-    --fw-bg: hsl(142.1, 32.2%, 11.6%);
-    --fw-card: hsl(145.2, 36.5%, 16.7%);
-    --fw-fg: hsl(42.9, 25.9%, 94.7%);
-    --fw-muted: hsl(131.3, 13.7%, 54.1%);
-    --fw-subtle: hsl(141.4, 28%, 19.6%);
-    --fw-border: hsl(141.4, 23.3%, 23.5%);
-    --fw-primary: hsl(96.8, 30.1%, 79.8%);
-    --fw-on-primary: hsl(142.1, 32.2%, 11.6%);
-    --fw-warn: hsl(38, 85%, 62%);
+:root.dark {
     color-scheme: dark;
 }
 * {
@@ -116,7 +109,7 @@ html.fs #app {
     background: none;
     border: 0;
     padding: 0;
-    color: var(--fw-primary);
+    color: var(--fw-ink);
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
@@ -259,7 +252,7 @@ input[type='checkbox']:disabled {
 }
 .pill.good {
     background: color-mix(in srgb, var(--fw-primary) 15%, transparent);
-    color: var(--fw-primary);
+    color: var(--fw-ink);
 }
 
 /* Progress / bar chart */

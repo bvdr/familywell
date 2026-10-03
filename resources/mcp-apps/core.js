@@ -199,6 +199,8 @@ const FW = (() => {
         mode = c.displayMode || 'inline';
         const root = document.documentElement;
         root.classList.toggle('fs', mode === 'fullscreen');
+        // The skin's dark tokens are scoped to .dark (ThemeTokens::css), like in the app.
+        if (c.theme) root.classList.toggle('dark', c.theme === 'dark');
         const touch = c.platform === 'mobile' || c.deviceCapabilities?.touch || matchMedia('(pointer: coarse)').matches;
         const floor = mode === 'fullscreen' && touch ? TOUCH_FULLSCREEN_FLOOR : {};
         for (const side of ['top', 'right', 'bottom', 'left']) {

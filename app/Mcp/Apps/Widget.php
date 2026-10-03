@@ -2,6 +2,8 @@
 
 namespace App\Mcp\Apps;
 
+use App\Support\Tenancy\CurrentFamily;
+use App\Support\Theming\ThemeTokens;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\AppResource;
@@ -58,6 +60,9 @@ class Widget extends AppResource
         return Response::view('mcp-app', [
             'title' => $this->title,
             'sdk' => self::sdk(in_array($this->widget, self::FULLSCREEN, true) ? ['inline', 'fullscreen'] : []),
+            // The person's Familywell skin, same resolution as the web app. The page is read with their
+            // token (McpFamilyContext has set the family), so this is their colours, not a shared default.
+            'themeCss' => ThemeTokens::css(ThemeTokens::resolve(auth()->user(), CurrentFamily::id())),
             'css' => $read('core.css'),
             'js' => $read('core.js')."\n".$read("{$this->widget}.js"),
         ]);
