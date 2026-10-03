@@ -189,16 +189,29 @@ const FW = (() => {
         );
     }
 
-    function setMode(m) {
-        mode = m || 'inline';
-        document.documentElement.classList.toggle('fs', mode === 'fullscreen');
+    // ponytail: measured from Claude's iOS app (status bar + close button on top, reply box at the bottom),
+    // which drew full screen widgets under its chrome. Only used as a floor on touch devices in full screen;
+    // a host that reports larger safeAreaInsets wins.
+    const TOUCH_FULLSCREEN_FLOOR = { top: 112, right: 0, bottom: 140, left: 0 };
+
+    // Display mode + safe-area insets from the (merged) host context.
+    function applyContext(c) {
+        mode = c.displayMode || 'inline';
+        const root = document.documentElement;
+        root.classList.toggle('fs', mode === 'fullscreen');
+        const touch = c.platform === 'mobile' || c.deviceCapabilities?.touch || matchMedia('(pointer: coarse)').matches;
+        const floor = mode === 'fullscreen' && touch ? TOUCH_FULLSCREEN_FLOOR : {};
+        for (const side of ['top', 'right', 'bottom', 'left']) {
+            const px = Math.max(Number(c.safeAreaInsets?.[side]) || 0, floor[side] || 0);
+            root.style.setProperty(`--fw-inset-${side}`, px + 'px');
+        }
     }
 
     // The host decides: it answers with the mode actually set, which may not be the one we asked for.
     async function toggleFullscreen() {
         try {
             const res = await app.requestDisplayMode(mode === 'fullscreen' ? 'inline' : 'fullscreen');
-            setMode(res?.mode);
+            applyContext({ ...app.getHostContext(), displayMode: res?.mode });
             draw();
         } catch (e) {
             toast(friendly(e));
@@ -239,13 +252,13 @@ const FW = (() => {
             const ctx = a.getHostContext() || {};
             locale = ctx.locale;
             canFullscreen = !!opts.fullscreen && (ctx.availableDisplayModes || []).includes('fullscreen');
-            setMode(ctx.displayMode);
-            // The host reports mode changes it makes itself too (e.g. its own close button, Esc).
+            applyContext(ctx);
+            // The host reports changes it makes itself too: mode (its own close button, Esc), insets, rotation.
+            // The SDK passes the merged context.
             a.onHostContextChanged((c) => {
-                if (c.displayMode && c.displayMode !== mode) {
-                    setMode(c.displayMode);
-                    draw();
-                }
+                const before = mode;
+                applyContext(c);
+                if (mode !== before) draw();
             });
             a.onToolInput((p) => {
                 args = p?.arguments || {};
