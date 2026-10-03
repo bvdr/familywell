@@ -3,6 +3,7 @@
 use App\Support\Tenancy\CurrentFamily;
 use Modules\Birthdays\BirthdayDate;
 use Modules\Calendar\CalendarFeed;
+use Modules\Calendar\Ics;
 use Modules\Contacts\Person;
 
 use function Pest\Laravel\actingAs;
@@ -89,4 +90,12 @@ it('renders the birthday summary in the feed owner\'s locale', function () {
     auth()->logout();
 
     expect($this->get("/calendar/feed/{$token}.ics")->getContent())->toContain('SUMMARY:Ziua lui Ana');
+});
+
+it('turns a lone CR into an escaped newline and drops other control characters', function () {
+    [, $users] = calendarFamily();
+    $e = trip($users[0], ['notes' => "line one\rline two\x00\x07\tend"]);
+    $ics = Ics::calendar('Family', [$e->fresh()], []);
+    expect($ics)->toContain("DESCRIPTION:line one\\nline two\tend\r\n")
+        ->and(substr_count($ics, "\r"))->toBe(substr_count($ics, "\r\n"));
 });

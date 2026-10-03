@@ -70,7 +70,11 @@ final class Ics
 
     private static function text(string $s): string
     {
-        return str_replace(['\\', ';', ',', "\r\n", "\n"], ['\\\\', '\\;', '\\,', '\\n', '\\n'], $s);
+        // Any line break (CRLF, lone CR from an MCP client, LF) becomes an escaped \n; other control chars
+        // (except tab, which TEXT allows) are dropped, since a raw CR or NUL would break the content line.
+        $s = preg_replace('/[\x00-\x08\x0B-\x1F\x7F]/', '', str_replace(["\r\n", "\r"], "\n", $s));
+
+        return str_replace(['\\', ';', ',', "\n"], ['\\\\', '\\;', '\\,', '\\n'], $s);
     }
 
     // Fold at 75 octets without splitting a UTF-8 character (mb_strcut cuts on byte counts at char boundaries).

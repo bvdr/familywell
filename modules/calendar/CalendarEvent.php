@@ -237,11 +237,31 @@ class CalendarEvent extends Model
             }
         }
         if (array_key_exists('project_id', $data)) {
-            $this->links()->where('linkable_type', 'project')->delete();
-            if ($data['project_id'] && self::projectsOn() && Project::whereKey($data['project_id'])->visibleTo((int) auth()->id())->exists()) {
-                $this->links()->create(['linkable_type' => 'project', 'linkable_id' => (int) $data['project_id']]);
+            // The editor may not see the linked project (it's private to someone else), so their form shows no
+            // project and sends null. Replace only when they pick a project they can see, or clear one they
+            // can see; anything else (unchanged, hidden current link, unseeable pick) leaves the link alone.
+            $current = $this->projectId();
+            $new = $data['project_id'] ? (int) $data['project_id'] : null;
+            if ($new !== $current && ($new ? self::projectVisible($new) : self::projectVisible($current))) {
+                $this->links()->where('linkable_type', 'project')->delete();
+                if ($new) {
+                    $this->links()->create(['linkable_type' => 'project', 'linkable_id' => $new]);
+                }
             }
         }
+    }
+
+    private function projectId(): ?int
+    {
+        $id = $this->links()->where('linkable_type', 'project')->value('linkable_id');
+
+        return $id ? (int) $id : null;
+    }
+
+    /** Projects module on and the acting user can see the project (auth user: web session or MCP token). */
+    private static function projectVisible(?int $id): bool
+    {
+        return $id && self::projectsOn() && Project::whereKey($id)->visibleTo((int) auth()->id())->exists();
     }
 
     private static function projectsOn(): bool
@@ -327,8 +347,9 @@ class CalendarEvent extends Model
     /** Detail page / MCP shape (to-dos are added by the controller, which also needs members). */
     public function toPayload(): array
     {
-        $projectId = $this->links()->where('linkable_type', 'project')->value('linkable_id');
-        $project = $projectId && self::projectsOn() ? Project::find($projectId) : null;
+        // Only a project the viewer can see: a private project's name must not leak through the event.
+        $projectId = $this->projectId();
+        $project = self::projectVisible($projectId) ? Project::find($projectId) : null;
 
         return $this->formValues() + [
             'id' => $this->id,
