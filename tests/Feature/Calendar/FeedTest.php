@@ -58,3 +58,25 @@ it('folds long lines at 75 octets', function () {
         expect(strlen($line))->toBeLessThanOrEqual(75);
     }
 });
+
+it('404s a feed once its owner is no longer a member of the family', function () {
+    [$family, $users] = calendarFamily();
+    $token = CalendarFeed::rotate($users[1]->id)->token;
+    auth()->logout();
+    $this->get("/calendar/feed/{$token}.ics")->assertOk();
+
+    $family->members()->detach($users[1]->id);
+
+    $this->get("/calendar/feed/{$token}.ics")->assertNotFound();
+});
+
+it('renders the birthday summary in the feed owner\'s locale', function () {
+    [, $users] = calendarFamily(['calendar', 'contacts', 'birthdays']);
+    $users[0]->update(['locale' => 'ro']);
+    $ana = Person::create(['name' => 'Ana', 'created_by' => $users[0]->id]);
+    BirthdayDate::create(['person_id' => $ana->id, 'month' => 7, 'day' => 20, 'birthdate' => '1986-07-20']);
+    $token = CalendarFeed::rotate($users[0]->id)->token;
+    auth()->logout();
+
+    expect($this->get("/calendar/feed/{$token}.ics")->getContent())->toContain('SUMMARY:Ziua lui Ana');
+});

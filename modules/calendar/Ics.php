@@ -14,8 +14,13 @@ final class Ics
 {
     private const FREQ = ['daily' => 'DAILY', 'weekly' => 'WEEKLY', 'monthly' => 'MONTHLY', 'yearly' => 'YEARLY'];
 
-    /** @param iterable<CalendarEvent> $events @param iterable<BirthdayDate> $birthdays */
-    public static function calendar(string $name, iterable $events, iterable $birthdays): string
+    /**
+     * @param  iterable<CalendarEvent>  $events
+     * @param  iterable<BirthdayDate>  $birthdays
+     * @param  ?string  $locale  the feed owner's locale (the route has no session, so SetLocale never runs —
+     *                           pass it explicitly so "SUMMARY:Ana's birthday" comes out in their language)
+     */
+    public static function calendar(string $name, iterable $events, iterable $birthdays, ?string $locale = null): string
     {
         $lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//FamilyWell//Calendar//EN', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:'.self::text($name)];
         $host = parse_url((string) config('app.url'), PHP_URL_HOST) ?: 'familywell.co';
@@ -53,7 +58,7 @@ final class Ics
             $lines[] = 'BEGIN:VEVENT';
             $lines[] = "UID:birthday-{$b->id}@{$host}";
             $lines[] = 'DTSTAMP:'.now()->utc()->format('Ymd\THis\Z');
-            $lines[] = 'SUMMARY:'.self::text(strtr(Translations::get('calendar.birthday'), [':name' => $b->person->name]));
+            $lines[] = 'SUMMARY:'.self::text(strtr(Translations::get('calendar.birthday', $locale), [':name' => $b->person->name]));
             $lines[] = sprintf('DTSTART;VALUE=DATE:%04d%02d%02d', $year, $b->month, $b->day);
             $lines[] = 'RRULE:FREQ=YEARLY';
             $lines[] = 'END:VEVENT';
