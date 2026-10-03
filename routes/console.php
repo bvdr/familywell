@@ -14,3 +14,7 @@ Artisan::command('inspire', function () {
 // Module-owned schedules live in their service providers; this one is core, so it lives here.
 // See App\Console\Commands\DemoReset.
 Schedule::command('demo:reset')->hourly()->withoutOverlapping();
+
+// Reversible delete: remove items that sat in the trash past config('familywell.trash_days'). Daily, off-peak.
+// See App\Console\Commands\PurgeTrash and App\Support\Trash\Trash.
+Schedule::command('trash:purge')->dailyAt('03:30')->withoutOverlapping();

@@ -132,7 +132,9 @@ it('creates a list, adds an item, toggles it, and deletes it', function () {
     expect($item->fresh()->bought)->toBeTrue();
 
     actingAs($users[0])->delete("/m/shopping/items/{$item->id}")->assertRedirect();
-    expect(ShoppingItem::withoutGlobalScopes()->count())->toBe(0);
+    // Deletes go to the 30-day trash (soft delete).
+    expect(ShoppingItem::withoutGlobalScope('family')->count())->toBe(0);
+    $this->assertSoftDeleted($item);
 });
 
 it('hides a private list from a member who was not shared', function () {

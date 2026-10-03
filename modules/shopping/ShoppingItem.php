@@ -4,12 +4,19 @@ namespace Modules\Shopping;
 
 use App\Models\User;
 use App\Support\Tenancy\BelongsToFamily;
+use App\Support\Trash\CascadesTrash;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ShoppingItem extends Model
 {
     use BelongsToFamily;
+
+    // 30-day trash; restoring an item from a deleted list restores the list first (see CascadesTrash).
+    use CascadesTrash, SoftDeletes;
+
+    protected array $trashParents = ['list'];
 
     protected $table = 'shopping_items';
 

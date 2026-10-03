@@ -3,9 +3,12 @@
 use App\Models\Family;
 use App\Models\User;
 use App\Support\Modules\ModuleRegistry;
+use App\Support\Sharing\ShareAccess;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Modules\Notes\Note;
 use Modules\Projects\Project;
+use Modules\Shopping\ShoppingList;
 use Modules\Tasks\Task;
 
 use function Pest\Laravel\actingAs;
@@ -69,7 +72,9 @@ it('adds, toggles, and deletes a task (unified tasks-module tasks)', function ()
     expect($task->fresh()->done)->toBeTrue();
 
     actingAs($users[0])->delete("/m/projects/tasks/{$task->id}")->assertRedirect();
-    expect(Task::withoutGlobalScopes()->count())->toBe(0) // parent delete cascades the sub-task
+    // Parent delete trashes the sub-task with it (soft delete, see CascadesTrash).
+    expect(Task::withoutGlobalScope('family')->count())->toBe(0)
+        ->and(Task::onlyTrashed()->withoutGlobalScope('family')->count())->toBe(2)
         ->and($project->links()->where('linkable_type', 'task')->count())->toBe(0);
 });
 
@@ -117,7 +122,7 @@ it('links and unlinks a shopping list', function () {
     actingAs($users[0])->post('/m/projects', ['name' => 'Reno']);
     $project = Project::withoutGlobalScopes()->first();
     actingAs($users[0])->post('/m/shopping/lists', ['name' => 'Materials']);
-    $list = \Modules\Shopping\ShoppingList::withoutGlobalScopes()->first();
+    $list = ShoppingList::withoutGlobalScopes()->first();
 
     actingAs($users[0])->post("/m/projects/{$project->id}/lists", ['list_ids' => [$list->id]])->assertRedirect();
     expect($project->links()->where('linkable_id', $list->id)->exists())->toBeTrue();
@@ -137,7 +142,7 @@ it('creates a new shopping list with items and links it', function () {
         'items' => [['name' => 'Paver sealer', 'quantity' => '2 tins'], ['name' => 'Landscape fabric']],
     ])->assertRedirect();
 
-    $list = \Modules\Shopping\ShoppingList::withoutGlobalScopes()->where('name', 'Patio materials')->first();
+    $list = ShoppingList::withoutGlobalScopes()->where('name', 'Patio materials')->first();
     expect($list)->not->toBeNull()
         ->and($list->items()->count())->toBe(2)
         ->and($project->links()->where('linkable_id', $list->id)->exists())->toBeTrue();
@@ -173,7 +178,7 @@ it('hides a private project from a member who was not shared', function () {
     $project = Project::withoutGlobalScopes()->first();
     actingAs($alice)->patch("/m/projects/{$project->id}", ['visibility' => 'private'])->assertRedirect();
 
-    $access = app(\App\Support\Sharing\ShareAccess::class);
+    $access = app(ShareAccess::class);
     expect($access->canView($alice, $project))->toBeTrue()
         ->and($access->canView($bob, $project))->toBeFalse();
 });
@@ -185,7 +190,7 @@ it('links, creates, and unlinks notes on a project', function () {
     $project = Project::withoutGlobalScopes()->first();
 
     // Link an existing note.
-    $note = \Modules\Notes\Note::create(['title' => 'Specs', 'created_by' => $users[0]->id]);
+    $note = Note::create(['title' => 'Specs', 'created_by' => $users[0]->id]);
     $note->shares()->create(['user_id' => $users[0]->id, 'role' => 'owner']);
     actingAs($users[0])->post("/m/projects/{$project->id}/notes", ['note_ids' => [$note->id]])->assertRedirect();
     expect($project->links()->where(['linkable_type' => 'note', 'linkable_id' => $note->id])->exists())->toBeTrue();
@@ -197,7 +202,7 @@ it('links, creates, and unlinks notes on a project', function () {
     // Unlink detaches the link but keeps the note.
     actingAs($users[0])->delete("/m/projects/{$project->id}/notes/{$note->id}")->assertRedirect();
     expect($project->links()->where(['linkable_type' => 'note', 'linkable_id' => $note->id])->exists())->toBeFalse()
-        ->and(\Modules\Notes\Note::withoutGlobalScopes()->find($note->id))->not->toBeNull();
+        ->and(Note::withoutGlobalScopes()->find($note->id))->not->toBeNull();
 });
 
 it('offers only viewable notes as linkable and excludes already-linked ones', function () {
@@ -206,14 +211,14 @@ it('offers only viewable notes as linkable and excludes already-linked ones', fu
     actingAs($users[0])->post('/m/projects', ['name' => 'Reno']);
     $project = Project::withoutGlobalScopes()->first();
 
-    $mine = \Modules\Notes\Note::create(['title' => 'Mine', 'created_by' => $users[0]->id]);
+    $mine = Note::create(['title' => 'Mine', 'created_by' => $users[0]->id]);
     $mine->shares()->create(['user_id' => $users[0]->id, 'role' => 'owner']);
-    $linked = \Modules\Notes\Note::create(['title' => 'Linked', 'created_by' => $users[0]->id]);
+    $linked = Note::create(['title' => 'Linked', 'created_by' => $users[0]->id]);
     $linked->shares()->create(['user_id' => $users[0]->id, 'role' => 'owner']);
     $project->links()->create(['linkable_type' => 'note', 'linkable_id' => $linked->id]);
 
     // A private note owned by the other member must not be offered.
-    $others = \Modules\Notes\Note::create(['title' => 'Secret', 'created_by' => $users[1]->id]);
+    $others = Note::create(['title' => 'Secret', 'created_by' => $users[1]->id]);
     $others->shares()->create(['user_id' => $users[1]->id, 'role' => 'owner']);
     $others->setVisibility('private');
 

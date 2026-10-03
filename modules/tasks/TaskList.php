@@ -4,13 +4,21 @@ namespace Modules\Tasks;
 
 use App\Support\Sharing\Shareable;
 use App\Support\Tenancy\BelongsToFamily;
+use App\Support\Trash\CascadesTrash;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class TaskList extends Model
 {
     use BelongsToFamily;
-    use Shareable; // shares() + visibility()/roleFor() come from here
+    // shares() + visibility()/roleFor() come from here
+
+    // Deleting a list goes to the 30-day trash and takes its tasks along (see CascadesTrash).
+    use CascadesTrash, SoftDeletes;
+    use Shareable;
+
+    protected array $trashChildren = ['tasks'];
 
     protected $table = 'tasks_lists';
 

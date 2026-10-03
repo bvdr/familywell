@@ -321,7 +321,11 @@ it('edits and deletes a vehicle note (and its link)', function () {
     expect($note->fresh()->title)->toBe('Winter setup');
 
     actingAs($users[0])->delete("/m/vehicles/{$vehicle->id}/notes/{$note->id}")->assertRedirect();
-    expect(Note::count())->toBe(0)->and(VehicleNoteLink::count())->toBe(0);
+    // The note goes to the 30-day trash; its link stays (so a restore re-attaches it) but the vehicle's
+    // notes page no longer lists it.
+    expect(Note::count())->toBe(0)->and(VehicleNoteLink::count())->toBe(1);
+    $this->assertSoftDeleted($note);
+    actingAs($users[0])->get("/m/vehicles/{$vehicle->id}/notes")->assertInertia(fn ($p) => $p->has('notes', 0)->etc());
 });
 
 it('keeps vehicle notes family-scoped', function () {
