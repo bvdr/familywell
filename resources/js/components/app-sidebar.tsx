@@ -7,6 +7,7 @@ import { Link, usePage } from '@inertiajs/react';
 import {
     Blocks,
     Cake,
+    CalendarDays,
     Car,
     ChefHat,
     Contact,
@@ -35,6 +36,7 @@ const moduleNavItems: Record<string, { titleKey: string; url: string; icon: Luci
     shopping: { titleKey: 'nav.shopping', url: '/m/shopping', icon: ShoppingCart },
     tasks: { titleKey: 'nav.tasks', url: '/m/tasks', icon: ListChecks },
     projects: { titleKey: 'nav.projects', url: '/m/projects', icon: FolderKanban },
+    calendar: { titleKey: 'nav.calendar', url: '/m/calendar', icon: CalendarDays },
     notes: { titleKey: 'nav.notes', url: '/m/notes', icon: StickyNote },
     recipes: { titleKey: 'nav.recipes', url: '/m/recipes', icon: ChefHat },
     contacts: { titleKey: 'nav.contacts', url: '/m/contacts', icon: Contact },

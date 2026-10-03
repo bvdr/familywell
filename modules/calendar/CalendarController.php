@@ -45,11 +45,8 @@ class CalendarController extends Controller
             // Filter chips: only sources whose module is on for this family.
             'sources' => array_values(array_filter(CalendarSources::modules(), fn ($m) => $registry->isEnabled($m, $familyId))),
             'members' => $family->members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),
-            'contacts' => Person::orderBy('name')->get(['id', 'name'])->map(fn ($p) => ['id' => $p->id, 'name' => $p->name])->values(),
-            'projects' => $registry->isEnabled('projects', $familyId)
-                ? Project::query()->visibleTo($request->user()->id)->whereNull('archived_at')->orderBy('name')->get(['id', 'name'])
-                    ->map(fn ($p) => ['id' => $p->id, 'name' => $p->name])->values()
-                : null,
+            'contacts' => $this->contactOptions(),
+            'projects' => $this->projectOptions($request),
             'feedUrl' => CalendarFeed::urlFor($request->user()->id), // Task 10; null until then
         ]);
     }
@@ -76,6 +73,9 @@ class CalendarController extends Controller
             'members' => $family->members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),
             'tasks' => $tasks->map(fn (Task $t) => $sub($t) + ['subtasks' => $t->subtasks->map($sub)->values()])->values(),
             'share' => $this->shareState($event, $family),
+            // The edit sheet's people + project pickers, same lists as the index.
+            'contacts' => $this->contactOptions(),
+            'projects' => $this->projectOptions($request),
         ]);
     }
 
@@ -176,6 +176,21 @@ class CalendarController extends Controller
         }
 
         return back();
+    }
+
+    // People picker: the family's contacts (Person is family-scoped).
+    private function contactOptions()
+    {
+        return Person::orderBy('name')->get(['id', 'name'])->map(fn ($p) => ['id' => $p->id, 'name' => $p->name])->values();
+    }
+
+    // Project picker: viewable, non-archived projects; null hides the picker when the projects module is off.
+    private function projectOptions(Request $request)
+    {
+        return app(ModuleRegistry::class)->isEnabled('projects', (int) CurrentFamily::id())
+            ? Project::query()->visibleTo($request->user()->id)->whereNull('archived_at')->orderBy('name')->get(['id', 'name'])
+                ->map(fn ($p) => ['id' => $p->id, 'name' => $p->name])->values()
+            : null;
     }
 
     // The ShareState the core ShareSheet expects. Same shape as RecipesController::shareState.

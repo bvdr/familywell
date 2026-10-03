@@ -34,7 +34,8 @@
         "more": "Mai mult",
         "home": "Acasă",
         "more_desc": "Apasă un ac pentru a-ți alege cele patru scurtături din bară",
-        "birthdays": "Zile de naștere"
+        "birthdays": "Zile de naștere",
+        "calendar": "Calendar"
     },
     "dashboard": {
         "good_morning": "Bună dimineața",
@@ -73,6 +74,7 @@
         "spending": "Cheltuială nouă",
         "notes": "Notiță nouă",
         "recipes": "Rețetă nouă",
-        "vehicles": "Adaugă un vehicul"
+        "vehicles": "Adaugă un vehicul",
+        "calendar": "Eveniment nou"
     }
 }
