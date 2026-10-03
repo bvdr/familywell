@@ -36,8 +36,19 @@ per-module `TrashSource`); `trash:purge` removes it for good afterwards.
 | Spending | `spending_list_expenses`, `spending_get_expense`, `spending_summary`, `spending_list_categories` | `spending_add_expense`, `spending_update_expense`, `spending_delete_expense`, `spending_list_deleted`, `spending_restore` |
 | Notes | `notes_list`, `notes_get`, `notes_search` | `notes_create`, `notes_update`, `notes_delete`, `notes_list_deleted`, `notes_restore` |
 | Vehicles | `vehicles_list`, `vehicles_get`, `vehicles_history` | `vehicles_log_mileage`, `vehicles_log_fuel`, `vehicles_complete_maintenance`, `vehicles_add_repair`, `vehicles_add_expense` |
+| Contacts | `contacts_list` (with search), `contacts_get` | `contacts_create`, `contacts_update` |
+| Birthdays | `birthdays_list` (soonest first, `within_days`) | `birthdays_add`, `birthdays_update` |
+| Inventory | `inventory_list`, `inventory_get`, `inventory_needs_attention` | `inventory_add_item`, `inventory_update_item`, `inventory_adjust_quantity`, `inventory_add_to_shopping` |
+| Projects | `projects_list`, `projects_get` | `projects_create`, `projects_update`, `projects_add_task`, `projects_update_task`, `projects_delete_task` |
 
-Vehicle distances are kilometres in and out (miles are only a display setting). There are no vehicle delete
+**Task extensions:** when a family has Important to-dos or Recurring to-dos on, `tasks_create_task` and
+`tasks_update_task` gain `important` / `recurrence` parameters and task payloads carry those fields. The Tasks
+tools run the same `task.serialize` and `task.saved` hooks as the web editor, and extensions add their tool
+parameters through the `task.mcp.schema` filter, so Tasks itself knows nothing about them.
+
+Contacts, birthdays, inventory and projects have no delete tools except project tasks (which go to the
+trash like any task); their other records are not soft-deleted, so removing them stays a deliberate action
+in the app. Vehicle distances are kilometres in and out (miles are only a display setting). There are no vehicle delete
 tools: car records have no trash, so deleting them stays a deliberate action in the app.
 
 Tools act **as the person who connected**: the same sharing rules as the web app apply (a private list
@@ -119,4 +130,4 @@ OAuth       POST /oauth/register (RFC 7591)   GET|POST|DELETE /oauth/authorize (
 - **Tests:** `tests/Feature/Mcp/` drives the real OAuth flow (`mcpConnect()` in `tests/Pest.php`) with
   keys generated at runtime.
 
-Not in v1: personal access tokens, MCP resources/prompts, tools for the remaining modules, split/balance editing and receipts over MCP, a "last used" date.
+Not in v1: personal access tokens, MCP resources/prompts, split/balance editing and receipts over MCP, a "last used" date.
