@@ -89,3 +89,35 @@ it('returns a tool error, not an exception, for an unparseable from date', funct
     [$err, $msg] = mcpTool($token, 'calendar_list', ['from' => 'abc', 'to' => '2026-07-31']);
     expect($err)->toBeTrue()->and($msg)->toContain('from'); // the validation message, not a Carbon parse error
 });
+
+it('ticks, edits and deletes an event to-do and its sub-task', function () {
+    [, $users, $token] = calendarToken();
+    [, $e] = mcpTool($token, 'calendar_create_event', ['title' => 'Grecia', 'start_date' => '2026-07-17', 'end_date' => '2026-07-25']);
+    [, $pack] = mcpTool($token, 'calendar_add_todo', ['event_id' => $e['id'], 'title' => 'Pack']);
+    [, $sub] = mcpTool($token, 'calendar_add_todo', ['event_id' => $e['id'], 'title' => 'Passports', 'parent_id' => $pack['id']]);
+
+    [$err, $t] = mcpTool($token, 'calendar_update_todo', ['task_id' => $sub['id'], 'done' => true, 'due_date' => '2026-07-10', 'assigned_to' => $users[1]->id]);
+    expect($err)->toBeFalse()->and($t)->toMatchArray(['done' => true, 'due_date' => '2026-07-10', 'event_id' => $e['id']])
+        ->and($t['assigned_to']['id'])->toBe($users[1]->id);
+    [, $g] = mcpTool($token, 'calendar_get_event', ['id' => $e['id']]);
+    expect($g['todos'][0]['subtasks'][0])->toMatchArray(['id' => $sub['id'], 'done' => true]);
+
+    [$err] = mcpTool($token, 'calendar_delete_todo', ['task_id' => $pack['id']]);
+    expect($err)->toBeFalse();
+    $this->assertSoftDeleted('tasks_tasks', ['id' => $pack['id']]);
+    $this->assertSoftDeleted('tasks_tasks', ['id' => $sub['id']]);
+    expect(CalendarEvent::withoutGlobalScope('family')->find($e['id'])->taskIds())->toBe([]);
+});
+
+it('treats an event to-do as not found for someone who cannot edit the event', function () {
+    [$family, $users, $token] = calendarToken();
+    CurrentFamily::set($family->id);
+    $e = CalendarEvent::createFor($users[1], CalendarEvent::validated(['title' => 'Secret', 'start_date' => '2026-07-17', 'end_date' => '2026-07-17']));
+    $e->setVisibility('private');
+    $t = $e->addTask($users[1], ['title' => 'Gift']);
+
+    [$err] = mcpTool($token, 'calendar_update_todo', ['task_id' => $t->id, 'done' => true]);
+    [$err2] = mcpTool($token, 'calendar_delete_todo', ['task_id' => $t->id]);
+    expect($err)->toBeTrue()->and($err2)->toBeTrue()
+        ->and(Task::withoutGlobalScope('family')->find($t->id)->done)->toBeFalse();
+});
