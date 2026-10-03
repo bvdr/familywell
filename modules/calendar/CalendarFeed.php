@@ -20,4 +20,14 @@ class CalendarFeed extends Model
 
         return $token ? route('calendar.feed', $token) : null;
     }
+
+    /** Issue a new token for $userId in the current family (create or rotate; the old URL dies). */
+    public static function rotate(int $userId): self
+    {
+        $feed = static::firstOrNew(['user_id' => $userId]);
+        $feed->token = bin2hex(random_bytes(24)); // 48 hex chars, unguessable
+        $feed->save();
+
+        return $feed;
+    }
 }
