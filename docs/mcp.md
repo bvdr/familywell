@@ -126,7 +126,7 @@ origin (signed photo URLs). Widgets change data only by calling the normal write
 a view-only widget (a change says it needs *Read & write*). After a change the widget tells the model
 what the person did (`ui/update-model-context`), so the next turn knows.
 
-**How:** `App\Mcp\Apps\Widget` is one `AppResource` per widget (`ui://familywell/v2/<widget>`, the version is bumped when hosts must drop a cached template, registered in
+**How:** `App\Mcp\Apps\Widget` is one `AppResource` per widget (`ui://familywell/<widget>`, permanent: hosts cache the tool list from connect time, so never rename one, registered in
 `FamilywellServer::boot`). Its page is `resources/views/mcp-app.blade.php`: laravel/mcp's SDK shell plus
 `resources/mcp-apps/core.{css,js}` (shared runtime: `FW.start`, `FW.act`, `FW.h`, ...) and
 `resources/mcp-apps/<widget>.js`, all inlined, so the CSP needs no external domains. A tool opts in with
