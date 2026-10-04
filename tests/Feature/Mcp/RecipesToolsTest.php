@@ -119,7 +119,7 @@ it('lets only the creator delete, into the trash', function () {
 it('serves the recipe widget with the calculator inlined and images allowed from this app only', function () {
     [, , $token] = recipesToken(['recipes' => 'read']);
     $tools = collect(mcpCall($token, 'tools/list')->json('result.tools'))->keyBy('name');
-    expect($tools['recipes_get']['_meta']['ui']['resourceUri'])->toBe('ui://familywell/recipe');
+    expect($tools['recipes_get']['_meta']['ui']['resourceUri'])->toBe(Widget::uriFor('recipe'));
 
     $content = mcpCall($token, 'resources/read', ['uri' => Widget::uriFor('recipe')])->json('result.contents.0');
     expect($content['text'])->toContain('function factorFor(')->not->toContain('export function')

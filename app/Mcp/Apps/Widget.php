@@ -61,9 +61,16 @@ class Widget extends AppResource
         $this->description = self::WIDGETS[$widget];
     }
 
+    /**
+     * Hosts cache a widget template by its URI (ChatGPT documents the URI as the cache key), so bump this
+     * when a change to the page or its _meta must reach clients that already loaded the old one.
+     * v2: dropped ui.domain (ChatGPT had cached templates carrying the Claude sandbox domain).
+     */
+    public const VERSION = 'v2';
+
     public static function uriFor(string $widget): string
     {
-        return "ui://familywell/{$widget}";
+        return 'ui://familywell/'.self::VERSION."/{$widget}";
     }
 
     public function handle(Request $request): Response
@@ -90,6 +97,21 @@ class Widget extends AppResource
         return collect(self::LIBS[$this->widget] ?? [])
             ->map(fn (string $f) => preg_replace('/^export /m', '', file_get_contents(resource_path($f))))
             ->implode("\n");
+    }
+
+    /**
+     * No ui.domain: it is host-specific (Claude validates {sha256(server url)}.claudemcpcontent.com, ChatGPT
+     * wants a dedicated origin the app controls) and laravel/mcp fills in the Claude value for every host,
+     * which made ChatGPT show raw JSON instead of the widget. Left out, each host serves the widget from its
+     * own default sandbox. Claude only needs a fixed domain for apps running their own OAuth; ours act
+     * through host tool calls.
+     */
+    public function resolvedAppMeta(): array
+    {
+        $meta = parent::resolvedAppMeta();
+        unset($meta['domain']);
+
+        return $meta;
     }
 
     public function appMeta(): AppMeta

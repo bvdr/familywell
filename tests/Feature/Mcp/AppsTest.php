@@ -10,11 +10,11 @@ it('links read tools to their widget and leaves write tools text-only', function
     $token = mcpConnect($users[0], $family->id, ['tasks' => 'write', 'shopping' => 'read', 'notes' => 'read'])['access_token'];
 
     $tools = collect(mcpCall($token, 'tools/list')->assertOk()->json('result.tools'))->keyBy('name');
-    expect($tools['tasks_get_list']['_meta']['ui']['resourceUri'])->toBe('ui://familywell/tasks')
-        ->and($tools['tasks_search']['_meta']['ui']['resourceUri'])->toBe('ui://familywell/tasks')
-        ->and($tools['shopping_get_list']['_meta']['ui']['resourceUri'])->toBe('ui://familywell/shopping')
-        ->and($tools['notes_get']['_meta']['ui']['resourceUri'])->toBe('ui://familywell/note')
-        ->and($tools['get_today']['_meta']['ui']['resourceUri'])->toBe('ui://familywell/today')
+    expect($tools['tasks_get_list']['_meta']['ui']['resourceUri'])->toBe(Widget::uriFor('tasks'))
+        ->and($tools['tasks_search']['_meta']['ui']['resourceUri'])->toBe(Widget::uriFor('tasks'))
+        ->and($tools['shopping_get_list']['_meta']['ui']['resourceUri'])->toBe(Widget::uriFor('shopping'))
+        ->and($tools['notes_get']['_meta']['ui']['resourceUri'])->toBe(Widget::uriFor('note'))
+        ->and($tools['get_today']['_meta']['ui']['resourceUri'])->toBe(Widget::uriFor('today'))
         ->and($tools['tasks_update_task'])->not->toHaveKey('_meta');
 });
 
@@ -39,6 +39,20 @@ it('lists and serves every widget as an MCP App page', function () {
             // Everything inlined: no external domains (only image widgets may load from this app itself).
             ->and(in_array($w, Widget::IMAGES, true) || ! isset($content['_meta']['ui']['csp']))->toBeTrue();
     }
+});
+
+it('sends no ui.domain, so every host uses its own default sandbox', function () {
+    // ui.domain is host-specific (Claude: {sha256(url)}.claudemcpcontent.com, ChatGPT: a dedicated origin
+    // the app controls). laravel/mcp fills in the Claude one by default, which ChatGPT refuses to render.
+    [$family, $users] = mcpFamily();
+    $token = mcpConnect($users[0], $family->id)['access_token'];
+
+    foreach (mcpCall($token, 'resources/list')->assertOk()->json('result.resources') as $r) {
+        expect($r['_meta']['ui'] ?? [])->not->toHaveKey('domain');
+    }
+    $read = mcpCall($token, 'resources/read', ['uri' => Widget::uriFor('recipe')])->assertOk()->json('result.contents.0');
+    expect($read['_meta']['ui'] ?? [])->not->toHaveKey('domain')
+        ->and($read['_meta']['ui']['csp']['resourceDomains'] ?? null)->not->toBeNull(); // the rest of ui meta stays
 });
 
 it('declares full screen to the host only for widgets that offer it', function () {
