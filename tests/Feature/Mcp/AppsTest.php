@@ -41,6 +41,13 @@ it('lists and serves every widget as an MCP App page', function () {
     }
 });
 
+it('keeps widget URIs permanent, since hosts cache the tool list from connect time', function () {
+    // ChatGPT keeps the resourceUri it saw when the person connected and fetches that URI on every render;
+    // renaming a URI makes every existing connection fail with "Failed to fetch template".
+    expect(Widget::uriFor('recipe'))->toBe('ui://familywell/recipe')
+        ->and(Widget::uriFor('tasks'))->toBe('ui://familywell/tasks');
+});
+
 it('sends no ui.domain, so every host uses its own default sandbox', function () {
     // ui.domain is host-specific (Claude: {sha256(url)}.claudemcpcontent.com, ChatGPT: a dedicated origin
     // the app controls). laravel/mcp fills in the Claude one by default, which ChatGPT refuses to render.

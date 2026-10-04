@@ -62,15 +62,13 @@ class Widget extends AppResource
     }
 
     /**
-     * Hosts cache a widget template by its URI (ChatGPT documents the URI as the cache key), so bump this
-     * when a change to the page or its _meta must reach clients that already loaded the old one.
-     * v2: dropped ui.domain (ChatGPT had cached templates carrying the Claude sandbox domain).
+     * Widget URIs are permanent: hosts keep the tool list (and so these URIs) from when the person connected
+     * and only re-read the template, fresh, on every render (seen in prod logs: ChatGPT asked for the old
+     * URI after a rename and got "not found"). Change what a widget serves, never its URI.
      */
-    public const VERSION = 'v2';
-
     public static function uriFor(string $widget): string
     {
-        return 'ui://familywell/'.self::VERSION."/{$widget}";
+        return "ui://familywell/{$widget}";
     }
 
     public function handle(Request $request): Response
