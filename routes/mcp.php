@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\OAuth\ApproveController;
 use App\Http\Controllers\OAuth\AuthorizeController;
+use App\Http\Middleware\McpDiagnostics;
 use App\Http\Middleware\McpFamilyContext;
 use App\Mcp\FamilywellServer;
 use Illuminate\Support\Facades\Route;
@@ -31,5 +32,6 @@ Route::prefix('oauth')->name('passport.')->group(function () {
 // client registration (POST /oauth/register). Registration is public by design, so it is throttled.
 Route::middleware('throttle:20,1')->group(fn () => Mcp::oauthRoutes());
 
+// McpDiagnostics first so rejected requests (401, throttled) are logged too. TEMPORARY, see the class.
 Mcp::web('/mcp', FamilywellServer::class)
-    ->middleware(['auth:api', McpFamilyContext::class, 'throttle:mcp']);
+    ->middleware([McpDiagnostics::class, 'auth:api', McpFamilyContext::class, 'throttle:mcp']);
