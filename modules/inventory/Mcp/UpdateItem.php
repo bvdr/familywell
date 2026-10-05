@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
 use Modules\Inventory\InventoryItem;
 
@@ -25,7 +26,7 @@ class UpdateItem extends Tool
         return ['item_id' => $schema->integer()->required()] + InventoryData::fieldSchema($schema);
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $item = InventoryData::item($request->get('item_id'));
         if (! $item) {
@@ -45,6 +46,6 @@ class UpdateItem extends Tool
         $data = validator([...$current, ...InventoryData::fieldsFrom($request->all())], InventoryItem::rules())->validate();
         $item->applyEdit($data, $this->user()->id);
 
-        return Response::json(InventoryData::payload($item->fresh()));
+        return Response::structured(InventoryData::payload($item->fresh()));
     }
 }

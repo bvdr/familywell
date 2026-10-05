@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
 use Modules\Notes\Folder;
 
@@ -31,7 +32,7 @@ class UpdateNote extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $data = $request->validate([
             'note_id' => ['required', 'integer'],
@@ -51,6 +52,6 @@ class UpdateNote extends Tool
         }
         $note->update($changes);
 
-        return Response::json(NoteData::payload($note->fresh('folder')));
+        return Response::structured(NoteData::payload($note->fresh('folder')));
     }
 }

@@ -5,6 +5,7 @@ namespace Modules\Spending\Mcp;
 use App\Mcp\Tool;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Modules\Spending\SpendCategory;
 use Modules\Spending\SpendingController;
@@ -19,9 +20,9 @@ class ListCategories extends Tool
 
     protected string $description = 'The family\'s expense categories (key + name), the supported currencies, and the spending lists this person can add expenses to.';
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
-        return Response::json([
+        return Response::structured([
             'categories' => SpendCategory::forFamily()->map(fn (SpendCategory $c) => ['key' => $c->key, 'name' => $c->name])->values(),
             'currencies' => SpendingController::CURRENCIES,
             'default_currency' => SpendSetting::defaultCurrency(),

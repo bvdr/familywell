@@ -5,6 +5,7 @@ namespace Modules\Vehicles\Mcp;
 use App\Mcp\Tool;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Modules\Vehicles\Vehicle;
 
@@ -19,11 +20,11 @@ class ListVehicles extends Tool
 
     protected string $description = 'The family\'s cars with their odometer (km) and whether anything needs attention (maintenance due, documents expiring).';
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $cars = Vehicle::query()->with(['maintenanceSchedules', 'documents'])->orderBy('make')->orderBy('model')->get();
 
-        return Response::json([
+        return Response::structured([
             'vehicles' => $cars->map(fn (Vehicle $v) => VehicleData::summary($v))->values(),
             'display_unit' => VehicleData::displayUnit(),
         ]);

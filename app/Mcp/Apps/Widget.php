@@ -83,7 +83,10 @@ class Widget extends AppResource
             'themeCss' => ThemeTokens::css(ThemeTokens::resolve(auth()->user(), CurrentFamily::id())),
             'css' => $read('core.css'),
             'js' => $read('core.js')."\n".$this->libs()."\n".$read("{$this->widget}.js"),
-        ]);
+        ])
+            // ChatGPT enforces only its own key (snake_case), not the standard ui.csp, so state the same
+            // policy there: nothing external, plus this app's origin for widgets that show photos.
+            ->withMeta('openai/widgetCSP', ['connect_domains' => [], 'resource_domains' => $this->imageOrigins()]);
     }
 
     /**
@@ -114,14 +117,24 @@ class Widget extends AppResource
 
     public function appMeta(): AppMeta
     {
-        if (! in_array($this->widget, self::IMAGES, true)) {
-            return parent::appMeta();
-        }
-        // Photos are served by this app (signed URLs built on the request's host, mcp.familywell.co for MCP
-        // calls) - allow both that host and the main app URL, nothing else.
-        $origins = collect([url('/'), config('app.url')])->map(fn ($u) => rtrim((string) $u, '/'))->unique()->values()->all();
+        $origins = $this->imageOrigins();
 
-        return new AppMeta(csp: new Csp(resourceDomains: $origins));
+        return $origins === [] ? parent::appMeta() : new AppMeta(csp: new Csp(resourceDomains: $origins));
+    }
+
+    /**
+     * Photos are served by this app (signed URLs built on the request's host, mcp.familywell.co for MCP
+     * calls): allow both that host and the main app URL, nothing else. Empty for widgets without images.
+     *
+     * @return list<string>
+     */
+    private function imageOrigins(): array
+    {
+        if (! in_array($this->widget, self::IMAGES, true)) {
+            return [];
+        }
+
+        return collect([url('/'), config('app.url')])->map(fn ($u) => rtrim((string) $u, '/'))->unique()->values()->all();
     }
 
     /**

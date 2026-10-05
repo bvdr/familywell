@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 
 #[IsDestructive]
@@ -24,7 +25,7 @@ class DeleteVehicle extends Tool
         return ['vehicle_id' => $schema->integer()->required()];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $v = VehicleData::vehicle($request->get('vehicle_id'));
         if (! $v) {
@@ -33,6 +34,6 @@ class DeleteVehicle extends Tool
         $name = VehicleData::summary($v)['name'];
         $v->deleteWithFiles(); // same path as the app's delete
 
-        return Response::json(['deleted' => true, 'vehicle' => $name]);
+        return Response::structured(['deleted' => true, 'vehicle' => $name]);
     }
 }

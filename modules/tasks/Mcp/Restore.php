@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Modules\Tasks\TasksTrash;
 
 // Same restore as Settings > Recently deleted (TasksTrash).
@@ -27,7 +28,7 @@ class Restore extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $data = $request->validate(['type' => ['required', 'in:'.implode(',', ['list', 'task'])], 'id' => ['required', 'integer']]);
         $path = TasksTrash::restore($this->user(), $data['type'], (int) $data['id']);
@@ -36,6 +37,6 @@ class Restore extends Tool
         }
         TaskData::changed();
 
-        return Response::json(['restored' => true, 'type' => $data['type'], 'id' => (int) $data['id'], 'url' => $this->url($path)]);
+        return Response::structured(['restored' => true, 'type' => $data['type'], 'id' => (int) $data['id'], 'url' => $this->url($path)]);
     }
 }

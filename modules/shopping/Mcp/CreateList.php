@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Modules\Notifications\Notify;
 use Modules\Shopping\ShoppingList;
 
@@ -27,7 +28,7 @@ class CreateList extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -38,6 +39,6 @@ class CreateList extends Tool
         Notify::toAccessOf($list, 'shopping', $user->id, 'New shopping list', "{$user->name} started: {$list->name}", "/m/shopping/lists/{$list->id}");
         ShoppingData::changed();
 
-        return Response::json(ShoppingData::listPayload($list));
+        return Response::structured(ShoppingData::listPayload($list));
     }
 }

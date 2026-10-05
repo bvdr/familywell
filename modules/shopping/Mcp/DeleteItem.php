@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 use Modules\Notifications\Notify;
 
@@ -25,7 +26,7 @@ class DeleteItem extends Tool
         return ['item_id' => $schema->integer()->required()];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $user = $this->user();
         $item = ShoppingData::item($user, $request->get('item_id'));
@@ -37,6 +38,6 @@ class DeleteItem extends Tool
         Notify::toAccessOf($item->list, 'shopping', $user->id, $item->list->name, "{$user->name} removed: {$item->name}", "/m/shopping/lists/{$item->shopping_list_id}");
         ShoppingData::changed();
 
-        return Response::json(['deleted' => true, 'type' => 'item', 'id' => $item->id] + ShoppingData::trashInfo($item));
+        return Response::structured(['deleted' => true, 'type' => 'item', 'id' => $item->id] + ShoppingData::trashInfo($item));
     }
 }

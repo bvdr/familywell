@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Modules\Projects\Project;
 
@@ -27,7 +28,7 @@ class ListProjects extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $request->validate(['status' => ['nullable', 'in:'.implode(',', ProjectData::STATUSES)]]);
         // visibleTo = the same "family-visible or shared with me" filter the projects index applies in PHP.
@@ -38,7 +39,7 @@ class ListProjects extends Tool
         $page = $this->page($query, $request);
         $tasks = ProjectData::topTasks($page['items']);
 
-        return Response::json([
+        return Response::structured([
             'projects' => $page['items']->map(fn (Project $p) => ProjectData::projectPayload($p, $tasks[$p->id]))->values(),
             'next_cursor' => $page['next_cursor'],
         ]);

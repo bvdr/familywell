@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 
 // Same path as ProjectsController::destroyTask (Project::deleteTask): the task is soft-deleted and its
@@ -28,7 +29,7 @@ class DeleteTask extends Tool
         return ['task_id' => $schema->integer()->required()];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $found = ProjectData::task($this->user(), $request->get('task_id'));
         if (! $found) {
@@ -39,6 +40,6 @@ class DeleteTask extends Tool
         $project->deleteTask($this->user(), $task);
         ProjectData::changed();
 
-        return Response::json(['deleted' => true, 'type' => 'task', 'id' => $task->id, 'project_id' => $project->id]);
+        return Response::structured(['deleted' => true, 'type' => 'task', 'id' => $task->id, 'project_id' => $project->id]);
     }
 }

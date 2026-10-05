@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Modules\Calendar\CalendarEvent;
 
 class DeleteEvent extends Tool
@@ -23,7 +24,7 @@ class DeleteEvent extends Tool
         return ['id' => $schema->integer()->required()];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $e = CalendarEvent::find((int) $request->get('id'));
         if (! $e || $e->created_by !== $this->user()->id) { // creator only, like the web UI
@@ -31,6 +32,6 @@ class DeleteEvent extends Tool
         }
         $e->delete();
 
-        return Response::json(['deleted' => true, 'id' => $e->id]);
+        return Response::structured(['deleted' => true, 'id' => $e->id]);
     }
 }

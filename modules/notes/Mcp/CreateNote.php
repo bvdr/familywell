@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Modules\Notes\Folder;
 use Modules\Notes\Note;
 
@@ -29,7 +30,7 @@ class CreateNote extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -47,6 +48,6 @@ class CreateNote extends Tool
             $note->update(['pinned' => true]);
         }
 
-        return Response::json(NoteData::payload($note->fresh('folder')));
+        return Response::structured(NoteData::payload($note->fresh('folder')));
     }
 }

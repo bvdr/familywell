@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
 
 #[IsIdempotent]
@@ -30,7 +31,7 @@ class UpdateItem extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $data = $request->validate([
             'item_id' => ['required', 'integer'],
@@ -50,6 +51,6 @@ class UpdateItem extends Tool
         $item->settleBought($wasBought, $this->user());
         ShoppingData::changed();
 
-        return Response::json(ShoppingData::itemPayload($item));
+        return Response::structured(ShoppingData::itemPayload($item));
     }
 }

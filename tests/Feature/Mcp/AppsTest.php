@@ -41,6 +41,30 @@ it('lists and serves every widget as an MCP App page', function () {
     }
 });
 
+it('returns tool data as structuredContent as well as JSON text', function () {
+    // Widgets read structuredContent first (ChatGPT hands widgets the result via the host, and the JSON text
+    // alone failed to parse there); text-only hosts (Perplexity) keep reading the same JSON as text.
+    [$family, $users] = mcpFamily(['tasks']);
+    $token = mcpConnect($users[0], $family->id, ['tasks' => 'write'])['access_token'];
+    mcpTool($token, 'tasks_create_list', ['name' => 'Home']);
+
+    foreach (['get_today', 'tasks_list_lists'] as $tool) {
+        $result = mcpCall($token, 'tools/call', ['name' => $tool, 'arguments' => (object) []])->assertOk()->json('result');
+        expect($result['structuredContent'] ?? null)->toBeArray()->not->toBeEmpty()
+            ->and($result['structuredContent'])->toEqual(json_decode($result['content'][0]['text'], true));
+    }
+});
+
+it('declares the CSP in ChatGPT\'s own key too', function () {
+    // ChatGPT reads _meta["openai/widgetCSP"] (snake_case), not the standard ui.csp, when it enforces CSP.
+    [$family, $users] = mcpFamily();
+    $token = mcpConnect($users[0], $family->id)['access_token'];
+    $read = fn (string $w) => mcpCall($token, 'resources/read', ['uri' => Widget::uriFor($w)])->assertOk()->json('result.contents.0._meta');
+
+    expect($read('tasks')['openai/widgetCSP'])->toEqual(['connect_domains' => [], 'resource_domains' => []])
+        ->and($read('recipe')['openai/widgetCSP']['resource_domains'])->toEqual($read('recipe')['ui']['csp']['resourceDomains']);
+});
+
 it('keeps widget URIs permanent, since hosts cache the tool list from connect time', function () {
     // ChatGPT keeps the resourceUri it saw when the person connected and fetches that URI on every render;
     // renaming a URI makes every existing connection fail with "Failed to fetch template".

@@ -7,6 +7,7 @@ use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Validation\Rule;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
 use Modules\Tasks\Mcp\TaskData;
 
@@ -36,7 +37,7 @@ class UpdateTodo extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $data = $request->validate([
             'task_id' => ['required', 'integer'],
@@ -53,6 +54,6 @@ class UpdateTodo extends Tool
         [$task, $event] = $found;
         $event->updateTask($this->user(), $task, array_intersect_key($data, array_flip(['title', 'note', 'due_date', 'assigned_to', 'done'])));
 
-        return Response::json(CalendarData::todoPayload($task->fresh(), $event, fn ($p) => $this->url($p)));
+        return Response::structured(CalendarData::todoPayload($task->fresh(), $event, fn ($p) => $this->url($p)));
     }
 }

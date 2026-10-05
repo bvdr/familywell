@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 use Modules\Notifications\Notify;
 
@@ -25,7 +26,7 @@ class DeleteTask extends Tool
         return ['task_id' => $schema->integer()->required()];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $user = $this->user();
         $task = TaskData::task($user, $request->get('task_id'));
@@ -37,6 +38,6 @@ class DeleteTask extends Tool
         Notify::toAccessOf($task->list, 'tasks', $user->id, $task->list->name, "{$user->name} deleted: {$task->title}", "/m/tasks/lists/{$task->task_list_id}");
         TaskData::changed();
 
-        return Response::json(['deleted' => true, 'type' => 'task', 'id' => $task->id] + TaskData::trashInfo($task));
+        return Response::structured(['deleted' => true, 'type' => 'task', 'id' => $task->id] + TaskData::trashInfo($task));
     }
 }

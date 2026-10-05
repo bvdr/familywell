@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Modules\Vehicles\VehicleTimeline;
 
@@ -29,7 +30,7 @@ class VehicleHistory extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $v = VehicleData::vehicle($request->get('vehicle_id'));
         if (! $v) {
@@ -42,6 +43,6 @@ class VehicleHistory extends Tool
             ->values();
         $page = $this->page($entries, $request);
 
-        return Response::json(['history' => $page['items']->values(), 'next_cursor' => $page['next_cursor']]);
+        return Response::structured(['history' => $page['items']->values(), 'next_cursor' => $page['next_cursor']]);
     }
 }

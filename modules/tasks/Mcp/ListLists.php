@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Modules\Tasks\TaskList;
 
@@ -26,7 +27,7 @@ class ListLists extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $query = TaskList::query()->visibleTo($this->user()->id)->with('shareSetting')
             ->withCount(['tasks', 'tasks as done_count' => fn ($q) => $q->where('done', true)])
@@ -34,7 +35,7 @@ class ListLists extends Tool
             ->orderBy('position')->orderByDesc('id');
         $page = $this->page($query, $request);
 
-        return Response::json([
+        return Response::structured([
             'lists' => $page['items']->map(fn (TaskList $l) => TaskData::listPayload($l) + [
                 'open_count' => $l->tasks_count - $l->done_count,
                 'done_count' => $l->done_count,

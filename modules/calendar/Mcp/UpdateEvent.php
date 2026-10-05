@@ -7,6 +7,7 @@ use App\Support\Sharing\ShareAccess;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Modules\Calendar\CalendarEvent;
 
 class UpdateEvent extends Tool
@@ -24,7 +25,7 @@ class UpdateEvent extends Tool
         return ['id' => $schema->integer()->required(), ...CalendarData::schema($schema)];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $e = CalendarEvent::find((int) $request->get('id'));
         if (! $e || ! app(ShareAccess::class)->canEdit($this->user(), $e)) {
@@ -32,6 +33,6 @@ class UpdateEvent extends Tool
         }
         $e->applyUpdate(collect($request->all())->except('id')->all());
 
-        return Response::json(CalendarData::payload($e->fresh(), fn ($p) => $this->url($p)));
+        return Response::structured(CalendarData::payload($e->fresh(), fn ($p) => $this->url($p)));
     }
 }

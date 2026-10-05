@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 
 #[IsDestructive]
@@ -24,7 +25,7 @@ class DeleteItem extends Tool
         return ['item_id' => $schema->integer()->required()];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $item = InventoryData::item($request->get('item_id'));
         if (! $item) {
@@ -32,6 +33,6 @@ class DeleteItem extends Tool
         }
         $item->delete(); // same as the web delete (its log rows cascade)
 
-        return Response::json(['deleted' => true, 'item_id' => $item->id, 'name' => $item->name]);
+        return Response::structured(['deleted' => true, 'item_id' => $item->id, 'name' => $item->name]);
     }
 }

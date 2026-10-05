@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 use Modules\Notifications\Notify;
 
@@ -25,7 +26,7 @@ class DeleteList extends Tool
         return ['list_id' => $schema->integer()->required()];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $user = $this->user();
         $list = TaskData::list($user, $request->get('list_id'));
@@ -40,6 +41,6 @@ class DeleteList extends Tool
         $list->delete();
         TaskData::changed();
 
-        return Response::json(['deleted' => true, 'type' => 'list', 'id' => $list->id] + TaskData::trashInfo($list));
+        return Response::structured(['deleted' => true, 'type' => 'list', 'id' => $list->id] + TaskData::trashInfo($list));
     }
 }

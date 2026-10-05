@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 use Modules\Birthdays\BirthdayDate;
 
@@ -25,7 +26,7 @@ class DeleteBirthday extends Tool
         return ['birthday_id' => $schema->integer()->required()];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $birthday = BirthdayDate::find((int) $request->get('birthday_id'));
         if (! $birthday) {
@@ -33,6 +34,6 @@ class DeleteBirthday extends Tool
         }
         $birthday->delete(); // same as the web delete
 
-        return Response::json(['deleted' => true, 'birthday_id' => $birthday->id]);
+        return Response::structured(['deleted' => true, 'birthday_id' => $birthday->id]);
     }
 }

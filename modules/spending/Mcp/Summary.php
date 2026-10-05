@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Modules\Spending\Fx;
 use Modules\Spending\MonthToDate;
@@ -30,7 +31,7 @@ class Summary extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $f = $request->validate(['from' => ['nullable', 'date'], 'to' => ['nullable', 'date', 'after_or_equal:from']]);
         $from = $f['from'] ?? now()->startOfMonth()->toDateString();
@@ -64,7 +65,7 @@ class Summary extends Tool
         arsort($byShop);
         $fmt = fn (array $m) => collect($m)->map(fn ($c, $k) => ['name' => (string) $k, 'amount' => SpendData::money($c)])->values();
 
-        return Response::json([
+        return Response::structured([
             'from' => $from,
             'to' => $to,
             'currency' => $currency,

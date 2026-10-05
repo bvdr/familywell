@@ -7,6 +7,7 @@ use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
 use Modules\Recipes\Recipe;
 
@@ -28,7 +29,7 @@ class UpdateRecipe extends Tool
         return ['recipe_id' => $schema->integer()->required(), ...RecipeData::fieldSchema($schema)];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $recipe = RecipeData::recipe($this->user(), $request->get('recipe_id'));
         if (! $recipe) {
@@ -37,6 +38,6 @@ class UpdateRecipe extends Tool
         $data = Validator::make($request->except('recipe_id'), Recipe::rules(creating: false))->validate();
         $recipe->update(Recipe::clean($data));
 
-        return Response::json(RecipeData::payload($recipe->fresh()));
+        return Response::structured(RecipeData::payload($recipe->fresh()));
     }
 }

@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 
 #[IsReadOnly]
@@ -22,10 +23,10 @@ class GetExpense extends Tool
         return ['expense_id' => $schema->integer()->required()];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $spend = SpendData::spend($this->user(), $request->get('expense_id'));
 
-        return $spend ? Response::json(SpendData::payload($spend)) : $this->notFound('Expense');
+        return $spend ? Response::structured(SpendData::payload($spend)) : $this->notFound('Expense');
     }
 }

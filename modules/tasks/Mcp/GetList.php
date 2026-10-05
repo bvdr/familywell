@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Modules\Tasks\Task;
 
@@ -28,7 +29,7 @@ class GetList extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $list = TaskData::list($this->user(), $request->get('list_id'));
         if (! $list) {
@@ -40,7 +41,7 @@ class GetList extends Tool
             ->when(! $includeDone, fn ($q) => $q->where('done', false))
             ->orderBy('position')->orderBy('id')->get();
 
-        return Response::json(TaskData::listPayload($list) + [
+        return Response::structured(TaskData::listPayload($list) + [
             'tasks' => $tasks->map(fn (Task $t) => TaskData::taskPayload($t, true))->values(),
         ]);
     }

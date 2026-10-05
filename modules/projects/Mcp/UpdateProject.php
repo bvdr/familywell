@@ -7,6 +7,7 @@ use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Validation\Rule;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
 
 #[IsIdempotent]
@@ -35,7 +36,7 @@ class UpdateProject extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         // ProjectsController::updateProject's rules, minus visibility (sharing is managed in the app) and
         // with owner_id limited to family members (the web form only offers members).
@@ -58,6 +59,6 @@ class UpdateProject extends Tool
         $project->updateFrom($this->user(), $data);
         ProjectData::changed();
 
-        return Response::json(ProjectData::projectPayload($project, ProjectData::topTasks(collect([$project]))[$project->id]));
+        return Response::structured(ProjectData::projectPayload($project, ProjectData::topTasks(collect([$project]))[$project->id]));
     }
 }

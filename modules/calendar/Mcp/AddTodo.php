@@ -8,6 +8,7 @@ use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Validation\Rule;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Modules\Calendar\CalendarEvent;
 use Modules\Tasks\Mcp\TaskData;
 
@@ -34,7 +35,7 @@ class AddTodo extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $data = $request->validate([
             'event_id' => ['required', 'integer'],
@@ -52,6 +53,6 @@ class AddTodo extends Tool
         $t = $e->addTask($this->user(), $data);
 
         // To-dos have no page of their own: link back to the event's page, same as CalendarData::payload.
-        return Response::json(['id' => $t->id, 'title' => $t->title, 'done' => false, 'event_id' => $e->id, 'url' => $this->url("/m/calendar/events/{$e->id}")]);
+        return Response::structured(['id' => $t->id, 'title' => $t->title, 'done' => false, 'event_id' => $e->id, 'url' => $this->url("/m/calendar/events/{$e->id}")]);
     }
 }

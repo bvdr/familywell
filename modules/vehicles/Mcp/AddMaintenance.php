@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 
 class AddMaintenance extends Tool
 {
@@ -25,7 +26,7 @@ class AddMaintenance extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $v = VehicleData::vehicle($request->get('vehicle_id'));
         if (! $v) {
@@ -35,7 +36,7 @@ class AddMaintenance extends Tool
         $fields = VehicleData::maintenanceFields($request->all(), ['type' => 'custom']);
         $schedule = $v->maintenanceSchedules()->create($fields + ['created_by' => $this->user()->id]);
 
-        return Response::json(VehicleData::maintenancePayload($schedule->fresh(), (int) $v->current_mileage) + [
+        return Response::structured(VehicleData::maintenancePayload($schedule->fresh(), (int) $v->current_mileage) + [
             'url' => VehicleData::url("/m/vehicles/{$v->id}/maintenance/{$schedule->id}"),
         ]);
     }

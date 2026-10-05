@@ -7,6 +7,7 @@ use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Modules\Notifications\Notify;
 use Modules\Spending\Spend;
 use Modules\Spending\SpendEvent;
@@ -35,7 +36,7 @@ class AddExpense extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $user = $this->user();
         $request->validate(['list_id' => ['nullable', 'integer'], 'paid_by' => ['nullable', 'integer']]);
@@ -66,7 +67,7 @@ class AddExpense extends Tool
         Notify::toAccessOf($event, 'spending', $user->id, $event->name, "{$user->name} added {$amount}".(! empty($data['note']) ? " · {$data['note']}" : ''), "/m/spending/events/{$event->id}");
         SpendData::changed();
 
-        return Response::json(SpendData::payload($spend->fresh(['event', 'payer', 'payerGuest'])) + ($duplicate ? [
+        return Response::structured(SpendData::payload($spend->fresh(['event', 'payer', 'payerGuest'])) + ($duplicate ? [
             'warning' => 'This looks like a duplicate of an expense already recorded (same amount, date and shop/category).',
         ] : []));
     }

@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Modules\Shopping\ShoppingItem;
 
@@ -28,7 +29,7 @@ class GetList extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $list = ShoppingData::list($this->user(), $request->get('list_id'));
         if (! $list) {
@@ -39,7 +40,7 @@ class GetList extends Tool
             ->when($request->get('include_bought', true) === false, fn ($q) => $q->where('bought', false))
             ->orderBy('bought')->orderBy('position')->orderBy('id')->get();
 
-        return Response::json(ShoppingData::listPayload($list) + [
+        return Response::structured(ShoppingData::listPayload($list) + [
             'items' => $items->map(fn (ShoppingItem $i) => ShoppingData::itemPayload($i))->values(),
         ]);
     }

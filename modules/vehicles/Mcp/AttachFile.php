@@ -7,6 +7,7 @@ use App\Support\Mcp\IncomingFile;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 
 class AttachFile extends Tool
 {
@@ -33,7 +34,7 @@ class AttachFile extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $data = $request->validate([
             'vehicle_id' => ['required', 'integer'],
@@ -52,7 +53,7 @@ class AttachFile extends Tool
 
         $record->attachFile($file);
 
-        return Response::json([
+        return Response::structured([
             'attached' => $file->getClientOriginalName(),
             'target' => $data['target'],
             'id' => $record->id,

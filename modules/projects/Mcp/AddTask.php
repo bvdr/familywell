@@ -7,6 +7,7 @@ use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Validation\Rule;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 
 class AddTask extends Tool
 {
@@ -30,7 +31,7 @@ class AddTask extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $data = $request->validate([
             'project_id' => ['required', 'integer'],
@@ -53,6 +54,6 @@ class AddTask extends Tool
         $task = $project->addTask($user, $data);
         ProjectData::changed();
 
-        return Response::json(ProjectData::taskPayload($task->load('assignee'), $project));
+        return Response::structured(ProjectData::taskPayload($task->load('assignee'), $project));
     }
 }

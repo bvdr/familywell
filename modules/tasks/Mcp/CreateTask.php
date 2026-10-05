@@ -7,6 +7,7 @@ use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Validation\Rule;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Modules\Notifications\Notify;
 
 class CreateTask extends Tool
@@ -32,7 +33,7 @@ class CreateTask extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $data = $request->validate([
             'list_id' => ['required', 'integer'],
@@ -59,6 +60,6 @@ class CreateTask extends Tool
         Notify::toAccessOf($list, 'tasks', $user->id, 'New task', "{$user->name} added: {$task->title}", "/m/tasks/lists/{$list->id}");
         TaskData::changed();
 
-        return Response::json(TaskData::taskPayload($task->load('assignee')));
+        return Response::structured(TaskData::taskPayload($task->load('assignee')));
     }
 }

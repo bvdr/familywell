@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Modules\Inventory\InventoryItem;
 
 class AddItem extends Tool
@@ -27,13 +28,13 @@ class AddItem extends Tool
         return $fields;
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         // Same rules + same create path (opening "added" log row, category/location/shop resolution) as
         // the app's Add Item form.
         $data = validator(InventoryData::fieldsFrom($request->all()), InventoryItem::rules())->validate();
         $item = InventoryItem::createFrom($data, $this->user()->id);
 
-        return Response::json(InventoryData::payload($item->fresh()));
+        return Response::structured(InventoryData::payload($item->fresh()));
     }
 }

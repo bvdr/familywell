@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Modules\Spending\Spend;
 
@@ -33,7 +34,7 @@ class ListExpenses extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $f = $request->validate([
             'list_id' => ['nullable', 'integer'], 'from' => ['nullable', 'date'], 'to' => ['nullable', 'date'],
@@ -52,7 +53,7 @@ class ListExpenses extends Tool
             ->orderByDesc('spent_at')->orderByDesc('id');
         $page = $this->page($query, $request);
 
-        return Response::json([
+        return Response::structured([
             'expenses' => $page['items']->map(fn (Spend $s) => SpendData::payload($s))->values(),
             'next_cursor' => $page['next_cursor'],
         ]);

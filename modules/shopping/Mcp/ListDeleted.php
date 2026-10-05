@@ -7,6 +7,7 @@ use App\Support\Trash\Trash;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Modules\Shopping\ShoppingTrash;
 
@@ -27,10 +28,10 @@ class ListDeleted extends Tool
         return $this->pageSchema($schema);
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $page = $this->page(Trash::sorted(ShoppingTrash::list($this->user())), $request);
 
-        return Response::json(['deleted' => $page['items']->values(), 'next_cursor' => $page['next_cursor']]);
+        return Response::structured(['deleted' => $page['items']->values(), 'next_cursor' => $page['next_cursor']]);
     }
 }
