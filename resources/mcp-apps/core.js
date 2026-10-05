@@ -44,11 +44,17 @@ const FW = (() => {
             .map((c) => c.text)
             .join('\n');
         if (result.isError) throw new Error(text || 'Something went wrong.');
+        // Our tools send the payload twice: structuredContent (preferred) and the same JSON as text.
         if (result.structuredContent) return result.structuredContent;
         try {
             return JSON.parse(text);
         } catch {
-            throw new Error(text || 'Unexpected response.');
+            // Say what the host handed us instead of dumping it: a raw JSON wall is unreadable, and these
+            // facts (shape, size, how it ends) are what tells a truncated or rewrapped result apart.
+            const types = (result.content || []).map((c) => c.type).join(',') || 'none';
+            throw new Error(
+                `Couldn't read Familywell's answer (blocks: ${types}; ${text.length} chars; ends: "${text.slice(-30)}"; keys: ${Object.keys(result).join(',')}).`,
+            );
         }
     }
 
@@ -130,6 +136,18 @@ const FW = (() => {
 
     // Formatting in the host's locale/timezone when given.
     let locale;
+
+    // Hosts spell locales their own way (ChatGPT sends "en_RO"), but Intl only takes BCP 47 ("en-RO") and
+    // throws "invalid language tag" otherwise, which broke every widget's dates. Normalise, and fall back
+    // to the browser default (undefined) when it still isn't valid.
+    function toLocale(raw) {
+        if (!raw || typeof raw !== 'string') return undefined;
+        try {
+            return Intl.getCanonicalLocales(raw.replace(/_/g, '-'))[0];
+        } catch {
+            return undefined;
+        }
+    }
     const dayMs = 86400000;
     function today() {
         const d = new Date();
@@ -252,12 +270,13 @@ const FW = (() => {
         window.createMcpApp(async (a) => {
             app = a;
             const ctx = a.getHostContext() || {};
-            locale = ctx.locale;
+            locale = toLocale(ctx.locale);
             canFullscreen = !!opts.fullscreen && (ctx.availableDisplayModes || []).includes('fullscreen');
             applyContext(ctx);
             // The host reports changes it makes itself too: mode (its own close button, Esc), insets, rotation.
             // The SDK passes the merged context.
             a.onHostContextChanged((c) => {
+                if (c.locale) locale = toLocale(c.locale);
                 const before = mode;
                 applyContext(c);
                 if (mode !== before) draw();
@@ -280,6 +299,7 @@ const FW = (() => {
 
     return {
         h,
+        toLocale,
         start,
         draw,
         call,
