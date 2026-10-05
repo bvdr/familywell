@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Modules\Contacts\Person;
 
@@ -28,7 +29,7 @@ class ListContacts extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $q = trim((string) $request->get('query', ''));
         $query = Person::query()->with('contactMethods')
@@ -37,7 +38,7 @@ class ListContacts extends Tool
             ->orderBy('name')->orderBy('id');
         $page = $this->page($query, $request);
 
-        return Response::json([
+        return Response::structured([
             'people' => $page['items']->map(fn (Person $p) => ContactData::summary($p))->values(),
             'next_cursor' => $page['next_cursor'],
         ]);

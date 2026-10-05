@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Modules\Vehicles\VehicleExpenses;
 
 class AddExpense extends Tool
@@ -28,7 +29,7 @@ class AddExpense extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $data = $request->validate([
             'vehicle_id' => ['required', 'integer'],
@@ -48,7 +49,7 @@ class AddExpense extends Tool
         $spend = VehicleExpenses::record($v, $this->user(), (float) $data['amount'],
             ($data['note'] ?? null) ?: trim("{$v->make} {$v->model}"), $data['date'] ?? now()->toDateString());
 
-        return Response::json([
+        return Response::structured([
             'expense_id' => $spend?->id,
             'amount' => number_format((float) $data['amount'], 2, '.', ''),
             'currency' => $spend?->currency,

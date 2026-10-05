@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Modules\Recipes\Recipe;
 
@@ -28,7 +29,7 @@ class ListRecipes extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $q = mb_strtolower(trim((string) $request->get('query', '')));
         // ponytail: filtered in PHP (tags + ingredient names are JSON), fine for a family's cookbook.
@@ -39,7 +40,7 @@ class ListRecipes extends Tool
             ->values();
         $page = $this->page($recipes, $request);
 
-        return Response::json([
+        return Response::structured([
             'recipes' => $page['items']->map(fn (Recipe $r) => RecipeData::summary($r))->values(),
             'next_cursor' => $page['next_cursor'],
         ]);

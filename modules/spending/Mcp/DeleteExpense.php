@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 use Modules\Notifications\Notify;
 
@@ -25,7 +26,7 @@ class DeleteExpense extends Tool
         return ['expense_id' => $schema->integer()->required()];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $user = $this->user();
         $spend = SpendData::spend($user, $request->get('expense_id'), edit: true);
@@ -38,6 +39,6 @@ class DeleteExpense extends Tool
         Notify::toAccessOf($spend->event, 'spending', $user->id, $spend->event->name, "{$user->name} deleted {$amount}", "/m/spending/events/{$spend->spend_event_id}");
         SpendData::changed();
 
-        return Response::json(['deleted' => true, 'id' => $spend->id] + SpendData::trashInfo($spend));
+        return Response::structured(['deleted' => true, 'id' => $spend->id] + SpendData::trashInfo($spend));
     }
 }

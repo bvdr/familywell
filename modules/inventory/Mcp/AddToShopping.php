@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
 use Modules\Inventory\InventoryReplenishment;
 
@@ -25,7 +26,7 @@ class AddToShopping extends Tool
         return ['item_id' => $schema->integer()->required()];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $item = InventoryData::item($request->get('item_id'));
         if (! $item) {
@@ -42,7 +43,7 @@ class AddToShopping extends Tool
         // Same idempotent path as the app's "Add to Shopping" button (InventoryReplenishment owns the rules).
         $row = app(InventoryReplenishment::class)->addToShopping($item, $this->user());
 
-        return Response::json([
+        return Response::structured([
             'already_on_list' => $linkedBefore === $row->id, // a stale link is replaced by a new row, so compare ids
             'shopping_item_id' => $row->id,
             'list_id' => $row->shopping_list_id,

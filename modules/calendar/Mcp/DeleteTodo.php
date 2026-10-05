@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 
 // Same path as the web UI's delete (CalendarEvent::deleteTask): soft-deleted with its sub-tasks, link removed.
@@ -27,7 +28,7 @@ class DeleteTodo extends Tool
         return ['task_id' => $schema->integer()->required()];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $found = CalendarData::todo($this->user(), $request->get('task_id'));
         if (! $found) {
@@ -36,6 +37,6 @@ class DeleteTodo extends Tool
         [$task, $event] = $found;
         $event->deleteTask($task);
 
-        return Response::json(['deleted' => true, 'type' => 'todo', 'id' => $task->id, 'event_id' => $event->id]);
+        return Response::structured(['deleted' => true, 'type' => 'todo', 'id' => $task->id, 'event_id' => $event->id]);
     }
 }

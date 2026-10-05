@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Modules\Birthdays\BirthdayDate;
 
 class AddBirthday extends Tool
@@ -23,11 +24,11 @@ class AddBirthday extends Tool
         return ['name' => $schema->string()->required(), ...BirthdayData::schema($schema)];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $data = $request->validate(BirthdayData::rules(['name' => ['required', 'string', 'max:255']]));
         $birthday = BirthdayDate::addFor($data['name'], BirthdayData::request($data), $this->user());
 
-        return Response::json(BirthdayData::payload($birthday->fresh('person')));
+        return Response::structured(BirthdayData::payload($birthday->fresh('person')));
     }
 }

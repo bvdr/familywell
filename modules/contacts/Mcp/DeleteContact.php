@@ -7,6 +7,7 @@ use App\Support\Modules\Hooks;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 use Modules\Contacts\Person;
 
@@ -26,7 +27,7 @@ class DeleteContact extends Tool
         return ['person_id' => $schema->integer()->required()];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $person = Person::find((int) $request->get('person_id'));
         if (! $person) {
@@ -36,6 +37,6 @@ class DeleteContact extends Tool
         app(Hooks::class)->fire('person.deleted', $person, ContactData::hookRequest([]));
         $person->delete();
 
-        return Response::json(['deleted' => true, 'person_id' => $person->id, 'name' => $person->name]);
+        return Response::structured(['deleted' => true, 'person_id' => $person->id, 'name' => $person->name]);
     }
 }

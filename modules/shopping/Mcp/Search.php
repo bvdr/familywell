@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Modules\Shopping\ShoppingItem;
 
@@ -29,7 +30,7 @@ class Search extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $q = trim((string) $request->validate(['query' => ['required', 'string', 'max:255']])['query']);
         $userId = $this->user()->id;
@@ -41,7 +42,7 @@ class Search extends Tool
             ->orderBy('bought')->orderByDesc('id');
         $page = $this->page($query, $request);
 
-        return Response::json([
+        return Response::structured([
             'items' => $page['items']->map(fn (ShoppingItem $i) => ShoppingData::itemPayload($i) + ['list_name' => $i->list?->name])->values(),
             'next_cursor' => $page['next_cursor'],
         ]);

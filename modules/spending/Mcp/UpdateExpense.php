@@ -7,6 +7,7 @@ use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
 
 #[IsIdempotent]
@@ -34,7 +35,7 @@ class UpdateExpense extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $spend = SpendData::spend($this->user(), $request->get('expense_id'), edit: true);
         if (! $spend) {
@@ -59,6 +60,6 @@ class UpdateExpense extends Tool
         $spend->update($event->spendColumns($data));
         SpendData::changed();
 
-        return Response::json(SpendData::payload($spend->fresh(['event', 'payer', 'payerGuest'])));
+        return Response::structured(SpendData::payload($spend->fresh(['event', 'payer', 'payerGuest'])));
     }
 }

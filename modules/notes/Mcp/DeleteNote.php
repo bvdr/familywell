@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 use Modules\Notifications\Notify;
 
@@ -25,7 +26,7 @@ class DeleteNote extends Tool
         return ['note_id' => $schema->integer()->required()];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $user = $this->user();
         $note = NoteData::note($user, $request->get('note_id'));
@@ -40,6 +41,6 @@ class DeleteNote extends Tool
         Notify::toAccessOf($note, 'notes', $user->id, 'Notes', "{$user->name} deleted note: {$title}", '/m/notes');
         $note->delete();
 
-        return Response::json(['deleted' => true, 'id' => $note->id] + NoteData::trashInfo($note));
+        return Response::structured(['deleted' => true, 'id' => $note->id] + NoteData::trashInfo($note));
     }
 }

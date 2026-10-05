@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Modules\Tasks\TaskList;
 
 class CreateList extends Tool
@@ -27,7 +28,7 @@ class CreateList extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -37,6 +38,6 @@ class CreateList extends Tool
         $list = TaskList::createFor($this->user(), $data);
         TaskData::changed();
 
-        return Response::json(TaskData::listPayload($list));
+        return Response::structured(TaskData::listPayload($list));
     }
 }

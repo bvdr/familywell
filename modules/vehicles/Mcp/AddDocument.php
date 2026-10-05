@@ -8,6 +8,7 @@ use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Validation\Rule;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Modules\Vehicles\VehicleDocument;
 
 class AddDocument extends Tool
@@ -37,7 +38,7 @@ class AddDocument extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         // Same rules as the Documents form (minus the upload field, which IncomingFile validates).
         $data = $request->validate([
@@ -64,7 +65,7 @@ class AddDocument extends Tool
             $document->attachFile($file);
         }
 
-        return Response::json([
+        return Response::structured([
             'document_id' => $document->id,
             'title' => $document->title,
             'file' => $file?->getClientOriginalName(),

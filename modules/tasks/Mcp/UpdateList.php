@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
 
 #[IsIdempotent]
@@ -30,7 +31,7 @@ class UpdateList extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $data = $request->validate([
             'list_id' => ['required', 'integer'],
@@ -50,6 +51,6 @@ class UpdateList extends Tool
         $list->fill(array_intersect_key($data, array_flip(['name', 'color', 'icon'])))->save();
         TaskData::changed();
 
-        return Response::json(TaskData::listPayload($list));
+        return Response::structured(TaskData::listPayload($list));
     }
 }

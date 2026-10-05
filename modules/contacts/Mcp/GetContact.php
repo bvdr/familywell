@@ -7,6 +7,7 @@ use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Arr;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 
 #[IsReadOnly]
@@ -25,7 +26,7 @@ class GetContact extends Tool
         return ['person_id' => $schema->integer()->required()];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $p = ContactData::person($request->get('person_id'));
         if (! $p) {
@@ -35,6 +36,6 @@ class GetContact extends Tool
         // Extension fields come from the same person.serialize filter the web page uses, so a module's
         // data shows up here without the contacts module knowing about it (their keys keep the module's
         // own camelCase naming).
-        return Response::json(ContactData::summary($p) + Arr::except($p->payload(), ['id', 'name', 'contactMethods']));
+        return Response::structured(ContactData::summary($p) + Arr::except($p->payload(), ['id', 'name', 'contactMethods']));
     }
 }

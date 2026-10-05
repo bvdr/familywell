@@ -8,6 +8,7 @@ use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Modules\Recipes\Recipe;
 
 class CreateRecipe extends Tool
@@ -35,7 +36,7 @@ class CreateRecipe extends Tool
         return $fields + IncomingFile::schema($schema);
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $data = Validator::make($request->all(), Recipe::rules())->validate();
         $photo = IncomingFile::from($request, RecipeData::PHOTO_TYPES); // checked before anything is saved
@@ -44,6 +45,6 @@ class CreateRecipe extends Tool
             $recipe->setPhoto($photo);
         }
 
-        return Response::json(RecipeData::payload($recipe->fresh()));
+        return Response::structured(RecipeData::payload($recipe->fresh()));
     }
 }

@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Modules\Calendar\CalendarEvent;
 
 class CreateEvent extends Tool
@@ -28,10 +29,10 @@ class CreateEvent extends Tool
         return $s;
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $e = CalendarEvent::createFor($this->user(), CalendarEvent::validated($request->all()));
 
-        return Response::json(CalendarData::payload($e->fresh(), fn ($p) => $this->url($p)));
+        return Response::structured(CalendarData::payload($e->fresh(), fn ($p) => $this->url($p)));
     }
 }

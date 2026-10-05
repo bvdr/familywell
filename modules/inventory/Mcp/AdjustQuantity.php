@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 
 // Not #[IsIdempotent]: a relative `change` applied twice moves the stock twice.
 class AdjustQuantity extends Tool
@@ -27,7 +28,7 @@ class AdjustQuantity extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $data = $request->validate([
             'item_id' => ['required', 'integer'],
@@ -47,6 +48,6 @@ class AdjustQuantity extends Tool
         }
         $item->setQuantity($after, $this->user()->id);
 
-        return Response::json(InventoryData::payload($item->fresh()));
+        return Response::structured(InventoryData::payload($item->fresh()));
     }
 }

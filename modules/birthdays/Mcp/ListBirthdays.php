@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Modules\Birthdays\BirthdayDate;
 
@@ -29,7 +30,7 @@ class ListBirthdays extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $request->validate(['within_days' => ['nullable', 'integer', 'min:0']]);
         $within = $request->get('within_days');
@@ -38,7 +39,7 @@ class ListBirthdays extends Tool
             ->when($within !== null, fn ($c) => $c->filter(fn (BirthdayDate $b) => $b->daysUntil() <= (int) $within)->values());
         $page = $this->page($all, $request);
 
-        return Response::json([
+        return Response::structured([
             'birthdays' => $page['items']->map(fn (BirthdayDate $b) => BirthdayData::payload($b))->values(),
             'next_cursor' => $page['next_cursor'],
         ]);

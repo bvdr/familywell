@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
 
 #[IsIdempotent]
@@ -29,7 +30,7 @@ class UpdateMaintenance extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $v = VehicleData::vehicle($request->get('vehicle_id'));
         $schedule = $v?->maintenanceSchedules()->find($request->get('schedule_id'));
@@ -42,7 +43,7 @@ class UpdateMaintenance extends Tool
         ];
         $schedule->update(VehicleData::maintenanceFields($request->all(), $base));
 
-        return Response::json(VehicleData::maintenancePayload($schedule->fresh(), (int) $v->current_mileage) + [
+        return Response::structured(VehicleData::maintenancePayload($schedule->fresh(), (int) $v->current_mileage) + [
             'url' => VehicleData::url("/m/vehicles/{$v->id}/maintenance/{$schedule->id}"),
         ]);
     }

@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 
 #[IsReadOnly]
@@ -24,14 +25,14 @@ class ScaleRecipe extends Tool
         return ['recipe_id' => $schema->integer()->required(), ...RecipeData::scaleSchema($schema)];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $r = RecipeData::recipe($this->user(), $request->get('recipe_id'));
         if (! $r) {
             return $this->notFound('Recipe');
         }
 
-        return Response::json(RecipeData::payload($r) + ['scale' => RecipeData::scaled($r, $request->all())]
+        return Response::structured(RecipeData::payload($r) + ['scale' => RecipeData::scaled($r, $request->all())]
             + ['shopping_lists' => RecipeData::shoppingLists($this->user())]);
     }
 }

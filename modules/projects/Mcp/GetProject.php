@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Modules\Projects\ProjectDependency;
 use Modules\Shopping\ShoppingList;
@@ -27,7 +28,7 @@ class GetProject extends Tool
         return ['project_id' => $schema->integer()->description('The project id (from projects_list).')->required()];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $project = ProjectData::project($this->user(), $request->get('project_id'));
         if (! $project) {
@@ -38,7 +39,7 @@ class GetProject extends Tool
         $lists = ShoppingList::whereIn('id', $project->links()->where('linkable_type', 'shopping_list')->pluck('linkable_id'))
             ->withCount(['items', 'items as bought_count' => fn ($q) => $q->where('bought', true)])->get();
 
-        return Response::json(ProjectData::projectPayload($project, $tasks) + [
+        return Response::structured(ProjectData::projectPayload($project, $tasks) + [
             'description' => $project->description,
             'owner' => $project->owner ? ['id' => $project->owner->id, 'name' => $project->owner->name] : null,
             'visibility' => $project->visibility(),

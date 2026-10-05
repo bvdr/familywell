@@ -8,6 +8,7 @@ use App\Support\Mcp\McpTools;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Modules\Calendar\Occurrences;
 
@@ -31,7 +32,7 @@ class ListCalendar extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         // Two steps: the 400-day cap needs a parsed `from`, and parsing an unvalidated one ("abc") would throw.
         $d = $request->validate([
@@ -46,6 +47,6 @@ class ListCalendar extends Tool
             ->when($d['person'] ?? null, fn ($c, $key) => $c->filter(fn ($i) => collect($i['people'])->contains(fn ($p) => "{$p['type']}:{$p['id']}" === $key)))
             ->map(fn ($i) => ['url' => $this->url($i['href'])] + $i)->values();
 
-        return Response::json(['from' => $d['from'], 'to' => $d['to'], 'items' => $items]);
+        return Response::structured(['from' => $d['from'], 'to' => $d['to'], 'items' => $items]);
     }
 }

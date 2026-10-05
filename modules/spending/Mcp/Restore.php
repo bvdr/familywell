@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Modules\Spending\SpendingTrash;
 
 // Same restore as Settings > Recently deleted (SpendingTrash).
@@ -24,7 +25,7 @@ class Restore extends Tool
         return ['expense_id' => $schema->integer()->required()];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $id = (int) $request->validate(['expense_id' => ['required', 'integer']])['expense_id'];
         $path = SpendingTrash::restore($this->user(), 'expense', $id);
@@ -33,6 +34,6 @@ class Restore extends Tool
         }
         SpendData::changed();
 
-        return Response::json(['restored' => true, 'id' => $id, 'url' => $this->url($path)]);
+        return Response::structured(['restored' => true, 'id' => $id, 'url' => $this->url($path)]);
     }
 }

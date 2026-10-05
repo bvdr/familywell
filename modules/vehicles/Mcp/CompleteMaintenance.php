@@ -7,6 +7,7 @@ use App\Support\Mcp\IncomingFile;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Modules\Vehicles\MaintenanceCompletion;
 
 class CompleteMaintenance extends Tool
@@ -38,7 +39,7 @@ class CompleteMaintenance extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $data = $request->validate([
             'vehicle_id' => ['required', 'integer'],
@@ -81,7 +82,7 @@ class CompleteMaintenance extends Tool
             $document->attachFile($file);
         }
 
-        return Response::json([
+        return Response::structured([
             'completed' => $schedule->name,
             'history_id' => $history->id,
             'invoice_document_id' => $document?->id,

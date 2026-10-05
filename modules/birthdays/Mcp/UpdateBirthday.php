@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
 use Modules\Birthdays\BirthdaysController;
 
@@ -25,7 +26,7 @@ class UpdateBirthday extends Tool
         return ['birthday_id' => $schema->integer()->required(), ...BirthdayData::schema($schema)];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $data = $request->validate(BirthdayData::rules(['birthday_id' => ['required', 'integer']]));
         $birthday = BirthdayData::birthday($data['birthday_id']);
@@ -36,6 +37,6 @@ class UpdateBirthday extends Tool
         // Same as BirthdaysController::update (which, like this, does not fire person.saved).
         $birthday->update(BirthdaysController::attributesFromRequest(BirthdayData::request($data)));
 
-        return Response::json(BirthdayData::payload($birthday));
+        return Response::structured(BirthdayData::payload($birthday));
     }
 }

@@ -7,6 +7,7 @@ use App\Support\Trash\Trash;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 
 #[IsDestructive]
@@ -25,7 +26,7 @@ class DeleteRecipe extends Tool
         return ['recipe_id' => $schema->integer()->required()];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $user = $this->user();
         $recipe = RecipeData::recipe($user, $request->get('recipe_id'));
@@ -37,7 +38,7 @@ class DeleteRecipe extends Tool
         }
         $recipe->delete();
 
-        return Response::json([
+        return Response::structured([
             'deleted' => true,
             'id' => $recipe->id,
             'purged_on' => $recipe->deleted_at->copy()->addDays(Trash::days())->toDateString(),

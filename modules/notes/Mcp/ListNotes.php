@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Modules\Notes\Folder;
 use Modules\Notes\Note;
@@ -27,7 +28,7 @@ class ListNotes extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $folderName = trim((string) $request->get('folder', ''));
         $folder = $folderName !== '' ? Folder::query()->whereRaw('LOWER(name) = ?', [mb_strtolower($folderName)])->first() : null;
@@ -40,7 +41,7 @@ class ListNotes extends Tool
             ->orderByDesc('pinned')->orderByDesc('updated_at')->orderByDesc('id');
         $page = $this->page($query, $request);
 
-        return Response::json([
+        return Response::structured([
             'notes' => $page['items']->map(fn (Note $n) => NoteData::payload($n, false))->values(),
             'folders' => Folder::query()->orderBy('position')->pluck('name'),
             'next_cursor' => $page['next_cursor'],

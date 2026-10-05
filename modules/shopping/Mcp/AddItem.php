@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Modules\Notifications\Notify;
 use Modules\Shopping\ShoppingItem;
 
@@ -29,7 +30,7 @@ class AddItem extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $data = $request->validate([
             'list_id' => ['required', 'integer'],
@@ -54,7 +55,7 @@ class AddItem extends Tool
         Notify::toAccessOf($list, 'shopping', $user->id, $list->name, "{$user->name} added: {$item->name}", "/m/shopping/lists/{$list->id}");
         ShoppingData::changed();
 
-        return Response::json(ShoppingData::itemPayload($item->fresh()) + ($dup ? [
+        return Response::structured(ShoppingData::itemPayload($item->fresh()) + ($dup ? [
             'warning' => "{$dup->name} was already on this list (item {$dup->id}".($dup->quantity ? ", quantity {$dup->quantity}" : '').').',
         ] : []));
     }

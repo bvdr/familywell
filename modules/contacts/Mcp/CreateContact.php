@@ -7,6 +7,7 @@ use App\Support\Modules\Hooks;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Modules\Contacts\Person;
 
 class CreateContact extends Tool
@@ -27,7 +28,7 @@ class CreateContact extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $data = $request->validate(ContactData::rules(creating: true));
 
@@ -36,6 +37,6 @@ class CreateContact extends Tool
         $person->syncContactMethods($data['contact_methods'] ?? []);
         app(Hooks::class)->fire('person.saved', $person, ContactData::hookRequest($data));
 
-        return Response::json(ContactData::summary($person->load('contactMethods')));
+        return Response::structured(ContactData::summary($person->load('contactMethods')));
     }
 }

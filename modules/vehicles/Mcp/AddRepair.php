@@ -7,6 +7,7 @@ use App\Support\Mcp\IncomingFile;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 
 class AddRepair extends Tool
 {
@@ -38,7 +39,7 @@ class AddRepair extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $data = $request->validate([
             'vehicle_id' => ['required', 'integer'],
@@ -73,7 +74,7 @@ class AddRepair extends Tool
             $repair->attachFile($file);
         }
 
-        return Response::json([
+        return Response::structured([
             'repair_id' => $repair->id,
             'attachment' => $file?->getClientOriginalName(),
             'title' => $repair->title,

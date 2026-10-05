@@ -7,6 +7,7 @@ use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Carbon;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 
 class LogMileage extends Tool
 {
@@ -28,7 +29,7 @@ class LogMileage extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $data = $request->validate([
             'vehicle_id' => ['required', 'integer'],
@@ -45,6 +46,6 @@ class LogMileage extends Tool
         $at = ! empty($data['date']) && ! Carbon::parse($data['date'])->isToday() ? Carbon::parse($data['date'])->setTime(12, 0) : null;
         $v->recordMileage((int) $data['mileage_km'], $this->user(), (bool) ($data['correction'] ?? false), $at);
 
-        return Response::json(VehicleData::summary($v->fresh(['maintenanceSchedules', 'documents'])));
+        return Response::structured(VehicleData::summary($v->fresh(['maintenanceSchedules', 'documents'])));
     }
 }

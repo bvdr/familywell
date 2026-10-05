@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Modules\Inventory\InventoryCategory;
 use Modules\Inventory\InventoryItem;
@@ -33,7 +34,7 @@ class ListItems extends Tool
         ] + $this->pageSchema($schema);
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $q = InventoryItem::query()->orderBy('name');
         foreach (['category', 'location'] as $col) {
@@ -56,7 +57,7 @@ class ListItems extends Tool
         })->values();
         $page = $this->page($items, $request);
 
-        return Response::json([
+        return Response::structured([
             'items' => $page['items']->map(fn (InventoryItem $i) => InventoryData::payload($i))->values(),
             'next_cursor' => $page['next_cursor'],
             'categories' => InventoryCategory::forFamily()->pluck('name', 'key'),

@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Modules\Vehicles\FuelStats;
 use Modules\Vehicles\VehicleDocument;
@@ -28,7 +29,7 @@ class GetVehicle extends Tool
         return ['vehicle_id' => $schema->integer()->required()];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $v = VehicleData::vehicle($request->get('vehicle_id'));
         if (! $v) {
@@ -38,7 +39,7 @@ class GetVehicle extends Tool
         $km = (int) $v->current_mileage;
         $fuel = FuelStats::forEntries($v->fuelEntries);
 
-        return Response::json(VehicleData::summary($v) + [
+        return Response::structured(VehicleData::summary($v) + [
             'version' => $v->version,
             'transmission' => $v->transmission,
             'vin' => $v->vin,

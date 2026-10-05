@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 
 #[IsDestructive]
@@ -24,7 +25,7 @@ class DeleteProject extends Tool
         return ['project_id' => $schema->integer()->required()];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $user = $this->user();
         $project = ProjectData::project($user, $request->get('project_id'));
@@ -37,6 +38,6 @@ class DeleteProject extends Tool
         $project->deleteFor($user);
         ProjectData::changed();
 
-        return Response::json(['deleted' => true, 'project_id' => $project->id, 'name' => $project->name]);
+        return Response::structured(['deleted' => true, 'project_id' => $project->id, 'name' => $project->name]);
     }
 }

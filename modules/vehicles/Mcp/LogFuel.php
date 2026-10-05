@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 
 class LogFuel extends Tool
 {
@@ -32,7 +33,7 @@ class LogFuel extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $data = $request->validate([
             'vehicle_id' => ['required', 'integer'],
@@ -64,7 +65,7 @@ class LogFuel extends Tool
             'create_expense' => $data['add_expense'] ?? false,
         ], $this->user());
 
-        return Response::json([
+        return Response::structured([
             'fuel_entry_id' => $entry->id,
             'expense_recorded' => ($data['add_expense'] ?? false) && ! empty($data['cost']),
             'vehicle' => VehicleData::summary($v->fresh(['maintenanceSchedules', 'documents'])),

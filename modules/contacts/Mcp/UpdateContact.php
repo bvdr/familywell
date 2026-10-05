@@ -7,6 +7,7 @@ use App\Support\Modules\Hooks;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
 
 #[IsIdempotent]
@@ -29,7 +30,7 @@ class UpdateContact extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $data = $request->validate(ContactData::rules(creating: false));
         $person = ContactData::person($data['person_id']);
@@ -46,6 +47,6 @@ class UpdateContact extends Tool
         }
         app(Hooks::class)->fire('person.saved', $person, ContactData::hookRequest($data));
 
-        return Response::json(ContactData::summary($person->load('contactMethods')));
+        return Response::structured(ContactData::summary($person->load('contactMethods')));
     }
 }

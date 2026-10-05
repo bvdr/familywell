@@ -7,6 +7,7 @@ use App\Support\Mcp\IncomingFile;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 
 class SetPhoto extends Tool
 {
@@ -28,7 +29,7 @@ class SetPhoto extends Tool
         return ['recipe_id' => $schema->integer()->required(), ...IncomingFile::schema($schema)];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $recipe = RecipeData::recipe($this->user(), $request->get('recipe_id'));
         if (! $recipe) {
@@ -41,6 +42,6 @@ class SetPhoto extends Tool
         // No thumbnail here (the app makes those in the browser); StoredImage serves the full image instead.
         $recipe->setPhoto($photo);
 
-        return Response::json(['recipe_id' => $recipe->id, 'photo_url' => $recipe->fresh()->signedPhotoUrl(), 'url' => RecipeData::url("/m/recipes/{$recipe->id}")]);
+        return Response::structured(['recipe_id' => $recipe->id, 'photo_url' => $recipe->fresh()->signedPhotoUrl(), 'url' => RecipeData::url("/m/recipes/{$recipe->id}")]);
     }
 }

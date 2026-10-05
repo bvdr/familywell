@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 
 #[IsDestructive]
@@ -28,7 +29,7 @@ class DeleteRecord extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $data = $request->validate([
             'vehicle_id' => ['required', 'integer'],
@@ -56,7 +57,7 @@ class DeleteRecord extends Tool
             default => $record->delete(), // fuel fill; schedule (its history rows keep their record, FK set null)
         };
 
-        return Response::json([
+        return Response::structured([
             'deleted' => true,
             'type' => $data['type'],
             'id' => (int) $data['id'],

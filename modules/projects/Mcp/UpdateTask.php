@@ -7,6 +7,7 @@ use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Validation\Rule;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
 
 #[IsIdempotent]
@@ -32,7 +33,7 @@ class UpdateTask extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $data = $request->validate([
             'task_id' => ['required', 'integer'],
@@ -51,6 +52,6 @@ class UpdateTask extends Tool
         $project->updateTask($this->user(), $task, array_intersect_key($data, array_flip(['title', 'note', 'due_date', 'assigned_to', 'done'])));
         ProjectData::changed();
 
-        return Response::json(ProjectData::taskPayload($task->fresh('assignee'), $project));
+        return Response::structured(ProjectData::taskPayload($task->fresh('assignee'), $project));
     }
 }

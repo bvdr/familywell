@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 
 #[IsReadOnly]
@@ -24,10 +25,10 @@ class GetNote extends Tool
         return ['note_id' => $schema->integer()->required()];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $note = NoteData::note($this->user(), $request->get('note_id'));
 
-        return $note ? Response::json(NoteData::payload($note)) : $this->notFound('Note');
+        return $note ? Response::structured(NoteData::payload($note)) : $this->notFound('Note');
     }
 }

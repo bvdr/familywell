@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Modules\Notes\Note;
 
@@ -26,7 +27,7 @@ class Search extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $q = trim((string) $request->validate(['query' => ['required', 'string', 'max:255']])['query']);
         $query = Note::query()->visibleTo($this->user()->id)->with(['folder', 'shareSetting'])
@@ -34,7 +35,7 @@ class Search extends Tool
             ->orderByDesc('updated_at')->orderByDesc('id');
         $page = $this->page($query, $request);
 
-        return Response::json([
+        return Response::structured([
             'notes' => $page['items']->map(fn (Note $n) => NoteData::payload($n, false))->values(),
             'next_cursor' => $page['next_cursor'],
         ]);

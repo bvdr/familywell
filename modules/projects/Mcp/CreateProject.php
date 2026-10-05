@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Modules\Projects\Project;
 
 class CreateProject extends Tool
@@ -29,7 +30,7 @@ class CreateProject extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         // Same rules as ProjectsController::storeProject.
         $data = $request->validate([
@@ -42,6 +43,6 @@ class CreateProject extends Tool
         $project = Project::createFor($this->user(), $data);
         ProjectData::changed();
 
-        return Response::json(ProjectData::projectPayload($project, collect()));
+        return Response::structured(ProjectData::projectPayload($project, collect()));
     }
 }

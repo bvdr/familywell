@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Modules\Inventory\InventoryLog;
 
@@ -23,14 +24,14 @@ class GetItem extends Tool
         return ['item_id' => $schema->integer()->required()];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $item = InventoryData::item($request->get('item_id'));
         if (! $item) {
             return $this->notFound('Item');
         }
 
-        return Response::json(InventoryData::payload($item) + [
+        return Response::structured(InventoryData::payload($item) + [
             'notes' => $item->notes,
             'replenish_to' => $item->replenishTarget(),
             // Same 30-row window the item detail page shows.

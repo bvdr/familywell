@@ -7,6 +7,7 @@ use App\Support\Sharing\ShareAccess;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
 use Modules\Shopping\ShoppingList;
 
 class AddToShopping extends Tool
@@ -29,7 +30,7 @@ class AddToShopping extends Tool
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request): Response|ResponseFactory
     {
         $user = $this->user();
         $recipe = RecipeData::recipe($user, $request->get('recipe_id'));
@@ -49,7 +50,7 @@ class AddToShopping extends Tool
         $only = $request->get('ingredients');
         $added = $recipe->addToShopping($user, $list, $scale['factor'], is_array($only) ? array_map('intval', $only) : null);
 
-        return Response::json([
+        return Response::structured([
             'added' => $added,
             'list' => ['id' => $list->id, 'name' => $list->name],
             'scaled_to' => $scale['scaled_to'],
