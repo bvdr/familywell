@@ -20,5 +20,6 @@
     "revoke": "Disconnect",
     "revoke_confirm": "Disconnect :app? It will lose access right away.",
     "no_access": "Family name and members only",
-    "unknown_family": "A family you're no longer in"
+    "unknown_family": "A family you're no longer in",
+    "not_included": "Not included: :modules. Reconnect the app to add them."
 }

@@ -44,5 +44,12 @@ it('tells the assistant who it acts for and what it may do', function () {
     [, $info] = mcpTool($token, 'get_family');
     expect($info['family']['id'])->toBe($family->id)
         ->and(collect($info['members'])->pluck('id')->sort()->values()->all())->toBe($users->pluck('id')->sort()->values()->all())
-        ->and($info['permissions'])->toBe(['tasks' => 'write']);
+        ->and($info['permissions'])->toBe(['tasks' => 'write'])
+        // notes is on in the family but was not granted: the assistant is told to have them reconnect.
+        ->and($info['not_connected'])->toBe([['id' => 'notes', 'name' => 'Notes']])
+        ->and($info['hint'])->toContain('Notes')->toContain('reconnect');
+
+    $all = mcpConnect($users[0], $family->id, ['tasks' => 'write', 'notes' => 'read'])['access_token'];
+    [, $info] = mcpTool($all, 'get_family');
+    expect($info['not_connected'])->toBe([])->and($info)->not->toHaveKey('hint');
 });

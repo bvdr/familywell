@@ -16,6 +16,7 @@ it('lists my connected apps with their family and permissions, not other people\
         ->where('apps.0.name', 'Claude')
         ->where('apps.0.family', $family->name)
         ->where('apps.0.access', ['tasks' => 'write', 'notes' => 'read'])
+        ->where('apps.0.missing', [])
         ->where('serverUrl', url('/mcp')));
 });
 
@@ -41,4 +42,11 @@ it('disconnects an app: its token and refresh token stop working at once', funct
 
     mcpCall($tokens['access_token'], 'tools/list')->assertUnauthorized();
     actingAs($users[0])->get('/settings/connected-apps')->assertInertia(fn ($p) => $p->has('apps', 0));
+});
+
+it('flags modules turned on after the app was connected, since those need a reconnect', function () {
+    [$family, $users] = mcpFamily(['tasks', 'notes']);
+    mcpConnect($users[0], $family->id, ['tasks' => 'read']);
+
+    actingAs($users[0])->get('/settings/connected-apps')->assertInertia(fn ($p) => $p->where('apps.0.missing', ['notes']));
 });

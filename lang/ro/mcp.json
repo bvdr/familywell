@@ -20,5 +20,6 @@
     "revoke": "Deconectează",
     "revoke_confirm": "Deconectezi :app? Va pierde accesul imediat.",
     "no_access": "Doar numele familiei și membrii",
-    "unknown_family": "O familie din care nu mai faci parte"
+    "unknown_family": "O familie din care nu mai faci parte",
+    "not_included": "Nu are acces la: :modules. Reconectează aplicația ca să le adaugi."
 }
