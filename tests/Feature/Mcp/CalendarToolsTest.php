@@ -161,3 +161,12 @@ it('lists deleted events and restores one with its to-dos, but not an event this
     [$err] = mcpTool($token, 'calendar_restore', ['id' => $secret->id]);
     expect($err)->toBeTrue()->and(CalendarEvent::withTrashed()->withoutGlobalScope('family')->find($secret->id)->trashed())->toBeTrue();
 });
+
+it('writes server strings in the person\'s language', function () {
+    [, $users, $token] = calendarToken(['calendar' => 'read', 'birthdays' => 'write'], ['calendar', 'contacts', 'birthdays']);
+    $users[0]->update(['locale' => 'ro']);
+    mcpTool($token, 'birthdays_add', ['name' => 'Ana', 'birth_month' => 7, 'birth_day' => 17]);
+
+    [, $list] = mcpTool($token, 'calendar_list', ['from' => '2026-07-01', 'to' => '2026-07-31']);
+    expect(collect($list['items'])->pluck('title')->all())->toBe(['Ziua lui Ana']);
+});
