@@ -48,6 +48,21 @@ it('only includes other modules the token may read', function () {
     expect($a['items'])->toBe([])->and(collect($b['items'])->pluck('title')->all())->toBe(['Kitchen']);
 });
 
+it('narrows the list to the requested sources, never past what the token may read', function () {
+    [$family, $users] = mcpFamily(['calendar', 'tasks', 'contacts', 'projects'], 1);
+    CurrentFamily::set($family->id);
+    Project::createFor($users[0], ['name' => 'Kitchen', 'target_start' => '2026-07-15']);
+    $both = mcpConnect($users[0], $family->id, ['calendar' => 'write', 'projects' => 'read'])['access_token'];
+    $calOnly = mcpConnect($users[0], $family->id, ['calendar' => 'read'])['access_token'];
+    mcpTool($both, 'calendar_create_event', ['title' => 'Grecia', 'start_date' => '2026-07-17', 'end_date' => '2026-07-17']);
+    $range = ['from' => '2026-07-01', 'to' => '2026-07-31'];
+
+    $titles = fn ($token, $sources) => collect(mcpTool($token, 'calendar_list', $range + ['sources' => $sources])[1]['items'])->pluck('title')->all();
+    expect($titles($both, ['projects', 'nope']))->toBe(['Kitchen'])
+        ->and($titles($both, ['calendar']))->toBe(['Grecia'])
+        ->and($titles($calOnly, ['projects']))->toBe([]);
+});
+
 it('updates, adds a to-do, and deletes', function () {
     [$family, $users, $token] = calendarToken(modules: ['calendar', 'tasks', 'contacts', 'projects']);
     CurrentFamily::set($family->id);
