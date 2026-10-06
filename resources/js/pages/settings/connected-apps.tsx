@@ -13,6 +13,7 @@ type App = {
     name: string;
     family: string | null;
     access: Record<string, 'read' | 'write'>;
+    missing: string[]; // module ids on in the family that this connection was not granted
     connectedAt: string | null;
     until: string | null;
 };
@@ -74,6 +75,11 @@ export default function ConnectedApps({ apps, serverUrl }: { apps: App[]; server
                                                     ? access.map(([m, level]) => `${t(`nav.${m}`)}: ${t(`mcp.level_${level}`)}`).join(' · ')
                                                     : t('mcp.no_access')}
                                             </div>
+                                            {app.missing.length > 0 && (
+                                                <div className="text-muted-foreground text-sm">
+                                                    {t('mcp.not_included', { modules: app.missing.map((m) => t(`nav.${m}`)).join(', ') })}
+                                                </div>
+                                            )}
                                             <div className="text-muted-foreground text-xs">
                                                 {t('mcp.connected_on', { date: date(app.connectedAt) })}
                                                 {app.until && ` · ${t('mcp.expires_on', { date: date(app.until) })}`}

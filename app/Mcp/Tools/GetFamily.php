@@ -19,7 +19,7 @@ class GetFamily extends Tool
 
     protected string $name = 'get_family';
 
-    protected string $description = 'The family this connection acts on: its name, members (with role), the Familywell modules it has turned on, and what this connection may do in each module (read or write). Call this first.';
+    protected string $description = 'The family this connection acts on: its name, members (with role), the Familywell modules it has turned on, what this connection may do in each module (read or write), and `not_connected`: modules the family uses that this connection was not granted (the person must reconnect Familywell in their AI app to add them). Call this first.';
 
     public function handle(Request $request): Response|ResponseFactory
     {
@@ -27,14 +27,22 @@ class GetFamily extends Tool
         $registry = app(ModuleRegistry::class);
         $names = collect($registry->discover())->map(fn ($m) => $m->name);
 
+        $scopes = $this->tokenScopes();
+        $modules = McpTools::modules();
+        $missing = array_map(fn ($id) => ['id' => $id, 'name' => $modules[$id]], McpTools::notConnected($family->id, $scopes));
+
         return Response::structured([
             'family' => ['id' => $family->id, 'name' => $family->name],
             'you' => ['id' => $this->user()->id, 'name' => $this->user()->name],
             'members' => $family->members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name, 'role' => $m->pivot->role])->values(),
             'enabled_modules' => collect($registry->enabledIds($family->id))->map(fn ($id) => ['id' => $id, 'name' => $names[$id] ?? $id])->values(),
             // Only modules this connection can touch; anything missing here is not accessible.
-            'permissions' => McpTools::accessFromScopes($this->tokenScopes()),
+            'permissions' => McpTools::accessFromScopes($scopes),
+            // Access is fixed at consent time, so a module turned on later is invisible until a reconnect;
+            // without this the assistant just says "I can't see your calendar" with no way forward.
+            'not_connected' => $missing,
             'url' => $this->url('/dashboard'),
-        ]);
+        ] + ($missing ? ['hint' => 'This connection cannot see '.implode(', ', array_column($missing, 'name'))
+            .'. Tell the person to reconnect Familywell in their AI app and grant access to add them (Settings > Connected apps in Familywell lists their connections).'] : []));
     }
 }

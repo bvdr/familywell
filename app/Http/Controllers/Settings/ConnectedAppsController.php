@@ -36,6 +36,9 @@ class ConnectedAppsController extends Controller
                     // null when the person has since left that family (the token is refused anyway).
                     'family' => $familyId ? ($families[$familyId] ?? null) : null,
                     'access' => McpTools::accessFromScopes($t->scopes ?? []),
+                    // Modules turned on since the person connected: access is fixed at consent, so these
+                    // need a reconnect. Skipped for a family they left (nothing to reconnect to).
+                    'missing' => $familyId && isset($families[$familyId]) ? McpTools::notConnected($familyId, $t->scopes ?? []) : [],
                     // The client registers when the person connects; the token row is renewed on refresh.
                     'connectedAt' => ($t->client?->created_at ?? $t->created_at)?->toIso8601String(),
                     'until' => ($t->refreshToken?->expires_at ?? $t->expires_at)?->toIso8601String(),

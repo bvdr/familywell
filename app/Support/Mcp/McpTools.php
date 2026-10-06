@@ -2,6 +2,8 @@
 
 namespace App\Support\Mcp;
 
+use App\Support\Modules\ModuleRegistry;
+
 // Registry of MCP tools, one entry per module (follows DashboardItems / NotificationCategories). A module
 // registers its tool classes from its service provider's boot(); the MCP server serves every registered
 // class and each tool decides per request whether it is visible (App\Mcp\Tool::shouldRegister).
@@ -97,5 +99,23 @@ class McpTools
         }
 
         return $out;
+    }
+
+    /**
+     * Modules turned on in the family that have MCP tools but that this token cannot touch. A token's
+     * module access is frozen in its scopes at consent time, so a module enabled later stays invisible to
+     * the connection until the person reconnects; get_family and Settings > Connected apps surface it.
+     * Uses ModuleRegistry::enabledIds (one memoised query per family per request).
+     *
+     * @return list<string> module ids
+     */
+    public static function notConnected(int $familyId, array $scopes): array
+    {
+        $enabled = app(ModuleRegistry::class)->enabledIds($familyId);
+
+        return array_values(array_diff(
+            array_intersect(array_keys(self::modules()), $enabled),
+            array_keys(self::accessFromScopes($scopes)),
+        ));
     }
 }
