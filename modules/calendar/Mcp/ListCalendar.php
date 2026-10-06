@@ -47,8 +47,9 @@ class ListCalendar extends Tool
         $request->validate(['to' => ['before_or_equal:'.now()->parse($d['from'])->addDays(Occurrences::MAX_RANGE_DAYS)->toDateString()]]);
         // Only modules the token can read (the calendar itself always, since this tool needs calendar:read).
         $only = [...array_keys(McpTools::accessFromScopes($this->tokenScopes())), 'calendar'];
-        // `sources` can only narrow what the token may read; unknown ids simply match nothing.
-        if (isset($d['sources'])) {
+        // `sources` can only narrow what the token may read; unknown ids simply match nothing. An empty list
+        // means "no filter" (assistants send [] for that), never "nothing" — and it still can't widen access.
+        if (! empty($d['sources'])) {
             $only = array_values(array_intersect($only, $d['sources']));
         }
         $items = collect(CalendarSources::collect($d['from'], $d['to'], $this->user()->id, $only))
