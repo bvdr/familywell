@@ -139,3 +139,25 @@ it('treats an event to-do as not found for someone who cannot edit the event', f
     expect($err)->toBeTrue()->and($err2)->toBeTrue()
         ->and(Task::withoutGlobalScope('family')->find($t->id)->done)->toBeFalse();
 });
+
+it('lists deleted events and restores one with its to-dos, but not an event this person cannot see', function () {
+    [$family, $users, $token] = calendarToken();
+    [, $e] = mcpTool($token, 'calendar_create_event', ['title' => 'Grecia', 'start_date' => '2026-07-17', 'end_date' => '2026-07-17']);
+    [, $todo] = mcpTool($token, 'calendar_add_todo', ['event_id' => $e['id'], 'title' => 'Pack']);
+    mcpTool($token, 'calendar_delete_event', ['id' => $e['id']]);
+
+    CurrentFamily::set($family->id);
+    $secret = CalendarEvent::createFor($users[1], CalendarEvent::validated(['title' => 'Secret', 'start_date' => '2026-07-18', 'end_date' => '2026-07-18']));
+    $secret->setVisibility('private');
+    $secret->delete();
+
+    [$err, $trash] = mcpTool($token, 'calendar_list_deleted');
+    expect($err)->toBeFalse()->and(collect($trash['deleted'])->pluck('title')->all())->toBe(['Grecia']);
+
+    [$err, $r] = mcpTool($token, 'calendar_restore', ['id' => $e['id']]);
+    expect($err)->toBeFalse()->and($r)->toMatchArray(['restored' => true, 'id' => $e['id']])
+        ->and(mcpTool($token, 'calendar_get_event', ['id' => $e['id']])[1]['todos'][0]['id'])->toBe($todo['id']);
+
+    [$err] = mcpTool($token, 'calendar_restore', ['id' => $secret->id]);
+    expect($err)->toBeTrue()->and(CalendarEvent::withTrashed()->withoutGlobalScope('family')->find($secret->id)->trashed())->toBeTrue();
+});
