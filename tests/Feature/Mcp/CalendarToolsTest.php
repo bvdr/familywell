@@ -115,7 +115,10 @@ it('ticks, edits and deletes an event to-do and its sub-task', function () {
     expect($err)->toBeFalse()->and($t)->toMatchArray(['done' => true, 'due_date' => '2026-07-10', 'event_id' => $e['id']])
         ->and($t['assigned_to']['id'])->toBe($users[1]->id);
     [, $g] = mcpTool($token, 'calendar_get_event', ['id' => $e['id']]);
-    expect($g['todos'][0]['subtasks'][0])->toMatchArray(['id' => $sub['id'], 'done' => true]);
+    // Sub-tasks nest under their parent only, never as a second top-level to-do.
+    expect($g['todos'])->toHaveCount(1)
+        ->and($g['todos'][0]['subtasks'][0])->toMatchArray(['id' => $sub['id'], 'title' => 'Passports', 'done' => true])
+        ->and($g['todos'][0]['subtasks'][0]['url'])->toEndWith("/m/calendar/events/{$e['id']}");
 
     [$err] = mcpTool($token, 'calendar_delete_todo', ['task_id' => $pack['id']]);
     expect($err)->toBeFalse();
