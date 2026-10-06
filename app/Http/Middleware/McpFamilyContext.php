@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Support\Mcp\McpTools;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Translations;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -28,6 +29,15 @@ class McpFamilyContext
         }
 
         CurrentFamily::set($familyId);
+
+        // /mcp is outside the web group, so SetLocale never runs: without this, server strings built with
+        // Translations::get (birthday titles, "day N of M") came out in English for everyone. Same rule as
+        // SetLocale: the person's language, else the app default (families have no language of their own).
+        // Safe under Octane: its FlushLocaleState listener resets the locale before every request.
+        $locale = $user->locale;
+        if ($locale && Translations::supported($locale)) {
+            app()->setLocale($locale);
+        }
 
         return $next($request);
     }
