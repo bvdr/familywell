@@ -19,10 +19,15 @@ Cursor, VS Code and any other MCP client) can read and change a family's data on
 Every connection shows the consent screen, even for an app you connected before, so each one carries
 its own family and permissions.
 
+**Modules turned on later:** a connection's permissions are fixed when you allow it, so a module the
+family enables afterwards (e.g. Calendar) stays invisible to it until you reconnect. `get_family` lists
+such modules under `not_connected` with a `hint` telling the assistant to ask you to reconnect, and
+Settings → Connected apps shows them as *Not included* on each connection.
+
 **Disconnecting:** Settings → Connected apps → *Disconnect*. Access stops immediately. Leaving a family
 also cuts off every connection made for it. A connection unused for 30 days expires; reconnect it.
 
-**Deletes:** tasks, lists, shopping items, expenses and notes go to a 30-day trash.
+**Deletes:** tasks, lists, shopping items, expenses, notes and calendar events go to a 30-day trash.
 Settings → Recently deleted and the `*_list_deleted` / `*_restore` tools bring it back (both read the same
 per-module `TrashSource`); `trash:purge` removes it for good afterwards.
 
@@ -41,7 +46,7 @@ per-module `TrashSource`); `trash:purge` removes it for good afterwards.
 | Recipes | `recipes_list` (search title / tag / ingredient), `recipes_get`, `recipes_scale` | `recipes_create`, `recipes_update`, `recipes_set_photo`, `recipes_add_to_shopping`, `recipes_delete` |
 | Inventory | `inventory_list`, `inventory_get`, `inventory_needs_attention` | `inventory_add_item`, `inventory_update_item`, `inventory_adjust_quantity`, `inventory_add_to_shopping`, `inventory_delete_item` |
 | Projects | `projects_list`, `projects_get` | `projects_create`, `projects_update`, `projects_add_task`, `projects_update_task`, `projects_delete_task`, `projects_delete` |
-| Calendar | `calendar_list`, `calendar_get_event` | `calendar_create_event`, `calendar_update_event`, `calendar_delete_event`, `calendar_add_todo`, `calendar_update_todo`, `calendar_delete_todo` |
+| Calendar | `calendar_list`, `calendar_get_event` | `calendar_create_event`, `calendar_update_event`, `calendar_delete_event`, `calendar_add_todo`, `calendar_update_todo`, `calendar_delete_todo`, `calendar_list_deleted`, `calendar_restore` |
 
 **Files:** MCP has no upload primitive, so tools that take a file (`vehicles_add_document`,
 `vehicles_attach_file`, and the optional file on `vehicles_add_repair` / `vehicles_complete_maintenance`) accept it
@@ -91,14 +96,17 @@ of another member is invisible), the same validation, and the same notifications
 this connection may read, task due dates, birthdays, car maintenance due dates and project starts — all
 as one unified `items` list. A module's items appear only when the token can also read that module
 (e.g. without Tasks access, `calendar_list` carries calendar events and birthdays but not task due
-dates). Dated event to-dos are calendar items too (kind `task`, source `calendar`). `calendar_get_event`
+dates). An optional `sources` (e.g. `["calendar","birthdays"]`) narrows the list further; it can never add
+a module the token cannot read, and unknown ids are ignored. Birthday titles and "day N of M" come out in
+the person's Familywell language. Dated event to-dos are calendar items too (kind `task`, source `calendar`). `calendar_get_event`
 returns one event with its people and to-dos (sub-tasks included). `calendar_create_event`,
 `calendar_update_event` and `calendar_delete_event` take a `repeat`; editing or deleting a repeating
 event applies to the whole series, not a single occurrence. `calendar_add_todo` adds a to-do linked to
 an event (shown on the event's page, with no page of its own); `calendar_update_todo` edits or ticks it
 and `calendar_delete_todo` deletes it (with its sub-tasks). Event to-dos are not reachable through
 `tasks_update_task`, which only covers tasks in a to-do list. A linked project only appears for people
-who can see it. Range requests are capped at 400 days.
+who can see it. Range requests are capped at 400 days. `calendar_list_deleted` / `calendar_restore`
+work like the other modules' trash tools; restoring an event brings back its to-dos.
 
 ## Widgets (MCP Apps)
 
