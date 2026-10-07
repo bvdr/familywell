@@ -218,9 +218,9 @@ export function MobileTabBar() {
             </ResponsiveModal>
 
             <ResponsiveModal open={moreOpen} onOpenChange={setMoreOpen} title={t('nav.more')} description={t('nav.more_desc')}>
-                {/* Two columns of square cards: the card is the link, the pin sits in its corner as a sibling
+                {/* Three columns of square cards: the card is the link, the pin sits in its corner as a sibling
                     button (a button inside a link is invalid HTML and would steal the tap). */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-2">
                     {allItems.map((item) => {
                         const isPinned = pinnedKeys.has(item.key);
                         const atMax = !isPinned && pinned.length >= MAX_PINS;
@@ -232,16 +232,16 @@ export function MobileTabBar() {
                                         setMoreOpen(false);
                                         setPending(item.url);
                                     }}
-                                    className={`flex size-full flex-col items-center justify-center gap-3 rounded-2xl border p-3 transition-colors ${
+                                    className={`flex size-full flex-col items-center justify-center gap-2 rounded-2xl border p-2 transition-colors ${
                                         isActive(item.url)
                                             ? 'border-primary bg-accent-subtle text-primary'
                                             : 'bg-surface-card text-primary hover:border-accent'
                                     }`}
                                 >
-                                    <span className="bg-tile text-tile-foreground flex size-12 items-center justify-center rounded-xl">
-                                        <item.icon className="size-6" />
+                                    <span className="bg-tile text-tile-foreground flex size-10 items-center justify-center rounded-xl">
+                                        <item.icon className="size-5" />
                                     </span>
-                                    <span className="text-center text-sm font-medium">{t(item.labelKey)}</span>
+                                    <span className="text-center text-xs leading-tight font-medium">{t(item.labelKey)}</span>
                                 </Link>
                                 <button
                                     type="button"
@@ -249,11 +249,11 @@ export function MobileTabBar() {
                                     disabled={atMax}
                                     aria-label={isPinned ? `Unpin ${t(item.labelKey)}` : `Pin ${t(item.labelKey)}`}
                                     aria-pressed={isPinned}
-                                    className={`absolute top-1.5 right-1.5 flex size-9 items-center justify-center rounded-lg transition-colors ${
+                                    className={`absolute top-0.5 right-0.5 flex size-8 items-center justify-center rounded-lg transition-colors ${
                                         isPinned ? 'text-primary' : atMax ? 'text-text-muted/40' : 'text-muted-foreground hover:bg-surface'
                                     }`}
                                 >
-                                    <Pin className={`size-4.5 ${isPinned ? 'fill-current' : ''}`} />
+                                    <Pin className={`size-4 ${isPinned ? 'fill-current' : ''}`} />
                                 </button>
                             </div>
                         );
