@@ -196,12 +196,16 @@ services:
       registry: bvdr
       repository: familywell
       tag: latest
-    instance_size_slug: basic-xxs
-    instance_count: 1
+    # 2 x 1 GB (2026-10-07): the single 512 MB basic-xxs sat at 98% memory and was OOM-killed (503 while it
+    # rebooted). Two instances also keep the site up while one restarts or deploys. Sessions/cache are in
+    # Postgres, so instances share state without sticky sessions.
+    instance_size_slug: apps-s-1vcpu-1gb
+    instance_count: 2
     http_port: 8000
     # Cap FrankenPHP workers: each worker holds ONE direct cache/session/queue Postgres connection, so
-    # the worker count is a hard input to the connection budget (6 workers = 6 direct conns; see the
-    # pool arithmetic). --max-requests recycles workers for memory hygiene. 6 is ample for this app.
+    # the worker count is a hard input to the connection budget (2 instances x 6 workers = 12 direct conns
+    # + the 15-conn pool + ~3 for reverb/scheduler/migrate = ~30, within db-s-1vcpu-2gb's ~47 usable).
+    # --max-requests recycles workers so per-worker memory can't creep.
     run_command: php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=8000 --workers=6 --max-requests=500
     health_check:
       http_path: /up
@@ -245,7 +249,7 @@ services:
       tag: latest
     # Same image as web, different process: override the Dockerfile's Octane CMD.
     run_command: php artisan reverb:start --host=0.0.0.0 --port=8080
-    instance_size_slug: basic-xxs
+    instance_size_slug: apps-s-1vcpu-0.5gb
     # Pinned at 1: more than one instance requires Redis for Reverb's scaling channel.
     instance_count: 1
     http_port: 8080
@@ -277,7 +281,7 @@ workers:
       repository: familywell
       tag: latest
     run_command: php artisan schedule:work
-    instance_size_slug: basic-xxs
+    instance_size_slug: apps-s-1vcpu-0.5gb
     instance_count: 1
 
 jobs:
@@ -290,7 +294,7 @@ jobs:
     # PRE_DEPLOY: schema is migrated before the new containers take traffic. Billed per second,
     # so a job that runs for a few seconds per deploy costs effectively nothing.
     kind: PRE_DEPLOY
-    instance_size_slug: basic-xxs
+    instance_size_slug: apps-s-1vcpu-0.5gb
     instance_count: 1
     # Both commands, not just the first: `migrate` builds the core schema, while `modules:migrate`
     # runs each module's own migrations AND writes the `modules` rows that mark them installed.
