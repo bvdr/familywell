@@ -15,25 +15,25 @@ interface AuthLayoutProps {
 // Brand-panel content per auth screen (design: "Web · Auth Flow"). Keyed by route name so the pages
 // stay focused on their forms; anything not listed (reset-password, verify-email, confirm-password)
 // falls back to the calm login panel, keeping the whole auth surface consistent.
-// The images are self-authored branded SVG placeholders (public/images/auth/*.svg). Drop in final
-// PNGs at the same path and update these three lines to swap them.
+// The images are photos of cosy home interiors generated for FamilyWell (public/images/auth/*.webp,
+// 1024x1536, ~150 KB): evening living room (login), morning kitchen (register), rainy reading nook (reset).
 type PanelContent = { headline: string; sub: string; image: string };
 
 const PANELS: Record<string, PanelContent> = {
     login: {
         headline: 'Where your family finds its rhythm.',
         sub: 'Calm, shared organization for the people who matter most.',
-        image: '/images/auth/login.svg',
+        image: '/images/auth/login.webp',
     },
     register: {
         headline: 'Start something calm together.',
         sub: 'Create a shared home for schedules, lists, and the little moments in between.',
-        image: '/images/auth/register.svg',
+        image: '/images/auth/register.webp',
     },
     'password.request': {
         headline: "We'll help you back in.",
         sub: 'Resetting your password only takes a moment.',
-        image: '/images/auth/reset.svg',
+        image: '/images/auth/reset.webp',
     },
 };
 
@@ -47,31 +47,33 @@ export default function AuthSplitLayout({ children, title, description, headline
 
     return (
         <div className="grid min-h-dvh lg:grid-cols-2">
-            {/* Brand panel — hidden below lg, matching the design's mobile auth frames (form only). */}
-            <div className="bg-surface-dark relative hidden flex-col justify-between p-10 lg:flex">
-                <Link href={route('home')} className="text-text-inverse flex items-center gap-2.5">
-                    <Leaf className="text-accent-light size-6" />
-                    <span className="font-heading text-2xl">{name ?? 'FamilyWell'}</span>
-                </Link>
+            {/* Brand panel: the photo fills the whole half (hidden below lg, where the form stands alone).
+                Text sits on gradients, so it is fixed white in BOTH themes: theme tokens (text-inverse on
+                surface-dark) both turned dark in dark mode, which made the wordmark and tagline unreadable. */}
+            <div className="relative hidden overflow-hidden bg-neutral-900 lg:block">
+                <img
+                    src={panel.image}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover"
+                    loading="eager"
+                    onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                    }}
+                />
+                {/* Top and bottom scrims keep the wordmark and the tagline legible on any photo. */}
+                <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black/55 to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/80 via-black/45 to-transparent" />
 
-                {/* Grows to fill the space between wordmark and tagline (min 340px), so the illustration
-                    reads large on tall viewports. Solid forest sits behind it; on a missing file we hide
-                    the broken <img> so the panel stays clean rather than showing a broken-image glyph. */}
-                <div className="my-6 min-h-[460px] w-full flex-1 overflow-hidden rounded-lg bg-black/10">
-                    <img
-                        src={panel.image}
-                        alt=""
-                        className="h-full w-full object-cover"
-                        loading="eager"
-                        onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                        }}
-                    />
-                </div>
+                <div className="relative flex h-full flex-col justify-between p-10">
+                    <Link href={route('home')} className="flex items-center gap-2.5 text-white">
+                        <Leaf className="size-6" />
+                        <span className="font-heading text-2xl">{name ?? 'FamilyWell'}</span>
+                    </Link>
 
-                <div className="flex max-w-md flex-col gap-3">
-                    <h2 className="text-text-inverse font-heading text-[34px] leading-tight">{panel.headline}</h2>
-                    <p className="text-accent-light text-[15px] leading-relaxed">{panel.sub}</p>
+                    <div className="flex max-w-md flex-col gap-3">
+                        <h2 className="font-heading text-[34px] leading-tight text-white">{panel.headline}</h2>
+                        <p className="text-[15px] leading-relaxed text-white/80">{panel.sub}</p>
+                    </div>
                 </div>
             </div>
 
