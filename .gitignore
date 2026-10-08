@@ -30,3 +30,7 @@ frankenphp-worker.php
 
 # P8: production secrets for the DO App Platform deploy (see .do/apply.sh)
 .env.do
+
+# Internal specs/plans and design-tool sources: kept locally, not in the repo (removed from history 2026-10-08).
+/docs/superpowers/
+*.pen
