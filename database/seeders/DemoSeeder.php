@@ -11,6 +11,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Modules\Calendar\CalendarEvent;
 use Modules\Contacts\Person;
 use Modules\Inventory\InventoryCategory;
 use Modules\Inventory\InventoryItem;
@@ -18,6 +19,9 @@ use Modules\Inventory\InventoryLocation;
 use Modules\Inventory\InventorySetting;
 use Modules\Notes\Folder;
 use Modules\Notes\Note;
+use Modules\Projects\Project;
+use Modules\Projects\ProjectLink;
+use Modules\Recipes\Recipe;
 use Modules\Shopping\ShoppingItem;
 use Modules\Shopping\ShoppingList;
 use Modules\Shopping\ShoppingShop;
@@ -59,7 +63,7 @@ class DemoSeeder extends Seeder
 
     public const MODULES = [
         'shopping', 'spending', 'inventory', 'vehicles', 'tasks', 'notes', 'contacts', 'birthdays',
-        'projects', 'notifications', 'important_todos', 'recurring_todos',
+        'projects', 'notifications', 'important_todos', 'recurring_todos', 'calendar', 'recipes',
     ];
 
     private Carbon $today;
@@ -85,6 +89,9 @@ class DemoSeeder extends Seeder
             $this->vehicles($family);
             $this->tasks();
             $this->notes();
+            $this->projects();
+            $this->calendar();
+            $this->recipes();
             $this->people();
         });
 
@@ -503,6 +510,93 @@ class DemoSeeder extends Seeder
      * whose sizes are coprime with 7, so the 366 (first, last) pairs never repeat (and never collide with
      * the Millers). Ages spread 16-78 from the same index.
      */
+    // ---- Projects, calendar, recipes (added for the public README screenshots and the live demo) -----
+    // Rows are created directly (not through createFor/addTask) where those would push notifications:
+    // seeding must not ring the demo members' bells. Dates are relative to today so the demo stays current.
+
+    private function projects(): void
+    {
+        $sarah = $this->u['Sarah'];
+        $david = $this->u['David'];
+        // [name, owner, status, progress, color, target start offset days, description, tasks: [title, assignee, done]]
+        $projects = [
+            ['Kitchen refresh', $sarah, 'in_progress', 40, 'amber', -14, 'New paint, open shelves and a brighter light over the sink.', [
+                ['Pick a paint color', 'Sarah', true], ['Buy brushes and drop cloths', 'David', true],
+                ['Paint the walls', 'David', false], ['Install the open shelves', 'David', false], ['Swap the sink light', 'Sarah', false],
+            ]],
+            ['Backyard vegetable garden', $david, 'planning', 10, 'green', 21, 'Three raised beds: tomatoes, herbs and strawberries for the kids.', [
+                ['Sketch the bed layout', 'Emma', true], ['Order cedar boards', 'David', false], ['Buy soil and compost', 'David', false],
+            ]],
+        ];
+        foreach ($projects as [$name, $owner, $status, $progress, $color, $start, $desc, $tasks]) {
+            $project = Project::create([
+                'name' => $name, 'description' => $desc, 'status' => $status, 'progress' => $progress, 'color' => $color,
+                'owner_id' => $owner->id, 'target_start' => $this->today->copy()->addDays($start), 'created_by' => $owner->id,
+            ]);
+            $project->shares()->create(['user_id' => $owner->id, 'role' => 'owner']);
+            foreach ($tasks as $i => [$title, $who, $done]) {
+                // Project tasks are listless tasks-module tasks linked to the project (see the projects module).
+                $task = Task::create(['task_list_id' => null, 'title' => $title, 'assigned_to' => $this->u[$who]->id, 'done' => $done, 'position' => $i, 'created_by' => $owner->id]);
+                ProjectLink::create(['project_id' => $project->id, 'linkable_type' => 'task', 'linkable_id' => $task->id]);
+            }
+        }
+    }
+
+    private function calendar(): void
+    {
+        $sarah = $this->u['Sarah'];
+        $day = fn (int $offset) => $this->today->copy()->addDays($offset)->toDateString();
+        $users = fn (string ...$names) => array_map(fn ($n) => ['type' => 'user', 'id' => $this->u[$n]->id], $names);
+
+        // A trip happening now (shows on the home screen's Now & next card and the timeline).
+        $trip = CalendarEvent::createFor($sarah, CalendarEvent::validated([
+            'title' => 'Lake Tahoe trip', 'icon' => 'tent', 'color' => 'blue', 'start_date' => $day(-2), 'end_date' => $day(5),
+            'notes' => 'Cabin check-in after 3pm. Bring the kayak paddles.', 'people' => $users('Sarah', 'David', 'Emma', 'Noah', 'Lily'),
+        ]));
+        foreach (['Pack the kayak paddles', 'Download offline maps', 'Book the boat tour'] as $i => $title) {
+            $t = Task::create(['task_list_id' => null, 'title' => $title, 'done' => $i === 0, 'position' => $i, 'created_by' => $sarah->id]);
+            $trip->links()->create(['linkable_type' => 'task', 'linkable_id' => $t->id]);
+        }
+        $events = [
+            ['Swim practice', 'waves', 'green', $day(1), $day(1), '17:00', '18:00', 'weekly', $users('Noah')],
+            ["Emma's piano recital", 'music', 'purple', $day(9), $day(9), '18:30', '20:00', 'none', $users('Emma', 'Sarah', 'David')],
+            ['Grandma visits', 'heart', 'red', $day(16), $day(20), null, null, 'none', $users('Sarah', 'Lily')],
+            ['Parent-teacher conferences', 'school', 'amber', $day(12), $day(12), '15:30', '16:30', 'none', $users('Sarah')],
+            ['Anniversary dinner', 'utensils', 'red', $day(25), $day(25), '19:30', '22:00', 'yearly', $users('Sarah', 'David')],
+        ];
+        foreach ($events as [$title, $icon, $color, $start, $end, $from, $to, $repeat, $people]) {
+            CalendarEvent::createFor($sarah, CalendarEvent::validated([
+                'title' => $title, 'icon' => $icon, 'color' => $color, 'start_date' => $start, 'end_date' => $end,
+                'start_time' => $from, 'end_time' => $to, 'repeat' => $repeat, 'people' => $people,
+            ]));
+        }
+    }
+
+    private function recipes(): void
+    {
+        $sarah = $this->u['Sarah'];
+        Recipe::createFor($sarah, [
+            'title' => 'Sunday pancakes', 'description' => 'Fluffy buttermilk pancakes, the kids\' weekend favourite.',
+            'servings' => 4, 'prep_minutes' => 10, 'cook_minutes' => 20, 'tags' => ['breakfast', 'kids'],
+            'ingredients' => [
+                ['name' => 'flour', 'qty' => 250, 'unit' => 'g'], ['name' => 'buttermilk', 'qty' => 500, 'unit' => 'ml'],
+                ['name' => 'eggs', 'qty' => 2, 'unit' => 'pcs'], ['name' => 'sugar', 'qty' => 2, 'unit' => 'tbsp'],
+                ['name' => 'baking powder', 'qty' => 2, 'unit' => 'tsp'], ['name' => 'salt', 'qty' => null, 'unit' => null, 'scalable' => false],
+            ],
+            'steps' => ['Whisk the dry ingredients.', 'Beat the eggs into the buttermilk, then fold into the flour. Leave a few lumps.', 'Cook on a hot buttered pan until bubbles pop, flip once.'],
+        ]);
+        Recipe::createFor($sarah, [
+            'title' => 'Weeknight tomato soup', 'description' => 'Ready in 30 minutes, great with grilled cheese.',
+            'servings' => 6, 'prep_minutes' => 10, 'cook_minutes' => 20, 'tags' => ['dinner', 'vegetarian'],
+            'ingredients' => [
+                ['name' => 'canned tomatoes', 'qty' => 800, 'unit' => 'g'], ['name' => 'onion', 'qty' => 1, 'unit' => 'pcs'],
+                ['name' => 'garlic cloves', 'qty' => 3, 'unit' => 'pcs'], ['name' => 'vegetable stock', 'qty' => 500, 'unit' => 'ml'],
+                ['name' => 'cream', 'qty' => 100, 'unit' => 'ml', 'note' => 'optional'],
+            ],
+            'steps' => ['Soften the onion and garlic in olive oil.', 'Add tomatoes and stock, simmer 15 minutes.', 'Blend smooth and stir in the cream.'],
+        ]);
+    }
+
     private function people(): void
     {
         $sarah = $this->u['Sarah'];
