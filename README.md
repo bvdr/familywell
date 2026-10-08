@@ -14,6 +14,11 @@ Self-host it for your own family, or use the hosted version at **[familywell.co]
 </p>
 
 <p align="center">
+  <img src="docs/screenshots/phone-spending.png" width="200" alt="Spending: this month's total and the latest expenses">
+  <img src="docs/screenshots/phone-vehicle.png" width="200" alt="A family car with maintenance due, mileage, fuel, tyres and documents">
+</p>
+
+<p align="center">
   <img src="docs/screenshots/desktop-calendar-month.png" width="820" alt="Family calendar, month view, with a trip, recurring swim practice and to-do due dates">
 </p>
 
