@@ -5,11 +5,14 @@ namespace Database\Seeders;
 use App\Models\Family;
 use App\Models\User;
 use App\Support\Demo\DemoFamily;
+use App\Support\Media\StoredImage;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Modules\Calendar\CalendarEvent;
 use Modules\Contacts\Person;
@@ -342,6 +345,7 @@ class DemoSeeder extends Seeder
             'vin' => '2HKRW2H85KH612345', 'purchase_date' => '2019-06-15', 'purchase_price' => 31450,
             'insurance_company' => 'State Farm', 'owner_id' => $sarah->id, 'primary_driver_id' => $sarah->id,
             'current_mileage' => $mi(62410), 'created_by' => $sarah->id, 'notes' => 'The family hauler. Roof box lives in the garage.',
+            'photo_path' => $this->demoImage('vehicle-crv'),
         ]);
         $camry = Vehicle::create([
             'make' => 'Toyota', 'model' => 'Camry', 'year' => 2016, 'version' => 'SE', 'fuel_type' => 'petrol',
@@ -349,6 +353,7 @@ class DemoSeeder extends Seeder
             'vin' => '4T1BF1FK6GU123456', 'purchase_date' => '2018-03-02', 'purchase_price' => 17900,
             'insurance_company' => 'State Farm', 'owner_id' => $david->id, 'primary_driver_id' => $david->id,
             'current_mileage' => $mi(98230), 'created_by' => $david->id, 'notes' => "David's commuter.",
+            'photo_path' => $this->demoImage('vehicle-camry'),
         ]);
 
         foreach ([[$crv, 62410, $sarah], [$camry, 98230, $david]] as [$v, $miles, $by]) {
@@ -518,20 +523,21 @@ class DemoSeeder extends Seeder
     {
         $sarah = $this->u['Sarah'];
         $david = $this->u['David'];
-        // [name, owner, status, progress, color, target start offset days, description, tasks: [title, assignee, done]]
+        // [name, cover image, owner, status, progress, color, target start offset days, description, tasks: [title, assignee, done]]
         $projects = [
-            ['Kitchen refresh', $sarah, 'in_progress', 40, 'amber', -14, 'New paint, open shelves and a brighter light over the sink.', [
+            ['Kitchen refresh', 'project-kitchen', $sarah, 'in_progress', 40, 'amber', -14, 'New paint, open shelves and a brighter light over the sink.', [
                 ['Pick a paint color', 'Sarah', true], ['Buy brushes and drop cloths', 'David', true],
                 ['Paint the walls', 'David', false], ['Install the open shelves', 'David', false], ['Swap the sink light', 'Sarah', false],
             ]],
-            ['Backyard vegetable garden', $david, 'planning', 10, 'green', 21, 'Three raised beds: tomatoes, herbs and strawberries for the kids.', [
+            ['Backyard vegetable garden', 'project-garden', $david, 'planning', 10, 'green', 21, 'Three raised beds: tomatoes, herbs and strawberries for the kids.', [
                 ['Sketch the bed layout', 'Emma', true], ['Order cedar boards', 'David', false], ['Buy soil and compost', 'David', false],
             ]],
         ];
-        foreach ($projects as [$name, $owner, $status, $progress, $color, $start, $desc, $tasks]) {
+        foreach ($projects as [$name, $cover, $owner, $status, $progress, $color, $start, $desc, $tasks]) {
             $project = Project::create([
                 'name' => $name, 'description' => $desc, 'status' => $status, 'progress' => $progress, 'color' => $color,
                 'owner_id' => $owner->id, 'target_start' => $this->today->copy()->addDays($start), 'created_by' => $owner->id,
+                'cover_path' => $this->demoImage($cover),
             ]);
             $project->shares()->create(['user_id' => $owner->id, 'role' => 'owner']);
             foreach ($tasks as $i => [$title, $who, $done]) {
@@ -595,6 +601,30 @@ class DemoSeeder extends Seeder
             ],
             'steps' => ['Soften the onion and garlic in olive oil.', 'Add tomatoes and stock, simmer 15 minutes.', 'Blend smooth and stir in the cream.'],
         ]);
+    }
+
+    /**
+     * A demo photo: shipped in the repo (database/seeders/demo-images/{name}.webp + .thumb.jpg) and copied
+     * to a FIXED path on the r2 disk only when missing, so hourly resets don't re-upload, and a visitor who
+     * deletes a demo photo just gets it back on the next reset. Decorative only: if storage is unreachable
+     * (a dev box without R2 keys) the demo seeds without photos instead of failing the whole reset.
+     */
+    private function demoImage(string $name): ?string
+    {
+        $path = "demo/{$name}.webp";
+        try {
+            $disk = Storage::disk('r2');
+            if (! $disk->exists($path)) {
+                $disk->put($path, (string) file_get_contents(database_path("seeders/demo-images/{$name}.webp")));
+                $disk->put(StoredImage::thumbPath($path), (string) file_get_contents(database_path("seeders/demo-images/{$name}.thumb.jpg")));
+            }
+
+            return $path;
+        } catch (\Throwable $e) {
+            Log::warning('demo image skipped', ['image' => $name, 'error' => $e->getMessage()]);
+
+            return null;
+        }
     }
 
     private function people(): void

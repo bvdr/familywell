@@ -8,9 +8,11 @@ use App\Support\Tenancy\CurrentFamily;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Modules\Birthdays\BirthdayDate;
 use Modules\Contacts\Person;
 use Modules\Notes\Note;
+use Modules\Projects\Project;
 use Modules\Spending\Spend;
 use Modules\Spending\SpendEvent;
 use Modules\Tasks\Task;
@@ -75,6 +77,9 @@ function demoSeed(): Family
     return DemoFamily::locate();
 }
 
+// The seeder copies demo photos to the r2 disk; never let a test reach real storage.
+beforeEach(fn () => Storage::fake('r2'));
+
 it('creates the flagged demo family with five members and every module filled', function () {
     $demo = demoSeed();
 
@@ -102,6 +107,26 @@ it('creates the flagged demo family with five members and every module filled', 
     foreach (['shopping', 'spending', 'inventory', 'vehicles', 'tasks', 'notes', 'contacts', 'birthdays'] as $m) {
         expect($enabled)->toContain($m);
     }
+});
+
+it('gives the demo cars and projects photos, uploaded once to fixed paths', function () {
+    $demo = demoSeed();
+    CurrentFamily::set($demo->id);
+    $paths = [
+        ...Vehicle::orderBy('id')->pluck('photo_path')->all(),
+        ...Project::orderBy('id')->pluck('cover_path')->all(),
+    ];
+    expect($paths)->toBe(['demo/vehicle-crv.webp', 'demo/vehicle-camry.webp', 'demo/project-kitchen.webp', 'demo/project-garden.webp']);
+    foreach ($paths as $p) {
+        Storage::disk('r2')->assertExists([$p, $p.'.thumb.jpg']);
+    }
+
+    // A visitor deleting a demo photo gets it back on the next reset; existing files are not rewritten.
+    Storage::disk('r2')->delete('demo/vehicle-crv.webp');
+    $kept = Storage::disk('r2')->lastModified('demo/project-garden.webp');
+    test()->artisan('demo:reset')->assertExitCode(0);
+    Storage::disk('r2')->assertExists('demo/vehicle-crv.webp');
+    expect(Storage::disk('r2')->lastModified('demo/project-garden.webp'))->toBe($kept);
 });
 
 it('puts at least one birthday on every calendar day, Feb 29 included', function () {
