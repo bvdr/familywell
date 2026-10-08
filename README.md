@@ -1,22 +1,46 @@
 # FamilyWell
 
-**Open-source family organization app.** Shared spending, to-dos, shopping lists, and more, for the people you live with. A small, stable core with self-contained **modules** that hook into it (think WordPress or Home Assistant), so features can be added without touching the core.
+**The family organizer for the people you live with.** Shared shopping lists, to-dos, a family calendar, spending, projects, recipes, the car and more, in one installable app. A small, stable core with self-contained **modules** you switch on per family, so each household only sees what it uses.
 
-Run it yourself for free, or use the hosted version at **[familywell.co](https://familywell.co)**.
+Self-host it for your own family, or use the hosted version at **[familywell.co](https://familywell.co)** (there's a one-click live demo).
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/license-PolyForm%20Noncommercial-blue.svg)](LICENSE)
+
+<p align="center">
+  <img src="docs/screenshots/phone-dashboard.png" width="200" alt="Home screen: this month's spending, what's happening now and next, birthdays, and today's to-dos">
+  <img src="docs/screenshots/phone-shopping.png" width="200" alt="A shared grocery list grouped by aisle">
+  <img src="docs/screenshots/phone-project.png" width="200" alt="A family project with progress and tasks">
+  <img src="docs/screenshots/phone-recipe.png" width="200" alt="A recipe with a servings calculator">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/desktop-calendar-month.png" width="820" alt="Family calendar, month view, with a trip, recurring swim practice and to-do due dates">
+</p>
+
+> **Source-available, not open source.** FamilyWell is free for **personal, noncommercial use**: run it for your own family, change it, learn from it. Commercial use and reselling are not allowed. See [License](#license).
 
 ---
 
 ## What you get
 
-- **Families, not just accounts.** Invite the people you live with; everyone shares the same data with roles (admin / member).
-- **Modules you enable per family.** The core stays small; each feature is a folder of code you can turn on or off from **Settings → Modules**.
-- **Shared spending** ([spending module](modules/spending)): track expenses on an event (a trip, a month, a project), see who owes whom with automatic balances and settle-up suggestions, split by category and payment method, multi-currency with frozen conversion rates, attach receipt photos, and **scan a receipt to auto-fill a spend** (optional, see [AI receipt scanning](#ai-receipt-scanning-optional)).
-- **To-dos and shopping lists** ([todos](modules/todos), [shopping](modules/shopping)): simple shared lists for the household.
-- **Granular sharing**: any shareable thing can be *family-wide*, *invited-only*, or *private*, with per-person roles (owner / editor / viewer) and read-only public links.
-- **Realtime**: changes made by one member appear for the others live (Laravel Reverb / WebSockets).
-- **Installable PWA**: add it to your home screen; it behaves like a native app, including offline-friendly navigation.
+- **Families, not just accounts.** Invite the people you live with; everyone shares the same data, with roles (admin / member).
+- **Modules you switch on per family** (Settings → Modules). Bundled:
+  - **[Shopping](modules/shopping)**: several shared lists, grouped by aisle per shop, a "shopping mode", voice and paste input.
+  - **[Tasks](modules/tasks)**: shared to-do lists with sub-tasks, due dates and assignees, plus [important](modules/important_todos) and [recurring](modules/recurring_todos) to-dos.
+  - **[Calendar](modules/calendar)**: month and timeline views, repeating events, people and to-dos on events. Task due dates, birthdays, car due dates and project starts show up on their own. Includes a private subscribe link for Google or Apple Calendar.
+  - **[Spending](modules/spending)**: quick-add expenses, categories, shared trackers with automatic "who owes whom", multi-currency, receipt photos and optional AI receipt scanning.
+  - **[Projects](modules/projects)**: the bigger things a family works on, with tasks, progress and linked shopping lists.
+  - **[Recipes](modules/recipes)**: family recipes with a calculator (scale by servings, total amount or what you have) and add-to-shopping.
+  - **[Notes](modules/notes)**, **[Contacts](modules/contacts)**, **[Birthdays](modules/birthdays)**, **[Inventory](modules/inventory)** (what's in the house and what's running low) and **[Vehicles](modules/vehicles)** (mileage, maintenance, documents).
+- **A home screen that brings it together**: this month's spending, what's on now and next, birthdays, and what's due today and this week.
+- **Granular sharing**: anything shareable can be *family-wide*, *invited-only* or *private*, with per-person roles and read-only public links.
+- **Works with AI assistants**: a built-in [MCP server](docs/mcp.md) lets Claude, ChatGPT and other MCP clients read and update your family's lists, calendar and more, with per-module permissions you pick when you connect. Interactive widgets render right in the chat.
+- **Realtime and installable**: changes appear live for everyone (Laravel Reverb), and it installs to your home screen as a PWA.
+- **Two languages so far**: English and Romanian, per person.
+
+<p align="center">
+  <img src="docs/screenshots/desktop-calendar-timeline.png" width="820" alt="Family calendar, timeline view">
+</p>
 
 ## Tech stack
 
@@ -118,7 +142,7 @@ No secrets are ever committed; `.env` and every credential file are git-ignored.
 
 ## Modules
 
-FamilyWell's features live in `modules/`. Each module is a self-contained folder with its own routes, controllers, models, migrations, and (optionally) a frontend bundle, registered through a service provider and a `module.json` manifest. The bundled modules are `spending`, `todos`, `shopping`, and `hello` (a minimal example).
+FamilyWell's features live in `modules/`. Each module is a self-contained folder with its own routes, controllers, models, migrations, and (optionally) a frontend bundle, registered through a service provider and a `module.json` manifest. Every feature listed above is a module; `modules/hello` is a minimal example to start from.
 
 To learn how the module system works and how to build your own, see **[docs/modules.md](docs/modules.md)**.
 
@@ -126,7 +150,7 @@ To learn how the module system works and how to build your own, see **[docs/modu
 
 ```
 app/            Core Laravel application (families, auth, sharing, modules)
-modules/        Self-contained feature modules (spending, todos, shopping, hello)
+modules/        Self-contained feature modules (shopping, tasks, calendar, spending, ...)
 resources/js/   React + Inertia frontend (pages, components, layouts)
 routes/         Core web routes
 docs/           Documentation and design notes
@@ -135,8 +159,13 @@ docs/           Documentation and design notes
 
 ## Contributing
 
-Contributions are welcome, bug fixes, new modules, docs. Start with **[CONTRIBUTING.md](CONTRIBUTING.md)** for the development workflow and coding conventions.
+Contributions are welcome: bug fixes, new modules, translations, docs. Start with **[CONTRIBUTING.md](CONTRIBUTING.md)** for the workflow, conventions, and the terms your contribution is accepted under.
 
 ## License
 
-[MIT](LICENSE).
+FamilyWell is licensed under the **[PolyForm Noncommercial License 1.0.0](LICENSE)**. It's source-available, not open source:
+
+- **Allowed:** personal and family use, self-hosting for your own household, studying, modifying and sharing the code for noncommercial purposes. Noncommercial organisations (a charity, a school, a public research group) may use it too, as the license defines.
+- **Not allowed:** any commercial use, including selling or reselling FamilyWell or a modified version, offering it as a paid or hosted service, or using it inside a business.
+
+Any copy or modified version must keep the license and its `Required Notice` line. For commercial licensing, contact the maintainer through [familywell.co](https://familywell.co).
