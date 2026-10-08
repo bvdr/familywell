@@ -13,7 +13,7 @@
         "modules"
     ],
     "homepage": "https://familywell.co",
-    "license": "MIT",
+    "license": "PolyForm-Noncommercial-1.0.0",
     "require": {
         "php": "^8.2",
         "inertiajs/inertia-laravel": "^2.0",
