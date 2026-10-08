@@ -144,7 +144,7 @@ export function MobileTabBar() {
                 the viewport bottom instead of letting it scroll with the body (a known iOS fixed bug). */}
             <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex [transform:translateZ(0)] items-center gap-2.5 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden [@media(display-mode:standalone)]:pb-[max(0.5rem,calc(env(safe-area-inset-bottom)/2))]">
                 {/* Pill fills the width; the + stays a fixed circle on the right. */}
-                <div className="border-border/60 pointer-events-auto flex flex-1 items-center justify-around gap-0.5 rounded-full border bg-white/75 p-1.5 shadow-[var(--shadow-fw-md)] backdrop-blur-xl">
+                <div className="border-border/60 pointer-events-auto flex flex-1 items-center justify-around gap-0.5 rounded-full border bg-surface-card/75 p-1.5 shadow-[var(--shadow-fw-md)] backdrop-blur-xl">
                     {pinned.map((item) => {
                         const active = isActive(item.url);
                         const loading = pending === item.url;
