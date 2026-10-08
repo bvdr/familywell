@@ -348,7 +348,7 @@ export default function Dashboard({
                 {today.length > 0 && (
                     <section className="flex flex-col gap-3">
                         <h2 className="font-heading text-primary px-1 text-lg">{t('dashboard.today')}</h2>
-                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                             {today.map((it) => (
                                 <AgendaRow key={agendaKey(it)} item={it} />
                             ))}
@@ -359,7 +359,7 @@ export default function Dashboard({
                 {thisWeek.length > 0 && (
                     <section className="flex flex-col gap-3">
                         <h2 className="font-heading text-primary px-1 text-lg">{t('dashboard.this_week')}</h2>
-                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                             {thisWeek.map((it) => (
                                 <AgendaRow key={agendaKey(it)} item={it} />
                             ))}
