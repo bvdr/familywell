@@ -9,7 +9,7 @@ export default function Welcome({ firstName }: { firstName: string }) {
         <AuthSplitLayout
             headline={`Welcome home, ${firstName}.`}
             sub="One shared space for your family's plans, lists, and everyday moments. Let's get it set up."
-            image="/images/auth/register.svg"
+            image="/images/auth/register.webp"
         >
             <Head title="Get started" />
 

@@ -18,7 +18,7 @@ export default function Invite({ invite }: { invite: Invite }) {
         <AuthSplitLayout
             headline="You're invited."
             sub={`${invite.inviter} has a spot saved for you. Accept to join the family and start sharing straight away.`}
-            image="/images/auth/register.svg"
+            image="/images/auth/register.webp"
         >
             <Head title={`Join ${invite.family.name}`} />
 

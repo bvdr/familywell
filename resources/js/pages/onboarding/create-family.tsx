@@ -29,7 +29,7 @@ export default function CreateFamily() {
         <AuthSplitLayout
             headline="Name your family."
             sub="This is the shared home your family will gather around. You can change it anytime."
-            image="/images/auth/register.svg"
+            image="/images/auth/register.webp"
         >
             <Head title="Create your family" />
 
