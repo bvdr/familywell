@@ -1,11 +1,13 @@
 <?php
 
 use App\Models\Family;
+use App\Models\OAuthClient;
 use App\Models\User;
 use App\Support\Modules\ModuleRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
+use Laravel\Passport\ClientRepository;
 use Tests\TestCase;
 
 /*
