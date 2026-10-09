@@ -43,5 +43,6 @@ it('refuses a board token once its client is no longer a board client', function
 });
 
 it('needs a token', function () {
+    mcpKeys(); // the api guard builds Passport's resource server, which needs the signing keys even for a bare request
     $this->getJson('/api/board/me')->assertUnauthorized();
 });
