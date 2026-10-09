@@ -2,6 +2,8 @@
 
 use App\Models\OAuthClient;
 use App\Models\User;
+use Illuminate\Auth\Notifications\VerifyEmail;
+use Illuminate\Support\Facades\Notification;
 
 use function Pest\Laravel\actingAs;
 
@@ -47,4 +49,27 @@ it('creates a board client from the command', function () {
 
     expect(OAuthClient::where('name', 'FamilyWell board')->first()->redirect_uris)
         ->toBe(['https://familywell.org/api/auth/callback']);
+});
+
+it('sends unverified people through email verification, once per session', function () {
+    Notification::fake();
+    $client = boardClient();
+    $user = User::factory()->unverified()->create();
+    [$query] = boardAuthorizeQuery($client);
+
+    actingAs($user)->get("/oauth/authorize?{$query}")->assertRedirect(route('verification.notice'));
+    expect(session('url.intended'))->toContain('/oauth/authorize?');
+    actingAs($user)->get("/oauth/authorize?{$query}")->assertRedirect(route('verification.notice'));
+
+    Notification::assertSentToTimes($user, VerifyEmail::class, 1);
+});
+
+it('does not ask MCP clients for verification', function () {
+    Notification::fake();
+    [$family, $users] = mcpFamily(['tasks']);
+    $users[0]->forceFill(['email_verified_at' => null])->save();
+    [$query] = mcpAuthorizeQuery(mcpClient());
+
+    actingAs($users[0])->get("/oauth/authorize?{$query}")->assertOk();
+    Notification::assertNothingSent();
 });
