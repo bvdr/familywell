@@ -146,6 +146,27 @@ function boardAuthorizeQuery(OAuthClient $client, string $scope = 'board:identit
     ]), $verifier];
 }
 
+/** Full board sign-in: authorize (consent skipped) and exchange the code. Returns the token response. */
+function boardToken(User $user, OAuthClient $client): array
+{
+    // Same isolation as mcpConnect() below: fresh route controllers, the web guard for the
+    // authorize page, a session-less token request.
+    foreach (app('router')->getRoutes() as $route) {
+        $route->flushController();
+    }
+    auth()->forgetGuards();
+    auth()->shouldUse('web');
+    [$query, $verifier] = boardAuthorizeQuery($client);
+    $location = test()->actingAs($user, 'web')->get("/oauth/authorize?{$query}")->assertRedirect()->headers->get('Location');
+    parse_str((string) parse_url($location, PHP_URL_QUERY), $params);
+    auth()->forgetGuards();
+
+    return test()->post('/oauth/token', [
+        'grant_type' => 'authorization_code', 'client_id' => $client->getKey(), 'client_secret' => $client->plainSecret,
+        'redirect_uri' => 'https://familywell.org/api/auth/callback', 'code' => $params['code'], 'code_verifier' => $verifier,
+    ])->assertOk()->json();
+}
+
 /**
  * Full connect: register, consent with $access for $familyId, exchange the code.
  * Returns the token response (access_token, refresh_token, ...).
