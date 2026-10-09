@@ -1,5 +1,6 @@
+import { AppWordmark } from '@/components/app-logo';
+import AppLogoIcon from '@/components/app-logo-icon';
 import { Link, usePage } from '@inertiajs/react';
-import { Leaf } from 'lucide-react';
 
 interface AuthLayoutProps {
     children: React.ReactNode;
@@ -39,6 +40,8 @@ const PANELS: Record<string, PanelContent> = {
 
 export default function AuthSplitLayout({ children, title, description, headline, sub, image }: AuthLayoutProps) {
     const { name } = usePage().props as { name?: string };
+    // The outlined wordmark is the FamilyWell brand; a self-hosted instance with its own APP_NAME keeps its name as text.
+    const isBrandName = !name || name.toLowerCase() === 'familywell';
     // ziggy's current() gives the active route name; fall back to the login panel for undesigned screens.
     const routeName = typeof route().current === 'function' ? route().current() : undefined;
     const base = (routeName && PANELS[routeName]) || PANELS.login;
@@ -66,8 +69,10 @@ export default function AuthSplitLayout({ children, title, description, headline
 
                 <div className="relative flex h-full flex-col justify-between p-10">
                     <Link href={route('home')} className="flex items-center gap-2.5 text-white">
-                        <Leaf className="size-6" />
-                        <span className="font-heading text-2xl">{name ?? 'FamilyWell'}</span>
+                        <span className="flex size-8 items-center justify-center rounded-md bg-[#FFDF00]">
+                            <AppLogoIcon className="size-5 fill-[#101100]" />
+                        </span>
+                        {isBrandName ? <AppWordmark className="h-6 w-auto fill-current" /> : <span className="font-heading text-2xl">{name}</span>}
                     </Link>
 
                     <div className="flex max-w-md flex-col gap-3">
@@ -81,9 +86,11 @@ export default function AuthSplitLayout({ children, title, description, headline
             <div className="bg-background flex flex-col items-center justify-center p-6 sm:p-12">
                 <div className="flex w-full max-w-[420px] flex-col gap-6">
                     {/* Wordmark shows on mobile where the brand panel is hidden. */}
-                    <Link href={route('home')} className="flex items-center gap-2.5 lg:hidden">
-                        <Leaf className="text-primary size-6" />
-                        <span className="font-heading text-primary text-2xl">{name ?? 'FamilyWell'}</span>
+                    <Link href={route('home')} className="text-primary flex items-center gap-2.5 lg:hidden">
+                        <span className="flex size-8 items-center justify-center rounded-md bg-[#FFDF00]">
+                            <AppLogoIcon className="size-5 fill-[#101100]" />
+                        </span>
+                        {isBrandName ? <AppWordmark className="h-6 w-auto fill-current" /> : <span className="font-heading text-2xl">{name}</span>}
                     </Link>
 
                     {/* Auth pages pass title/description; onboarding renders its own header (eyebrow,
