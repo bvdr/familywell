@@ -121,6 +121,29 @@ function mcpAuthorizeQuery(string $clientId, string $redirect = 'https://claude.
     ]), $verifier];
 }
 
+/** Confidential authorization-code client for the module-requests board, listed in board.client_ids. */
+function boardClient(string $redirect = 'https://familywell.org/api/auth/callback'): OAuthClient
+{
+    mcpKeys();
+    /** @var OAuthClient $client */
+    $client = app(ClientRepository::class)->createAuthorizationCodeGrantClient('FamilyWell board', [$redirect]);
+    config(['board.client_ids' => [$client->getKey()]]);
+
+    return $client;
+}
+
+/** PKCE authorize query for a board client. Returns [query, verifier]. */
+function boardAuthorizeQuery(OAuthClient $client, string $scope = 'board:identity', string $redirect = 'https://familywell.org/api/auth/callback'): array
+{
+    $verifier = Str::random(64);
+    $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+
+    return [http_build_query([
+        'client_id' => $client->getKey(), 'redirect_uri' => $redirect, 'response_type' => 'code',
+        'scope' => $scope, 'state' => 'xyz', 'code_challenge' => $challenge, 'code_challenge_method' => 'S256',
+    ]), $verifier];
+}
+
 /**
  * Full connect: register, consent with $access for $familyId, exchange the code.
  * Returns the token response (access_token, refresh_token, ...).
