@@ -68,10 +68,9 @@ export default function AuthSplitLayout({ children, title, description, headline
                 <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/80 via-black/45 to-transparent" />
 
                 <div className="relative flex h-full flex-col justify-between p-10">
+                    {/* White-only logo (FamilyWell-Logo-White): no yellow tile over the photo. */}
                     <Link href={route('home')} className="flex items-center gap-2.5 text-white">
-                        <span className="flex size-8 items-center justify-center rounded-md bg-[#FFDF00]">
-                            <AppLogoIcon className="size-5 fill-[#101100]" />
-                        </span>
+                        <AppLogoIcon className="size-7 fill-current" />
                         {isBrandName ? <AppWordmark className="h-6 w-auto fill-current" /> : <span className="font-heading text-2xl">{name}</span>}
                     </Link>
 
