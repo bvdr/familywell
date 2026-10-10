@@ -1,6 +1,6 @@
 import { AppWordmark } from '@/components/app-logo';
 import AppLogoIcon from '@/components/app-logo-icon';
-import { Link, usePage } from '@inertiajs/react';
+import { usePage } from '@inertiajs/react';
 
 interface AuthLayoutProps {
     children: React.ReactNode;
@@ -69,10 +69,11 @@ export default function AuthSplitLayout({ children, title, description, headline
 
                 <div className="relative flex h-full flex-col justify-between p-10">
                     {/* White-only logo (FamilyWell-Logo-White): no yellow tile over the photo. */}
-                    <Link href={route('home')} className="flex items-center gap-2.5 text-white">
+                    {/* The logo leads to the public site (familywell.org): the app root only bounces guests back here. */}
+                    <a href="https://familywell.org" className="flex items-center gap-2.5 text-white">
                         <AppLogoIcon className="size-7 fill-current" />
                         {isBrandName ? <AppWordmark className="h-6 w-auto fill-current" /> : <span className="font-heading text-2xl">{name}</span>}
-                    </Link>
+                    </a>
 
                     <div className="flex max-w-md flex-col gap-3">
                         <h2 className="font-heading text-[34px] leading-tight text-white">{panel.headline}</h2>
@@ -85,12 +86,12 @@ export default function AuthSplitLayout({ children, title, description, headline
             <div className="bg-background flex flex-col items-center justify-center p-6 sm:p-12">
                 <div className="flex w-full max-w-[420px] flex-col gap-6">
                     {/* Wordmark shows on mobile where the brand panel is hidden. */}
-                    <Link href={route('home')} className="text-primary flex items-center gap-2.5 lg:hidden">
+                    <a href="https://familywell.org" className="text-primary flex items-center gap-2.5 lg:hidden">
                         <span className="flex size-8 items-center justify-center rounded-md bg-[#FFDF00]">
                             <AppLogoIcon className="size-5 fill-[#101100]" />
                         </span>
                         {isBrandName ? <AppWordmark className="h-6 w-auto fill-current" /> : <span className="font-heading text-2xl">{name}</span>}
-                    </Link>
+                    </a>
 
                     {/* Auth pages pass title/description; onboarding renders its own header (eyebrow,
                         stepper) inside children so those sit above the title as the design shows. */}
