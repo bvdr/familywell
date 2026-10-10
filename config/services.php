@@ -68,6 +68,8 @@ return [
     'umami' => [
         'website_id' => env('UMAMI_WEBSITE_ID'),
         'script' => env('UMAMI_SCRIPT_URL', 'https://analytics.dragonpie.co/script.js'),
+        // Where server-side events go (POST {host}/api/send, see App\Support\Analytics). Same Umami as the script.
+        'host' => env('UMAMI_HOST', 'https://analytics.dragonpie.co'),
     ],
 
     // "Sign in with Google / Apple" (App\Support\Auth\SocialLogin). Each provider's button only shows when
