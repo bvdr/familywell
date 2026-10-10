@@ -58,6 +58,7 @@ class User extends Authenticatable implements OAuthenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'last_seen_at' => 'datetime',
             'password' => 'hashed',
             'notification_prefs' => 'array',
             // Set only by admin:grant / admin:revoke; deliberately not fillable.

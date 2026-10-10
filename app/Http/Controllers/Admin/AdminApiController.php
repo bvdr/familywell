@@ -96,9 +96,10 @@ class AdminApiController extends Controller
 
     private function userQuery(): Builder
     {
-        // Last activity = newest web session (database session driver); one correlated subquery per row.
+        // Last activity = users.last_seen_at (web + MCP, see TrackLastSeen), falling back to the newest web
+        // session for activity from before that column existed. One correlated subquery per row.
         return User::query()
-            ->select('users.id', 'users.name', 'users.email', 'users.email_verified_at', 'users.created_at')
+            ->select('users.id', 'users.name', 'users.email', 'users.email_verified_at', 'users.created_at', 'users.last_seen_at', 'users.last_seen_via')
             ->selectSub(DB::table('sessions')->selectRaw('max(last_activity)')->whereColumn('sessions.user_id', 'users.id'), 'last_active')
             ->withCount('families');
     }
@@ -116,9 +117,21 @@ class AdminApiController extends Controller
         return [
             'id' => $u->id, 'name' => $u->name, 'email' => $u->email, 'verified' => $u->email_verified_at !== null,
             'createdAt' => self::iso($u->created_at),
-            'lastActiveAt' => $u->last_active ? self::iso(Carbon::createFromTimestamp((int) $u->last_active)) : null,
+            ...self::lastActive($u),
             'familyCount' => (int) $u->families_count,
         ];
+    }
+
+    /** @return array{lastActiveAt: ?string, lastActiveVia: ?string} the newer of last_seen_at and the newest web session */
+    private static function lastActive(User $u): array
+    {
+        $session = $u->last_active ? Carbon::createFromTimestamp((int) $u->last_active) : null;
+        $seen = $u->last_seen_at;
+        if ($seen && (! $session || $seen->gte($session))) {
+            return ['lastActiveAt' => self::iso($seen), 'lastActiveVia' => $u->last_seen_via];
+        }
+
+        return ['lastActiveAt' => self::iso($session), 'lastActiveVia' => $session ? 'web' : null];
     }
 
     private static function familyItem(Family $f): array
