@@ -23,5 +23,8 @@
     "active_desc": "Schimbă planul sau cardul, descarcă facturi sau anulează din portalul de clienți Stripe.",
     "past_due": "Ultima plată a eșuat. Actualizează cardul ca să păstrezi accesul.",
     "manage": "Gestionează abonamentul",
-    "admin_only": "Doar administratorii familiei pot gestiona abonamentul."
+    "admin_only": "Doar administratorii familiei pot gestiona abonamentul.",
+    "kicker": "Un plan, toată familia",
+    "sign_out": "Deconectare",
+    "see_features": "Vezi tot ce face FamilyWell"
 }
