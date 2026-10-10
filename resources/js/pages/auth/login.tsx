@@ -3,6 +3,7 @@ import { LoaderCircle, Sparkles } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
 import InputError from '@/components/input-error';
+import SocialButtons from '@/components/social-buttons';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -41,6 +42,8 @@ export default function Login({ status, canResetPassword, canDemo }: LoginProps)
     return (
         <AuthLayout title={t('auth.welcome_back')} description={t('auth.signin_desc')}>
             <Head title={t('auth.log_in')} />
+
+            <SocialButtons />
 
             <form className="flex flex-col gap-6" onSubmit={submit}>
                 <div className="grid gap-6">
