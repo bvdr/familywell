@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\Auth\SocialLogin;
 use App\Support\Billing\Billing;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
@@ -61,6 +62,9 @@ class HandleInertiaRequests extends Middleware
             // Web Push public (VAPID) key, so the client can subscribe the browser to push. Public by design.
             // Hosted-plan billing on/off (STRIPE_KEY set). Shows Settings > Billing; self-hosted = false.
             'billingEnabled' => Billing::enabled(),
+            // "Continue with Google / Apple" buttons: only providers whose keys are configured (none on a
+            // self-hosted install without them).
+            'socialProviders' => SocialLogin::enabled(),
             'vapidPublicKey' => config('webpush.vapid.public_key'),
             // i18n: the current locale + the picker options + the full translation map for that locale
             // (English-filled). SetLocale already ran (see bootstrap/app.php), so both are eager.
