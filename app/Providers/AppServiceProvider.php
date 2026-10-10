@@ -62,9 +62,11 @@ class AppServiceProvider extends ServiceProvider
         // is built once everything has booted. `mcp:use` is laravel/mcp's base scope (it also adds it when
         // the discovery routes load; listing it here keeps the result independent of that order).
         // `board:identity`: the module-requests board's sign-in (user id, verified-email flag, family names).
+        // `admin`: admin.familywell.org's read-only platform API; only the platform-admin client can get it (ScopeRepository).
         $this->app->booted(fn () => Passport::tokensCan([
             'mcp:use' => 'Use the Familywell MCP server',
             'board:identity' => 'Sign in to the FamilyWell module-requests board',
+            'admin' => 'Read FamilyWell platform data in admin.familywell.org',
         ] + McpTools::scopes()));
 
         // First-party board clients skip consent for `board:identity` (see App\Models\OAuthClient).

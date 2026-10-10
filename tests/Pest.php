@@ -134,6 +134,15 @@ function boardClient(string $redirect = 'https://familywell.org/api/auth/callbac
     return $client;
 }
 
+/** The admin.familywell.org client: a board client also flagged platform_admin (same callback, so boardToken works). */
+function adminClient(): OAuthClient
+{
+    $client = boardClient();
+    $client->forceFill(['platform_admin' => true])->save();
+
+    return $client;
+}
+
 /** PKCE authorize query for a board client. Returns [query, verifier]. */
 function boardAuthorizeQuery(OAuthClient $client, string $scope = 'board:identity', string $redirect = 'https://familywell.org/api/auth/callback'): array
 {
@@ -147,7 +156,7 @@ function boardAuthorizeQuery(OAuthClient $client, string $scope = 'board:identit
 }
 
 /** Full board sign-in: authorize (consent skipped) and exchange the code. Returns the token response. */
-function boardToken(User $user, OAuthClient $client): array
+function boardToken(User $user, OAuthClient $client, string $scope = 'board:identity'): array
 {
     // Same isolation as mcpConnect() below: fresh route controllers, the web guard for the
     // authorize page, a session-less token request.
@@ -156,7 +165,7 @@ function boardToken(User $user, OAuthClient $client): array
     }
     auth()->forgetGuards();
     auth()->shouldUse('web');
-    [$query, $verifier] = boardAuthorizeQuery($client);
+    [$query, $verifier] = boardAuthorizeQuery($client, $scope);
     $location = test()->actingAs($user, 'web')->get("/oauth/authorize?{$query}")->assertRedirect()->headers->get('Location');
     parse_str((string) parse_url($location, PHP_URL_QUERY), $params);
     auth()->forgetGuards();
