@@ -2,6 +2,7 @@
 
 namespace App\Support\Mcp;
 
+use App\Models\OAuthClient;
 use Laravel\Passport\Bridge\Scope;
 use Laravel\Passport\Bridge\ScopeRepository as PassportScopeRepository;
 use Laravel\Passport\Passport;
@@ -15,6 +16,7 @@ use League\OAuth2\Server\Entities\ScopeEntityInterface;
 //  2. The client's own scope list is ignored. Dynamically registered MCP clients only ever declare
 //     `mcp:use`; what a token may do is decided on our consent screen (ApproveController sets the scopes),
 //     so filtering by client-declared scopes would only strip the user's choices.
+//  3. `admin` is only ever finalised for a platform-admin client (OAuthClient::isPlatformAdminClient), whatever was asked for.
 // Bound in place of Passport's bridge class in AppServiceProvider.
 class ScopeRepository extends PassportScopeRepository
 {
@@ -30,8 +32,11 @@ class ScopeRepository extends PassportScopeRepository
         ?string $userIdentifier = null,
         ?string $authCodeId = null
     ): array {
+        $adminClient = OAuthClient::isPlatformAdminClient($clientEntity->getIdentifier());
+
         return collect($scopes)
-            ->filter(fn (ScopeEntityInterface $scope): bool => self::known($scope->getIdentifier()))
+            ->filter(fn (ScopeEntityInterface $scope): bool => self::known($scope->getIdentifier())
+                && ($scope->getIdentifier() !== 'admin' || $adminClient))
             ->values()
             ->all();
     }
