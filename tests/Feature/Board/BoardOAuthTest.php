@@ -4,7 +4,7 @@ use App\Models\OAuthClient;
 use App\Models\User;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Support\Facades\Notification;
-use Laravel\Passport\Token;
+use Laravel\Passport\AuthCode;
 
 use function Pest\Laravel\actingAs;
 
@@ -34,6 +34,15 @@ it('refuses a board client asking for more than board:identity, with no consent 
     expect(session()->has('authRequest'))->toBeFalse();
 });
 
+it('refuses an array scope instead of erroring', function () {
+    [, $users] = mcpFamily(['tasks']);
+    $client = boardClient();
+    [$query] = boardAuthorizeQuery($client);
+    $query = str_replace('scope=board%3Aidentity', 'scope%5B%5D=board%3Aidentity', $query);
+
+    actingAs($users[0])->get("/oauth/authorize?{$query}")->assertForbidden();
+});
+
 it('refuses a board client asking only for an MCP scope', function () {
     [, $users] = mcpFamily(['tasks']);
     $client = boardClient();
@@ -56,7 +65,8 @@ it('does not issue tokens when a board client reaches the consent POST', functio
         'auth_token' => $authToken, 'family_id' => $family->id, 'access' => ['tasks' => 'write'],
     ])->assertForbidden();
 
-    expect(Token::count())->toBe(0);
+    // Approve creates an auth code (the token comes later at /oauth/token), so none may exist.
+    expect(AuthCode::count())->toBe(0);
 });
 
 it('only treats a live, flagged client id string as a board client', function () {
