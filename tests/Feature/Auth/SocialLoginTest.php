@@ -263,7 +263,7 @@ it('accepts Apple\'s cross-site form_post without CSRF, using the state cookie',
         'code' => 'apple-code',
         'state' => $query['state'],
         'user' => json_encode(['name' => ['firstName' => 'Ioana', 'lastName' => 'Pop'], 'email' => 'abc@privaterelay.appleid.com']),
-    ])->assertRedirect(route('onboarding.index'));
+    ])->assertRedirect(route('onboarding.index'))->assertCookieExpired(SocialLogin::APPLE_COOKIE); // single use
 
     $user = User::where('email', 'abc@privaterelay.appleid.com')->firstOrFail();
     $this->assertAuthenticatedAs($user);
