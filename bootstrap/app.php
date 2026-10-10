@@ -51,7 +51,9 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         // Stripe can't send a CSRF token; the webhook authenticates by its Stripe-Signature instead.
-        $middleware->validateCsrfTokens(except: ['stripe/webhook']);
+        // Sign in with Apple POSTs back from appleid.apple.com (no token possible); it's protected by the
+        // OAuth state in its own encrypted cookie instead (see App\Support\Auth\SocialLogin).
+        $middleware->validateCsrfTokens(except: ['stripe/webhook', 'auth/apple/callback']);
 
         $middleware->alias([
             'module' => EnsureModuleEnabled::class,

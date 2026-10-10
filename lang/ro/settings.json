@@ -36,5 +36,12 @@
     "warning": "Atenție",
     "delete_warning_text": "Continuă cu precauție, această acțiune nu poate fi anulată.",
     "confirm_delete_title": "Ești sigur că vrei să îți ștergi contul?",
-    "confirm_delete_desc": "Odată ce contul tău este șters, toate resursele și datele asociate vor fi de asemenea șterse permanent. Te rugăm să introduci parola pentru a confirma că vrei să ștergi definitiv contul."
+    "confirm_delete_desc": "Odată ce contul tău este șters, toate resursele și datele asociate vor fi de asemenea șterse permanent. Te rugăm să introduci parola pentru a confirma că vrei să ștergi definitiv contul.",
+    "sign_in_methods": "Metode de autentificare",
+    "sign_in_methods_desc": "Conturile Google și Apple cu care te poți autentifica.",
+    "sign_in_methods_none": "Niciunul conectat. Folosește „Continuă cu Google” sau „Continuă cu Apple” pe pagina de autentificare, cu adresa de email a acestui cont, ca să conectezi unul.",
+    "disconnect": "Deconectează",
+    "disconnect_social_confirm": "Deconectezi :provider? Nu te vei mai putea autentifica cu el.",
+    "social_last_method": "Aceasta este singura metodă de autentificare conectată, așa că nu poate fi deconectată. Conectează mai întâi alta.",
+    "social_connected": ":provider a fost conectat. Acum te poți autentifica cu el."
 }

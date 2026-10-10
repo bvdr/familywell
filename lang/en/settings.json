@@ -36,5 +36,12 @@
     "warning": "Warning",
     "delete_warning_text": "Please proceed with caution, this cannot be undone.",
     "confirm_delete_title": "Are you sure you want to delete your account?",
-    "confirm_delete_desc": "Once your account is deleted, all of its resources and data will also be permanently deleted. Please enter your password to confirm you would like to permanently delete your account."
+    "confirm_delete_desc": "Once your account is deleted, all of its resources and data will also be permanently deleted. Please enter your password to confirm you would like to permanently delete your account.",
+    "sign_in_methods": "Sign-in methods",
+    "sign_in_methods_desc": "Google and Apple accounts you can use to sign in.",
+    "sign_in_methods_none": "None connected. Use \"Continue with Google\" or \"Continue with Apple\" on the sign-in page with this account's email address to connect one.",
+    "disconnect": "Disconnect",
+    "disconnect_social_confirm": "Disconnect :provider? You won't be able to sign in with it anymore.",
+    "social_last_method": "This is your only connected sign-in method, so it can't be disconnected. Connect another one first.",
+    "social_connected": ":provider connected. You can now sign in with it."
 }

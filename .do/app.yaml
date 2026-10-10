@@ -183,6 +183,22 @@ envs:
     value: price_1UOsfmD66FjwmQ4esjCQCHY4
     scope: RUN_TIME
 
+  # Sign in with Google / Apple. Only identifiers here (they ship in the redirect URLs anyway);
+  # GOOGLE_CLIENT_SECRET and APPLE_PRIVATE_KEY (the .p8, one line with \n escapes) are SECRETS injected
+  # by apply.sh from .env.do.
+  - key: GOOGLE_CLIENT_ID
+    value: 423209959113-sqj1ahga7mn2ler02l26691dvb3idtlt.apps.googleusercontent.com
+    scope: RUN_TIME
+  - key: APPLE_CLIENT_ID
+    value: co.familywell.web
+    scope: RUN_TIME
+  - key: APPLE_TEAM_ID
+    value: HRP3W3WRHZ
+    scope: RUN_TIME
+  - key: APPLE_KEY_ID
+    value: U4DUZUAD6R
+    scope: RUN_TIME
+
   # Mail via Resend SMTP. MAIL_PASSWORD (the Resend API key) is injected as a SECRET by apply.sh.
   # Sender is @familywell.co, verified in Resend (DKIM/SPF records live in the Cloudflare zone).
   - key: MAIL_MAILER
