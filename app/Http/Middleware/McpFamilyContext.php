@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Family;
+use App\Support\Billing\Billing;
 use App\Support\Mcp\McpTools;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Translations;
@@ -26,6 +28,11 @@ class McpFamilyContext
         // Leaving a family kills its connectors: membership is re-checked on every request.
         if (! $user->families()->whereKey($familyId)->exists()) {
             return response()->json(['error' => 'You are no longer a member of this family. Reconnect the app.'], 403);
+        }
+
+        // Same paywall as the web app (RequireFamily): connectors stop working when the subscription lapses.
+        if (Billing::enabled() && ! Billing::hasAccess(Family::findOrFail($familyId))) {
+            return response()->json(['error' => 'This family has no active FamilyWell subscription. Subscribe in Settings > Billing.'], 402);
         }
 
         CurrentFamily::set($familyId);
