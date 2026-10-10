@@ -3,6 +3,8 @@
 namespace App\Support\Billing;
 
 use App\Models\Family;
+use App\Models\User;
+use App\Support\Analytics;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
@@ -78,20 +80,50 @@ class Billing
         if ((string) ($session['client_reference_id'] ?? '') !== (string) $family->id || ! isset($session['subscription']['status'])) {
             return;
         }
-        $family->forceFill([
-            'stripe_customer_id' => $session['customer'],
-            'subscription_status' => $session['subscription']['status'],
-        ])->save();
+        self::setStatus($family, $session['customer'], $session['subscription']);
     }
 
     /** Applies a customer.subscription.* event to the family named in its metadata. */
     public static function applySubscription(array $subscription): void
     {
-        $family = Family::find($subscription['metadata']['family_id'] ?? null);
-        $family?->forceFill([
-            'stripe_customer_id' => $subscription['customer'],
-            'subscription_status' => $subscription['status'],
-        ])->save();
+        if ($family = Family::find($subscription['metadata']['family_id'] ?? null)) {
+            self::setStatus($family, $subscription['customer'], $subscription);
+        }
+    }
+
+    /**
+     * The one place a family's subscription status changes (checkout redirect + webhook), so the analytics
+     * events fire on the TRANSITION wherever it is first seen: the success redirect usually beats the
+     * webhook, which then sees active -> active and stays quiet. Filed under the family owner.
+     */
+    private static function setStatus(Family $family, ?string $customer, array $subscription): void
+    {
+        $wasPaid = in_array($family->subscription_status, self::PAID, true);
+        $family->forceFill(['stripe_customer_id' => $customer, 'subscription_status' => $subscription['status']])->save();
+        $isPaid = in_array($subscription['status'], self::PAID, true);
+
+        if ($wasPaid !== $isPaid) {
+            $owner = User::find($family->owner_id);
+            if ($isPaid) {
+                Analytics::track($owner, 'subscription_started', ['plan' => self::plan($subscription)], '/billing');
+            } else {
+                // canceled / unpaid / incomplete_expired: access ended (a cancel at period end lands here later).
+                Analytics::track($owner, 'subscription_canceled', [], '/billing');
+            }
+        }
+    }
+
+    /** 'monthly' | 'yearly' from the subscription's price, 'unknown' for a price we don't configure. */
+    private static function plan(array $subscription): string
+    {
+        $price = $subscription['items']['data'][0]['price']['id'] ?? null;
+        foreach (['monthly', 'yearly'] as $plan) {
+            if ($price !== null && $price === config("services.stripe.price_{$plan}")) {
+                return $plan;
+            }
+        }
+
+        return 'unknown';
     }
 
     /**

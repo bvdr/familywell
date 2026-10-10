@@ -126,6 +126,9 @@ class SocialLogin
             'expires' => now()->getTimestamp() + 600,  // now(), not time(): honours the test clock (travel()).
             'intended' => $request->session()->get('url.intended'),
             'invite' => $request->session()->get('invite_token'),
+            // The guest's familywell.org visitor id + first touch (CaptureFirstTouch), so an Apple sign-UP
+            // can still adopt them in the new session. Small: two capped strings and a short array.
+            'analytics' => $request->session()->get('analytics'),
         ]);
 
         return redirect()->away('https://appleid.apple.com/auth/authorize?'.http_build_query([
@@ -158,6 +161,9 @@ class SocialLogin
         }
         if (filled($saved['invite'] ?? null)) {
             $request->session()->put('invite_token', $saved['invite']);
+        }
+        if (is_array($saved['analytics'] ?? null)) {
+            $request->session()->put('analytics', $saved['analytics']);
         }
 
         $idToken = Http::asForm()->post('https://appleid.apple.com/auth/token', [
@@ -295,8 +301,8 @@ class SocialLogin
             return $user;
         });
 
-        // Same Registered event, login and onboarding/invite redirect as the sign-up form.
-        return RegisteredUserController::registered($request, $user);
+        // Same Registered event, login, analytics adoption and onboarding/invite redirect as the sign-up form.
+        return RegisteredUserController::registered($request, $user, $provider);
     }
 
     /**
