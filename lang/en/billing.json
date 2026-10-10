@@ -23,5 +23,8 @@
     "active_desc": "Change your plan or card, download invoices, or cancel in the Stripe customer portal.",
     "past_due": "Your last payment failed. Update your card to keep access.",
     "manage": "Manage subscription",
-    "admin_only": "Only family admins can manage the subscription."
+    "admin_only": "Only family admins can manage the subscription.",
+    "kicker": "One plan, whole family",
+    "sign_out": "Sign out",
+    "see_features": "See everything FamilyWell does"
 }
