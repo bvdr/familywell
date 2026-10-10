@@ -16,13 +16,14 @@ import '@fontsource/playfair-display/700.css';
 import '../css/app.css';
 import './echo';
 
-import { createInertiaApp } from '@inertiajs/react';
+import { createInertiaApp, router } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import * as React from 'react';
 import { createRoot } from 'react-dom/client';
 import { route as routeFn } from 'ziggy-js';
 import { armCrashRecovery, ErrorBoundary } from './components/error-boundary';
 import { initializeTheme } from './hooks/use-appearance';
+import { identify } from './lib/analytics';
 import { loadModules, registerSlot } from './lib/modules';
 import { registerServiceWorker } from './lib/push';
 
@@ -49,6 +50,10 @@ createInertiaApp({
     setup({ el, App, props }) {
         const root = createRoot(el);
 
+        // Identify to Umami on the first page, then on every visit (the navigate listener below) so a
+        // sign-in, sign-up or account switch re-identifies. Both: identify() dedupes repeat calls.
+        identify(props.initialPage.props.analyticsId);
+
         root.render(
             <ErrorBoundary>
                 <App {...props} />
@@ -59,6 +64,8 @@ createInertiaApp({
         color: '#2D5E3A',
     },
 });
+
+router.on('navigate', (event) => identify(event.detail.page.props.analyticsId));
 
 // This will set light / dark mode on load...
 initializeTheme();
