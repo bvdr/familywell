@@ -36,7 +36,7 @@ it('refuses MCP tokens', function () {
 it('refuses a board token once its client is no longer a board client', function () {
     $client = boardClient();
     $token = boardToken(User::factory()->create(), $client)['access_token'];
-    config(['board.client_ids' => []]);
+    $client->forceFill(['first_party' => false])->save();
     auth()->forgetGuards();
 
     $this->withToken($token)->getJson('/api/board/me')->assertForbidden();
