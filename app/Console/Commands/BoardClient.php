@@ -9,7 +9,7 @@ use Laravel\Passport\ClientRepository;
 // The secret is printed once (Passport stores only its hash) and goes into the Worker as OAUTH_CLIENT_SECRET.
 class BoardClient extends Command
 {
-    protected $signature = 'board:client {name : e.g. "FamilyWell board"} {redirect : the Worker callback URL}';
+    protected $signature = 'board:client {name : e.g. "FamilyWell board"} {redirect : the Worker callback URL} {--admin : the admin.familywell.org client (may also ask for the admin scope)}';
 
     protected $description = 'Create a first-party OAuth client for the module-requests board or its admin';
 
@@ -23,8 +23,8 @@ class BoardClient extends Command
         }
 
         $client = $clients->createAuthorizationCodeGrantClient($this->argument('name'), [$this->argument('redirect')], confidential: true);
-        // The flag lives on the client row; it is what makes this a board client (see OAuthClient).
-        $client->forceFill(['first_party' => true])->save();
+        // The flags live on the client row; they are what make this a board / admin client (see OAuthClient).
+        $client->forceFill(['first_party' => true, 'platform_admin' => (bool) $this->option('admin')])->save();
 
         $this->info("Client ID:     {$client->getKey()}");
         $this->info("Client secret: {$client->plainSecret}");
