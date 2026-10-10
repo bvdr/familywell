@@ -122,6 +122,8 @@ class SocialLogin
         $payload = json_encode([
             'state' => $state,
             'nonce' => $nonce,
+            // Checked server-side too: the cookie's 10-minute lifetime is only the browser's promise.
+            'expires' => time() + 600,
             'intended' => $request->session()->get('url.intended'),
             'invite' => $request->session()->get('invite_token'),
         ]);
@@ -145,7 +147,8 @@ class SocialLogin
         // Single use, like Google's session pull(): SocialLoginController deletes the cookie on every answer.
         $saved = json_decode((string) $request->cookie(self::APPLE_COOKIE), true);
 
-        if ($request->filled('error') || ! $request->filled('code') || ! is_array($saved) || ! self::stateMatches($saved['state'] ?? null, $request->input('state'))) {
+        if ($request->filled('error') || ! $request->filled('code') || ! is_array($saved) || ($saved['expires'] ?? 0) < time()
+            || ! self::stateMatches($saved['state'] ?? null, $request->input('state'))) {
             throw new SocialLoginException('auth.social_failed');
         }
 

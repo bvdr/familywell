@@ -37,16 +37,19 @@ Route::middleware('guest')->group(function () {
 
     // "Continue with Google / Apple". Google returns with a GET; Apple with a cross-site form POST, which is
     // why its callback is CSRF-exempt (bootstrap/app.php) and checks its own state cookie instead.
-    Route::get('auth/{provider}/redirect', [SocialLoginController::class, 'redirect'])
-        ->whereIn('provider', SocialLogin::PROVIDERS)
-        ->name('social.redirect');
+    // Throttled per IP like the login form, so the callbacks can't be hammered with guessed codes.
+    Route::middleware('throttle:20,1')->group(function () {
+        Route::get('auth/{provider}/redirect', [SocialLoginController::class, 'redirect'])
+            ->whereIn('provider', SocialLogin::PROVIDERS)
+            ->name('social.redirect');
 
-    Route::get('auth/{provider}/callback', [SocialLoginController::class, 'callback'])
-        ->whereIn('provider', ['google'])
-        ->name('social.callback');
+        Route::get('auth/{provider}/callback', [SocialLoginController::class, 'callback'])
+            ->whereIn('provider', ['google'])
+            ->name('social.callback');
 
-    Route::post('auth/{provider}/callback', [SocialLoginController::class, 'callback'])
-        ->whereIn('provider', ['apple']);
+        Route::post('auth/{provider}/callback', [SocialLoginController::class, 'callback'])
+            ->whereIn('provider', ['apple']);
+    });
 });
 
 Route::middleware('auth')->group(function () {
