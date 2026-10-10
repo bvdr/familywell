@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use App\Support\Analytics;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Support\Facades\DB;
@@ -26,7 +27,7 @@ it('gives every new user a unique analytics id that cannot be mass-assigned', fu
     expect(Str::isUuid($c->fresh()->analytics_id))->toBeTrue();
 
     expect(fn () => DB::table('users')->where('id', $b->id)->update(['analytics_id' => $a->analytics_id]))
-        ->toThrow(Illuminate\Database\QueryException::class); // unique index
+        ->toThrow(QueryException::class); // unique index
 });
 
 it('backfills existing users when the migration runs', function () {
