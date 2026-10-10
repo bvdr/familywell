@@ -165,6 +165,19 @@ envs:
     value: familywell
     scope: RUN_TIME
 
+  # Stripe paywall (FamilyWell account, USD prices). STRIPE_KEY being set is what turns the paywall on.
+  # STRIPE_SECRET (a restricted rk_live key) and STRIPE_WEBHOOK_SECRET are SECRETS injected by apply.sh;
+  # all of them live in 1Password folio-dev "FamilyWell Stripe LIVE".
+  - key: STRIPE_KEY
+    value: pk_live_51UOWOSD66FjwmQ4egmbaUkhqcVq0xlk6SHbb4b1uTR4E7x6722oemTb4fUJZ7yHSNVcT1hOO4NbIGrkhLltJN3VU00jMItoDJy
+    scope: RUN_TIME
+  - key: STRIPE_PRICE_MONTHLY
+    value: price_1UOsfmD66FjwmQ4eJJ8ewxVW
+    scope: RUN_TIME
+  - key: STRIPE_PRICE_YEARLY
+    value: price_1UOsfmD66FjwmQ4esjCQCHY4
+    scope: RUN_TIME
+
   # Mail via Resend SMTP. MAIL_PASSWORD (the Resend API key) is injected as a SECRET by apply.sh.
   # Sender is @familywell.co, verified in Resend (DKIM/SPF records live in the Cloudflare zone).
   - key: MAIL_MAILER
