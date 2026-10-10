@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BillingController;
 use App\Http\Controllers\Settings\ConnectedAppsController;
 use App\Http\Controllers\Settings\MediaLibraryController;
 use App\Http\Controllers\Settings\PasswordController;
@@ -15,6 +16,9 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Modules\Notifications\NotificationCategories;
 
+// Stripe webhook: no auth/session user; verified by its signature. CSRF-exempt in bootstrap/app.php.
+Route::post('stripe/webhook', [BillingController::class, 'webhook'])->name('billing.webhook');
+
 Route::middleware('auth')->group(function () {
     Route::redirect('settings', 'settings/profile');
 
@@ -24,6 +28,12 @@ Route::middleware('auth')->group(function () {
         Route::delete('settings/media/{type}/{id}', [MediaLibraryController::class, 'destroy'])->name('media.destroy');
 
         // The family's 30-day trash (App\Support\Trash): list + restore, per module that registers a source.
+        // Billing (hosted plan only; 404s without Stripe config). NOT behind the paywall itself: this is
+        // where a locked family is sent to subscribe. See RequireFamily.
+        Route::get('settings/billing', [BillingController::class, 'show'])->name('billing.show');
+        Route::post('settings/billing/checkout', [BillingController::class, 'checkout'])->name('billing.checkout');
+        Route::post('settings/billing/portal', [BillingController::class, 'portal'])->name('billing.portal');
+
         Route::get('settings/recently-deleted', [RecentlyDeletedController::class, 'index'])->name('recently-deleted');
         Route::post('settings/recently-deleted/{module}/{type}/{id}', [RecentlyDeletedController::class, 'restore'])
             ->whereNumber('id')->name('recently-deleted.restore');

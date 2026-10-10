@@ -19,4 +19,10 @@ class FamilyPolicy
     {
         return $this->manageMembers($user, $family);
     }
+
+    // Only admins can start a subscription or open the Stripe portal (where it can be cancelled).
+    public function manageBilling(User $user, Family $family): bool
+    {
+        return $this->manageMembers($user, $family);
+    }
 }
