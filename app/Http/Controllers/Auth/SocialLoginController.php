@@ -25,6 +25,16 @@ class SocialLoginController extends Controller
     {
         abort_unless(SocialLogin::configured($provider), 404);
 
+        $response = $this->finish($request, $provider);
+
+        // Apple's state cookie is single-use. Set on this response rather than via Cookie::queue(): the
+        // cookie jar is a singleton, so a queued forget would leak onto later responses of a long-lived
+        // worker (and of the test client).
+        return $provider === 'apple' ? $response->withoutCookie(SocialLogin::APPLE_COOKIE, '/auth/apple') : $response;
+    }
+
+    private function finish(Request $request, string $provider): RedirectResponse
+    {
         try {
             $identity = $provider === 'apple' ? SocialLogin::appleIdentity($request) : SocialLogin::googleIdentity($request);
 

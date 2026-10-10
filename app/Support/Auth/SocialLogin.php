@@ -9,7 +9,6 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -136,9 +135,8 @@ class SocialLogin
     /** @return array{sub: string, email: ?string, email_verified: bool, name: ?string} */
     public static function appleIdentity(Request $request): array
     {
+        // Single use, like Google's session pull(): SocialLoginController deletes the cookie on every answer.
         $saved = json_decode((string) $request->cookie(self::APPLE_COOKIE), true);
-        // Single use, like Google's session pull().
-        Cookie::queue(Cookie::forget(self::APPLE_COOKIE, '/auth/apple'));
 
         if ($request->filled('error') || ! $request->filled('code') || ! is_array($saved) || ! self::stateMatches($saved['state'] ?? null, $request->input('state'))) {
             throw new SocialLoginException('auth.social_failed');
