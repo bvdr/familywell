@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\CaptureFirstTouch;
 use App\Http\Middleware\EnsureModuleEnabled;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RequireFamily;
@@ -48,6 +49,8 @@ return Application::configure(basePath: dirname(__DIR__))
             ShareRealtime::class,
             // Last active (web) for admin.familywell.org; throttled to one write per user per 5 minutes.
             TrackLastSeen::class,
+            // Guests only: the familywell.org visitor id + first-touch source, kept until sign-up adopts them.
+            CaptureFirstTouch::class,
         ]);
 
         // Stripe can't send a CSRF token; the webhook authenticates by its Stripe-Signature instead.
