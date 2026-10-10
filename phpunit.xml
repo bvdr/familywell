@@ -32,5 +32,9 @@
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
+        <!-- Paywall off in tests even if a dev .env sets STRIPE_KEY (it locks every app route); the
+             billing tests switch it on themselves via config(). -->
+        <env name="STRIPE_KEY" value="" force="true"/>
+        <server name="STRIPE_KEY" value="" force="true"/>
     </php>
 </phpunit>
