@@ -386,6 +386,17 @@ it('sends an Apple sign-in without an email back to login', function () {
     expect(User::count())->toBe(0);
 });
 
+it('rejects an Apple state cookie older than 10 minutes, even if the browser kept it', function () {
+    socialApple();
+    Http::fake();
+    [$query, $cookie] = socialAppleStart();
+
+    $this->travel(11)->minutes();
+    $this->withCookie(SocialLogin::APPLE_COOKIE, $cookie)->post('/auth/apple/callback', ['code' => 'c', 'state' => $query['state']])
+        ->assertRedirect('/login')->assertSessionHasErrors('social');
+    Http::assertNothingSent();
+});
+
 it('signs Apple\'s client secret as an ES256 JWT with the right header and claims', function () {
     $publicKey = socialApple();
     $before = time();
