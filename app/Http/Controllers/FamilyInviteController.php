@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Mail\FamilyInvitationMail;
 use App\Models\Family;
 use App\Models\FamilyInvitation;
+use App\Support\Analytics;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -37,6 +38,7 @@ class FamilyInviteController extends Controller
         );
 
         Mail::to($invite->email)->send(new FamilyInvitationMail($invite));
+        Analytics::track($request->user(), 'member_invited', [], '/family');
 
         return back();
     }
@@ -103,5 +105,6 @@ class FamilyInviteController extends Controller
         $request->session()->put('active_family_id', $invite->family_id);
         $request->session()->forget('invite_token');
         $invite->delete();
+        Analytics::track($request->user(), 'invite_accepted', [], '/invite');
     }
 }
