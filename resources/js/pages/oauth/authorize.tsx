@@ -15,8 +15,8 @@ type Family = { id: number; name: string; modules: Module[] };
 const LEVELS: Access[] = ['none', 'read', 'write'];
 
 // OAuth consent for an MCP client (Claude, ChatGPT, Cursor...). The person picks ONE family and, per
-// module, No access / Read / Read & write. Default is No access everywhere: nothing is shared unless
-// chosen. Submits as a NATIVE form, not Inertia: approving redirects to the client's callback URL (another
+// module, No access / Read / Read & write (or all modules at once). Default is No access everywhere:
+// nothing is shared unless chosen. Submits as a NATIVE form, not Inertia: approving redirects to the client's callback URL (another
 // site or a claude:// link), which an Inertia XHR cannot follow. Server side: App\Http\Controllers\OAuth.
 export default function Authorize({
     client,
@@ -75,31 +75,27 @@ export default function Authorize({
                     <div className="grid gap-3">
                         <Label>{t('mcp.what_it_can_do', { family: family?.name ?? '' })}</Label>
                         {family?.modules.length ? (
-                            family.modules.map((m) => (
-                                <div key={m.id} className="flex items-center justify-between gap-3">
-                                    <span className="text-sm font-medium">{t(`nav.${m.id}`)}</span>
-                                    <div role="radiogroup" aria-label={t(`nav.${m.id}`)} className="border-border flex rounded-lg border p-0.5">
-                                        {LEVELS.map((level) => {
-                                            const on = (access[m.id] ?? 'none') === level;
-                                            return (
-                                                <button
-                                                    key={level}
-                                                    type="button"
-                                                    role="radio"
-                                                    aria-checked={on}
-                                                    onClick={() => setAccess((a) => ({ ...a, [m.id]: level }))}
-                                                    className={cn(
-                                                        'rounded-md px-2.5 py-1.5 text-xs font-medium whitespace-nowrap transition-colors',
-                                                        on ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
-                                                    )}
-                                                >
-                                                    {t(`mcp.level_${level}`)}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
+                            <>
+                                {/* One row to set every module at once; it shows a level only while all modules share it. */}
+                                <div className="border-border flex items-center justify-between gap-3 border-b pb-3">
+                                    <span className="text-sm font-semibold">{t('mcp.all_modules')}</span>
+                                    <LevelPicker
+                                        label={t('mcp.all_modules')}
+                                        value={LEVELS.find((level) => family.modules.every((m) => (access[m.id] ?? 'none') === level)) ?? null}
+                                        onChange={(level) => setAccess(Object.fromEntries(family.modules.map((m) => [m.id, level])))}
+                                    />
                                 </div>
-                            ))
+                                {family.modules.map((m) => (
+                                    <div key={m.id} className="flex items-center justify-between gap-3">
+                                        <span className="text-sm font-medium">{t(`nav.${m.id}`)}</span>
+                                        <LevelPicker
+                                            label={t(`nav.${m.id}`)}
+                                            value={access[m.id] ?? 'none'}
+                                            onChange={(level) => setAccess((a) => ({ ...a, [m.id]: level }))}
+                                        />
+                                    </div>
+                                ))}
+                            </>
                         ) : (
                             <p className="text-muted-foreground text-sm">{t('mcp.no_modules')}</p>
                         )}
@@ -123,5 +119,33 @@ export default function Authorize({
                 <input type="hidden" name="auth_token" value={authToken} />
             </form>
         </AuthLayout>
+    );
+}
+
+// No access / Read / Read & write as a radio group. `value` null = no level selected (the "All modules"
+// row while modules differ).
+function LevelPicker({ label, value, onChange }: { label: string; value: Access | null; onChange: (level: Access) => void }) {
+    const t = useT();
+    return (
+        <div role="radiogroup" aria-label={label} className="border-border flex rounded-lg border p-0.5">
+            {LEVELS.map((level) => {
+                const on = value === level;
+                return (
+                    <button
+                        key={level}
+                        type="button"
+                        role="radio"
+                        aria-checked={on}
+                        onClick={() => onChange(level)}
+                        className={cn(
+                            'rounded-md px-2.5 py-1.5 text-xs font-medium whitespace-nowrap transition-colors',
+                            on ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+                        )}
+                    >
+                        {t(`mcp.level_${level}`)}
+                    </button>
+                );
+            })}
+        </div>
     );
 }
