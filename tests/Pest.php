@@ -1,11 +1,13 @@
 <?php
 
 use App\Models\Family;
+use App\Models\OAuthClient;
 use App\Models\User;
 use App\Support\Modules\ModuleRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
+use Laravel\Passport\ClientRepository;
 use Tests\TestCase;
 
 /*
@@ -119,6 +121,50 @@ function mcpAuthorizeQuery(string $clientId, string $redirect = 'https://claude.
         'client_id' => $clientId, 'redirect_uri' => $redirect, 'response_type' => 'code',
         'scope' => 'mcp:use', 'state' => 'xyz', 'code_challenge' => $challenge, 'code_challenge_method' => 'S256',
     ]), $verifier];
+}
+
+/** Confidential authorization-code client for the module-requests board, listed in board.client_ids. */
+function boardClient(string $redirect = 'https://familywell.org/api/auth/callback'): OAuthClient
+{
+    mcpKeys();
+    /** @var OAuthClient $client */
+    $client = app(ClientRepository::class)->createAuthorizationCodeGrantClient('FamilyWell board', [$redirect]);
+    config(['board.client_ids' => [$client->getKey()]]);
+
+    return $client;
+}
+
+/** PKCE authorize query for a board client. Returns [query, verifier]. */
+function boardAuthorizeQuery(OAuthClient $client, string $scope = 'board:identity', string $redirect = 'https://familywell.org/api/auth/callback'): array
+{
+    $verifier = Str::random(64);
+    $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+
+    return [http_build_query([
+        'client_id' => $client->getKey(), 'redirect_uri' => $redirect, 'response_type' => 'code',
+        'scope' => $scope, 'state' => 'xyz', 'code_challenge' => $challenge, 'code_challenge_method' => 'S256',
+    ]), $verifier];
+}
+
+/** Full board sign-in: authorize (consent skipped) and exchange the code. Returns the token response. */
+function boardToken(User $user, OAuthClient $client): array
+{
+    // Same isolation as mcpConnect() below: fresh route controllers, the web guard for the
+    // authorize page, a session-less token request.
+    foreach (app('router')->getRoutes() as $route) {
+        $route->flushController();
+    }
+    auth()->forgetGuards();
+    auth()->shouldUse('web');
+    [$query, $verifier] = boardAuthorizeQuery($client);
+    $location = test()->actingAs($user, 'web')->get("/oauth/authorize?{$query}")->assertRedirect()->headers->get('Location');
+    parse_str((string) parse_url($location, PHP_URL_QUERY), $params);
+    auth()->forgetGuards();
+
+    return test()->post('/oauth/token', [
+        'grant_type' => 'authorization_code', 'client_id' => $client->getKey(), 'client_secret' => $client->plainSecret,
+        'redirect_uri' => 'https://familywell.org/api/auth/callback', 'code' => $params['code'], 'code_verifier' => $verifier,
+    ])->assertOk()->json();
 }
 
 /**
