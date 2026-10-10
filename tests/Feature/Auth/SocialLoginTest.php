@@ -199,6 +199,19 @@ it('never links by email alone: an existing account must confirm with its passwo
     get('/login')->assertInertia(fn ($page) => $page->where('email', 'victim@example.com'));
 });
 
+it('links and signs in straight away when the existing account already verified that email', function () {
+    socialGoogle();
+    session(['url.intended' => url('/oauth/authorize?client_id=board')]);
+    $user = User::factory()->create(['email' => 'Ana@Example.com']); // verified (factory default)
+
+    socialGoogleSignIn('ana@example.com')->assertRedirect(url('/oauth/authorize?client_id=board'));
+
+    $this->assertAuthenticatedAs($user);
+    expect($user->socialAccounts()->sole()->only(['provider', 'provider_user_id']))->toBe(['provider' => 'google', 'provider_user_id' => 'g-1'])
+        ->and(User::count())->toBe(1)
+        ->and(session(SocialLogin::PENDING))->toBeNull();
+});
+
 it('connects the parked provider after a password login to that account', function () {
     socialGoogle();
     session(['url.intended' => url('/oauth/authorize?client_id=board')]);
@@ -217,7 +230,7 @@ it('connects the parked provider after a password login to that account', functi
 
 it('sends a newly connected user to their sign-in methods when they had nowhere else to go', function () {
     socialGoogle();
-    User::factory()->create(['email' => 'ana@example.com']);
+    User::factory()->unverified()->create(['email' => 'ana@example.com']);
     socialGoogleSignIn('ana@example.com');
 
     $this->post('/login', ['email' => 'ana@example.com', 'password' => 'password'])->assertRedirect(route('password.edit', absolute: false));
@@ -225,7 +238,7 @@ it('sends a newly connected user to their sign-in methods when they had nowhere 
 
 it('drops the parked link when someone else logs in', function () {
     socialGoogle();
-    User::factory()->create(['email' => 'ana@example.com']);
+    User::factory()->unverified()->create(['email' => 'ana@example.com']);
     $other = User::factory()->create(['email' => 'other@example.com']);
     socialGoogleSignIn('ana@example.com');
 
@@ -237,7 +250,7 @@ it('drops the parked link when someone else logs in', function () {
 
 it('drops the parked link once it expires', function () {
     socialGoogle();
-    $user = User::factory()->create(['email' => 'ana@example.com']);
+    $user = User::factory()->unverified()->create(['email' => 'ana@example.com']);
     socialGoogleSignIn('ana@example.com');
 
     $this->travel(SocialLogin::PENDING_TTL + 60)->seconds();
@@ -247,9 +260,9 @@ it('drops the parked link once it expires', function () {
     expect(SocialAccount::count())->toBe(0);
 });
 
-it('asks for the password again after a provider was disconnected', function () {
+it('asks an unverified account for the password again after a provider was disconnected', function () {
     socialGoogle();
-    $user = User::factory()->create(['email' => 'ana@example.com']);
+    $user = User::factory()->unverified()->create(['email' => 'ana@example.com']);
     $google = $user->socialAccounts()->create(['provider' => 'google', 'provider_user_id' => 'g-1', 'email' => 'ana@example.com']);
     $user->socialAccounts()->create(['provider' => 'apple', 'provider_user_id' => 'a-1']);
     actingAs($user)->delete("/settings/social-accounts/{$google->id}")->assertSessionHasNoErrors();
