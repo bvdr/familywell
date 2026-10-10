@@ -155,7 +155,8 @@ it('posts an event to Umami\'s collect API under the user\'s analytics id', func
     Http::assertSent(fn (HttpRequest $r) => $r->url() === 'https://analytics.dragonpie.co/api/send'
         && $r->method() === 'POST'
         && $r->hasHeader('User-Agent', 'FamilyWell/1.0 (+https://familywell.co)')
-        && $r->data() === ['type' => 'event', 'payload' => [
+        // `data` goes out as a JSON object even when empty (Umami rejects an array), so compare it decoded.
+        && json_decode($r->body(), true) === ['type' => 'event', 'payload' => [
             'website' => 'site-123', 'hostname' => 'familywell.co', 'url' => '/onboarding', 'name' => 'family_created',
             'data' => ['n' => 1], 'id' => '11111111-2222-3333-4444-555555555555',
         ]]);

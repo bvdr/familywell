@@ -76,7 +76,7 @@ function umamiOn(): Closure
     Http::fake(['analytics.dragonpie.co/*' => Http::response(['ok' => true])]);
 
     return fn () => Http::recorded(fn ($request) => str_ends_with($request->url(), '/api/send'))
-        ->map(fn ($pair) => [$pair[0]['payload']['name'], $pair[0]['payload']['data'], $pair[0]['payload']['id'], $pair[0]['payload']['url']])
+        ->map(fn ($pair) => [$pair[0]['payload']['name'], (array) $pair[0]['payload']['data'], $pair[0]['payload']['id'], $pair[0]['payload']['url']])
         ->values()->all();
 }
 
