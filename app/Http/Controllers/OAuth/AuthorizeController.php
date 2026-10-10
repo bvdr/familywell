@@ -29,7 +29,8 @@ class AuthorizeController extends AuthorizationController
         // not enforced app-wide, so only board clients get this detour: send the email once per session,
         // show the verify page, and come back here afterwards (VerifyEmailController -> intended URL).
         $user = $this->guard->user();
-        if ($user && ! $user->hasVerifiedEmail() && OAuthClient::isBoardClient($request->query('client_id'))) {
+        $isBoardClient = OAuthClient::isBoardClient($request->query('client_id'));
+        if ($user && ! $user->hasVerifiedEmail() && $isBoardClient) {
             $request->session()->put('url.intended', $request->fullUrl());
             if (! $request->session()->get('board_verify_sent')) {
                 $user->sendEmailVerificationNotification();
@@ -37,6 +38,12 @@ class AuthorizeController extends AuthorizationController
             }
 
             return redirect()->route('verification.notice');
+        }
+
+        // A board client may only ever ask for board:identity. Anything else would render the MCP
+        // permissions screen, so refuse before the parent runs (no view, nothing put in the session).
+        if ($isBoardClient && (is_string($scope = $request->query('scope')) ? trim($scope) : '') !== 'board:identity') {
+            abort(403, 'This sign-in can only ask for FamilyWell board access.');
         }
 
         return parent::authorize($psrRequest, $request, $psrResponse, $viewResponse);
