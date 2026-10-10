@@ -338,7 +338,11 @@ jobs:
     # The explicit `sh -c` is load-bearing. The base image's ENTRYPOINT (docker-php-entrypoint) ends
     # in `exec "$@"`, so a bare `a && b` here does NOT get a shell: the first command runs, the `&&`
     # tail is silently dropped, and the job still exits 0. That failure is invisible in the logs.
-    run_command: sh -c "php artisan migrate --force && php artisan modules:migrate"
+    #
+    # db:recycle-pool runs last: PgBouncer's pooled server connections keep prepared statements across
+    # deploys, and after a column change they fail with "cached plan must not change result type" until
+    # replaced (see App\Console\Commands\RecyclePoolConnections).
+    run_command: sh -c "php artisan migrate --force && php artisan modules:migrate && php artisan db:recycle-pool"
 
 ingress:
   rules:
