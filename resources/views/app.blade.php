@@ -36,6 +36,12 @@
         @vite(['resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])
         @inertiaHead
 
+        {{-- Umami (cookieless; tracks Inertia page changes through the History API). Only when a website id
+             is configured, i.e. on hosted familywell.co. data-domains keeps other hosts (local, staging) out. --}}
+        @if (config('services.umami.website_id'))
+            <script defer src="{{ config('services.umami.script') }}" data-website-id="{{ config('services.umami.website_id') }}" data-domains="{{ parse_url(config('app.url'), PHP_URL_HOST) }}"></script>
+        @endif
+
         {{-- MUST stay last in <head>: the active skin's tokens are injected here so they win the cascade
              over the compiled stylesheet above (which only maps tokens to utilities). See ThemeTokens. --}}
         <style id="theme">{!! $themeCss ?? '' !!}</style>

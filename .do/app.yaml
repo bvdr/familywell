@@ -165,6 +165,11 @@ envs:
     value: familywell
     scope: RUN_TIME
 
+  # Umami analytics: website "FamilyWell.co" on analytics.dragonpie.co. Not secret (it ships in the page).
+  - key: UMAMI_WEBSITE_ID
+    value: 387d1b2c-f687-44d0-bd91-05b61defa5ec
+    scope: RUN_TIME
+
   # Stripe paywall (FamilyWell account, USD prices). STRIPE_KEY being set is what turns the paywall on.
   # STRIPE_SECRET (a restricted rk_live key) and STRIPE_WEBHOOK_SECRET are SECRETS injected by apply.sh;
   # all of them live in 1Password folio-dev "FamilyWell Stripe LIVE".

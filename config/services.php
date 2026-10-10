@@ -63,4 +63,11 @@ return [
         'price_yearly' => env('STRIPE_PRICE_YEARLY'),
     ],
 
+    // Umami analytics (hosted familywell.co only). Empty = no tracker at all, so self-hosted installs never
+    // report anywhere. The website id isn't secret; it ships in the page.
+    'umami' => [
+        'website_id' => env('UMAMI_WEBSITE_ID'),
+        'script' => env('UMAMI_SCRIPT_URL', 'https://analytics.dragonpie.co/script.js'),
+    ],
+
 ];
