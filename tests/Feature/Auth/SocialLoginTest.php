@@ -6,6 +6,7 @@ use App\Support\Auth\SocialLogin;
 use App\Support\Translations;
 use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
@@ -442,4 +443,42 @@ it('disconnects one of two linked accounts, and only the user\'s own', function 
     actingAs($user)->from('/settings/password')->delete("/settings/social-accounts/{$google->id}")
         ->assertRedirect('/settings/password')->assertSessionHasNoErrors();
     expect($google->fresh())->toBeNull()->and($user->socialAccounts()->count())->toBe(1);
+});
+
+// ---------------------------------------------------------------- analytics adoption (see AnalyticsTest)
+
+it('adopts the familywell.org visitor id and first touch on a Google sign-up', function () {
+    socialGoogle();
+    $events = umamiOn();
+    $vid = (string) Str::uuid();
+    get("/login?fw_vid={$vid}&fw_src=familywell.org&fw_med=referral")->assertOk();
+
+    socialGoogleSignIn('new.person@gmail.com')->assertRedirect(route('onboarding.index'));
+
+    $user = User::where('email', 'new.person@gmail.com')->sole();
+    expect($user->analytics_id)->toBe($vid)
+        ->and($user->first_touch)->toMatchArray(['source' => 'familywell.org', 'medium' => 'referral'])
+        ->and($events())->toBe([['signed_up', ['method' => 'google'], $vid, '/register']]);
+});
+
+it('carries the visitor id through Apple\'s cross-site callback into the new session', function () {
+    socialApple();
+    $events = umamiOn();
+    $vid = (string) Str::uuid();
+    get("/login?fw_vid={$vid}&fw_src=familywell.org")->assertOk();
+    [$query, $cookie] = socialAppleStart();
+
+    Http::fake(['appleid.apple.com/auth/token' => Http::response(['id_token' => socialIdToken([
+        'iss' => 'https://appleid.apple.com', 'aud' => 'co.familywell.web', 'sub' => 'apple-1', 'nonce' => $query['nonce'],
+        'email' => 'abc@privaterelay.appleid.com', 'email_verified' => 'true',
+    ])])]);
+    session()->flush(); // Apple's POST is cross-site: the old session doesn't come along
+
+    $this->withCookie(SocialLogin::APPLE_COOKIE, $cookie)->post('/auth/apple/callback', ['code' => 'apple-code', 'state' => $query['state']])
+        ->assertRedirect(route('onboarding.index'));
+
+    $user = User::where('email', 'abc@privaterelay.appleid.com')->sole();
+    expect($user->analytics_id)->toBe($vid)
+        ->and($user->first_touch['source'])->toBe('familywell.org')
+        ->and($events())->toBe([['signed_up', ['method' => 'apple'], $vid, '/register']]);
 });
