@@ -196,7 +196,7 @@ envs:
     value: HRP3W3WRHZ
     scope: RUN_TIME
   - key: APPLE_KEY_ID
-    value: KT7YTSC948
+    value: U4DUZUAD6R
     scope: RUN_TIME
 
   # Mail via Resend SMTP. MAIL_PASSWORD (the Resend API key) is injected as a SECRET by apply.sh.
