@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 
 // key is a translation key resolved at render (so the nav is localized).
 const sidebarNavItems: { key: string; url: string }[] = [
@@ -15,11 +15,15 @@ const sidebarNavItems: { key: string; url: string }[] = [
     { key: 'settings.media', url: '/settings/media' },
     { key: 'trash.title', url: '/settings/recently-deleted' },
     { key: 'mcp.connected_apps', url: '/settings/connected-apps' },
+    { key: 'billing.title', url: '/settings/billing' },
 ];
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
     const currentPath = window.location.pathname;
     const t = useT();
+    // Billing only exists on the hosted plan (STRIPE_KEY set); self-hosted installs never see it.
+    const { billingEnabled } = usePage<{ billingEnabled?: boolean }>().props;
+    const items = sidebarNavItems.filter((item) => billingEnabled || item.url !== '/settings/billing');
 
     return (
         <div className="px-4 py-6">
@@ -28,7 +32,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
             <div className="flex flex-col space-y-8 lg:flex-row lg:space-y-0 lg:space-x-12">
                 <aside className="w-full max-w-xl lg:w-48">
                     <nav className="flex flex-col space-y-1 space-x-0">
-                        {sidebarNavItems.map((item) => (
+                        {items.map((item) => (
                             <Button
                                 key={item.url}
                                 size="sm"

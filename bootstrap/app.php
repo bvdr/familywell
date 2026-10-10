@@ -45,6 +45,9 @@ return Application::configure(basePath: dirname(__DIR__))
             ShareRealtime::class,
         ]);
 
+        // Stripe can't send a CSRF token; the webhook authenticates by its Stripe-Signature instead.
+        $middleware->validateCsrfTokens(except: ['stripe/webhook']);
+
         $middleware->alias([
             'module' => EnsureModuleEnabled::class,
             'family' => RequireFamily::class,
