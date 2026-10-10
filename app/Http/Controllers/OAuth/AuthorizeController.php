@@ -16,7 +16,8 @@ use Symfony\Component\HttpFoundation\Response;
 // the user already holds a token for the client with the requested scopes, but MCP clients only ever
 // request `mcp:use`, so a second connection would silently reuse the first family + module choices.
 // Every connection must pick its family and permissions, so we never consider scopes "already granted".
-// (First-party board clients skip consent through OAuthClient::skipsAuthorization instead.)
+// (First-party board clients, and the platform-admin client, skip consent through
+// OAuthClient::skipsAuthorization instead.)
 class AuthorizeController extends AuthorizationController
 {
     public function authorize(
@@ -40,10 +41,19 @@ class AuthorizeController extends AuthorizationController
             return redirect()->route('verification.notice');
         }
 
-        // A board client may only ever ask for board:identity. Anything else would render the MCP
-        // permissions screen, so refuse before the parent runs (no view, nothing put in the session).
-        if ($isBoardClient && (is_string($scope = $request->query('scope')) ? trim($scope) : '') !== 'board:identity') {
+        // A board client may only ever ask for board:identity; the admin client (also platform_admin) for
+        // exactly board:identity + admin. Anything else would render the MCP permissions screen, so refuse
+        // before the parent runs (no view, nothing put in the session).
+        $isAdminClient = $isBoardClient && OAuthClient::isPlatformAdminClient($request->query('client_id'));
+        $scope = is_string($scope = $request->query('scope')) ? trim($scope) : '';
+        if ($isBoardClient && $scope !== ($isAdminClient ? OAuthClient::ADMIN_SCOPE : 'board:identity')) {
             abort(403, 'This sign-in can only ask for FamilyWell board access.');
+        }
+
+        // Only platform admins get an admin.familywell.org code. A 403 (not a redirect back to the client)
+        // can't be turned into an open redirect, and non-admins have no reason to be here.
+        if ($isAdminClient && $user && ! $user->is_platform_admin) {
+            abort(403, 'This FamilyWell account isn’t a platform admin.');
         }
 
         return parent::authorize($psrRequest, $request, $psrResponse, $viewResponse);
