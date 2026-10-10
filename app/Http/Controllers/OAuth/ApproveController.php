@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\OAuth;
 
 use App\Models\OAuthClient;
+use App\Support\Analytics;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\ModuleRegistry;
 use Illuminate\Http\Request;
@@ -50,8 +51,12 @@ class ApproveController
         $authRequest->setScopes(array_map(fn (string $s) => new Scope($s), McpTools::scopesFor($familyId, $access)));
         $authRequest->setAuthorizationApproved(true);
 
-        return $this->withErrorHandling(fn () => $this->convertResponse(
+        $response = $this->withErrorHandling(fn () => $this->convertResponse(
             $this->server->completeAuthorizationRequest($authRequest, $psrResponse)
         ), false);
+        // Only how many modules they shared, never which client or family.
+        Analytics::track($user, 'assistant_connected', ['modules' => count(array_diff($access, ['none']))], '/oauth');
+
+        return $response;
     }
 }

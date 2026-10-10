@@ -47,6 +47,8 @@ class FamilywellServer extends Server
     protected function boot(): void
     {
         $this->tools = McpTools::all();
+        // tools/call with an assistant_tool analytics event (App\Mcp\TrackedCallTool).
+        $this->addMethod('tools/call', TrackedCallTool::class);
         // The MCP Apps widgets tools point at. Static HTML with no family data in it (the data arrives as the
         // tool result), so they are always listed; reading one needs only a valid token.
         $this->resources = array_map(fn (string $w) => new Widget($w), array_keys(Widget::WIDGETS));
