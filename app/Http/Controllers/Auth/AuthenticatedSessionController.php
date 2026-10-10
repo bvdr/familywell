@@ -34,6 +34,15 @@ class AuthenticatedSessionController extends Controller
     {
         $request->authenticate();
 
+        return self::signedIn($request);
+    }
+
+    /**
+     * Everything a successful sign-in does once the user is authenticated. Shared with "Sign in with
+     * Google / Apple" (App\Support\Auth\SocialLogin) so both ways in land the same way.
+     */
+    public static function signedIn(Request $request): RedirectResponse
+    {
         $request->session()->regenerate();
 
         // Establish the active family on login (registration does the same), so every

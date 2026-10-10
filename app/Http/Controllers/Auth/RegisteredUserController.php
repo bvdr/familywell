@@ -43,6 +43,15 @@ class RegisteredUserController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
+        return self::registered($request, $user);
+    }
+
+    /**
+     * Everything that follows creating an account. Shared with "Sign in with Google / Apple"
+     * (App\Support\Auth\SocialLogin) so a social sign-up gets exactly the same welcome.
+     */
+    public static function registered(Request $request, User $user): RedirectResponse
+    {
         event(new Registered($user));
 
         Auth::login($user);
