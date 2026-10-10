@@ -51,4 +51,16 @@ return [
         'model' => env('TYPESAFE_MODEL', 'jev-latest'),
     ],
 
+    // Stripe, for the hosted familywell.co subscription. The WHOLE paywall (lock + Settings > Billing)
+    // is gated on `key` (the publishable key) being set: self-hosters leave it empty and never see a
+    // paywall. secret + webhook_secret are server-only; the two price IDs are the monthly/yearly plans
+    // from the Stripe dashboard (Checkout is Stripe-hosted, so no plan logic lives in the app).
+    'stripe' => [
+        'key' => env('STRIPE_KEY'),
+        'secret' => env('STRIPE_SECRET'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+        'price_monthly' => env('STRIPE_PRICE_MONTHLY'),
+        'price_yearly' => env('STRIPE_PRICE_YEARLY'),
+    ],
+
 ];
