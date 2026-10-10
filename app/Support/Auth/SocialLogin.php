@@ -123,7 +123,7 @@ class SocialLogin
             'state' => $state,
             'nonce' => $nonce,
             // Checked server-side too: the cookie's 10-minute lifetime is only the browser's promise.
-            'expires' => time() + 600,
+            'expires' => now()->getTimestamp() + 600,  // now(), not time(): honours the test clock (travel()).
             'intended' => $request->session()->get('url.intended'),
             'invite' => $request->session()->get('invite_token'),
         ]);
@@ -147,7 +147,7 @@ class SocialLogin
         // Single use, like Google's session pull(): SocialLoginController deletes the cookie on every answer.
         $saved = json_decode((string) $request->cookie(self::APPLE_COOKIE), true);
 
-        if ($request->filled('error') || ! $request->filled('code') || ! is_array($saved) || ($saved['expires'] ?? 0) < time()
+        if ($request->filled('error') || ! $request->filled('code') || ! is_array($saved) || ($saved['expires'] ?? 0) < now()->getTimestamp()
             || ! self::stateMatches($saved['state'] ?? null, $request->input('state'))) {
             throw new SocialLoginException('auth.social_failed');
         }
@@ -263,7 +263,7 @@ class SocialLogin
             // account with its password first: we park the link, send them to the login form, and
             // completePendingLink() finishes it after a successful password login. Also why a disconnected
             // provider can't silently relink.
-            $request->session()->put(self::PENDING, encrypt($link + ['user_id' => $user->id, 'expires' => time() + self::PENDING_TTL]));
+            $request->session()->put(self::PENDING, encrypt($link + ['user_id' => $user->id, 'expires' => now()->getTimestamp() + self::PENDING_TTL]));
 
             throw new SocialLoginException('auth.social_link_password');
         }
@@ -303,7 +303,7 @@ class SocialLogin
             return null;
         }
 
-        return is_array($pending) && ($pending['expires'] ?? 0) >= time() ? $pending : null;
+        return is_array($pending) && ($pending['expires'] ?? 0) >= now()->getTimestamp() ? $pending : null;
     }
 
     /**
