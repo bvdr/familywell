@@ -8,6 +8,7 @@ use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\ShareModules;
 use App\Http\Middleware\ShareRealtime;
 use App\Http\Middleware\ShareTheme;
+use App\Http\Middleware\TrackLastSeen;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -45,6 +46,8 @@ return Application::configure(basePath: dirname(__DIR__))
             ShareTheme::class,
             ShareModules::class,
             ShareRealtime::class,
+            // Last active (web) for admin.familywell.org; throttled to one write per user per 5 minutes.
+            TrackLastSeen::class,
         ]);
 
         // Stripe can't send a CSRF token; the webhook authenticates by its Stripe-Signature instead.
