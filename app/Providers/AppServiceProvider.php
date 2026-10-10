@@ -6,6 +6,7 @@ use App\Http\Controllers\OAuth\AuthorizeController;
 use App\Mcp\Tools\GetFamily;
 use App\Mcp\Tools\GetToday;
 use App\Models\Family;
+use App\Models\OAuthClient;
 use App\Models\User;
 use App\Support\Mcp\McpTools;
 use App\Support\Mcp\ScopeRepository;
@@ -60,7 +61,14 @@ class AppServiceProvider extends ServiceProvider
         // Module scopes come from McpTools, which module providers fill during their boot(), so the list
         // is built once everything has booted. `mcp:use` is laravel/mcp's base scope (it also adds it when
         // the discovery routes load; listing it here keeps the result independent of that order).
-        $this->app->booted(fn () => Passport::tokensCan(['mcp:use' => 'Use the Familywell MCP server'] + McpTools::scopes()));
+        // `board:identity`: the module-requests board's sign-in (user id, verified-email flag, family names).
+        $this->app->booted(fn () => Passport::tokensCan([
+            'mcp:use' => 'Use the Familywell MCP server',
+            'board:identity' => 'Sign in to the FamilyWell module-requests board',
+        ] + McpTools::scopes()));
+
+        // First-party board clients skip consent for `board:identity` (see App\Models\OAuthClient).
+        Passport::useClientModel(OAuthClient::class);
 
         // Core MCP tools: always available to any connected token (no module scope needed).
         McpTools::register(McpTools::CORE, 'Familywell', [GetFamily::class, GetToday::class]);
