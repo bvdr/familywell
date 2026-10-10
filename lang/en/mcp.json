@@ -7,6 +7,7 @@
     "level_none": "No access",
     "level_read": "Read",
     "level_write": "Read & write",
+    "all_modules": "All modules",
     "no_modules": "This family has no modules an app can connect to yet. The app can still see the family name and its members.",
     "consent_footnote": "The app always sees the family's name and members. Anything it deletes stays recoverable for 30 days.",
     "no_family": "You need to be in a family before you can connect an app.",
