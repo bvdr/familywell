@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\Auth\SocialLogin;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -55,6 +56,8 @@ class RegisteredUserController extends Controller
         event(new Registered($user));
 
         Auth::login($user);
+        // A parked "connect Google/Apple" link belongs to an existing account, never to a new one.
+        $request->session()->forget(SocialLogin::PENDING);
 
         // If they arrived from an invitation link, finish that instead of onboarding. Otherwise new
         // users choose in onboarding (create / join / demo); RequireFamily keeps the app gated until then.

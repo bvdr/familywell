@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 
 type SocialAccount = { id: number; provider: 'google' | 'apple'; email: string | null };
 
-export default function Password({ socialAccounts = [] }: { socialAccounts?: SocialAccount[] }) {
+export default function Password({ socialAccounts = [], status }: { socialAccounts?: SocialAccount[]; status?: string }) {
     const t = useT();
     const { socialProviders = [], errors: pageErrors } = usePage<{ socialProviders?: string[]; errors: Record<string, string> }>().props;
     const providerName = (p: string) => (p === 'apple' ? 'Apple' : 'Google');
@@ -139,6 +139,8 @@ export default function Password({ socialAccounts = [] }: { socialAccounts?: Soc
                 {(socialAccounts.length > 0 || socialProviders.length > 0) && (
                     <div className="space-y-4">
                         <HeadingSmall title={t('settings.sign_in_methods')} description={t('settings.sign_in_methods_desc')} />
+                        {/* "Google connected" after a password login completed a parked link (AuthenticatedSessionController). */}
+                        {status && <p className="text-sm font-medium text-green-600">{status}</p>}
                         {socialAccounts.length === 0 ? (
                             <p className="text-muted-foreground text-sm">{t('settings.sign_in_methods_none')}</p>
                         ) : (

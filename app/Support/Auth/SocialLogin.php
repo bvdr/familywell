@@ -8,7 +8,9 @@ use App\Models\SocialAccount;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -29,6 +31,11 @@ class SocialLogin
 
     /** Carries Apple's state/nonce across its cross-site POST callback. See appleRedirect(). */
     public const APPLE_COOKIE = 'apple_oauth';
+
+    // Session key + lifetime of a link waiting for the account's password (see signIn()).
+    public const PENDING = 'social.pending';
+
+    public const PENDING_TTL = 600;
 
     /** @return list<string> providers whose config is complete, i.e. whose button shows. */
     public static function enabled(): array
@@ -214,8 +221,9 @@ class SocialLogin
     // ---------------------------------------------------------------- shared
 
     /**
-     * Sign the person in: a linked account wins; else an existing user with the same (provider-verified)
-     * email gets linked; else a new account is created through the normal registration path.
+     * Sign the person in: a linked account wins; else, if an account already has this (provider-verified)
+     * email, the link waits for that account's password (see below); else a new account is created
+     * through the normal registration path.
      *
      * @param  array{sub: string, email: ?string, email_verified: bool, name: ?string}  $identity
      */
@@ -246,30 +254,82 @@ class SocialLogin
 
         // Case-insensitive: older accounts may have been registered with capitals in the address.
         if ($user = User::whereRaw('lower(email) = ?', [$email])->first()) {
-            $user->socialAccounts()->create($link);
-            // The provider just proved they own the address.
-            if (! $user->hasVerifiedEmail()) {
-                $user->markEmailAsVerified();
-            }
-            Auth::login($user);
+            // NEVER link by email alone. FamilyWell doesn't make people verify their address, so anyone can
+            // register (or switch their profile to) someone else's email in advance; auto-linking would then
+            // log the real owner into the account the attacker controls. So the person proves they own THIS
+            // account with its password first: we park the link, send them to the login form, and
+            // completePendingLink() finishes it after a successful password login. Also why a disconnected
+            // provider can't silently relink.
+            $request->session()->put(self::PENDING, encrypt($link + ['user_id' => $user->id, 'expires' => time() + self::PENDING_TTL]));
 
-            return AuthenticatedSessionController::signedIn($request);
+            throw new SocialLoginException('auth.social_link_password');
         }
 
-        $user = new User;
-        $user->forceFill([
-            'name' => Str::limit($identity['name'] ?: Str::before($email, '@'), 255, ''),
-            'email' => $email,
-            'email_verified_at' => now(),
-            // The password column stays NOT NULL: a random one nobody knows means "no password". They can
-            // still set one through "Forgot password?" (the address is verified, so the link arrives).
-            'password' => Hash::make(Str::random(64)),
-            'locale' => app()->getLocale(),
-        ])->save();
-        $user->socialAccounts()->create($link);
+        // One transaction: a user row without its link (e.g. two racing callbacks hitting the unique
+        // index) would leave a passwordless account nobody can reach.
+        $user = DB::transaction(function () use ($identity, $email, $link) {
+            $user = new User;
+            $user->forceFill([
+                'name' => Str::limit($identity['name'] ?: Str::before($email, '@'), 255, ''),
+                'email' => $email,
+                'email_verified_at' => now(),
+                // The password column stays NOT NULL: a random one nobody knows means "no password". They can
+                // still set one through "Forgot password?" (the address is verified, so the link arrives).
+                'password' => Hash::make(Str::random(64)),
+                'locale' => app()->getLocale(),
+            ])->save();
+            $user->socialAccounts()->create($link);
+
+            return $user;
+        });
 
         // Same Registered event, login and onboarding/invite redirect as the sign-up form.
         return RegisteredUserController::registered($request, $user);
+    }
+
+    /**
+     * The parked "sign in with your password to connect" link (see signIn()), if it hasn't expired.
+     *
+     * @return array{provider: string, provider_user_id: string, email: string, user_id: int, expires: int}|null
+     */
+    public static function pendingLink(Request $request): ?array
+    {
+        try {
+            $pending = decrypt((string) $request->session()->get(self::PENDING));
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return is_array($pending) && ($pending['expires'] ?? 0) >= time() ? $pending : null;
+    }
+
+    /**
+     * Called after a successful PASSWORD login (only there: the password is the proof of ownership).
+     * Consumes the parked link whatever happens, and creates it only for the same user and email.
+     * Returns the provider that got connected, or null.
+     */
+    public static function completePendingLink(Request $request, User $user): ?string
+    {
+        $pending = self::pendingLink($request);
+        $request->session()->forget(self::PENDING);
+
+        if (! $pending || $pending['user_id'] !== $user->id || Str::lower($user->email) !== $pending['email']
+            || SocialAccount::where('provider', $pending['provider'])->where('provider_user_id', $pending['provider_user_id'])->exists()) {
+            return null;
+        }
+
+        $user->socialAccounts()->create(Arr::only($pending, ['provider', 'provider_user_id', 'email']));
+        // The password proved they own the account, the provider proved they own the address.
+        if (! $user->hasVerifiedEmail()) {
+            $user->markEmailAsVerified();
+        }
+
+        return $pending['provider'];
+    }
+
+    public static function label(string $provider): string
+    {
+        return $provider === 'apple' ? 'Apple' : 'Google';
     }
 
     private static function stateMatches(mixed $expected, mixed $given): bool

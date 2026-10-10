@@ -48,6 +48,6 @@ class SocialLoginController extends Controller
             $key = 'auth.social_failed';
         }
 
-        return to_route('login')->withErrors(['social' => Translations::get($key)]);
+        return to_route('login')->withErrors(['social' => str_replace(':provider', SocialLogin::label($provider), Translations::get($key))]);
     }
 }
