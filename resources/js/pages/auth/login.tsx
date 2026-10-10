@@ -22,12 +22,14 @@ interface LoginProps {
     status?: string;
     canResetPassword: boolean;
     canDemo: boolean;
+    // Set when a Google/Apple sign-in found an existing account: they confirm it with its password.
+    email?: string | null;
 }
 
-export default function Login({ status, canResetPassword, canDemo }: LoginProps) {
+export default function Login({ status, canResetPassword, canDemo, email }: LoginProps) {
     const t = useT();
     const { data, setData, post, processing, errors, reset } = useForm<LoginForm>({
-        email: '',
+        email: email ?? '',
         password: '',
         remember: false,
     });

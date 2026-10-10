@@ -42,5 +42,6 @@
     "sign_in_methods_none": "Niciunul conectat. Folosește „Continuă cu Google” sau „Continuă cu Apple” pe pagina de autentificare, cu adresa de email a acestui cont, ca să conectezi unul.",
     "disconnect": "Deconectează",
     "disconnect_social_confirm": "Deconectezi :provider? Nu te vei mai putea autentifica cu el.",
-    "social_last_method": "Aceasta este singura metodă de autentificare conectată, așa că nu poate fi deconectată. Conectează mai întâi alta."
+    "social_last_method": "Aceasta este singura metodă de autentificare conectată, așa că nu poate fi deconectată. Conectează mai întâi alta.",
+    "social_connected": ":provider a fost conectat. Acum te poți autentifica cu el."
 }

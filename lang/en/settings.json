@@ -42,5 +42,6 @@
     "sign_in_methods_none": "None connected. Use \"Continue with Google\" or \"Continue with Apple\" on the sign-in page with this account's email address to connect one.",
     "disconnect": "Disconnect",
     "disconnect_social_confirm": "Disconnect :provider? You won't be able to sign in with it anymore.",
-    "social_last_method": "This is your only connected sign-in method, so it can't be disconnected. Connect another one first."
+    "social_last_method": "This is your only connected sign-in method, so it can't be disconnected. Connect another one first.",
+    "social_connected": ":provider connected. You can now sign in with it."
 }
