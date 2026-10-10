@@ -3,6 +3,7 @@
 use App\Http\Controllers\OAuth\ApproveController;
 use App\Http\Controllers\OAuth\AuthorizeController;
 use App\Http\Middleware\McpFamilyContext;
+use App\Http\Middleware\TrackLastSeen;
 use App\Mcp\FamilywellServer;
 use Illuminate\Support\Facades\Route;
 use Laravel\Mcp\Facades\Mcp;
@@ -32,4 +33,4 @@ Route::prefix('oauth')->name('passport.')->group(function () {
 Route::middleware('throttle:20,1')->group(fn () => Mcp::oauthRoutes());
 
 Mcp::web('/mcp', FamilywellServer::class)
-    ->middleware(['auth:api', McpFamilyContext::class, 'throttle:mcp']);
+    ->middleware(['auth:api', McpFamilyContext::class, 'throttle:mcp', TrackLastSeen::class.':mcp']);
