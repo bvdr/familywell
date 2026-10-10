@@ -6,6 +6,7 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Passport\Contracts\OAuthenticatable;
@@ -23,6 +24,12 @@ class User extends Authenticatable implements OAuthenticatable
         return $this->belongsToMany(Family::class)
             ->withPivot('role')
             ->withTimestamps();
+    }
+
+    // "Sign in with Google / Apple" links (App\Support\Auth\SocialLogin).
+    public function socialAccounts(): HasMany
+    {
+        return $this->hasMany(SocialAccount::class);
     }
 
     /**
