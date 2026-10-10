@@ -102,6 +102,17 @@ it('shows one user with families and roles', function () {
     $this->withToken($token)->getJson('/api/admin/users/999999')->assertNotFound()->assertExactJson(['error' => 'not_found']);
 });
 
+it('shows a user\'s analytics id and first touch on the detail only', function () {
+    $token = adminApiToken();
+    $ana = User::factory()->create(['name' => 'Ana']);
+    $touch = ['source' => 'reddit', 'medium' => 'social', 'campaign' => null, 'referrer' => null, 'landing_path' => '/register', 'at' => '2026-10-10T10:00:00Z'];
+    $ana->forceFill(['first_touch' => $touch])->save();
+
+    $this->withToken($token)->getJson("/api/admin/users/{$ana->id}")->assertOk()
+        ->assertJson(['analyticsId' => $ana->analytics_id, 'firstTouch' => $touch]);
+    expect($this->withToken($token)->getJson('/api/admin/users')->json('items.0'))->not->toHaveKeys(['analyticsId', 'firstTouch']);
+});
+
 it('lists and shows families with owner, members and the demo flag', function () {
     $token = adminApiToken();
     $owner = User::factory()->create(['name' => 'Ana']);

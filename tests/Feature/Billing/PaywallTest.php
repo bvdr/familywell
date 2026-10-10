@@ -91,3 +91,24 @@ it('applies signed subscription webhooks and rejects unsigned ones', function ()
     signedWebhook($event)->assertNoContent();
     expect($family->fresh())->subscription_status->toBe('active')->stripe_customer_id->toBe('cus_1');
 });
+
+it('tracks a subscription starting and ending once each, under the family owner', function () {
+    stripeOn();
+    $events = umamiOn();
+    [$owner, $family] = paidFamily();
+    $subscription = fn (string $status) => ['type' => 'customer.subscription.updated', 'data' => ['object' => [
+        'customer' => 'cus_1', 'status' => $status, 'metadata' => ['family_id' => (string) $family->id],
+        'items' => ['data' => [['price' => ['id' => 'price_y']]]],
+    ]]];
+
+    signedWebhook($subscription('incomplete'))->assertNoContent();
+    signedWebhook($subscription('active'))->assertNoContent();
+    signedWebhook($subscription('active'))->assertNoContent();   // renewal: no new event
+    signedWebhook($subscription('past_due'))->assertNoContent(); // still has access
+    signedWebhook($subscription('canceled'))->assertNoContent();
+
+    expect($events())->toBe([
+        ['subscription_started', ['plan' => 'yearly'], $owner->analytics_id, '/billing'],
+        ['subscription_canceled', [], $owner->analytics_id, '/billing'],
+    ]);
+});
