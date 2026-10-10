@@ -4,16 +4,25 @@ import SettingsLayout from '@/layouts/settings/layout';
 import { useT } from '@/lib/i18n';
 import { type BreadcrumbItem } from '@/types';
 import { Transition } from '@headlessui/react';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler, useRef } from 'react';
 
 import HeadingSmall from '@/components/heading-small';
+import { AppleLogo, GoogleLogo } from '@/components/social-buttons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-export default function Password() {
+type SocialAccount = { id: number; provider: 'google' | 'apple'; email: string | null };
+
+export default function Password({ socialAccounts = [] }: { socialAccounts?: SocialAccount[] }) {
     const t = useT();
+    const { socialProviders = [], errors: pageErrors } = usePage<{ socialProviders?: string[]; errors: Record<string, string> }>().props;
+    const providerName = (p: string) => (p === 'apple' ? 'Apple' : 'Google');
+    const disconnect = (account: SocialAccount) => {
+        if (!confirm(t('settings.disconnect_social_confirm', { provider: providerName(account.provider) }))) return;
+        router.delete(`/settings/social-accounts/${account.id}`, { preserveScroll: true });
+    };
     const breadcrumbs: BreadcrumbItem[] = [
         {
             title: t('settings.password_settings'),
@@ -123,6 +132,40 @@ export default function Password() {
                         </div>
                     </form>
                 </div>
+
+                {/* Linked "Continue with Google / Apple" accounts. Hidden on installs with no provider configured
+                    (unless something is still linked from before). Disconnect is refused server-side for the
+                    last one (see PasswordController::disconnectSocial), so the button only shows with two+. */}
+                {(socialAccounts.length > 0 || socialProviders.length > 0) && (
+                    <div className="space-y-4">
+                        <HeadingSmall title={t('settings.sign_in_methods')} description={t('settings.sign_in_methods_desc')} />
+                        {socialAccounts.length === 0 ? (
+                            <p className="text-muted-foreground text-sm">{t('settings.sign_in_methods_none')}</p>
+                        ) : (
+                            <ul className="divide-border border-border divide-y rounded-xl border">
+                                {socialAccounts.map((account) => (
+                                    <li key={account.id} className="flex items-center gap-3 p-4">
+                                        {account.provider === 'apple' ? (
+                                            <AppleLogo className="size-5 shrink-0" />
+                                        ) : (
+                                            <GoogleLogo className="size-5 shrink-0" />
+                                        )}
+                                        <div className="min-w-0 flex-1">
+                                            <div className="font-medium">{providerName(account.provider)}</div>
+                                            {account.email && <div className="text-muted-foreground truncate text-sm">{account.email}</div>}
+                                        </div>
+                                        {socialAccounts.length > 1 && (
+                                            <Button type="button" size="sm" variant="outline" onClick={() => disconnect(account)}>
+                                                {t('settings.disconnect')}
+                                            </Button>
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                        <InputError message={pageErrors?.social} />
+                    </div>
+                )}
             </SettingsLayout>
         </AppLayout>
     );
