@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Support\Str;
 use Laravel\Passport\Client;
 
 // Passport's client plus one rule: a client flagged `first_party` on its own row is a board client. It
@@ -28,7 +29,8 @@ class OAuthClient extends Client
     // $clientId comes straight from the query string / token row, so it may be an array or null.
     public static function isBoardClient(mixed $clientId): bool
     {
-        if (! is_string($clientId) || $clientId === '') {
+        // Non-UUIDs can't match (and Postgres would 500 on a malformed uuid).
+        if (! is_string($clientId) || ! Str::isUuid($clientId)) {
             return false;
         }
 

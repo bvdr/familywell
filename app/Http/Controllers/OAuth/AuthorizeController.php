@@ -42,7 +42,7 @@ class AuthorizeController extends AuthorizationController
 
         // A board client may only ever ask for board:identity. Anything else would render the MCP
         // permissions screen, so refuse before the parent runs (no view, nothing put in the session).
-        if ($isBoardClient && trim((string) $request->query('scope')) !== 'board:identity') {
+        if ($isBoardClient && (is_string($scope = $request->query('scope')) ? trim($scope) : '') !== 'board:identity') {
             abort(403, 'This sign-in can only ask for FamilyWell board access.');
         }
 
