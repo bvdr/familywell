@@ -5,6 +5,7 @@ use App\Models\OAuthClient;
 use App\Models\User;
 use App\Support\Modules\ModuleRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Laravel\Passport\ClientRepository;
@@ -63,6 +64,20 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+/**
+ * Hosted-mode Umami (App\Support\Analytics) with its collect endpoint faked. Returns the events sent so far
+ * as a closure, each one [name, data, id, url], so tests can assert on exactly what reached Umami.
+ */
+function umamiOn(): Closure
+{
+    config(['services.umami.website_id' => 'site-123', 'services.umami.host' => 'https://analytics.dragonpie.co']);
+    Http::fake(['analytics.dragonpie.co/*' => Http::response(['ok' => true])]);
+
+    return fn () => Http::recorded(fn ($request) => str_ends_with($request->url(), '/api/send'))
+        ->map(fn ($pair) => [$pair[0]['payload']['name'], (array) $pair[0]['payload']['data'], $pair[0]['payload']['id'], $pair[0]['payload']['url']])
+        ->values()->all();
 }
 
 /*

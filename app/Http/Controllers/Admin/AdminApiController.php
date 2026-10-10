@@ -58,7 +58,7 @@ class AdminApiController extends Controller
 
     public function user(int $id): JsonResponse
     {
-        $user = $this->userQuery()->addSelect('users.locale', 'users.is_platform_admin')->find($id);
+        $user = $this->userQuery()->addSelect('users.locale', 'users.is_platform_admin', 'users.analytics_id', 'users.first_touch')->find($id);
         if (! $user) {
             return response()->json(['error' => 'not_found'], 404);
         }
@@ -66,6 +66,10 @@ class AdminApiController extends Controller
         return response()->json(self::userItem($user) + [
             'locale' => $user->locale,
             'isPlatformAdmin' => (bool) $user->is_platform_admin,
+            // Detail only (not the list): the admin links the Umami id to its analytics profile and shows
+            // where the person first came from ({source, medium, campaign, referrer, landing_path, at}).
+            'analyticsId' => $user->analytics_id,
+            'firstTouch' => $user->first_touch,
             'families' => $user->families()->orderBy('name')->get(['families.id', 'families.name'])
                 ->map(fn ($f) => ['id' => $f->id, 'name' => $f->name, 'role' => $f->pivot->role])->values(),
         ]);

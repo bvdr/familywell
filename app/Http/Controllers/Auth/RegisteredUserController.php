@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\Analytics;
 use App\Support\Auth\SocialLogin;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
@@ -50,9 +51,14 @@ class RegisteredUserController extends Controller
     /**
      * Everything that follows creating an account. Shared with "Sign in with Google / Apple"
      * (App\Support\Auth\SocialLogin) so a social sign-up gets exactly the same welcome.
+     *
+     * @param  string  $method  'password' | 'google' | 'apple', for the signed_up analytics event
      */
-    public static function registered(Request $request, User $user): RedirectResponse
+    public static function registered(Request $request, User $user, string $method = 'password'): RedirectResponse
     {
+        self::adoptAnalytics($request, $user);
+        Analytics::track($user, 'signed_up', ['method' => $method], '/register');
+
         event(new Registered($user));
 
         Auth::login($user);
@@ -66,5 +72,27 @@ class RegisteredUserController extends Controller
         }
 
         return to_route('onboarding.index');
+    }
+
+    /**
+     * Move what CaptureFirstTouch kept for this guest onto their new account, then forget it. The
+     * familywell.org visitor id becomes their analytics_id (so their pre-signup visits are the same person
+     * in Umami), unless another account already has it: e.g. a second sign-up from the same browser keeps
+     * its own fresh id instead of merging two people into one.
+     */
+    private static function adoptAnalytics(Request $request, User $user): void
+    {
+        $analytics = (array) $request->session()->pull('analytics', []);
+
+        $visitor = $analytics['visitor_id'] ?? null;
+        if (is_string($visitor) && ! User::where('analytics_id', $visitor)->exists()) {
+            $user->analytics_id = $visitor;
+        }
+        if (is_array($analytics['first_touch'] ?? null)) {
+            $user->first_touch = $analytics['first_touch'];
+        }
+        if ($user->isDirty()) {
+            $user->save();
+        }
     }
 }
