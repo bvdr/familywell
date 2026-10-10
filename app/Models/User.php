@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 use Laravel\Passport\Contracts\OAuthenticatable;
 use Laravel\Passport\HasApiTokens;
 use NotificationChannels\WebPush\HasPushSubscriptions;
@@ -18,6 +19,14 @@ class User extends Authenticatable implements OAuthenticatable
     /** @use HasFactory<UserFactory> */
     // HasApiTokens: Passport tokens issued to MCP clients through the OAuth consent flow (see docs/mcp.md).
     use HasApiTokens, HasFactory, HasPushSubscriptions, Notifiable;
+
+    // Every user gets a pseudonymous analytics id up front (the column is NOT NULL). Sign-up may then swap it
+    // for the familywell.org visitor id they arrived with (RegisteredUserController::adoptAnalytics), so
+    // `??=` leaves a preset one alone. Deliberately not fillable, like is_platform_admin.
+    protected static function booted(): void
+    {
+        static::creating(fn (User $user) => $user->analytics_id ??= (string) Str::uuid());
+    }
 
     public function families(): BelongsToMany
     {
@@ -54,6 +63,10 @@ class User extends Authenticatable implements OAuthenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        // Analytics stays out of every serialized user (auth.user, member lists): the id reaches the page
+        // only as the `analyticsId` prop, and only where Umami is configured (HandleInertiaRequests).
+        'analytics_id',
+        'first_touch',
     ];
 
     /**
@@ -68,6 +81,7 @@ class User extends Authenticatable implements OAuthenticatable
             'last_seen_at' => 'datetime',
             'password' => 'hashed',
             'notification_prefs' => 'array',
+            'first_touch' => 'array',
             // Set only by admin:grant / admin:revoke; deliberately not fillable.
             'is_platform_admin' => 'boolean',
         ];
