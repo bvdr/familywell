@@ -15,11 +15,20 @@ class BoardClient extends Command
 
     public function handle(ClientRepository $clients): int
     {
+        // Board sign-in tokens carry the user's identity, so the callback must be https.
+        if (! str_starts_with((string) $this->argument('redirect'), 'https://') || ! filter_var($this->argument('redirect'), FILTER_VALIDATE_URL)) {
+            $this->error('The redirect must be an https:// URL.');
+
+            return self::FAILURE;
+        }
+
         $client = $clients->createAuthorizationCodeGrantClient($this->argument('name'), [$this->argument('redirect')], confidential: true);
+        // The flag lives on the client row; it is what makes this a board client (see OAuthClient).
+        $client->forceFill(['first_party' => true])->save();
 
         $this->info("Client ID:     {$client->getKey()}");
         $this->info("Client secret: {$client->plainSecret}");
-        $this->warn('Add the ID to BOARD_CLIENT_IDS. The secret is shown only now: store it as the Worker secret OAUTH_CLIENT_SECRET.');
+        $this->warn('The secret is shown only now: store it as the Worker secret OAUTH_CLIENT_SECRET.');
 
         return self::SUCCESS;
     }

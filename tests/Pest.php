@@ -123,13 +123,13 @@ function mcpAuthorizeQuery(string $clientId, string $redirect = 'https://claude.
     ]), $verifier];
 }
 
-/** Confidential authorization-code client for the module-requests board, listed in board.client_ids. */
+/** Confidential authorization-code client for the module-requests board, marked first_party on its row. */
 function boardClient(string $redirect = 'https://familywell.org/api/auth/callback'): OAuthClient
 {
     mcpKeys();
     /** @var OAuthClient $client */
     $client = app(ClientRepository::class)->createAuthorizationCodeGrantClient('FamilyWell board', [$redirect]);
-    config(['board.client_ids' => [$client->getKey()]]);
+    $client->forceFill(['first_party' => true])->save();
 
     return $client;
 }
