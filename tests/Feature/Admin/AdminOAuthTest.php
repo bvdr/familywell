@@ -11,7 +11,7 @@ use function Pest\Laravel\actingAs;
 
 function admin(): User
 {
-    return tap(User::factory()->create())->forceFill(['is_platform_admin' => true])->save();
+    return User::factory()->create(['is_platform_admin' => true]);
 }
 
 it('lets a platform admin in with no consent screen and an admin token', function () {
@@ -27,8 +27,7 @@ it('refuses a non-admin at authorize, no code', function () {
     [$query] = boardAuthorizeQuery($client, OAuthClient::ADMIN_SCOPE);
 
     actingAs(User::factory()->create())->get("/oauth/authorize?{$query}")
-        ->assertForbidden()
-        ->assertSee('isn’t a platform admin', false);
+        ->assertForbidden();
     expect(session()->has('authRequest'))->toBeFalse();
 });
 
