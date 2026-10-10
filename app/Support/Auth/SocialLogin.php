@@ -224,9 +224,9 @@ class SocialLogin
     // ---------------------------------------------------------------- shared
 
     /**
-     * Sign the person in: a linked account wins; else, if an account already has this (provider-verified)
-     * email, the link waits for that account's password (see below); else a new account is created
-     * through the normal registration path.
+     * Sign the person in: a linked account wins; else an account with this (provider-verified) email is
+     * linked straight away if it verified that email itself, or waits for its password if it never did
+     * (see below); else a new account is created through the normal registration path.
      *
      * @param  array{sub: string, email: ?string, email_verified: bool, name: ?string}  $identity
      */
@@ -257,12 +257,21 @@ class SocialLogin
 
         // Case-insensitive: older accounts may have been registered with capitals in the address.
         if ($user = User::whereRaw('lower(email) = ?', [$email])->first()) {
-            // NEVER link by email alone. FamilyWell doesn't make people verify their address, so anyone can
-            // register (or switch their profile to) someone else's email in advance; auto-linking would then
-            // log the real owner into the account the attacker controls. So the person proves they own THIS
-            // account with its password first: we park the link, send them to the login form, and
-            // completePendingLink() finishes it after a successful password login. Also why a disconnected
-            // provider can't silently relink.
+            // The account already proved it owns this address (clicked our verification link) and the provider
+            // proves the person signing in owns it too: same person, so link and sign in, no extra step.
+            // Safe because changing the profile email resets email_verified_at (Settings\ProfileController).
+            if ($user->hasVerifiedEmail()) {
+                $user->socialAccounts()->create($link);
+                Auth::login($user);
+
+                return AuthenticatedSessionController::signedIn($request);
+            }
+
+            // Unverified account: NEVER link by email alone. FamilyWell doesn't make people verify their
+            // address, so anyone can register (or switch their profile to) someone else's email in advance;
+            // auto-linking would then log the real owner into the account the attacker controls. So the person
+            // proves they own THIS account with its password first: we park the link, send them to the login
+            // form, and completePendingLink() finishes it after a successful password login.
             $request->session()->put(self::PENDING, encrypt($link + ['user_id' => $user->id, 'expires' => now()->getTimestamp() + self::PENDING_TTL]));
 
             throw new SocialLoginException('auth.social_link_password');
