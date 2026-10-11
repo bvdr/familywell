@@ -23,9 +23,12 @@ class SpendEvent extends Model implements ProvidesGuestView, ProvidesPublicShare
 
     protected $table = 'spending_events';
 
-    protected $fillable = ['name', 'currency', 'display_currency', 'icon', 'created_by'];
+    protected $fillable = ['name', 'currency', 'display_currency', 'icon', 'created_by', 'count_in_monthly'];
 
-    protected $casts = ['archived_at' => 'datetime'];
+    protected $casts = ['archived_at' => 'datetime', 'count_in_monthly' => 'boolean'];
+
+    // Mirror the column default so a freshly created list reads true before a refresh.
+    protected $attributes = ['count_in_monthly' => true];
 
     /**
      * Create a list the way the UI does: every family member joins (Phase 1: equal split among all),
@@ -170,6 +173,13 @@ class SpendEvent extends Model implements ProvidesGuestView, ProvidesPublicShare
         if (array_key_exists('store', $data)) {
             $attrs['store'] = trim((string) $data['store']) ?: null;
         }
+        // Monthly flag, likewise only when sent (guest forms don't know it). A value equal to the list's
+        // setting is stored as null (= follow the list), so the forms can always send the toggle's visible
+        // state and only a real deviation pins the expense. See the migration for why null = inherit.
+        if (array_key_exists('count_in_monthly', $data)) {
+            $flag = $data['count_in_monthly'];
+            $attrs['count_in_monthly'] = $flag === null || (bool) $flag === (bool) $this->count_in_monthly ? null : (bool) $flag;
+        }
 
         return $attrs;
     }
@@ -191,6 +201,8 @@ class SpendEvent extends Model implements ProvidesGuestView, ProvidesPublicShare
             'note' => ['nullable', 'string', 'max:255'],
             'store' => ['nullable', 'string', 'max:120'], // shop / merchant name, free text (see Spend::shopNames)
             'spent_at' => ['required', 'date'],
+            // Per-expense "count in monthly spending" override; null/absent = follow this list's setting.
+            'count_in_monthly' => ['sometimes', 'nullable', 'boolean'],
         ];
     }
 

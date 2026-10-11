@@ -3,6 +3,8 @@
 namespace Modules\Projects\Mcp;
 
 use App\Mcp\Tool;
+use App\Support\Modules\ModuleRegistry;
+use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
@@ -22,7 +24,7 @@ class GetProject extends Tool
 
     protected ?string $app = 'project';
 
-    protected string $description = 'One project with its details, tasks (each with sub-tasks and done state), blockers (dependencies) and linked shopping lists, plus linked spending lists (`spend_lists`, needs spending access) and contacts (`contacts`, needs contacts access).';
+    protected string $description = 'One project with its details, tasks (each with sub-tasks and done state), blockers (dependencies), plus linked shopping lists (`shopping_lists`, needs shopping access), linked spending lists (`spend_lists`, needs spending access) and contacts (`contacts`, needs contacts access).';
 
     public function schema(JsonSchema $schema): array
     {
@@ -36,9 +38,6 @@ class GetProject extends Tool
             return $this->notFound('Project');
         }
         $tasks = ProjectData::topTasks(collect([$project]))[$project->id];
-        // Same linked lists the project page shows (bought/total progress).
-        $lists = ShoppingList::whereIn('id', $project->links()->where('linkable_type', 'shopping_list')->pluck('linkable_id'))
-            ->withCount(['items', 'items as bought_count' => fn ($q) => $q->where('bought', true)])->get();
 
         return Response::structured(ProjectData::projectPayload($project, $tasks) + [
             'description' => $project->description,
@@ -47,10 +46,25 @@ class GetProject extends Tool
             'tasks' => $tasks->map(fn (Task $t) => ProjectData::taskPayload($t, $project, true))->values(),
             'dependencies' => $project->dependencies()->orderBy('position')->orderBy('id')->get()
                 ->map(fn (ProjectDependency $d) => ['id' => $d->id, 'name' => $d->name, 'note' => $d->note, 'status' => $d->status])->values(),
-            'shopping_lists' => $lists->map(fn (ShoppingList $l) => [
-                'id' => $l->id, 'name' => $l->name, 'bought' => $l->bought_count, 'total' => $l->items_count,
-            ])->values(),
-        ] + $this->linked($project));
+        ] + $this->shoppingLists($project) + $this->linked($project));
+    }
+
+    /**
+     * Same linked lists the project page shows (bought/total progress), but only when this token may read
+     * Shopping and the module is on: like spend_lists/contacts, a projects-only connection must not see
+     * another module's data through a project.
+     */
+    private function shoppingLists($project): array
+    {
+        if (! $this->user()->tokenCan('shopping:read') || ! app(ModuleRegistry::class)->isEnabled('shopping', (int) CurrentFamily::id())) {
+            return [];
+        }
+        $lists = ShoppingList::whereIn('id', $project->links()->where('linkable_type', 'shopping_list')->pluck('linkable_id'))
+            ->withCount(['items', 'items as bought_count' => fn ($q) => $q->where('bought', true)])->get();
+
+        return ['shopping_lists' => $lists->map(fn (ShoppingList $l) => [
+            'id' => $l->id, 'name' => $l->name, 'bought' => $l->bought_count, 'total' => $l->items_count,
+        ])->values()];
     }
 
     /**

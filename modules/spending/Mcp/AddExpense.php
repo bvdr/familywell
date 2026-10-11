@@ -33,6 +33,7 @@ class AddExpense extends Tool
             'date' => $schema->string()->format('date')->description('YYYY-MM-DD (default: today).'),
             'paid_by' => $schema->integer()->description('Member id who paid (default: this person).'),
             'list_id' => $schema->integer()->description('Spending list id (default: the family\'s "Others" list).'),
+            'count_in_monthly' => $schema->boolean()->description('Count it in monthly spending totals and analytics? Omit to follow the list\'s setting (project budget lists are off by default).'),
         ];
     }
 
@@ -57,6 +58,8 @@ class AddExpense extends Tool
             'note' => $request->get('title'),
             'store' => $request->get('shop'),
             'spent_at' => $request->get('date', now()->toDateString()),
+            // Only when given: absent = follow the list (SpendEvent::buildSpend).
+            ...($request->get('count_in_monthly') !== null ? ['count_in_monthly' => $request->get('count_in_monthly')] : []),
         ], $event->spendRules(), ['payer_key.in' => 'paid_by must be a member taking part in this list.']);
 
         // Soft duplicate check, same as the add form: warn, never block (the same purchase twice is real).

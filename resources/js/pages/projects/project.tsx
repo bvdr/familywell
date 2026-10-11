@@ -97,6 +97,7 @@ export default function ProjectDetail({
     const [linkView, setLinkView] = useState<'pick' | 'new'>('pick'); // which view the link-list sheet opens to
     const [linkingNote, setLinkingNote] = useState(false); // the link-note sheet
     const [linkingType, setLinkingType] = useState<LinkType | null>(null); // the link spending list / contact sheet
+    const [newSpend, setNewSpend] = useState(false); // the "New expense list for this project" sheet
     const [adding, setAdding] = useState(false); // the "Add to project" sheet
     useAddAction(() => setAdding(true));
     // Sections stay hidden until they have content; choosing to add one reveals it (with its input).
@@ -485,6 +486,7 @@ export default function ProjectDetail({
                                     <UnlinkButton label={t('projects.unlink')} onClick={() => unlinkItem('spend_event', e.id)} />
                                 </div>
                             ))}
+                            <DashedAdd label={t('projects.new_spend_list')} onClick={() => setNewSpend(true)} />
                             <DashedAdd label={t('projects.link_spend_list')} onClick={() => setLinkingType('spend_event')} />
                         </div>
                     </Section>
@@ -534,6 +536,7 @@ export default function ProjectDetail({
             <EditModal open={editing} onOpenChange={setEditing} project={project} members={members} />
             <LinkListModal open={linking} onOpenChange={setLinking} projectId={project.id} projectName={project.name} initialView={linkView} />
             <LinkNoteModal open={linkingNote} onOpenChange={setLinkingNote} projectId={project.id} projectName={project.name} />
+            <NewSpendListModal open={newSpend} onOpenChange={setNewSpend} projectId={project.id} projectName={project.name} />
             <LinkItemsModal type={linkingType} onClose={() => setLinkingType(null)} projectId={project.id} projectName={project.name} />
             <AddToProjectSheet
                 open={adding}
@@ -552,6 +555,14 @@ export default function ProjectDetail({
                     setLinkingNote(true);
                 }}
                 onSpendLink={spendLists ? () => openLinkType('spend_event') : undefined}
+                onSpendNew={
+                    spendLists
+                        ? () => {
+                              setAdding(false);
+                              setNewSpend(true);
+                          }
+                        : undefined
+                }
                 onContactLink={contacts ? () => openLinkType('contact') : undefined}
             />
         </AppLayout>
@@ -638,6 +649,7 @@ function AddToProjectSheet({
     onNoteNew,
     onNoteLink,
     onSpendLink,
+    onSpendNew,
     onContactLink,
 }: {
     open: boolean;
@@ -650,6 +662,7 @@ function AddToProjectSheet({
     onNoteNew: () => void;
     onNoteLink: () => void;
     onSpendLink?: () => void; // undefined when the Spending module is off
+    onSpendNew?: () => void; // likewise
     onContactLink?: () => void; // undefined when the Contacts module is off
 }) {
     const t = useT();
@@ -683,6 +696,9 @@ function AddToProjectSheet({
                         onClick={onShoppingNew}
                     />
                     <Row icon={StickyNote} title={t('projects.note_title')} sub={t('projects.note_sub')} onClick={onNoteNew} />
+                    {onSpendNew && (
+                        <Row icon={Wallet} title={t('projects.spend_list_title')} sub={t('projects.new_spend_sub')} onClick={onSpendNew} />
+                    )}
                     <Row icon={Ban} title={t('projects.dependency_title')} sub={t('projects.dependency_sub')} onClick={onDependency} />
                 </div>
                 <div className="flex flex-col gap-2">
@@ -1283,6 +1299,56 @@ function LinkItemsModal({
                         );
                     })}
                 </div>
+            </div>
+        </ResponsiveModal>
+    );
+}
+
+// "New expense list for this project": a spending list named after the project (editable), linked in
+// one step and kept out of monthly spending by default (server: ProjectsController::createSpendList).
+function NewSpendListModal({
+    open,
+    onOpenChange,
+    projectId,
+    projectName,
+}: {
+    open: boolean;
+    onOpenChange: (v: boolean) => void;
+    projectId: number;
+    projectName: string;
+}) {
+    const t = useT();
+    const { data, setData, post, processing, reset } = useForm({ name: projectName });
+    useEffect(() => {
+        if (open) reset(); // start from the project name each time
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open]);
+    const create = () => {
+        if (!data.name.trim()) return;
+        post(route('projects.spend.create', projectId), { preserveScroll: true, onSuccess: () => onOpenChange(false) });
+    };
+
+    return (
+        <ResponsiveModal
+            open={open}
+            onOpenChange={onOpenChange}
+            title={t('projects.new_spend_list')}
+            description={t('projects.new_spend_hint')}
+            footer={
+                <Button className="w-full" disabled={processing || !data.name.trim()} onClick={create}>
+                    {t('projects.create_spend_list')}
+                </Button>
+            }
+        >
+            <div className="grid gap-2">
+                <Label htmlFor="spend-list-name">{t('projects.name')}</Label>
+                <Input
+                    id="spend-list-name"
+                    value={data.name}
+                    onChange={(e) => setData('name', e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && create()}
+                    className="text-base md:text-sm"
+                />
             </div>
         </ResponsiveModal>
     );

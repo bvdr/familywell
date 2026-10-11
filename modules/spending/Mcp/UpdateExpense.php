@@ -19,7 +19,7 @@ class UpdateExpense extends Tool
 
     protected string $name = 'spending_update_expense';
 
-    protected string $description = 'Change an expense. Only the fields you pass change; the amount is re-converted into the list\'s currency at the (new) date.';
+    protected string $description = 'Change an expense. Only the fields you pass change (including count_in_monthly, whether it counts in monthly spending); the amount is re-converted into the list\'s currency at the (new) date.';
 
     public function schema(JsonSchema $schema): array
     {
@@ -32,6 +32,7 @@ class UpdateExpense extends Tool
             'shop' => $schema->string()->nullable(),
             'date' => $schema->string()->format('date'),
             'paid_by' => $schema->integer(),
+            'count_in_monthly' => $schema->boolean()->nullable()->description('true/false pins whether it counts in monthly spending; null makes it follow the list\'s setting again.'),
         ];
     }
 
@@ -55,6 +56,8 @@ class UpdateExpense extends Tool
             'note' => $has('title') ? $request->get('title') : $spend->note,
             'store' => $has('shop') ? $request->get('shop') : $spend->store,
             'spent_at' => $has('date') ? $request->get('date') : $spend->spent_at->toDateString(),
+            // Only touched when passed (absent keeps the current override; null = follow the list again).
+            ...($has('count_in_monthly') ? ['count_in_monthly' => $request->get('count_in_monthly')] : []),
         ], $event->spendRules(), ['payer_key.in' => 'paid_by must be a member taking part in this list.']);
 
         $spend->update($event->spendColumns($data));

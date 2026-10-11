@@ -108,5 +108,9 @@
     "search_placeholder": "Caută...",
     "nothing_to_link": "Nimic de legat.",
     "call": "Sună: :name",
-    "no_phone": "Fără număr de telefon"
+    "no_phone": "Fără număr de telefon",
+    "new_spend_list": "Listă nouă de cheltuieli pentru proiect",
+    "new_spend_sub": "Urmărește costurile proiectului",
+    "new_spend_hint": "Cheltuielile ei nu intră în cheltuielile lunare decât dacă activezi asta.",
+    "create_spend_list": "Creează lista"
 }

@@ -21,7 +21,7 @@ class Summary extends Tool
 
     protected ?string $app = 'spending';
 
-    protected string $description = 'Total spent over a period (default: this month so far) across the lists this person can see, in one display currency, broken down by category and by shop.';
+    protected string $description = 'Total spent over a period (default: this month so far) across the lists this person can see, in one display currency, broken down by category and by shop. Expenses kept out of monthly spending (count_in_monthly false, e.g. a project budget) are not included.';
 
     public function schema(JsonSchema $schema): array
     {
@@ -37,13 +37,15 @@ class Summary extends Tool
         $from = $f['from'] ?? now()->startOfMonth()->toDateString();
         $to = $f['to'] ?? now()->toDateString();
 
-        // Same conventions as the app's "this month" figure (MonthToDate): visible, non-archived lists,
-        // each list's frozen base amounts, rolled into the family's display currency at today's rate.
+        // Same conventions as the app's "this month" figure (MonthToDate): visible, non-archived lists, only
+        // expenses that count in monthly spending, each list's frozen base amounts, rolled into the
+        // family's display currency at today's rate.
         $eventCcy = MonthToDate::visibleEventCurrencies($this->user()->id);
         $currency = MonthToDate::displayCurrencyFor($eventCcy);
 
         $rows = $eventCcy->isEmpty() ? collect() : Spend::query()
             ->whereIn('spend_event_id', $eventCcy->keys())
+            ->countsInMonthly() // same exclusion as the app's monthly figures and analytics
             ->whereDate('spent_at', '>=', $from)->whereDate('spent_at', '<=', $to)
             ->groupBy('spend_event_id', 'category', 'store')
             ->selectRaw('spend_event_id, category, store, SUM(base_amount) AS total, COUNT(*) AS n')

@@ -16,6 +16,7 @@ import { LucideIcon } from '@/components/lucide-icon';
 import { MemberAvatar } from '@/components/member-avatar';
 import { Picker } from '@/components/picker';
 import { ShopMonthHint, type ShopTotals } from '@/components/shop-month-hint';
+import { ToggleRow } from '@/components/toggle-row';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,6 +40,7 @@ type Event = {
     archived: boolean;
     icon: string | null;
     canEdit: boolean;
+    countInMonthly: boolean; // the quick-add's monthly toggle defaults to the picked list's setting
     members: Member[];
 };
 // One row of the Expenses feed. `amount` is in the spend's own currency; `converted` in the feed currency.
@@ -53,6 +55,7 @@ type Expense = {
     date: string;
     list: string;
     list_id: number;
+    inMonthly: boolean; // false => kept out of the monthly figures (row shows a "not in monthly" marker)
 };
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -165,6 +168,9 @@ export default function Events({
         receipts: [] as File[], // the scanned photo, kept as the spend's receipt
         receipts_thumb: [] as File[],
         add_anyway: false, // set on "Add anyway" after the server's soft duplicate warning (errors.add_anyway)
+        // Toggle state, always sent; the server stores null (= follow the list) when it matches the list.
+        // No list picked = the "Others" list, which counts in monthly spending.
+        count_in_monthly: true,
     });
     const chosen = editable.find((ev) => String(ev.id) === spend.data.event_id);
 
@@ -223,6 +229,8 @@ export default function Events({
             currency: ev ? ev.baseCurrency : (defaultCurrency ?? currencies[0]),
             // Keep the payer if still on the roster, else fall back to the viewer.
             payer_key: (ev ? ev.members : members).some((m) => 'u' + m.id === d.payer_key) ? d.payer_key : 'u' + authId,
+            // Follow the picked list's "count in monthly spending" (a project list starts off).
+            count_in_monthly: ev ? ev.countInMonthly : true,
         }));
     };
     // Type-ahead category from the note (see useCategorySuggest). Active while the sheet is open.
@@ -521,6 +529,12 @@ export default function Events({
                                 <InputError message={spend.errors.spent_at} />
                             </div>
                         </div>
+                        <ToggleRow
+                            label={t('spending.count_in_monthly')}
+                            hint={t('spending.count_in_monthly_hint')}
+                            on={spend.data.count_in_monthly}
+                            onToggle={() => spend.setData('count_in_monthly', !spend.data.count_in_monthly)}
+                        />
                     </div>
                 </ResponsiveModal>
 
@@ -568,6 +582,11 @@ export default function Events({
                                                             {e.currency !== thisMonth.currency && (
                                                                 <div className="text-muted-foreground font-mono text-xs tabular-nums">
                                                                     {money(e.converted, thisMonth.currency)}
+                                                                </div>
+                                                            )}
+                                                            {!e.inMonthly && (
+                                                                <div className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
+                                                                    {t('spending.not_in_monthly')}
                                                                 </div>
                                                             )}
                                                         </div>

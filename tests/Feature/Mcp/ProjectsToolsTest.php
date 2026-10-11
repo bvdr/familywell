@@ -9,16 +9,16 @@ use Modules\Shopping\ShoppingList;
 use Modules\Spending\SpendEvent;
 use Modules\Tasks\Task;
 
-function projectsToken(string $access = 'write'): array
+function projectsToken(string $access = 'write', array $extra = []): array
 {
     [$family, $users] = mcpFamily(['projects', 'tasks', 'shopping'], 2);
-    $token = mcpConnect($users[0], $family->id, ['projects' => $access])['access_token'];
+    $token = mcpConnect($users[0], $family->id, ['projects' => $access] + $extra)['access_token'];
 
     return [$family, $users, $token];
 }
 
 it('creates a project, adds tasks and a sub-task, and reads it back', function () {
-    [$family, $users, $token] = projectsToken();
+    [$family, $users, $token] = projectsToken('write', ['shopping' => 'read']);
 
     [$err, $p] = mcpTool($token, 'projects_create', ['name' => 'Kitchen', 'target_start' => '2026-11-01']);
     expect($err)->toBeFalse()->and($p['status'])->toBe('planning')->and($p['url'])->toEndWith("/m/projects/{$p['id']}");
@@ -137,7 +137,7 @@ it('links and unlinks a spending list and a contact, gated on the token reaching
     // A projects-only connection sees neither, and can't link them.
     $narrow = mcpConnect($users[0], $family->id, ['projects' => 'write'])['access_token'];
     [, $got] = mcpTool($narrow, 'projects_get', ['project_id' => $project->id]);
-    expect($got)->not->toHaveKey('spend_lists')->not->toHaveKey('contacts');
+    expect($got)->not->toHaveKey('spend_lists')->not->toHaveKey('contacts')->not->toHaveKey('shopping_lists');
     [$err, $msg] = mcpTool($narrow, 'projects_link', ['project_id' => $project->id, 'type' => 'contact', 'id' => $tom->id]);
     expect($err)->toBeTrue()->and($msg)->toContain('no access to contacts');
 

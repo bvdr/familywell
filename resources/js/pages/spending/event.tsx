@@ -5,6 +5,7 @@ import {
     ArrowRight,
     Banknote,
     BarChart3,
+    CalendarRange,
     Camera,
     Check,
     ChevronDown,
@@ -36,6 +37,7 @@ import { useMemberColors } from '@/components/member-avatar';
 import { Picker } from '@/components/picker';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
 import { ShopMonthHint, type ShopTotals } from '@/components/shop-month-hint';
+import { ToggleRow } from '@/components/toggle-row';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -61,6 +63,7 @@ type EventT = {
     currency: string;
     displayCurrency: string; // saved display currency (falls back to base); persisted via the header selector
     icon: string | null; // chosen lucide icon key for the list (null → Wallet default)
+    countInMonthly: boolean; // "Count in monthly spending" (list menu); the expense form's toggle defaults to it
     total: number;
     archived: boolean;
     people: number; // total headcount (sum of participant weights), not row count
@@ -86,6 +89,7 @@ type Spend = {
     split: 'all' | 'some' | 'exact';
     shares: { key: string; amount: number | null }[];
     spent_at: string;
+    count_in_monthly: boolean | null; // per-expense override; null = follow the list
 };
 type Source = { id: number; name: string; type: string };
 // labelKey resolves via t() at render time (this is a module-level const, so it can't call the hook).
@@ -276,6 +280,8 @@ export default function Event({
     // Archive toggle: the menu label flips on tap, not after the round trip.
     const archivedOpt = useOptimistic<boolean>();
     const archived = archivedOpt.get(event.id, event.archived);
+    const monthlyOpt = useOptimistic<boolean>();
+    const inMonthly = monthlyOpt.get(event.id, event.countInMonthly);
     // Mark-paid: the suggestion row disappears on tap (keyed from→to); the server re-derives balances.
     const settledOpt = useOptimistic<boolean>();
     const visibleSuggestions = suggestions.filter((s) => !settledOpt.get(`${s.from.id}-${s.to.id}`, false));
@@ -356,6 +362,26 @@ export default function Event({
                     >
                         <Archive className="size-4" /> {t(archived ? 'spending.unarchive_event' : 'spending.archive_event')}
                     </DropdownMenuItem>
+                    {/* List-level "count in monthly spending": expenses without their own override follow it. */}
+                    <DropdownMenuItem
+                        onSelect={() => {
+                            monthlyOpt.set(event.id, !inMonthly);
+                            router.patch(
+                                route('spending.events.update', event.id),
+                                { count_in_monthly: !inMonthly },
+                                {
+                                    preserveScroll: true,
+                                    preserveState: true,
+                                    onSuccess: () => monthlyOpt.clear(event.id),
+                                    onError: () => monthlyOpt.clear(event.id),
+                                },
+                            );
+                        }}
+                    >
+                        <CalendarRange className="size-4" />
+                        <span className="flex-1">{t('spending.count_in_monthly')}</span>
+                        {inMonthly && <Check className="size-4" />}
+                    </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
         </>
@@ -386,6 +412,9 @@ export default function Event({
         share_keys: string[];
         share_amounts: Record<string, string>;
         add_anyway: boolean; // set on "Add anyway" after the server's soft duplicate warning (errors.add_anyway)
+        // The toggle's visible state. Always sent; the server stores null (= follow the list) when it
+        // equals the list's setting, so only a real deviation pins the expense (SpendEvent::buildSpend).
+        count_in_monthly: boolean;
     }>({
         amount: '',
         currency: event.currency,
@@ -402,6 +431,7 @@ export default function Event({
         share_keys: allKeys,
         share_amounts: {},
         add_anyway: false,
+        count_in_monthly: event.countInMonthly,
     });
 
     // --- Per-expense split helpers (used by the Split section of the form) ---
@@ -543,6 +573,7 @@ export default function Event({
             split: s.split,
             share_keys: s.split === 'some' ? s.shares.map((x) => x.key) : allKeys,
             share_amounts: s.split === 'exact' ? Object.fromEntries(s.shares.map((x) => [x.key, String(x.amount ?? 0)])) : {},
+            count_in_monthly: s.count_in_monthly ?? event.countInMonthly,
         });
         setEditing(s.id);
         setAdding(true);
@@ -550,6 +581,8 @@ export default function Event({
 
     const startAdd = () => {
         form.reset();
+        // reset() restores the defaults captured at mount; the list setting may have changed since.
+        form.setData('count_in_monthly', event.countInMonthly);
         setEditing(null);
         setAdding(true);
     };
@@ -598,6 +631,7 @@ export default function Event({
                 split: 'all',
                 share_keys: allKeys,
                 share_amounts: {},
+                count_in_monthly: event.countInMonthly,
             });
             setEditing(null);
             setAdding(true);
@@ -1539,6 +1573,12 @@ export default function Event({
                                         onChange={(e) => form.setData('spent_at', e.target.value)}
                                     />
                                 </div>
+                                <ToggleRow
+                                    label={t('spending.count_in_monthly')}
+                                    hint={t('spending.count_in_monthly_hint')}
+                                    on={form.data.count_in_monthly}
+                                    onToggle={() => form.setData('count_in_monthly', !form.data.count_in_monthly)}
+                                />
                                 <div className="grid gap-2">
                                     <Label htmlFor="receipts">{t('spending.receipts_label')}</Label>
                                     <div className="flex flex-wrap items-center gap-2">
@@ -1766,6 +1806,9 @@ export default function Event({
                                                                 </span>
                                                             )}
                                                             {s.source && <span className="normal-case"> · {s.source.name}</span>}
+                                                            {!(s.count_in_monthly ?? event.countInMonthly) && (
+                                                                <span className="normal-case"> · {t('spending.not_in_monthly')}</span>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>

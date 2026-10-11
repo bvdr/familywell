@@ -45,6 +45,7 @@ class MonthToDate
         }
         $sums = Spend::query()
             ->whereIn('spend_event_id', $eventCcy->keys())
+            ->countsInMonthly() // project-only expenses stay out of the monthly figure
             // Same bounds as analyticsPeriod('mtd'): start of month .. end of today (spent_at may carry a time).
             ->whereBetween('spent_at', [now()->startOfMonth()->toDateString(), now()->endOfDay()->toDateTimeString()])
             ->groupBy('spend_event_id')
@@ -76,6 +77,7 @@ class MonthToDate
         }
         $rows = Spend::query()
             ->whereIn('spend_event_id', $eventCcy->keys())
+            ->countsInMonthly() // same exclusion as total(), so the hint and the widget agree
             ->whereNotNull('store')
             ->whereBetween('spent_at', [now()->startOfMonth()->toDateString(), now()->endOfDay()->toDateTimeString()])
             ->groupBy('store', 'spend_event_id')

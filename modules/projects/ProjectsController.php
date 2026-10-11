@@ -3,6 +3,7 @@
 namespace Modules\Projects;
 
 use App\Events\ProjectsChanged;
+use App\Events\SpendingChanged;
 use App\Http\Controllers\Controller;
 use App\Models\EntityVisit;
 use App\Models\Family;
@@ -18,6 +19,8 @@ use Inertia\Response;
 use Modules\Notes\Note;
 use Modules\Notifications\Notify;
 use Modules\Shopping\ShoppingList;
+use Modules\Spending\SpendingController;
+use Modules\Spending\SpendSetting;
 use Modules\Tasks\Task;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -569,6 +572,22 @@ class ProjectsController extends Controller
             ProjectLinkables::link($project, $request->user(), $type, (int) $id); // silently skips what the user can't see
         }
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
+
+        return back();
+    }
+
+    // "New expense list for this project": a spending list named after the project (editable in the
+    // sheet), linked in the same step and kept out of monthly spending by default (ProjectLinkables).
+    public function createSpendList(Request $request, Project $project): RedirectResponse
+    {
+        abort_unless($this->access->roleFor($request->user(), $project) !== null, 403);
+        abort_unless(ProjectLinkables::enabled(ProjectLinkables::SPEND), 404);
+        $data = $request->validate(['name' => ['required', 'string', 'max:255']]);
+
+        ProjectLinkables::createSpendList($project, $request->user(), $data['name'],
+            SpendSetting::defaultCurrency() ?? SpendingController::CURRENCIES[0]);
+        Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
+        Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
 
         return back();
     }
