@@ -65,6 +65,20 @@ class ProjectLinkables
         return true;
     }
 
+    /**
+     * A new spending list for a project, linked in the same step. Kept OUT of monthly spending by default
+     * (a project budget shouldn't inflate "this month"); its own total/stats/settle-up still count every
+     * expense. Shared by the project page and MCP spending_create_list. Members/owner share come from
+     * SpendEvent::createFor, exactly like a list made on the Spending page.
+     */
+    public static function createSpendList(Project $project, User $user, string $name, string $currency, ?bool $countInMonthly = null): SpendEvent
+    {
+        $event = SpendEvent::createFor($user, ['name' => $name, 'currency' => $currency, 'count_in_monthly' => $countInMonthly ?? false]);
+        $project->links()->firstOrCreate(['linkable_type' => self::SPEND, 'linkable_id' => $event->id]);
+
+        return $event;
+    }
+
     public static function unlink(Project $project, string $type, int $id): void
     {
         $project->links()->where(['linkable_type' => $type, 'linkable_id' => $id])->delete();
@@ -106,6 +120,7 @@ class ProjectLinkables
             'currency' => $display,
             'total' => Fx::convert((int) $m->spends_sum_base_amount, $m->currency, $display),
             'archived' => $m->archived_at !== null,
+            'countInMonthly' => (bool) $m->count_in_monthly,
         ];
     }
 }

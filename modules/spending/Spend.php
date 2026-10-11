@@ -6,6 +6,7 @@ use App\Models\Guest;
 use App\Models\User;
 use App\Support\Media\StoredImage;
 use App\Support\Tenancy\BelongsToFamily;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -25,13 +26,14 @@ class Spend extends Model
     protected $table = 'spending_spends';
 
     // receipt_path is legacy (single receipt); receipts are now rows in spending_receipts.
-    protected $fillable = ['spend_event_id', 'payer_id', 'payer_guest_id', 'source_id', 'amount', 'currency', 'base_amount', 'rate', 'category', 'store', 'note', 'receipt_path', 'spent_at', 'created_by'];
+    protected $fillable = ['spend_event_id', 'payer_id', 'payer_guest_id', 'source_id', 'amount', 'currency', 'base_amount', 'rate', 'category', 'store', 'note', 'receipt_path', 'spent_at', 'created_by', 'count_in_monthly'];
 
     protected $casts = [
         'amount' => 'integer',      // original amount in `currency`, minor units
         'base_amount' => 'integer', // converted to the event currency, minor units (balances use this)
         'rate' => 'decimal:8',
         'spent_at' => 'date',
+        'count_in_monthly' => 'boolean', // null = follow the list (SpendEvent::count_in_monthly)
     ];
 
     // Mirror the column default so a freshly created model reads 'other' without a refresh.
@@ -128,5 +130,21 @@ class Spend extends Model
     public function shares(): HasMany
     {
         return $this->hasMany(SpendShare::class, 'spend_id');
+    }
+
+    /**
+     * Only spends that count toward the monthly figures (MonthToDate, global analytics, the shop hint,
+     * spending_summary): an explicit per-expense flag wins, otherwise the list's setting. The list's own
+     * total/stats/settle-up never use this, so excluded spends still count there. One SQL condition with
+     * a subquery, so callers keep their single grouped query.
+     */
+    public function scopeCountsInMonthly(Builder $query): Builder
+    {
+        $table = $this->getTable();
+
+        return $query->where(fn (Builder $q) => $q
+            ->where("{$table}.count_in_monthly", true)
+            ->orWhere(fn (Builder $q) => $q->whereNull("{$table}.count_in_monthly")
+                ->whereIn("{$table}.spend_event_id", SpendEvent::withoutGlobalScopes()->where('count_in_monthly', true)->select('id'))));
     }
 }

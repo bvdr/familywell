@@ -69,6 +69,7 @@ class SpendingController extends Controller
         // most recent FEED_CAP rows (no paging); add cursor paging if a family ever spends past it.
         $allCcy = $events->pluck('currency', 'id');
         $eventName = $events->pluck('name', 'id');
+        $eventMonthly = $events->pluck('count_in_monthly', 'id'); // list-level "count in monthly spending"
         $expenses = $allCcy->isEmpty() ? collect() : Spend::query()
             ->whereIn('spend_event_id', $allCcy->keys())
             ->with(['payer:id,name', 'payerGuest:id,name'])
@@ -86,6 +87,8 @@ class SpendingController extends Controller
                 'date' => $s->spent_at->toDateString(),
                 'list' => $eventName[$s->spend_event_id] ?? '',
                 'list_id' => $s->spend_event_id,
+                // Effective monthly flag (override, else the list's): false rows get a "not in monthly" marker.
+                'inMonthly' => $s->count_in_monthly ?? (bool) ($eventMonthly[$s->spend_event_id] ?? true),
             ])->values();
 
         $user = $request->user();
@@ -109,6 +112,8 @@ class SpendingController extends Controller
                     'baseCurrency' => $e->currency,
                     // Whether this viewer may add spends here: the quick-add list picker only offers these.
                     'canEdit' => $this->access->canEdit($user, $e),
+                    // The quick-add's "count in monthly spending" toggle defaults to the picked list's setting.
+                    'countInMonthly' => (bool) $e->count_in_monthly,
                     // Only members who can actually reach the event: everyone for `family` visibility,
                     // otherwise just those with a share. The pivot holds every family member (synced at
                     // creation), so without this filter an invited/private event shows people who have no
@@ -367,6 +372,9 @@ class SpendingController extends Controller
         // (id + note added for the drill-down entries list).
         $spends = $eventCcy->isEmpty() ? collect() : Spend::query()
             ->whereIn('spend_event_id', $eventCcy->keys())
+            // Global analytics = the monthly picture: expenses kept out of monthly spending (e.g. a project
+            // list) are excluded here too. A list's own stats page doesn't use this scope.
+            ->countsInMonthly()
             // End bound is the whole end day, not its midnight: spent_at can carry a time component, so a
             // plain date end would drop spends made on the last day (e.g. today for mtd, or the newest
             // spend for all_time, whose end is exactly that date). Kept as a range so the index still applies.
@@ -612,7 +620,12 @@ class SpendingController extends Controller
             'display_currency' => ['sometimes', 'nullable', 'in:'.implode(',', self::CURRENCIES)],
             // The list's lucide icon key. Must be a real lucide name; null clears it back to Wallet.
             'icon' => ['sometimes', 'nullable', 'string', Rule::in(IconLibrary::names())],
+            // "Count in monthly spending" for the whole list (expenses without their own override follow it).
+            'count_in_monthly' => ['sometimes', 'boolean'],
         ]);
+        if (array_key_exists('count_in_monthly', $data)) {
+            $event->count_in_monthly = $data['count_in_monthly'];
+        }
         if (array_key_exists('archived', $data)) {
             $event->archived_at = $data['archived'] ? now() : null;
         }
@@ -1086,6 +1099,8 @@ class SpendingController extends Controller
                 'displayCurrency' => $event->display_currency ?: $event->currency,
                 // The chosen lucide icon key for this list (null → Wallet default in the header).
                 'icon' => $event->icon,
+                // "Count in monthly spending" (list menu toggle); the expense form's toggle defaults to it.
+                'countInMonthly' => (bool) $event->count_in_monthly,
                 'total' => (int) $spends->sum('base_amount'),
                 'archived' => $event->archived_at !== null,
                 'members' => $members->filter(fn ($m) => isset($names['u'.$m->id]))->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),
@@ -1129,6 +1144,7 @@ class SpendingController extends Controller
                 'split' => $s->shares->isEmpty() ? 'all' : ($s->shares->whereNotNull('amount')->isNotEmpty() ? 'exact' : 'some'),
                 'shares' => $s->shares->map(fn (SpendShare $sh) => ['key' => $sh->participant_key, 'amount' => $sh->amount === null ? null : $sh->amount / 100])->values(),
                 'spent_at' => $s->spent_at->toDateString(),
+                'count_in_monthly' => $s->count_in_monthly, // override: null = follow the list
             ])->values(),
             'balances' => $balances['balances'],
             'suggestions' => $balances['suggestions'],
