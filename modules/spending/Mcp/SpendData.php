@@ -61,6 +61,8 @@ class SpendData
             'date' => $s->spent_at?->toDateString(),
             'paid_by' => $payer ? ['key' => $s->participantKey(), 'name' => $payer->name] : null,
             'list' => $s->event ? ['id' => $s->event->id, 'name' => $s->event->name] : null,
+            // Effective "count in monthly spending": the expense's own override, else its list's setting.
+            'count_in_monthly' => $s->count_in_monthly ?? (bool) $s->event?->count_in_monthly,
             'url' => self::url("/m/spending/events/{$s->spend_event_id}"),
         ];
     }

@@ -26,7 +26,7 @@ class SpendingServiceProvider extends ServiceProvider
         // receipt upload or list management in v1.
         McpTools::register('spending', 'Spending', [
             Mcp\ListExpenses::class, Mcp\GetExpense::class, Mcp\Summary::class, Mcp\ListCategories::class,
-            Mcp\AddExpense::class, Mcp\UpdateExpense::class, Mcp\DeleteExpense::class,
+            Mcp\AddExpense::class, Mcp\UpdateExpense::class, Mcp\DeleteExpense::class, Mcp\CreateList::class,
             Mcp\ListDeleted::class, Mcp\Restore::class,
         ]);
 

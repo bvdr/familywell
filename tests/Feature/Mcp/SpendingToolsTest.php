@@ -3,6 +3,7 @@
 use App\Models\User;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Support\Facades\Http;
+use Modules\Projects\Project;
 use Modules\Spending\Spend;
 use Modules\Spending\SpendEvent;
 
@@ -95,4 +96,36 @@ it('cannot see or change expenses on another member\'s private list', function (
         ->and(mcpTool($token, 'spending_delete_expense', ['expense_id' => $hidden->id])[0])->toBeTrue()
         ->and(mcpTool($token, 'spending_add_expense', ['amount' => 1, 'list_id' => $private->id])[0])->toBeTrue();
     expect(Spend::withoutGlobalScope('family')->find($hidden->id)->amount)->toBe(5000);
+});
+
+it('creates lists (project ones kept out of monthly) and sets the per-expense monthly flag', function () {
+    [$family, $users] = mcpFamily(['spending', 'projects'], 2);
+    $token = mcpConnect($users[0], $family->id, ['spending' => 'write', 'projects' => 'write'])['access_token'];
+    CurrentFamily::set($family->id);
+    $project = Project::createFor($users[0], ['name' => 'Kitchen']);
+
+    [$err, $plain] = mcpTool($token, 'spending_create_list', ['name' => 'Groceries', 'currency' => 'EUR']);
+    expect($err)->toBeFalse()->and($plain['count_in_monthly'])->toBeTrue()->and($plain['project_id'])->toBeNull();
+
+    [$err, $kitchen] = mcpTool($token, 'spending_create_list', ['name' => 'Kitchen costs', 'currency' => 'EUR', 'project_id' => $project->id]);
+    expect($err)->toBeFalse()->and($kitchen['count_in_monthly'])->toBeFalse()
+        ->and($project->links()->where(['linkable_type' => 'spend_event', 'linkable_id' => $kitchen['id']])->exists())->toBeTrue();
+
+    $today = now()->toDateString();
+    [, $tiles] = mcpTool($token, 'spending_add_expense', ['amount' => 100, 'list_id' => $kitchen['id'], 'category' => 'other', 'date' => $today]);
+    [, $paint] = mcpTool($token, 'spending_add_expense', ['amount' => 5, 'list_id' => $kitchen['id'], 'category' => 'other', 'date' => $today, 'count_in_monthly' => true]);
+    mcpTool($token, 'spending_add_expense', ['amount' => 10, 'list_id' => $plain['id'], 'category' => 'other', 'date' => $today]);
+    expect($tiles['count_in_monthly'])->toBeFalse()->and($paint['count_in_monthly'])->toBeTrue();
+
+    [, $sum] = mcpTool($token, 'spending_summary');
+    expect($sum['total'])->toBe('15.00')->and($sum['expense_count'])->toBe(2);
+
+    // null puts the expense back on the list's setting.
+    [, $back] = mcpTool($token, 'spending_update_expense', ['expense_id' => $paint['id'], 'count_in_monthly' => null]);
+    expect($back['count_in_monthly'])->toBeFalse();
+
+    // Linking to a project needs projects access on the token.
+    $narrow = mcpConnect($users[0], $family->id, ['spending' => 'write'])['access_token'];
+    [$err, $msg] = mcpTool($narrow, 'spending_create_list', ['name' => 'Nope', 'project_id' => $project->id]);
+    expect($err)->toBeTrue()->and($msg)->toContain('no write access to projects');
 });
