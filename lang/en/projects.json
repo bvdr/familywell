@@ -108,5 +108,9 @@
     "search_placeholder": "Search...",
     "nothing_to_link": "Nothing to link.",
     "call": "Call :name",
-    "no_phone": "No phone number"
+    "no_phone": "No phone number",
+    "new_spend_list": "New expense list for this project",
+    "new_spend_sub": "Track this project's costs",
+    "new_spend_hint": "Its expenses stay out of your monthly spending unless you turn that on.",
+    "create_spend_list": "Create list"
 }

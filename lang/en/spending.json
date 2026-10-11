@@ -234,5 +234,8 @@
     "shop_empty": "Spending by shop appears once there are spends in the selected period.",
     "duplicate_warning": "This looks like a duplicate of an expense you already added.",
     "add_anyway": "Add anyway",
-    "save_anyway": "Save anyway"
+    "save_anyway": "Save anyway",
+    "count_in_monthly": "Count in monthly spending",
+    "count_in_monthly_hint": "Off keeps it out of this month's total and analytics; it still counts in this list.",
+    "not_in_monthly": "not in monthly"
 }

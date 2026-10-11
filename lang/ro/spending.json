@@ -234,5 +234,8 @@
     "shop_empty": "Cheltuielile pe magazin apar după ce există cheltuieli în perioada selectată.",
     "duplicate_warning": "Pare un duplicat al unei cheltuieli deja adăugate.",
     "add_anyway": "Adaugă oricum",
-    "save_anyway": "Salvează oricum"
+    "save_anyway": "Salvează oricum",
+    "count_in_monthly": "Include în cheltuielile lunare",
+    "count_in_monthly_hint": "Dezactivat o scoate din totalul lunii și din analize; rămâne în totalul listei.",
+    "not_in_monthly": "nu intră în lunar"
 }
