@@ -6,6 +6,7 @@ use App\Models\Guest;
 use App\Models\User;
 use App\Support\Media\StoredImage;
 use App\Support\Tenancy\BelongsToFamily;
+use App\Support\Translations;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Modules\Shopping\ShoppingShop;
 
 class Spend extends Model
@@ -130,6 +132,39 @@ class Spend extends Model
     public function shares(): HasMany
     {
         return $this->hasMany(SpendShare::class, 'spend_id');
+    }
+
+    /**
+     * Move this expense to another spending list. The per-item split points at the old list's people and
+     * the amount is frozen to the old list's currency, so the split resets to "everyone" and the amount is
+     * re-frozen into the target's currency. Amount, date, payer, category, note, shop and the monthly
+     * override are kept (a null override then follows the TARGET list's setting). A guest-paid expense
+     * can't move (the guest only exists in its list); a member payer joins the target's roster. Shared by
+     * the web "Move to list" action and MCP spending_move_expense; access checks stay with the callers.
+     *
+     * @throws ValidationException (key target_event_id) for the same list or a guest payer. Messages via
+     *                             Translations::get: __() can't resolve the namespaced lang/{locale}/spending.json keys.
+     */
+    public function moveTo(SpendEvent $target): void
+    {
+        if ($target->id === $this->spend_event_id) {
+            throw ValidationException::withMessages(['target_event_id' => Translations::get('spending.move_same_list')]);
+        }
+        if ($this->payer_guest_id !== null) {
+            throw ValidationException::withMessages(['target_event_id' => Translations::get('spending.move_guest_blocked')]);
+        }
+        $target->members()->syncWithoutDetaching([$this->payer_id]);
+
+        $rebuilt = $target->buildSpend([
+            'amount' => $this->amount / 100,
+            'currency' => $this->currency,
+            'spent_at' => optional($this->spent_at)->toDateString() ?? now()->toDateString(),
+            'source_id' => $this->source_id,
+            'category' => $this->category,
+            'note' => $this->note,
+        ]);
+        $this->update(['spend_event_id' => $target->id] + $rebuilt);
+        $this->shares()->delete();
     }
 
     /**

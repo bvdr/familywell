@@ -825,10 +825,8 @@ class SpendingController extends Controller
         return back();
     }
 
-    // Move an expense to another spending list. The per-item split points at THIS list's people and the
-    // amount is frozen to THIS list's currency, so on move we reset the split to "everyone" and re-freeze
-    // the amount into the target list's currency. A GUEST-paid expense can't move (the guest only exists
-    // in this list); a member payer becomes a participant of the target via their moved spend.
+    // Move an expense to another spending list (rules in Spend::moveTo: split resets to everyone, amount
+    // re-frozen into the target currency, a guest-paid expense can't move).
     public function moveSpend(Request $request, int $spend): RedirectResponse
     {
         $spend = Spend::findOrFail($spend);
@@ -839,29 +837,7 @@ class SpendingController extends Controller
         $target = $this->event($data['target_event_id']); // family-scoped resolve (404 if not this family)
         abort_unless($this->access->canEdit($request->user(), $target), 403);
 
-        if ($target->id === $source->id) {
-            throw ValidationException::withMessages(['target_event_id' => __('spending.move_same_list')]);
-        }
-        // Only a guest payer can't move — the guest entity belongs to the source list. A member payer is
-        // fine: participantNames() already counts anyone who fronted a spend, so once the expense lands
-        // in the target the payer is a participant there (and we make sure they're on its roster).
-        if ($spend->payer_guest_id !== null) {
-            throw ValidationException::withMessages(['target_event_id' => __('spending.move_guest_blocked')]);
-        }
-        $target->members()->syncWithoutDetaching([$spend->payer_id]);
-
-        // Re-freeze the amount into the target list's currency and move it; drop the per-item split
-        // (it references the old list's participants) so it defaults to splitting among everyone.
-        $rebuilt = $target->buildSpend([
-            'amount' => $spend->amount / 100,
-            'currency' => $spend->currency,
-            'spent_at' => optional($spend->spent_at)->toDateString() ?? now()->toDateString(),
-            'source_id' => $spend->source_id,
-            'category' => $spend->category,
-            'note' => $spend->note,
-        ]);
-        $spend->update(['spend_event_id' => $target->id] + $rebuilt);
-        $spend->shares()->delete();
+        $spend->moveTo($target); // split reset + re-freeze into the target currency (shared with MCP)
 
         Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
 
