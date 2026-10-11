@@ -3,8 +3,10 @@
 use App\Models\Family;
 use App\Models\User;
 use App\Support\Tenancy\CurrentFamily;
+use Modules\Contacts\Person;
 use Modules\Projects\Project;
 use Modules\Shopping\ShoppingList;
+use Modules\Spending\SpendEvent;
 use Modules\Tasks\Task;
 
 function projectsToken(string $access = 'write'): array
@@ -109,4 +111,38 @@ it('keeps other families\' projects out of reach', function () {
     expect(mcpTool($token, 'projects_get', ['project_id' => $theirs->id])[0])->toBeTrue()
         ->and(mcpTool($token, 'projects_update_task', ['task_id' => $task->id, 'done' => true])[0])->toBeTrue();
     expect(Task::withoutGlobalScope('family')->find($task->id)->done)->toBeFalse();
+});
+
+it('links and unlinks a spending list and a contact, gated on the token reaching those modules', function () {
+    [$family, $users] = mcpFamily(['projects', 'spending', 'contacts'], 2);
+    $full = mcpConnect($users[0], $family->id, ['projects' => 'write', 'spending' => 'read', 'contacts' => 'read'])['access_token'];
+    CurrentFamily::set($family->id);
+    $project = Project::createFor($users[0], ['name' => 'Kitchen']);
+    $budget = SpendEvent::createFor($users[0], ['name' => 'Budget', 'currency' => 'EUR']);
+    $hidden = SpendEvent::createFor($users[1], ['name' => 'Private']);
+    $hidden->setVisibility('private');
+    $tom = Person::create(['name' => 'Tom', 'created_by' => $users[0]->id]);
+
+    [$err] = mcpTool($full, 'projects_link', ['project_id' => $project->id, 'type' => 'spend_list', 'id' => $budget->id]);
+    expect($err)->toBeFalse();
+    mcpTool($full, 'projects_link', ['project_id' => $project->id, 'type' => 'contact', 'id' => $tom->id]);
+    [$err, $msg] = mcpTool($full, 'projects_link', ['project_id' => $project->id, 'type' => 'spend_list', 'id' => $hidden->id]);
+    expect($err)->toBeTrue()->and($msg)->toContain('not found');
+
+    [, $got] = mcpTool($full, 'projects_get', ['project_id' => $project->id]);
+    expect($got['spend_lists'][0]['name'])->toBe('Budget')
+        ->and($got['spend_lists'][0]['url'])->toEndWith("/m/spending/events/{$budget->id}")
+        ->and($got['contacts'][0]['name'])->toBe('Tom');
+
+    // A projects-only connection sees neither, and can't link them.
+    $narrow = mcpConnect($users[0], $family->id, ['projects' => 'write'])['access_token'];
+    [, $got] = mcpTool($narrow, 'projects_get', ['project_id' => $project->id]);
+    expect($got)->not->toHaveKey('spend_lists')->not->toHaveKey('contacts');
+    [$err, $msg] = mcpTool($narrow, 'projects_link', ['project_id' => $project->id, 'type' => 'contact', 'id' => $tom->id]);
+    expect($err)->toBeTrue()->and($msg)->toContain('no access to contacts');
+
+    [$err] = mcpTool($full, 'projects_unlink', ['project_id' => $project->id, 'type' => 'spend_list', 'id' => $budget->id]);
+    expect($err)->toBeFalse()
+        ->and($project->links()->where('linkable_type', 'spend_event')->exists())->toBeFalse()
+        ->and(SpendEvent::find($budget->id))->not->toBeNull();
 });

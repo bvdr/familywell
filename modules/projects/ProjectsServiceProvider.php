@@ -31,7 +31,8 @@ class ProjectsServiceProvider extends ServiceProvider
         McpTools::register('projects', 'Projects', [
             Mcp\ListProjects::class, Mcp\GetProject::class,
             Mcp\CreateProject::class, Mcp\UpdateProject::class,
-            Mcp\AddTask::class, Mcp\UpdateTask::class, Mcp\DeleteTask::class, Mcp\DeleteProject::class, ]);
+            Mcp\AddTask::class, Mcp\UpdateTask::class, Mcp\DeleteTask::class, Mcp\DeleteProject::class,
+            Mcp\LinkItem::class, Mcp\UnlinkItem::class, ]);
 
         // "Pick up where you left off": projects this user opened in the last few days, tagged with
         // when so the dashboard can order them across modules. Respects visibility.
