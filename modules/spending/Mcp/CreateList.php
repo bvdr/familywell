@@ -68,13 +68,6 @@ class CreateList extends Tool
         Notify::toAccessOf($event, 'spending', $user->id, 'New spend tracker', "{$user->name} started: {$event->name}", "/m/spending/events/{$event->id}");
         SpendData::changed();
 
-        return Response::structured([
-            'id' => $event->id,
-            'name' => $event->name,
-            'currency' => $event->currency,
-            'count_in_monthly' => (bool) $event->count_in_monthly,
-            'project_id' => $project?->id,
-            'url' => rtrim((string) config('app.url'), '/')."/m/spending/events/{$event->id}",
-        ]);
+        return Response::structured(SpendData::listPayload($event) + ['project_id' => $project?->id]);
     }
 }

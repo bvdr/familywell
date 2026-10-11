@@ -47,6 +47,6 @@ class MoveExpense extends Tool
         }
         SpendData::changed();
 
-        return Response::structured(SpendData::payload($spend->fresh(['event', 'payer', 'payerGuest'])));
+        return Response::structured(SpendData::payload($spend->fresh(['event', 'payer', 'payerGuest']), true));
     }
 }

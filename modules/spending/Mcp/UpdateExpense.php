@@ -31,7 +31,8 @@ class UpdateExpense extends Tool
             'category' => $schema->string(),
             'shop' => $schema->string()->nullable(),
             'date' => $schema->string()->format('date'),
-            'paid_by' => $schema->integer(),
+            'paid_by' => $schema->integer()->description('Member id who paid.'),
+            'payer' => $schema->string()->description('Who paid, as a participant key of the list: "u7" (member) or "g12" (guest). Overrides paid_by.'),
             'count_in_monthly' => $schema->boolean()->nullable()->description('true/false pins whether it counts in monthly spending; null makes it follow the list\'s setting again.'),
         ];
     }
@@ -51,18 +52,18 @@ class UpdateExpense extends Tool
             'amount' => $has('amount') ? $request->get('amount') : $spend->amount / 100,
             'currency' => $has('currency') ? $request->get('currency') : $spend->currency,
             'category' => $has('category') ? $request->get('category') : $spend->category,
-            'payer_key' => $has('paid_by') ? 'u'.$request->get('paid_by') : $spend->participantKey(),
+            'payer_key' => $has('payer') ? $request->get('payer') : ($has('paid_by') ? 'u'.$request->get('paid_by') : $spend->participantKey()),
             'source_id' => $spend->source_id,
             'note' => $has('title') ? $request->get('title') : $spend->note,
             'store' => $has('shop') ? $request->get('shop') : $spend->store,
             'spent_at' => $has('date') ? $request->get('date') : $spend->spent_at->toDateString(),
             // Only touched when passed (absent keeps the current override; null = follow the list again).
             ...($has('count_in_monthly') ? ['count_in_monthly' => $request->get('count_in_monthly')] : []),
-        ], $event->spendRules(), ['payer_key.in' => 'paid_by must be a member taking part in this list.']);
+        ], $event->spendRules(), ['payer_key.in' => 'paid_by / payer must be one of this list\'s participants: '.implode(', ', array_keys($event->participantNames())).'.']);
 
         $spend->update($event->spendColumns($data));
         SpendData::changed();
 
-        return Response::structured(SpendData::payload($spend->fresh(['event', 'payer', 'payerGuest'])));
+        return Response::structured(SpendData::payload($spend->fresh(['event', 'payer', 'payerGuest']), true));
     }
 }
