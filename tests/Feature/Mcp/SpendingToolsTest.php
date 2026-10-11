@@ -129,3 +129,22 @@ it('creates lists (project ones kept out of monthly) and sets the per-expense mo
     [$err, $msg] = mcpTool($narrow, 'spending_create_list', ['name' => 'Nope', 'project_id' => $project->id]);
     expect($err)->toBeTrue()->and($msg)->toContain('no write access to projects');
 });
+
+it('moves an expense to another list, which it then follows for monthly spending', function () {
+    [, $users, $token] = spendingToken();
+    [, $home] = mcpTool($token, 'spending_create_list', ['name' => 'Corbeanca', 'currency' => 'RON']);
+    [, $box] = mcpTool($token, 'spending_create_list', ['name' => 'Container', 'currency' => 'RON', 'count_in_monthly' => false]);
+    [, $e] = mcpTool($token, 'spending_add_expense', ['amount' => 1500, 'currency' => 'RON', 'title' => 'Transport container', 'category' => 'transport', 'date' => '2026-10-11', 'list_id' => $home['id']]);
+    expect($e['count_in_monthly'])->toBeTrue();
+
+    [$err, $moved] = mcpTool($token, 'spending_move_expense', ['expense_id' => $e['id'], 'list_id' => $box['id']]);
+    expect($err)->toBeFalse()
+        ->and($moved['list']['id'])->toBe($box['id'])
+        ->and($moved['amount'])->toBe('1500.00')->and($moved['date'])->toBe('2026-10-11')
+        ->and($moved['category'])->toBe('transport')->and($moved['paid_by']['name'])->toBe($users[0]->name)
+        ->and($moved['count_in_monthly'])->toBeFalse(); // no own override: follows the new list
+
+    [$err, $msg] = mcpTool($token, 'spending_move_expense', ['expense_id' => $e['id'], 'list_id' => $box['id']]);
+    expect($err)->toBeTrue()->and($msg)->toBe("That's the same list.");
+    expect(mcpTool($token, 'spending_move_expense', ['expense_id' => $e['id'], 'list_id' => 999999])[0])->toBeTrue();
+});
