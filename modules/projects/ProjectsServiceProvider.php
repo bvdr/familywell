@@ -31,7 +31,8 @@ class ProjectsServiceProvider extends ServiceProvider
         McpTools::register('projects', 'Projects', [
             Mcp\ListProjects::class, Mcp\GetProject::class,
             Mcp\CreateProject::class, Mcp\UpdateProject::class,
-            Mcp\AddTask::class, Mcp\UpdateTask::class, Mcp\DeleteTask::class, Mcp\DeleteProject::class, ]);
+            Mcp\AddTask::class, Mcp\UpdateTask::class, Mcp\DeleteTask::class, Mcp\DeleteProject::class,
+            Mcp\LinkItem::class, Mcp\UnlinkItem::class, ]);
 
         // "Pick up where you left off": projects this user opened in the last few days, tagged with
         // when so the dashboard can order them across modules. Respects visibility.
@@ -162,6 +163,14 @@ class ProjectsServiceProvider extends ServiceProvider
                 Route::post('/{project}/notes', [ProjectsController::class, 'linkNote'])->name('notes.link');
                 Route::post('/{project}/notes/new', [ProjectsController::class, 'createNote'])->name('notes.create');
                 Route::delete('/{project}/notes/{note}', [ProjectsController::class, 'unlinkNote'])->name('notes.unlink');
+
+                // Linked spending lists + contacts: {type} is a ProjectLinkables type.
+                Route::get('/{project}/links/{type}/linkable', [ProjectsController::class, 'linkables'])
+                    ->whereIn('type', ['spend_event', 'contact'])->name('links.linkable');
+                Route::post('/{project}/links/{type}', [ProjectsController::class, 'linkItems'])
+                    ->whereIn('type', ['spend_event', 'contact'])->name('links.store');
+                Route::delete('/{project}/links/{type}/{id}', [ProjectsController::class, 'unlinkItem'])
+                    ->whereIn('type', ['spend_event', 'contact'])->whereNumber('id')->name('links.destroy');
             });
     }
 }

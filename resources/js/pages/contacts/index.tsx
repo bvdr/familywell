@@ -37,7 +37,12 @@ export default function ContactsIndex({ people, contactTypes }: { people: Person
     const t = useT();
     const breadcrumbs: BreadcrumbItem[] = [{ title: t('nav.contacts'), href: '/m/contacts' }];
     const [newName, setNewName] = useState('');
-    const [editing, setEditing] = useState<Person | null>(null);
+    // ?person={id} (e.g. from a project's linked contacts) opens that person's drawer on arrival.
+    const [editing, setEditing] = useState<Person | null>(() => {
+        if (typeof window === 'undefined') return null; // SSR has no URL
+        const id = Number(new URLSearchParams(window.location.search).get('person'));
+        return people.find((p) => p.id === id) ?? null;
+    });
     // Optimistic delete: the row disappears the moment the drawer closes, returning only if the DELETE fails.
     const removed = useOptimistic<boolean>();
     const visiblePeople = people.filter((p) => !removed.get(p.id, false));

@@ -148,6 +148,10 @@ class ProjectsController extends Controller
             'lists' => $lists->map(fn (ShoppingList $l) => [
                 'id' => $l->id, 'name' => $l->name, 'store' => $l->store, 'bought' => $l->bought_count, 'total' => $l->items_count,
             ])->values(),
+            // Linked spending lists + contacts (ProjectLinkables). null when that module is off for the
+            // family, so the page hides the section and its "add" entries.
+            'spendLists' => ProjectLinkables::linked($project, $request->user(), ProjectLinkables::SPEND),
+            'contacts' => ProjectLinkables::linked($project, $request->user(), ProjectLinkables::CONTACT),
             'notes' => $notes->map(fn (Note $n) => [
                 'id' => $n->id,
                 'title' => $n->title !== '' ? $n->title : 'Untitled note',
@@ -543,6 +547,40 @@ class ProjectsController extends Controller
                 'sharedWith' => $n->visibility() === 'family' ? 'shared with family' : ($n->visibility() === 'private' ? 'only you' : 'shared'),
             ])->values(),
         ]);
+    }
+
+    // ---- Linked spending lists + contacts ({type} = spend_event | contact, see ProjectLinkables) ----
+    // Same shape as the shopping-list/note endpoints, but one set for both types: the rules (module
+    // enabled, visibility) live in ProjectLinkables so the MCP tools apply exactly the same ones.
+    public function linkables(Request $request, Project $project, string $type)
+    {
+        abort_unless($this->access->roleFor($request->user(), $project) !== null, 403);
+        abort_unless(ProjectLinkables::enabled($type), 404);
+
+        return response()->json(['items' => ProjectLinkables::candidates($project, $request->user(), $type)]);
+    }
+
+    public function linkItems(Request $request, Project $project, string $type): RedirectResponse
+    {
+        abort_unless($this->access->roleFor($request->user(), $project) !== null, 403);
+        abort_unless(ProjectLinkables::enabled($type), 404);
+        $data = $request->validate(['ids' => ['required', 'array'], 'ids.*' => ['integer']]);
+        foreach ($data['ids'] as $id) {
+            ProjectLinkables::link($project, $request->user(), $type, (int) $id); // silently skips what the user can't see
+        }
+        Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
+
+        return back();
+    }
+
+    // Removes the link only; the spending list / contact itself is untouched.
+    public function unlinkItem(Request $request, Project $project, string $type, int $id): RedirectResponse
+    {
+        abort_unless($this->access->roleFor($request->user(), $project) !== null, 403);
+        ProjectLinkables::unlink($project, $type, $id);
+        Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
+
+        return back();
     }
 
     private function shareState(Project $project, Family $family): array
