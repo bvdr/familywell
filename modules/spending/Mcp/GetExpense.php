@@ -27,6 +27,6 @@ class GetExpense extends Tool
     {
         $spend = SpendData::spend($this->user(), $request->get('expense_id'));
 
-        return $spend ? Response::structured(SpendData::payload($spend)) : $this->notFound('Expense');
+        return $spend ? Response::structured(SpendData::payload($spend, true)) : $this->notFound('Expense');
     }
 }

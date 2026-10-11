@@ -148,3 +148,35 @@ it('moves an expense to another list, which it then follows for monthly spending
     expect($err)->toBeTrue()->and($msg)->toBe("That's the same list.");
     expect(mcpTool($token, 'spending_move_expense', ['expense_id' => $e['id'], 'list_id' => 999999])[0])->toBeTrue();
 });
+
+it('adds a guest once by name and lets any list participant be the payer', function () {
+    [$family, $users, $token] = spendingToken();
+    [, $trip] = mcpTool($token, 'spending_create_list', ['name' => 'Trip', 'currency' => 'EUR']);
+
+    [$err, $ana] = mcpTool($token, 'spending_add_guest', ['list_id' => $trip['id'], 'name' => 'Ana']);
+    expect($err)->toBeFalse()->and($ana['key'])->toStartWith('g')->and($ana['created'])->toBeTrue()->and($ana['role'])->toBe('editor')
+        ->and(collect($ana['list']['participants'])->firstWhere('key', $ana['key']))->toBe(['key' => $ana['key'], 'name' => 'Ana', 'kind' => 'guest'])
+        ->and(collect($ana['list']['participants'])->firstWhere('key', 'u'.$users[0]->id)['kind'])->toBe('member');
+
+    // Idempotent by name (trimmed, case-insensitive).
+    [, $again] = mcpTool($token, 'spending_add_guest', ['list_id' => $trip['id'], 'name' => ' ana ']);
+    expect($again['key'])->toBe($ana['key'])->and($again['created'])->toBeFalse();
+    expect(SpendEvent::find($trip['id'])->guests()->count())->toBe(1);
+
+    [$err, $e] = mcpTool($token, 'spending_add_expense', ['amount' => 30, 'currency' => 'EUR', 'category' => 'other', 'date' => '2026-10-11', 'list_id' => $trip['id'], 'payer' => $ana['key']]);
+    expect($err)->toBeFalse()->and($e['paid_by'])->toBe(['key' => $ana['key'], 'name' => 'Ana'])
+        ->and($e['list']['participants'])->toHaveCount(3);
+    expect(Spend::find($e['id'])->payer_guest_id)->toBe((int) substr($ana['key'], 1));
+
+    // Not a participant of this list: rejected like the web form, naming the valid keys.
+    [$err, $msg] = mcpTool($token, 'spending_add_expense', ['amount' => 5, 'currency' => 'EUR', 'category' => 'other', 'list_id' => $trip['id'], 'payer' => 'g999999']);
+    expect($err)->toBeTrue()->and($msg)->toContain($ana['key']);
+
+    [, $upd] = mcpTool($token, 'spending_update_expense', ['expense_id' => $e['id'], 'payer' => 'u'.$users[1]->id]);
+    expect($upd['paid_by']['key'])->toBe('u'.$users[1]->id);
+
+    // Guests are managed by the list's owner only (same as the app's share sheet).
+    $other = mcpConnect($users[1], $family->id, ['spending' => 'write'])['access_token'];
+    [$err, $msg] = mcpTool($other, 'spending_add_guest', ['list_id' => $trip['id'], 'name' => 'Ion']);
+    expect($err)->toBeTrue()->and($msg)->toContain('owner');
+});

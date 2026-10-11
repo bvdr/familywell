@@ -44,7 +44,37 @@ class SpendData
         return number_format($cents / 100, 2, '.', '');
     }
 
-    public static function payload(Spend $s): array
+    /**
+     * Who takes part in a list, as payer/split keys: 'u{id}' = family member, 'g{id}' = named guest. Same
+     * set (and order) the web form validates the payer against (SpendEvent::participantNames).
+     *
+     * @return list<array{key: string, name: string, kind: string}>
+     */
+    public static function participants(SpendEvent $event): array
+    {
+        return collect($event->participantNames())
+            ->map(fn (string $name, string $key) => ['key' => $key, 'name' => $name, 'kind' => str_starts_with($key, 'g') ? 'guest' : 'member'])
+            ->values()->all();
+    }
+
+    /** A spending list for tool results: identity, monthly flag and its participants. */
+    public static function listPayload(SpendEvent $event): array
+    {
+        return [
+            'id' => $event->id,
+            'name' => $event->name,
+            'currency' => $event->currency,
+            'count_in_monthly' => (bool) $event->count_in_monthly,
+            'participants' => self::participants($event),
+            'url' => self::url("/m/spending/events/{$event->id}"),
+        ];
+    }
+
+    /**
+     * @param  bool  $withParticipants  add the list's participants (single-expense tools only: a page of
+     *                                  expenses would run the roster queries once per row)
+     */
+    public static function payload(Spend $s, bool $withParticipants = false): array
     {
         $payer = $s->payerGuest ?? $s->payer;
 
@@ -60,7 +90,8 @@ class SpendData
             'shop' => $s->store,
             'date' => $s->spent_at?->toDateString(),
             'paid_by' => $payer ? ['key' => $s->participantKey(), 'name' => $payer->name] : null,
-            'list' => $s->event ? ['id' => $s->event->id, 'name' => $s->event->name] : null,
+            'list' => $s->event ? ['id' => $s->event->id, 'name' => $s->event->name]
+                + ($withParticipants ? ['participants' => self::participants($s->event)] : []) : null,
             // Effective "count in monthly spending": the expense's own override, else its list's setting.
             'count_in_monthly' => $s->count_in_monthly ?? (bool) $s->event?->count_in_monthly,
             'url' => self::url("/m/spending/events/{$s->spend_event_id}"),
