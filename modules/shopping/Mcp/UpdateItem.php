@@ -8,6 +8,7 @@ use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
+use Modules\Shopping\ShoppingShop;
 
 #[IsIdempotent]
 class UpdateItem extends Tool
@@ -18,7 +19,7 @@ class UpdateItem extends Tool
 
     protected string $name = 'shopping_update_item';
 
-    protected string $description = 'Change a shopping item (name, quantity, note) or tick it off as bought / un-tick it. Only the fields you pass change.';
+    protected string $description = 'Change a shopping item (name, quantity, note, shops) or tick it off as bought / un-tick it. Only the fields you pass change. `store` is the primary shop (null = inherit the list\'s shop); `alt_stores` REPLACES the item\'s other shops (pass [] or null to clear them).';
 
     public function schema(JsonSchema $schema): array
     {
@@ -28,6 +29,8 @@ class UpdateItem extends Tool
             'quantity' => $schema->string()->nullable(),
             'note' => $schema->string()->nullable(),
             'bought' => $schema->boolean(),
+            'store' => $schema->string()->nullable()->description('Primary shop, e.g. "Lidl". null = inherit the list\'s shop.'),
+            'alt_stores' => $schema->array()->items($schema->string())->nullable()->description('Other shops that also sell it. Replaces the current set.'),
         ];
     }
 
@@ -39,6 +42,10 @@ class UpdateItem extends Tool
             'quantity' => ['sometimes', 'nullable', 'string', 'max:60'],
             'note' => ['sometimes', 'nullable', 'string', 'max:255'],
             'bought' => ['sometimes', 'boolean'],
+            // Same rules as the web item editor (ShoppingController::updateItem).
+            'store' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'alt_stores' => ['sometimes', 'nullable', 'array'],
+            'alt_stores.*' => ['string', 'max:120'],
         ]);
         $item = ShoppingData::item($this->user(), $data['item_id']);
         if (! $item) {
@@ -46,7 +53,12 @@ class UpdateItem extends Tool
         }
 
         $wasBought = $item->bought;
-        $item->update(array_intersect_key($data, array_flip(['name', 'quantity', 'note', 'bought'])));
+        $item->update(array_intersect_key($data, array_flip(['name', 'quantity', 'note', 'bought', 'store', 'alt_stores'])));
+        // Promote any new store name to a shop so the Shops view stays complete, as the web UI does.
+        ShoppingShop::ensure($data['store'] ?? null);
+        foreach ($data['alt_stores'] ?? [] as $alt) {
+            ShoppingShop::ensure($alt);
+        }
         // "Shopping done" ping + Inventory restock hook, exactly as when ticked off in the app.
         $item->settleBought($wasBought, $this->user());
         ShoppingData::changed();

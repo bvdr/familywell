@@ -4,6 +4,7 @@ use App\Support\Modules\Hooks;
 use App\Support\Tenancy\CurrentFamily;
 use Modules\Shopping\ShoppingItem;
 use Modules\Shopping\ShoppingList;
+use Modules\Shopping\ShoppingShop;
 
 function shoppingToken(int $members = 2): array
 {
@@ -92,4 +93,26 @@ it('cannot see or touch another member\'s private list, nor delete a list it did
         ->and(mcpTool($token, 'shopping_update_item', ['item_id' => $hidden->id, 'bought' => true])[0])->toBeTrue()
         ->and(mcpTool($token, 'shopping_delete_list', ['list_id' => $shared->id])[1])->toContain('created this list');
     expect($hidden->fresh()->bought)->toBeFalse();
+});
+
+it('sets an item\'s primary and alternative stores, promoting each to a shop, and replaces them on update', function () {
+    [$family, , $token] = shoppingToken();
+    $shops = fn () => ShoppingShop::withoutGlobalScope('family')->where('family_id', $family->id)->orderBy('name')->pluck('name')->all();
+    [, $list] = mcpTool($token, 'shopping_create_list', ['name' => 'Groceries']);
+
+    [$err, $oil] = mcpTool($token, 'shopping_add_item', ['list_id' => $list['id'], 'name' => 'Ulei', 'store' => 'Lidl', 'alt_stores' => ['Kaufland', 'Mega Image']]);
+    expect($err)->toBeFalse()
+        ->and($oil['store'])->toBe('Lidl')
+        ->and($oil['alt_stores'])->toBe(['Kaufland', 'Mega Image'])
+        ->and($shops())->toBe(['Kaufland', 'Lidl', 'Mega Image']);
+
+    [$err, $upd] = mcpTool($token, 'shopping_update_item', ['item_id' => $oil['id'], 'store' => 'Carrefour', 'alt_stores' => ['Auchan']]);
+    expect($err)->toBeFalse()
+        ->and($upd['store'])->toBe('Carrefour')
+        ->and($upd['alt_stores'])->toBe(['Auchan'])
+        ->and(ShoppingItem::withoutGlobalScopes()->find($oil['id'])->alt_stores)->toBe(['Auchan'])
+        ->and($shops())->toBe(['Auchan', 'Carrefour', 'Kaufland', 'Lidl', 'Mega Image']);
+
+    // Too-long store names are rejected with the web UI's max:120.
+    expect(mcpTool($token, 'shopping_update_item', ['item_id' => $oil['id'], 'alt_stores' => [str_repeat('x', 121)]])[0])->toBeTrue();
 });

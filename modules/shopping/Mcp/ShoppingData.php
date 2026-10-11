@@ -53,6 +53,7 @@ class ShoppingData
             'note' => $i->note,
             'aisle' => $i->department,
             'store' => $i->store,
+            'alt_stores' => $i->alt_stores ?? [],
             'bought' => $i->bought,
             'due_date' => $i->due_date?->toDateString(),
             'url' => self::url("/m/shopping/lists/{$i->shopping_list_id}"),
