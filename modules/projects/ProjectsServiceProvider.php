@@ -162,6 +162,14 @@ class ProjectsServiceProvider extends ServiceProvider
                 Route::post('/{project}/notes', [ProjectsController::class, 'linkNote'])->name('notes.link');
                 Route::post('/{project}/notes/new', [ProjectsController::class, 'createNote'])->name('notes.create');
                 Route::delete('/{project}/notes/{note}', [ProjectsController::class, 'unlinkNote'])->name('notes.unlink');
+
+                // Linked spending lists + contacts: {type} is a ProjectLinkables type.
+                Route::get('/{project}/links/{type}/linkable', [ProjectsController::class, 'linkables'])
+                    ->whereIn('type', ['spend_event', 'contact'])->name('links.linkable');
+                Route::post('/{project}/links/{type}', [ProjectsController::class, 'linkItems'])
+                    ->whereIn('type', ['spend_event', 'contact'])->name('links.store');
+                Route::delete('/{project}/links/{type}/{id}', [ProjectsController::class, 'unlinkItem'])
+                    ->whereIn('type', ['spend_event', 'contact'])->whereNumber('id')->name('links.destroy');
             });
     }
 }
