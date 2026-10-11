@@ -12,13 +12,16 @@ import {
     Image as ImageIcon,
     ListChecks,
     Pencil,
+    Phone,
     Plus,
     Search,
     ShoppingCart,
     StickyNote,
     Trash2,
     Unlink,
+    User,
     UserPlus,
+    Wallet,
     X,
     type LucideIcon,
 } from 'lucide-react';
@@ -35,6 +38,7 @@ import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import AppLayout from '@/layouts/app-layout';
 import { compressImage, makeThumbnail } from '@/lib/compress-image';
 import { useT } from '@/lib/i18n';
+import { money } from '@/lib/money';
 import { noteColor, snippet } from '@/lib/notes';
 import { DEP_STATUS_KEYS, depStatus, PROJECT_STATUS_KEYS, projectStatus, shortDate } from '@/lib/projects';
 import { type BreadcrumbItem } from '@/types';
@@ -43,6 +47,11 @@ type Member = { id: number; name: string };
 type Dep = { id: number; name: string; note: string | null; status: string };
 type LinkedList = { id: number; name: string; store: string | null; bought: number; total: number };
 type LinkedNote = { id: number; title: string; body: string; color: string };
+// Spending lists + contacts linked via ProjectLinkables (server). The prop is null when that module is
+// off for the family: the section and its "add" entries are hidden.
+type LinkedSpend = { id: number; name: string; currency: string; total: number; archived: boolean };
+type LinkedContact = { id: number; name: string; phone: string | null };
+type LinkType = 'spend_event' | 'contact';
 type Project = {
     id: number;
     name: string;
@@ -67,6 +76,8 @@ export default function ProjectDetail({
     dependencies,
     lists,
     notes,
+    spendLists,
+    contacts,
     share,
 }: {
     project: Project;
@@ -75,6 +86,8 @@ export default function ProjectDetail({
     dependencies: Dep[];
     lists: LinkedList[];
     notes: LinkedNote[];
+    spendLists: LinkedSpend[] | null;
+    contacts: LinkedContact[] | null;
     share: ShareState;
 }) {
     const t = useT();
@@ -83,6 +96,7 @@ export default function ProjectDetail({
     const [linking, setLinking] = useState(false);
     const [linkView, setLinkView] = useState<'pick' | 'new'>('pick'); // which view the link-list sheet opens to
     const [linkingNote, setLinkingNote] = useState(false); // the link-note sheet
+    const [linkingType, setLinkingType] = useState<LinkType | null>(null); // the link spending list / contact sheet
     const [adding, setAdding] = useState(false); // the "Add to project" sheet
     useAddAction(() => setAdding(true));
     // Sections stay hidden until they have content; choosing to add one reveals it (with its input).
@@ -130,11 +144,16 @@ export default function ProjectDetail({
     const removedDep = useOptimistic<boolean>();
     const unlinkedList = useOptimistic<boolean>();
     const unlinkedNote = useOptimistic<boolean>();
+    // One overlay per type: a spending list and a contact can share an id.
+    const unlinkedSpend = useOptimistic<boolean>();
+    const unlinkedContact = useOptimistic<boolean>();
     const archivedOpt = useOptimistic<boolean>();
     const isArchived = archivedOpt.get(project.id, project.archived);
     const visibleDeps = dependencies.filter((d) => !removedDep.get(d.id, false));
     const visibleLists = lists.filter((l) => !unlinkedList.get(l.id, false));
     const visibleNotes = notes.filter((n) => !unlinkedNote.get(n.id, false));
+    const visibleSpends = (spendLists ?? []).filter((e) => !unlinkedSpend.get(e.id, false));
+    const visibleContacts = (contacts ?? []).filter((c) => !unlinkedContact.get(c.id, false));
     const settle = (o: ReturnType<typeof useOptimistic<boolean>> | ReturnType<typeof useOptimistic<string>>, id: number) => ({
         preserveScroll: true,
         preserveState: true,
@@ -147,6 +166,8 @@ export default function ProjectDetail({
     const showTasks = taskTotal > 0 || reveal.has('tasks');
     const showLists = visibleLists.length > 0;
     const showNotes = visibleNotes.length > 0;
+    const showSpends = visibleSpends.length > 0;
+    const showContacts = visibleContacts.length > 0;
 
     const toggleArchived = () => {
         archivedOpt.set(project.id, !isArchived);
@@ -169,6 +190,15 @@ export default function ProjectDetail({
     const unlinkNote = (n: LinkedNote) => {
         unlinkedNote.set(n.id, true);
         router.delete(route('projects.notes.unlink', [project.id, n.id]), settle(unlinkedNote, n.id));
+    };
+    const unlinkItem = (type: LinkType, id: number) => {
+        const o = type === 'spend_event' ? unlinkedSpend : unlinkedContact;
+        o.set(id, true);
+        router.delete(route('projects.links.destroy', [project.id, type, id]), settle(o, id));
+    };
+    const openLinkType = (type: LinkType) => {
+        setAdding(false);
+        setLinkingType(type);
     };
     const addDep = () => {
         if (!depName.trim()) return;
@@ -438,6 +468,58 @@ export default function ProjectDetail({
                     </Section>
                 )}
 
+                {/* Linked spending lists: each with its all-time total in the list's display currency. */}
+                {showSpends && (
+                    <Section id="section-spend" icon={Wallet} title={t('projects.expenses')} count={visibleSpends.length}>
+                        <div className="flex flex-col gap-2">
+                            {visibleSpends.map((e) => (
+                                <div key={e.id} className="bg-surface-card flex items-center gap-3 rounded-xl border p-3">
+                                    <span className="bg-accent-subtle text-primary flex size-9 shrink-0 items-center justify-center rounded-lg">
+                                        <Wallet className="size-4.5" />
+                                    </span>
+                                    <Link href={`/m/spending/events/${e.id}`} className="min-w-0 flex-1">
+                                        <div className="text-primary truncate text-sm font-medium">{e.name}</div>
+                                        {e.archived && <div className="text-muted-foreground text-xs">{t('projects.archived')}</div>}
+                                    </Link>
+                                    <span className="text-primary font-mono text-sm font-semibold tabular-nums">{money(e.total, e.currency)}</span>
+                                    <UnlinkButton label={t('projects.unlink')} onClick={() => unlinkItem('spend_event', e.id)} />
+                                </div>
+                            ))}
+                            <DashedAdd label={t('projects.link_spend_list')} onClick={() => setLinkingType('spend_event')} />
+                        </div>
+                    </Section>
+                )}
+
+                {/* Linked contacts: tap the name to open the contact, the phone to call. */}
+                {showContacts && (
+                    <Section id="section-contacts" icon={User} title={t('projects.contacts_title')} count={visibleContacts.length}>
+                        <div className="flex flex-col gap-2">
+                            {visibleContacts.map((c) => (
+                                <div key={c.id} className="bg-surface-card flex items-center gap-3 rounded-xl border p-3">
+                                    <span className="bg-accent-strong text-accent-strong-foreground flex size-9 shrink-0 items-center justify-center rounded-full">
+                                        <User className="size-4.5" />
+                                    </span>
+                                    <Link href={`/m/contacts?person=${c.id}`} className="min-w-0 flex-1">
+                                        <div className="text-primary truncate text-sm font-medium">{c.name}</div>
+                                        <div className="text-muted-foreground truncate text-xs">{c.phone ?? t('projects.no_phone')}</div>
+                                    </Link>
+                                    {c.phone && (
+                                        <a
+                                            href={`tel:${c.phone.replace(/[^\d+]/g, '')}`}
+                                            aria-label={t('projects.call', { name: c.name })}
+                                            className="bg-accent-subtle text-primary flex size-9 shrink-0 items-center justify-center rounded-full"
+                                        >
+                                            <Phone className="size-4" />
+                                        </a>
+                                    )}
+                                    <UnlinkButton label={t('projects.unlink')} onClick={() => unlinkItem('contact', c.id)} />
+                                </div>
+                            ))}
+                            <DashedAdd label={t('projects.link_contact')} onClick={() => setLinkingType('contact')} />
+                        </div>
+                    </Section>
+                )}
+
                 {/* Compose the project: add a section / piece of content. Sections appear once they have content. */}
                 <button
                     type="button"
@@ -452,6 +534,7 @@ export default function ProjectDetail({
             <EditModal open={editing} onOpenChange={setEditing} project={project} members={members} />
             <LinkListModal open={linking} onOpenChange={setLinking} projectId={project.id} projectName={project.name} initialView={linkView} />
             <LinkNoteModal open={linkingNote} onOpenChange={setLinkingNote} projectId={project.id} projectName={project.name} />
+            <LinkItemsModal type={linkingType} onClose={() => setLinkingType(null)} projectId={project.id} projectName={project.name} />
             <AddToProjectSheet
                 open={adding}
                 onOpenChange={setAdding}
@@ -468,6 +551,8 @@ export default function ProjectDetail({
                     setAdding(false);
                     setLinkingNote(true);
                 }}
+                onSpendLink={spendLists ? () => openLinkType('spend_event') : undefined}
+                onContactLink={contacts ? () => openLinkType('contact') : undefined}
             />
         </AppLayout>
     );
@@ -552,6 +637,8 @@ function AddToProjectSheet({
     onShoppingLink,
     onNoteNew,
     onNoteLink,
+    onSpendLink,
+    onContactLink,
 }: {
     open: boolean;
     onOpenChange: (v: boolean) => void;
@@ -562,6 +649,8 @@ function AddToProjectSheet({
     onShoppingLink: () => void;
     onNoteNew: () => void;
     onNoteLink: () => void;
+    onSpendLink?: () => void; // undefined when the Spending module is off
+    onContactLink?: () => void; // undefined when the Contacts module is off
 }) {
     const t = useT();
     const Row = ({ icon: Icon, title, sub, onClick }: { icon: LucideIcon; title: string; sub: string; onClick: () => void }) => (
@@ -605,6 +694,12 @@ function AddToProjectSheet({
                         onClick={onShoppingLink}
                     />
                     <Row icon={StickyNote} title={t('projects.note_title')} sub={t('projects.link_note_sub')} onClick={onNoteLink} />
+                    {onSpendLink && (
+                        <Row icon={Wallet} title={t('projects.spend_list_title')} sub={t('projects.link_spend_sub')} onClick={onSpendLink} />
+                    )}
+                    {onContactLink && (
+                        <Row icon={User} title={t('projects.contact_title')} sub={t('projects.link_contact_sub')} onClick={onContactLink} />
+                    )}
                 </div>
                 <p className="text-muted-foreground text-xs leading-relaxed">{t('projects.coming_soon')}</p>
             </div>
@@ -1051,6 +1146,133 @@ function LinkNoteModal({
                                 <div className="min-w-0 flex-1">
                                     <div className="text-primary truncate text-sm font-medium">{n.name}</div>
                                     <div className="text-muted-foreground truncate text-xs">{n.preview || n.sharedWith}</div>
+                                </div>
+                                <span
+                                    className={`flex size-6 shrink-0 items-center justify-center rounded-md border ${on ? 'border-primary bg-accent-strong text-accent-strong-foreground' : 'border-border'}`}
+                                >
+                                    {on && <Check className="size-4" />}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+        </ResponsiveModal>
+    );
+}
+
+function UnlinkButton({ label, onClick }: { label: string; onClick: () => void }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            aria-label={label}
+            className="text-muted-foreground hover:text-destructive flex size-6 shrink-0 items-center justify-center"
+        >
+            <Unlink className="size-4" />
+        </button>
+    );
+}
+
+function DashedAdd({ label, onClick }: { label: string; onClick: () => void }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className="border-accent text-primary hover:bg-surface flex items-center justify-center gap-2 rounded-xl border border-dashed py-3 text-sm font-medium transition-colors"
+        >
+            <Plus className="size-4" /> {label}
+        </button>
+    );
+}
+
+type LinkableItem = { id: number; name: string; currency?: string; total?: number; phone?: string | null };
+
+// Picker for linking existing spending lists or contacts (open when `type` is set). Same shape as the
+// note picker: search, multi-select, one "Add" button; candidates come from ProjectLinkables, so they
+// are already limited to what this user can see and exclude what is linked.
+function LinkItemsModal({
+    type,
+    onClose,
+    projectId,
+    projectName,
+}: {
+    type: LinkType | null;
+    onClose: () => void;
+    projectId: number;
+    projectName: string;
+}) {
+    const t = useT();
+    const [items, setItems] = useState<LinkableItem[]>([]);
+    const [selected, setSelected] = useState<Set<number>>(new Set());
+    const [q, setQ] = useState('');
+
+    useEffect(() => {
+        if (!type) return;
+        setItems([]);
+        setSelected(new Set());
+        setQ('');
+        fetch(route('projects.links.linkable', [projectId, type], false), { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
+            .then((r) => (r.ok ? r.json() : { items: [] }))
+            .then((d) => setItems(d.items));
+    }, [type, projectId]);
+
+    const Icon = type === 'contact' ? User : Wallet;
+    const filtered = items.filter((i) => i.name.toLowerCase().includes(q.toLowerCase()));
+    const toggle = (id: number) =>
+        setSelected((s) => {
+            const n = new Set(s);
+            if (n.has(id)) n.delete(id);
+            else n.add(id);
+            return n;
+        });
+    const addSelected = () => {
+        if (!type || !selected.size) return;
+        router.post(route('projects.links.store', [projectId, type]), { ids: [...selected] }, { preserveScroll: true, onSuccess: onClose });
+    };
+
+    return (
+        <ResponsiveModal
+            open={type !== null}
+            onOpenChange={(v) => !v && onClose()}
+            title={t(type === 'contact' ? 'projects.contact_title' : 'projects.spend_list_title')}
+            description={t('projects.add_to', { name: projectName })}
+            footer={
+                <Button className="w-full" disabled={!selected.size} onClick={addSelected}>
+                    {selected.size ? t('projects.add_count', { count: selected.size }) : t('projects.select_to_add')}
+                </Button>
+            }
+        >
+            <div className="flex flex-col gap-3">
+                <div className="bg-surface flex items-center gap-2 rounded-lg px-3 py-2">
+                    <Search className="text-muted-foreground size-4" />
+                    <input
+                        value={q}
+                        onChange={(e) => setQ(e.target.value)}
+                        placeholder={t('projects.search_placeholder')}
+                        // text-base (16px) on mobile so iOS Safari doesn't auto-zoom on focus; text-sm from md up.
+                        className="text-primary w-full bg-transparent text-base outline-none md:text-sm"
+                    />
+                </div>
+                <div className="flex flex-col gap-2">
+                    {filtered.length === 0 && <p className="text-muted-foreground py-4 text-center text-sm">{t('projects.nothing_to_link')}</p>}
+                    {filtered.map((i) => {
+                        const on = selected.has(i.id);
+                        return (
+                            <button
+                                key={i.id}
+                                type="button"
+                                onClick={() => toggle(i.id)}
+                                className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${on ? 'border-primary bg-accent-subtle' : 'bg-surface-card'}`}
+                            >
+                                <span className="bg-accent-subtle text-primary flex size-9 shrink-0 items-center justify-center rounded-lg">
+                                    <Icon className="size-4.5" />
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                    <div className="text-primary truncate text-sm font-medium">{i.name}</div>
+                                    <div className="text-muted-foreground truncate text-xs">
+                                        {type === 'contact' ? (i.phone ?? t('projects.no_phone')) : money(i.total ?? 0, i.currency ?? 'EUR')}
+                                    </div>
                                 </div>
                                 <span
                                     className={`flex size-6 shrink-0 items-center justify-center rounded-md border ${on ? 'border-primary bg-accent-strong text-accent-strong-foreground' : 'border-border'}`}
