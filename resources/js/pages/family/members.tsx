@@ -4,12 +4,12 @@ import { FormEventHandler, useState } from 'react';
 
 import InputError from '@/components/input-error';
 import { MemberAvatar } from '@/components/member-avatar';
+import { Segmented } from '@/components/segmented';
 import { SkinPicker, type Skin } from '@/components/skin-picker';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
@@ -270,15 +270,15 @@ export default function Members({ family, members, invitations, canManage, palet
                                         </div>
                                         <div className="grid gap-2">
                                             <Label>{t('family.role')}</Label>
-                                            <Select value={invite.data.role} onValueChange={(v) => invite.setData('role', v)}>
-                                                <SelectTrigger>
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="member">{t('family.role_member')}</SelectItem>
-                                                    <SelectItem value="admin">{t('family.role_admin')}</SelectItem>
-                                                </SelectContent>
-                                            </Select>
+                                            <Segmented
+                                                ariaLabel={t('family.role')}
+                                                options={[
+                                                    { value: 'member', label: t('family.role_member') },
+                                                    { value: 'admin', label: t('family.role_admin') },
+                                                ]}
+                                                value={invite.data.role}
+                                                onChange={(v) => invite.setData('role', v)}
+                                            />
                                         </div>
                                         <Button type="submit" disabled={invite.processing} className="w-full">
                                             <Mail className="size-4" /> {t('family.send_invite')}

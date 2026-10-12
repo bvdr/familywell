@@ -2,6 +2,7 @@ import { Head, router } from '@inertiajs/react';
 import { Link as LinkIcon, Mail, MapPin, Phone, Plus, Trash2, User } from 'lucide-react';
 import { useState } from 'react';
 
+import { Picker } from '@/components/picker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -153,22 +154,18 @@ function PersonModal({
                 <div className="grid gap-2">
                     <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('contacts.methods')}</Label>
                     <div className="flex flex-col gap-2">
-                        {methods.map((m, i) => {
-                            const Icon = METHOD_ICON[m.type] ?? Phone;
-                            return (
-                                <div key={i} className="flex items-center gap-2">
-                                    <Icon className="text-muted-foreground size-4 shrink-0" />
-                                    <select
-                                        value={m.type}
-                                        onChange={(e) => setMethod(i, { type: e.target.value })}
-                                        className="border-border text-primary h-9 shrink-0 rounded-lg border bg-transparent px-2 text-sm"
-                                    >
-                                        {contactTypes.map((ty) => (
-                                            <option key={ty} value={ty}>
-                                                {t('contacts.type_' + ty)}
-                                            </option>
-                                        ))}
-                                    </select>
+                        {methods.map((m, i) => (
+                            // Type picker on its own line above the value: the Picker expands inline and
+                            // needs the width, so it can't share a 400px row with the input.
+                            <div key={i} className="flex flex-col gap-1.5">
+                                <Picker
+                                    ariaLabel={t('contacts.methods') + ' ' + (i + 1)}
+                                    fallbackIcon={Phone}
+                                    options={contactTypes.map((ty) => ({ value: ty, label: t('contacts.type_' + ty), icon: METHOD_ICON[ty] }))}
+                                    selected={[m.type]}
+                                    onChange={(next) => next[0] && setMethod(i, { type: next[0] })}
+                                />
+                                <div className="flex items-center gap-2">
                                     <Input
                                         value={m.value}
                                         onChange={(e) => setMethod(i, { value: e.target.value })}
@@ -184,8 +181,8 @@ function PersonModal({
                                         <Trash2 className="size-4" />
                                     </button>
                                 </div>
-                            );
-                        })}
+                            </div>
+                        ))}
                         <button
                             type="button"
                             onClick={() => setMethods((ms) => [...ms, { type: contactTypes[0] ?? 'phone', label: null, value: '' }])}

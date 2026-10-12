@@ -1,12 +1,13 @@
 import { Head } from '@inertiajs/react';
+import { Users } from 'lucide-react';
 import { useState } from 'react';
 
+import { Picker } from '@/components/picker';
+import { Segmented } from '@/components/segmented';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AuthLayout from '@/layouts/auth-layout';
 import { useT } from '@/lib/i18n';
-import { cn } from '@/lib/utils';
 
 type Access = 'none' | 'read' | 'write';
 type Module = { id: string; name: string };
@@ -56,19 +57,14 @@ export default function Authorize({
 
                     {families.length > 1 && (
                         <div className="grid gap-2">
-                            <Label>{t('mcp.family')}</Label>
-                            <Select value={String(familyId)} onValueChange={pickFamily}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {families.map((f) => (
-                                        <SelectItem key={f.id} value={String(f.id)}>
-                                            {f.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Label htmlFor="mcp-family">{t('mcp.family')}</Label>
+                            <Picker
+                                id="mcp-family"
+                                fallbackIcon={Users}
+                                options={families.map((f) => ({ value: String(f.id), label: f.name }))}
+                                selected={familyId === null ? [] : [String(familyId)]}
+                                onChange={(next) => next[0] && pickFamily(next[0])}
+                            />
                         </div>
                     )}
 
@@ -122,30 +118,16 @@ export default function Authorize({
     );
 }
 
-// No access / Read / Read & write as a radio group. `value` null = no level selected (the "All modules"
-// row while modules differ).
+// No access / Read / Read & write as the shared segmented control. `value` null = no level selected (the
+// "All modules" row while modules differ): it matches no option, so nothing shows as checked.
 function LevelPicker({ label, value, onChange }: { label: string; value: Access | null; onChange: (level: Access) => void }) {
     const t = useT();
     return (
-        <div role="radiogroup" aria-label={label} className="border-border flex rounded-lg border p-0.5">
-            {LEVELS.map((level) => {
-                const on = value === level;
-                return (
-                    <button
-                        key={level}
-                        type="button"
-                        role="radio"
-                        aria-checked={on}
-                        onClick={() => onChange(level)}
-                        className={cn(
-                            'rounded-md px-2.5 py-1.5 text-xs font-medium whitespace-nowrap transition-colors',
-                            on ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
-                        )}
-                    >
-                        {t(`mcp.level_${level}`)}
-                    </button>
-                );
-            })}
-        </div>
+        <Segmented
+            ariaLabel={label}
+            options={LEVELS.map((level) => ({ value: level, label: t(`mcp.level_${level}`) }))}
+            value={value as Access}
+            onChange={onChange}
+        />
     );
 }

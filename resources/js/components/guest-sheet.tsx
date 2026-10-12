@@ -1,3 +1,4 @@
+import { Segmented } from '@/components/segmented';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { router } from '@inertiajs/react';
 import { Check, Copy, Link2, Lock, LockOpen, Plus, Trash2 } from 'lucide-react';
@@ -8,6 +9,12 @@ import { useEffect, useState } from 'react';
 // /guest-links/{type}/{id} endpoints. Guests are named, account-less participants; the link is an
 // unguessable URL that can optionally be password-gated.
 export type GuestPerson = { id: number; name: string; role: 'viewer' | 'editor' };
+// Guest roles for the segmented control (this sheet's copy is plain English, not i18n keys).
+const ROLE_OPTIONS: { value: GuestPerson['role']; label: string }[] = [
+    { value: 'editor', label: 'Can add' },
+    { value: 'viewer', label: 'View only' },
+];
+
 export type GuestShareState = {
     type: string;
     id: number;
@@ -181,14 +188,13 @@ export function GuestSheet({
                                         <div className="text-primary flex-1 text-sm font-medium">{g.name}</div>
                                         {state.canManage ? (
                                             <>
-                                                <select
+                                                <Segmented
+                                                    ariaLabel={g.name}
+                                                    options={ROLE_OPTIONS}
                                                     value={g.role}
-                                                    onChange={(e) => setRole(g.id, e.target.value as GuestPerson['role'])}
-                                                    className="border-border bg-surface-card text-primary rounded-lg border py-1.5 pr-7 pl-3 text-base md:text-sm"
-                                                >
-                                                    <option value="editor">Can add</option>
-                                                    <option value="viewer">View only</option>
-                                                </select>
+                                                    // Re-clicking the checked option is a no-op (a native select never fired for it).
+                                                    onChange={(v) => v !== g.role && setRole(g.id, v)}
+                                                />
                                                 <button
                                                     onClick={() => removeGuest(g.id)}
                                                     aria-label={`Remove ${g.name}`}
@@ -216,14 +222,7 @@ export function GuestSheet({
                                             className="border-border bg-surface-card text-primary focus:border-accent w-full rounded-lg border px-3 py-2 text-base outline-none md:text-sm"
                                         />
                                         <div className="flex gap-2">
-                                            <select
-                                                value={newRole}
-                                                onChange={(e) => setNewRole(e.target.value as GuestPerson['role'])}
-                                                className="border-border bg-surface-card text-primary rounded-lg border py-2 pr-7 pl-3 text-base md:text-sm"
-                                            >
-                                                <option value="editor">Can add</option>
-                                                <option value="viewer">View only</option>
-                                            </select>
+                                            <Segmented ariaLabel="Role" options={ROLE_OPTIONS} value={newRole} onChange={setNewRole} />
                                             <button
                                                 onClick={addGuest}
                                                 disabled={!newName.trim()}

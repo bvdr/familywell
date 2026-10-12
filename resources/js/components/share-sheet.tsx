@@ -1,4 +1,5 @@
 import { MemberAvatar } from '@/components/member-avatar';
+import { Segmented } from '@/components/segmented';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useT } from '@/lib/i18n';
 import { router } from '@inertiajs/react';
@@ -130,19 +131,23 @@ export function ShareSheet({
                                 ) : excluded ? (
                                     <span className="text-muted-foreground text-sm">{t('sharing.no_access')}</span>
                                 ) : state.canManage ? (
-                                    <select
-                                        value={m.role ?? 'none'}
-                                        onChange={(e) =>
-                                            e.target.value === 'none' ? removeMember(m.id) : setRole(m.id, e.target.value as ShareMember['role'])
-                                        }
-                                        className="border-border bg-surface-card text-primary rounded-lg border py-1.5 pr-7 pl-3 text-sm"
-                                    >
-                                        <option value="editor">{t('sharing.can_edit')}</option>
-                                        <option value="viewer">{t('sharing.can_view')}</option>
-                                        {/* Removing a person only sticks once visibility is narrowed; in
-                                        "family" mode everyone can add regardless. */}
-                                        {state.visibility !== 'family' && <option value="none">{t('sharing.no_access')}</option>}
-                                    </select>
+                                    <Segmented<'editor' | 'viewer' | 'none'>
+                                        ariaLabel={m.name}
+                                        options={[
+                                            { value: 'editor', label: t('sharing.can_edit') },
+                                            { value: 'viewer', label: t('sharing.can_view') },
+                                            // Removing a person only sticks once visibility is narrowed; in
+                                            // "family" mode everyone can add regardless.
+                                            ...(state.visibility !== 'family' ? [{ value: 'none' as const, label: t('sharing.no_access') }] : []),
+                                        ]}
+                                        value={m.role === 'editor' || m.role === 'viewer' ? m.role : 'none'}
+                                        // Re-clicking the checked option is a no-op (a native select never fired for it).
+                                        onChange={(v) => {
+                                            if (v === (m.role ?? 'none')) return;
+                                            if (v === 'none') removeMember(m.id);
+                                            else setRole(m.id, v);
+                                        }}
+                                    />
                                 ) : (
                                     <span className="text-muted-foreground text-sm">
                                         {m.role === 'editor'

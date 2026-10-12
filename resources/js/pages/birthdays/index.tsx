@@ -1,7 +1,8 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Cake, Check, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Cake, CalendarDays, Check, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { Fragment, useState } from 'react';
 
+import { Picker } from '@/components/picker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useOptimistic } from '@/hooks/use-optimistic';
@@ -24,8 +25,8 @@ type Birthday = {
     turning: number | null;
 };
 
-// Day/month (+ optional year) inputs shared by quick-add and inline edit. Native inputs on purpose:
-// the browser's number keypad on mobile beats any custom picker for three small numbers.
+// Day/month (+ optional year) inputs shared by quick-add and inline edit. Day and year stay native number
+// inputs on purpose: the mobile number keypad beats any custom picker for small numbers.
 type Parts = { day: string; month: string; year: string };
 const EMPTY: Parts = { day: '', month: '', year: '' };
 
@@ -35,9 +36,10 @@ function monthNames(locale: string): string[] {
 }
 
 function DateParts({ value, onChange, t, months }: { value: Parts; onChange: (v: Parts) => void; t: (k: string) => string; months: string[] }) {
-    const field = 'border-border text-primary h-9 rounded-lg border bg-transparent px-2 text-base md:text-sm';
+    // h-10.5 matches the Picker control's height so the three fields line up.
+    const field = 'border-border text-primary h-10.5 rounded-lg border bg-transparent px-2 text-base md:text-sm';
     return (
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-start gap-1.5">
             <input
                 type="number"
                 inputMode="numeric"
@@ -49,19 +51,18 @@ function DateParts({ value, onChange, t, months }: { value: Parts; onChange: (v:
                 aria-label={t('birthdays.day')}
                 className={`${field} w-16`}
             />
-            <select
-                value={value.month}
-                onChange={(e) => onChange({ ...value, month: e.target.value })}
-                aria-label={t('birthdays.month')}
-                className={`${field} w-24`}
-            >
-                <option value="">{t('birthdays.month')}</option>
-                {months.map((m, i) => (
-                    <option key={i} value={i + 1}>
-                        {m}
-                    </option>
-                ))}
-            </select>
+            {/* Month uses the shared Picker (every dropdown looks the same). It expands inline, so the row
+                aligns to the top and the day/year inputs stay put while the list is open. */}
+            <div className="w-32 shrink-0">
+                <Picker
+                    ariaLabel={t('birthdays.month')}
+                    placeholder={t('birthdays.month')}
+                    fallbackIcon={CalendarDays}
+                    options={months.map((m, i) => ({ value: String(i + 1), label: m }))}
+                    selected={value.month ? [value.month] : []}
+                    onChange={(next) => onChange({ ...value, month: next[0] ?? '' })}
+                />
+            </div>
             <input
                 type="number"
                 inputMode="numeric"

@@ -1,8 +1,9 @@
 import { router } from '@inertiajs/react';
-import { Check } from 'lucide-react';
+import { Check, FolderKanban, Repeat } from 'lucide-react';
 import { useState } from 'react';
 
 import { IconPicker } from '@/components/icon-picker';
+import { Picker } from '@/components/picker';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -34,9 +35,6 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly'];
 
 // Same label style as the tasks/projects create sheets.
 const LABEL = 'text-muted-foreground text-xs font-semibold tracking-widest uppercase';
-// Native <select> styled like ui/input (16px on phones, iOS zoom rule).
-const SELECT =
-    'border-input bg-surface-card focus-visible:ring-ring h-10 w-full rounded-md border px-3 text-base focus-visible:ring-2 focus-visible:outline-none md:text-sm';
 
 const blank = (day: string): EventForm => ({
     title: '',
@@ -216,13 +214,13 @@ export function EventSheet({
 
                 <div className="flex flex-col gap-1.5">
                     <span className={LABEL}>{t('calendar.repeat')}</span>
-                    <select className={SELECT} value={f.repeat} onChange={(e) => set({ repeat: e.target.value })}>
-                        {REPEATS.map((r) => (
-                            <option key={r} value={r}>
-                                {t(`calendar.repeat_${r}`)}
-                            </option>
-                        ))}
-                    </select>
+                    <Picker
+                        ariaLabel={t('calendar.repeat')}
+                        fallbackIcon={Repeat}
+                        options={REPEATS.map((r) => ({ value: r, label: t(`calendar.repeat_${r}`) }))}
+                        selected={[f.repeat]}
+                        onChange={(next) => next[0] && set({ repeat: next[0] })}
+                    />
                     {f.repeat !== 'none' && (
                         <div className="flex items-center gap-2">
                             <span className="text-sm">{t('calendar.every')}</span>
@@ -270,18 +268,16 @@ export function EventSheet({
                 {projects && (
                     <div className="flex flex-col gap-1.5">
                         <span className={LABEL}>{t('calendar.project')}</span>
-                        <select
-                            className={SELECT}
-                            value={f.project?.id ?? ''}
-                            onChange={(e) => set({ project: e.target.value ? { id: Number(e.target.value) } : null })}
-                        >
-                            <option value="">{t('calendar.no_project')}</option>
-                            {projects.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                    {p.name}
-                                </option>
-                            ))}
-                        </select>
+                        <Picker
+                            ariaLabel={t('calendar.project')}
+                            fallbackIcon={FolderKanban}
+                            options={[
+                                { value: '', label: t('calendar.no_project') },
+                                ...projects.map((p) => ({ value: String(p.id), label: p.name })),
+                            ]}
+                            selected={[f.project ? String(f.project.id) : '']}
+                            onChange={(next) => set({ project: next[0] ? { id: Number(next[0]) } : null })}
+                        />
                     </div>
                 )}
 
