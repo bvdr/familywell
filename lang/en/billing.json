@@ -26,5 +26,8 @@
     "admin_only": "Only family admins can manage the subscription.",
     "kicker": "One plan, whole family",
     "sign_out": "Sign out",
-    "see_features": "See everything FamilyWell does"
+    "see_features": "See everything FamilyWell does",
+    "lifetime_title": "Lifetime access",
+    "lifetime_desc": ":family has FamilyWell for life, on us. Nothing to pay, nothing to renew.",
+    "lifetime_badge": "Lifetime (VIP)"
 }

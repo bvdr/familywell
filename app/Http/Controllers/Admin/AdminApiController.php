@@ -5,14 +5,16 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Family;
 use App\Models\User;
+use App\Support\Billing\Billing;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
-// Read-only platform data for admin.familywell.org: accounts and families, never what families store
-// (no notes, lists, expenses...) and never secrets. Lists: 50 per page, newest first, literal search.
+// Platform data for admin.familywell.org: accounts and families, never what families store (no notes,
+// lists, expenses...) and never secrets. Lists: 50 per page, newest first, literal search. Read-only
+// except one write: granting / revoking a family's comped lifetime access (Billing::setLifetime).
 class AdminApiController extends Controller
 {
     private const PAGE = 50;
@@ -44,6 +46,8 @@ class AdminApiController extends Controller
             // Same "paying" set as Billing::PAID (past_due keeps access while Stripe retries the card).
             'payingFamilies' => Family::query()->where('is_demo', false)->whereIn('subscription_status', ['active', 'trialing', 'past_due'])->count(),
             'pastDueFamilies' => Family::query()->where('is_demo', false)->where('subscription_status', 'past_due')->count(),
+            // Comped "Lifetime (VIP)" families: have access without paying, so not in payingFamilies.
+            'lifetimeFamilies' => Family::query()->where('is_demo', false)->where('access_override', Family::LIFETIME)->count(),
         ]);
     }
 
@@ -84,6 +88,29 @@ class AdminApiController extends Controller
         return self::paged($rows, fn (Family $f) => self::familyItem($f));
     }
 
+    // The admin toggle: PUT grants comped lifetime access, DELETE revokes it. Idempotent; answers with
+    // the family as `family()` does. Stripe never touches the flag, so a webhook can't undo a grant.
+    public function grantLifetime(Request $request, int $id): JsonResponse
+    {
+        return $this->setLifetime($request, $id, true);
+    }
+
+    public function revokeLifetime(Request $request, int $id): JsonResponse
+    {
+        return $this->setLifetime($request, $id, false);
+    }
+
+    private function setLifetime(Request $request, int $id, bool $on): JsonResponse
+    {
+        $family = Family::find($id);
+        if (! $family) {
+            return response()->json(['error' => 'not_found'], 404);
+        }
+        Billing::setLifetime($family, $on, 'admin:'.$request->user()->id);
+
+        return $this->family($id);
+    }
+
     public function family(int $id): JsonResponse
     {
         $family = $this->familyQuery()->find($id);
@@ -112,7 +139,7 @@ class AdminApiController extends Controller
     {
         return Family::query()
             ->leftJoin('users as owners', 'owners.id', '=', 'families.owner_id')
-            ->select('families.id', 'families.name', 'families.created_at', 'families.is_demo', 'families.subscription_status', 'families.stripe_customer_id', 'owners.name as owner_name')
+            ->select('families.id', 'families.name', 'families.created_at', 'families.is_demo', 'families.subscription_status', 'families.stripe_customer_id', 'families.access_override', 'owners.name as owner_name')
             ->withCount('members');
     }
 
@@ -145,6 +172,7 @@ class AdminApiController extends Controller
             'createdAt' => self::iso($f->created_at), 'isDemo' => (bool) $f->is_demo,
             // The Stripe customer id isn't a secret (it only works with our Stripe key); the admin links to it.
             'subscriptionStatus' => $f->subscription_status, 'stripeCustomerId' => $f->stripe_customer_id,
+            'lifetime' => $f->access_override === Family::LIFETIME, // comped access (admin toggle below)
         ];
     }
 

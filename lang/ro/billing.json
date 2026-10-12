@@ -26,5 +26,8 @@
     "admin_only": "Doar administratorii familiei pot gestiona abonamentul.",
     "kicker": "Un plan, toată familia",
     "sign_out": "Deconectare",
-    "see_features": "Vezi tot ce face FamilyWell"
+    "see_features": "Vezi tot ce face FamilyWell",
+    "lifetime_title": "Acces pe viață",
+    "lifetime_desc": ":family are FamilyWell pe viață, din partea noastră. Nimic de plătit, nimic de reînnoit.",
+    "lifetime_badge": "Pe viață (VIP)"
 }

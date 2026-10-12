@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowRight, ArrowUpRight, Check, LogOut } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Check, Crown, LogOut } from 'lucide-react';
 import { useState } from 'react';
 
 import AppLogo from '@/components/app-logo';
@@ -14,6 +14,7 @@ import { type BreadcrumbItem } from '@/types';
 type Props = {
     family: { name: string };
     subscribed: boolean;
+    lifetime: boolean; // comped by a platform admin ("Lifetime (VIP)"): no checkout, no portal
     status: string | null;
     hasCustomer: boolean;
     canManage: boolean;
@@ -25,7 +26,7 @@ type Plan = 'monthly' | 'yearly';
 // full-screen paywall (no app chrome: every app link would bounce back here anyway). A subscribed
 // family sees the normal Settings > Billing view with the Stripe portal link. Checkout and the portal
 // are both Stripe-hosted: the server answers with an Inertia::location to Stripe.
-export default function Billing({ family, subscribed, status, hasCustomer, canManage }: Props) {
+export default function Billing({ family, subscribed, lifetime, status, hasCustomer, canManage }: Props) {
     const t = useT();
     const breadcrumbs: BreadcrumbItem[] = [{ title: t('billing.title'), href: '/settings/billing' }];
     const [busy, setBusy] = useState(false);
@@ -43,17 +44,27 @@ export default function Billing({ family, subscribed, status, hasCustomer, canMa
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={t('billing.title')} />
             <SettingsLayout>
-                <div className="space-y-6">
-                    <HeadingSmall title={t('billing.active_title')} description={t('billing.active_desc')} />
-                    {status === 'past_due' && <p className="text-destructive text-sm">{t('billing.past_due')}</p>}
-                    {canManage && hasCustomer ? (
-                        <Button disabled={busy} onClick={() => go(route('billing.portal'))}>
-                            {t('billing.manage')}
-                        </Button>
-                    ) : (
-                        !canManage && <p className="text-muted-foreground text-sm">{t('billing.admin_only')}</p>
-                    )}
-                </div>
+                {lifetime ? (
+                    // Comped: nothing to pay or manage, so no Stripe prompts at all.
+                    <div className="space-y-6">
+                        <HeadingSmall title={t('billing.lifetime_title')} description={t('billing.lifetime_desc', { family: family.name })} />
+                        <span className="bg-accent-subtle text-primary inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold">
+                            <Crown className="size-4" /> {t('billing.lifetime_badge')}
+                        </span>
+                    </div>
+                ) : (
+                    <div className="space-y-6">
+                        <HeadingSmall title={t('billing.active_title')} description={t('billing.active_desc')} />
+                        {status === 'past_due' && <p className="text-destructive text-sm">{t('billing.past_due')}</p>}
+                        {canManage && hasCustomer ? (
+                            <Button disabled={busy} onClick={() => go(route('billing.portal'))}>
+                                {t('billing.manage')}
+                            </Button>
+                        ) : (
+                            !canManage && <p className="text-muted-foreground text-sm">{t('billing.admin_only')}</p>
+                        )}
+                    </div>
+                )}
             </SettingsLayout>
         </AppLayout>
     );

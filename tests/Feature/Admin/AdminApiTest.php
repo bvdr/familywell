@@ -54,7 +54,7 @@ it('counts users, verified users, families and sign-ups, without the demo', func
 
     $this->withToken($token)->getJson('/api/admin/stats')->assertOk()->assertExactJson([
         'users' => 4, 'verifiedUsers' => 3, 'families' => 1, 'signups7d' => 2, 'signups30d' => 3,
-        'payingFamilies' => 0, 'pastDueFamilies' => 0,
+        'payingFamilies' => 0, 'pastDueFamilies' => 0, 'lifetimeFamilies' => 0,
     ]);
 });
 
