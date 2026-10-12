@@ -1,6 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 
+import { Segmented } from '@/components/segmented';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn } from '@/lib/i18n';
@@ -65,19 +66,15 @@ export default function VehiclesSettings({ settings, unitSystems, canManage }: P
                         <h2 className="font-heading text-primary text-lg">{t('vehicles.unit_system')}</h2>
                         <p className="text-muted-foreground text-sm">{t('vehicles.unit_system_desc')}</p>
                     </div>
-                    <select
-                        value={unitSystem}
-                        onChange={(e) => saveInstant('unitSystem', e.target.value, { unit_system: e.target.value as UnitSystem })}
-                        disabled={!canManage}
-                        className="border-border bg-surface-card text-primary w-full rounded-lg border px-3 py-2 text-base disabled:opacity-60 md:max-w-xs md:text-sm"
-                        aria-label={t('vehicles.unit_system')}
-                    >
-                        {unitSystems.map((u) => (
-                            <option key={u} value={u}>
-                                {t(`vehicles.unit_system_${u}`)}
-                            </option>
-                        ))}
-                    </select>
+                    <div className="md:max-w-xs">
+                        <Segmented
+                            options={unitSystems.map((u) => ({ value: u, label: t(`vehicles.unit_system_${u}`) }))}
+                            value={unitSystem}
+                            onChange={(u) => saveInstant('unitSystem', u, { unit_system: u })}
+                            disabled={!canManage}
+                            ariaLabel={t('vehicles.unit_system')}
+                        />
+                    </div>
                 </section>
 
                 {/* Notifications: which conditions may raise an alert for the family (the per-user push mute

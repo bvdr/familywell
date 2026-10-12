@@ -1,5 +1,5 @@
 import { router, useForm } from '@inertiajs/react';
-import { MapPin, Minus, Package, Plus, Store, Trash2 } from 'lucide-react';
+import { MapPin, Minus, Package, Plus, Ruler, Store, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import InputError from '@/components/input-error';
@@ -131,7 +131,13 @@ export function ItemFormModal({
             expires_at: d.expires_at || null,
             notes: d.notes.trim() || null,
         }));
-        const opts = { preserveScroll: true, onSuccess: () => { reset(); onOpenChange(false); } };
+        const opts = {
+            preserveScroll: true,
+            onSuccess: () => {
+                reset();
+                onOpenChange(false);
+            },
+        };
         if (editing) {
             patch(route('inventory.items.update', item!.id), opts);
         } else {
@@ -185,7 +191,11 @@ export function ItemFormModal({
                                 {t('inventory.set_amount')}
                             </button>
                         ) : (
-                            <button type="button" onClick={() => setData('quantity', '')} className="text-muted-foreground hover:text-primary text-xs">
+                            <button
+                                type="button"
+                                onClick={() => setData('quantity', '')}
+                                className="text-muted-foreground hover:text-primary text-xs"
+                            >
                                 {t('inventory.mark_unknown')}
                             </button>
                         )}
@@ -193,8 +203,9 @@ export function ItemFormModal({
                     {data.quantity === '' ? (
                         <p className="text-muted-foreground bg-surface rounded-lg border px-3 py-2.5 text-sm">{t('inventory.qty_unknown_hint')}</p>
                     ) : (
-                        <div className="flex items-stretch gap-2">
-                            <div className="border-border flex flex-1 items-center overflow-hidden rounded-xl border">
+                        // The unit Picker expands inline, so it gets its own full-width line under the stepper.
+                        <div className="flex flex-col gap-2">
+                            <div className="border-border flex items-center overflow-hidden rounded-xl border">
                                 <button
                                     type="button"
                                     onClick={() => bump(-step)}
@@ -477,20 +488,16 @@ export function QuickUpdateModal({
     );
 }
 
-// The unit dropdown — a native select styled to match the stepper it sits beside.
+// The unit dropdown, on its own line below the stepper.
 function UnitSelect({ value, onChange, t }: { value: string; onChange: (v: string) => void; t: TFn }) {
     return (
-        <select
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            className="border-border text-primary h-11 shrink-0 rounded-xl border bg-transparent px-3 text-sm"
-        >
-            {UNITS.map((u) => (
-                <option key={u} value={u}>
-                    {unitLabel(t, u)}
-                </option>
-            ))}
-        </select>
+        <Picker
+            options={UNITS.map((u) => ({ value: u, label: unitLabel(t, u) }))}
+            selected={[value]}
+            onChange={(next) => next[0] && onChange(next[0])}
+            ariaLabel={t('inventory.unit_label')}
+            fallbackIcon={Ruler}
+        />
     );
 }
 

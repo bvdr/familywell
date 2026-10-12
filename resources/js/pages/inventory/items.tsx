@@ -1,9 +1,10 @@
 import { Head, Link } from '@inertiajs/react';
-import { Plus } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { ListFilter, Plus } from 'lucide-react';
+import { useId, useMemo, useState } from 'react';
 
 import { CategoryTile, QtyBar, QtyText, StateBadge } from '@/components/inventory';
 import { ItemFormModal } from '@/components/inventory-modals';
+import { Picker } from '@/components/picker';
 import AppLayout from '@/layouts/app-layout';
 import { useAddAction } from '@/lib/add-action';
 import { openNewOnArrival } from '@/lib/create-intent';
@@ -88,31 +89,45 @@ export default function InventoryItems({ items, categories, locations, shops, st
                 </div>
 
                 {/* Filters. Category/location options come from the family's own vocabularies. */}
-                <div className="flex flex-wrap gap-2">
+                {/* Stacked on mobile; a Picker expands inline, so each filter needs its own full-width column. */}
+                <div className="grid gap-2 sm:grid-cols-3">
                     <Filter
                         label={t('inventory.filter_status')}
                         value={status}
                         onChange={setStatus}
-                        options={[{ value: 'all', label: t('inventory.filter_all') }, ...statuses.map((s) => ({ value: s, label: stateLabel(t, s) }))]}
+                        options={[
+                            { value: 'all', label: t('inventory.filter_all') },
+                            ...statuses.map((s) => ({ value: s, label: stateLabel(t, s) })),
+                        ]}
                     />
                     <Filter
                         label={t('inventory.filter_category')}
                         value={category}
                         onChange={setCategory}
-                        options={[{ value: 'all', label: t('inventory.filter_all') }, ...categories.map((c) => ({ value: c.key, label: catLabel(t, c.key, catMap) }))]}
+                        options={[
+                            { value: 'all', label: t('inventory.filter_all') },
+                            ...categories.map((c) => ({ value: c.key, label: catLabel(t, c.key, catMap) })),
+                        ]}
                     />
                     <Filter
                         label={t('inventory.filter_location')}
                         value={location}
                         onChange={setLocation}
-                        options={[{ value: 'all', label: t('inventory.filter_all') }, ...locations.map((l) => ({ value: l.key, label: locLabel(t, l.key, locMap) }))]}
+                        options={[
+                            { value: 'all', label: t('inventory.filter_all') },
+                            ...locations.map((l) => ({ value: l.key, label: locLabel(t, l.key, locMap) })),
+                        ]}
                     />
                 </div>
 
                 {items.length === 0 ? (
-                    <p className="text-muted-foreground bg-surface-card rounded-xl border px-4 py-10 text-center text-sm">{t('inventory.empty_body')}</p>
+                    <p className="text-muted-foreground bg-surface-card rounded-xl border px-4 py-10 text-center text-sm">
+                        {t('inventory.empty_body')}
+                    </p>
                 ) : filtered.length === 0 ? (
-                    <p className="text-muted-foreground bg-surface-card rounded-xl border px-4 py-10 text-center text-sm">{t('inventory.no_matches')}</p>
+                    <p className="text-muted-foreground bg-surface-card rounded-xl border px-4 py-10 text-center text-sm">
+                        {t('inventory.no_matches')}
+                    </p>
                 ) : (
                     <div className="flex flex-col gap-5">
                         {groups.map((g) => (
@@ -170,22 +185,25 @@ function ItemRow({ item, locMap, t }: { item: InvItem; locMap: Record<string, In
     );
 }
 
-// A labelled native select styled to match the app's controls.
-function Filter({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
+// A labelled Picker filter (always one value: 'all' or a specific key).
+function Filter({
+    label,
+    value,
+    onChange,
+    options,
+}: {
+    label: string;
+    value: string;
+    onChange: (v: string) => void;
+    options: { value: string; label: string }[];
+}) {
+    const id = useId();
     return (
-        <label className="flex items-center gap-1.5">
-            <span className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">{label}</span>
-            <select
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                className="border-border text-primary h-9 rounded-lg border bg-transparent px-2 text-sm"
-            >
-                {options.map((o) => (
-                    <option key={o.value} value={o.value}>
-                        {o.label}
-                    </option>
-                ))}
-            </select>
-        </label>
+        <div className="flex flex-col gap-1">
+            <label htmlFor={id} className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
+                {label}
+            </label>
+            <Picker id={id} options={options} selected={[value]} onChange={(next) => next[0] && onChange(next[0])} fallbackIcon={ListFilter} />
+        </div>
     );
 }

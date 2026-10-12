@@ -3,6 +3,7 @@ import { Bell, CircleDot, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 
 import InputError from '@/components/input-error';
+import { Segmented } from '@/components/segmented';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -160,14 +161,12 @@ function TireCard({
           (set.installedMileage != null ? ' ' + t('vehicles.tire_fitted_at', { mileage: distanceText(set.installedMileage, unitSystem) }) : '')
         : null;
 
-    const meta = [
-        set.size,
-        set.treadDepthMm != null ? `${set.treadDepthMm} mm` : null,
-        set.storageLocation,
-    ].filter(Boolean) as string[];
+    const meta = [set.size, set.treadDepthMm != null ? `${set.treadDepthMm} mm` : null, set.storageLocation].filter(Boolean) as string[];
 
     return (
-        <li className={`bg-surface-card flex flex-col gap-2 rounded-2xl border p-4 ${mounted ? 'border-[var(--primary)] ring-1 ring-[var(--primary)]/30' : ''}`}>
+        <li
+            className={`bg-surface-card flex flex-col gap-2 rounded-2xl border p-4 ${mounted ? 'border-[var(--primary)] ring-1 ring-[var(--primary)]/30' : ''}`}
+        >
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                     <h3 className="text-primary flex flex-wrap items-center gap-2 font-medium">
@@ -175,7 +174,7 @@ function TireCard({
                         {tireSeasonLabel(t, set.season)}
                         {set.brand && <span className="text-muted-foreground font-normal">· {set.brand}</span>}
                         {mounted && (
-                            <span className="rounded-full border border-[var(--primary)]/40 px-1.5 py-0.5 text-[11px] font-medium text-primary">
+                            <span className="text-primary rounded-full border border-[var(--primary)]/40 px-1.5 py-0.5 text-[11px] font-medium">
                                 {t('vehicles.tire_on_car')}
                             </span>
                         )}
@@ -293,26 +292,32 @@ function TireFormModal({
             <div className="flex flex-col gap-4 pb-1">
                 <div className="grid gap-4 sm:grid-cols-2">
                     <Field label={t('vehicles.tire_season')} error={errors.season}>
-                        <select
+                        <Segmented
+                            options={SEASONS.map((s) => ({ value: s, label: tireSeasonLabel(t, s) }))}
                             value={form.season}
-                            onChange={(e) => setField('season', e.target.value)}
-                            className="border-input bg-surface-card focus-visible:ring-ring w-full rounded-lg border px-3 py-2 text-base focus-visible:ring-2 focus-visible:outline-none"
-                        >
-                            {SEASONS.map((s) => (
-                                <option key={s} value={s}>
-                                    {tireSeasonLabel(t, s)}
-                                </option>
-                            ))}
-                        </select>
+                            onChange={(v) => setField('season', v)}
+                            ariaLabel={t('vehicles.tire_season')}
+                        />
                     </Field>
                     <Field label={t('vehicles.tire_brand')} error={errors.brand}>
                         <Input value={form.brand} onChange={(e) => setField('brand', e.target.value)} className="text-base" />
                     </Field>
                     <Field label={t('vehicles.tire_size')} error={errors.size}>
-                        <Input value={form.size} onChange={(e) => setField('size', e.target.value)} placeholder={t('vehicles.tire_size_placeholder')} className="text-base" />
+                        <Input
+                            value={form.size}
+                            onChange={(e) => setField('size', e.target.value)}
+                            placeholder={t('vehicles.tire_size_placeholder')}
+                            className="text-base"
+                        />
                     </Field>
                     <Field label={t('vehicles.tire_tread')} error={errors.tread_depth_mm}>
-                        <Input value={form.tread_depth_mm} onChange={(e) => setField('tread_depth_mm', e.target.value)} inputMode="decimal" placeholder="0.0" className="text-base" />
+                        <Input
+                            value={form.tread_depth_mm}
+                            onChange={(e) => setField('tread_depth_mm', e.target.value)}
+                            inputMode="decimal"
+                            placeholder="0.0"
+                            className="text-base"
+                        />
                     </Field>
                     <Field label={t('vehicles.tire_storage')} error={errors.storage_location}>
                         <Input
@@ -335,7 +340,12 @@ function TireFormModal({
 
                 {!editing && (
                     <label className="flex items-center gap-2 text-sm">
-                        <input type="checkbox" checked={form.is_mounted} onChange={(e) => setField('is_mounted', e.target.checked)} className="size-4 rounded border" />
+                        <input
+                            type="checkbox"
+                            checked={form.is_mounted}
+                            onChange={(e) => setField('is_mounted', e.target.checked)}
+                            className="size-4 rounded border"
+                        />
                         <span className="text-text-secondary">{t('vehicles.tire_set_mounted_now')}</span>
                     </label>
                 )}

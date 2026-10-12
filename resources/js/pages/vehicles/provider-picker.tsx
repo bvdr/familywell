@@ -1,3 +1,7 @@
+import { PenLine, Wrench } from 'lucide-react';
+import { useId } from 'react';
+
+import { Picker } from '@/components/picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { TFn } from '@/lib/i18n';
@@ -28,7 +32,8 @@ export default function ProviderPicker({
     t: TFn;
     error?: string;
 }) {
-    // Which <select> option is active: a provider id, "Other" (free text present / chosen), or "" (none).
+    const id = useId();
+    // Which Picker option is active: a provider id, "Other" (free text present / chosen), or "" (none).
     const selectValue = value.serviceProviderId != null ? String(value.serviceProviderId) : value.provider !== '' ? OTHER : '';
 
     const onSelect = (v: string) => {
@@ -39,20 +44,21 @@ export default function ProviderPicker({
 
     return (
         <div className="grid gap-1.5">
-            <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{label}</Label>
-            <select
-                value={selectValue}
-                onChange={(e) => onSelect(e.target.value)}
-                className="border-input bg-surface-card text-primary w-full rounded-lg border px-3 py-2 text-base focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none md:text-sm"
-            >
-                <option value="">{t('vehicles.provider_none')}</option>
-                {providers.map((p) => (
-                    <option key={p.id} value={p.id}>
-                        {p.name}
-                    </option>
-                ))}
-                <option value={OTHER}>{t('vehicles.provider_other')}</option>
-            </select>
+            <Label htmlFor={id} className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
+                {label}
+            </Label>
+            <Picker
+                id={id}
+                options={[
+                    { value: '', label: t('vehicles.provider_none') },
+                    ...providers.map((p) => ({ value: String(p.id), label: p.name })),
+                    { value: OTHER, label: t('vehicles.provider_other'), icon: PenLine },
+                ]}
+                selected={selectValue === '' ? [] : [selectValue]}
+                onChange={(next) => onSelect(next[0] ?? '')}
+                placeholder={t('vehicles.provider_none')}
+                fallbackIcon={Wrench}
+            />
             {selectValue === OTHER && (
                 <Input
                     value={value.provider}

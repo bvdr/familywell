@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { LayoutGrid, MapPin } from 'lucide-react';
 
+import { Segmented } from '@/components/segmented';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
@@ -79,19 +80,15 @@ export default function InventorySettings({ settings, unitSystems, replenishment
                         <h2 className="font-heading text-primary text-lg">{t('inventory.unit_system')}</h2>
                         <p className="text-muted-foreground text-sm">{t('inventory.unit_system_desc')}</p>
                     </div>
-                    <select
-                        value={settings.unitSystem}
-                        onChange={(e) => save({ unit_system: e.target.value })}
-                        disabled={!canManage}
-                        className="border-border bg-surface-card text-primary w-full rounded-lg border px-3 py-2 text-base disabled:opacity-60 md:max-w-xs md:text-sm"
-                        aria-label={t('inventory.unit_system')}
-                    >
-                        {unitSystems.map((u) => (
-                            <option key={u} value={u}>
-                                {t(`inventory.unit_system_${u}`)}
-                            </option>
-                        ))}
-                    </select>
+                    <div className="md:max-w-xs">
+                        <Segmented
+                            options={unitSystems.map((u) => ({ value: u, label: t(`inventory.unit_system_${u}`) }))}
+                            value={settings.unitSystem}
+                            onChange={(u) => save({ unit_system: u })}
+                            disabled={!canManage}
+                            ariaLabel={t('inventory.unit_system')}
+                        />
+                    </div>
                 </section>
 
                 {/* Replenishment: whether the daily check auto-surfaces short stock onto Shopping. */}
@@ -107,7 +104,10 @@ export default function InventorySettings({ settings, unitSystems, replenishment
                             <div className="text-muted-foreground text-xs">{t('inventory.replenishment_list_hint')}</div>
                         </div>
                         {replenishmentList ? (
-                            <Link href={`/m/shopping/lists/${replenishmentList.id}`} className="text-primary shrink-0 text-sm font-medium underline-offset-2 hover:underline">
+                            <Link
+                                href={`/m/shopping/lists/${replenishmentList.id}`}
+                                className="text-primary shrink-0 text-sm font-medium underline-offset-2 hover:underline"
+                            >
                                 {replenishmentList.name}
                             </Link>
                         ) : (

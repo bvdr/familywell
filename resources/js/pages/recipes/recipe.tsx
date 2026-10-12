@@ -3,6 +3,7 @@ import { ArrowLeft, Camera, Globe, Pencil, ShoppingCart, Trash2, Users } from 'l
 import { useRef, useState } from 'react';
 
 import { GuestSheet, type GuestShareState } from '@/components/guest-sheet';
+import { Picker } from '@/components/picker';
 import { RecipeHeader, RecipeView } from '@/components/recipes/recipe-view';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
 import { Button } from '@/components/ui/button';
@@ -217,18 +218,13 @@ function ShoppingModal({
             }
         >
             <div className="flex flex-col gap-3 pt-1">
-                <select
-                    value={listId}
-                    onChange={(e) => setListId(Number(e.target.value))}
-                    className="border-input bg-surface-card rounded-lg border px-3 py-2 text-base"
-                    aria-label={t('recipes.list')}
-                >
-                    {lists.map((l) => (
-                        <option key={l.id} value={l.id}>
-                            {l.name}
-                        </option>
-                    ))}
-                </select>
+                <Picker
+                    options={lists.map((l) => ({ value: String(l.id), label: l.name }))}
+                    selected={listId ? [String(listId)] : []}
+                    onChange={(next) => next[0] && setListId(Number(next[0]))}
+                    ariaLabel={t('recipes.list')}
+                    fallbackIcon={ShoppingCart}
+                />
                 <p className="text-muted-foreground text-xs">{t('recipes.untick_have')}</p>
                 <ul className="flex flex-col">
                     {lines.map(({ ing, i, s }) => (
