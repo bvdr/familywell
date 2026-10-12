@@ -848,15 +848,8 @@ class SpendingController extends Controller
     {
         $event = $this->event($event);
         abort_unless($this->access->canEdit($request->user(), $event), 403);
-        $participantKeys = array_keys($event->participantNames());
-
-        // from/to are namespaced participant keys, so a transfer can involve a member OR a guest.
-        $data = $request->validate([
-            'from_key' => ['required', 'string', 'in:'.implode(',', $participantKeys)],
-            'to_key' => ['required', 'string', 'different:from_key', 'in:'.implode(',', $participantKeys)],
-            'amount' => ['required', 'integer', 'gt:0'], // already in cents from the suggested payment
-            'note' => ['nullable', 'string', 'max:255'],
-        ]);
+        $data = $this->validateTransfer($request, $event);
+        $this->warnIfDuplicateTransfer($request, $event, $data);
 
         $event->settlements()->create([
             'from_key' => $data['from_key'],
@@ -871,6 +864,55 @@ class SpendingController extends Controller
         Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
 
         return back();
+    }
+
+    // Edit a transfer from the Transfers tab (same rules as recording one). Balances recompute on reload.
+    public function updateTransfer(Request $request, int $settlement): RedirectResponse
+    {
+        $settlement = SpendSettlement::findOrFail($settlement); // family-scoped resolve (see destroySpend)
+        $event = $this->event($settlement->spend_event_id);
+        abort_unless($this->access->canEdit($request->user(), $event), 403);
+        $data = $this->validateTransfer($request, $event);
+        $this->warnIfDuplicateTransfer($request, $event, $data, $settlement->id);
+
+        $settlement->update(['from_key' => $data['from_key'], 'to_key' => $data['to_key'], 'amount' => $data['amount'], 'note' => $data['note'] ?? null]);
+        Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
+
+        return back();
+    }
+
+    // Delete a transfer: soft delete into the 30-day trash (restorable from Settings > Recently deleted,
+    // like an expense). Balances recompute on reload since trashed transfers drop out of settlements().
+    public function destroyTransfer(int $settlement): RedirectResponse
+    {
+        $settlement = SpendSettlement::findOrFail($settlement);
+        abort_unless($this->access->canEdit(request()->user(), $this->event($settlement->spend_event_id)), 403);
+        $settlement->delete();
+        Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
+
+        return back();
+    }
+
+    /** from/to are namespaced participant keys (member u{id} or guest g{id}); amount is already in cents. */
+    private function validateTransfer(Request $request, SpendEvent $event): array
+    {
+        $participantKeys = array_keys($event->participantNames());
+
+        return $request->validate([
+            'from_key' => ['required', 'string', 'in:'.implode(',', $participantKeys)],
+            'to_key' => ['required', 'string', 'different:from_key', 'in:'.implode(',', $participantKeys)],
+            'amount' => ['required', 'integer', 'gt:0'],
+            'note' => ['nullable', 'string', 'max:255'],
+        ]);
+    }
+
+    // Soft "you already recorded this payment" warning (SpendSettlement::looksDuplicate), answered on
+    // `add_anyway` like the expense duplicate warning; re-posting with add_anyway=1 records it anyway.
+    private function warnIfDuplicateTransfer(Request $request, SpendEvent $event, array $data, ?int $exceptId = null): void
+    {
+        if (! $request->boolean('add_anyway') && SpendSettlement::looksDuplicate($event, $data['from_key'], $data['to_key'], (int) $data['amount'], $exceptId)) {
+            throw ValidationException::withMessages(['add_anyway' => Translations::get('spending.transfer_duplicate_warning')]);
+        }
     }
 
     public function destroySpend(int $spend): RedirectResponse
@@ -1035,6 +1077,8 @@ class SpendingController extends Controller
             'id' => $t->id,
             'from' => $keyName($t->from_key),
             'to' => $keyName($t->to_key),
+            'fromKey' => $t->from_key, // keys prefill the edit drawer
+            'toKey' => $t->to_key,
             'amount' => $t->amount,
             'note' => $t->note,
             'date' => $t->created_at?->toDateString(),

@@ -237,5 +237,10 @@
     "save_anyway": "Save anyway",
     "count_in_monthly": "Count in monthly spending",
     "count_in_monthly_hint": "Off keeps it out of this month's total and analytics; it still counts in this list.",
-    "not_in_monthly": "not in monthly"
+    "not_in_monthly": "not in monthly",
+    "transfer_duplicate_warning": "You already recorded this payment (same people and amount) in the last day. Record it again?",
+    "record_anyway": "Record anyway",
+    "edit_transfer": "Edit payment",
+    "delete_transfer": "Delete payment",
+    "confirm_delete_transfer": "Delete this payment? You can restore it from Recently deleted for 30 days."
 }

@@ -237,5 +237,10 @@
     "save_anyway": "Salvează oricum",
     "count_in_monthly": "Include în cheltuielile lunare",
     "count_in_monthly_hint": "Dezactivat o scoate din totalul lunii și din analize; rămâne în totalul listei.",
-    "not_in_monthly": "nu intră în lunar"
+    "not_in_monthly": "nu intră în lunar",
+    "transfer_duplicate_warning": "Ai înregistrat deja această plată (aceleași persoane și aceeași sumă) în ultima zi. O înregistrezi din nou?",
+    "record_anyway": "Înregistrează oricum",
+    "edit_transfer": "Editează plata",
+    "delete_transfer": "Șterge plata",
+    "confirm_delete_transfer": "Ștergi această plată? O poți restaura din Șterse recent timp de 30 de zile."
 }
