@@ -72,6 +72,8 @@ export function AddToShoppingButton({
     const [optAdded, setOptAdded] = useState(false);
     const added = item.onShoppingList || optAdded;
 
+    // The label hides below sm (icon only, aria-label keeps the name): next to the item and its state badge
+    // a phone row has no room for "Add to shopping" (it was cut off on Replenishment).
     const base = `flex shrink-0 items-center justify-center gap-1.5 rounded-lg border text-xs font-medium ${
         compact ? 'size-9' : 'px-3 py-2'
     } ${className}`;
@@ -81,7 +83,7 @@ export function AddToShoppingButton({
         const added = (
             <>
                 <Check className="size-4" />
-                {!compact && <span className="truncate">{t('inventory.shopping_added')}</span>}
+                {!compact && <span className="hidden truncate sm:inline">{t('inventory.shopping_added')}</span>}
             </>
         );
         const style = `${base} border-[var(--success)] text-[var(--success)]`;
@@ -112,7 +114,7 @@ export function AddToShoppingButton({
             className={`${base} text-primary hover:bg-surface`}
         >
             <ShoppingCart className="size-4" />
-            {!compact && <span className="truncate">{t('inventory.add_to_shopping')}</span>}
+            {!compact && <span className="hidden truncate sm:inline">{t('inventory.add_to_shopping')}</span>}
         </button>
     );
 }

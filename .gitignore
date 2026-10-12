@@ -34,3 +34,9 @@ frankenphp-worker.php
 # Internal specs/plans and design-tool sources: kept locally, not in the repo (removed from history 2026-10-08).
 /docs/superpowers/
 *.pen
+
+# Viewport guardrail output (playwright.config.ts)
+/tests/Viewports/.auth
+/tests/Viewports/screenshots
+/tests/Viewports/results
+/tests/Viewports/report
