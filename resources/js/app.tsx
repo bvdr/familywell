@@ -1,5 +1,6 @@
 // Self-hosted fonts for every skin (bundled by Vite, no runtime CDN). All skins' fonts load so
 // switching a theme never fetches at runtime; the active theme's --font-* tokens pick which apply.
+import { Picker } from '@/components/picker';
 import '@fontsource/geist-mono/400.css';
 // Geist Sans — the Minimal Mono skin.
 import '@fontsource/geist-sans/400.css';
@@ -30,13 +31,15 @@ import { registerServiceWorker } from './lib/push';
 declare global {
     const route: typeof routeFn;
     interface Window {
-        Familywell: { React: typeof React; registerSlot: typeof registerSlot };
+        Familywell: { React: typeof React; registerSlot: typeof registerSlot; Picker: typeof Picker };
         __familywellModules?: string[];
     }
 }
 
 // Expose the shell runtime so pre-built module assets register UI without a bundler or a second React.
-window.Familywell = { React, registerSlot };
+// Picker is exposed so prebuilt module frontends (modules/*/resources/dist) use the app's one dropdown
+// instead of a native <select> (they can't import from the app bundle).
+window.Familywell = { React, registerSlot, Picker };
 void loadModules(window.__familywellModules ?? []);
 
 // Catch stale-chunk failures after a deploy and auto-reload once, so an installed PWA never gets

@@ -21,7 +21,9 @@ import {
     Pencil,
     Plus,
     Store,
+    Tag,
     Trash2,
+    User,
     UserPlus,
     Wallet,
     X,
@@ -44,13 +46,12 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useCategorySuggest } from '@/hooks/use-category-suggest';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { avatarColorFor } from '@/lib/avatar';
-import { catColor, categoryMap, catIconName, catLabel, defaultCategoryKey, type CategoryDef } from '@/lib/categories';
+import { catColor, categoryMap, catLabel, defaultCategoryKey, type CategoryDef } from '@/lib/categories';
 import { compressImage, makeThumbnail } from '@/lib/compress-image';
 import { useT, type TFn } from '@/lib/i18n';
 import { money, selectAllOnFocus } from '@/lib/money';
@@ -396,6 +397,8 @@ export default function Event({
         return () => echo.leave(`family.${familyId}`);
     }, [familyId]);
 
+    // Currency choices as Picker options (header display switcher + the expense form).
+    const currencyOptions = event.currencies.map((c) => ({ value: c, label: c }));
     const allKeys = participants.map((p) => p.key);
     const form = useForm<{
         amount: string;
@@ -815,18 +818,19 @@ export default function Event({
                                 </button>
                             )}
                             <div className="flex shrink-0 items-center gap-2">
-                                <Select value={display} onValueChange={changeDisplay}>
-                                    <SelectTrigger className="border-border text-primary h-9 w-[76px] shrink-0">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {event.currencies.map((c) => (
-                                            <SelectItem key={c} value={c}>
-                                                {c}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                {/* Header switcher: a fixed-size slot with the Picker floating in it, so opening the
+                                    list overlays the page instead of pushing the title and tabs down. */}
+                                <div className="relative h-[42px] w-[120px]">
+                                    <div className="absolute top-0 right-0 z-30 w-[120px] shadow-sm">
+                                        <Picker
+                                            options={currencyOptions}
+                                            selected={[display]}
+                                            onChange={([c]) => c && changeDisplay(c)}
+                                            fallbackIcon={Banknote}
+                                            ariaLabel={t('spending.display_currency')}
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <nav className="-mb-px flex gap-1 overflow-x-auto">
@@ -1229,22 +1233,27 @@ export default function Event({
                                                 {canManageSettings && participants.length > 1 && (
                                                     <div className="border-border/50 flex items-center justify-between gap-2 border-t pt-2.5">
                                                         <span className="text-muted-foreground text-xs">{t('spending.pays_label')}</span>
-                                                        <select
-                                                            value={p.coveredBy ?? ''}
-                                                            disabled={coversOthers}
-                                                            onChange={(e) => setCover(p, e.target.value || null)}
-                                                            className="border-border bg-surface-card text-primary rounded-lg border py-1.5 pr-7 pl-3 text-base disabled:opacity-50 md:text-sm"
+                                                        <div
+                                                            className="w-52 max-w-[60%]"
                                                             title={coversOthers ? t('spending.covers_someone_else_title') : undefined}
                                                         >
-                                                            <option value="">{t('spending.their_own_share')}</option>
-                                                            {participants
-                                                                .filter((o) => o.key !== p.key && !o.coveredBy)
-                                                                .map((o) => (
-                                                                    <option key={o.key} value={o.key}>
-                                                                        {t('spending.covered_by', { name: o.name })}
-                                                                    </option>
-                                                                ))}
-                                                        </select>
+                                                            <Picker
+                                                                options={[
+                                                                    { value: '', label: t('spending.their_own_share') },
+                                                                    ...participants
+                                                                        .filter((o) => o.key !== p.key && !o.coveredBy)
+                                                                        .map((o) => ({
+                                                                            value: o.key,
+                                                                            label: t('spending.covered_by', { name: o.name }),
+                                                                        })),
+                                                                ]}
+                                                                selected={[p.coveredBy ?? '']}
+                                                                onChange={([k]) => setCover(p, k || null)}
+                                                                disabled={coversOthers}
+                                                                fallbackIcon={User}
+                                                                ariaLabel={`${t('spending.pays_label')} ${p.name}`}
+                                                            />
+                                                        </div>
                                                     </div>
                                                 )}
                                             </div>
@@ -1364,13 +1373,13 @@ export default function Event({
                             }
                         >
                             {/* The <form> holds no fields directly; the text inputs join it via form="spend-form" and
-                        the dropdowns stay outside it. That keeps Radix's hidden native <select>s out of the
+                        the dropdowns (Pickers, incl. their search boxes) stay outside it. That keeps them out of the
                         form's field set, so iOS enables the keyboard's prev/next arrows across Amount/Date/Note. */}
                             <form id="spend-form" onSubmit={submitSpend} className="hidden" />
                             <div className="flex flex-col gap-3">
                                 {/* minmax(0,1fr) lets the amount input shrink below its intrinsic ~20ch width so the
                             row never overflows the drawer horizontally. */}
-                                <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+                                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
                                     <div className="grid gap-2">
                                         <Label htmlFor="amount">{t('spending.amount')}</Label>
                                         {/* type=text (not number) so iOS honours inputMode=decimal and shows the real
@@ -1390,19 +1399,16 @@ export default function Event({
                                         <InputError message={form.errors.amount} />
                                     </div>
                                     <div className="grid gap-2">
-                                        <Label>{t('spending.currency')}</Label>
-                                        <Select value={form.data.currency} onValueChange={(v) => form.setData('currency', v)}>
-                                            <SelectTrigger className="w-[92px]">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {event.currencies.map((c) => (
-                                                    <SelectItem key={c} value={c}>
-                                                        {c}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        <Label htmlFor="spend-currency">{t('spending.currency')}</Label>
+                                        <div className="w-[120px]">
+                                            <Picker
+                                                id="spend-currency"
+                                                options={currencyOptions}
+                                                selected={[form.data.currency]}
+                                                onChange={([c]) => c && form.setData('currency', c)}
+                                                fallbackIcon={Banknote}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                                 {/* Note sits right under the amount: with AI on, typing it fills the category below. */}
@@ -1419,45 +1425,26 @@ export default function Event({
                                 </div>
                                 <div className="grid gap-3">
                                     <div className="grid gap-2">
-                                        <Label>{t('spending.category')}</Label>
-                                        {/* Dropdown over the family's dynamic categories (defaults + any custom ones).
-                                    The trigger mirrors the selected category's icon + label; each option shows the
-                                    same, with the icon tinted by the category colour (custom categories fall back to
-                                    the Tag icon + fallback colour). The chosen key still submits via form.data.category. */}
-                                        <Select
-                                            value={form.data.category}
-                                            onValueChange={(v) => {
+                                        <Label htmlFor="spend-category">{t('spending.category')}</Label>
+                                        {/* The family's dynamic categories (defaults + custom), each with its icon tinted by the
+                                            category colour; same searchable Picker as the overview's quick-add. */}
+                                        <Picker
+                                            id="spend-category"
+                                            fallbackIcon={Tag}
+                                            options={event.categories.map((c) => ({
+                                                value: c.key,
+                                                label: catLabel(t, catMap, c.key),
+                                                icon: ({ className }: { className?: string }) => (
+                                                    <CategoryIcon icon={c.icon} className={className} style={{ color: catColor(catMap, c.key) }} />
+                                                ),
+                                            }))}
+                                            selected={[form.data.category]}
+                                            onChange={([k]) => {
+                                                if (!k) return;
                                                 suggest.onManualPick();
-                                                form.setData('category', v);
+                                                form.setData('category', k);
                                             }}
-                                        >
-                                            <SelectTrigger className="w-full">
-                                                <SelectValue>
-                                                    <span className="flex items-center gap-2">
-                                                        <CategoryIcon
-                                                            icon={catIconName(catMap, form.data.category)}
-                                                            className="size-4 shrink-0"
-                                                            style={{ color: catColor(catMap, form.data.category) }}
-                                                        />
-                                                        <span className="truncate">{catLabel(t, catMap, form.data.category)}</span>
-                                                    </span>
-                                                </SelectValue>
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {event.categories.map((c) => (
-                                                    <SelectItem key={c.key} value={c.key}>
-                                                        <span className="flex items-center gap-2">
-                                                            <CategoryIcon
-                                                                icon={c.icon}
-                                                                className="size-4 shrink-0"
-                                                                style={{ color: catColor(catMap, c.key) }}
-                                                            />
-                                                            {catLabel(t, catMap, c.key)}
-                                                        </span>
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        />
                                     </div>
                                     {/* Shop: searchable single-select over names already used (Spending + Shopping modules), with
                                         "Add …" for a new one. '__none' stands in for '' because the Picker treats an empty
@@ -1483,21 +1470,18 @@ export default function Event({
                                         {!editing && <ShopMonthHint shop={form.data.store} shopTotals={shopTotals} />}
                                     </div>
                                     <div className="grid gap-2">
-                                        <Label>{t('spending.paid_by_field')}</Label>
-                                        <Select value={form.data.payer_key} onValueChange={(v) => form.setData('payer_key', v)}>
-                                            <SelectTrigger className="w-full">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {/* Any participant can be the payer: family members and the guests we shared with. */}
-                                                {participants.map((p) => (
-                                                    <SelectItem key={p.key} value={p.key}>
-                                                        {p.name}
-                                                        {p.key === 'u' + authId ? t('spending.you_suffix') : ''}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        <Label htmlFor="spend-payer">{t('spending.paid_by_field')}</Label>
+                                        {/* Any participant can be the payer: family members and the guests we shared with. */}
+                                        <Picker
+                                            id="spend-payer"
+                                            options={participants.map((p) => ({
+                                                value: p.key,
+                                                label: p.name + (p.key === 'u' + authId ? t('spending.you_suffix') : ''),
+                                            }))}
+                                            selected={[form.data.payer_key]}
+                                            onChange={([k]) => k && form.setData('payer_key', k)}
+                                            fallbackIcon={User}
+                                        />
                                     </div>
                                 </div>
                                 {/* How this spend splits: everyone (default), a chosen subset, or exact amounts. */}
@@ -1592,32 +1576,26 @@ export default function Event({
                                 </div>
 
                                 <div className="grid gap-2">
-                                    <Label>{t('spending.paid_with')}</Label>
-                                    <Select
-                                        value={form.data.source_id ? String(form.data.source_id) : 'none'}
-                                        onValueChange={(v) => {
+                                    <Label htmlFor="spend-source">{t('spending.paid_with')}</Label>
+                                    <Picker
+                                        id="spend-source"
+                                        options={[
+                                            { value: 'none', label: t('spending.not_specified') },
+                                            ...sources.map((src) => ({
+                                                value: String(src.id),
+                                                label: `${src.name} · ${sourceTypeLabel(t, src.type)}`,
+                                                icon: SOURCE_TYPE_META.find((m) => m.key === src.type)?.icon,
+                                            })),
                                             // The last item opens the new-source modal instead of selecting a value.
+                                            { value: '__new__', label: t('spending.new_source'), icon: Plus },
+                                        ]}
+                                        selected={[form.data.source_id ? String(form.data.source_id) : 'none']}
+                                        onChange={([v]) => {
                                             if (v === '__new__') setSourceModalOpen(true);
-                                            else form.setData('source_id', v === 'none' ? null : Number(v));
+                                            else if (v) form.setData('source_id', v === 'none' ? null : Number(v));
                                         }}
-                                    >
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="none">{t('spending.not_specified')}</SelectItem>
-                                            {sources.map((s) => (
-                                                <SelectItem key={s.id} value={String(s.id)}>
-                                                    {s.name} <span className="text-muted-foreground">· {sourceTypeLabel(t, s.type)}</span>
-                                                </SelectItem>
-                                            ))}
-                                            <SelectItem value="__new__" className="text-primary font-medium">
-                                                <span className="flex items-center gap-1.5">
-                                                    <Plus className="size-3.5" /> {t('spending.new_source')}
-                                                </span>
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                        fallbackIcon={Wallet}
+                                    />
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="date">{t('spending.date')}</Label>
@@ -1749,24 +1727,17 @@ export default function Event({
                                                     <p className="text-muted-foreground text-xs">{t('spending.move_no_targets')}</p>
                                                 ) : (
                                                     <>
-                                                        <Select
-                                                            value={moveTarget}
-                                                            onValueChange={(v) => {
-                                                                setMoveTarget(v);
+                                                        <Picker
+                                                            options={moveTargets.map((m) => ({ value: String(m.id), label: m.name }))}
+                                                            selected={moveTarget ? [moveTarget] : []}
+                                                            onChange={([v]) => {
+                                                                setMoveTarget(v ?? '');
                                                                 setMoveError(null);
                                                             }}
-                                                        >
-                                                            <SelectTrigger>
-                                                                <SelectValue placeholder={t('spending.move_pick_list')} />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                {moveTargets.map((m) => (
-                                                                    <SelectItem key={m.id} value={String(m.id)}>
-                                                                        {m.name}
-                                                                    </SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
+                                                            placeholder={t('spending.move_pick_list')}
+                                                            fallbackIcon={Wallet}
+                                                            ariaLabel={t('spending.move_to_list')}
+                                                        />
                                                         {/* The footer button commits the move; here we just show what will happen. */}
                                                         {moveTarget && (
                                                             <div className="bg-surface mt-1 grid gap-1 rounded-lg p-3">

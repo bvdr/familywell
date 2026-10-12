@@ -3,7 +3,7 @@
 //   - person.editor.fields : a day/month (+ optional year) birthday field in the contact editor
 //   - person.row.badges    : a 🎂 badge (age + how soon) on the contact row
 //   - dashboard.widgets    : an "Upcoming birthdays" card that fetches /m/birthdays/upcoming
-const { React, registerSlot } = window.Familywell;
+const { React, registerSlot, Picker } = window.Familywell;
 const h = React.createElement;
 
 // Editor field: day + month, year optional (age only shows once a year is known). Persists via
@@ -24,20 +24,27 @@ function BirthdateField(props) {
         if (d && m) onPatch({ birth_day: Number(d), birth_month: Number(m), birth_year: y ? Number(y) : null });
     }
 
-    const cls = 'border-border text-primary h-9 rounded-lg border bg-transparent px-2 text-base md:text-sm';
+    // h-[42px] lines the day/year inputs up with the month Picker (the app's shared dropdown, exposed on
+    // window.Familywell); the row aligns to the top so they stay put while the month list is open.
+    const cls = 'border-border text-primary h-[42px] rounded-lg border bg-transparent px-2 text-base md:text-sm';
     return h(
         'div',
         { className: 'grid gap-2', 'data-testid': 'birthdate-field' },
         h('label', { className: 'text-muted-foreground text-xs font-semibold tracking-widest uppercase' }, 'Birthday'),
         h(
             'div',
-            { className: 'flex items-center gap-1.5' },
+            { className: 'flex items-start gap-1.5' },
             h('input', { type: 'number', inputMode: 'numeric', min: 1, max: 31, placeholder: 'Day', 'aria-label': 'Day', value: day, className: cls + ' w-16',
                 onChange: (e) => { setDay(e.target.value); push(e.target.value, month, year); } }),
-            h('select', { 'aria-label': 'Month', value: month, className: cls + ' w-24',
-                onChange: (e) => { setMonth(e.target.value); push(day, e.target.value, year); } },
-                h('option', { value: '' }, 'Month'),
-                months.map((m, i) => h('option', { key: i, value: i + 1 }, m)),
+            h('div', { className: 'w-32 shrink-0' },
+                h(Picker, {
+                    ariaLabel: 'Month',
+                    placeholder: 'Month',
+                    fallbackIcon: () => null, // no icon set to import here; the month name is enough
+                    options: months.map((m, i) => ({ value: String(i + 1), label: m })),
+                    selected: month ? [month] : [],
+                    onChange: (next) => { const m = next[0] || ''; setMonth(m); push(day, m, year); },
+                }),
             ),
             h('input', { type: 'number', inputMode: 'numeric', min: 1900, max: new Date().getFullYear(), placeholder: 'Year', 'aria-label': 'Year (optional)', value: year, className: cls + ' w-28',
                 onChange: (e) => { setYear(e.target.value); push(day, month, e.target.value); } }),

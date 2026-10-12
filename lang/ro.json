@@ -14,7 +14,10 @@
         "no_matches": "Niciun rezultat",
         "choose_icon": "Alege pictograma",
         "none": "Fără",
-        "refine_search": "Continuă să scrii pentru a restrânge rezultatele"
+        "refine_search": "Continuă să scrii pentru a restrânge rezultatele",
+        "select": "Alege…",
+        "add_named": "Adaugă „:name”",
+        "remove_named": "Elimină :name"
     },
     "nav": {
         "dashboard": "Acasă",

@@ -1,6 +1,7 @@
-import { Minus, Plus, RotateCcw } from 'lucide-react';
+import { Carrot, Minus, Plus, RotateCcw } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 
+import { Picker } from '@/components/picker';
 import { useLocale, useT } from '@/lib/i18n';
 import { factorFor, formatQty, scaleIngredient } from '@/lib/recipe-scale.js';
 import { minutesText, type Recipe, type ScaleTarget } from '@/lib/recipes';
@@ -197,23 +198,23 @@ export function RecipeView({ recipe, shop }: { recipe: Recipe; shop?: (factor: n
                                 aria-label={t('recipes.unit')}
                             />
                             <span className="text-muted-foreground text-sm">{t('recipes.of')}</span>
-                            <select
-                                value={have}
-                                onChange={(e) => {
-                                    const idx = Number(e.target.value);
-                                    const u = recipe.ingredients[idx]?.unit ?? '';
-                                    setHave(idx);
-                                    setUnit(u);
-                                    onAmount(amount, u, idx);
-                                }}
-                                className={`${field} min-w-0 flex-1`}
-                            >
-                                {withQty.map(({ ing, index }) => (
-                                    <option key={index} value={index}>
-                                        {ing.name}
-                                    </option>
-                                ))}
-                            </select>
+                            {/* The Picker expands inline, so it takes its own full-width line under the amount inputs. */}
+                            <div className="w-full">
+                                <Picker
+                                    options={withQty.map(({ ing, index }) => ({ value: String(index), label: ing.name }))}
+                                    selected={[String(have)]}
+                                    onChange={(next) => {
+                                        if (!next[0]) return;
+                                        const idx = Number(next[0]);
+                                        const u = recipe.ingredients[idx]?.unit ?? '';
+                                        setHave(idx);
+                                        setUnit(u);
+                                        onAmount(amount, u, idx);
+                                    }}
+                                    ariaLabel={t('recipes.ingredient')}
+                                    fallbackIcon={Carrot}
+                                />
+                            </div>
                         </div>
                     )}
                 </section>

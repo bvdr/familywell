@@ -3,6 +3,7 @@ import { AlertTriangle, BellRing, CheckCircle2, Download, FileText, Pencil, Plus
 import { useEffect, useState, type ReactNode } from 'react';
 
 import InputError from '@/components/input-error';
+import { Picker } from '@/components/picker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -279,17 +280,13 @@ function DocumentFormModal({
             <div className="flex flex-col gap-4 pb-1">
                 <div className="grid gap-4 sm:grid-cols-2">
                     <Field label={t('vehicles.document_type_label')} error={errors.type}>
-                        <select
-                            value={form.type}
-                            onChange={(e) => set('type', e.target.value)}
-                            className="border-input bg-surface-card focus-visible:ring-ring w-full rounded-lg border px-3 py-2 text-base focus-visible:ring-2 focus-visible:outline-none"
-                        >
-                            {types.map((ty) => (
-                                <option key={ty} value={ty}>
-                                    {documentTypeLabel(t, ty)}
-                                </option>
-                            ))}
-                        </select>
+                        <Picker
+                            options={types.map((ty) => ({ value: ty, label: documentTypeLabel(t, ty) }))}
+                            selected={[form.type]}
+                            onChange={(next) => next[0] && set('type', next[0])}
+                            ariaLabel={t('vehicles.document_type_label')}
+                            fallbackIcon={FileText}
+                        />
                     </Field>
                     <Field label={t('vehicles.document_expiry_label')} error={errors.expires_on}>
                         <Input type="date" value={form.expires_on} onChange={(e) => set('expires_on', e.target.value)} className="text-base" />

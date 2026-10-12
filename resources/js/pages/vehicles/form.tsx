@@ -1,9 +1,10 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { ArrowLeft, Trash2 } from 'lucide-react';
+import { ArrowLeft, Cog, Fuel, Trash2, User } from 'lucide-react';
 import { type ReactNode } from 'react';
 
-import InputError from '@/components/input-error';
 import { FormActions } from '@/components/form-actions';
+import InputError from '@/components/input-error';
+import { Picker, type PickerIcon, type PickerOption } from '@/components/picker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -69,6 +70,7 @@ function initialFields(v: Vehicle | null): Fields {
 
 export default function VehicleForm({ vehicle, members, fuelTypes, transmissions }: Props) {
     const t = useT();
+    const memberOptions = members.map((m) => ({ value: String(m.id), label: m.name }));
     const editing = vehicle !== null;
     const { data, setData, post, patch, processing, errors } = useForm<Fields>(initialFields(vehicle));
 
@@ -100,9 +102,7 @@ export default function VehicleForm({ vehicle, members, fuelTypes, transmissions
                     <Link href={back} className="text-muted-foreground hover:text-primary" aria-label={t('vehicles.back')}>
                         <ArrowLeft className="size-5" />
                     </Link>
-                    <h1 className="font-heading text-primary text-2xl">
-                        {editing ? vehicleTitle(vehicle!) : t('vehicles.add_vehicle')}
-                    </h1>
+                    <h1 className="font-heading text-primary text-2xl">{editing ? vehicleTitle(vehicle!) : t('vehicles.add_vehicle')}</h1>
                 </header>
 
                 <form
@@ -116,44 +116,85 @@ export default function VehicleForm({ vehicle, members, fuelTypes, transmissions
                     <Section title={t('vehicles.section_identity')}>
                         <div className="grid gap-4 sm:grid-cols-2">
                             <Field label={t('vehicles.make_label')} error={errors.make}>
-                                <Input value={data.make} onChange={(e) => setData('make', e.target.value)} placeholder="Dacia" className="text-base" />
+                                <Input
+                                    value={data.make}
+                                    onChange={(e) => setData('make', e.target.value)}
+                                    placeholder="Dacia"
+                                    className="text-base"
+                                />
                             </Field>
                             <Field label={t('vehicles.model_label')} error={errors.model}>
-                                <Input value={data.model} onChange={(e) => setData('model', e.target.value)} placeholder="Duster" className="text-base" />
+                                <Input
+                                    value={data.model}
+                                    onChange={(e) => setData('model', e.target.value)}
+                                    placeholder="Duster"
+                                    className="text-base"
+                                />
                             </Field>
                             <Field label={t('vehicles.year_label')} error={errors.year}>
-                                <Input value={data.year} onChange={(e) => setData('year', e.target.value)} inputMode="numeric" placeholder="2019" className="text-base" />
+                                <Input
+                                    value={data.year}
+                                    onChange={(e) => setData('year', e.target.value)}
+                                    inputMode="numeric"
+                                    placeholder="2019"
+                                    className="text-base"
+                                />
                             </Field>
                             <Field label={t('vehicles.version_label')} error={errors.version}>
-                                <Input value={data.version} onChange={(e) => setData('version', e.target.value)} placeholder="1.5 dCi" className="text-base" />
+                                <Input
+                                    value={data.version}
+                                    onChange={(e) => setData('version', e.target.value)}
+                                    placeholder="1.5 dCi"
+                                    className="text-base"
+                                />
                             </Field>
                             <Field label={t('vehicles.fuel_label')} error={errors.fuel_type}>
-                                <NativeSelect value={data.fuel_type} onChange={(v) => setData('fuel_type', v)} placeholder={t('vehicles.choose')}>
-                                    {fuelTypes.map((f) => (
-                                        <option key={f} value={f}>{fuelLabel(t, f)}</option>
-                                    ))}
-                                </NativeSelect>
+                                <OptionPicker
+                                    value={data.fuel_type}
+                                    onChange={(v) => setData('fuel_type', v)}
+                                    placeholder={t('vehicles.choose')}
+                                    ariaLabel={t('vehicles.fuel_label')}
+                                    icon={Fuel}
+                                    options={fuelTypes.map((f) => ({ value: f, label: fuelLabel(t, f) }))}
+                                />
                             </Field>
                             <Field label={t('vehicles.transmission_label')} error={errors.transmission}>
-                                <NativeSelect value={data.transmission} onChange={(v) => setData('transmission', v)} placeholder={t('vehicles.choose')}>
-                                    {transmissions.map((tr) => (
-                                        <option key={tr} value={tr}>{transmissionLabel(t, tr)}</option>
-                                    ))}
-                                </NativeSelect>
+                                <OptionPicker
+                                    value={data.transmission}
+                                    onChange={(v) => setData('transmission', v)}
+                                    placeholder={t('vehicles.choose')}
+                                    ariaLabel={t('vehicles.transmission_label')}
+                                    icon={Cog}
+                                    options={transmissions.map((tr) => ({ value: tr, label: transmissionLabel(t, tr) }))}
+                                />
                             </Field>
                             <Field label={t('vehicles.color_label')} error={errors.color}>
                                 <Input value={data.color} onChange={(e) => setData('color', e.target.value)} className="text-base" />
                             </Field>
                             {!editing && (
-                                <Field label={t('vehicles.current_mileage_label')} error={errors.current_mileage} hint={t('vehicles.opening_mileage_hint')}>
-                                    <Input value={data.current_mileage} onChange={(e) => setData('current_mileage', e.target.value)} inputMode="numeric" placeholder="0" className="text-base" />
+                                <Field
+                                    label={t('vehicles.current_mileage_label')}
+                                    error={errors.current_mileage}
+                                    hint={t('vehicles.opening_mileage_hint')}
+                                >
+                                    <Input
+                                        value={data.current_mileage}
+                                        onChange={(e) => setData('current_mileage', e.target.value)}
+                                        inputMode="numeric"
+                                        placeholder="0"
+                                        className="text-base"
+                                    />
                                 </Field>
                             )}
                             <Field label={t('vehicles.vin_label')} error={errors.vin}>
                                 <Input value={data.vin} onChange={(e) => setData('vin', e.target.value)} className="text-base" />
                             </Field>
                             <Field label={t('vehicles.registration_label')} error={errors.registration_number}>
-                                <Input value={data.registration_number} onChange={(e) => setData('registration_number', e.target.value)} className="text-base" />
+                                <Input
+                                    value={data.registration_number}
+                                    onChange={(e) => setData('registration_number', e.target.value)}
+                                    className="text-base"
+                                />
                             </Field>
                             <Field label={t('vehicles.plate_label')} error={errors.license_plate}>
                                 <Input value={data.license_plate} onChange={(e) => setData('license_plate', e.target.value)} className="text-base" />
@@ -165,24 +206,40 @@ export default function VehicleForm({ vehicle, members, fuelTypes, transmissions
                     <Section title={t('vehicles.section_ownership')}>
                         <div className="grid gap-4 sm:grid-cols-2">
                             <Field label={t('vehicles.owner_label')} error={errors.owner_id}>
-                                <NativeSelect value={data.owner_id} onChange={(v) => setData('owner_id', v)} placeholder={t('common.none')}>
-                                    {members.map((m) => (
-                                        <option key={m.id} value={m.id}>{m.name}</option>
-                                    ))}
-                                </NativeSelect>
+                                <OptionPicker
+                                    value={data.owner_id}
+                                    onChange={(v) => setData('owner_id', v)}
+                                    placeholder={t('common.none')}
+                                    ariaLabel={t('vehicles.owner_label')}
+                                    icon={User}
+                                    options={memberOptions}
+                                />
                             </Field>
                             <Field label={t('vehicles.driver_label')} error={errors.primary_driver_id}>
-                                <NativeSelect value={data.primary_driver_id} onChange={(v) => setData('primary_driver_id', v)} placeholder={t('common.none')}>
-                                    {members.map((m) => (
-                                        <option key={m.id} value={m.id}>{m.name}</option>
-                                    ))}
-                                </NativeSelect>
+                                <OptionPicker
+                                    value={data.primary_driver_id}
+                                    onChange={(v) => setData('primary_driver_id', v)}
+                                    placeholder={t('common.none')}
+                                    ariaLabel={t('vehicles.driver_label')}
+                                    icon={User}
+                                    options={memberOptions}
+                                />
                             </Field>
                             <Field label={t('vehicles.purchase_date_label')} error={errors.purchase_date}>
-                                <Input type="date" value={data.purchase_date} onChange={(e) => setData('purchase_date', e.target.value)} className="text-base" />
+                                <Input
+                                    type="date"
+                                    value={data.purchase_date}
+                                    onChange={(e) => setData('purchase_date', e.target.value)}
+                                    className="text-base"
+                                />
                             </Field>
                             <Field label={t('vehicles.purchase_price_label')} error={errors.purchase_price}>
-                                <Input value={data.purchase_price} onChange={(e) => setData('purchase_price', e.target.value)} inputMode="decimal" className="text-base" />
+                                <Input
+                                    value={data.purchase_price}
+                                    onChange={(e) => setData('purchase_price', e.target.value)}
+                                    inputMode="decimal"
+                                    className="text-base"
+                                />
                             </Field>
                         </div>
                     </Section>
@@ -191,13 +248,25 @@ export default function VehicleForm({ vehicle, members, fuelTypes, transmissions
                     <Section title={t('vehicles.section_obligations')}>
                         <div className="grid gap-4 sm:grid-cols-2">
                             <Field label={t('vehicles.insurance_label')} error={errors.insurance_company}>
-                                <Input value={data.insurance_company} onChange={(e) => setData('insurance_company', e.target.value)} className="text-base" />
+                                <Input
+                                    value={data.insurance_company}
+                                    onChange={(e) => setData('insurance_company', e.target.value)}
+                                    className="text-base"
+                                />
                             </Field>
                             <Field label={t('vehicles.road_tax_label')} error={errors.road_tax_status}>
-                                <Input value={data.road_tax_status} onChange={(e) => setData('road_tax_status', e.target.value)} className="text-base" />
+                                <Input
+                                    value={data.road_tax_status}
+                                    onChange={(e) => setData('road_tax_status', e.target.value)}
+                                    className="text-base"
+                                />
                             </Field>
                             <Field label={t('vehicles.inspection_label')} error={errors.inspection_status}>
-                                <Input value={data.inspection_status} onChange={(e) => setData('inspection_status', e.target.value)} className="text-base" />
+                                <Input
+                                    value={data.inspection_status}
+                                    onChange={(e) => setData('inspection_status', e.target.value)}
+                                    className="text-base"
+                                />
                             </Field>
                         </div>
                     </Section>
@@ -247,27 +316,32 @@ function Field({ label, error, hint, children }: { label: string; error?: string
     );
 }
 
-// A native <select> styled like the app's Input. `placeholder` is the empty-value option (owner "None",
-// fuel "Choose…"), so a select can always be cleared back to null.
-function NativeSelect({
+// A Picker over a plain string field. `placeholder` is also the explicit empty-value option (owner "None",
+// fuel "Choose…"), so a field can always be cleared back to null. The <Field> label isn't tied to a control,
+// so the label text is passed as the accessible name.
+function OptionPicker({
     value,
     onChange,
     placeholder,
-    children,
+    ariaLabel,
+    icon,
+    options,
 }: {
     value: string;
     onChange: (v: string) => void;
     placeholder: string;
-    children: ReactNode;
+    ariaLabel: string;
+    icon: PickerIcon;
+    options: PickerOption[];
 }) {
     return (
-        <select
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            className="border-input bg-surface-card focus-visible:ring-ring h-9 w-full rounded-lg border px-3 text-base focus-visible:ring-2 focus-visible:outline-none"
-        >
-            <option value="">{placeholder}</option>
-            {children}
-        </select>
+        <Picker
+            options={[{ value: '', label: placeholder }, ...options]}
+            selected={value === '' ? [] : [value]}
+            onChange={(next) => onChange(next[0] ?? '')}
+            placeholder={placeholder}
+            ariaLabel={ariaLabel}
+            fallbackIcon={icon}
+        />
     );
 }

@@ -28,6 +28,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 
 import { MemberAvatar } from '@/components/member-avatar';
+import { Picker } from '@/components/picker';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
 import { TaskTree, type TaskNode } from '@/components/tasks/task-tree';
 import { Button } from '@/components/ui/button';
@@ -834,19 +835,14 @@ function EditModal({
                     </div>
                 </div>
                 <div className="grid gap-2">
-                    <Label>{t('projects.owner')}</Label>
-                    <select
-                        value={data.owner_id ?? ''}
-                        onChange={(e) => setData('owner_id', e.target.value ? Number(e.target.value) : null)}
-                        className="border-border text-primary h-9 w-full rounded-lg border bg-transparent px-3 text-sm outline-none"
-                    >
-                        <option value="">{t('projects.unassigned')}</option>
-                        {members.map((m) => (
-                            <option key={m.id} value={m.id}>
-                                {m.name}
-                            </option>
-                        ))}
-                    </select>
+                    <Label htmlFor="project-owner">{t('projects.owner')}</Label>
+                    <Picker
+                        id="project-owner"
+                        fallbackIcon={User}
+                        options={[{ value: '', label: t('projects.unassigned') }, ...members.map((m) => ({ value: String(m.id), label: m.name }))]}
+                        selected={[data.owner_id ? String(data.owner_id) : '']}
+                        onChange={(next) => setData('owner_id', next[0] ? Number(next[0]) : null)}
+                    />
                 </div>
             </form>
         </ResponsiveModal>

@@ -1,10 +1,12 @@
 import { Bar, TrendCurve, useCountUp } from '@/components/charts';
+import { Picker } from '@/components/picker';
 import AppLayout from '@/layouts/app-layout';
 import { catColor as catColorOf, catLabel as catLabelOf, categoryMap, type CategoryDef, type CategoryMap } from '@/lib/categories';
 import { useT, type TFn } from '@/lib/i18n';
 import { money } from '@/lib/money';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
+import { Banknote } from 'lucide-react';
 import { useReducedMotion } from 'motion/react';
 
 type Cat = { key: string; amount: number; pct: number };
@@ -134,19 +136,19 @@ export default function Analytics({
                         <h1 className="font-heading text-primary text-2xl">{t('spending.analytics')}</h1>
                         <p className="text-muted-foreground text-sm">{t('spending.analytics_sub')}</p>
                     </div>
-                    {/* Native select for the display currency: mixed-base lists need a single currency to roll up in. */}
-                    <select
-                        value={currency}
-                        onChange={(e) => reload({ currency: e.target.value })}
-                        className="border-border bg-surface-card text-primary rounded-lg border px-3 py-2 text-sm"
-                        aria-label={t('spending.display_currency')}
-                    >
-                        {currencies.map((c) => (
-                            <option key={c} value={c}>
-                                {c}
-                            </option>
-                        ))}
-                    </select>
+                    {/* Display currency: mixed-base lists need a single currency to roll up in. */}
+                    {/* Fixed slot + floating Picker: the open list overlays the charts instead of pushing them. */}
+                    <div className="relative h-[42px] w-[120px] shrink-0 self-start">
+                        <div className="absolute top-0 right-0 z-30 w-[120px] shadow-sm">
+                            <Picker
+                                options={currencies.map((c) => ({ value: c, label: c }))}
+                                selected={[currency]}
+                                onChange={([c]) => c && c !== currency && reload({ currency: c })}
+                                fallbackIcon={Banknote}
+                                ariaLabel={t('spending.display_currency')}
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 {/* Period selector: presets as a segmented control. */}
