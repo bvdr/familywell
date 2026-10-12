@@ -52,3 +52,31 @@ jobs:
 
       - name: Tests
         run: ./vendor/bin/pest
+
+      # UI guardrail: every page at 390x844 and 1280x800, signed in as the seeded demo family, must have no
+      # sideways scroll, cut-off content or overlapping text (tests/Viewports, playwright.config.ts).
+      # Pest above runs on in-memory SQLite, so database/database.sqlite is free for the seeded app.
+      - name: Seed the demo family for the viewport checks
+        run: |
+          php artisan migrate --force
+          php artisan modules:migrate
+          php artisan db:seed --class=DemoSeeder --force
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Viewport checks (390 + 1280)
+        env:
+          # php artisan serve with a few workers, so parallel page loads don't queue behind each other.
+          PHP_CLI_SERVER_WORKERS: 4
+        run: npm run test:viewports
+
+      - name: Upload viewport screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: viewport-screenshots
+          path: |
+            tests/Viewports/screenshots/
+            tests/Viewports/report/
+          if-no-files-found: ignore
