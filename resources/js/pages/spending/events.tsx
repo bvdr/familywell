@@ -397,7 +397,7 @@ export default function Events({
                         stay outside) so the Pickers' search boxes don't break iOS's prev/next keys. */}
                     <form id="quick-spend" onSubmit={submitSpend} className="hidden" />
                     <div className="flex flex-col gap-3">
-                        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+                        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
                             <div className="grid gap-2">
                                 <Label htmlFor="quick-amount">{t('spending.amount')}</Label>
                                 {/* type=text + inputMode=decimal for the real iOS decimal pad; commas normalised to dots. */}
@@ -496,7 +496,7 @@ export default function Events({
                             />
                             <InputError message={spend.errors.event_id} />
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-2 items-start gap-3">
                             <div className="grid gap-2">
                                 <Label htmlFor="quick-payer">{t('spending.paid_by_label')}</Label>
                                 <Picker

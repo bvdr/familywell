@@ -399,7 +399,7 @@ function SpendForm({ token, me, event, editing, onClose }: { token: string; me: 
                 pinned footer button (rendered outside this scroll region) can still submit. */}
             <form id="guest-spend-form" onSubmit={submit} className="hidden" />
             <div className="flex flex-col gap-4 pt-1">
-                <div className="flex gap-2">
+                <div className="flex items-start gap-2">
                     <div className="grid flex-1 gap-1.5">
                         <Label htmlFor="amount">{t('spending.amount')}</Label>
                         <Input

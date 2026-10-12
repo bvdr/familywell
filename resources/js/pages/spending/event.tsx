@@ -818,14 +818,18 @@ export default function Event({
                                 </button>
                             )}
                             <div className="flex shrink-0 items-center gap-2">
-                                <div className="w-[120px]">
-                                    <Picker
-                                        options={currencyOptions}
-                                        selected={[display]}
-                                        onChange={([c]) => c && changeDisplay(c)}
-                                        fallbackIcon={Banknote}
-                                        ariaLabel={t('spending.display_currency')}
-                                    />
+                                {/* Header switcher: a fixed-size slot with the Picker floating in it, so opening the
+                                    list overlays the page instead of pushing the title and tabs down. */}
+                                <div className="relative h-[42px] w-[120px]">
+                                    <div className="absolute top-0 right-0 z-30 w-[120px] shadow-sm">
+                                        <Picker
+                                            options={currencyOptions}
+                                            selected={[display]}
+                                            onChange={([c]) => c && changeDisplay(c)}
+                                            fallbackIcon={Banknote}
+                                            ariaLabel={t('spending.display_currency')}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1375,7 +1379,7 @@ export default function Event({
                             <div className="flex flex-col gap-3">
                                 {/* minmax(0,1fr) lets the amount input shrink below its intrinsic ~20ch width so the
                             row never overflows the drawer horizontally. */}
-                                <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+                                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
                                     <div className="grid gap-2">
                                         <Label htmlFor="amount">{t('spending.amount')}</Label>
                                         {/* type=text (not number) so iOS honours inputMode=decimal and shows the real

@@ -137,14 +137,17 @@ export default function Analytics({
                         <p className="text-muted-foreground text-sm">{t('spending.analytics_sub')}</p>
                     </div>
                     {/* Display currency: mixed-base lists need a single currency to roll up in. */}
-                    <div className="w-[120px] shrink-0 self-start">
-                        <Picker
-                            options={currencies.map((c) => ({ value: c, label: c }))}
-                            selected={[currency]}
-                            onChange={([c]) => c && c !== currency && reload({ currency: c })}
-                            fallbackIcon={Banknote}
-                            ariaLabel={t('spending.display_currency')}
-                        />
+                    {/* Fixed slot + floating Picker: the open list overlays the charts instead of pushing them. */}
+                    <div className="relative h-[42px] w-[120px] shrink-0 self-start">
+                        <div className="absolute top-0 right-0 z-30 w-[120px] shadow-sm">
+                            <Picker
+                                options={currencies.map((c) => ({ value: c, label: c }))}
+                                selected={[currency]}
+                                onChange={([c]) => c && c !== currency && reload({ currency: c })}
+                                fallbackIcon={Banknote}
+                                ariaLabel={t('spending.display_currency')}
+                            />
+                        </div>
                     </div>
                 </div>
 
