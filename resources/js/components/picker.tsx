@@ -1,6 +1,6 @@
 import { useT } from '@/lib/i18n';
 import { Check, ChevronDown, Plus, Search, Store, X } from 'lucide-react';
-import { type ComponentType, type KeyboardEvent, useId, useRef, useState } from 'react';
+import { type ComponentType, useEffect, useId, useRef, useState } from 'react';
 
 // `icon` is any component taking className (a lucide icon, or a wrapper like <CategoryIcon> that adds its
 // own colour), so callers can pass per-option renderers, not just static lucide components.
@@ -42,20 +42,30 @@ export function Picker({
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
     const listId = useId();
+    const rootRef = useRef<HTMLDivElement>(null);
     const controlRef = useRef<HTMLButtonElement>(null);
     const close = () => {
         setOpen(false);
         setQuery('');
         controlRef.current?.focus();
     };
-    // Escape anywhere inside closes the list (and doesn't bubble up to close the drawer around it).
-    const onKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Escape' && open) {
+    // Escape closes the open list, and ONLY the list. The drawers/dialogs around a Picker (Radix/vaul)
+    // listen for Escape on `document` in the capture phase, which runs before any React handler here, so
+    // a React onKeyDown + stopPropagation is too late and the whole drawer closed. A window-level capture
+    // listener runs first; it only acts while this list is open and focus is inside this Picker.
+    useEffect(() => {
+        if (!open) return;
+        const onEscape = (e: globalThis.KeyboardEvent) => {
+            if (e.key !== 'Escape' || !rootRef.current?.contains(document.activeElement)) return;
             e.stopPropagation();
             e.preventDefault();
-            close();
-        }
-    };
+            setOpen(false);
+            setQuery('');
+            controlRef.current?.focus();
+        };
+        window.addEventListener('keydown', onEscape, true);
+        return () => window.removeEventListener('keydown', onEscape, true);
+    }, [open]);
 
     const byValue = new Map(options.map((o) => [o.value, o]));
     const labelFor = (v: string) => byValue.get(v)?.label ?? v;
@@ -83,7 +93,7 @@ export function Picker({
     };
 
     return (
-        <div className={`border-border overflow-hidden rounded-xl border ${disabled ? 'opacity-60' : ''}`} onKeyDown={onKeyDown}>
+        <div ref={rootRef} className={`border-border overflow-hidden rounded-xl border ${disabled ? 'opacity-60' : ''}`}>
             {/* Control: shows the current selection as chips (multi) or a single label. */}
             <button
                 ref={controlRef}
