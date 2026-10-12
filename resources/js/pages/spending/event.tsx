@@ -833,7 +833,7 @@ export default function Event({
                                 </div>
                             </div>
                         </div>
-                        <nav className="-mb-px flex gap-1 overflow-x-auto">
+                        <nav data-scroll-x className="-mb-px flex gap-1 overflow-x-auto">
                             {TABS.map((tabItem) => {
                                 const active = tab === tabItem.key;
                                 return (

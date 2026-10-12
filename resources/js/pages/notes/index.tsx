@@ -1,5 +1,5 @@
 import { useAddAction } from '@/lib/add-action';
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Check, LayoutGrid, List as ListIcon, Lock, MoreHorizontal, Pin, Plus, Search, StickyNote, Trash2 } from 'lucide-react';
 import { FormEventHandler, useMemo, useState } from 'react';
 
@@ -42,9 +42,9 @@ function NoteCard({ note, folders, grid, t }: { note: Note; folders: Folder[]; g
     const folder = folders.find((f) => f.id === note.folderId);
     const title = note.title.trim() || t('notes.untitled');
     return (
-        <button
-            type="button"
-            onClick={() => router.visit(route('notes.show', note.id))}
+        // A real link (not a button + router.visit): opens in a new tab, reads as a link to screen readers.
+        <Link
+            href={route('notes.show', note.id)}
             className={`hover:border-accent flex flex-col rounded-2xl border p-4 text-left transition-colors ${noteColor(note.color)} ${grid ? '' : 'w-full'}`}
         >
             <div className="flex items-start gap-1.5">
@@ -64,7 +64,7 @@ function NoteCard({ note, folders, grid, t }: { note: Note; folders: Folder[]; g
                     </>
                 )}
             </div>
-        </button>
+        </Link>
     );
 }
 
@@ -156,7 +156,7 @@ export default function NotesIndex({ notes, folders }: { notes: Note[]; folders:
                 </div>
 
                 {/* Folder filter chips. */}
-                <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div data-scroll-x className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     {[{ id: ALL, name: t('notes.all_notes'), count: notes.length }, ...visibleFolders].map((f) => {
                         const on = String(f.id) === activeFolder;
                         const isReal = f.id !== ALL;

@@ -61,7 +61,7 @@ export default function RecipesIndex({ recipes }: { recipes: Card[] }) {
                 </div>
 
                 {tags.length > 0 && (
-                    <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    <div data-scroll-x className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                         {[ALL, ...tags].map((tg) => (
                             <button
                                 key={tg}

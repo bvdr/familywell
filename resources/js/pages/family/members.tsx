@@ -306,17 +306,19 @@ export default function Members({ family, members, invitations, canManage, palet
                                     const isOwner = m.id === family.owner_id;
                                     return (
                                         <TableRow key={m.id}>
-                                            <TableCell>
+                                            {/* w-full max-w-0: this cell takes whatever width the other columns leave and never
+                                                pushes the table wider than a phone screen; the name wraps, the email ellipsizes. */}
+                                            <TableCell className="w-full max-w-0 whitespace-normal">
                                                 <div className="flex items-center gap-3">
-                                                    <MemberAvatar userId={m.id} name={m.name} className="size-9 text-sm" />
-                                                    <div>
+                                                    <MemberAvatar userId={m.id} name={m.name} className="size-9 shrink-0 text-sm" />
+                                                    <div className="min-w-0">
                                                         <div className="text-primary font-medium">
                                                             {m.name}
                                                             {m.id === authId && (
                                                                 <span className="text-muted-foreground font-normal"> · {t('family.you_suffix')}</span>
                                                             )}
                                                         </div>
-                                                        <div className="text-muted-foreground text-xs sm:hidden">{m.email}</div>
+                                                        <div className="text-muted-foreground truncate text-xs sm:hidden">{m.email}</div>
                                                     </div>
                                                 </div>
                                             </TableCell>
