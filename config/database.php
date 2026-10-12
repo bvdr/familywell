@@ -95,6 +95,20 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => 'prefer',
+            // No named server-side prepared statements: required behind the PgBouncer *transaction*-mode
+            // pool (production web). pdo_pgsql normally PREPAREs every query under a per-PHP-connection
+            // name (pdo_stmt_00000001, ...), but the pool hands one server connection to many PHP
+            // connections, so names collide. pdo_pgsql ignores the resulting "already exists" (42P05),
+            // which inside a transaction has already aborted it: the next statement fails with SQLSTATE
+            // 25P02. That broke Google sign-up for a new user on 2026-10-12 (DB::transaction in
+            // SocialLogin::signIn); outside a transaction a reused name can even run another client's
+            // statement. DISABLE_PREPARES sends query + parameters in one unnamed-statement call
+            // (PQexecParams): parameters still travel separately (no SQL interpolation, same server-side
+            // typing as before), but nothing named is left on the server connection. Not emulated prepares:
+            // those inline values into the SQL and broke boolean comparisons (boolean = integer) across the
+            // app. Harmless on a direct connection (dev, CI). Reproduced + verified against a local PgBouncer.
+            // Guarded: the PGSQL_* constant only exists with pdo_pgsql loaded (a SQLite-only install has none).
+            'options' => extension_loaded('pdo_pgsql') ? [PDO::PGSQL_ATTR_DISABLE_PREPARES => true] : [],
         ],
 
         // Direct (non-pooled) Postgres, used for cache + session in production. The web service runs
