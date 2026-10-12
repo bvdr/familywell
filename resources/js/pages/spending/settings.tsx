@@ -1,6 +1,7 @@
 import { CategoryIcon } from '@/components/category-icon';
 import { IconPicker } from '@/components/icon-picker';
 import InputError from '@/components/input-error';
+import { Picker } from '@/components/picker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,7 +11,7 @@ import { catLabel as catLabelOf, categoryMap, type CategoryDef } from '@/lib/cat
 import { useT } from '@/lib/i18n';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
-import { Plus, Sparkles, Trash2 } from 'lucide-react';
+import { Banknote, Plus, Sparkles, Trash2 } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 // A category row carries its usage count so the UI can block deleting one that's still on spends.
@@ -169,20 +170,16 @@ export default function SpendingSettings({ currencies, defaultCurrency, categori
                         <h2 className="font-heading text-primary text-lg">{t('spending.default_currency')}</h2>
                         <p className="text-muted-foreground text-sm">{t('spending.default_currency_desc')}</p>
                     </div>
-                    <select
-                        value={currencyOpt.get('default', defaultCurrency ?? '')}
-                        onChange={(e) => setCurrency(e.target.value)}
-                        disabled={!canManage}
-                        className="border-border bg-surface-card text-primary w-full rounded-lg border px-3 py-2 text-base disabled:opacity-60 md:max-w-xs md:text-sm"
-                        aria-label={t('spending.default_currency')}
-                    >
-                        <option value="">{t('spending.currency_auto')}</option>
-                        {currencies.map((c) => (
-                            <option key={c} value={c}>
-                                {c}
-                            </option>
-                        ))}
-                    </select>
+                    <div className="md:max-w-xs">
+                        <Picker
+                            options={[{ value: '', label: t('spending.currency_auto') }, ...currencies.map((c) => ({ value: c, label: c }))]}
+                            selected={[currencyOpt.get('default', defaultCurrency ?? '')]}
+                            onChange={([c]) => c !== undefined && setCurrency(c)}
+                            disabled={!canManage}
+                            fallbackIcon={Banknote}
+                            ariaLabel={t('spending.default_currency')}
+                        />
+                    </div>
                 </div>
 
                 {/* Categories */}

@@ -1,16 +1,16 @@
 import { CategoryIcon } from '@/components/category-icon';
 import { DuplicateWarning } from '@/components/duplicate-warning';
+import { Picker } from '@/components/picker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import { catLabel, categoryMap, type CategoryDef } from '@/lib/categories';
 import { useT } from '@/lib/i18n';
 import { money, selectAllOnFocus } from '@/lib/money';
 import { Head, router, useForm } from '@inertiajs/react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Banknote, Pencil, Plus, Trash2, User } from 'lucide-react';
 import { FormEventHandler, useEffect, useMemo, useRef, useState } from 'react';
 
 type Guest = { id: number; name: string; role: 'viewer' | 'editor' };
@@ -414,19 +414,14 @@ function SpendForm({ token, me, event, editing, onClose }: { token: string; me: 
                         />
                     </div>
                     <div className="grid w-28 gap-1.5">
-                        <Label>{t('spending.currency')}</Label>
-                        <Select value={form.data.currency} onValueChange={(v) => form.setData('currency', v)}>
-                            <SelectTrigger>
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {event.currencies.map((c) => (
-                                    <SelectItem key={c} value={c}>
-                                        {c}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Label htmlFor="guest-currency">{t('spending.currency')}</Label>
+                        <Picker
+                            id="guest-currency"
+                            fallbackIcon={Banknote}
+                            options={event.currencies.map((c) => ({ value: c, label: c }))}
+                            selected={[form.data.currency]}
+                            onChange={([c]) => c && form.setData('currency', c)}
+                        />
                     </div>
                 </div>
 
@@ -551,19 +546,14 @@ function SettleForm({ token, me, event, others, onClose }: { token: string; me: 
                 </div>
 
                 <div className="grid gap-1.5">
-                    <Label>{paid ? t('spending.to') : t('spending.from')}</Label>
-                    <Select value={otherKey} onValueChange={setOtherKey}>
-                        <SelectTrigger>
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {others.map((o) => (
-                                <SelectItem key={o.id} value={o.id}>
-                                    {o.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <Label htmlFor="guest-counterparty">{paid ? t('spending.to') : t('spending.from')}</Label>
+                    <Picker
+                        id="guest-counterparty"
+                        fallbackIcon={User}
+                        options={others.map((o) => ({ value: o.id, label: o.name }))}
+                        selected={otherKey ? [otherKey] : []}
+                        onChange={([k]) => k && setOtherKey(k)}
+                    />
                 </div>
 
                 <div className="grid gap-1.5">

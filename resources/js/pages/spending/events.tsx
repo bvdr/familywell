@@ -1,7 +1,7 @@
 import { useAddAction } from '@/lib/add-action';
 import { openNewOnArrival } from '@/lib/create-intent';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { Archive, Camera, ChartLine, ChevronRight, Loader2, Plus, RotateCcw, Settings, Store, Tag, Wallet } from 'lucide-react';
+import { Archive, Banknote, Camera, ChartLine, ChevronRight, Loader2, Plus, RotateCcw, Settings, Store, Tag, User, Wallet } from 'lucide-react';
 import { FormEventHandler, useRef, useState } from 'react';
 
 import { useCategorySuggest } from '@/hooks/use-category-suggest';
@@ -21,7 +21,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { catColor, catIconName, catLabel, categoryMap, defaultCategoryKey, type CategoryDef } from '@/lib/categories';
@@ -395,7 +394,7 @@ export default function Events({
                     }
                 >
                     {/* The <form> holds no fields directly (inputs join via form="quick-spend"; the dropdowns
-                        stay outside) so Radix's hidden native <select>s don't break iOS's prev/next keys. */}
+                        stay outside) so the Pickers' search boxes don't break iOS's prev/next keys. */}
                     <form id="quick-spend" onSubmit={submitSpend} className="hidden" />
                     <div className="flex flex-col gap-3">
                         <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
@@ -416,19 +415,16 @@ export default function Events({
                                 <InputError message={spend.errors.amount} />
                             </div>
                             <div className="grid gap-2">
-                                <Label>{t('spending.currency')}</Label>
-                                <Select value={spend.data.currency} onValueChange={(v) => spend.setData('currency', v)}>
-                                    <SelectTrigger className="w-[92px]">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {currencies.map((c) => (
-                                            <SelectItem key={c} value={c}>
-                                                {c}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Label htmlFor="quick-currency">{t('spending.currency')}</Label>
+                                <div className="w-[120px]">
+                                    <Picker
+                                        id="quick-currency"
+                                        fallbackIcon={Banknote}
+                                        options={currencies.map((c) => ({ value: c, label: c }))}
+                                        selected={[spend.data.currency]}
+                                        onChange={([c]) => c && spend.setData('currency', c)}
+                                    />
+                                </div>
                             </div>
                         </div>
                         {/* Note right under the amount: with AI on, typing it fills the category below. */}
@@ -502,19 +498,14 @@ export default function Events({
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <div className="grid gap-2">
-                                <Label>{t('spending.paid_by_label')}</Label>
-                                <Select value={spend.data.payer_key} onValueChange={(v) => spend.setData('payer_key', v)}>
-                                    <SelectTrigger className="w-full">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {payers.map((m) => (
-                                            <SelectItem key={m.id} value={'u' + m.id}>
-                                                {m.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Label htmlFor="quick-payer">{t('spending.paid_by_label')}</Label>
+                                <Picker
+                                    id="quick-payer"
+                                    fallbackIcon={User}
+                                    options={payers.map((m) => ({ value: 'u' + m.id, label: m.name }))}
+                                    selected={[spend.data.payer_key]}
+                                    onChange={([k]) => k && spend.setData('payer_key', k)}
+                                />
                                 <InputError message={spend.errors.payer_key} />
                             </div>
                             <div className="grid gap-2">
@@ -632,19 +623,14 @@ export default function Events({
                                     </div>
                                 </div>
                                 <div className="grid gap-2">
-                                    <Label>{t('spending.home_currency')}</Label>
-                                    <Select value={data.currency} onValueChange={(v) => setData('currency', v)}>
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {currencies.map((c) => (
-                                                <SelectItem key={c} value={c}>
-                                                    {c}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <Label htmlFor="new-list-currency">{t('spending.home_currency')}</Label>
+                                    <Picker
+                                        id="new-list-currency"
+                                        fallbackIcon={Banknote}
+                                        options={currencies.map((c) => ({ value: c, label: c }))}
+                                        selected={[data.currency]}
+                                        onChange={([c]) => c && setData('currency', c)}
+                                    />
                                 </div>
                                 <div className="flex gap-2">
                                     <Button type="submit" disabled={processing}>
