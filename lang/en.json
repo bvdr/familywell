@@ -14,7 +14,10 @@
         "no_matches": "No matches",
         "choose_icon": "Choose icon",
         "none": "None",
-        "refine_search": "Keep typing to narrow the results"
+        "refine_search": "Keep typing to narrow the results",
+        "select": "Select…",
+        "add_named": "Add “:name”",
+        "remove_named": "Remove :name"
     },
     "nav": {
         "dashboard": "Dashboard",
