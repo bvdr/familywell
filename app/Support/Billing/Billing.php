@@ -6,6 +6,7 @@ use App\Models\Family;
 use App\Models\User;
 use App\Support\Analytics;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 /**
@@ -29,8 +30,25 @@ class Billing
 
     public static function hasAccess(Family $family): bool
     {
-        // The public demo must always open, and self-hosted installs never lock.
-        return ! self::enabled() || $family->is_demo || in_array($family->subscription_status, self::PAID, true);
+        // The public demo must always open, self-hosted installs never lock, and a comped family (lifetime
+        // VIP) has access whatever Stripe says: the Stripe paths never write access_override.
+        return ! self::enabled() || $family->is_demo || self::isLifetime($family)
+            || in_array($family->subscription_status, self::PAID, true);
+    }
+
+    public static function isLifetime(Family $family): bool
+    {
+        return $family->access_override === Family::LIFETIME;
+    }
+
+    /**
+     * Grant or revoke comped lifetime access. The one write path for the flag, shared by the admin API
+     * (admin.familywell.org's toggle) and `php artisan family:lifetime`, and logged for the audit trail.
+     */
+    public static function setLifetime(Family $family, bool $on, string $by): void
+    {
+        $family->forceFill(['access_override' => $on ? Family::LIFETIME : null])->save();
+        Log::info('billing: lifetime access '.($on ? 'granted' : 'revoked'), ['family_id' => $family->id, 'by' => $by]);
     }
 
     /** Stripe-hosted Checkout for one of the two plans. Returns the URL to redirect to. */

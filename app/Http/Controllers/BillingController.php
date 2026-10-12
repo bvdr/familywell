@@ -25,6 +25,8 @@ class BillingController extends Controller
         return Inertia::render('settings/billing', [
             'family' => ['name' => $family->name],
             'subscribed' => Billing::hasAccess($family),
+            // Comped by an admin: the page shows "Lifetime (VIP)" with no checkout or portal prompts.
+            'lifetime' => Billing::isLifetime($family),
             'status' => $family->subscription_status,
             'hasCustomer' => (bool) $family->stripe_customer_id,
             'canManage' => Gate::allows('manageBilling', $family),
@@ -36,6 +38,7 @@ class BillingController extends Controller
         $family = $this->family();
         $this->authorize('manageBilling', $family);
         $plan = $request->validate(['plan' => ['required', 'in:monthly,yearly']])['plan'];
+        abort_if(Billing::isLifetime($family), 409, 'This family has lifetime access.'); // never charge a comped family
 
         // Inertia::location: a full-page redirect off-site (Stripe's hosted Checkout), not an XHR visit.
         return Inertia::location(Billing::checkoutUrl($family, $request->user()->email, $plan));

@@ -22,6 +22,10 @@ class Family extends Model
 
     protected $casts = ['is_demo' => 'boolean'];
 
+    // Comped access ("Lifetime (VIP)"): `access_override`, like is_demo, is NOT fillable. Only the platform
+    // admin paths set it, through Billing::setLifetime().
+    public const LIFETIME = 'lifetime';
+
     public function members(): BelongsToMany
     {
         return $this->belongsToMany(User::class)
