@@ -9,5 +9,6 @@
     "type_task": "Task",
     "type_item": "Item",
     "type_expense": "Expense",
-    "type_note": "Note"
+    "type_note": "Note",
+    "type_transfer": "Payment"
 }

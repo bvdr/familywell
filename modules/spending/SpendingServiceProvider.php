@@ -34,6 +34,7 @@ class SpendingServiceProvider extends ServiceProvider
         // What this module shows in Settings > Recently deleted and its MCP trash tools.
         Trash::source('spending', SpendingTrash::class);
         Trash::register(Spend::class);
+        Trash::register(SpendSettlement::class); // deleted transfers, purged with the expenses
         // Opt spend events into the core sharing system (addressable as `spend_event` in share URLs).
         ShareableRegistry::register('spend_event', SpendEvent::class);
 
@@ -125,6 +126,8 @@ class SpendingServiceProvider extends ServiceProvider
                 // Type-ahead AI category suggestion (paid model call per request => throttled).
                 Route::post('/spends/suggest-category', [SpendingController::class, 'suggestCategory'])->middleware('throttle:60,1')->name('spends.suggest');
                 Route::post('/events/{event}/settle', [SpendingController::class, 'settle'])->name('settle');
+                Route::patch('/transfers/{settlement}', [SpendingController::class, 'updateTransfer'])->whereNumber('settlement')->name('transfers.update');
+                Route::delete('/transfers/{settlement}', [SpendingController::class, 'destroyTransfer'])->whereNumber('settlement')->name('transfers.destroy');
                 Route::patch('/spends/{spend}', [SpendingController::class, 'updateSpend'])->name('spends.update');
                 Route::post('/spends/{spend}/duplicate', [SpendingController::class, 'duplicateSpend'])->name('spends.duplicate');
                 Route::post('/spends/{spend}/move', [SpendingController::class, 'moveSpend'])->name('spends.move');

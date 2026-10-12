@@ -9,5 +9,6 @@
     "type_task": "Sarcină",
     "type_item": "Produs",
     "type_expense": "Cheltuială",
-    "type_note": "Notiță"
+    "type_note": "Notiță",
+    "type_transfer": "Plată"
 }

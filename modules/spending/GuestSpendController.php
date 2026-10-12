@@ -76,6 +76,10 @@ class GuestSpendController extends Controller
 
         $myKey = 'g'.$guest->id;
         abort_unless($data['from_key'] === $myKey || $data['to_key'] === $myKey, 403, 'You can only record a payment involving yourself.');
+        // Same soft "already recorded?" warning as the member form (SpendSettlement::looksDuplicate).
+        if (! $request->boolean('add_anyway') && SpendSettlement::looksDuplicate($event, $data['from_key'], $data['to_key'], (int) $data['amount'])) {
+            throw ValidationException::withMessages(['add_anyway' => Translations::get('spending.transfer_duplicate_warning')]);
+        }
 
         $event->settlements()->create([
             'from_key' => $data['from_key'],

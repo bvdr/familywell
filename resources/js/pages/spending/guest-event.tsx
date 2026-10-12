@@ -119,7 +119,8 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
         settledOpt.set(key, true);
         router.post(
             `/m/spending/guest/${token}/settle`,
-            { guest_id: me.id, from_key: s.from.id, to_key: s.to.id, amount: s.amount },
+            // add_anyway: a suggestion is the outstanding balance, never the duplicate the server check guards against.
+            { guest_id: me.id, from_key: s.from.id, to_key: s.to.id, amount: s.amount, add_anyway: true },
             { preserveScroll: true, preserveState: true, onSuccess: () => settledOpt.clear(key), onError: () => settledOpt.clear(key) },
         );
     };
@@ -487,17 +488,22 @@ function SettleForm({ token, me, event, others, onClose }: { token: string; me: 
     const myKey = `g${me.id}`;
     const [paid, setPaid] = useState(true); // true = I paid them; false = they paid me
     const [otherKey, setOtherKey] = useState(others[0]?.id ?? '');
-    const form = useForm({ guest_id: me.id, from_key: '', to_key: '', amount: '', note: '' });
+    const form = useForm({ guest_id: me.id, from_key: '', to_key: '', amount: '', note: '', add_anyway: false });
 
-    const submit: FormEventHandler = (e) => {
-        e.preventDefault();
+    // addAnyway: the guest confirmed the server's "already recorded?" warning (errors.add_anyway).
+    const send = (addAnyway = false) => {
         form.transform((d) => ({
             ...d,
             from_key: paid ? myKey : otherKey,
             to_key: paid ? otherKey : myKey,
             amount: Math.round(Number(d.amount) * 100),
+            add_anyway: addAnyway,
         }));
         form.post(`/m/spending/guest/${token}/settle`, { preserveScroll: true, onSuccess: onClose });
+    };
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
+        send();
     };
 
     const valid = !!otherKey && Number(form.data.amount) > 0;
@@ -508,9 +514,21 @@ function SettleForm({ token, me, event, others, onClose }: { token: string; me: 
             onOpenChange={(v) => !v && onClose()}
             title={t('spending.record_payment')}
             footer={
-                <Button type="submit" form="guest-settle-form" disabled={!valid || form.processing} className="w-full">
-                    {form.processing ? t('spending.saving') : t('common.save')}
-                </Button>
+                <div className="flex flex-col gap-2">
+                    {form.errors.add_anyway && (
+                        <DuplicateWarning message={form.errors.add_anyway}>
+                            <Button type="button" size="sm" onClick={() => send(true)} disabled={form.processing}>
+                                {t('spending.record_anyway')}
+                            </Button>
+                            <Button type="button" size="sm" variant="ghost" onClick={onClose}>
+                                {t('common.cancel')}
+                            </Button>
+                        </DuplicateWarning>
+                    )}
+                    <Button type="submit" form="guest-settle-form" disabled={!valid || form.processing} className="w-full">
+                        {form.processing ? t('spending.saving') : t('common.save')}
+                    </Button>
+                </div>
             }
         >
             <form id="guest-settle-form" onSubmit={submit} className="hidden" />

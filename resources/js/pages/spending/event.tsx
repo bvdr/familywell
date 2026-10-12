@@ -105,7 +105,8 @@ const sourceTypeLabel = (t: TFn, type: string) => t(SOURCE_TYPE_META.find((s) =>
 type Balance = { id: string; name: string; net: number };
 type Suggestion = { from: { id: string; name: string }; to: { id: string; name: string }; amount: number };
 type Participant = { key: string; name: string; kind: 'member' | 'guest'; weight: number; coveredBy: string | null };
-type Transfer = { id: number; from: string; to: string; amount: number; date: string; note: string | null };
+// fromKey/toKey are participant keys (u{id}/g{id}) to prefill the edit drawer; from/to are display names.
+type Transfer = { id: number; from: string; to: string; fromKey: string; toKey: string; amount: number; date: string; note: string | null };
 // Personal breakdown for the viewer (base cents). null when the viewer isn't a participant.
 type MySummary = { paid: number; share: number; sent: number; received: number; net: number } | null;
 
@@ -671,7 +672,8 @@ export default function Event({
         settledOpt.set(key, true); // hide the suggestion now; reappears only if the settle fails
         router.post(
             route('spending.settle', event.id),
-            { from_key: s.from.id, to_key: s.to.id, amount: s.amount },
+            // add_anyway: a suggestion is the outstanding balance, so it can't be the duplicate the check guards against.
+            { from_key: s.from.id, to_key: s.to.id, amount: s.amount, add_anyway: true },
             { preserveScroll: true, preserveState: true, onSuccess: () => settledOpt.clear(key), onError: () => settledOpt.clear(key) },
         );
     };
@@ -715,25 +717,56 @@ export default function Event({
     // Record a transfer (settle-up payment) straight from the Transfers tab. from/to are participant
     // keys (members or guests); amounts are in the event's currency. Optional note shown in the list.
     const [recording, setRecording] = useState(false);
-    const transferForm = useForm({ from_key: '', to_key: '', amount: '', note: '' });
+    const [editingTransfer, setEditingTransfer] = useState<number | null>(null); // null = recording a new one
+    // add_anyway: a form field (as in the expense form) so errors.add_anyway is typed; transform sets it.
+    const transferForm = useForm({ from_key: '', to_key: '', amount: '', note: '', add_anyway: false });
     const transferValid =
         !!transferForm.data.from_key &&
         !!transferForm.data.to_key &&
         transferForm.data.from_key !== transferForm.data.to_key &&
         Number(transferForm.data.amount) > 0;
-    const recordTransfer = () => {
+    const removedTransfers = useOptimistic<boolean>();
+    const visibleTransfers = transfers.filter((tr) => !removedTransfers.get(tr.id, false));
+    const openRecord = () => {
+        transferForm.reset();
+        transferForm.clearErrors();
+        setEditingTransfer(null);
+        setRecording(true);
+    };
+    const startEditTransfer = (tr: Transfer) => {
+        transferForm.clearErrors();
+        transferForm.setData({ from_key: tr.fromKey, to_key: tr.toKey, amount: String(tr.amount / 100), note: tr.note ?? '', add_anyway: false });
+        setEditingTransfer(tr.id);
+        setRecording(true);
+    };
+    const closeTransfer = () => {
+        setRecording(false);
+        setEditingTransfer(null);
+        transferForm.reset();
+        transferForm.clearErrors(); // else a duplicate warning would greet the next open
+    };
+    // addAnyway: the user confirmed the server's "already recorded?" warning (errors.add_anyway).
+    const recordTransfer = (addAnyway = false) => {
         transferForm.transform((d) => ({
             from_key: d.from_key,
             to_key: d.to_key,
             amount: Math.round(Number(d.amount) * 100),
             note: d.note,
+            add_anyway: addAnyway,
         }));
-        transferForm.post(route('spending.settle', event.id), {
+        const opts = { preserveScroll: true, onSuccess: closeTransfer };
+        if (editingTransfer) transferForm.patch(route('spending.transfers.update', editingTransfer), opts);
+        else transferForm.post(route('spending.settle', event.id), opts);
+    };
+    // Delete goes to the 30-day trash (Settings > Recently deleted), so it's reversible; the row hides now.
+    const deleteTransfer = (id: number) => {
+        if (!confirm(t('spending.confirm_delete_transfer'))) return;
+        closeTransfer();
+        removedTransfers.set(id, true);
+        router.delete(route('spending.transfers.destroy', id), {
             preserveScroll: true,
-            onSuccess: () => {
-                setRecording(false);
-                transferForm.reset();
-            },
+            preserveState: true,
+            onError: () => removedTransfers.clear(id),
         });
     };
 
@@ -809,8 +842,8 @@ export default function Event({
                                         }`}
                                     >
                                         {t(tabItem.labelKey)}
-                                        {tabItem.key === 'transfers' && transfers.length > 0 && (
-                                            <span className="text-muted-foreground ml-1 tabular-nums">{transfers.length}</span>
+                                        {tabItem.key === 'transfers' && visibleTransfers.length > 0 && (
+                                            <span className="text-muted-foreground ml-1 tabular-nums">{visibleTransfers.length}</span>
                                         )}
                                         {active && <span className="bg-accent-strong absolute inset-x-3 -bottom-px h-0.5 rounded-full" />}
                                     </button>
@@ -892,18 +925,41 @@ export default function Event({
                         {/* Record a payment (settle-up) — keyboard-safe drawer. From/to are members. */}
                         <ResponsiveModal
                             open={recording}
-                            onOpenChange={(o) => !o && setRecording(false)}
-                            title={t('spending.record_payment')}
+                            onOpenChange={(o) => !o && closeTransfer()}
+                            title={t(editingTransfer ? 'spending.edit_transfer' : 'spending.record_payment')}
                             description={t('spending.record_payment_desc')}
                             footer={
-                                <Button
-                                    type="button"
-                                    onClick={recordTransfer}
-                                    disabled={transferForm.processing || !transferValid}
-                                    className="w-full"
-                                >
-                                    {t('common.save')}
-                                </Button>
+                                <div className="flex flex-col gap-2">
+                                    {/* Soft "already recorded?" warning from the server; Record anyway re-posts. */}
+                                    {transferForm.errors.add_anyway && (
+                                        <DuplicateWarning message={transferForm.errors.add_anyway}>
+                                            <Button type="button" size="sm" onClick={() => recordTransfer(true)} disabled={transferForm.processing}>
+                                                {t('spending.record_anyway')}
+                                            </Button>
+                                            <Button type="button" size="sm" variant="ghost" onClick={closeTransfer}>
+                                                {t('common.cancel')}
+                                            </Button>
+                                        </DuplicateWarning>
+                                    )}
+                                    {editingTransfer && (
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            className="text-destructive w-full"
+                                            onClick={() => deleteTransfer(editingTransfer)}
+                                        >
+                                            <Trash2 className="size-4" /> {t('spending.delete_transfer')}
+                                        </Button>
+                                    )}
+                                    <Button
+                                        type="button"
+                                        onClick={() => recordTransfer()}
+                                        disabled={transferForm.processing || !transferValid}
+                                        className="w-full"
+                                    >
+                                        {t('common.save')}
+                                    </Button>
+                                </div>
                             }
                         >
                             <div className="flex flex-col gap-4 pt-1">
@@ -983,29 +1039,31 @@ export default function Event({
                                     {participants.length >= 2 && (
                                         <button
                                             type="button"
-                                            onClick={() => setRecording(true)}
+                                            onClick={openRecord}
                                             className="text-primary flex items-center gap-1 text-sm font-medium"
                                         >
                                             <Plus className="size-4" /> {t('spending.record')}
                                         </button>
                                     )}
                                 </div>
-                                {transfers.length === 0 && (
+                                {visibleTransfers.length === 0 && (
                                     <div className="bg-surface-card text-muted-foreground rounded-xl border p-6 text-center text-sm">
                                         {t('spending.no_transfers_yet')}
                                         {participants.length >= 2 && (
-                                            <button
-                                                type="button"
-                                                onClick={() => setRecording(true)}
-                                                className="text-primary ml-1 font-medium underline"
-                                            >
+                                            <button type="button" onClick={openRecord} className="text-primary ml-1 font-medium underline">
                                                 {t('spending.record_payment')}
                                             </button>
                                         )}
                                     </div>
                                 )}
-                                {transfers.map((tr) => (
-                                    <div key={tr.id} className="bg-surface-card flex items-center gap-3 rounded-xl border p-3">
+                                {visibleTransfers.map((tr) => (
+                                    // Tap to edit (the drawer also holds Delete), like an expense row.
+                                    <button
+                                        key={tr.id}
+                                        type="button"
+                                        onClick={() => startEditTransfer(tr)}
+                                        className="bg-surface-card flex w-full items-center gap-3 rounded-xl border p-3 text-left"
+                                    >
                                         <div className="flex shrink-0 items-center gap-1">
                                             <PersonAvatar name={tr.from} className="size-8 text-xs" />
                                             <ArrowRight className="text-muted-foreground size-4" />
@@ -1019,7 +1077,7 @@ export default function Event({
                                             <div className="text-muted-foreground text-xs">{dayLabel(t, tr.date)}</div>
                                         </div>
                                         <span className="text-primary font-mono text-sm font-semibold tabular-nums">{fmt(tr.amount)}</span>
-                                    </div>
+                                    </button>
                                 ))}
                             </section>
                         )}
