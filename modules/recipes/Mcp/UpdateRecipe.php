@@ -8,10 +8,12 @@ use Illuminate\Support\Facades\Validator;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
+use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
 use Modules\Recipes\Recipe;
 
 #[IsIdempotent]
+#[IsDestructive]
 class UpdateRecipe extends Tool
 {
     protected string $module = 'recipes';

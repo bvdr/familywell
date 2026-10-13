@@ -44,8 +44,8 @@ return new class extends Migration
             });
             // Best-effort: only 'u{id}' keys map back to user ids; guest rows can't and are left null.
             DB::table('spending_settlements')->where('from_key', 'like', 'u%')->update([
-                'from_user_id' => DB::raw("cast(substring(from_key from 2) as integer)"),
-                'to_user_id' => DB::raw("cast(substring(to_key from 2) as integer)"),
+                'from_user_id' => DB::raw('cast(substring(from_key from 2) as integer)'),
+                'to_user_id' => DB::raw('cast(substring(to_key from 2) as integer)'),
             ]);
         }
         if (Schema::hasColumn('spending_settlements', 'from_key')) {

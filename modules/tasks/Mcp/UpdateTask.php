@@ -9,10 +9,12 @@ use Illuminate\Validation\Rule;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
+use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
 use Modules\Notifications\Notify;
 
 #[IsIdempotent]
+#[IsDestructive]
 class UpdateTask extends Tool
 {
     protected string $module = 'tasks';

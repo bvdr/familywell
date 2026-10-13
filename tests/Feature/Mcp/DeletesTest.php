@@ -80,6 +80,25 @@ it('deletes a whole car with its files, and the delete tools are marked destruct
         ->and($tools['vehicles_delete_record']['annotations']['destructiveHint'] ?? null)->toBeTrue();
 });
 
+it('gives every tool a title, readOnlyHint, openWorldHint and (for writes) destructiveHint, as the Claude directory asks', function () {
+    [, , $token] = deleteToken(['vehicles', 'notes']);
+    $tools = collect(mcpCall($token, 'tools/list')->json('result.tools'))->keyBy('name');
+
+    foreach ($tools as $name => $tool) {
+        $a = $tool['annotations'];
+        expect($a['title'] ?? '')->not->toBe('', $name)
+            ->and($a)->toHaveKeys(['readOnlyHint', 'openWorldHint']);
+        if (! $a['readOnlyHint']) {
+            expect($a)->toHaveKey('destructiveHint');
+        }
+    }
+    expect($tools['notes_list']['annotations']['readOnlyHint'])->toBeTrue()
+        ->and($tools['notes_create']['annotations'])->toMatchArray(['title' => 'Create Note', 'readOnlyHint' => false, 'destructiveHint' => false, 'openWorldHint' => false])
+        ->and($tools['notes_update']['annotations']['destructiveHint'])->toBeTrue()
+        ->and($tools['notes_delete']['annotations']['destructiveHint'])->toBeTrue()
+        ->and($tools['vehicles_add_document']['annotations']['openWorldHint'])->toBeTrue();
+});
+
 it('deletes contacts (with their birthday), birthdays and inventory items', function () {
     [, , $token] = deleteToken(['contacts', 'birthdays', 'inventory']);
     [, $b] = mcpTool($token, 'birthdays_add', ['name' => 'Ana', 'birth_day' => 3, 'birth_month' => 10]);

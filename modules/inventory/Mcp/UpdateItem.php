@@ -7,10 +7,12 @@ use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
+use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
 use Modules\Inventory\InventoryItem;
 
 #[IsIdempotent]
+#[IsDestructive]
 class UpdateItem extends Tool
 {
     protected string $module = 'inventory';

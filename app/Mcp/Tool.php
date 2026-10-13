@@ -65,6 +65,25 @@ abstract class Tool extends BaseTool
         return parent::toArray();
     }
 
+    /**
+     * Every tool states title, readOnlyHint, openWorldHint and (for writes) destructiveHint explicitly:
+     * the Claude directory review flags tools that leave them out, and MCP's unset defaults are the worst
+     * case (readOnly false, destructive TRUE, openWorld TRUE). Attributes on a tool still win:
+     * - #[IsDestructive]: per the spec, anything that is not "only additive", so deletes AND updates that
+     *   overwrite/clear fields, replace a file, unlink or move. Plain create/add/log/restore stay false.
+     * - #[IsOpenWorld]: only the tools that fetch an arbitrary public `file_url`; everything else only
+     *   touches this family's own data (TypeSafe guesses are internal enrichment, not the open world).
+     */
+    public function annotations(): array
+    {
+        $annotations = parent::annotations();
+        $readOnly = $annotations['readOnlyHint'] ?? false;
+
+        return $annotations
+            + ['title' => $this->title(), 'readOnlyHint' => $readOnly, 'openWorldHint' => false]
+            + ($readOnly ? [] : ['destructiveHint' => false]);
+    }
+
     protected function user(): User
     {
         return auth()->user();
