@@ -5,6 +5,7 @@ namespace App\Support\Mcp;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Laravel\Mcp\Request;
 use Psr\Http\Message\UriInterface;
@@ -27,6 +28,11 @@ class IncomingFile
     /** Put on a tool as `protected ?array $meta = IncomingFile::FILE_PARAMS_META;` so ChatGPT passes files. */
     public const FILE_PARAMS_META = ['openai/fileParams' => ['file']];
 
+    /** What a model is told when it passed a `file` we can't read (see from()). */
+    public const UNREADABLE = 'The attached file did not come through: only ChatGPT can hand a chat attachment to Familywell (as `file`). '
+        .'Pass the image as file_url (a public https link) or file_base64 + file_name instead. If you have neither, '
+        .'save without it and give the person the Familywell link (`url`) to add the file there.';
+
     /** Sniffed MIME => extension, the document/receipt types the app already accepts. */
     public const DOCUMENTS = [
         'application/pdf' => 'pdf', 'image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/heic' => 'heic',
@@ -42,20 +48,75 @@ class IncomingFile
                 'download_url' => $schema->string(),
                 'file_id' => $schema->string(),
                 'file_name' => $schema->string(),
-            ])->description('A file the person attached in the conversation (ChatGPT passes it here).'),
-            'file_url' => $schema->string()->description('Or: a public https URL to download the file from.'),
-            'file_base64' => $schema->string()->description('Or: the file content, base64-encoded (needs file_name).'),
+            ])->description('ChatGPT only: a file the person attached in the chat (ChatGPT fills this in itself). Other assistants (Claude, ...) cannot pass chat attachments here: leave it out and use file_url or file_base64.'),
+            'file_url' => $schema->string()->description('Or: a public https URL to download the file from (e.g. the image on the recipe\'s web page).'),
+            'file_base64' => $schema->string()->description('Or: the file content, base64-encoded (needs file_name). Only if you actually have the bytes (e.g. a local file in Claude Code); you cannot base64 an image you can only see.'),
             'file_name' => $schema->string()->description('File name, e.g. "deviz.pdf" (used with file_base64 or file_url).'),
         ];
     }
 
-    /** The file passed to this tool call, or null when none was. Throws a ValidationException on a bad one. */
+    /**
+     * The file passed to this tool call, or null when NONE was. Throws a ValidationException on a bad one.
+     * A file that was given but can't be read is always an error, never silently dropped: Claude has no way
+     * to pass a chat attachment, so it filled `file` with things like a file name or {file_id} and the
+     * recipe was saved without its photo and without a word (2026-10-13). The error tells the model what works.
+     */
     public static function from(Request $request, array $types = self::DOCUMENTS, int $maxBytes = self::MAX_BYTES): ?UploadedFile
     {
+        // One structured line per call, so a missing photo is diagnosable from the logs: WHICH shape arrived
+        // and what became of it. Never the content: only keys, the URL host, lengths, the sniffed type.
+        $log = self::shape($request);
+        try {
+            $upload = self::read($request, $types, $maxBytes);
+            Log::info('mcp.file', $log + ['outcome' => $upload ? 'ok' : 'none', 'mime' => $upload?->getMimeType(), 'bytes' => $upload?->getSize()]);
+
+            return $upload;
+        } catch (ValidationException $e) {
+            Log::info('mcp.file', $log + ['outcome' => 'error', 'error' => $e->getMessage()]);
+            throw $e;
+        }
+    }
+
+    /** What the call carried, without its content (see from()). */
+    private static function shape(Request $request): array
+    {
         $file = $request->get('file');
-        $url = is_array($file) ? ($file['download_url'] ?? null) : $request->get('file_url');
+        $url = is_array($file) ? ($file['download_url'] ?? null) : (is_string($file) ? $file : $request->get('file_url'));
+        $b64 = $request->get('file_base64');
+
+        return [
+            'tool' => request()->input('params.name'),
+            'user_id' => auth()->id(),
+            'file' => match (true) {
+                is_array($file) => 'object:'.implode(',', array_keys($file)),
+                is_string($file) => 'string:'.strlen($file),
+                default => $file === null ? null : gettype($file),
+            },
+            'url_host' => is_string($url) ? parse_url($url, PHP_URL_HOST) : null,
+            'url_param' => filled($request->get('file_url')),
+            'base64_length' => is_string($b64) ? strlen($b64) : null,
+            'file_name' => filled($request->get('file_name')) || (is_array($file) && filled($file['file_name'] ?? null)),
+        ];
+    }
+
+    private static function read(Request $request, array $types, int $maxBytes): ?UploadedFile
+    {
+        $file = $request->get('file');
+        $url = $request->get('file_url');
+        if (filled($file)) {
+            // ChatGPT's {download_url}; a bare https URL in `file` is accepted too. Anything else is unreadable.
+            $url = match (true) {
+                is_array($file) && filled($file['download_url'] ?? null) => $file['download_url'],
+                is_string($file) && str_starts_with($file, 'https://') => $file,
+                default => self::fail(self::UNREADABLE),
+            };
+        }
         $name = (is_array($file) ? ($file['file_name'] ?? null) : null) ?? $request->get('file_name');
         $b64 = $request->get('file_base64');
+        // A data URI ("data:image/jpeg;base64,...") is a common way to hand over bytes: take the payload.
+        if (is_string($b64) && preg_match('/^data:[\w.+\/-]*;base64,/', $b64, $m)) {
+            $b64 = substr($b64, strlen($m[0]));
+        }
 
         if ($url) {
             $bytes = self::download((string) $url, $maxBytes);

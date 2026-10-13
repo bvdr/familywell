@@ -19,7 +19,7 @@ class AddDocument extends Tool
 
     protected string $name = 'vehicles_add_document';
 
-    protected string $description = 'Add a document to a car (insurance, inspection, road tax, invoice, manual...), optionally with an expiry date (used for renewal reminders) and the file itself (PDF or image, up to 12 MB). Pass the file as `file` (a file the person attached), `file_url` (public https), or `file_base64` + `file_name`. If you cannot pass the file, add the document without it and give the person the returned url to upload it there.';
+    protected string $description = 'Add a document to a car (insurance, inspection, road tax, invoice, manual...), optionally with an expiry date (used for renewal reminders) and the file itself (PDF or image, up to 12 MB). Pass the file as `file` (ChatGPT only: a file the person attached), `file_url` (public https), or `file_base64` + `file_name`. If you cannot pass the file, add the document without it and give the person the returned url to upload it there.';
 
     public function __construct()
     {

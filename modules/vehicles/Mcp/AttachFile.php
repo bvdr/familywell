@@ -17,7 +17,7 @@ class AttachFile extends Tool
 
     protected string $name = 'vehicles_attach_file';
 
-    protected string $description = 'Attach a file (PDF or image, up to 12 MB) to an existing repair (adds it to the repair\'s attachments) or document (replaces its file). Ids come from vehicles_add_repair / vehicles_add_document / vehicles_get (document_id) / vehicles_history ("repair-12" means repair 12). For a service invoice, use vehicles_add_document with type service_invoice. Pass the file as `file` (a file the person attached), `file_url` (public https), or `file_base64` + `file_name`.';
+    protected string $description = 'Attach a file (PDF or image, up to 12 MB) to an existing repair (adds it to the repair\'s attachments) or document (replaces its file). Ids come from vehicles_add_repair / vehicles_add_document / vehicles_get (document_id) / vehicles_history ("repair-12" means repair 12). For a service invoice, use vehicles_add_document with type service_invoice. Pass the file as `file` (ChatGPT only: a file the person attached), `file_url` (public https), or `file_base64` + `file_name`.';
 
     public function __construct()
     {

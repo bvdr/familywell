@@ -464,3 +464,6 @@ input[type='checkbox']:disabled {
     padding: 10px;
     color: var(--fw-muted);
 }
+.head .rec-hero {
+    margin: 2px 0 10px;
+}
