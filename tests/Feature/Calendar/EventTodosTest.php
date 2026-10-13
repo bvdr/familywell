@@ -27,7 +27,7 @@ it('adds, nests, ticks and deletes to-dos on an event', function () {
 
     actingAs($users[0])->delete("/m/calendar/tasks/{$pack->id}")->assertRedirect();
     $this->assertSoftDeleted('tasks_tasks', ['id' => $pack->id]);
-    expect($e->fresh()->taskIds())->toBe([]);
+    expect($e->fresh()->taskIds())->toBe([$pack->id]); // link kept so a restore puts it back on the event
 });
 
 it('trashes and restores to-dos with their event', function () {

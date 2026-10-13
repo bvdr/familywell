@@ -22,7 +22,7 @@ class ListDeleted extends Tool
 
     protected string $name = 'calendar_list_deleted';
 
-    protected string $description = 'Calendar events in the trash that this person can see, newest first, with the date each will be removed for good.';
+    protected string $description = 'Calendar events and to-dos in the trash that this person can see, newest first, with the date each will be removed for good.';
 
     public function schema(JsonSchema $schema): array
     {

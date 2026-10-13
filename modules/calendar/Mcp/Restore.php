@@ -19,17 +19,21 @@ class Restore extends Tool
 
     protected string $name = 'calendar_restore';
 
-    protected string $description = 'Bring a calendar event back from the trash, with its to-dos.';
+    protected string $description = 'Bring a calendar event (with the to-dos deleted with it) or a single to-do back from the trash. Ids and types come from calendar_list_deleted.';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['id' => $schema->integer()->required()->description('Event id from calendar_list_deleted.')];
+        return [
+            'id' => $schema->integer()->required()->description('Id from calendar_list_deleted.'),
+            'type' => $schema->string()->enum(['calendar_event', 'todo'])->description('The entry\'s type from calendar_list_deleted (default calendar_event).'),
+        ];
     }
 
     public function handle(Request $request): Response|ResponseFactory
     {
-        $id = (int) $request->validate(['id' => ['required', 'integer']])['id'];
-        $path = CalendarTrash::restore($this->user(), 'calendar_event', $id);
+        $data = $request->validate(['id' => ['required', 'integer'], 'type' => ['nullable', 'in:calendar_event,todo']]);
+        $id = (int) $data['id'];
+        $path = CalendarTrash::restore($this->user(), $data['type'] ?? 'calendar_event', $id);
         if (! $path) {
             return Response::error('Not found in the trash (it may have been restored already or removed for good).');
         }
