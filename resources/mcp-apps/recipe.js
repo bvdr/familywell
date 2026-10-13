@@ -181,10 +181,9 @@ function recDetail(r) {
         );
     } else if (scalable.length) {
         const cur = REC_target?.type === 'ingredient' ? REC_target : { index: scalable[0].i, amount: '', unit: scalable[0].ing.unit || '' };
-        const pick = h(
-            'select',
-            { class: 'rec-pick', 'aria-label': 'Ingredient' },
-            scalable.map(({ ing, i }) => h('option', { value: String(i), selected: i === cur.index }, ing.name)),
+        const pick = FW.picker(
+            scalable.map(({ ing, i }) => ({ value: i, label: ing.name })),
+            { value: cur.index, label: 'Ingredient' },
         );
         const amount = h('input', {
             type: 'text',
@@ -231,10 +230,9 @@ function recDetail(r) {
     // Add to shopping (only when this connection may write to Shopping: the tool sends the lists).
     let shop = null;
     if (r.shopping_lists?.length) {
-        const list = h(
-            'select',
-            { class: 'rec-pick', 'aria-label': 'Shopping list' },
-            r.shopping_lists.map((l) => h('option', { value: String(l.id) }, l.name)),
+        const list = FW.picker(
+            r.shopping_lists.map((l) => ({ value: l.id, label: l.name })),
+            { label: 'Shopping list' },
         );
         const btn = h('button', { class: 'btn', type: 'button' }, 'Add to list');
         btn.addEventListener('click', async () => {
