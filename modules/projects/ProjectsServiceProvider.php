@@ -10,6 +10,7 @@ use App\Support\Mcp\McpTools;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Trash\Trash;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\Notifications\NotificationCategories;
@@ -26,13 +27,19 @@ class ProjectsServiceProvider extends ServiceProvider
 
         // MCP: tools an AI assistant can use on this module, gated by the `projects:read` /
         // `projects:write` scopes the person grants on the consent screen (see docs/mcp.md).
-        // projects_delete is permanent (projects have no trash), so it is marked destructive and asks the
-        // assistant to confirm with the person first. Deleted project tasks go to the trash like any task.
+        // Deleted projects and project tasks go to the 30-day trash (projects_list_deleted / projects_restore).
         McpTools::register('projects', 'Projects', [
             Mcp\ListProjects::class, Mcp\GetProject::class,
             Mcp\CreateProject::class, Mcp\UpdateProject::class,
             Mcp\AddTask::class, Mcp\UpdateTask::class, Mcp\DeleteTask::class, Mcp\DeleteProject::class,
-            Mcp\LinkItem::class, Mcp\UnlinkItem::class, ]);
+            Mcp\LinkItem::class, Mcp\UnlinkItem::class, Mcp\ListDeleted::class, Mcp\Restore::class, ]);
+
+        // 30-day trash: deleted projects + project tasks in Settings > Recently deleted (ProjectsTrash).
+        Trash::source('projects', ProjectsTrash::class);
+        Trash::register(Project::class);
+        // A trashed project task keeps its link so it can be restored into the project; drop the link once
+        // trash:purge erases the task for good (links have no FK to tasks_tasks).
+        Task::forceDeleted(fn (Task $t) => ProjectLink::withoutGlobalScopes()->where(['linkable_type' => 'task', 'linkable_id' => $t->id])->delete());
 
         // "Pick up where you left off": projects this user opened in the last few days, tagged with
         // when so the dashboard can order them across modules. Respects visibility.

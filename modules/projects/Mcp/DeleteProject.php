@@ -18,7 +18,7 @@ class DeleteProject extends Tool
 
     protected string $name = 'projects_delete';
 
-    protected string $description = 'Delete a whole project. Only the person who created it can. Linked shopping lists are not deleted. This is permanent and cannot be undone (these records have no trash): confirm with the person before calling it.';
+    protected string $description = 'Move a whole project and its tasks to the trash (restorable for 30 days with projects_restore). Only the person who created it can. Linked shopping and spending lists are not deleted.';
 
     public function schema(JsonSchema $schema): array
     {

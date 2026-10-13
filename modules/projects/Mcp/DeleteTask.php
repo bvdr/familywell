@@ -9,10 +9,8 @@ use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 
-// Same path as ProjectsController::destroyTask (Project::deleteTask): the task is soft-deleted and its
-// project link removed. TasksTrash only lists tasks that live in a to-do list, so a project task cannot be
-// restored from Settings > Recently deleted today; the description says so instead of promising a restore.
-// Whole projects are hard-deleted in the app, so there is deliberately no projects_delete tool.
+// Same path as ProjectsController::destroyTask (Project::deleteTask): the task goes to the trash and keeps
+// its project link, so projects_restore / Settings > Recently deleted put it back in the project.
 #[IsDestructive]
 class DeleteTask extends Tool
 {
@@ -22,7 +20,7 @@ class DeleteTask extends Tool
 
     protected string $name = 'projects_delete_task';
 
-    protected string $description = 'Delete a project task and its sub-tasks, as the Delete button in the app does. It cannot be restored from Recently deleted, so confirm with the person first.';
+    protected string $description = 'Move a project task and its sub-tasks to the trash, as the Delete button in the app does (restorable for 30 days with projects_restore).';
 
     public function schema(JsonSchema $schema): array
     {

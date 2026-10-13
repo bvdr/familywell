@@ -67,6 +67,51 @@ it('updates a project and a task, and deletes a task', function () {
     [, $del] = mcpTool($token, 'projects_delete_task', ['task_id' => $t['id']]);
     expect($del['deleted'])->toBeTrue();
     $this->assertSoftDeleted('tasks_tasks', ['id' => $t['id']]);
+    $this->assertDatabaseHas('projects_links', ['linkable_type' => 'task', 'linkable_id' => $t['id']]); // kept for the restore
+});
+
+it('trashes a project with its tasks and restores them; a task deleted on its own comes back alone', function () {
+    [, , $token] = projectsToken();
+    [, $p] = mcpTool($token, 'projects_create', ['name' => 'Garage']);
+    [, $keep] = mcpTool($token, 'projects_add_task', ['project_id' => $p['id'], 'title' => 'Clear shelves']);
+    [, $sub] = mcpTool($token, 'projects_add_task', ['project_id' => $p['id'], 'title' => 'Bin bags', 'parent_id' => $keep['id']]);
+    [, $gone] = mcpTool($token, 'projects_add_task', ['project_id' => $p['id'], 'title' => 'Paint']);
+
+    // A sub-task deleted on its own is listed under its project, and restores into it.
+    mcpTool($token, 'projects_delete_task', ['task_id' => $gone['id']]);
+    [, $trash] = mcpTool($token, 'projects_list_deleted');
+    expect($trash['deleted'])->toHaveCount(1)->and($trash['deleted'][0])->toMatchArray(['type' => 'task', 'title' => 'Paint', 'where' => 'Garage']);
+    [$err] = mcpTool($token, 'projects_restore', ['type' => 'task', 'id' => $gone['id']]);
+    expect($err)->toBeFalse();
+    [, $got] = mcpTool($token, 'projects_get', ['project_id' => $p['id']]);
+    expect(collect($got['tasks'])->pluck('title')->sort()->values()->all())->toBe(['Clear shelves', 'Paint']);
+
+    // Paint goes on its own first; then the project takes the rest along.
+    mcpTool($token, 'projects_delete_task', ['task_id' => $gone['id']]);
+    $this->travel(2)->seconds(); // CascadesTrash matches on deleted_at, second precision
+    [$err] = mcpTool($token, 'projects_delete', ['project_id' => $p['id']]);
+    expect($err)->toBeFalse()->and(Task::find($keep['id']))->toBeNull()->and(Task::find($sub['id']))->toBeNull()
+        ->and(mcpTool($token, 'projects_get', ['project_id' => $p['id']])[0])->toBeTrue();
+    [, $trash] = mcpTool($token, 'projects_list_deleted');
+    expect(collect($trash['deleted'])->pluck('type')->all())->toBe(['project']); // tasks of a trashed project ride along
+
+    [$err, $r] = mcpTool($token, 'projects_restore', ['type' => 'project', 'id' => $p['id']]);
+    expect($err)->toBeFalse()->and($r['url'])->toEndWith("/m/projects/{$p['id']}");
+    expect(Task::find($keep['id']))->not->toBeNull()->and(Task::find($sub['id']))->not->toBeNull()
+        ->and(Task::find($gone['id']))->toBeNull(); // deleted on its own earlier, so it stays in the trash
+});
+
+it('erases a trashed project task and its project link when the trash is purged', function () {
+    [, , $token] = projectsToken();
+    [, $p] = mcpTool($token, 'projects_create', ['name' => 'Garage']);
+    [, $t] = mcpTool($token, 'projects_add_task', ['project_id' => $p['id'], 'title' => 'Paint']);
+    mcpTool($token, 'projects_delete_task', ['task_id' => $t['id']]);
+    mcpTool($token, 'projects_delete', ['project_id' => $p['id']]);
+
+    $this->travel(31)->days();
+    $this->artisan('trash:purge')->assertExitCode(0);
+    $this->assertDatabaseMissing('tasks_tasks', ['id' => $t['id']]);
+    $this->assertDatabaseMissing('projects_projects', ['id' => $p['id']]);
     $this->assertDatabaseMissing('projects_links', ['linkable_type' => 'task', 'linkable_id' => $t['id']]);
 });
 

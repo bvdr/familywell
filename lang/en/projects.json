@@ -27,7 +27,7 @@
     "duplicate": "Duplicate",
     "archive": "Archive",
     "unarchive": "Unarchive",
-    "confirm_delete": "Delete this project and everything in it?",
+    "confirm_delete": "Delete this project and its tasks? They go to Recently deleted for 30 days.",
     "add_photo": "Add a project photo",
     "change_photo": "Change photo",
     "family_project": "Family project",

@@ -125,5 +125,6 @@ it('lets only a project\'s creator delete it', function () {
     expect($err)->toBeTrue()->and($msg)->toContain('created this project')->and(Project::find($theirs->id))->not->toBeNull();
 
     expect(mcpTool($token, 'projects_delete', ['project_id' => $mine['id'] ?? $mine['project_id']])[0])->toBeFalse()
-        ->and(Project::where('name', 'Garage')->exists())->toBeFalse();
+        ->and(Project::where('name', 'Garage')->exists())->toBeFalse()
+        ->and(Project::onlyTrashed()->where('name', 'Garage')->exists())->toBeTrue(); // in the 30-day trash
 });

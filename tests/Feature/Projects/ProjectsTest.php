@@ -75,7 +75,7 @@ it('adds, toggles, and deletes a task (unified tasks-module tasks)', function ()
     // Parent delete trashes the sub-task with it (soft delete, see CascadesTrash).
     expect(Task::withoutGlobalScope('family')->count())->toBe(0)
         ->and(Task::onlyTrashed()->withoutGlobalScope('family')->count())->toBe(2)
-        ->and($project->links()->where('linkable_type', 'task')->count())->toBe(0);
+        ->and($project->links()->where('linkable_type', 'task')->count())->toBe(1); // kept so a restore puts it back
 });
 
 it('reorders project tasks and reconciles links when nesting/un-nesting', function () {

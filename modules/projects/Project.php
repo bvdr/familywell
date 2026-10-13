@@ -9,6 +9,8 @@ use App\Support\Tenancy\BelongsToFamily;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 use Modules\Notifications\Notify;
 use Modules\Tasks\Task;
 
@@ -16,12 +18,39 @@ class Project extends Model
 {
     use BelongsToFamily;
     use Shareable; // shares() + visibility()/roleFor()
+    use SoftDeletes; // 30-day trash (ProjectsTrash, trash:purge)
 
     protected $table = 'projects_projects';
 
     protected $fillable = ['name', 'description', 'status', 'progress', 'color', 'owner_id', 'target_start', 'waiting_on', 'archived_at', 'position', 'created_by', 'cover_path'];
 
     protected $casts = ['target_start' => 'date', 'archived_at' => 'datetime'];
+
+    protected static function booted(): void
+    {
+        // Same as CalendarEvent: a project's tasks are linked rows, not a HasMany, so CascadesTrash can't
+        // reach them. Trash its top-level tasks and their sub-tasks with the project's exact deleted_at
+        // (a query-builder UPDATE, so Task's own cascade never runs), and on restore bring back the ones
+        // sharing that timestamp; tasks deleted on their own earlier stay in the trash. Links, dependencies
+        // and shares stay put while trashed; the DB cascades remove them when trash:purge force-deletes.
+        static::softDeleted(function (self $p) {
+            $ids = $p->taskIds();
+            Task::where(fn ($q) => $q->whereIn('id', $ids)->orWhereIn('parent_id', $ids))->update(['deleted_at' => $p->deleted_at]);
+        });
+        static::restoring(function (self $p) {
+            $ids = $p->taskIds();
+            Task::onlyTrashed()->where('deleted_at', $p->deleted_at)
+                ->where(fn ($q) => $q->whereIn('id', $ids)->orWhereIn('parent_id', $ids))->update(['deleted_at' => null]);
+        });
+        // The cover only goes when the project is gone for good, so a restore gets it back.
+        static::forceDeleting(fn (self $p) => StoredImage::delete($p->cover_path));
+    }
+
+    /** @return Collection<int, int> ids of this project's top-level tasks (live or trashed) */
+    public function taskIds()
+    {
+        return $this->links()->where('linkable_type', 'task')->pluck('linkable_id');
+    }
 
     public function tasks(): HasMany
     {
@@ -34,14 +63,13 @@ class Project extends Model
     }
 
     /**
-     * Delete the project for good (creator only, same rule as the web UI), telling the people who could see
-     * it, and freeing its cover image from storage. Links cascade in the DB. Shared by the web delete + MCP.
+     * Move the project and its tasks to the 30-day trash (creator only, same rule as the web UI), telling the
+     * people who could see it. Shared by the web delete + MCP; restore via ProjectsTrash.
      */
     public function deleteFor(User $actor): void
     {
         abort_unless($this->created_by === $actor->id, 403);
         Notify::toAccessOf($this, 'projects', $actor->id, 'Projects', "{$actor->name} deleted project: {$this->name}", '/m/projects');
-        StoredImage::delete($this->cover_path);
         $this->delete();
     }
 
@@ -157,12 +185,13 @@ class Project extends Model
         }
     }
 
-    /** Move a project task (and its sub-tasks) to the trash. A top-level task also loses its project link. */
+    /**
+     * Move a project task (and its sub-tasks) to the trash. Its project link stays (every read goes through
+     * Task, which hides trashed rows) so ProjectsTrash can list it and a restore puts it back in the project;
+     * ProjectsServiceProvider drops the link when trash:purge force-deletes the task.
+     */
     public function deleteTask(User $actor, Task $task): void
     {
-        if ($task->parent_id === null) {
-            ProjectLink::where(['linkable_type' => 'task', 'linkable_id' => $task->id])->delete();
-        }
         $task->delete(); // soft delete, cascades to sub-tasks (Task uses CascadesTrash)
         Notify::toAccessOf($this, 'tasks', $actor->id, $this->name, "{$actor->name} deleted: {$task->title}", $this->path());
     }
