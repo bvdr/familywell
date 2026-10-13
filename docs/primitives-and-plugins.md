@@ -56,8 +56,8 @@ direction.
   we just do it once per capability instead of once per primitive.
 - **A hooks bus, and it's live** — `app/Support/Modules/Hooks.php` implements
   WordPress-style `listen`/`fire` (actions) and `filter` (filters). It is **used today**:
-  the `hello` module (`modules/hello/HelloServiceProvider.php`) both `fire`s
-  (`hello.pinged`) and `filter`s (`hello.greeting`). (Grep `\$hooks->`, not `Hooks::` —
+  the tasks module fires `task.serialize`/`task.saved`/`task.query` and `important_todos`
+  (`modules/important_todos/ImportantTodosServiceProvider.php`) listens to them. (Grep `\$hooks->`, not `Hooks::` —
   callers use the injected instance, not the static class.)
 - **A working frontend slot runtime** — `resources/js/lib/modules.ts` provides a real
   `<Slot>` + `registerSlot`, and `app.tsx` exposes `window.Familywell = { React,
@@ -65,8 +65,8 @@ direction.
   and no second React**. Delivery is fully wired end to end: `ShareModules` middleware
   collects each enabled module's `frontend` URL → `app.blade.php` sets
   `window.__familywellModules` → `loadModules()` dynamic-imports them →
-  `ModuleAssetController` serves the file. `hello` ships `resources/dist/hello.js` that
-  `registerSlot('dashboard.widgets', …)` through exactly this path.
+  `ModuleAssetController` serves the file. `important_todos` ships `resources/dist/important-todos.js` that
+  `registerSlot('task.editor.fields', …)` through exactly this path.
 - **Dashboard extension** — `DashboardItems::register(id, closure)` lets a module push
   entries onto the cross-module dashboard, with per-provider failure isolation.
 - **Frontend composition** — edit screens are already decomposed (e.g. `tasks/list.tsx`
@@ -74,16 +74,16 @@ direction.
   seams to target.
 
 **Missing (this is the work) — narrower than it first looks.** The machinery for all three
-hook kinds exists and is proven by `hello`. What's absent is **adoption by a real
+hook kinds exists. What's absent is **adoption by a real
 primitive**:
 
-- **No primitive fires hooks.** Only `hello` uses the bus. `TasksController` etc. publish
+- **No primitive fires hooks.** Only the sample module used the bus. `TasksController` etc. publish
   no `task.serialize` / `task.saved` / `task.query` seams yet.
 - **No slot is currently placed.** `dashboard.tsx:234` shows the one placement was
-  *removed* ("Widgets slot removed for now"), so even `hello`'s registered widget renders
+  *removed* ("Widgets slot removed for now"), so even the sample module's registered widget rendered
   nowhere. No primitive edit screen (e.g. `task-tree.tsx`) mounts a `<Slot>` yet.
 - **`Slot` passes no context.** Today it renders `createElement(C, {key})` — a slot
-  component gets no props, so it can only self-source data (as `hello`'s widget does via
+  component gets no props, so it can only self-source data (as the sample widget did via
   globals). Per-instance injection ("a field *for this task*") needs `<Slot>` to forward a
   `ctx` — a small, backward-compatible change (§5.3).
 - **No primitive registry.** The type slug is re-declared per capability; no single
@@ -91,10 +91,9 @@ primitive**:
 - **No trust boundary.** Everything runs in-process at full trust. Fine for first-party
   modules; unacceptable for arbitrary third parties (§8).
 
-**The `hello` module is the reference implementation** for this whole document: it `fire`s
-and `filter`s on the backend and `registerSlot`s on the frontend. The `important_todos`
-worked example (§11) is really "do what `hello` does, but against the real `task`
-primitive and its edit screen."
+**The `important_todos` module is the reference implementation** for this whole document:
+it listens to the `task` primitive's hooks on the backend and `registerSlot`s into the task
+edit screen on the frontend (worked example, §11).
 
 ## 4. The primitive model
 
@@ -200,7 +199,7 @@ self-source data). Below is the shipped shape:
 <Slot name="task.row.badges"   ctx={{ task: item }} />
 
 // Plugin frontend bundle — a prebuilt file using the shell's React (no bundler), like
-// modules/hello. Loaded only for families that enabled the module.
+// modules/important_todos. Loaded only for families that enabled the module.
 const { React, registerSlot } = window.Familywell;
 registerSlot('task.editor.fields', ({ task, onPatch }) => /* an Important toggle → onPatch({important}) */);
 registerSlot('task.row.badges',   ({ task }) => task.important ? /* a star */ : null);
@@ -540,7 +539,7 @@ first-party code before exposing it to anyone.
 
 - **Phase 1 — Dogfood (internal, full trust). ✅ DONE.** The `task` primitive publishes its
   data + behavior hooks (`task.serialize`/`task.saved`/`task.query`); the `Hooks` bus was
-  already live (used by `hello`). Ergonomics validated by the module below.
+  already live. Ergonomics validated by the module below.
 - **Phase 2 — Frontend slots (internal). ✅ DONE.** The `<Slot>`/`registerSlot` runtime
   already existed; adding `ctx` forwarding + placing two slots in the task UI + shipping
   `important_todos` as a first-party module proved the reach-in direction end to end (§11),
