@@ -43,7 +43,8 @@ const PAGES: [string, string][] = [
 ];
 
 // Detail pages: opened from their index via the first matching link, so they follow the seeded data's ids.
-const DETAILS: [string, string, RegExp][] = [
+// An optional 4th item is a sub-page path appended to that link (e.g. a car's /timeline).
+const DETAILS: [string, string, RegExp, string?][] = [
     ['calendar-event', '/m/calendar', /\/m\/calendar\/events\/\d+$/],
     ['note', '/m/notes', /\/m\/notes\/\d+$/],
     ['project', '/m/projects', /\/m\/projects\/\d+$/],
@@ -52,6 +53,7 @@ const DETAILS: [string, string, RegExp][] = [
     ['spending-list', '/m/spending', /\/m\/spending\/events\/\d+$/],
     ['task-list', '/m/tasks', /\/m\/tasks\/lists\/\d+$/],
     ['vehicle', '/m/vehicles', /\/m\/vehicles\/\d+$/],
+    ['vehicle-history', '/m/vehicles', /\/m\/vehicles\/\d+$/, '/timeline'],
     ['inventory-item', '/m/inventory/items', /\/m\/inventory\/items\/\d+$/],
 ];
 
@@ -68,14 +70,14 @@ for (const [name, path] of PAGES) {
     });
 }
 
-for (const [name, index, href] of DETAILS) {
+for (const [name, index, href, sub = ''] of DETAILS) {
     test(name, async ({ page }, info) => {
         await page.goto(index);
         await page.waitForLoadState('networkidle');
         const links = await page.locator('a[href]').evaluateAll((as) => as.map((a) => (a as HTMLAnchorElement).href));
         const url = links.find((h) => href.test(new URL(h).pathname));
         test.skip(!url, `no ${name} link on ${index} in the seeded data`);
-        await page.goto(url!);
+        await page.goto(url! + sub);
         await expectCleanLayout(page, () => shoot(page, name, info.project.name));
     });
 }
