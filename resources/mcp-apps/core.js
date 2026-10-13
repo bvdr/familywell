@@ -189,7 +189,8 @@ const FW = (() => {
     // Header: actions row (Full screen, Open in Familywell) on TOP, then the title at full width, then the
     // metadata line. Hosts render widgets ~360px wide on phones; with the actions beside the title, the
     // title got squeezed to one word per line (seen on the recipe view in ChatGPT on iPhone).
-    function head(title, sub, url) {
+    // opts.hero: an element (a photo) shown full width between the actions row and the title.
+    function head(title, sub, url, opts = {}) {
         const actions = [
             canFullscreen
                 ? h(
@@ -204,6 +205,7 @@ const FW = (() => {
             'div',
             { class: 'head' },
             actions.length ? h('div', { class: 'head-actions' }, actions) : null,
+            opts.hero || null,
             h('h1', null, title),
             sub ? h('div', { class: 'sub' }, sub) : null,
         );

@@ -7,6 +7,7 @@ use App\Support\Mcp\McpTools;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
 use Database\Seeders\DemoSeeder;
+use Illuminate\Http\UploadedFile;
 use Modules\Calendar\CalendarEvent;
 use Modules\Contacts\Person;
 use Modules\Notes\Note;
@@ -31,6 +32,11 @@ it('writes every MCP widget view as a fixture for the viewport checks', function
     $write = array_fill_keys(array_intersect(array_keys(McpTools::modules()), app(ModuleRegistry::class)->enabledIds($familyId)), 'write');
     $token = mcpConnect($user, $familyId, $write)['access_token'];
 
+    // One recipe with a photo, so the hero state is checked too (the demo recipes have none).
+    $photo = database_path('seeders/demo-images/project-kitchen.thumb.jpg');
+    $withPhoto = Recipe::where('family_id', $familyId)->orderByDesc('id')->firstOrFail();
+    $withPhoto->setPhoto(new UploadedFile($photo, 'photo.jpg', 'image/jpeg', null, true));
+
     // name => [widget, tool, args]. One entry per distinct view a widget draws.
     $views = [
         'tasks-list' => ['tasks', 'tasks_get_list', ['list_id' => TaskList::where('family_id', $familyId)->value('id')]],
@@ -52,6 +58,7 @@ it('writes every MCP widget view as a fixture for the viewport checks', function
         'contact' => ['contact', 'contacts_get', ['person_id' => Person::where('family_id', $familyId)->value('id')]],
         'recipes-list' => ['recipe', 'recipes_list', []],
         'recipe' => ['recipe', 'recipes_get', ['recipe_id' => Recipe::where('family_id', $familyId)->value('id')]],
+        'recipe-photo' => ['recipe', 'recipes_get', ['recipe_id' => $withPhoto->id]],
     ];
     expect(array_diff(array_keys(Widget::WIDGETS), array_column($views, 0)))->toBe([]); // a new widget needs a view here
 
@@ -61,6 +68,10 @@ it('writes every MCP widget view as a fixture for the viewport checks', function
     foreach ($views as $name => [$widget, $tool, $args]) {
         $result = mcpCall($token, 'tools/call', ['name' => $tool, 'arguments' => (object) $args])->assertOk()->json('result');
         expect($result['isError'] ?? false)->toBeFalse("{$tool} failed: ".json_encode($result));
+        if (isset($result['structuredContent']['photo_url'])) {
+            // The mock host has no server behind the signed photo URL: inline the image so it renders.
+            $result['structuredContent']['photo_url'] = 'data:image/jpeg;base64,'.base64_encode((string) file_get_contents($photo));
+        }
         $html = mcpCall($token, 'resources/read', ['uri' => Widget::uriFor($widget)])->assertOk()->json('result.contents.0.text');
         File::put("{$dir}/{$name}.json", json_encode(['widget' => $widget, 'args' => (object) $args, 'result' => $result, 'html' => $html]));
     }

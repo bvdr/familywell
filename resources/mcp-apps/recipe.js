@@ -275,8 +275,8 @@ function recDetail(r) {
                   '← All recipes',
               )
             : null,
-        r.photo_url ? h('img', { class: 'rec-hero', src: r.photo_url, alt: r.title }) : null,
-        FW.head(r.title, meta.join(' · '), r.url),
+        // The photo sits under the actions row, above the title (a hero, like the app's recipe page).
+        FW.head(r.title, meta.join(' · '), r.url, { hero: r.photo_url ? h('img', { class: 'rec-hero', src: r.photo_url, alt: r.title }) : null }),
         r.description ? h('p', { class: 'muted', style: 'margin:0;white-space:pre-line' }, r.description) : null,
         r.tags?.length
             ? h(
