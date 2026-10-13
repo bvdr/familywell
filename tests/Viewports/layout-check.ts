@@ -8,7 +8,7 @@ import { expect, type Page } from '@playwright/test';
 //  4. Table headers stay on one line; no visible text pokes past the right edge of the viewport.
 // Text is measured with Range rects clipped by every overflow-hiding ancestor, so an intentional ellipsis
 // (truncate) is judged by what is actually shown, not by the full hidden string.
-function findLayoutProblems(): string[] {
+export function findLayoutProblems(): string[] {
     const problems: string[] = [];
     const vw = window.innerWidth;
     const name = (el: Element) => {

@@ -40,3 +40,4 @@ frankenphp-worker.php
 /tests/Viewports/screenshots
 /tests/Viewports/results
 /tests/Viewports/report
+/tests/Viewports/mcp-fixtures

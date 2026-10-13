@@ -21,6 +21,7 @@ export default defineConfig({
         {
             name: 'mobile',
             dependencies: ['auth'],
+            testIgnore: /mcp-widgets/,
             use: {
                 browserName: 'chromium',
                 viewport: { width: 390, height: 844 },
@@ -33,8 +34,12 @@ export default defineConfig({
         {
             name: 'desktop',
             dependencies: ['auth'],
+            testIgnore: /mcp-widgets/,
             use: { browserName: 'chromium', viewport: { width: 1280, height: 800 }, storageState: 'tests/Viewports/.auth/demo.json' },
         },
+        // MCP App widgets at the widths assistant hosts render them (phone chat ~360px, desktop column ~700px).
+        { name: 'mcp-360', testMatch: /mcp-widgets\.spec\.ts/, use: { browserName: 'chromium', viewport: { width: 360, height: 800 } } },
+        { name: 'mcp-700', testMatch: /mcp-widgets\.spec\.ts/, use: { browserName: 'chromium', viewport: { width: 700, height: 800 } } },
     ],
     webServer: process.env.VIEWPORTS_URL
         ? undefined
