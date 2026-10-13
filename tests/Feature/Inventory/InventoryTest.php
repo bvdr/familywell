@@ -285,7 +285,7 @@ it('an edit that leaves the quantity unchanged writes no log row', function () {
     expect($item->logs()->count())->toBe(0);
 });
 
-it('deletes an item and its history without touching other items', function () {
+it('trashes an item (history kept for a restore) without touching other items', function () {
     [, $users] = inventoryFamily();
     $keep = makeItem(['name' => 'Keep', 'quantity' => 5]);
     $gone = makeItem(['name' => 'Gone', 'quantity' => 5]);
@@ -293,8 +293,8 @@ it('deletes an item and its history without touching other items', function () {
 
     actingAs($users[0])->delete("/m/inventory/items/{$gone->id}")->assertRedirect('/m/inventory/items');
 
-    expect(InventoryItem::find($gone->id))->toBeNull();
-    expect(InventoryLog::where('inventory_item_id', $gone->id)->count())->toBe(0); // cascaded, not orphaned
+    expect(InventoryItem::find($gone->id))->toBeNull()->and(InventoryItem::onlyTrashed()->find($gone->id))->not->toBeNull();
+    expect(InventoryLog::where('inventory_item_id', $gone->id)->count())->toBe(1); // kept for a restore; cascades at purge
     expect(InventoryItem::find($keep->id))->not->toBeNull();                       // other items untouched
 });
 

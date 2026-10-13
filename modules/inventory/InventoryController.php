@@ -352,7 +352,7 @@ class InventoryController extends Controller
         return back();
     }
 
-    /** Delete an item. Its log rows cascade (FK), so history is removed with it and never orphaned. */
+    /** Move an item (with its history) to the 30-day trash; Settings > Recently deleted restores it. */
     public function destroy(InventoryItem $item): RedirectResponse
     {
         $this->authorizeItem($item);

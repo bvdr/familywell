@@ -7,6 +7,7 @@ use App\Support\Tenancy\BelongsToFamily;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Validation\Rule;
 use Modules\Shopping\ShoppingItem;
 use Modules\Shopping\ShoppingShop;
@@ -19,6 +20,11 @@ use Modules\Shopping\ShoppingShop;
 class InventoryItem extends Model
 {
     use BelongsToFamily;
+
+    // 30-day trash (InventoryTrash, trash:purge). Its log + alert rows stay while trashed and cascade at
+    // purge. Its Replenish shopping row stays on the list; buying it tops nothing up meanwhile (the
+    // shopping.item.bought hook looks items up through this model, which hides trashed rows).
+    use SoftDeletes;
 
     protected $table = 'inventory_items';
 
@@ -34,6 +40,20 @@ class InventoryItem extends Model
         'expires_at' => 'date',
         'auto_replenish' => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        // Categories/locations are referenced by key and can only be deleted while no LIVE item uses them,
+        // so a trashed item may come back pointing at one that's gone: clear it rather than orphan it.
+        static::restoring(function (self $item) {
+            if ($item->category && ! in_array($item->category, InventoryCategory::keysFor($item->family_id), true)) {
+                $item->category = null;
+            }
+            if ($item->location && ! in_array($item->location, InventoryLocation::keysFor($item->family_id), true)) {
+                $item->location = null;
+            }
+        });
+    }
 
     // The units a quantity can be measured in. Kept here (not a DB enum) so adding a unit is a code
     // change, and validation reads from one list.

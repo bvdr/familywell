@@ -114,7 +114,7 @@ it('deletes contacts (with their birthday), birthdays and inventory items', func
         ->and(Person::where('name', 'Bob')->exists())->toBeFalse();
 
     expect(mcpTool($token, 'inventory_delete_item', ['item_id' => $i['id']])[0])->toBeFalse()
-        ->and(InventoryItem::find($i['id']))->toBeNull();
+        ->and(InventoryItem::find($i['id']))->toBeNull()->and(InventoryItem::onlyTrashed()->find($i['id']))->not->toBeNull();
 });
 
 it('lets only a project\'s creator delete it', function () {
