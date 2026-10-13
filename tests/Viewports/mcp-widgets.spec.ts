@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { findLayoutProblems } from './layout-check';
+import { expectCleanLayout } from './layout-check';
 
 // Every MCP App widget view (resources/mcp-apps) at the widths the assistant hosts render them: ~360px
 // (Claude/ChatGPT on a phone) and ~700px (desktop chat column). Fixtures are the real widget page + the real
@@ -52,9 +52,17 @@ for (const file of fixtures) {
         const frame = page.frameLocator('iframe');
         await expect(frame.locator('#app > *').first()).toBeVisible();
         await expect(frame.getByText('Loading…')).toHaveCount(0);
-        await page.waitForTimeout(300); // let the size-changed round trip land
-        await page.screenshot({ path: `tests/Viewports/screenshots/mcp-${name}-${info.project.name}.png`, fullPage: true });
-        const problems = await page.frames()[1].evaluate(findLayoutProblems);
-        expect(problems).toEqual([]);
+
+        // Check the rendered widget with the shared checker (kept identical to the admin's, so it takes a
+        // Page): snapshot the iframe's final DOM, scripts stripped, and load it as the page itself at the
+        // same width the iframe had.
+        const html = await page.frames()[1].evaluate(() => {
+            document.querySelectorAll('script').forEach((s) => s.remove());
+            return '<!doctype html>' + document.documentElement.outerHTML;
+        });
+        await page.setContent(html);
+        await expectCleanLayout(page, () =>
+            page.screenshot({ path: `tests/Viewports/screenshots/mcp-${name}-${info.project.name}.png`, fullPage: true }),
+        );
     });
 }
