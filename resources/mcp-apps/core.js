@@ -186,24 +186,26 @@ const FW = (() => {
         return Number(n).toLocaleString(locale, opts);
     }
 
-    // Header row: title, optional subtitle, "Open" link to the page in Familywell.
+    // Header: actions row (Full screen, Open in Familywell) on TOP, then the title at full width, then the
+    // metadata line. Hosts render widgets ~360px wide on phones; with the actions beside the title, the
+    // title got squeezed to one word per line (seen on the recipe view in ChatGPT on iPhone).
     function head(title, sub, url) {
+        const actions = [
+            canFullscreen
+                ? h(
+                      'button',
+                      { class: 'link', type: 'button', onclick: toggleFullscreen },
+                      mode === 'fullscreen' ? 'Exit full screen' : 'Full screen ⤢',
+                  )
+                : null,
+            url ? h('button', { class: 'link', type: 'button', onclick: () => open(url) }, 'Open in Familywell ↗') : null,
+        ].filter(Boolean);
         return h(
             'div',
             { class: 'head' },
-            h('div', null, h('h1', null, title), sub ? h('div', { class: 'sub' }, sub) : null),
-            h(
-                'div',
-                { class: 'head-actions' },
-                canFullscreen
-                    ? h(
-                          'button',
-                          { class: 'link', type: 'button', onclick: toggleFullscreen },
-                          mode === 'fullscreen' ? 'Exit full screen' : 'Full screen ⤢',
-                      )
-                    : null,
-                url ? h('button', { class: 'link', type: 'button', onclick: () => open(url) }, 'Open in Familywell ↗') : null,
-            ),
+            actions.length ? h('div', { class: 'head-actions' }, actions) : null,
+            h('h1', null, title),
+            sub ? h('div', { class: 'sub' }, sub) : null,
         );
     }
 

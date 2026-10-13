@@ -71,13 +71,7 @@ input {
     color: var(--fw-muted);
 }
 
-/* Header: title + "Open in Familywell" */
-.head {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    justify-content: space-between;
-}
+/* Header: actions row on top, then the title at full width, then a wrapping metadata line. */
 .head h1 {
     font-size: 16px;
     font-weight: 650;
@@ -90,8 +84,10 @@ input {
 }
 .head-actions {
     display: flex;
-    gap: 12px;
-    flex: none;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 4px 12px;
+    margin-bottom: 4px;
 }
 /* Full screen: the host gives a fixed-size container, so fill it and scroll inside; keep lines readable. */
 html.fs,

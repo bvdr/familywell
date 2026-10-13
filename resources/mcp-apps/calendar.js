@@ -19,7 +19,9 @@ FW.start((d) => {
             'div',
             { class: 'stack' },
             FW.head(d.title, [when, d.start_time ? `${d.start_time}–${d.end_time}` : null].filter(Boolean).join(' · '), d.url),
-            d.people?.length ? h('div', { class: 'card' }, h('div', { class: 'meta' }, d.people.map((p) => p.name).join(', '))) : null,
+            d.people?.length
+                ? h('div', { class: 'card', style: 'padding:10px 12px' }, h('div', { class: 'meta' }, d.people.map((p) => p.name).join(', ')))
+                : null,
             d.todos?.length
                 ? h(
                       'div',
