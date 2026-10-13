@@ -105,6 +105,33 @@ it('sets a photo from base64 and returns a signed URL that works without a sessi
     expect($err)->toBeTrue();
 });
 
+// Oana's bug (2026-10-13): Claude can't hand over a chat attachment, so it filled `file` with whatever it
+// had and the recipe was saved photo-less without a word. A photo that was given is used or refused, never dropped.
+it('creates a recipe with a photo in any shape an assistant can send, and refuses an unreadable one out loud', function () {
+    Storage::fake('r2');
+    [, , $token] = recipesToken();
+    $png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+    $base = ['title' => 'Pâine', 'servings' => 2];
+
+    // base64 as a data URI, the way a model tends to write image bytes
+    [$err, $r] = mcpTool($token, 'recipes_create', $base + ['file_base64' => "data:image/png;base64,{$png}", 'file_name' => 'paine.png']);
+    expect($err)->toBeFalse()->and($r['photo_url'])->not->toBeNull();
+
+    // Shapes Claude produced for "the image I attached": a name, a sandbox path, an object without a URL.
+    foreach (['IMG_2041.jpg', '/mnt/user-data/uploads/IMG_2041.jpg', ['file_id' => 'file_123'], ['file_name' => 'IMG_2041.jpg']] as $file) {
+        $before = Recipe::count();
+        [$err, $msg] = mcpTool($token, 'recipes_create', $base + ['file' => $file]);
+        expect($err)->toBeTrue()->and($msg)->toContain('file_url')
+            ->and(Recipe::count())->toBe($before); // nothing half-saved: the model retries knowing why
+    }
+    [$err, $msg] = mcpTool($token, 'recipes_set_photo', ['recipe_id' => $r['id'], 'file' => 'IMG_2041.jpg']);
+    expect($err)->toBeTrue()->and($msg)->toContain('only ChatGPT');
+
+    // No photo at all is still fine.
+    [$err, $plain] = mcpTool($token, 'recipes_create', $base);
+    expect($err)->toBeFalse()->and($plain['photo_url'])->toBeNull();
+});
+
 it('lets only the creator delete, into the trash', function () {
     [$family, $users, $token] = recipesToken();
     $r = crepes($token);
