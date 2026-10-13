@@ -1,6 +1,8 @@
 <?php
 
 use App\Mcp\Apps\Widget;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Modules\Recipes\Recipe;
 use Modules\Shopping\ShoppingList;
@@ -130,6 +132,37 @@ it('creates a recipe with a photo in any shape an assistant can send, and refuse
     // No photo at all is still fine.
     [$err, $plain] = mcpTool($token, 'recipes_create', $base);
     expect($err)->toBeFalse()->and($plain['photo_url'])->toBeNull();
+});
+
+// ChatGPT's path end to end: it hands the attached image as file {download_url, file_id, file_name}; we
+// download it, store it, and the photo is served. Every call logs the shape that arrived (never the bytes).
+it('stores a photo ChatGPT passes as a download_url and logs the shape of every photo call', function () {
+    Storage::fake('r2');
+    $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=');
+    Http::fake(['*' => Http::response($png, 200, ['Content-Type' => 'image/png'])]);
+    $logged = [];
+    Log::listen(function ($e) use (&$logged) {
+        if ($e->message === 'mcp.file') {
+            $logged[] = $e->context;
+        }
+    });
+    [, , $token] = recipesToken();
+
+    // A literal public IP host skips DNS (the sandbox may have none), as in the vehicles file test.
+    $file = ['download_url' => 'https://93.184.216.34/backend-api/estuary/content?id=file_abc&sig=secret', 'file_id' => 'file_abc', 'file_name' => 'IMG_2041.png'];
+    [$err, $r] = mcpTool($token, 'recipes_create', ['title' => 'Supă', 'servings' => 4, 'file' => $file]);
+    expect($err)->toBeFalse()->and($r['photo_url'])->not->toBeNull();
+    Http::assertSent(fn ($req) => str_starts_with($req->url(), 'https://93.184.216.34/backend-api/estuary/content'));
+    auth()->forgetGuards();
+    expect($this->get($r['photo_url'])->assertOk()->streamedContent())->toBe($png);
+
+    mcpTool($token, 'recipes_create', ['title' => 'Fără poză', 'file' => 'IMG_2041.jpg']);
+    mcpTool($token, 'recipes_create', ['title' => 'Simplă']);
+
+    expect($logged[0])->toMatchArray(['tool' => 'recipes_create', 'file' => 'object:download_url,file_id,file_name', 'url_host' => '93.184.216.34', 'outcome' => 'ok', 'mime' => 'image/png', 'bytes' => strlen($png)])
+        ->and($logged[1])->toMatchArray(['file' => 'string:12', 'outcome' => 'error'])
+        ->and($logged[2])->toMatchArray(['file' => null, 'outcome' => 'none'])
+        ->and(json_encode($logged))->not->toContain('secret'); // never the URL's query, path or the bytes
 });
 
 it('lets only the creator delete, into the trash', function () {

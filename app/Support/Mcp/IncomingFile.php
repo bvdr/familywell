@@ -5,6 +5,7 @@ namespace App\Support\Mcp;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Laravel\Mcp\Request;
 use Psr\Http\Message\UriInterface;
@@ -61,6 +62,44 @@ class IncomingFile
      * recipe was saved without its photo and without a word (2026-10-13). The error tells the model what works.
      */
     public static function from(Request $request, array $types = self::DOCUMENTS, int $maxBytes = self::MAX_BYTES): ?UploadedFile
+    {
+        // One structured line per call, so a missing photo is diagnosable from the logs: WHICH shape arrived
+        // and what became of it. Never the content: only keys, the URL host, lengths, the sniffed type.
+        $log = self::shape($request);
+        try {
+            $upload = self::read($request, $types, $maxBytes);
+            Log::info('mcp.file', $log + ['outcome' => $upload ? 'ok' : 'none', 'mime' => $upload?->getMimeType(), 'bytes' => $upload?->getSize()]);
+
+            return $upload;
+        } catch (ValidationException $e) {
+            Log::info('mcp.file', $log + ['outcome' => 'error', 'error' => $e->getMessage()]);
+            throw $e;
+        }
+    }
+
+    /** What the call carried, without its content (see from()). */
+    private static function shape(Request $request): array
+    {
+        $file = $request->get('file');
+        $url = is_array($file) ? ($file['download_url'] ?? null) : (is_string($file) ? $file : $request->get('file_url'));
+        $b64 = $request->get('file_base64');
+
+        return [
+            'tool' => request()->input('params.name'),
+            'user_id' => auth()->id(),
+            'file' => match (true) {
+                is_array($file) => 'object:'.implode(',', array_keys($file)),
+                is_string($file) => 'string:'.strlen($file),
+                default => $file === null ? null : gettype($file),
+            },
+            'url_host' => is_string($url) ? parse_url($url, PHP_URL_HOST) : null,
+            'url_param' => filled($request->get('file_url')),
+            'base64_length' => is_string($b64) ? strlen($b64) : null,
+            'file_name' => filled($request->get('file_name')) || (is_array($file) && filled($file['file_name'] ?? null)),
+        ];
+    }
+
+    private static function read(Request $request, array $types, int $maxBytes): ?UploadedFile
     {
         $file = $request->get('file');
         $url = $request->get('file_url');
