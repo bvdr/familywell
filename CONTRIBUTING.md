@@ -45,7 +45,7 @@ Tests use [Pest](https://pestphp.com) and live in `tests/`. Feature tests boot a
 
 ## Building a module
 
-New features usually belong in a module rather than the core. See **[docs/modules.md](docs/modules.md)** for the module system and a step-by-step guide, `modules/hello` is the minimal example and `modules/spending` is a full one.
+New features usually belong in a module rather than the core. See **[docs/modules.md](docs/modules.md)** for the module system and a step-by-step guide, `modules/important_todos` is a small example and `modules/spending` is a full one.
 
 ## Security
 

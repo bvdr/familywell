@@ -1,5 +1,5 @@
 // Pre-built module frontend: uses the shell runtime (window.Familywell), no bundler, no second
-// React. Mirrors modules/hello/resources/dist/hello.js. It registers into two slots the task edit
+// React. It registers into two slots the task edit
 // screen exposes (resources/js/components/tasks/task-tree.tsx):
 //   - task.editor.fields : an "Important" toggle in the edit drawer
 //   - task.row.badges    : a star on important rows

@@ -2,29 +2,30 @@
 
 FamilyWell keeps its **core** small (families, members, auth, sharing, realtime, the module system itself) and puts every feature in a **module**, a self-contained folder under `modules/`. A module has its own routes, controllers, models, migrations, and optionally a frontend bundle. Families turn modules on and off from **Settings → Modules**, and routes are gated so a module is only reachable when the family has enabled it.
 
-The bundled modules are `spending`, `todos`, `shopping`, and `hello` (a minimal example, the best place to start reading).
+Every feature is a bundled module (`tasks`, `shopping`, `spending`, `vehicles`, `recipes`, ...). `important_todos` is the smallest one and the best place to start reading: it extends tasks purely through hooks and a frontend slot.
 
 ## Anatomy of a module
 
 ```
-modules/hello/
-├── module.json                     # manifest
-├── HelloServiceProvider.php        # registers routes, hooks, dashboard items, shareables
-├── database/migrations/            # module tables (run by `php artisan modules:migrate`)
-│   └── 2026_..._create_hello_pings_table.php
-└── resources/dist/hello.js         # optional prebuilt frontend bundle
+modules/important_todos/
+├── module.json                         # manifest
+├── ImportantTodosServiceProvider.php   # registers routes, hooks, dashboard items, shareables
+├── ImportantFlag.php                   # a model
+├── database/migrations/                # module tables (run by `php artisan modules:migrate`)
+│   └── 2026_..._create_important_todos_flags_table.php
+└── resources/dist/important-todos.js   # optional prebuilt frontend bundle
 ```
 
 ### The manifest (`module.json`)
 
 ```json
 {
-    "id": "hello",
-    "name": "Hello",
+    "id": "important_todos",
+    "name": "Important Todos",
     "version": "1.0.0",
-    "provider": "Modules\\Hello\\HelloServiceProvider",
-    "frontend": "resources/dist/hello.js",
-    "requires": []
+    "provider": "Modules\\ImportantTodos\\ImportantTodosServiceProvider",
+    "frontend": "resources/dist/important-todos.js",
+    "requires": ["tasks"]
 }
 ```
 
@@ -42,18 +43,18 @@ modules/hello/
 The provider's `boot()` method is where a module wires itself into the core. Routes are grouped behind the `module:<id>` middleware so they 404 for families that haven't enabled the module:
 
 ```php
-namespace Modules\Hello;
+namespace Modules\Example;
 
 use App\Support\Modules\Hooks;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
-class HelloServiceProvider extends ServiceProvider
+class ExampleServiceProvider extends ServiceProvider
 {
     public function boot(Hooks $hooks): void
     {
-        Route::middleware(['web', 'auth', 'module:hello'])->group(function () {
-            Route::get('/m/hello', [HelloController::class, 'index'])->name('hello.index');
+        Route::middleware(['web', 'auth', 'module:example'])->group(function () {
+            Route::get('/m/example', [ExampleController::class, 'index'])->name('example.index');
         });
     }
 }
@@ -86,7 +87,7 @@ A module may ship a prebuilt frontend bundle (referenced by `frontend` in the ma
 
 ## Building your own
 
-1. Copy `modules/hello` to `modules/<your-id>` and update `module.json`.
+1. Copy `modules/important_todos` to `modules/<your-id>` and update `module.json`.
 2. Rename the service provider and its namespace to `Modules\YourId`.
 3. Add routes behind `['web', 'auth', 'module:<your-id>']`, plus any models and migrations.
 4. `php artisan modules:migrate`, then enable it from **Settings → Modules**.
