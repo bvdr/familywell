@@ -84,6 +84,18 @@ class ModuleRegistry
         $this->forgetEnabled($familyId);
     }
 
+    /**
+     * Turn every installed module on for a brand-new family (onboarding): new families start with the
+     * whole app and switch off what they don't need. Existing families are never touched. One read + one
+     * insert; a new family has no family_modules rows yet, so a plain insert is enough.
+     */
+    public function enableAll(int $familyId): void
+    {
+        $ids = DB::table('modules')->whereIn('module_id', array_keys($this->discover()))->pluck('module_id');
+        DB::table('family_modules')->insert($ids->map(fn ($id) => ['family_id' => $familyId, 'module_id' => $id, 'enabled' => true])->all());
+        $this->forgetEnabled($familyId);
+    }
+
     public function disable(string $id, int $familyId): void
     {
         DB::table('family_modules')->updateOrInsert(

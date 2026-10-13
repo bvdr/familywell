@@ -79,7 +79,7 @@ function whenLabel(b) {
     return 'in ' + b.daysUntil + ' days · ' + b.date;
 }
 
-// Home widget: upcoming birthdays for the family. Fetches its own data (like the hello widget),
+// Home widget: upcoming birthdays for the family. Fetches its own data (like every module widget),
 // renders nothing while loading or when there is nothing coming up.
 function BirthdaysWidget() {
     const [items, setItems] = React.useState(null);

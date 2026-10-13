@@ -147,7 +147,7 @@ No secrets are ever committed; `.env` and every credential file are git-ignored.
 
 ## Modules
 
-FamilyWell's features live in `modules/`. Each module is a self-contained folder with its own routes, controllers, models, migrations, and (optionally) a frontend bundle, registered through a service provider and a `module.json` manifest. Every feature listed above is a module; `modules/hello` is a minimal example to start from.
+FamilyWell's features live in `modules/`. Each module is a self-contained folder with its own routes, controllers, models, migrations, and (optionally) a frontend bundle, registered through a service provider and a `module.json` manifest. Every feature listed above is a module; `modules/important_todos` is a small example to start from.
 
 To learn how the module system works and how to build your own, see **[docs/modules.md](docs/modules.md)**.
 

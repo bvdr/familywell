@@ -2,6 +2,8 @@
 
 use App\Models\Family;
 use App\Models\User;
+use App\Support\Modules\ModuleRegistry;
+use Illuminate\Support\Facades\DB;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\post;
@@ -69,4 +71,18 @@ it('does not let an onboarded user create a second family through onboarding', f
     ])->assertRedirect(route('dashboard'));
 
     expect($user->fresh()->families)->toHaveCount(1);
+});
+
+it('starts a new family with every module on and leaves existing families alone', function () {
+    test()->artisan('modules:migrate')->assertExitCode(0);
+    $registry = app(ModuleRegistry::class);
+    $existing = Family::factory()->create();
+    $registry->enable('tasks', $existing->id);
+
+    $user = User::factory()->create();
+    actingAs($user)->post('/onboarding', ['name' => 'New', 'color' => '#2D5E3A', 'emoji' => '🏡'])->assertRedirect();
+
+    $family = $user->fresh()->families()->first();
+    expect($registry->enabledIds($family->id))->toEqualCanonicalizing(array_keys($registry->discover()))
+        ->and(DB::table('family_modules')->where('family_id', $existing->id)->pluck('module_id')->all())->toBe(['tasks']);
 });

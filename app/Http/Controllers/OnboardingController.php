@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Family;
 use App\Support\Analytics;
+use App\Support\Modules\ModuleRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -61,6 +62,7 @@ class OnboardingController extends Controller
             'owner_id' => $user->id,
         ]);
         $family->members()->attach($user, ['role' => 'admin']);
+        app(ModuleRegistry::class)->enableAll($family->id);
         Analytics::track($user, 'family_created', [], '/onboarding');
 
         // Make it the active tenant immediately (SetActiveFamily reads this on the next request).
