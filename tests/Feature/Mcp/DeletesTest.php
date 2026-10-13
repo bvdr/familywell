@@ -107,7 +107,8 @@ it('deletes contacts (with their birthday), birthdays and inventory items', func
 
     $ana = BirthdayDate::find($b['id'])->person_id;
     expect(mcpTool($token, 'birthdays_delete', ['birthday_id' => $b['id']])[0])->toBeFalse()
-        ->and(BirthdayDate::find($b['id']))->toBeNull()->and(Person::find($ana))->not->toBeNull(); // contact stays
+        ->and(BirthdayDate::find($b['id']))->toBeNull()->and(Person::find($ana))->not->toBeNull() // contact stays
+        ->and(BirthdayDate::onlyTrashed()->find($b['id']))->not->toBeNull(); // in the 30-day trash
 
     expect(mcpTool($token, 'contacts_delete', ['person_id' => $c['id'] ?? $c['person_id']])[0])->toBeFalse()
         ->and(Person::where('name', 'Bob')->exists())->toBeFalse();

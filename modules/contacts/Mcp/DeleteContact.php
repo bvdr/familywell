@@ -20,7 +20,7 @@ class DeleteContact extends Tool
 
     protected string $name = 'contacts_delete';
 
-    protected string $description = 'Delete a contact with their phone numbers, emails and anything other modules keep on them (e.g. their birthday). This is permanent and cannot be undone (these records have no trash): confirm with the person before calling it.';
+    protected string $description = 'Move a contact to the trash with their phone numbers, emails and anything other modules keep on them (e.g. their birthday). Restorable for 30 days with contacts_restore.';
 
     public function schema(JsonSchema $schema): array
     {

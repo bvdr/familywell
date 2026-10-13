@@ -30,7 +30,8 @@ class NotifyBirthdays extends Command
         $prior = CurrentFamily::id();
         $sent = 0;
 
-        $rows = BirthdayDate::withoutGlobalScopes()->with('person')->on($today)
+        // Only the family scope goes (every family, no tenant here); the trash scope must stay.
+        $rows = BirthdayDate::withoutGlobalScope('family')->with('person')->on($today)
             ->where(fn ($q) => $q->whereNull('notified_on')->orWhere('notified_on', '<', $today))
             ->get();
 

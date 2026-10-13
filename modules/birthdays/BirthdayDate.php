@@ -9,6 +9,7 @@ use App\Support\Translations;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Modules\Contacts\Person;
@@ -22,6 +23,7 @@ use Modules\Contacts\Person;
 class BirthdayDate extends Model
 {
     use BelongsToFamily;
+    use SoftDeletes; // 30-day trash (BirthdaysTrash, trash:purge); write through setFor(), see there
 
     protected $table = 'birthdays_dates';
 
@@ -122,11 +124,25 @@ class BirthdayDate extends Model
         $person = Person::whereRaw('lower(name) = ?', [mb_strtolower(trim($name))])->first()
             ?? Person::create(['name' => trim($name), 'created_by' => $by->id]);
 
-        $birthday = self::updateOrCreate(['person_id' => $person->id], BirthdaysController::attributesFromRequest($request));
+        $birthday = self::setFor($person->id, BirthdaysController::attributesFromRequest($request));
         // The listener in the provider also reacts to birth_month, harmlessly re-saving the same row.
         app(Hooks::class)->fire('person.saved', $person, $request);
 
         return $birthday->setRelation('person', $person);
+    }
+
+    /**
+     * Set a person's birthday. person_id is unique and a trashed birthday still holds it, so a new date
+     * revives the trashed row (with the new date) instead of inserting a second one.
+     */
+    public static function setFor(int $personId, array $attrs): self
+    {
+        $birthday = self::withTrashed()->updateOrCreate(['person_id' => $personId], $attrs);
+        if ($birthday->trashed()) {
+            $birthday->restore();
+        }
+
+        return $birthday;
     }
 
     /** Every birthday in the family with its person, soonest first (people deleted → row cascaded). */

@@ -3,6 +3,7 @@
 namespace Modules\Contacts;
 
 use App\Support\Mcp\McpTools;
+use App\Support\Trash\Trash;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -24,9 +25,13 @@ class ContactsServiceProvider extends ServiceProvider
 
         // MCP: address-book tools for an AI assistant, gated by the `contacts:read` / `contacts:write`
         // scopes (see docs/mcp.md).
-        // Delete tools are permanent (these records have no trash), so they are marked destructive and ask the
-        // assistant to confirm with the person first.
+        // Deletes go to the 30-day trash (*_list_deleted / *_restore).
         McpTools::register('contacts', 'Contacts', [
-            Mcp\ListContacts::class, Mcp\GetContact::class, Mcp\CreateContact::class, Mcp\UpdateContact::class, Mcp\DeleteContact::class, ]);
+            Mcp\ListContacts::class, Mcp\GetContact::class, Mcp\CreateContact::class, Mcp\UpdateContact::class, Mcp\DeleteContact::class,
+            Mcp\ListDeleted::class, Mcp\Restore::class, ]);
+
+        // 30-day trash: deleted contacts in Settings > Recently deleted (ContactsTrash).
+        Trash::source('contacts', ContactsTrash::class);
+        Trash::register(Person::class);
     }
 }

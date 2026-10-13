@@ -8,6 +8,7 @@ use App\Support\Tenancy\BelongsToFamily;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * The `person` primitive: a human in the family's address book. Its own data is just a name and a
@@ -18,6 +19,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Person extends Model
 {
     use BelongsToFamily;
+
+    // 30-day trash (ContactsTrash, trash:purge). Rows hanging off a person (contact methods, a birthday,
+    // calendar/project links) stay put while it is trashed: every reader goes through Person, which hides
+    // trashed rows, so they vanish with it and come back on restore. The FK cascades run at purge.
+    use SoftDeletes;
 
     protected $table = 'contacts_people';
 
