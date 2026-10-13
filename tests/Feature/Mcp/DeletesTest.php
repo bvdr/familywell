@@ -11,8 +11,8 @@ use Modules\Vehicles\Vehicle;
 use Modules\Vehicles\VehicleDocument;
 use Modules\Vehicles\VehicleMileageLog;
 
-// Delete tools for records that have no trash: permanent, marked destructive, and each runs the same path
-// as the app's delete button (stored files freed first).
+// Delete tools for contacts, birthdays, inventory, projects and vehicles: marked destructive, each runs the
+// same path as the app's delete button, and lands in the 30-day trash (stored files are only freed at purge).
 
 function deleteToken(array $modules): array
 {
@@ -41,9 +41,13 @@ it('removes a duplicate mileage reading, and falls back when the newest one goes
     $newest = VehicleMileageLog::latest('id')->first();
     [, $r] = mcpTool($token, 'vehicles_delete_record', ['vehicle_id' => $car->id, 'type' => 'mileage', 'id' => $newest->id]);
     expect($r['vehicle']['current_mileage_km'])->toBe(87634);
+
+    // Restoring it undoes the fallback: it is the newest reading again, so the odometer moves back up.
+    [$err] = mcpTool($token, 'vehicles_restore', ['type' => 'mileage', 'id' => $newest->id]);
+    expect($err)->toBeFalse()->and($car->fresh()->current_mileage)->toBe(90000);
 });
 
-it('deletes repairs, documents, fuel fills and schedules, freeing their files', function () {
+it('trashes repairs, documents, fuel fills and schedules, restores one, and frees the files at purge', function () {
     Storage::fake('r2');
     [, $users, $token] = deleteToken(['vehicles']);
     $car = Vehicle::create(['make' => 'Dacia', 'model' => 'Duster', 'current_mileage' => 1000]);
@@ -59,12 +63,25 @@ it('deletes repairs, documents, fuel fills and schedules, freeing their files', 
         [$err] = mcpTool($token, 'vehicles_delete_record', ['vehicle_id' => $car->id, 'type' => $type, 'id' => $id]);
         expect($err)->toBeFalse();
     }
-    Storage::disk('r2')->assertMissing($repairFile);
-    Storage::disk('r2')->assertMissing($docFile);
+    Storage::disk('r2')->assertExists($repairFile); // kept for a restore
+    Storage::disk('r2')->assertExists($docFile);
     expect($car->repairs()->count() + $car->documents()->count() + $car->fuelEntries()->count() + $car->maintenanceSchedules()->count())->toBe(0);
+
+    [, $trash] = mcpTool($token, 'vehicles_list_deleted');
+    expect(collect($trash['deleted'])->pluck('type')->sort()->values()->all())->toBe(['document', 'fuel', 'maintenance_schedule', 'repair'])
+        ->and(collect($trash['deleted'])->pluck('where')->unique()->all())->toBe(['Dacia Duster']);
+    [$err, $r] = mcpTool($token, 'vehicles_restore', ['type' => 'document', 'id' => $doc['document_id']]);
+    expect($err)->toBeFalse()->and($r['url'])->toEndWith("/m/vehicles/{$car->id}/documents")
+        ->and($car->documents()->count())->toBe(1);
+
+    $this->travel(31)->days();
+    $this->artisan('trash:purge')->assertExitCode(0);
+    Storage::disk('r2')->assertMissing($repairFile);
+    Storage::disk('r2')->assertExists($docFile); // restored, so it stays
+    expect(Repair::withTrashed()->find($repair['repair_id']))->toBeNull();
 });
 
-it('deletes a whole car with its files, and the delete tools are marked destructive', function () {
+it('trashes a whole car with its records, restores it, and frees its files at purge', function () {
     Storage::fake('r2');
     [, , $token] = deleteToken(['vehicles']);
     $car = Vehicle::create(['make' => 'Dacia', 'model' => 'Duster', 'current_mileage' => 1000]);
@@ -73,7 +90,18 @@ it('deletes a whole car with its files, and the delete tools are marked destruct
 
     [$err] = mcpTool($token, 'vehicles_delete', ['vehicle_id' => $car->id]);
     expect($err)->toBeFalse()->and(Vehicle::find($car->id))->toBeNull();
+    Storage::disk('r2')->assertExists($file);
+    [, $trash] = mcpTool($token, 'vehicles_list_deleted');
+    expect(collect($trash['deleted'])->pluck('type')->all())->toBe(['vehicle']); // its records ride along
+
+    [$err] = mcpTool($token, 'vehicles_restore', ['type' => 'vehicle', 'id' => $car->id]);
+    expect($err)->toBeFalse()->and(mcpTool($token, 'vehicles_get', ['vehicle_id' => $car->id])[1]['documents'])->toHaveCount(1);
+
+    mcpTool($token, 'vehicles_delete', ['vehicle_id' => $car->id]);
+    $this->travel(31)->days();
+    $this->artisan('trash:purge')->assertExitCode(0);
     Storage::disk('r2')->assertMissing($file);
+    expect(Vehicle::withTrashed()->find($car->id))->toBeNull()->and(VehicleDocument::withTrashed()->count())->toBe(0);
 
     $tools = collect(mcpCall($token, 'tools/list')->json('result.tools'))->keyBy('name');
     expect($tools['vehicles_delete']['annotations']['destructiveHint'] ?? null)->toBeTrue()

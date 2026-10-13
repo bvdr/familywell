@@ -194,7 +194,7 @@ it('excludes inactive schedules from the vehicle status rollup', function () {
     expect($summary['state'])->toBe('good')->and($summary['attention'])->toBe(0);
 });
 
-it('deletes a schedule but keeps its history record (unlinked)', function () {
+it('trashes a schedule but keeps its history record (unlinked once purged)', function () {
     [, $users] = maintFamily();
     $vehicle = maintVehicle(['current_mileage' => 150000]);
     $schedule = makeSchedule($vehicle);
@@ -207,6 +207,9 @@ it('deletes a schedule but keeps its history record (unlinked)', function () {
         ->assertRedirect("/m/vehicles/{$vehicle->id}/maintenance");
 
     expect(VehicleMaintenanceSchedule::find($schedule->id))->toBeNull();
+    expect(VehicleMaintenanceHistory::find($historyId)->schedule_id)->toBe($schedule->id); // still linked while restorable
+
+    VehicleMaintenanceSchedule::onlyTrashed()->find($schedule->id)->forceDelete(); // what trash:purge does
     $history = VehicleMaintenanceHistory::find($historyId);
     expect($history)->not->toBeNull()->and($history->schedule_id)->toBeNull();   // record survives, unlinked
 });

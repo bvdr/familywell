@@ -7,6 +7,7 @@ use App\Support\Tenancy\BelongsToFamily;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Modules\Tasks\Task;
 
@@ -21,6 +22,10 @@ use Modules\Tasks\Task;
 class VehicleMaintenanceSchedule extends Model
 {
     use BelongsToFamily;
+
+    // 30-day trash (VehiclesTrash) for a person's delete. A completed one-off job is erased outright
+    // (MaintenanceCompletion), since nobody deleted it.
+    use SoftDeletes;
 
     protected $table = 'vehicles_maintenance_schedules';
 

@@ -18,7 +18,7 @@ class DeleteVehicle extends Tool
 
     protected string $name = 'vehicles_delete';
 
-    protected string $description = 'Delete a whole car with everything recorded for it (mileage, services, repairs, fuel, documents and their files). Its expenses stay in Spending. This is permanent and cannot be undone (these records have no trash): confirm with the person before calling it.';
+    protected string $description = 'Move a whole car to the trash with everything recorded for it (mileage, services, repairs, fuel, documents and their files), restorable for 30 days with vehicles_restore. Its expenses stay in Spending.';
 
     public function schema(JsonSchema $schema): array
     {

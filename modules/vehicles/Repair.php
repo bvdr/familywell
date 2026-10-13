@@ -8,6 +8,7 @@ use App\Support\Tenancy\BelongsToFamily;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\UploadedFile;
 
 /**
@@ -20,6 +21,9 @@ use Illuminate\Http\UploadedFile;
 class Repair extends Model
 {
     use BelongsToFamily;
+
+    // 30-day trash (VehiclesTrash); attachments + their files are kept until trash:purge.
+    use SoftDeletes;
 
     protected $table = 'vehicles_repairs';
 
@@ -48,13 +52,16 @@ class Repair extends Model
         ]);
     }
 
-    /** Delete the repair and free its attachments' R2 objects (rows cascade). Web + MCP. */
+    /** Move the repair (with its attachments) to the 30-day trash. Web + MCP. */
     public function deleteWithFiles(): void
     {
-        foreach ($this->attachments as $a) {
-            StoredImage::delete($a->path);
-        }
         $this->delete();
+    }
+
+    protected static function booted(): void
+    {
+        // Gone for good: the attachment rows cascade in the DB, their storage objects don't.
+        static::forceDeleting(fn (self $r) => $r->attachments->each(fn ($a) => StoredImage::delete($a->path)));
     }
 
     public function attachments(): HasMany

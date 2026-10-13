@@ -7,6 +7,7 @@ use App\Support\Mcp\McpTools;
 use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Trash\Trash;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -32,14 +33,20 @@ class VehiclesServiceProvider extends ServiceProvider
 
         // MCP: tools an AI assistant can use on the family's cars, gated by the `vehicles:read` /
         // `vehicles:write` scopes granted on the consent screen (see docs/mcp.md).
-        // Delete tools are permanent (these records have no trash), so they are marked destructive and ask the
-        // assistant to confirm with the person first.
+        // Deletes go to the 30-day trash (vehicles_list_deleted / vehicles_restore).
         McpTools::register('vehicles', 'Vehicles', [
             Mcp\ListVehicles::class, Mcp\GetVehicle::class, Mcp\VehicleHistory::class, Mcp\ExportHistory::class,
             Mcp\LogMileage::class, Mcp\LogFuel::class, Mcp\AddMaintenance::class, Mcp\UpdateMaintenance::class, Mcp\CompleteMaintenance::class,
             Mcp\AddRepair::class, Mcp\AddExpense::class, Mcp\AddDocument::class, Mcp\AttachFile::class,
-            Mcp\DeleteRecord::class, Mcp\DeleteVehicle::class,
+            Mcp\DeleteRecord::class, Mcp\DeleteVehicle::class, Mcp\ListDeleted::class, Mcp\Restore::class,
         ]);
+
+        // 30-day trash: deleted cars and records in Settings > Recently deleted (VehiclesTrash).
+        Trash::source('vehicles', VehiclesTrash::class);
+        Trash::register(Vehicle::class);
+        foreach (VehiclesTrash::RECORDS as [$model]) {
+            Trash::register($model);
+        }
 
         // MAINTENANCE -> TASKS, completion half. When a task is checked off, complete the maintenance it
         // was linked to: write history, advance the schedule, recompute next due, and clear the link so the
@@ -51,7 +58,8 @@ class VehiclesServiceProvider extends ServiceProvider
             if (! $task->done || ! $this->enabledHere()) {
                 return;
             }
-            $schedule = VehicleMaintenanceSchedule::where('open_task_id', $task->id)->first();
+            // whereHas: a schedule of a trashed car stays live (hidden with it) and must not complete.
+            $schedule = VehicleMaintenanceSchedule::where('open_task_id', $task->id)->whereHas('vehicle')->first();
             if ($schedule) {
                 MaintenanceCompletion::fromTask($schedule, $request->user());
             }

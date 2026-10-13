@@ -84,9 +84,10 @@ class MaintenanceCompletion
 
         // A one-off planned job is finished for good: its record lives on in the history (the FK nulls
         // schedule_id, the name is snapshotted), so drop the schedule rather than leave a rule with nothing
-        // left to be due by. Callers check $schedule->exists.
+        // left to be due by. Callers check $schedule->exists. forceDelete: nobody deleted it, so it must not
+        // land in Recently deleted.
         if ($schedule->isOneOff()) {
-            $schedule->delete();
+            $schedule->forceDelete();
         }
 
         return $history;

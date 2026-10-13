@@ -9,6 +9,7 @@ use App\Support\Translations;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
@@ -23,6 +24,10 @@ use Illuminate\Validation\ValidationException;
 class Vehicle extends Model
 {
     use BelongsToFamily;
+
+    // 30-day trash (VehiclesTrash, trash:purge). Its records stay put while it is trashed: every reader goes
+    // through the car (or skips a record whose car is gone), so they vanish with it and come back on restore.
+    use SoftDeletes;
 
     protected $table = 'vehicles_vehicles';
 
@@ -266,17 +271,26 @@ class Vehicle extends Model
     }
 
     /**
-     * Delete the car for good. Child rows cascade in the DB, but their R2 files would not, so the photo,
-     * every repair attachment and every document file are freed first. Shared by the web delete and MCP.
+     * Move the car (with everything recorded for it) to the 30-day trash. Its files stay in storage so a
+     * restore gets them back; booted() frees them when trash:purge erases the car. Web delete + MCP.
      */
     public function deleteWithFiles(): void
     {
-        StoredImage::delete($this->photo_path);
-        foreach ($this->repairs()->with('attachments')->get() as $repair) {
-            $repair->attachments->each(fn ($a) => StoredImage::delete($a->path));
-        }
-        $this->documents()->pluck('file_path')->each(fn ($p) => StoredImage::delete($p));
         $this->delete();
+    }
+
+    protected static function booted(): void
+    {
+        // Gone for good: child rows cascade in the DB, but their storage files would not, so free the photo,
+        // every repair attachment and every document file first (trashed records included: the DB cascade
+        // erases them too, without their own forceDeleting firing).
+        static::forceDeleting(function (self $v) {
+            StoredImage::delete($v->photo_path);
+            foreach ($v->repairs()->withTrashed()->with('attachments')->get() as $repair) {
+                $repair->attachments->each(fn ($a) => StoredImage::delete($a->path));
+            }
+            $v->documents()->withTrashed()->pluck('file_path')->each(fn ($p) => StoredImage::delete($p));
+        });
     }
 
     /**
