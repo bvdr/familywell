@@ -1,9 +1,20 @@
 import { Head } from '@inertiajs/react';
-import { CircleDot, FileText, Gauge, History, Receipt, Wrench, type LucideIcon } from 'lucide-react';
+import { CircleDot, Download, FileText, Gauge, History, Receipt, Wrench, type LucideIcon } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { useLocale, useT, type TFn } from '@/lib/i18n';
-import { distanceText, documentTypeLabel, mileageText, vehicleTitle, type TimelineEntry, type TimelineType, type UnitSystem, type Vehicle } from '@/lib/vehicles';
+import { money } from '@/lib/money';
+import {
+    distanceText,
+    documentTypeLabel,
+    mileageText,
+    vehicleTitle,
+    type TimelineEntry,
+    type TimelineType,
+    type UnitSystem,
+    type Vehicle,
+} from '@/lib/vehicles';
 import type { BreadcrumbItem } from '@/types';
 
 import VehicleNav from './vehicle-nav';
@@ -12,6 +23,7 @@ type Props = {
     vehicle: Vehicle;
     unitSystem: UnitSystem;
     entries: TimelineEntry[];
+    currency: string; // the car currency every cost is in (VehicleExpenses::currency)
 };
 
 // Icon + theme-token colour per event type. Colours track the active skin (never hard-coded hex).
@@ -49,7 +61,7 @@ function groupByMonth(entries: TimelineEntry[], locale: string): { key: string; 
     return groups;
 }
 
-export default function VehicleTimeline({ vehicle, unitSystem, entries }: Props) {
+export default function VehicleTimeline({ vehicle, unitSystem, entries, currency }: Props) {
     const t = useT();
     const locale = useLocale();
     const breadcrumbs: BreadcrumbItem[] = [
@@ -67,10 +79,17 @@ export default function VehicleTimeline({ vehicle, unitSystem, entries }: Props)
                     <span className="bg-accent-subtle text-primary flex size-10 shrink-0 items-center justify-center rounded-xl">
                         <History className="size-5" />
                     </span>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                         <h1 className="font-heading text-primary text-2xl">{vehicleTitle(vehicle)}</h1>
                         <p className="text-muted-foreground text-sm tabular-nums">{mileageText(t, vehicle.currentMileage, unitSystem)}</p>
                     </div>
+                    {/* A plain download link (no Inertia visit): the server streams the PDF as an attachment. */}
+                    <Button asChild variant="outline" size="sm" className="shrink-0">
+                        <a href={`/m/vehicles/${vehicle.id}/history.pdf`} download>
+                            <Download className="size-4" />
+                            {t('vehicles.export_button')}
+                        </a>
+                    </Button>
                 </header>
 
                 <VehicleNav vehicleId={vehicle.id} active="timeline" />
@@ -89,7 +108,7 @@ export default function VehicleTimeline({ vehicle, unitSystem, entries }: Props)
                                 {/* A single vertical rail down the left; each entry hangs a dot off it. */}
                                 <ol className="border-border relative ml-3 flex flex-col gap-3 border-l pl-6">
                                     {g.items.map((e) => (
-                                        <TimelineRow key={e.id} entry={e} unitSystem={unitSystem} t={t} locale={locale} />
+                                        <TimelineRow key={e.id} entry={e} unitSystem={unitSystem} t={t} locale={locale} currency={currency} />
                                     ))}
                                 </ol>
                             </section>
@@ -101,14 +120,27 @@ export default function VehicleTimeline({ vehicle, unitSystem, entries }: Props)
     );
 }
 
-function TimelineRow({ entry, unitSystem, t, locale }: { entry: TimelineEntry; unitSystem: UnitSystem; t: TFn; locale: string }) {
+function TimelineRow({
+    entry,
+    unitSystem,
+    t,
+    locale,
+    currency,
+}: {
+    entry: TimelineEntry;
+    unitSystem: UnitSystem;
+    t: TFn;
+    locale: string;
+    currency: string;
+}) {
     const meta = TYPE_META[entry.type] ?? TYPE_META.mileage;
     const Icon = meta.icon;
 
     // The headline: a real title for most types; the odometer reading itself for a bare mileage entry;
     // the type name as a last resort (e.g. a note-less expense).
     const title =
-        entry.title || (entry.type === 'mileage' && entry.mileage != null ? mileageText(t, entry.mileage, unitSystem) : t(`vehicles.timeline_type_${entry.type}`));
+        entry.title ||
+        (entry.type === 'mileage' && entry.mileage != null ? mileageText(t, entry.mileage, unitSystem) : t(`vehicles.timeline_type_${entry.type}`));
 
     // Sub: document type label, or a provider, whichever the entry carries.
     const sub = entry.type === 'document' && entry.subtitle ? documentTypeLabel(t, entry.subtitle) : entry.subtitle;
@@ -122,7 +154,10 @@ function TimelineRow({ entry, unitSystem, t, locale }: { entry: TimelineEntry; u
                 className="border-surface-card absolute top-1 -left-[calc(1.5rem+1px)] flex size-6 -translate-x-1/2 items-center justify-center rounded-full border-2"
                 style={{ background: 'var(--surface-card)' }}
             >
-                <span className="flex size-6 items-center justify-center rounded-full" style={{ background: `color-mix(in srgb, ${meta.color} 15%, transparent)`, color: meta.color }}>
+                <span
+                    className="flex size-6 items-center justify-center rounded-full"
+                    style={{ background: `color-mix(in srgb, ${meta.color} 15%, transparent)`, color: meta.color }}
+                >
                     <Icon className="size-3.5" />
                 </span>
             </span>
@@ -131,18 +166,23 @@ function TimelineRow({ entry, unitSystem, t, locale }: { entry: TimelineEntry; u
                 <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                         <span className="text-primary truncate text-sm font-medium">{title}</span>
-                        <span className="text-muted-foreground shrink-0 text-[11px] font-medium tracking-wide uppercase" style={{ color: meta.color }}>
+                        <span
+                            className="text-muted-foreground shrink-0 text-[11px] font-medium tracking-wide uppercase"
+                            style={{ color: meta.color }}
+                        >
                             {t(`vehicles.timeline_type_${entry.type}`)}
                         </span>
                     </div>
                     <div className="text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-2 text-xs">
                         {day && <span className="tabular-nums">{day}</span>}
                         {sub && <span className="truncate">· {sub}</span>}
-                        {entry.type !== 'mileage' && entry.mileage != null && <span className="tabular-nums">· {distanceText(entry.mileage, unitSystem)}</span>}
+                        {entry.type !== 'mileage' && entry.mileage != null && (
+                            <span className="tabular-nums">· {distanceText(entry.mileage, unitSystem)}</span>
+                        )}
                     </div>
                 </div>
                 {entry.cost != null && (
-                    <span className="text-primary shrink-0 text-sm font-medium tabular-nums">{t('vehicles.cost_value', { value: entry.cost.toLocaleString('en-US') })}</span>
+                    <span className="text-primary shrink-0 text-sm font-medium tabular-nums">{money(Math.round(entry.cost * 100), currency)}</span>
                 )}
             </div>
         </li>

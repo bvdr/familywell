@@ -137,6 +137,7 @@ class VehiclesController extends Controller
             'vehicle' => $this->cardPayload($vehicle),
             'unitSystem' => VehicleSetting::current()->unit_system,
             'entries' => VehicleTimeline::forVehicle($vehicle),
+            'currency' => VehicleExpenses::currency((int) $vehicle->family_id),
         ]);
     }
 
