@@ -31,8 +31,8 @@ Route::middleware('auth')->group(function () {
         // Billing (hosted plan only; 404s without Stripe config). NOT behind the paywall itself: this is
         // where a locked family is sent to subscribe. See RequireFamily.
         Route::get('settings/billing', [BillingController::class, 'show'])->name('billing.show');
-        Route::post('settings/billing/checkout', [BillingController::class, 'checkout'])->name('billing.checkout');
-        Route::post('settings/billing/portal', [BillingController::class, 'portal'])->name('billing.portal');
+        Route::post('settings/billing/checkout', [BillingController::class, 'checkout'])->middleware('not-demo')->name('billing.checkout');
+        Route::post('settings/billing/portal', [BillingController::class, 'portal'])->middleware('not-demo')->name('billing.portal');
 
         Route::get('settings/recently-deleted', [RecentlyDeletedController::class, 'index'])->name('recently-deleted');
         Route::post('settings/recently-deleted/{module}/{type}/{id}', [RecentlyDeletedController::class, 'restore'])
@@ -41,15 +41,15 @@ Route::middleware('auth')->group(function () {
 
     // AI assistants / MCP clients connected through OAuth (see routes/mcp.php), and revoking them.
     Route::get('settings/connected-apps', [ConnectedAppsController::class, 'index'])->name('connected-apps');
-    Route::delete('settings/connected-apps/{token}', [ConnectedAppsController::class, 'destroy'])->name('connected-apps.destroy');
+    Route::delete('settings/connected-apps/{token}', [ConnectedAppsController::class, 'destroy'])->middleware('not-demo')->name('connected-apps.destroy');
 
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('settings/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::patch('settings/profile', [ProfileController::class, 'update'])->middleware('not-demo:email')->name('profile.update');
+    Route::delete('settings/profile', [ProfileController::class, 'destroy'])->middleware('not-demo:password')->name('profile.destroy');
 
     Route::get('settings/password', [PasswordController::class, 'edit'])->name('password.edit');
-    Route::put('settings/password', [PasswordController::class, 'update'])->name('password.update');
-    Route::delete('settings/social-accounts/{id}', [PasswordController::class, 'disconnectSocial'])
+    Route::put('settings/password', [PasswordController::class, 'update'])->middleware('not-demo:current_password')->name('password.update');
+    Route::delete('settings/social-accounts/{id}', [PasswordController::class, 'disconnectSocial'])->middleware('not-demo')
         ->whereNumber('id')->name('social.disconnect');
 
     Route::get('settings/appearance', function () {

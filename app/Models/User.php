@@ -28,6 +28,17 @@ class User extends Authenticatable implements OAuthenticatable
         static::creating(fn (User $user) => $user->analytics_id ??= (string) Str::uuid());
     }
 
+    /**
+     * Member of the public demo family (is_demo): the account anyone can enter via /demo. Memoized per
+     * request; BlockDemo asks it on the guarded account/family routes.
+     */
+    public function isDemo(): bool
+    {
+        return $this->isDemoCache ??= $this->families()->where('is_demo', true)->exists();
+    }
+
+    private ?bool $isDemoCache = null;
+
     public function families(): BelongsToMany
     {
         return $this->belongsToMany(Family::class)
