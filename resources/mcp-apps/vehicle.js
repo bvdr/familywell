@@ -1,6 +1,7 @@
 // vehicles_get (one car: odometer, maintenance with "Mark done", documents, recent work),
 // vehicles_list (`vehicles` cards) and vehicles_history (`history` timeline).
-// Distances arrive in km; shown in the family's display unit when the payload says miles.
+// Distances arrive in km; shown in the family's display unit when the payload says miles. Costs arrive
+// as decimals in the family's car currency (`currency`), formatted like the app ("408,53 lei").
 const MAINT_PILL = { overdue: ['bad', 'Overdue'], due: ['bad', 'Due'], due_soon: ['warn', 'Due soon'], good: ['good', 'OK'] };
 
 FW.start((d) => {
@@ -40,9 +41,7 @@ FW.start((d) => {
                                   'div',
                                   { class: 'end' },
                                   h('div', { class: 'small muted' }, FW.day(e.date)),
-                                  e.cost
-                                      ? h('div', { class: 'small' }, FW.num(e.cost, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
-                                      : null,
+                                  e.cost ? h('div', { class: 'small' }, FW.money(e.cost, d.currency)) : null,
                               ),
                           ),
                       ),
@@ -120,7 +119,14 @@ FW.start((d) => {
                 ? h(
                       'div',
                       { class: 'meta small' },
-                      `${FW.num(d.fuel.avg_consumption_l_per_100km ?? 0, { maximumFractionDigits: 1 })} L/100km average · ${d.fuel.fills} fill-ups`,
+                      [
+                          `${FW.num(d.fuel.avg_consumption_l_per_100km ?? 0, { maximumFractionDigits: 1 })} L/100km average`,
+                          `${d.fuel.fills} fill-ups`,
+                          // cost_per_km is per km in the family currency; per mile when the family reads miles.
+                          d.fuel.cost_per_km ? `${FW.money(d.fuel.cost_per_km * (miles ? 1.609344 : 1), d.currency)}/${miles ? 'mi' : 'km'}` : null,
+                      ]
+                          .filter(Boolean)
+                          .join(' · '),
                   )
                 : null,
         ),

@@ -6,6 +6,7 @@ use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Support\Facades\Validator;
 use Modules\Vehicles\Vehicle;
+use Modules\Vehicles\VehicleExpenses;
 use Modules\Vehicles\VehicleMaintenanceSchedule;
 use Modules\Vehicles\VehicleOverview;
 use Modules\Vehicles\VehicleSetting;
@@ -106,6 +107,12 @@ class VehicleData
     public static function displayUnit(): string
     {
         return VehicleSetting::current()->unit_system === 'imperial' ? 'miles' : 'km';
+    }
+
+    /** Currency of every cost in the vehicle payloads, so the widget can show "408,53 lei", not "408.53". */
+    public static function currency(): string
+    {
+        return VehicleExpenses::currency((int) CurrentFamily::id());
     }
 
     public static function spendingEnabled(): bool

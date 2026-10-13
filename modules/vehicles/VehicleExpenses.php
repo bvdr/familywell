@@ -76,6 +76,18 @@ class VehicleExpenses
     }
 
     /**
+     * The currency car money is shown in: the "Vehicles" spend event's (every car cost mirrors into it), else
+     * the family's spending default, else EUR. Same rule as VehicleAnalytics, for places that show raw costs
+     * (repair/maintenance/fuel `cost` columns hold amounts in this currency, without one of their own).
+     */
+    public static function currency(int $familyId): string
+    {
+        return SpendEvent::query()->where('family_id', $familyId)->where('name', self::EVENT_NAME)->value('currency')
+            ?? SpendSetting::defaultCurrency($familyId)
+            ?? 'EUR';
+    }
+
+    /**
      * Find-or-create the family's "Vehicles" spend event, provisioning its roster + owner share on first
      * creation exactly as the Spending controller does for a hand-made list. Currency defaults to the
      * family's spending default (falling back to EUR), so amounts entered without a currency picker are
