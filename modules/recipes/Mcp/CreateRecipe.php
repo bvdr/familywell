@@ -9,8 +9,10 @@ use Illuminate\Support\Facades\Validator;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
+use Laravel\Mcp\Server\Tools\Annotations\IsOpenWorld;
 use Modules\Recipes\Recipe;
 
+#[IsOpenWorld]
 class CreateRecipe extends Tool
 {
     protected string $module = 'recipes';

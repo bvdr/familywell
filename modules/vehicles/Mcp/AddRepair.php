@@ -8,7 +8,9 @@ use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
+use Laravel\Mcp\Server\Tools\Annotations\IsOpenWorld;
 
+#[IsOpenWorld]
 class AddRepair extends Tool
 {
     protected string $module = 'vehicles';

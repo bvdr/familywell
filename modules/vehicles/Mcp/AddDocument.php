@@ -9,8 +9,10 @@ use Illuminate\Validation\Rule;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
+use Laravel\Mcp\Server\Tools\Annotations\IsOpenWorld;
 use Modules\Vehicles\VehicleDocument;
 
+#[IsOpenWorld]
 class AddDocument extends Tool
 {
     protected string $module = 'vehicles';

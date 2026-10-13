@@ -8,6 +8,7 @@ use Illuminate\Validation\Rule;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
+use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
 use Modules\Tasks\Mcp\TaskData;
 
@@ -15,6 +16,7 @@ use Modules\Tasks\Mcp\TaskData;
 // calendar owns their edits, same as projects_update_task does for project tasks. Same path as the web UI:
 // CalendarEvent::updateTask (which also notifies a new assignee).
 #[IsIdempotent]
+#[IsDestructive]
 class UpdateTodo extends Tool
 {
     protected string $module = 'calendar';
