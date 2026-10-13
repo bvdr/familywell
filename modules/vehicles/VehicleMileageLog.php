@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Support\Tenancy\BelongsToFamily;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * One append-only odometer reading: the absolute mileage, who recorded it and when. Written on every
@@ -15,6 +16,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class VehicleMileageLog extends Model
 {
     use BelongsToFamily;
+
+    // 30-day trash (VehiclesTrash). booted() undoes deleteReading()'s odometer fallback on restore.
+    use SoftDeletes;
 
     protected $table = 'vehicles_mileage_log';
 
@@ -42,6 +46,19 @@ class VehicleMileageLog extends Model
                 $vehicle->update(['current_mileage' => (int) $previous]);
             }
         }
+    }
+
+    protected static function booted(): void
+    {
+        // Mirror of deleteReading(): restoring what is again the newest reading moves the odometer back up to
+        // it (never down; a later correction stays).
+        static::restored(function (self $log) {
+            $vehicle = $log->vehicle;
+            $newest = $vehicle?->mileageLogs()->orderByDesc('recorded_at')->orderByDesc('id')->first();
+            if ($newest?->is($log) && (int) $vehicle->current_mileage < (int) $log->mileage) {
+                $vehicle->update(['current_mileage' => (int) $log->mileage]);
+            }
+        });
     }
 
     public function vehicle(): BelongsTo

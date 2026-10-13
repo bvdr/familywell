@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\Contacts\Person;
+use Modules\Tasks\Task;
 
 class CalendarServiceProvider extends ServiceProvider
 {
@@ -25,6 +26,9 @@ class CalendarServiceProvider extends ServiceProvider
     {
         Trash::source('calendar', CalendarTrash::class);
         Trash::register(CalendarEvent::class);
+        // A trashed to-do keeps its event link so it can be restored onto the event; drop the link once
+        // trash:purge erases the task for good (links have no FK to tasks_tasks).
+        Task::forceDeleted(fn (Task $t) => CalendarEventLink::withoutGlobalScopes()->where(['linkable_type' => 'task', 'linkable_id' => $t->id])->delete());
         ShareableRegistry::register('calendar_event', CalendarEvent::class);
 
         // MCP: calendar:read / calendar:write scopes.

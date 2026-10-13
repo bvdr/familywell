@@ -202,3 +202,17 @@ it('keeps tasks and expenses family-scoped', function () {
     expect($scheduleA->fresh()->open_task_id)->toBe($taskA->id)
         ->and(VehicleMaintenanceHistory::where('schedule_id', $scheduleA->id)->count())->toBe(0);
 });
+
+it('does not complete a trashed car\'s maintenance when its reminder task is checked off', function () {
+    [, $users] = integFamily();
+    $vehicle = integVehicle(['current_mileage' => 150000]);
+    $schedule = dueSchedule($vehicle);
+    test()->artisan('vehicles:check')->assertExitCode(0);
+    $task = Task::first();
+
+    $vehicle->deleteWithFiles(); // to the trash; the schedule stays live, hidden with the car
+    actingAs($users[0])->patch("/m/tasks/tasks/{$task->id}")->assertRedirect(); // was a 500: a null car
+
+    expect(VehicleMaintenanceHistory::where('schedule_id', $schedule->id)->exists())->toBeFalse()
+        ->and($schedule->fresh()->open_task_id)->toBe($task->id);
+});

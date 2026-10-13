@@ -18,7 +18,7 @@ class DeleteRecord extends Tool
 
     protected string $name = 'vehicles_delete_record';
 
-    protected string $description = 'Delete one record from a car: a mileage reading (e.g. a duplicate), a fuel fill, a repair (with its attachments), a document (with its file), or a maintenance schedule (its past services stay in the history). Ids come from vehicles_history ("mileage-123" = mileage 123) and vehicles_get (document_id, schedule_id). Deleting the newest mileage reading sets the odometer back to the previous reading. This is permanent and cannot be undone (these records have no trash): confirm with the person before calling it.';
+    protected string $description = 'Move one record of a car to the trash: a mileage reading (e.g. a duplicate), a fuel fill, a repair (with its attachments), a document (with its file), or a maintenance schedule (its past services stay in the history). Ids come from vehicles_history ("mileage-123" = mileage 123) and vehicles_get (document_id, schedule_id). Deleting the newest mileage reading sets the odometer back to the previous reading. Deleted records go to the trash, restorable for 30 days with vehicles_restore.';
 
     public function schema(JsonSchema $schema): array
     {
@@ -48,13 +48,13 @@ class DeleteRecord extends Tool
             return $this->notFound(str_replace('_', ' ', ucfirst($data['type'])));
         }
 
-        // Same paths as the app's delete buttons (files freed from storage first); mileage is the one
-        // record the app has no delete for, with its own odometer rule (VehicleMileageLog::deleteReading).
+        // Same paths as the app's delete buttons (to the 30-day trash; files are freed at purge); mileage is
+        // the one record the app has no delete for, with its own odometer rule (VehicleMileageLog::deleteReading).
         match ($data['type']) {
             'mileage' => $record->deleteReading(),
             'repair' => $record->deleteWithFiles(),
             'document' => $record->deleteWithFile(),
-            default => $record->delete(), // fuel fill; schedule (its history rows keep their record, FK set null)
+            default => $record->delete(), // fuel fill; schedule (its past services stay in the history)
         };
 
         return Response::structured([

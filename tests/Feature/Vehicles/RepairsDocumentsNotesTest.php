@@ -130,7 +130,7 @@ it('uploads a repair attachment and serves it back to the family', function () {
     actingAs($users[0])->get("/m/vehicles/{$vehicle->id}/repairs/{$repair->id}/attachments/{$attachment->id}")->assertOk();
 });
 
-it('deletes a repair and frees its attachments', function () {
+it('trashes a repair, keeping its attachments until it is purged', function () {
     Storage::fake('r2');
     [, $users] = p4Family();
     $vehicle = p4Vehicle();
@@ -144,7 +144,11 @@ it('deletes a repair and frees its attachments', function () {
 
     actingAs($users[0])->delete("/m/vehicles/{$vehicle->id}/repairs/{$repair->id}")->assertRedirect();
 
-    expect(Repair::count())->toBe(0)->and(RepairAttachment::count())->toBe(0);
+    expect(Repair::count())->toBe(0)->and(RepairAttachment::count())->toBe(1);
+    Storage::disk('r2')->assertExists($path); // kept for a restore
+
+    Repair::onlyTrashed()->find($repair->id)->forceDelete(); // what trash:purge does
+    expect(RepairAttachment::count())->toBe(0);
     Storage::disk('r2')->assertMissing($path);
 });
 

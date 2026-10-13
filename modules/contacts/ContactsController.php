@@ -66,7 +66,7 @@ class ContactsController extends Controller
     public function destroy(Request $request, Person $person): RedirectResponse
     {
         $this->hooks->fire('person.deleted', $person, $request);
-        $person->delete(); // cascades to contact methods + any module extension rows
+        $person->delete(); // 30-day trash; contact methods + module extension rows stay hidden with it (see Person)
 
         return back();
     }

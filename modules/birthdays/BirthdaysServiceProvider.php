@@ -9,6 +9,7 @@ use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Translations;
+use App\Support\Trash\Trash;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -109,10 +110,14 @@ class BirthdaysServiceProvider extends ServiceProvider
 
         // MCP: birthday tools for an AI assistant, gated by the `birthdays:read` / `birthdays:write` scopes
         // (see docs/mcp.md).
-        // Delete tools are permanent (these records have no trash), so they are marked destructive and ask the
-        // assistant to confirm with the person first.
+        // Deletes go to the 30-day trash (*_list_deleted / *_restore).
         McpTools::register('birthdays', 'Birthdays', [
-            Mcp\ListBirthdays::class, Mcp\AddBirthday::class, Mcp\UpdateBirthday::class, Mcp\DeleteBirthday::class, ]);
+            Mcp\ListBirthdays::class, Mcp\AddBirthday::class, Mcp\UpdateBirthday::class, Mcp\DeleteBirthday::class,
+            Mcp\ListDeleted::class, Mcp\Restore::class, ]);
+
+        // 30-day trash: removed birthdays in Settings > Recently deleted (BirthdaysTrash).
+        Trash::source('birthdays', BirthdaysTrash::class);
+        Trash::register(BirthdayDate::class);
 
         // DATA — add birthdate, age, next birthday + days-until to every person payload.
         $hooks->listen('person.serialize', function (array $payload, Person $person) {
@@ -143,7 +148,7 @@ class BirthdaysServiceProvider extends ServiceProvider
 
                 return;
             }
-            BirthdayDate::updateOrCreate(['person_id' => $person->id], $attrs);
+            BirthdayDate::setFor($person->id, $attrs);
         });
     }
 

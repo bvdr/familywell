@@ -18,7 +18,7 @@ class DeleteItem extends Tool
 
     protected string $name = 'inventory_delete_item';
 
-    protected string $description = 'Delete an inventory item with its history. A shopping-list row it added stays on the list. This is permanent and cannot be undone (these records have no trash): confirm with the person before calling it.';
+    protected string $description = 'Move an inventory item (with its history) to the trash, restorable for 30 days with inventory_restore. A shopping-list row it added stays on the list.';
 
     public function schema(JsonSchema $schema): array
     {
@@ -31,7 +31,7 @@ class DeleteItem extends Tool
         if (! $item) {
             return $this->notFound('Item');
         }
-        $item->delete(); // same as the web delete (its log rows cascade)
+        $item->delete(); // same as the web delete (30-day trash)
 
         return Response::structured(['deleted' => true, 'item_id' => $item->id, 'name' => $item->name]);
     }

@@ -91,3 +91,14 @@ it('shows a dashboard card for whoever celebrates today', function () {
     actingAs($admin)->get('/dashboard')->assertOk()
         ->assertInertia(fn ($page) => $page->missing('widgets.birthdays'));
 });
+
+it('does not push a birthday that is in the trash, or one of a trashed contact', function () {
+    [, $admin] = todayFamily();
+    Carbon::setTestNow('2026-09-19');
+    todayBirthday($admin->id, 'Veronica', 2004, 9, 19)->delete();
+    todayBirthday($admin->id, 'Buni', null, 9, 19)->person->delete();
+    Notification::fake();
+
+    test()->artisan('birthdays:notify')->assertExitCode(0);
+    Notification::assertNothingSent();
+});

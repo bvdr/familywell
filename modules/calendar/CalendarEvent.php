@@ -128,11 +128,13 @@ class CalendarEvent extends Model
     }
 
     /** Trash a to-do (its sub-tasks follow via Task's CascadesTrash); a top-level one loses its link. */
+    /**
+     * Move a to-do (and its sub-tasks) to the trash. Its link stays (reads go through Task, which hides
+     * trashed rows) so CalendarTrash can list it and a restore puts it back on the event; the calendar
+     * provider drops the link when trash:purge erases the task.
+     */
     public function deleteTask(Task $task): void
     {
-        if ($task->parent_id === null) {
-            $this->links()->where(['linkable_type' => 'task', 'linkable_id' => $task->id])->delete();
-        }
         $task->delete();
     }
 

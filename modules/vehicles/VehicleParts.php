@@ -95,8 +95,9 @@ class VehicleParts
     public function onShoppingItemBought(ShoppingItem $item): void
     {
         // The shopping item shares the family, and this runs inside that family's request, so BelongsToFamily
-        // already narrows the lookup correctly.
-        $part = VehiclePartRequest::where('shopping_item_id', $item->id)->first();
+        // already narrows the lookup correctly. whereHas: a trashed car's part request stays live (hidden with
+        // the car) and must not mirror a cost into Spending meanwhile.
+        $part = VehiclePartRequest::where('shopping_item_id', $item->id)->whereHas('vehicle')->first();
         if (! $part) {
             return;
         }

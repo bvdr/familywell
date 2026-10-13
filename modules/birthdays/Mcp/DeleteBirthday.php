@@ -19,7 +19,7 @@ class DeleteBirthday extends Tool
 
     protected string $name = 'birthdays_delete';
 
-    protected string $description = 'Remove a birthday (the id from birthdays_list). The contact itself stays. This is permanent and cannot be undone (these records have no trash): confirm with the person before calling it.';
+    protected string $description = 'Remove a birthday (the id from birthdays_list). The contact itself stays. Restorable for 30 days with birthdays_restore.';
 
     public function schema(JsonSchema $schema): array
     {

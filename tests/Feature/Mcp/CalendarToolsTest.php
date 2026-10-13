@@ -124,6 +124,22 @@ it('ticks, edits and deletes an event to-do and its sub-task', function () {
     expect($err)->toBeFalse();
     $this->assertSoftDeleted('tasks_tasks', ['id' => $pack['id']]);
     $this->assertSoftDeleted('tasks_tasks', ['id' => $sub['id']]);
+    expect(mcpTool($token, 'calendar_get_event', ['id' => $e['id']])[1]['todos'])->toBe([]);
+
+    // It sits in the trash on its own (the event is live) and restores back onto the event with its sub-task.
+    [, $trash] = mcpTool($token, 'calendar_list_deleted');
+    expect(collect($trash['deleted'])->map(fn ($r) => [$r['type'], $r['title'], $r['where']])->sort()->values()->all())
+        ->toBe([['todo', 'Pack', 'Grecia'], ['todo', 'Passports', 'Grecia']]);
+    [$err] = mcpTool($token, 'calendar_restore', ['type' => 'todo', 'id' => $pack['id']]);
+    expect($err)->toBeFalse();
+    [, $g] = mcpTool($token, 'calendar_get_event', ['id' => $e['id']]);
+    expect($g['todos'][0]['id'])->toBe($pack['id'])->and($g['todos'][0]['subtasks'][0]['id'])->toBe($sub['id']);
+
+    // Purged for good after the window: the task and its event link both go.
+    mcpTool($token, 'calendar_delete_todo', ['task_id' => $pack['id']]);
+    $this->travel(31)->days();
+    $this->artisan('trash:purge')->assertExitCode(0);
+    $this->assertDatabaseMissing('tasks_tasks', ['id' => $pack['id']]);
     expect(CalendarEvent::withoutGlobalScope('family')->find($e['id'])->taskIds())->toBe([]);
 });
 

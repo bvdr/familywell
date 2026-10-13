@@ -1,5 +1,20 @@
 import { Head, router } from '@inertiajs/react';
-import { ListChecks, NotebookText, RotateCcw, ShoppingCart, Trash2, Wallet, type LucideIcon } from 'lucide-react';
+import {
+    Cake,
+    CalendarDays,
+    Car,
+    ChefHat,
+    Contact,
+    FolderKanban,
+    ListChecks,
+    NotebookText,
+    Package,
+    RotateCcw,
+    ShoppingCart,
+    Trash2,
+    Wallet,
+    type LucideIcon,
+} from 'lucide-react';
 
 import HeadingSmall from '@/components/heading-small';
 import { Button } from '@/components/ui/button';
@@ -19,7 +34,20 @@ type Item = {
     purged_on: string;
 };
 
-const MODULE_ICONS: Record<string, LucideIcon> = { tasks: ListChecks, shopping: ShoppingCart, spending: Wallet, notes: NotebookText };
+// Same icons as the sidebar (app-sidebar.tsx), so a trashed row reads as its module at a glance.
+const MODULE_ICONS: Record<string, LucideIcon> = {
+    tasks: ListChecks,
+    shopping: ShoppingCart,
+    spending: Wallet,
+    notes: NotebookText,
+    projects: FolderKanban,
+    calendar: CalendarDays,
+    recipes: ChefHat,
+    contacts: Contact,
+    birthdays: Cake,
+    inventory: Package,
+    vehicles: Car,
+};
 
 // Settings > Recently deleted: the active family's 30-day trash (App\Support\Trash), across modules.
 // Restore is optimistic: the row leaves at once and only comes back if the server refuses.

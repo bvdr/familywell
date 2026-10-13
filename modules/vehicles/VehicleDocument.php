@@ -7,6 +7,7 @@ use App\Support\Media\StoredImage;
 use App\Support\Tenancy\BelongsToFamily;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Modules\Tasks\Task;
@@ -21,6 +22,9 @@ use Modules\Tasks\Task;
 class VehicleDocument extends Model
 {
     use BelongsToFamily;
+
+    // 30-day trash (VehiclesTrash); the file is kept until trash:purge.
+    use SoftDeletes;
 
     protected $table = 'vehicles_documents';
 
@@ -77,11 +81,15 @@ class VehicleDocument extends Model
         ]);
     }
 
-    /** Delete the document and free its R2 file. Web + MCP. */
+    /** Move the document to the 30-day trash (its file is freed when trash:purge erases it). Web + MCP. */
     public function deleteWithFile(): void
     {
-        StoredImage::delete($this->file_path);
         $this->delete();
+    }
+
+    protected static function booted(): void
+    {
+        static::forceDeleting(fn (self $d) => StoredImage::delete($d->file_path));
     }
 
     public function isExpiring(?Carbon $today = null): bool

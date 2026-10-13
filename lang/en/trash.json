@@ -1,6 +1,6 @@
 {
     "title": "Recently deleted",
-    "desc": "Deleted lists, tasks, shopping items, expenses and notes stay here for :days days, then they're removed for good.",
+    "desc": "Deleted items stay here for :days days, then they're removed for good.",
     "empty": "Nothing deleted in the last :days days.",
     "restore": "Restore",
     "deleted_on": "Deleted :date",
@@ -10,5 +10,18 @@
     "type_item": "Item",
     "type_expense": "Expense",
     "type_note": "Note",
-    "type_transfer": "Payment"
+    "type_transfer": "Payment",
+    "type_recipe": "Recipe",
+    "type_calendar_event": "Event",
+    "type_todo": "To-do",
+    "type_project": "Project",
+    "type_contact": "Contact",
+    "type_birthday": "Birthday",
+    "type_inventory_item": "Stock item",
+    "type_vehicle": "Vehicle",
+    "type_mileage": "Mileage reading",
+    "type_fuel": "Fuel fill",
+    "type_repair": "Repair",
+    "type_document": "Document",
+    "type_maintenance_schedule": "Maintenance"
 }

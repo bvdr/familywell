@@ -102,3 +102,36 @@ it('never reaches another family\'s stock', function () {
 
     expect($theirs->fresh())->quantity->toEqual(5)->name->toBe('Coffee');
 });
+
+it('trashes an item with its history, restores it, and clears a category deleted meanwhile', function () {
+    [, , $token, $milk] = stockToken();
+    mcpTool($token, 'inventory_adjust_quantity', ['item_id' => $milk->id, 'change' => -1]);
+    $milk->update(['category' => 'snacks']); // a category that will be gone by the restore
+
+    [$err] = mcpTool($token, 'inventory_delete_item', ['item_id' => $milk->id]);
+    expect($err)->toBeFalse()->and(collect(mcpTool($token, 'inventory_list')[1]['items'])->pluck('name')->all())->toBe(['Dish soap']);
+    [, $trash] = mcpTool($token, 'inventory_list_deleted');
+    expect($trash['deleted'][0])->toMatchArray(['type' => 'inventory_item', 'id' => $milk->id, 'title' => 'Milk', 'where' => 'Inventory']);
+
+    [$err, $r] = mcpTool($token, 'inventory_restore', ['id' => $milk->id]);
+    expect($err)->toBeFalse()->and($r['url'])->toEndWith("/m/inventory/items/{$milk->id}");
+    $back = InventoryItem::find($milk->id);
+    expect($back->category)->toBeNull()->and($back->location)->toBe('fridge')
+        ->and(InventoryLog::where('inventory_item_id', $milk->id)->count())->toBeGreaterThan(0);
+});
+
+it('does not top up a trashed item when its shopping row is bought, and purges it with its history', function () {
+    [, $users, $token, $milk] = stockToken();
+    [, $on] = mcpTool($token, 'inventory_add_to_shopping', ['item_id' => $milk->id]);
+    mcpTool($token, 'inventory_delete_item', ['item_id' => $milk->id]);
+
+    $row = ShoppingItem::find($on['shopping_item_id']);
+    $row->update(['bought' => true]);
+    $row->settleBought(false, $users[0]);
+    expect(InventoryItem::onlyTrashed()->find($milk->id)->quantity)->toBe(1.0);
+
+    $this->travel(31)->days();
+    $this->artisan('trash:purge')->assertExitCode(0);
+    $this->assertDatabaseMissing('inventory_items', ['id' => $milk->id]);
+    $this->assertDatabaseMissing('inventory_log', ['inventory_item_id' => $milk->id]);
+});

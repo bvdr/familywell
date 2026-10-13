@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Support\Tenancy\BelongsToFamily;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * One fuel fill-up (V1.1) — litres, optional cost, the odometer at the fill and whether the tank was
@@ -18,6 +19,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class VehicleFuelEntry extends Model
 {
     use BelongsToFamily;
+
+    // 30-day trash (VehiclesTrash). Its mirrored Spend stays either way; the expense link's fuel_entry_id
+    // only nulls out (FK) once trash:purge erases the fill.
+    use SoftDeletes;
 
     protected $table = 'vehicles_fuel_entries';
 
