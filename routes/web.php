@@ -97,12 +97,12 @@ Route::middleware(['auth', 'family'])->group(function () {
     Route::patch('/shares/{type}/{id}/visibility', [ShareController::class, 'visibility'])->name('shares.visibility');
     Route::put('/shares/{type}/{id}/members/{user}', [ShareController::class, 'putMember'])->name('shares.members.put');
     Route::delete('/shares/{type}/{id}/members/{user}', [ShareController::class, 'removeMember'])->name('shares.members.remove');
-    Route::post('/shares/{type}/{id}/link', [ShareController::class, 'createLink'])->name('shares.link.create');
+    Route::post('/shares/{type}/{id}/link', [ShareController::class, 'createLink'])->middleware('not-demo')->name('shares.link.create');
     Route::delete('/shares/{type}/{id}/link/{link}', [ShareController::class, 'deleteLink'])->name('shares.link.delete');
 
     // Generic guest-sharing management for any registered guestable entity ({type}/{id}). Owner-only.
-    Route::patch('/guest-links/{type}/{id}', [GuestLinkController::class, 'update'])->name('guests.link.update');
-    Route::patch('/guest-links/{type}/{id}/password', [GuestLinkController::class, 'password'])->name('guests.link.password');
+    Route::patch('/guest-links/{type}/{id}', [GuestLinkController::class, 'update'])->middleware('not-demo')->name('guests.link.update');
+    Route::patch('/guest-links/{type}/{id}/password', [GuestLinkController::class, 'password'])->middleware('not-demo')->name('guests.link.password');
     Route::post('/guest-links/{type}/{id}/guests', [GuestLinkController::class, 'storeGuest'])->name('guests.store');
     Route::patch('/guest-links/{type}/{id}/guests/{guest}', [GuestLinkController::class, 'updateGuest'])->name('guests.update');
     Route::delete('/guest-links/{type}/{id}/guests/{guest}', [GuestLinkController::class, 'destroyGuest'])->name('guests.destroy');
@@ -111,7 +111,7 @@ Route::middleware(['auth', 'family'])->group(function () {
     Route::delete('/family/members/{user}', [FamilyMemberController::class, 'destroy'])->name('family.members.destroy');
     Route::patch('/family', [FamilyController::class, 'update'])->name('family.update');
     Route::patch('/family/theme', [FamilyController::class, 'updateTheme'])->name('family.theme');
-    Route::post('/family/invitations', [FamilyInviteController::class, 'store'])->name('family.invitations.store');
+    Route::post('/family/invitations', [FamilyInviteController::class, 'store'])->middleware('not-demo:email')->name('family.invitations.store');
     Route::delete('/family/invitations/{invitation}', [FamilyInviteController::class, 'destroy'])->name('family.invitations.destroy');
 
     Route::get('/m/{module}/frontend.js', [ModuleAssetController::class, 'frontend'])->name('module.frontend');

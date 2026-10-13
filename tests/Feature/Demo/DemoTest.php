@@ -8,6 +8,7 @@ use App\Support\Tenancy\CurrentFamily;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Modules\Birthdays\BirthdayDate;
 use Modules\Contacts\Person;
@@ -265,4 +266,47 @@ it('gives the demo owner a fixed password only when familywell.demo_password is 
     User::where('email', DemoSeeder::OWNER_EMAIL)->first()->update(['password' => 'changed']);
     $this->seed(DemoSeeder::class);
     expect(auth()->attempt(['email' => DemoSeeder::OWNER_EMAIL, 'password' => 'review-me']))->toBeTrue();
+});
+
+it('blocks the demo owner from account takeover, invites, billing and public links, but not from the demo itself', function () {
+    $family = demoSeed();
+    $owner = User::where('email', DemoSeeder::OWNER_EMAIL)->first();
+    $other = User::factory()->create(['email' => 'real-user@example.com']);
+    $msg = 'Not available in the demo. Sign up to manage your own account and family.';
+
+    // Takeover path: change the email (no password needed) -> "forgot password" to it. Blocked, nothing changes.
+    actingAs($owner)->patch('/settings/profile', ['name' => 'Mallory', 'email' => 'attacker@example.com'])
+        ->assertSessionHasErrors(['email' => $msg]);
+    expect($owner->fresh()->email)->toBe(DemoSeeder::OWNER_EMAIL)->and($owner->fresh()->name)->toBe('Sarah Miller');
+    actingAs($owner)->put('/settings/password', ['current_password' => 'x', 'password' => 'new-pass-123', 'password_confirmation' => 'new-pass-123'])
+        ->assertSessionHasErrors('current_password');
+    actingAs($owner)->delete('/settings/profile', ['password' => 'x'])->assertSessionHasErrors('password');
+    expect(User::find($owner->id))->not->toBeNull();
+
+    // A spam relay to any address, with a visitor-written family name: blocked, nothing sent.
+    Mail::fake();
+    actingAs($owner)->post('/family/invitations', ['email' => 'victim@example.com'])->assertSessionHasErrors('email');
+    Mail::assertNothingOutgoing();
+    actingAs($owner)->post('/settings/billing/checkout')->assertSessionHasErrors('demo');
+
+    // Writing inside the modules stays open: that's what the demo is for (the hourly reset undoes it).
+    CurrentFamily::set($family->id);
+    $list = TaskList::first();
+    actingAs($owner)->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Demo visitor task'])->assertRedirect();
+    expect(Task::where('title', 'Demo visitor task')->exists())->toBeTrue();
+
+    // A normal account is untouched by all of this.
+    actingAs($other)->patch('/settings/profile', ['name' => 'Real', 'email' => 'real-new@example.com'])->assertSessionHasNoErrors();
+    expect($other->fresh()->email)->toBe('real-new@example.com');
+});
+
+it('still lets a reviewer connect Claude as the demo owner and use the MCP tools', function () {
+    $family = demoSeed();
+    $owner = User::where('email', DemoSeeder::OWNER_EMAIL)->first();
+    $token = mcpConnect($owner, $family->id, ['tasks' => 'write'])['access_token'];
+
+    [$err, $lists] = mcpTool($token, 'tasks_list_lists');
+    expect($err)->toBeFalse()->and($lists['lists'])->not->toBeEmpty();
+    [$err] = mcpTool($token, 'tasks_create_task', ['list_id' => $lists['lists'][0]['id'], 'title' => 'From Claude']);
+    expect($err)->toBeFalse()->and(Task::where('title', 'From Claude')->exists())->toBeTrue();
 });

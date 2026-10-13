@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\BlockDemo;
 use App\Http\Middleware\CaptureFirstTouch;
 use App\Http\Middleware\EnsureModuleEnabled;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -61,6 +62,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'module' => EnsureModuleEnabled::class,
             'family' => RequireFamily::class,
+            'not-demo' => BlockDemo::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

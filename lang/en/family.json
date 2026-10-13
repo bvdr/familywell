@@ -34,5 +34,6 @@
     "enabled": "enabled",
     "disabled": "disabled",
     "enable": "Enable",
-    "disable": "Disable"
+    "disable": "Disable",
+    "demo_blocked": "Not available in the demo. Sign up to manage your own account and family."
 }

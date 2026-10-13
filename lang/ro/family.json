@@ -34,5 +34,6 @@
     "enabled": "activat",
     "disabled": "dezactivat",
     "enable": "Activează",
-    "disable": "Dezactivează"
+    "disable": "Dezactivează",
+    "demo_blocked": "Nu este disponibil în demo. Creează un cont ca să-ți gestionezi propriul cont și familia."
 }
