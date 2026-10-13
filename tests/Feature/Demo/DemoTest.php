@@ -250,3 +250,19 @@ it('keeps the demo session scoped to the demo family', function () {
     actingAs($owner)->withSession(['active_family_id' => $demo->id])
         ->get('/m/tasks')->assertOk()->assertDontSee('Other family secret task');
 });
+
+it('gives the demo owner a fixed password only when familywell.demo_password is set, re-applied on reset', function () {
+    $this->artisan('modules:migrate')->assertExitCode(0);
+    $this->seed(DemoSeeder::class);
+    expect(auth()->attempt(['email' => DemoSeeder::OWNER_EMAIL, 'password' => 'review-me']))->toBeFalse();
+
+    config(['familywell.demo_password' => 'review-me']);
+    $this->seed(DemoSeeder::class);
+    expect(auth()->attempt(['email' => DemoSeeder::OWNER_EMAIL, 'password' => 'review-me']))->toBeTrue()
+        ->and(auth()->attempt(['email' => 'demo-david@familywell.co', 'password' => 'review-me']))->toBeFalse();
+
+    // A visitor changing it via /demo only lasts until the nightly reset.
+    User::where('email', DemoSeeder::OWNER_EMAIL)->first()->update(['password' => 'changed']);
+    $this->seed(DemoSeeder::class);
+    expect(auth()->attempt(['email' => DemoSeeder::OWNER_EMAIL, 'password' => 'review-me']))->toBeTrue();
+});
