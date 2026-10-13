@@ -106,11 +106,12 @@ class DemoSeeder extends Seeder
     private function family(?Family $family): Family
     {
         // Members are matched by email so their ids survive a reset (sessions, shares, /demo all keep
-        // working). Passwords are random: the only way in is the /demo route.
+        // working). Passwords are random (the only way in is the /demo route), except the owner's when
+        // familywell.demo_password is set: that's the app-directory reviewers' login.
         foreach (self::MEMBERS as $m) {
             $this->u[Str::before($m['name'], ' ')] = User::updateOrCreate(['email' => $m['email']], [
                 'name' => $m['name'],
-                'password' => Str::random(40),
+                'password' => ($m['email'] === self::OWNER_EMAIL ? config('familywell.demo_password') : null) ?: Str::random(40),
                 'email_verified_at' => $this->today,
                 'locale' => 'en',
                 'theme' => null,
