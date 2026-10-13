@@ -56,13 +56,60 @@ for (const file of fixtures) {
         // Check the rendered widget with the shared checker (kept identical to the admin's, so it takes a
         // Page): snapshot the iframe's final DOM, scripts stripped, and load it as the page itself at the
         // same width the iframe had.
-        const html = await page.frames()[1].evaluate(() => {
-            document.querySelectorAll('script').forEach((s) => s.remove());
-            return '<!doctype html>' + document.documentElement.outerHTML;
-        });
-        await page.setContent(html);
-        await expectCleanLayout(page, () =>
-            page.screenshot({ path: `tests/Viewports/screenshots/mcp-${name}-${info.project.name}.png`, fullPage: true }),
-        );
+        const snapshot = () =>
+            page.frames()[1].evaluate(() => {
+                const doc = document.documentElement.cloneNode(true) as HTMLElement;
+                doc.querySelectorAll('script').forEach((s) => s.remove());
+                return '<!doctype html>' + doc.outerHTML;
+            });
+        const views: [string, string][] = [[name, await snapshot()]];
+        // Dropdowns (FW.picker) expand inline: check the view with the last one open too.
+        const pickers = frame.locator('.picker-ctl');
+        if (await pickers.count()) {
+            await pickers.last().click();
+            await expect(frame.locator('.picker-pop')).toBeVisible();
+            views.push([`${name}-picker-open`, await snapshot()]);
+        }
+        for (const [shot, html] of views) {
+            await page.setContent(html);
+            await expectCleanLayout(page, () =>
+                page.screenshot({ path: `tests/Viewports/screenshots/mcp-${shot}-${info.project.name}.png`, fullPage: true }),
+            );
+        }
     });
 }
+
+// FW.picker (the widgets' dropdown) behaves like a <select> for callers: one `change` per pick, never from
+// typing in its search box; a tap outside or Escape closes it.
+test('FW.picker searches, picks and closes', async ({ page }) => {
+    await page.setContent('<div id="app"></div><p id="out">outside</p>');
+    await page.addScriptTag({ content: `window.createMcpApp = () => {}; ${readFileSync('resources/mcp-apps/core.js', 'utf8')}; window.FWX = FW;` });
+    await page.evaluate(() => {
+        const w = window as unknown as { FWX: { picker: (o: object[], p: object) => HTMLElement }; fired: number };
+        const el = w.FWX.picker(
+            [
+                { value: 1, label: 'Apples' },
+                { value: 2, label: 'Pears' },
+            ],
+            { label: 'Fruit' },
+        );
+        el.id = 'p';
+        w.fired = 0;
+        el.addEventListener('change', () => w.fired++);
+        document.body.prepend(el);
+    });
+    await page.click('.picker-ctl');
+    await page.fill('.picker-search input', 'pea');
+    await expect(page.locator('.picker-opt')).toHaveText(['Pears']);
+    await page.click('.picker-opt');
+    await expect(page.locator('.picker-pop')).toHaveCount(0);
+    expect(
+        await page.evaluate(() => [(document.getElementById('p') as HTMLInputElement).value, (window as unknown as { fired: number }).fired]),
+    ).toEqual(['2', 1]);
+    await page.click('.picker-ctl');
+    await page.click('#out');
+    await expect(page.locator('.picker-pop')).toHaveCount(0);
+    await page.click('.picker-ctl');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.picker-pop')).toHaveCount(0);
+});

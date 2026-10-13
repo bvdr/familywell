@@ -266,6 +266,116 @@ const FW = (() => {
         return h('div', { class: 'add' }, input, btn);
     }
 
+    // The app's dropdown (resources/js/components/picker.tsx), for widgets: a control button that expands
+    // INLINE into a search box on top + a listbox, never a native <select> (one look across the app and the
+    // widgets, and the inline list makes the iframe grow instead of a host-clipped native popup).
+    // Behaves like a <select> for callers: `el.value` is the chosen value and a `change` event fires.
+    // options: [{ value, label }]. opts: { value, label (aria), placeholder }.
+    let openPicker = null; // one open at a time; a tap outside closes it
+    const outside = (e) => {
+        if (openPicker && !openPicker.el.contains(e.target)) openPicker.close();
+    };
+    // lucide "search" (the icon the app's Picker shows), built as SVG since h() makes HTML elements only.
+    function searchIcon() {
+        const ns = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(ns, 'svg');
+        for (const [k, v] of Object.entries({
+            viewBox: '0 0 24 24',
+            width: '16',
+            height: '16',
+            fill: 'none',
+            stroke: 'currentColor',
+            'stroke-width': '2',
+            'stroke-linecap': 'round',
+            'aria-hidden': 'true',
+        }))
+            svg.setAttribute(k, v);
+        const circle = document.createElementNS(ns, 'circle');
+        circle.setAttribute('cx', '11');
+        circle.setAttribute('cy', '11');
+        circle.setAttribute('r', '8');
+        const path = document.createElementNS(ns, 'path');
+        path.setAttribute('d', 'm21 21-4.3-4.3');
+        svg.append(circle, path);
+        return svg;
+    }
+    function picker(options, opts = {}) {
+        let value = opts.value !== undefined ? String(opts.value) : options[0] ? String(options[0].value) : '';
+        const labelOf = (v) => options.find((o) => String(o.value) === v)?.label ?? opts.placeholder ?? 'Select';
+        const current = h('span', { class: 'picker-label' }, labelOf(value));
+        const control = h(
+            'button',
+            { class: 'picker-ctl', type: 'button', 'aria-haspopup': 'listbox', 'aria-expanded': 'false', 'aria-label': opts.label },
+            current,
+            h('span', { class: 'picker-chev', 'aria-hidden': 'true' }, '▾'),
+        );
+        const el = h('div', { class: 'picker' }, control);
+        let pop = null;
+
+        const close = (focus = false) => {
+            pop?.remove();
+            pop = null;
+            control.setAttribute('aria-expanded', 'false');
+            if (openPicker?.el === el) openPicker = null;
+            document.removeEventListener('click', outside);
+            if (focus) control.focus();
+        };
+        const choose = (v) => {
+            const changed = v !== value;
+            value = v;
+            current.textContent = labelOf(v);
+            close(true);
+            if (changed) el.dispatchEvent(new Event('change'));
+        };
+        const open = () => {
+            openPicker?.close();
+            const search = h('input', { type: 'text', placeholder: 'Search…', 'aria-label': 'Search' });
+            const list = h('div', { class: 'picker-list', role: 'listbox' });
+            const fill = () => {
+                const q = search.value.trim().toLowerCase();
+                const shown = options.filter((o) => !q || String(o.label).toLowerCase().includes(q));
+                list.replaceChildren(
+                    ...(shown.length
+                        ? shown.map((o) => {
+                              const on = String(o.value) === value;
+                              return h(
+                                  'button',
+                                  {
+                                      class: 'picker-opt',
+                                      type: 'button',
+                                      role: 'option',
+                                      'aria-selected': String(on),
+                                      onclick: () => choose(String(o.value)),
+                                  },
+                                  h('span', { class: 'picker-name' }, o.label),
+                                  on ? h('span', { class: 'picker-check', 'aria-hidden': 'true' }, '✓') : null,
+                              );
+                          })
+                        : [h('div', { class: 'picker-empty' }, 'No matches')]),
+                );
+            };
+            search.addEventListener('input', fill);
+            // The search box's own native `change` would bubble to the picker and look like a pick to callers.
+            search.addEventListener('change', (e) => e.stopPropagation());
+            fill();
+            pop = h('div', { class: 'picker-pop' }, h('div', { class: 'picker-search' }, searchIcon(), search), list);
+            el.append(pop);
+            control.setAttribute('aria-expanded', 'true');
+            openPicker = { el, close };
+            document.addEventListener('click', outside);
+            search.focus({ preventScroll: true });
+        };
+        control.addEventListener('click', () => (pop ? close() : open()));
+        el.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && pop) {
+                e.stopPropagation();
+                close(true);
+            }
+        });
+        Object.defineProperty(el, 'value', { get: () => value });
+        return el;
+    }
+
     // opts.fullscreen: offer a full-screen button (needs the widget in Widget::FULLSCREEN too).
     function start(fn, opts = {}) {
         render = fn;
@@ -317,6 +427,7 @@ const FW = (() => {
         num,
         head,
         addForm,
+        picker,
         get data() {
             return data;
         },
