@@ -28,13 +28,14 @@ class VehiclesServiceProvider extends ServiceProvider
         // Our notification category (maintenance-due pushes), so it gets its own on/off row on the
         // Notifications settings screen. Registration is idempotent (boot re-runs per request/worker).
         NotificationCategories::register('vehicles', 'Vehicles', 'car');
+        $this->loadViewsFrom(__DIR__.'/resources/views', 'vehicles'); // the history PDF template
 
         // MCP: tools an AI assistant can use on the family's cars, gated by the `vehicles:read` /
         // `vehicles:write` scopes granted on the consent screen (see docs/mcp.md).
         // Delete tools are permanent (these records have no trash), so they are marked destructive and ask the
         // assistant to confirm with the person first.
         McpTools::register('vehicles', 'Vehicles', [
-            Mcp\ListVehicles::class, Mcp\GetVehicle::class, Mcp\VehicleHistory::class,
+            Mcp\ListVehicles::class, Mcp\GetVehicle::class, Mcp\VehicleHistory::class, Mcp\ExportHistory::class,
             Mcp\LogMileage::class, Mcp\LogFuel::class, Mcp\AddMaintenance::class, Mcp\UpdateMaintenance::class, Mcp\CompleteMaintenance::class,
             Mcp\AddRepair::class, Mcp\AddExpense::class, Mcp\AddDocument::class, Mcp\AttachFile::class,
             Mcp\DeleteRecord::class, Mcp\DeleteVehicle::class,
@@ -117,6 +118,13 @@ class VehiclesServiceProvider extends ServiceProvider
         // BelongsToFamily scope IS the sharing boundary. owner/primary_driver are metadata references,
         // not permission gates. Maintenance / repairs / fuel / documents / notifications / dashboard
         // widget arrive in later phases; P1 is Cars + first-class Mileage only.
+        // The history PDF behind a signed link, for the MCP tool (the person opens it in a browser with no
+        // Familywell session). The signature authorizes it; the controller checks the module is still on.
+        Route::middleware(['web', 'signed', 'throttle:20,1'])
+            ->get('/vehicles/history/{vehicle}.pdf', [VehicleExportController::class, 'signed'])
+            ->whereNumber('vehicle')
+            ->name('vehicles.history.pdf.signed');
+
         Route::middleware(['web', 'auth', 'family', 'module:vehicles'])
             ->prefix('m/vehicles')
             ->name('vehicles.')
@@ -146,6 +154,8 @@ class VehiclesServiceProvider extends ServiceProvider
                 Route::get('/{vehicle}', [VehiclesController::class, 'show'])->name('show');
                 // P5: the per-car Timeline — the whole life of the car as one chronological feed.
                 Route::get('/{vehicle}/timeline', [VehiclesController::class, 'timeline'])->name('timeline');
+                // The History screen's "Export history" button: the whole record as an A4 PDF.
+                Route::get('/{vehicle}/history.pdf', [VehicleExportController::class, 'download'])->name('history.pdf');
                 // V1.1 P3: the per-car Costs & consumption analytics — all derived from earlier phases.
                 Route::get('/{vehicle}/analytics', [VehicleAnalyticsController::class, 'index'])->name('analytics');
                 Route::get('/{vehicle}/edit', [VehiclesController::class, 'edit'])->name('edit');
