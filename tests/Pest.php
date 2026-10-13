@@ -206,6 +206,7 @@ function mcpConnect(User $user, int $familyId, array $access = []): array
     // A previous bearer call made `api` the default guard (auth:api calls shouldUse); consent is a web page.
     auth()->forgetGuards();
     auth()->shouldUse('web');
+    mcpKeys(); // here too, not only in mcpFamily(): a caller with its own family (e.g. the seeded demo) needs them
     $clientId = mcpClient();
     [$query, $verifier] = mcpAuthorizeQuery($clientId);
     test()->actingAs($user, 'web')->get("/oauth/authorize?{$query}")->assertOk();
