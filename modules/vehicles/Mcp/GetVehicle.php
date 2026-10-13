@@ -49,6 +49,7 @@ class GetVehicle extends Tool
             'insurance_company' => $v->insurance_company,
             'notes' => $v->notes,
             'display_unit' => VehicleData::displayUnit(),
+            'currency' => VehicleData::currency(),
             'maintenance' => $v->maintenanceSchedules->where('active', true)->map(fn (VehicleMaintenanceSchedule $s) => VehicleData::maintenancePayload($s, $km))->values(),
             'documents' => $v->documents->sortBy(fn ($d) => $d->expires_on?->timestamp ?? PHP_INT_MAX)->map(fn (VehicleDocument $d) => [
                 'document_id' => $d->id,

@@ -43,6 +43,6 @@ class VehicleHistory extends Tool
             ->values();
         $page = $this->page($entries, $request);
 
-        return Response::structured(['history' => $page['items']->values(), 'next_cursor' => $page['next_cursor']]);
+        return Response::structured(['history' => $page['items']->values(), 'currency' => VehicleData::currency(), 'display_unit' => VehicleData::displayUnit(), 'next_cursor' => $page['next_cursor']]);
     }
 }

@@ -5,6 +5,7 @@ use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Modules\Spending\Spend;
+use Modules\Spending\SpendSetting;
 use Modules\Vehicles\Repair;
 use Modules\Vehicles\Vehicle;
 use Modules\Vehicles\VehicleDocument;
@@ -233,4 +234,14 @@ it('changes a schedule: bring a service forward, pause it, keep the due rule', f
     $read = mcpConnect($users[0], $family->id, ['vehicles' => 'read'])['access_token'];
     [$denied, $msg] = mcpTool($read, 'vehicles_add_maintenance', ['vehicle_id' => $car->id, 'name' => 'X', 'due_km' => 1]);
     expect($denied)->toBeTrue()->and($msg)->toContain('not found');
+});
+
+it('sends the family currency with car costs so the widget can format them', function () {
+    [$family, , $token, $car] = carsToken(['vehicles' => 'read']);
+    SpendSetting::current($family->id)->update(['default_currency' => 'RON']);
+
+    [, $got] = mcpTool($token, 'vehicles_get', ['vehicle_id' => $car->id]);
+    [, $hist] = mcpTool($token, 'vehicles_history', ['vehicle_id' => $car->id]);
+
+    expect($got['currency'])->toBe('RON')->and($hist['currency'])->toBe('RON')->and($hist['display_unit'])->toBe('km');
 });
