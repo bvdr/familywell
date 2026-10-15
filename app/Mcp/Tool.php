@@ -66,9 +66,11 @@ abstract class Tool extends BaseTool
     }
 
     /**
-     * Every tool states title, readOnlyHint, openWorldHint and (for writes) destructiveHint explicitly:
-     * the Claude directory review flags tools that leave them out, and MCP's unset defaults are the worst
-     * case (readOnly false, destructive TRUE, openWorld TRUE). Attributes on a tool still win:
+     * Every tool states title, readOnlyHint, destructiveHint and openWorldHint explicitly, read-only tools
+     * included: the Claude directory and the ChatGPT app review both flag tools that leave any of them out
+     * (ChatGPT rejected read-only tools without destructiveHint, even though the spec ignores it there),
+     * and MCP's unset defaults are the worst case (readOnly false, destructive TRUE, openWorld TRUE).
+     * Attributes on a tool still win:
      * - #[IsDestructive]: per the spec, anything that is not "only additive", so deletes AND updates that
      *   overwrite/clear fields, replace a file, unlink or move. Plain create/add/log/restore stay false.
      * - #[IsOpenWorld]: only the tools that fetch an arbitrary public `file_url`; everything else only
@@ -76,12 +78,8 @@ abstract class Tool extends BaseTool
      */
     public function annotations(): array
     {
-        $annotations = parent::annotations();
-        $readOnly = $annotations['readOnlyHint'] ?? false;
-
-        return $annotations
-            + ['title' => $this->title(), 'readOnlyHint' => $readOnly, 'openWorldHint' => false]
-            + ($readOnly ? [] : ['destructiveHint' => false]);
+        return parent::annotations()
+            + ['title' => $this->title(), 'readOnlyHint' => false, 'destructiveHint' => false, 'openWorldHint' => false];
     }
 
     protected function user(): User

@@ -108,19 +108,17 @@ it('trashes a whole car with its records, restores it, and frees its files at pu
         ->and($tools['vehicles_delete_record']['annotations']['destructiveHint'] ?? null)->toBeTrue();
 });
 
-it('gives every tool a title, readOnlyHint, openWorldHint and (for writes) destructiveHint, as the Claude directory asks', function () {
+it('gives every tool a title and explicit readOnlyHint, destructiveHint and openWorldHint, as the Claude and ChatGPT reviews ask', function () {
     [, , $token] = deleteToken(['vehicles', 'notes']);
     $tools = collect(mcpCall($token, 'tools/list')->json('result.tools'))->keyBy('name');
 
     foreach ($tools as $name => $tool) {
         $a = $tool['annotations'];
         expect($a['title'] ?? '')->not->toBe('', $name)
-            ->and($a)->toHaveKeys(['readOnlyHint', 'openWorldHint']);
-        if (! $a['readOnlyHint']) {
-            expect($a)->toHaveKey('destructiveHint');
-        }
+            ->and($a)->toHaveKeys(['readOnlyHint', 'destructiveHint', 'openWorldHint']);
     }
-    expect($tools['notes_list']['annotations']['readOnlyHint'])->toBeTrue()
+    expect($tools['notes_list']['annotations'])->toMatchArray(['readOnlyHint' => true, 'destructiveHint' => false, 'openWorldHint' => false])
+        ->and($tools['vehicles_log_mileage']['annotations']['destructiveHint'])->toBeTrue()
         ->and($tools['notes_create']['annotations'])->toMatchArray(['title' => 'Create Note', 'readOnlyHint' => false, 'destructiveHint' => false, 'openWorldHint' => false])
         ->and($tools['notes_update']['annotations']['destructiveHint'])->toBeTrue()
         ->and($tools['notes_delete']['annotations']['destructiveHint'])->toBeTrue()

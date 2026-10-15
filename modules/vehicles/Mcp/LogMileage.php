@@ -8,7 +8,11 @@ use Illuminate\Support\Carbon;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
+use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 
+// Destructive because correction=true overwrites the current odometer with a lower reading
+// (flagged by the ChatGPT app review); a normal reading only adds to the history.
+#[IsDestructive]
 class LogMileage extends Tool
 {
     protected string $module = 'vehicles';
