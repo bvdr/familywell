@@ -373,7 +373,7 @@ function MaintenanceHistoryList({ history, t }: { history: MaintenanceHistoryEnt
                     {t('vehicles.maint_history_empty')}
                 </p>
             ) : (
-                <ul className="bg-border grid gap-px overflow-hidden rounded-2xl border">
+                <ul className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-2xl border">
                     {history.map((h) => (
                         <li key={h.id} className="bg-surface-card flex flex-col gap-1 px-4 py-3">
                             <div className="flex items-center justify-between gap-3">

@@ -50,7 +50,7 @@ export function PartsSection({ vehicleId, parts, canShopping, t }: { vehicleId: 
             {visibleParts.length === 0 ? (
                 <p className="text-muted-foreground bg-surface-card rounded-xl border px-4 py-6 text-center text-sm">{t('vehicles.parts_empty')}</p>
             ) : (
-                <ul className="bg-border grid gap-px overflow-hidden rounded-2xl border">
+                <ul className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-2xl border">
                     {visibleParts.map((p) => (
                         <PartRow key={p.id} part={p} t={t} onRemove={() => removePart(p)} />
                     ))}

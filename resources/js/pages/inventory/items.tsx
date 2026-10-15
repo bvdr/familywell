@@ -137,7 +137,10 @@ export default function InventoryItems({ items, categories, locations, shops, st
                                     <h2 className="font-heading text-primary text-base">{catLabel(t, g.key || null, catMap)}</h2>
                                     <span className="text-muted-foreground text-xs">{g.items.length}</span>
                                 </div>
-                                <ul className="bg-border grid gap-px overflow-hidden rounded-2xl border">
+                                {/* grid-cols-1 (minmax(0,1fr)), not the implicit auto column: an auto track never
+                                    shrinks below a row's min-content, so a long item name widened the row past the
+                                    card instead of truncating. Same fix on every `bg-border grid gap-px` list. */}
+                                <ul className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-2xl border">
                                     {g.items.map((item) => (
                                         <li key={item.id}>
                                             <ItemRow item={item} locMap={locMap} t={t} />

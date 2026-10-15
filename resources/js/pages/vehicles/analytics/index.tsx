@@ -262,7 +262,7 @@ function Estimates({ estimates, unitSystem, t }: { estimates: VehicleEstimates; 
                 <CircleAlert className="size-3.5 shrink-0" /> {t('vehicles.estimates_hint')}
             </p>
 
-            <div className="bg-border grid gap-px overflow-hidden rounded-xl border">
+            <div className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-xl border">
                 {nextService && (
                     <EstimateRow
                         icon={<Wrench className="size-4.5" />}

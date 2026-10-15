@@ -134,7 +134,7 @@ export default function InventoryItem({ item, categories, locations, shops, hist
                     {history.length === 0 ? (
                         <p className="text-muted-foreground bg-surface-card rounded-xl border px-4 py-6 text-center text-sm">{t('inventory.history_empty')}</p>
                     ) : (
-                        <ul className="bg-border grid gap-px overflow-hidden rounded-2xl border">
+                        <ul className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-2xl border">
                             {history.map((h) => (
                                 <li key={h.id} className="bg-surface-card flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
                                     <span className="text-text-secondary">

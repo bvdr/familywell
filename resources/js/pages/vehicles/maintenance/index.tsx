@@ -56,7 +56,7 @@ export default function MaintenanceIndex({ vehicle, schedules }: Props) {
                 {schedules.length === 0 ? (
                     <EmptyState t={t} addHref={addHref} />
                 ) : (
-                    <ul className="bg-border grid gap-px overflow-hidden rounded-2xl border">
+                    <ul className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-2xl border">
                         {schedules.map((s) => (
                             <ScheduleRow key={s.id} vehicleId={vehicle.id} schedule={s} t={t} />
                         ))}
