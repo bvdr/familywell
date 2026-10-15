@@ -21,6 +21,7 @@ import {
     Users,
     Wallet,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import AppLogo from './app-logo';
 
 // titleKey is a translation key, resolved per-render so the sidebar is localized.
@@ -45,7 +46,31 @@ const moduleNavItems: Record<string, { titleKey: string; url: string; icon: Luci
     vehicles: { titleKey: 'nav.vehicles', url: '/m/vehicles', icon: Car },
 };
 
+// Fades the bottom of the scrollable nav while there is more below, and drops the fade at the end. On a short
+// phone the last link (e.g. Vehicles) can sit exactly under the pinned user row with no hint the list scrolls.
+// The fade is 64px (not a thin 40px): when a hidden row starts right at the edge, only a fade that reaches into
+// the last VISIBLE link (dimming it) actually reads as "more below"; a short one just fades empty padding.
+// A callback ref (state), not useRef: on a phone the list lives in a Sheet that mounts only while it is open.
+function useMoreBelow() {
+    const [el, setEl] = useState<HTMLDivElement | null>(null);
+    const [more, setMore] = useState(false);
+    useEffect(() => {
+        if (!el) return;
+        const update = () => setMore(el.scrollHeight - el.scrollTop - el.clientHeight > 1);
+        const ro = new ResizeObserver(update); // the drawer opening, rotation, modules toggled on/off
+        ro.observe(el);
+        el.addEventListener('scroll', update, { passive: true });
+        update();
+        return () => {
+            ro.disconnect();
+            el.removeEventListener('scroll', update);
+        };
+    }, [el]);
+    return [setEl, more] as const;
+}
+
 export function AppSidebar() {
+    const [navRef, moreBelow] = useMoreBelow();
     const t = useT();
     const enabled = (usePage().props as { modules?: { enabled?: string[] } }).modules?.enabled ?? [];
     const mainNavItems: NavItem[] = [...baseNavItems, ...enabled.map((id) => moduleNavItems[id]).filter(Boolean)].map((i) => ({
@@ -68,7 +93,12 @@ export function AppSidebar() {
                 </SidebarMenu>
             </SidebarHeader>
 
-            <SidebarContent>
+            {/* A mask (not an overlay) so the links themselves fade out, on any skin's background. */}
+            <SidebarContent
+                ref={navRef}
+                data-more={moreBelow || undefined}
+                className="data-[more]:[mask-image:linear-gradient(to_bottom,black_calc(100%-64px),transparent)]"
+            >
                 <NavMain items={mainNavItems} />
             </SidebarContent>
 

@@ -113,6 +113,15 @@ test.describe('phone navigation', () => {
         for (const [label, h] of await minHeights(page, '[data-mobile="true"] [data-sidebar="menu-button"]')) {
             expect(h, `drawer row "${label}"`).toBeGreaterThanOrEqual(48);
         }
+        // The "more below" fade: on while the list can scroll further, off once it reaches the bottom (and never
+        // shown when everything fits).
+        const list = drawer.locator('[data-sidebar="content"]');
+        const scrolls = await list.evaluate((e) => e.scrollHeight > e.clientHeight + 1);
+        if (scrolls) {
+            await expect(list).toHaveAttribute('data-more', 'true');
+            await list.evaluate((e) => e.scrollTo(0, e.scrollHeight));
+        }
+        await expect(list).not.toHaveAttribute('data-more');
     });
 
     test('nav-more', async ({ page }, info) => {
