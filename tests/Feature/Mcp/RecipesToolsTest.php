@@ -185,3 +185,15 @@ it('serves the recipe widget with the calculator inlined and images allowed from
     expect($content['text'])->toContain('function factorFor(')->not->toContain('export function')
         ->and($content['_meta']['ui']['csp']['resourceDomains'])->toContain(rtrim(config('app.url'), '/'));
 });
+
+// ChatGPT's submission check rejects an app whose file param differs from OpenAI's documented shape.
+it('declares the file param in exactly the shape ChatGPT requires', function () {
+    [, , $token] = recipesToken();
+    $tools = collect(mcpCall($token, 'tools/list')->json('result.tools'))->keyBy('name');
+    $file = $tools['recipes_create']['inputSchema']['properties']['file'];
+
+    expect($file['type'])->toBe('object')
+        ->and(array_keys($file['properties']))->toEqualCanonicalizing(['download_url', 'file_id', 'mime_type', 'file_name'])
+        ->and($file['required'])->toEqualCanonicalizing(['download_url', 'file_id'])
+        ->and($tools['recipes_create']['inputSchema']['required'] ?? [])->not->toContain('file');
+});

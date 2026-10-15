@@ -12,7 +12,7 @@ use Psr\Http\Message\UriInterface;
 
 /**
  * A file handed to an MCP tool. MCP has no upload primitive, so a tool accepts the file one of three ways:
- *  - `file`: {download_url, file_name?} — what ChatGPT passes for a file the person attached in the chat,
+ *  - `file`: {download_url, file_id, mime_type?, file_name?} — what ChatGPT passes for a file the person attached in the chat,
  *    when the tool lists the parameter in `_meta['openai/fileParams']` (see FILE_PARAMS_META);
  *  - `file_url`: any public https URL the assistant has;
  *  - `file_base64` + `file_name`: the raw bytes, for clients that can read local files (Claude Code, Cursor).
@@ -44,9 +44,12 @@ class IncomingFile
     public static function schema(JsonSchema $schema): array
     {
         return [
+            // Exactly OpenAI's documented file-param shape (download_url + file_id required, mime_type +
+            // file_name optional): ChatGPT refuses to submit an app whose `openai/fileParams` object differs.
             'file' => $schema->object([
-                'download_url' => $schema->string(),
-                'file_id' => $schema->string(),
+                'download_url' => $schema->string()->required(),
+                'file_id' => $schema->string()->required(),
+                'mime_type' => $schema->string(),
                 'file_name' => $schema->string(),
             ])->description('ChatGPT only: a file the person attached in the chat (ChatGPT fills this in itself). Other assistants (Claude, ...) cannot pass chat attachments here: leave it out and use file_url or file_base64.'),
             'file_url' => $schema->string()->description('Or: a public https URL to download the file from (e.g. the image on the recipe\'s web page).'),
