@@ -93,7 +93,7 @@ export default function InventoryOverview({ summary, attention, recent, categori
                                     {t('inventory.needs_attention_empty')}
                                 </p>
                             ) : (
-                                <ul className="bg-border grid gap-px overflow-hidden rounded-2xl border">
+                                <ul className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-2xl border">
                                     {attention.map((item) => (
                                         <li key={item.id}>
                                             <Link

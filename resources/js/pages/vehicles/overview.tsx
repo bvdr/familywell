@@ -451,7 +451,7 @@ function NextUp({ vehicle, next, unitSystem, t }: { vehicle: Vehicle; next: Over
     return (
         <section className="flex flex-col gap-2">
             <h2 className="font-heading text-primary text-lg">{t('vehicles.next_up')}</h2>
-            <div className="bg-border grid gap-px overflow-hidden rounded-2xl border">
+            <div className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-2xl border">
                 {next.maintenance && <NextMaintenanceRow vehicle={vehicle} m={next.maintenance} unitSystem={unitSystem} t={t} />}
                 {next.document && (
                     <Link href={`/m/vehicles/${vehicle.id}/documents`} className="bg-surface-card group flex items-center gap-3 px-4 py-3">
@@ -584,7 +584,7 @@ function RecentEvents({ recent, unitSystem, t }: { recent: RecentEvent[]; unitSy
     return (
         <section className="flex flex-col gap-2">
             <h2 className="font-heading text-primary text-lg">{t('vehicles.recent')}</h2>
-            <ul className="bg-border grid gap-px overflow-hidden rounded-2xl border">
+            <ul className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-2xl border">
                 {recent.map((e) => (
                     <li key={e.id} className="bg-surface-card flex items-center gap-3 px-4 py-2.5">
                         <span className="bg-accent-subtle text-primary flex size-8 shrink-0 items-center justify-center rounded-lg">
@@ -614,7 +614,7 @@ function MileageHistory({ history, unitSystem, t }: { history: MileageEntry[]; u
             {history.length === 0 ? (
                 <p className="text-muted-foreground bg-surface-card rounded-xl border px-4 py-6 text-center text-sm">{t('vehicles.mileage_history_empty')}</p>
             ) : (
-                <ul className="bg-border grid gap-px overflow-hidden rounded-2xl border">
+                <ul className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-2xl border">
                     {history.map((h) => (
                         <li key={h.id} className="bg-surface-card flex items-center gap-3 px-4 py-2.5 text-sm">
                             <span className="text-muted-foreground w-24 shrink-0 text-xs">{h.recordedAt ? relativeTime(h.recordedAt) : ''}</span>

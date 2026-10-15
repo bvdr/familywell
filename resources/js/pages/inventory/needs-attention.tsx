@@ -91,7 +91,7 @@ export default function InventoryNeedsAttention({ empty, low, expiring, stale, t
                                     <span className="text-muted-foreground text-xs tabular-nums">{s.items.length}</span>
                                 </div>
                                 {s.hint && <p className="text-muted-foreground -mt-1 px-1 text-xs">{s.hint}</p>}
-                                <ul className="bg-border grid gap-px overflow-hidden rounded-2xl border">
+                                <ul className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-2xl border">
                                     {s.items.map((item) => (
                                         <li key={item.id} className="bg-surface-card flex items-center gap-3 px-4 py-3">
                                             <Link href={`/m/inventory/items/${item.id}`} className="flex min-w-0 flex-1 items-center gap-3">
