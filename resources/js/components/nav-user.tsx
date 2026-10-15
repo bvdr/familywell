@@ -17,10 +17,11 @@ export function NavUser() {
             <SidebarMenuItem>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        {/* Phone drawer (max-md): taller row, 40px avatar, 16px name, so it matches the touch-sized links. */}
+                        {/* Phone drawer (max-md): taller row, 40px avatar, 16px name, so it matches the touch-sized links. Desktop
+                            (md): 52px row, 36px avatar, 15px name, in step with the 40px desktop links; collapsed rail keeps 32px. */}
                         <SidebarMenuButton
                             size="lg"
-                            className="text-sidebar-accent-foreground data-[state=open]:bg-sidebar-accent group max-md:h-16 max-md:gap-3 max-md:px-3 max-md:[&_.text-sm]:text-base max-md:[&>span:first-child]:size-10 max-md:[&>svg]:size-5"
+                            className="text-sidebar-accent-foreground data-[state=open]:bg-sidebar-accent group max-md:h-16 max-md:gap-3 max-md:px-3 md:h-13 max-md:[&_.text-sm]:text-base md:[&_.text-sm]:text-[15px] max-md:[&>span:first-child]:size-10 md:[&>span:first-child]:size-9 md:group-data-[collapsible=icon]:[&>span:first-child]:size-8 max-md:[&>svg]:size-5"
                         >
                             <UserInfo user={auth.user} />
                             <ChevronsUpDown className="ml-auto size-4" />
