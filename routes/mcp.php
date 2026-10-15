@@ -32,5 +32,9 @@ Route::prefix('oauth')->name('passport.')->group(function () {
 // client registration (POST /oauth/register). Registration is public by design, so it is throttled.
 Route::middleware('throttle:20,1')->group(fn () => Mcp::oauthRoutes());
 
+// OpenAI app-submission domain verification: ChatGPT checks this token at the MCP host's origin root
+// before it accepts the app. The token is public by design (anyone can fetch it), not a secret.
+Route::get('/.well-known/openai-apps-challenge', fn () => response('DU5Q1SF_J4H6RvAetSYXSqQvonvovMkosuaHi2rA9bo', 200, ['Content-Type' => 'text/plain']));
+
 Mcp::web('/mcp', FamilywellServer::class)
     ->middleware(['auth:api', McpFamilyContext::class, 'throttle:mcp', TrackLastSeen::class.':mcp']);
