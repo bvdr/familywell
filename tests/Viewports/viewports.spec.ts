@@ -1,4 +1,4 @@
-import { test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { expectCleanLayout } from './layout-check';
 
 // Every page of the app. Adding a page? Add it here too, or it isn't covered.
@@ -94,4 +94,37 @@ test.describe('signed out', () => {
             await expectCleanLayout(page, () => shoot(page, name, info.project.name));
         });
     }
+});
+
+// The phone navigation overlays: the sidebar drawer and the bottom bar's More sheet. They only exist below md,
+// so desktop skips them. Besides the layout check, every row/card must be a comfortable tap target (>= 48px).
+test.describe('phone navigation', () => {
+    test.skip(({ isMobile }) => !isMobile, 'phone-only overlays');
+
+    const minHeights = async (page: import('@playwright/test').Page, selector: string) =>
+        page.locator(selector).evaluateAll((els) => els.map((e) => [e.textContent?.trim(), Math.round(e.getBoundingClientRect().height)] as const));
+
+    test('nav-drawer', async ({ page }, info) => {
+        await page.goto('/dashboard');
+        await page.getByRole('button', { name: 'Toggle Sidebar' }).click();
+        const drawer = page.locator('[data-mobile="true"]');
+        await expect(drawer).toBeVisible();
+        await expectCleanLayout(page, () => shoot(page, 'nav-drawer', info.project.name));
+        for (const [label, h] of await minHeights(page, '[data-mobile="true"] [data-sidebar="menu-button"]')) {
+            expect(h, `drawer row "${label}"`).toBeGreaterThanOrEqual(48);
+        }
+    });
+
+    test('nav-more', async ({ page }, info) => {
+        await page.goto('/dashboard');
+        await page.locator('nav').getByRole('button', { name: 'More' }).click();
+        await expect(page.getByRole('dialog')).toBeVisible();
+        await expectCleanLayout(page, () => shoot(page, 'nav-more', info.project.name));
+        for (const [label, h] of await minHeights(page, '[role="dialog"] .grid > div')) {
+            expect(h, `More card "${label}"`).toBeGreaterThanOrEqual(48);
+        }
+        for (const [label, h] of await minHeights(page, 'nav a, nav button')) {
+            expect(h, `bottom bar "${label}"`).toBeGreaterThanOrEqual(44); // the pill cells; the + is 56px
+        }
+    });
 });
