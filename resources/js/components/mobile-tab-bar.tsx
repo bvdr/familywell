@@ -136,7 +136,9 @@ export function MobileTabBar() {
     };
 
     // Cells share the pill width evenly (flex-1) so the bar looks the same regardless of item count.
-    const cell = 'flex flex-1 flex-col items-center gap-0.5 rounded-full py-1.5 text-[10px] font-medium transition-colors';
+    // py-2 + 22px icon + 11px label = a ~50px tap target; 11px (not 10) is the smallest label that reads on a phone
+    // and still fits "Inventory"/"Spending" in a fifth of the pill at 390px.
+    const cell = 'flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-full py-2 text-[11px] font-medium transition-colors';
 
     return (
         <>
@@ -144,7 +146,7 @@ export function MobileTabBar() {
                 the viewport bottom instead of letting it scroll with the body (a known iOS fixed bug). */}
             <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex [transform:translateZ(0)] items-center gap-2.5 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden [@media(display-mode:standalone)]:pb-[max(0.5rem,calc(env(safe-area-inset-bottom)/2))]">
                 {/* Pill fills the width; the + stays a fixed circle on the right. */}
-                <div className="border-border/60 pointer-events-auto flex flex-1 items-center justify-around gap-0.5 rounded-full border bg-surface-card/75 p-1.5 shadow-[var(--shadow-fw-md)] backdrop-blur-xl">
+                <div className="border-border/60 bg-surface-card/75 pointer-events-auto flex flex-1 items-center justify-around gap-0.5 rounded-full border p-1.5 shadow-[var(--shadow-fw-md)] backdrop-blur-xl">
                     {pinned.map((item) => {
                         const active = isActive(item.url);
                         const loading = pending === item.url;
@@ -194,8 +196,8 @@ export function MobileTabBar() {
                             onClick={() => setAddOpen(false)}
                             className="text-primary hover:bg-surface flex items-center gap-3 rounded-xl p-3 transition-colors"
                         >
-                            <Blocks className="size-5" />
-                            <span className="text-sm font-medium">{t('create.turn_on')}</span>
+                            <Blocks className="size-5.5" />
+                            <span className="text-base font-medium">{t('create.turn_on')}</span>
                         </Link>
                     ) : (
                         createItems.map((item) => (
@@ -207,10 +209,10 @@ export function MobileTabBar() {
                                 onClick={() => setAddOpen(false)}
                                 className="text-primary hover:bg-surface flex w-full items-center gap-3 rounded-xl p-3 text-left transition-colors"
                             >
-                                <span className="bg-tile text-tile-foreground flex size-9 items-center justify-center rounded-lg">
-                                    <item.icon className="size-4.5" />
+                                <span className="bg-tile text-tile-foreground flex size-10 items-center justify-center rounded-lg">
+                                    <item.icon className="size-5.5" />
                                 </span>
-                                <span className="text-sm font-medium">{t(item.labelKey)}</span>
+                                <span className="text-base font-medium">{t(item.labelKey)}</span>
                             </Link>
                         ))
                     )}
@@ -238,10 +240,10 @@ export function MobileTabBar() {
                                             : 'bg-surface-card text-primary hover:border-accent'
                                     }`}
                                 >
-                                    <span className="bg-tile text-tile-foreground flex size-10 items-center justify-center rounded-xl">
-                                        <item.icon className="size-5" />
+                                    <span className="bg-tile text-tile-foreground flex size-11 items-center justify-center rounded-xl">
+                                        <item.icon className="size-5.5" />
                                     </span>
-                                    <span className="text-center text-xs leading-tight font-medium">{t(item.labelKey)}</span>
+                                    <span className="text-center text-sm leading-tight font-medium">{t(item.labelKey)}</span>
                                 </Link>
                                 <button
                                     type="button"
@@ -249,11 +251,11 @@ export function MobileTabBar() {
                                     disabled={atMax}
                                     aria-label={isPinned ? `Unpin ${t(item.labelKey)}` : `Pin ${t(item.labelKey)}`}
                                     aria-pressed={isPinned}
-                                    className={`absolute top-0.5 right-0.5 flex size-8 items-center justify-center rounded-lg transition-colors ${
+                                    className={`absolute top-0 right-0 flex size-10 items-center justify-center rounded-lg transition-colors ${
                                         isPinned ? 'text-primary' : atMax ? 'text-text-muted/40' : 'text-muted-foreground hover:bg-surface'
                                     }`}
                                 >
-                                    <Pin className={`size-4 ${isPinned ? 'fill-current' : ''}`} />
+                                    <Pin className={`size-4.5 ${isPinned ? 'fill-current' : ''}`} />
                                 </button>
                             </div>
                         );
