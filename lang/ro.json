@@ -38,7 +38,8 @@
         "home": "Acasă",
         "more_desc": "Apasă un ac pentru a-ți alege cele patru scurtături din bară",
         "birthdays": "Zile de naștere",
-        "calendar": "Calendar"
+        "calendar": "Calendar",
+        "expense_import": "Import cheltuieli"
     },
     "dashboard": {
         "good_morning": "Bună dimineața",

@@ -1,0 +1,11 @@
+{
+    "id": "expense_import",
+    "name": "Expense import",
+    "description": "Bring card spending into Spending: upload a bank statement (Wise, Revolut, ING, BT, or any CSV/XLSX after mapping its columns once) or send each Apple Pay payment from an iPhone Shortcut. Every row is reviewed before it's saved, duplicates are flagged, each import can be undone, and imported transactions are remembered so they never come in twice.",
+    "version": "1.0.0",
+    "provider": "Modules\\ExpenseImport\\ExpenseImportServiceProvider",
+    "frontend": "",
+    "requires": [
+        "spending"
+    ]
+}

@@ -51,6 +51,14 @@ return [
         'model' => env('TYPESAFE_MODEL', 'jev-latest'),
     ],
 
+    // Expense import: the "Install shortcut" link on its settings page. A shared iCloud link to the ready-made
+    // "Familywell expense" Shortcut (made once on an iPhone, Share > Copy iCloud Link). Shortcuts can only be
+    // installed from an iCloud link or a file signed on a Mac, so it can't ship in the repo; without it the
+    // page shows the manual setup steps only.
+    'expense_import' => [
+        'shortcut_url' => env('EXPENSE_IMPORT_SHORTCUT_URL'),
+    ],
+
     // Stripe, for the hosted familywell.co subscription. The WHOLE paywall (lock + Settings > Billing)
     // is gated on `key` (the publishable key) being set: self-hosters leave it empty and never see a
     // paywall. secret + webhook_secret are server-only; the two price IDs are the monthly/yearly plans
