@@ -10,3 +10,7 @@ Every page must be flawless at phone AND desktop width. UI work is not done unti
 - **Look at both screenshots** in `tests/Viewports/screenshots/` (`<page>-mobile*.png`, `<page>-desktop*.png`) before calling it done. Passing checks don't prove it looks right.
 - **MCP App widgets** (`resources/mcp-apps`) are checked too, at 360px and 700px (the widths Claude/ChatGPT render them): `tests/Feature/Mcp/WidgetFixturesTest.php` writes each view's real page + tool result, then `tests/Viewports/mcp-widgets.spec.ts` mounts it in a mock host. A new widget view needs an entry in that Pest test; look at the `mcp-*` screenshots.
 - A row that is meant to swipe sideways (filter chips, tabs) says so with `data-scroll-x`. Never hide overflow with `overflow-x: hidden`; fix the element that is too wide.
+
+## Analytics
+
+familywell.org and familywell.co report into ONE Umami website (since 2026-10-16) so a click-through is one visit, not an .org bounce + a new .co visitor; split reports by hostname. The old .co website stays read-only for its history. Funnel steps go from the browser (`resources/js/lib/analytics.ts`, or `Analytics::queue()` for a step that ends in a redirect); server-side `Analytics::track()` lands in a different Umami session. Why, the evidence and the event list: `docs/analytics.md`.
