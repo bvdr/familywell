@@ -1,3 +1,4 @@
+import { track } from '@/lib/analytics';
 import { Head, Link, router } from '@inertiajs/react';
 import { ArrowRight, ArrowUpRight, Check, Crown, LogOut } from 'lucide-react';
 import { useState } from 'react';
@@ -37,7 +38,18 @@ export default function Billing({ family, subscribed, lifetime, status, hasCusto
     };
 
     if (!subscribed) {
-        return <Paywall familyName={family.name} canManage={canManage} busy={busy} onCheckout={(plan) => go(route('billing.checkout'), { plan })} />;
+        return (
+            <Paywall
+                familyName={family.name}
+                canManage={canManage}
+                busy={busy}
+                onCheckout={(plan) => {
+                    // Funnel step; Stripe's return sends checkout_completed (Analytics::queue).
+                    track('checkout_started', { plan });
+                    go(route('billing.checkout'), { plan });
+                }}
+            />
+        );
     }
 
     return (

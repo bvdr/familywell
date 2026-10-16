@@ -234,10 +234,12 @@ it('signs a visitor into the demo family from /demo and shows the button on the 
     $demo = demoSeed();
 
     get('/login')->assertOk()->assertInertia(fn ($p) => $p->where('canDemo', true));
+    umamiOn();
     get('/demo')->assertRedirect(route('dashboard'));
     test()->assertAuthenticatedAs(User::find($demo->owner_id));
     expect(session('active_family_id'))->toBe($demo->id);
-    get('/dashboard')->assertOk();
+    // demo_opened rides along to the dashboard, for the browser's Umami visit (Analytics::queue)
+    get('/dashboard')->assertOk()->assertInertia(fn ($p) => $p->where('analyticsEvents.0.name', 'demo_opened'));
 });
 
 it('keeps the demo session scoped to the demo family', function () {

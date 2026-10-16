@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthLayout from '@/layouts/auth-layout';
+import { track } from '@/lib/analytics';
 import { useT } from '@/lib/i18n';
 
 interface RegisterForm {
@@ -29,6 +30,7 @@ export default function Register() {
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
+        track('signup_started', { method: 'password' });
         post(route('register'), {
             onFinish: () => reset('password', 'password_confirmation'),
         });
@@ -37,7 +39,7 @@ export default function Register() {
     return (
         <AuthLayout title={t('auth.create_account_title')} description={t('auth.create_account_desc')}>
             <Head title={t('auth.create_account')} />
-            <SocialButtons />
+            <SocialButtons signup />
 
             <form className="flex flex-col gap-6" onSubmit={submit}>
                 <div className="grid gap-6">

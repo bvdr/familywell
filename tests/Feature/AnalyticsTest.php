@@ -130,6 +130,24 @@ it('refuses a visitor id another account already has', function () {
         ->and($user->first_touch['source'])->toBe('familywell.org');
 });
 
+it('queues signup_completed for the browser through the redirects, sent once', function () {
+    umamiOn();
+    $this->post('/register', ['name' => 'Ana', 'email' => 'ana@example.com', 'password' => 'password', 'password_confirmation' => 'password'])
+        ->assertRedirect(route('onboarding.index'));
+
+    get('/onboarding')->assertInertia(fn ($page) => $page->has('analyticsEvents', 1)
+        ->where('analyticsEvents.0.name', 'signup_completed')->where('analyticsEvents.0.data', ['method' => 'password'])
+        ->where('analyticsEvents.0.id', fn ($id) => Str::isUuid($id)));
+    get('/onboarding')->assertInertia(fn ($page) => $page->where('analyticsEvents', []));
+});
+
+it('queues nothing for the browser without Umami configured', function () {
+    $this->post('/register', ['name' => 'Ana', 'email' => 'ana@example.com', 'password' => 'password', 'password_confirmation' => 'password']);
+
+    expect(session('analytics_events'))->toBeNull();
+    get('/onboarding')->assertInertia(fn ($page) => $page->where('analyticsEvents', []));
+});
+
 // ---------------------------------------------------------------- identify prop
 
 it('shares analyticsId only when Umami is configured and someone is signed in', function () {

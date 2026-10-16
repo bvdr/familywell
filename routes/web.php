@@ -11,6 +11,7 @@ use App\Http\Controllers\PublicGuestController;
 use App\Http\Controllers\PublicShareController;
 use App\Http\Controllers\ShareController;
 use App\Models\User;
+use App\Support\Analytics;
 use App\Support\Dashboard\DashboardData;
 use App\Support\Demo\DemoFamily;
 use Illuminate\Http\Request;
@@ -58,6 +59,7 @@ Route::get('demo', function (Request $request) {
     Auth::login(User::findOrFail($family->owner_id));
     $request->session()->regenerate();
     $request->session()->put('active_family_id', $family->id);
+    Analytics::queue('demo_opened');
 
     return redirect()->route('dashboard');
 })->middleware('throttle:30,1')->name('demo.enter');

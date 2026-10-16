@@ -69,6 +69,9 @@ class HandleInertiaRequests extends Middleware
             // The signed-in person's pseudonymous Umami id (users.analytics_id), which app.tsx passes to
             // umami.identify(). Null without Umami (self-hosted) or when signed out. Never name or email.
             'analyticsId' => fn () => Analytics::enabled() ? $request->user()?->analytics_id : null,
+            // Funnel steps queued by Analytics::queue() for app.tsx to send from the browser. Pulled, so each
+            // goes out once; a partial reload doesn't evaluate it, leaving them for the next full page.
+            'analyticsEvents' => fn () => Analytics::enabled() ? $request->session()->pull('analytics_events', []) : [],
             'vapidPublicKey' => config('webpush.vapid.public_key'),
             // i18n: the current locale + the picker options + the full translation map for that locale
             // (English-filled). SetLocale already ran (see bootstrap/app.php), so both are eager.
