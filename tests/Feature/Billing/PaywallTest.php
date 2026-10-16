@@ -127,3 +127,47 @@ it('queues checkout_completed for the browser when Stripe sends the buyer back p
     actingAs($owner)->get('/settings/billing')->assertInertia(fn ($page) => $page
         ->where('analyticsEvents.0.name', 'checkout_completed')->has('analyticsEvents', 1));
 });
+
+it('keeps the plan, period end and cancel-at-period-end from Stripe for the Plan card', function () {
+    stripeOn();
+    [$owner, $family] = paidFamily();
+    // Current API versions carry current_period_end on the subscription item, not the subscription.
+    $event = fn (bool $canceling) => ['type' => 'customer.subscription.updated', 'data' => ['object' => [
+        'customer' => 'cus_1', 'status' => 'active', 'cancel_at_period_end' => $canceling,
+        'metadata' => ['family_id' => (string) $family->id],
+        'items' => ['data' => [['price' => ['id' => 'price_y'], 'current_period_end' => 1794850193]]],
+    ]]];
+
+    signedWebhook($event(false))->assertNoContent();
+    actingAs($owner)->get('/settings/billing')->assertInertia(fn ($page) => $page
+        ->where('plan', 'yearly')->where('canceling', false)
+        ->where('periodEnd', fn ($iso) => Carbon\Carbon::parse($iso)->timestamp === 1794850193));
+
+    signedWebhook($event(true))->assertNoContent();
+    actingAs($owner)->get('/settings/billing')->assertInertia(fn ($page) => $page->where('canceling', true));
+});
+
+it('backfills the plan once for a family that subscribed before it was stored', function () {
+    stripeOn();
+    [$owner, $family] = paidFamily(status: 'active');
+    $family->forceFill(['stripe_customer_id' => 'cus_old'])->save();
+    Http::fake(['api.stripe.com/v1/subscriptions*' => Http::response(['data' => [[
+        'customer' => 'cus_old', 'status' => 'active',
+        'items' => ['data' => [['price' => ['id' => 'price_m'], 'current_period_end' => 1794850193]]],
+    ]]])]);
+
+    actingAs($owner)->get('/settings/billing')->assertInertia(fn ($page) => $page->where('plan', 'monthly'));
+    actingAs($owner)->get('/settings/billing')->assertOk();
+
+    Http::assertSentCount(1); // known now: the second visit doesn't ask Stripe again
+    expect($family->fresh()->subscription_status)->toBe('active');
+});
+
+it('still renders the Plan card when the backfill call fails', function () {
+    stripeOn();
+    [$owner, $family] = paidFamily(status: 'active');
+    $family->forceFill(['stripe_customer_id' => 'cus_old'])->save();
+    Http::fake(['api.stripe.com/*' => Http::response(['error' => ['message' => 'nope']], 500)]);
+
+    actingAs($owner)->get('/settings/billing')->assertOk()->assertInertia(fn ($page) => $page->where('plan', null));
+});

@@ -4,11 +4,12 @@ import { ArrowRight, ArrowUpRight, Check, Crown, LogOut } from 'lucide-react';
 import { useState } from 'react';
 
 import AppLogo from '@/components/app-logo';
-import HeadingSmall from '@/components/heading-small';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
-import { useT } from '@/lib/i18n';
+import { useLocale, useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 
@@ -19,6 +20,9 @@ type Props = {
     status: string | null;
     hasCustomer: boolean;
     canManage: boolean;
+    plan: string | null; // 'monthly' | 'yearly' | 'unknown', null until synced from Stripe
+    periodEnd: string | null; // ISO; when the current period renews (or ends, when canceling)
+    canceling: boolean; // canceled at period end: access runs until periodEnd, then stops
 };
 
 type Plan = 'monthly' | 'yearly';
@@ -27,7 +31,7 @@ type Plan = 'monthly' | 'yearly';
 // full-screen paywall (no app chrome: every app link would bounce back here anyway). A subscribed
 // family sees the normal Settings > Billing view with the Stripe portal link. Checkout and the portal
 // are both Stripe-hosted: the server answers with an Inertia::location to Stripe.
-export default function Billing({ family, subscribed, lifetime, status, hasCustomer, canManage }: Props) {
+export default function Billing({ family, subscribed, lifetime, status, hasCustomer, canManage, plan, periodEnd, canceling }: Props) {
     const t = useT();
     const breadcrumbs: BreadcrumbItem[] = [{ title: t('billing.title'), href: '/settings/billing' }];
     const [busy, setBusy] = useState(false);
@@ -56,29 +60,91 @@ export default function Billing({ family, subscribed, lifetime, status, hasCusto
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={t('billing.title')} />
             <SettingsLayout>
-                {lifetime ? (
-                    // Comped: nothing to pay or manage, so no Stripe prompts at all.
-                    <div className="space-y-6">
-                        <HeadingSmall title={t('billing.lifetime_title')} description={t('billing.lifetime_desc', { family: family.name })} />
-                        <span className="bg-accent-subtle text-primary inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold">
-                            <Crown className="size-4" /> {t('billing.lifetime_badge')}
-                        </span>
-                    </div>
-                ) : (
-                    <div className="space-y-6">
-                        <HeadingSmall title={t('billing.active_title')} description={t('billing.active_desc')} />
-                        {status === 'past_due' && <p className="text-destructive text-sm">{t('billing.past_due')}</p>}
-                        {canManage && hasCustomer ? (
-                            <Button disabled={busy} onClick={() => go(route('billing.portal'))}>
-                                {t('billing.manage')}
-                            </Button>
-                        ) : (
-                            !canManage && <p className="text-muted-foreground text-sm">{t('billing.admin_only')}</p>
-                        )}
-                    </div>
-                )}
+                <SubscriptionCard
+                    plan={plan}
+                    periodEnd={periodEnd}
+                    canceling={canceling}
+                    lifetime={lifetime}
+                    status={status}
+                    // The portal needs a Stripe customer; a member never gets the button, only the hint.
+                    onManage={canManage && hasCustomer && !lifetime ? () => go(route('billing.portal')) : undefined}
+                    adminOnly={!canManage && !lifetime}
+                    busy={busy}
+                />
             </SettingsLayout>
         </AppLayout>
+    );
+}
+
+// The subscribed view, styled like Folio's Account > Plan card: one bordered card, one row (crown tile,
+// plan name + a small dark uppercase badge, a muted thank-you/renewal line) with "Manage plan" on the
+// right, which opens the Stripe customer portal. A comped (VIP) family gets the same card with a
+// LIFETIME badge and no button; a non-admin member gets no button and an "admin only" hint. On a phone
+// the button drops under the row instead of squeezing the text.
+function SubscriptionCard({
+    plan,
+    periodEnd,
+    canceling,
+    lifetime,
+    status,
+    onManage,
+    adminOnly,
+    busy,
+}: {
+    plan: string | null;
+    periodEnd: string | null;
+    canceling: boolean;
+    lifetime: boolean;
+    status: string | null;
+    onManage?: () => void;
+    adminOnly: boolean;
+    busy: boolean;
+}) {
+    const t = useT();
+    const locale = useLocale();
+    const date = periodEnd ? new Date(periodEnd).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' }) : null;
+    const pastDue = status === 'past_due';
+    // 'unknown' = a price we don't configure (or not synced yet): fall back to the product name.
+    const name = lifetime ? t('billing.plan_name') : plan === 'monthly' || plan === 'yearly' ? t(`billing.plan_${plan}`) : t('billing.plan_name');
+    const badge = lifetime ? t('billing.badge_lifetime') : pastDue ? t('billing.badge_past_due') : t('billing.badge_active');
+
+    return (
+        <Card>
+            <CardHeader className="pb-4">
+                <CardTitle className="text-lg">{t('billing.plan_title')}</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                <div className="flex min-w-0 flex-1 items-start gap-3">
+                    <span className="bg-accent-subtle text-primary flex size-10 shrink-0 items-center justify-center rounded-lg">
+                        <Crown className="size-5" />
+                    </span>
+                    <div className="min-w-0 space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-semibold">{name}</span>
+                            <Badge
+                                className={cn(
+                                    'rounded-md px-1.5 py-0 text-[10px] tracking-wide uppercase',
+                                    pastDue ? 'bg-destructive text-destructive-foreground' : 'bg-foreground text-background',
+                                )}
+                            >
+                                {badge}
+                            </Badge>
+                        </div>
+                        <p className="text-muted-foreground text-sm">{lifetime ? t('billing.lifetime_line') : t('billing.thanks')}</p>
+                        {!lifetime && pastDue && <p className="text-destructive text-sm">{t('billing.past_due')}</p>}
+                        {!lifetime && !pastDue && date && (
+                            <p className="text-muted-foreground text-sm">{t(canceling ? 'billing.ends_on' : 'billing.renews_on', { date })}</p>
+                        )}
+                        {adminOnly && <p className="text-muted-foreground text-sm">{t('billing.admin_only')}</p>}
+                    </div>
+                </div>
+                {onManage && (
+                    <Button variant="secondary" className="w-full sm:w-auto" disabled={busy} onClick={onManage}>
+                        {t('billing.manage')}
+                    </Button>
+                )}
+            </CardContent>
+        </Card>
     );
 }
 
