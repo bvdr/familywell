@@ -5,6 +5,7 @@ namespace App\Support\Billing;
 use App\Models\Family;
 use App\Models\User;
 use App\Support\Analytics;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -101,6 +102,28 @@ class Billing
         self::setStatus($family, $session['customer'], $session['subscription']);
     }
 
+    /**
+     * One-time backfill for families that subscribed before the plan columns existed: reads the customer's
+     * newest subscription and stores it like a webhook would. Called by the Billing page only while the
+     * plan is unknown, so it costs one Stripe call per such family, ever. Never throws: a Stripe hiccup
+     * just leaves the card without the plan details until the next webhook.
+     */
+    public static function backfillPlan(Family $family): void
+    {
+        if ($family->subscription_plan || ! $family->stripe_customer_id) {
+            return;
+        }
+        try {
+            $subscription = self::request()->get('subscriptions', ['customer' => $family->stripe_customer_id, 'status' => 'all', 'limit' => 1])
+                ->throw()->json('data.0');
+            if ($subscription) {
+                self::setStatus($family, $family->stripe_customer_id, $subscription);
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
     /** Applies a customer.subscription.* event to the family named in its metadata. */
     public static function applySubscription(array $subscription): void
     {
@@ -117,7 +140,15 @@ class Billing
     private static function setStatus(Family $family, ?string $customer, array $subscription): void
     {
         $wasPaid = in_array($family->subscription_status, self::PAID, true);
-        $family->forceFill(['stripe_customer_id' => $customer, 'subscription_status' => $subscription['status']])->save();
+        // Newer Stripe API versions moved current_period_end from the subscription onto its items.
+        $periodEnd = $subscription['current_period_end'] ?? $subscription['items']['data'][0]['current_period_end'] ?? null;
+        $family->forceFill([
+            'stripe_customer_id' => $customer,
+            'subscription_status' => $subscription['status'],
+            'subscription_plan' => self::plan($subscription),
+            'subscription_period_end' => $periodEnd ? Carbon::createFromTimestamp($periodEnd) : null,
+            'subscription_canceling' => (bool) ($subscription['cancel_at_period_end'] ?? false),
+        ])->save();
         $isPaid = in_array($subscription['status'], self::PAID, true);
 
         if ($wasPaid !== $isPaid) {

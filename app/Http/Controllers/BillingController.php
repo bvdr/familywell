@@ -27,8 +27,15 @@ class BillingController extends Controller
             return to_route('billing.show');
         }
 
+        Billing::backfillPlan($family);
+
         return Inertia::render('settings/billing', [
             'family' => ['name' => $family->name],
+            // The Plan card: monthly / yearly (null = not known yet), and when the period ends + whether
+            // it renews or ends then (cancel at period end). Kept fresh by Billing::setStatus().
+            'plan' => $family->subscription_plan,
+            'periodEnd' => $family->subscription_period_end?->toIso8601String(),
+            'canceling' => (bool) $family->subscription_canceling,
             'subscribed' => Billing::hasAccess($family),
             // Comped by an admin: the page shows "Lifetime (VIP)" with no checkout or portal prompts.
             'lifetime' => Billing::isLifetime($family),
