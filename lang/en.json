@@ -38,7 +38,8 @@
         "home": "Home",
         "more_desc": "Tap a pin to choose your four bottom-bar shortcuts",
         "birthdays": "Birthdays",
-        "calendar": "Calendar"
+        "calendar": "Calendar",
+        "expense_import": "Expense import"
     },
     "dashboard": {
         "good_morning": "Good morning",

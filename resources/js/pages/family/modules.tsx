@@ -2,7 +2,7 @@ import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
 import { Head, router } from '@inertiajs/react';
-import { Bell, Blocks, Contact, FolderKanban, ListChecks, type LucideIcon, Package, ShoppingCart, StickyNote, Wallet } from 'lucide-react';
+import { Bell, Blocks, Contact, FolderKanban, Import, ListChecks, type LucideIcon, Package, ShoppingCart, StickyNote, Wallet } from 'lucide-react';
 
 type Module = { id: string; name: string; description: string; version: string; enabled: boolean };
 type Props = { catalog: Module[]; canManage: boolean };
@@ -17,6 +17,7 @@ const MODULE_ICON: Record<string, LucideIcon> = {
     contacts: Contact,
     inventory: Package,
     notifications: Bell,
+    expense_import: Import,
 };
 
 export default function Modules({ catalog, canManage }: Props) {

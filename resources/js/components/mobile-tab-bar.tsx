@@ -10,6 +10,7 @@ import {
     ChefHat,
     Contact,
     FolderKanban,
+    Import,
     LayoutGrid,
     ListChecks,
     Loader2,
@@ -48,6 +49,7 @@ const MODULE_ITEMS: Item[] = [
     { key: 'birthdays', labelKey: 'nav.birthdays', url: '/m/birthdays', icon: Cake },
     { key: 'inventory', labelKey: 'nav.inventory', url: '/m/inventory', icon: Package },
     { key: 'vehicles', labelKey: 'nav.vehicles', url: '/m/vehicles', icon: Car },
+    { key: 'expense_import', labelKey: 'nav.expense_import', url: '/m/expense-import', icon: Import },
 ];
 const SECONDARY: Item[] = [
     { key: 'members', labelKey: 'nav.members', url: '/family/members', icon: Users },

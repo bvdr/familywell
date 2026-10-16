@@ -26,6 +26,7 @@ const moduleSettingsItems: Record<string, { key: string; url: string }> = {
     shopping: { key: 'nav.shopping', url: '/m/shopping/settings' },
     inventory: { key: 'nav.inventory', url: '/m/inventory/settings' },
     vehicles: { key: 'nav.vehicles', url: '/m/vehicles/settings' },
+    expense_import: { key: 'nav.expense_import', url: '/m/expense-import/settings' },
     notifications: { key: 'nav.notifications', url: '/settings/notifications' },
 };
 
