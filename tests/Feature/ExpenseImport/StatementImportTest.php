@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Http;
 use Modules\ExpenseImport\ImportBatch;
+use Modules\ExpenseImport\Importer;
 use Modules\ExpenseImport\ImportRow;
 use Modules\ExpenseImport\ImportSetting;
 use Modules\Spending\Spend;
@@ -22,8 +23,10 @@ function uploadWise($user)
 it('stages a statement for review: plain expenses ticked, income/transfers/duplicates not, categories from history', function () {
     [, $users] = importFamily();
     $home = SpendEvent::createFor($users[0], ['name' => 'Home', 'currency' => 'EUR']);
-    // History: the family files Lidl under food. And the café coffee is already in Spending (typed by hand).
-    $home->spends()->create(['payer_id' => $users[0]->id, ...$home->buildSpend(['amount' => 30, 'currency' => 'EUR', 'category' => 'food', 'spent_at' => '2026-09-01', 'store' => 'Lidl']), 'created_by' => $users[0]->id]);
+    // History: the family files Lidl under food (twice, so it's a habit). And the café coffee is already in Spending.
+    foreach (['2026-09-01', '2026-09-08'] as $d) {
+        $home->spends()->create(['payer_id' => $users[0]->id, ...$home->buildSpend(['amount' => 30, 'currency' => 'EUR', 'category' => 'food', 'spent_at' => $d, 'store' => 'Lidl']), 'created_by' => $users[0]->id]);
+    }
     $home->spends()->create(['payer_id' => $users[0]->id, ...$home->buildSpend(['amount' => 12, 'currency' => 'EUR', 'category' => 'food', 'spent_at' => '2026-10-06', 'note' => 'Coffee', 'store' => 'Cafe Verde']), 'created_by' => $users[0]->id]);
 
     $batch = null;
@@ -166,4 +169,23 @@ it('does not import a row twice when the review is submitted again', function ()
     actingAs($users[0])->post("/m/expense-import/batches/{$batch->id}/import", ['event_id' => $event->id, 'payer_key' => 'u'.$users[0]->id, 'rows' => []]);
     actingAs($users[0])->post("/m/expense-import/batches/{$batch->id}/import", ['event_id' => $event->id, 'payer_key' => 'u'.$users[0]->id, 'rows' => []])->assertNotFound();
     expect(Spend::count())->toBe(ImportRow::whereNotNull('spend_id')->count())->toBe(2); // the two ticked card payments, once
+});
+
+it('reuses a shop\'s category only when the family\'s history makes it a habit', function () {
+    [, $users] = importFamily();
+    $home = SpendEvent::createFor($users[0], ['name' => 'Home', 'currency' => 'EUR']);
+    $spend = fn (string $store, string $category) => $home->spends()->create(['payer_id' => $users[0]->id, ...$home->buildSpend(['amount' => 10, 'currency' => 'EUR', 'category' => $category, 'spent_at' => '2026-09-01', 'store' => $store]), 'created_by' => $users[0]->id]);
+
+    $spend('Target', 'education');               // one purchase: not a habit (a general store)
+    $spend('Emag', 'shopping');
+    $spend('Emag', 'education');
+    $spend('Emag', 'health'); // spread out: no habit
+    $spend('Lidl', 'food');
+    $spend('Lidl', 'food');
+    $spend('Lidl', 'shopping');         // 2 of 3: a habit
+    $history = Importer::history();
+
+    expect(Importer::guess('TARGET 1234 CHICAGO', $history))->toBeNull()
+        ->and(Importer::guess('Emag', $history))->toBeNull()
+        ->and(Importer::guess('Lidl Bucuresti', $history))->toBe('food');
 });

@@ -27,6 +27,11 @@ use Modules\Spending\SpendSetting;
 // still in "other", as for any expense.
 class Importer
 {
+    // See history(): how much past spending at a shop makes its category a habit worth reusing.
+    public const HISTORY_MIN_SPENDS = 2;
+
+    public const HISTORY_MIN_SHARE = 2 / 3;
+
     /**
      * Turn parsed transactions into review rows on $batch: fingerprint, kind, duplicate/already-imported
      * flags (unticked) and a category from the family's history.
@@ -250,7 +255,16 @@ class Importer
             ->groupByRaw('COALESCE(store, note), category')->orderByDesc('c')->limit(2000)->get()
             ->each(fn ($r) => $add($r->name, $r->category, (int) $r->c));
 
-        $pick = fn (array $byKey) => array_map(fn (array $cats) => array_search(max($cats), $cats, true), $byKey);
+        // Trust the family's habit only when it IS a habit: at least HISTORY_MIN_SPENDS past spends at the shop and
+        // one category holding HISTORY_MIN_SHARE of them. One spend proves nothing about a general store (the demo's
+        // single "Target: school notebooks" made every Target payment "Education"), and a shop whose spends are spread
+        // over categories has no habit either. Those fall through to the AI suggester, which knows "general retail".
+        $pick = fn (array $byKey) => array_filter(array_map(function (array $cats) {
+            $total = array_sum($cats);
+            $top = max($cats);
+
+            return $total >= self::HISTORY_MIN_SPENDS && $top / $total >= self::HISTORY_MIN_SHARE ? array_search($top, $cats, true) : null;
+        }, $byKey));
 
         return ['full' => $pick($votes['full']), 'word' => $pick($votes['word'])];
     }
