@@ -246,8 +246,11 @@ export default function ExpenseImportReview({ batch, rows, lists, members, categ
             </div>
 
             {reviewing && (
-                // Pinned above the phone's bottom bar (md:bottom-0 on desktop); the page has pb-28 so nothing hides under it.
-                <div className="bg-background/95 fixed inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-40 border-t px-4 py-3 backdrop-blur md:bottom-0 md:left-(--sidebar-width)">
+                // Rests on the phone's bottom nav: 4.75rem = the nav pill (70px) + a 6px gap, above the nav's own bottom
+                // padding, which is 0.75rem + the home-indicator inset in a browser but max(0.5rem, inset/2) in the
+                // installed PWA (mobile-tab-bar.tsx). Desktop: bottom-0. pb-28 on the page + the layout's own nav padding
+                // keep the last row ~54px clear of the bar on every device (both include the inset).
+                <div className="bg-background/95 fixed inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-40 border-t px-4 py-3 backdrop-blur md:bottom-0 md:left-(--sidebar-width) max-md:[@media(display-mode:standalone)]:bottom-[calc(4.75rem+max(0.5rem,env(safe-area-inset-bottom)/2))]">
                     <div className="mx-auto flex max-w-4xl items-center justify-between gap-3">
                         <span className="text-muted-foreground min-w-0 truncate text-sm">
                             {suggesting ? (
