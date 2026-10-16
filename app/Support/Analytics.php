@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 
 /**
  * Server-side Umami events, for things that happen without a page view the browser tracker could see
@@ -47,6 +48,24 @@ class Analytics
                 self::send($id, $event, $data, $path);
             }
         });
+    }
+
+    /**
+     * A funnel step for the BROWSER tracker to send on the next page it renders (shared as `analyticsEvents`
+     * by HandleInertiaRequests, sent by app.tsx). For steps that end in a redirect the browser never
+     * "sees" (demo entry, sign-up, Stripe's return), which a server-side track() can't put in the visitor's
+     * Umami session: Umami keys sessions on IP + user agent, so only the browser's own events land in the
+     * same visit as their familywell.org page views (docs/analytics.md). Kept in the session (not flashed)
+     * and pulled when a page renders, so it survives any number of redirect hops in between.
+     *
+     * @param  array<string, string|int>  $data
+     */
+    public static function queue(string $event, array $data = []): void
+    {
+        if (self::enabled() && request()->hasSession()) {
+            // The id lets the browser drop a repeat (an Inertia history visit replays the old page's props).
+            request()->session()->push('analytics_events', ['id' => (string) Str::uuid(), 'name' => $event, 'data' => $data ?: null]);
+        }
     }
 
     /**

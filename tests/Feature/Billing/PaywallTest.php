@@ -112,3 +112,18 @@ it('tracks a subscription starting and ending once each, under the family owner'
         ['subscription_canceled', [], $owner->analytics_id, '/billing'],
     ]);
 });
+
+it('queues checkout_completed for the browser when Stripe sends the buyer back paid', function () {
+    stripeOn();
+    umamiOn();
+    [$owner, $family] = paidFamily();
+    Http::fake(['api.stripe.com/v1/checkout/sessions/cs_1*' => Http::response([
+        'client_reference_id' => (string) $family->id, 'customer' => 'cus_1',
+        'subscription' => ['status' => 'active', 'items' => ['data' => [['price' => ['id' => 'price_m']]]]],
+    ])]);
+
+    actingAs($owner)->get('/settings/billing?session_id=cs_1')->assertRedirect(route('billing.show'));
+
+    actingAs($owner)->get('/settings/billing')->assertInertia(fn ($page) => $page
+        ->where('analyticsEvents.0.name', 'checkout_completed')->has('analyticsEvents', 1));
+});

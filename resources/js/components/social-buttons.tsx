@@ -38,7 +38,9 @@ export function AppleLogo({ className }: { className?: string }) {
 // for are shared (socialProviders), so a self-hosted install without them renders nothing at all. Plain
 // <a> links, not Inertia visits: the server answers with a redirect to Google/Apple, a full page load.
 // Also shows the error a failed sign-in comes back with (errors.social).
-export default function SocialButtons() {
+// `signup` (the register page): the click is the signup_started funnel step, sent by Umami's own
+// data-umami-event click tracking, which holds the navigation until the event is out.
+export default function SocialButtons({ signup = false }: { signup?: boolean }) {
     const t = useT();
     const { socialProviders = [], errors } = usePage<{ socialProviders?: string[]; errors: Record<string, string> }>().props;
 
@@ -47,18 +49,27 @@ export default function SocialButtons() {
     // Fixed brand colours on purpose (not theme tokens): Google's and Apple's sign-in guidelines dictate them.
     // Apple's HIG: black button, white Apple logo, "Continue with Apple"; the light outline keeps it visible
     // on a dark background.
+    const tracked = (method: string) => (signup ? { 'data-umami-event': 'signup_started', 'data-umami-event-method': method } : {});
     const base = 'flex h-11 w-full items-center justify-center gap-2 rounded-md px-4 text-[15px] font-medium transition-colors';
 
     return (
         <div className="grid gap-3">
             {socialProviders.includes('google') && (
-                <a href="/auth/google/redirect" className={`${base} border border-[#747775] bg-white text-[#1f1f1f] hover:bg-[#f2f2f2]`}>
+                <a
+                    href="/auth/google/redirect"
+                    {...tracked('google')}
+                    className={`${base} border border-[#747775] bg-white text-[#1f1f1f] hover:bg-[#f2f2f2]`}
+                >
                     <GoogleLogo className="size-[18px]" />
                     {t('auth.continue_with_google')}
                 </a>
             )}
             {socialProviders.includes('apple') && (
-                <a href="/auth/apple/redirect" className={`${base} bg-black text-white hover:bg-black/85 dark:border dark:border-white/40`}>
+                <a
+                    href="/auth/apple/redirect"
+                    {...tracked('apple')}
+                    className={`${base} bg-black text-white hover:bg-black/85 dark:border dark:border-white/40`}
+                >
                     <AppleLogo className="size-[18px]" />
                     {t('auth.continue_with_apple')}
                 </a>

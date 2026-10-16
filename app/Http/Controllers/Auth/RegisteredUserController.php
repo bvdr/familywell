@@ -58,6 +58,9 @@ class RegisteredUserController extends Controller
     {
         self::adoptAnalytics($request, $user);
         Analytics::track($user, 'signed_up', ['method' => $method], '/register');
+        // signed_up (server) is the reliable count; signup_completed (browser) is the same step inside the
+        // visitor's own Umami visit, so the familywell.org -> sign-up funnel can follow it.
+        Analytics::queue('signup_completed', ['method' => $method]);
 
         event(new Registered($user));
 

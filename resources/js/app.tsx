@@ -24,7 +24,7 @@ import { createRoot } from 'react-dom/client';
 import { route as routeFn } from 'ziggy-js';
 import { armCrashRecovery, ErrorBoundary } from './components/error-boundary';
 import { initializeTheme } from './hooks/use-appearance';
-import { identify } from './lib/analytics';
+import { identify, trackQueued } from './lib/analytics';
 import { loadModules, registerSlot } from './lib/modules';
 import { registerServiceWorker } from './lib/push';
 
@@ -56,6 +56,7 @@ createInertiaApp({
         // Identify to Umami on the first page, then on every visit (the navigate listener below) so a
         // sign-in, sign-up or account switch re-identifies. Both: identify() dedupes repeat calls.
         identify(props.initialPage.props.analyticsId);
+        trackQueued(props.initialPage.props.analyticsEvents);
 
         root.render(
             <ErrorBoundary>
@@ -68,7 +69,10 @@ createInertiaApp({
     },
 });
 
-router.on('navigate', (event) => identify(event.detail.page.props.analyticsId));
+router.on('navigate', (event) => {
+    identify(event.detail.page.props.analyticsId);
+    trackQueued(event.detail.page.props.analyticsEvents);
+});
 
 // This will set light / dark mode on load...
 initializeTheme();

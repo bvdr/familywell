@@ -44,3 +44,30 @@ export function identify(id: unknown, tries = 10): void {
         window.setTimeout(() => identify(id, tries - 1), 200);
     }
 }
+
+type QueuedEvent = { id: string; name: string; data: Record<string, string | number> | null };
+const sent = new Set<string>();
+
+/**
+ * Send the funnel steps the server queued (Analytics::queue, shared as `analyticsEvents`): demo opened,
+ * sign-up completed, checkout completed. Each has an id, so a history visit that replays an old page's
+ * props doesn't send it twice. Umami loads with `defer`, so on a full page load (a redirect from /demo or
+ * Stripe) it may not be there yet: retry 10 x 200ms, like identify().
+ */
+export function trackQueued(events: unknown, tries = 10): void {
+    if (!Array.isArray(events) || events.length === 0) {
+        return;
+    }
+    if (!window.umami?.track) {
+        if (tries > 0) {
+            window.setTimeout(() => trackQueued(events, tries - 1), 200);
+        }
+        return;
+    }
+    for (const e of events as QueuedEvent[]) {
+        if (e?.id && !sent.has(e.id)) {
+            sent.add(e.id);
+            track(e.name, e.data ?? undefined);
+        }
+    }
+}

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Family;
+use App\Support\Analytics;
 use App\Support\Billing\Billing;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Http\Request;
@@ -18,6 +19,10 @@ class BillingController extends Controller
         $family = $this->family();
         if ($sessionId = $request->query('session_id')) {
             Billing::syncCheckoutSession($family, (string) $sessionId);
+            // Funnel step in the browser's visit; the subscription_started count stays server-side (Billing).
+            if (Billing::hasAccess($family)) {
+                Analytics::queue('checkout_completed');
+            }
 
             return to_route('billing.show');
         }
