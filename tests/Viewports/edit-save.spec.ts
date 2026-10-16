@@ -58,7 +58,7 @@ test('spending: edit an expense note', async ({ page }, info) => {
     await page.getByRole('button', { name: /·/ }).nth(slot(info.project.name)).click();
     const dialog = page.getByRole('dialog');
     await dialog.locator('#note').fill(note);
-    await dialog.getByRole('button', { name: 'Save' }).click();
+    await dialog.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(dialog).toBeHidden();
     await expect(page.getByRole('button', { name: new RegExp(note) })).toBeVisible();
     await page.reload();
@@ -71,7 +71,7 @@ test('contacts: edit a contact name', async ({ page }, info) => {
     await page.locator('main').getByRole('button', { name: /🎂/ }).nth(slot(info.project.name)).click();
     const dialog = page.getByRole('dialog');
     await dialog.locator('input').first().fill(name);
-    await dialog.getByRole('button', { name: 'Save' }).click();
+    await dialog.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(dialog).toBeHidden();
     await expect(page.getByRole('button', { name: new RegExp(name) })).toBeVisible();
     await page.reload();
@@ -85,7 +85,7 @@ test('inventory: edit an item name', async ({ page }, info) => {
     await page.getByRole('button', { name: 'Edit', exact: true }).click();
     const dialog = page.getByRole('dialog');
     await dialog.locator('input').first().fill(name);
-    await dialog.getByRole('button', { name: 'Save' }).click();
+    await dialog.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(dialog).toBeHidden();
     await expect(page.getByText(name).first()).toBeVisible();
     await page.reload();
@@ -99,8 +99,43 @@ test('vehicles: edit a car', async ({ page }, info) => {
     await page.locator('textarea').first().fill(notes);
     // The car form is a page, not a drawer; it saves and stays put (`back()`), so wait for the save itself.
     const saved = page.waitForResponse((r) => r.request().method() === 'PATCH' && /\/m\/vehicles\/\d+$/.test(r.url()));
-    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
     expect((await saved).status()).toBe(303); // 302/422 = validation error, not a save
     await page.reload();
     await expect(page.locator('textarea').first()).toHaveValue(notes);
+});
+
+test('expense import: upload a statement, review, import, undo', async ({ page }, info) => {
+    // A tiny Wise statement with rows unique to this run (the phone and desktop projects run in parallel).
+    const shop = marker(info.project.name);
+    const day = new Date().toISOString().slice(0, 10).split('-').reverse().join('-'); // dd-mm-yyyy, like Wise
+    // A unique amount too: an earlier run's expense with the same amount, day and a similar name would (rightly)
+    // be flagged as a possible duplicate and come in unticked.
+    const amount = (10 + 5000 * slot(info.project.name) + (Date.now() % 400000) / 100).toFixed(2); // per-project range
+    const csv = [
+        '"TransferWise ID",Date,Amount,Currency,Description,Merchant',
+        `CARD-${Date.now()},${day},-${amount},USD,"Card transaction issued by ${shop}","${shop}"`,
+        `IN-${Date.now()},${day},100.00,USD,"Received money from ${shop}",`,
+    ].join('\n');
+
+    await page.goto('/m/expense-import');
+    await page.locator('input[type=file]').setInputFiles({ name: 'wise.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+    await page.waitForURL(/\/m\/expense-import\/batches\/\d+$/);
+    const review = page.url();
+
+    // The card payment comes in ticked, the incoming money unticked.
+    await expect(page.getByRole('checkbox', { name: shop, exact: true })).toBeChecked();
+    await expect(page.getByRole('checkbox', { name: `Received money from ${shop}` })).not.toBeChecked();
+    await page.getByRole('button', { name: 'Import 1 expenses' }).click();
+    await expect(page.getByText('1 expenses were added to Spending.')).toBeVisible();
+
+    // It's a real Spending expense now...
+    await page.getByRole('link', { name: 'Open the list' }).click();
+    await expect(page.getByText(shop).first()).toBeVisible();
+
+    // ...and Undo (on the import's own page) takes it back out.
+    await page.goto(review);
+    page.once('dialog', (d) => d.accept());
+    await page.getByRole('button', { name: 'Undo' }).click();
+    await expect(page.getByText('This import was undone.')).toBeVisible();
 });

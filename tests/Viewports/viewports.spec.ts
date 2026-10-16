@@ -31,6 +31,8 @@ const PAGES: [string, string][] = [
     ['vehicles-new', '/m/vehicles/new'],
     ['vehicles-providers', '/m/vehicles/providers'],
     ['vehicles-settings', '/m/vehicles/settings'],
+    ['expense-import', '/m/expense-import'],
+    ['expense-import-settings', '/m/expense-import/settings'],
     ['settings-profile', '/settings/profile'],
     ['settings-password', '/settings/password'],
     ['settings-appearance', '/settings/appearance'],
@@ -55,6 +57,7 @@ const DETAILS: [string, string, RegExp, string?][] = [
     ['vehicle', '/m/vehicles', /\/m\/vehicles\/\d+$/],
     ['vehicle-history', '/m/vehicles', /\/m\/vehicles\/\d+$/, '/timeline'],
     ['inventory-item', '/m/inventory/items', /\/m\/inventory\/items\/\d+$/],
+    ['expense-import-review', '/m/expense-import', /\/m\/expense-import\/batches\/\d+$/],
 ];
 
 const shoot = async (page: import('@playwright/test').Page, name: string, project: string) => {

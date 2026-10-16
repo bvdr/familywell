@@ -16,6 +16,9 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Modules\Calendar\CalendarEvent;
 use Modules\Contacts\Person;
+use Modules\ExpenseImport\ImportBatch;
+use Modules\ExpenseImport\Importer;
+use Modules\ExpenseImport\ImportSetting;
 use Modules\Inventory\InventoryCategory;
 use Modules\Inventory\InventoryItem;
 use Modules\Inventory\InventoryLocation;
@@ -66,7 +69,7 @@ class DemoSeeder extends Seeder
 
     public const MODULES = [
         'shopping', 'spending', 'inventory', 'vehicles', 'tasks', 'notes', 'contacts', 'birthdays',
-        'projects', 'notifications', 'important_todos', 'recurring_todos', 'calendar', 'recipes',
+        'projects', 'notifications', 'important_todos', 'recurring_todos', 'calendar', 'recipes', 'expense_import',
     ];
 
     private Carbon $today;
@@ -88,6 +91,7 @@ class DemoSeeder extends Seeder
             $this->modules($family);
             $this->shopping();
             $this->spending();
+            $this->expenseImport();
             $this->inventory($family);
             $this->vehicles($family);
             $this->tasks();
@@ -157,6 +161,36 @@ class DemoSeeder extends Seeder
         foreach (array_intersect(self::MODULES, $known) as $id) {
             $registry->enable($id, $family->id);
         }
+    }
+
+    // ---- Expense import --------------------------------------------------------------------------------
+
+    // Both ways in switched on, plus a statement waiting for review and two Apple Pay payments in Sarah's queue.
+    // The statement rows show every case on the review screen: categories learned from the spends above,
+    // a possible duplicate (the coffee already in Spending today), income, a transfer, a refund, an unknown shop.
+    private function expenseImport(): void
+    {
+        $sarah = $this->u['Sarah'];
+        ImportSetting::current()->update(['statements_enabled' => true, 'shortcut_enabled' => true]);
+        $day = fn (int $ago) => $this->today->copy()->subDays($ago)->toDateString();
+        $tx = fn (int $ago, float $usd, string $merchant, string $kind = 'expense', ?string $ref = null) => [
+            'date' => $day($ago), 'amount' => (int) round($usd * 100), 'currency' => 'USD', 'merchant' => $merchant, 'reference' => $ref, 'kind' => $kind,
+        ];
+
+        $statement = ImportBatch::create(['user_id' => $sarah->id, 'source' => 'statement', 'status' => ImportBatch::REVIEW, 'bank' => 'Wise', 'filename' => 'wise-statement.csv']);
+        Importer::stage($statement, [
+            $tx(0, -6.45, 'Starbucks', ref: 'CARD-9001'),
+            $tx(1, -63.12, "Trader Joe's", ref: 'CARD-9002'),
+            $tx(2, -48.90, 'Shell', ref: 'CARD-9003'),
+            $tx(3, -15.49, 'Netflix', ref: 'CARD-9004'),
+            $tx(3, 3200.00, 'Paycheck', 'income', 'TRANSFER-9005'),
+            $tx(4, -500.00, 'To savings', 'transfer', 'BALANCE-9006'),
+            $tx(5, -27.30, 'Target', ref: 'CARD-9007'),
+            $tx(5, 19.99, 'Amazon refund', 'refund', 'CARD-9008'),
+        ], 'USD', $sarah);
+
+        $queue = ImportBatch::create(['user_id' => $sarah->id, 'source' => 'shortcut', 'status' => ImportBatch::REVIEW, 'bank' => 'Apple Pay']);
+        Importer::stage($queue, [$tx(0, -5.75, 'Blue Bottle Coffee'), $tx(0, -18.40, 'Uber')], 'USD', $sarah);
     }
 
     // ---- Shopping ------------------------------------------------------------------------------------
