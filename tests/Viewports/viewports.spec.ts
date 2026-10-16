@@ -137,3 +137,17 @@ test.describe('phone navigation', () => {
         }
     });
 });
+
+// Settings > Modules: one link per enabled module that has a settings page (resources/js/layouts/settings/layout.tsx).
+// Every link must open a real page, so a module that moves or drops its settings URL fails here.
+test('settings-modules', async ({ page }) => {
+    await page.goto('/settings/profile');
+    const group = page.getByRole('group', { name: 'Modules' });
+    await expect(group).toBeVisible();
+    const hrefs = await group.getByRole('link').evaluateAll((as) => as.map((a) => (a as HTMLAnchorElement).getAttribute('href')!));
+    expect(hrefs.length).toBeGreaterThan(0);
+    for (const href of hrefs) {
+        const res = await page.goto(href);
+        expect(res?.status(), href).toBe(200);
+    }
+});
