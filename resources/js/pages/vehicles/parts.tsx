@@ -1,4 +1,5 @@
 import { router } from '@inertiajs/react';
+import { useCarMoney } from '@/lib/vehicles';
 import { Package, Plus, ShoppingCart, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -61,6 +62,7 @@ export function PartsSection({ vehicleId, parts, canShopping, t }: { vehicleId: 
 }
 
 function PartRow({ part, t, onRemove }: { part: PartRequest; t: TFn; onRemove: () => void }) {
+    const carMoney = useCarMoney();
     const remove = () => {
         if (confirm(t('vehicles.part_delete_confirm'))) onRemove();
     };
@@ -80,7 +82,7 @@ function PartRow({ part, t, onRemove }: { part: PartRequest; t: TFn; onRemove: (
                             <ShoppingCart className="size-3" /> {t('vehicles.part_on_list')}
                         </span>
                     )}
-                    {part.estimatedCost != null && <span className="tabular-nums">· {t('vehicles.cost_value', { value: part.estimatedCost.toFixed(2) })}</span>}
+                    {part.estimatedCost != null && <span className="tabular-nums">· {carMoney(part.estimatedCost)}</span>}
                 </span>
             </div>
             <button

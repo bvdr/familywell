@@ -52,6 +52,7 @@ import {
     type RecentEvent,
     type UnitSystem,
     type Vehicle,
+    useCarMoney,
 } from '@/lib/vehicles';
 import type { BreadcrumbItem, SharedData } from '@/types';
 
@@ -579,6 +580,7 @@ function RunningCosts({ vehicle, analytics, unitSystem, t }: { vehicle: Vehicle;
 // Recent maintenance/repair events, each with when it happened, the odometer and the cost. Hidden when the
 // car has no service story yet.
 function RecentEvents({ recent, unitSystem, t }: { recent: RecentEvent[]; unitSystem: UnitSystem; t: TFn }) {
+    const carMoney = useCarMoney();
     if (recent.length === 0) return null;
 
     return (
@@ -598,7 +600,7 @@ function RecentEvents({ recent, unitSystem, t }: { recent: RecentEvent[]; unitSy
                             </span>
                         </div>
                         {e.cost != null && (
-                            <span className="text-primary shrink-0 text-sm tabular-nums">{t('vehicles.cost_value', { value: e.cost.toLocaleString('en-US') })}</span>
+                            <span className="text-primary shrink-0 text-sm tabular-nums">{carMoney(e.cost)}</span>
                         )}
                     </li>
                 ))}

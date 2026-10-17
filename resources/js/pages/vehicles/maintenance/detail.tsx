@@ -22,6 +22,7 @@ import {
     type MaintenanceSchedule,
     type ProviderOption,
     type VehicleHeader,
+    useCarMoney,
 } from '@/lib/vehicles';
 import type { BreadcrumbItem } from '@/types';
 
@@ -365,6 +366,7 @@ function CompletePanel({
 }
 
 function MaintenanceHistoryList({ history, t }: { history: MaintenanceHistoryEntry[]; t: TFn }) {
+    const carMoney = useCarMoney();
     return (
         <section className="flex flex-col gap-2">
             <h3 className="font-heading text-primary text-lg">{t('vehicles.maint_history')}</h3>
@@ -381,7 +383,7 @@ function MaintenanceHistoryList({ history, t }: { history: MaintenanceHistoryEnt
                                 <span className="text-muted-foreground text-sm tabular-nums">{mileageText(t, h.mileage)}</span>
                             </div>
                             <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
-                                {h.cost != null && <span className="tabular-nums">{t('vehicles.cost_value', { value: h.cost.toFixed(2) })}</span>}
+                                {h.cost != null && <span className="tabular-nums">{carMoney(h.cost)}</span>}
                                 {h.provider && <span>{h.provider}</span>}
                             </div>
                             {h.notes && <p className="text-text-secondary text-sm whitespace-pre-wrap">{h.notes}</p>}

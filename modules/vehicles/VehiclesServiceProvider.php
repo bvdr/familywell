@@ -137,7 +137,7 @@ class VehiclesServiceProvider extends ServiceProvider
             ->whereNumber('vehicle')
             ->name('vehicles.history.pdf.signed');
 
-        Route::middleware(['web', 'auth', 'family', 'module:vehicles'])
+        Route::middleware(['web', 'auth', 'family', 'module:vehicles', ShareCarCurrency::class])
             ->prefix('m/vehicles')
             ->name('vehicles.')
             ->group(function () {

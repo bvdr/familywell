@@ -3,7 +3,7 @@ import { Globe, MapPin, Phone, Wrench } from 'lucide-react';
 
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
-import { fmtMileage, type ProviderServiceEntry, type ServiceProvider } from '@/lib/vehicles';
+import { fmtMileage, type ProviderServiceEntry, type ServiceProvider, useCarMoney } from '@/lib/vehicles';
 import type { BreadcrumbItem } from '@/types';
 
 type Props = {
@@ -13,6 +13,7 @@ type Props = {
 };
 
 export default function ServiceProviderDetail({ provider, history, lastService }: Props) {
+    const carMoney = useCarMoney();
     const t = useT();
     const breadcrumbs: BreadcrumbItem[] = [
         { title: t('vehicles.title'), href: '/m/vehicles' },
@@ -50,7 +51,7 @@ export default function ServiceProviderDetail({ provider, history, lastService }
                                         </span>
                                     </div>
                                     {h.cost != null && (
-                                        <span className="text-primary shrink-0 text-sm tabular-nums">{t('vehicles.cost_value', { value: h.cost.toFixed(2) })}</span>
+                                        <span className="text-primary shrink-0 text-sm tabular-nums">{carMoney(h.cost)}</span>
                                     )}
                                 </li>
                             ))}
