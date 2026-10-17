@@ -130,7 +130,7 @@ class AdminApiController extends Controller
         // Last activity = users.last_seen_at (web + MCP, see TrackLastSeen), falling back to the newest web
         // session for activity from before that column existed. One correlated subquery per row.
         return User::query()
-            ->select('users.id', 'users.name', 'users.email', 'users.email_verified_at', 'users.created_at', 'users.last_seen_at', 'users.last_seen_via')
+            ->select('users.id', 'users.name', 'users.email', 'users.email_verified_at', 'users.created_at', 'users.last_seen_at', 'users.last_seen_via', 'users.country')
             ->selectSub(DB::table('sessions')->selectRaw('max(last_activity)')->whereColumn('sessions.user_id', 'users.id'), 'last_active')
             ->withCount('families');
     }
@@ -150,6 +150,7 @@ class AdminApiController extends Controller
             'createdAt' => self::iso($u->created_at),
             ...self::lastActive($u),
             'familyCount' => (int) $u->families_count,
+            'country' => $u->country, // ISO alpha-2 from Cloudflare, null until their first web visit since it was added
         ];
     }
 
