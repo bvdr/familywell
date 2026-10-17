@@ -3,6 +3,7 @@ import { LoaderCircle } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
 import InputError from '@/components/input-error';
+import LegalNote from '@/components/legal-note';
 import SocialButtons from '@/components/social-buttons';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
@@ -121,6 +122,8 @@ export default function Register() {
                     </TextLink>
                 </div>
             </form>
+
+            <LegalNote />
         </AuthLayout>
     );
 }
