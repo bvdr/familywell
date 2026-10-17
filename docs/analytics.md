@@ -41,6 +41,18 @@ and bounces: an .org-only visit = bounce; .org + `cta_click` = not a bounce; .or
 overall, but **is** one with the report filtered to `hostname = familywell.org` (the filter drops the
 .co page view). That's why the .org CTAs also send `cta_click`: the .org-only view stays honest too.
 
+### Our own domains are not referrers
+
+Umami 3.3.0 only drops a referrer that equals the page's own hostname (`src/app/api/send/route.ts`), and the
+Channels and Attribution reports label a visit by its first event that has a source. So a .org -> .co click
+was stored as a familywell.org referral, and the sign-in / payment round trips came back as
+accounts.google.com (matches Umami's `google.` search list, so "organic search"), appleid.apple.com or
+checkout.stripe.com ("referral"): a direct visit that signed up with Google was reported as search traffic.
+Both sites set `data-before-send="fwUmamiBeforeSend"`, which blanks referrers from familywell.org/.co (any
+subdomain) and those three hosts before sending (`resources/views/app.blade.php`, familywell-site
+`public/visitor.js`). The visit's real first source still wins. Rows sent before 2026-10-17 still carry the
+old referrers.
+
 ### The visitor id hand-off still matters
 
 `umami.identify()` doesn't change the session (it only sets the distinct id), so joining a person

@@ -41,7 +41,20 @@
         {{-- Umami (cookieless; tracks Inertia page changes through the History API). Only when a website id
              is configured, i.e. on hosted familywell.co. data-domains keeps other hosts (local, staging) out. --}}
         @if (config('services.umami.website_id'))
-            <script defer src="{{ config('services.umami.script') }}" data-website-id="{{ config('services.umami.website_id') }}" data-domains="{{ parse_url(config('app.url'), PHP_URL_HOST) }}"></script>
+            {{-- Umami only drops a referrer equal to the page's own hostname. .org and .co share one website, and
+                 the Google/Apple sign-in and Stripe checkout round trips come back with their host as referrer, so
+                 without this a direct visit showed up as "referral" or (accounts.google.com) "search" in
+                 Channels/Attribution. Same list as familywell-site's visitor.js. See docs/analytics.md. --}}
+            <script>
+                window.fwUmamiBeforeSend = function (type, payload) {
+                    try {
+                        var host = payload.referrer && new URL(payload.referrer, location.href).hostname;
+                        if (host && /(^|\.)(familywell\.(org|co)|accounts\.google\.com|appleid\.apple\.com|checkout\.stripe\.com)$/.test(host)) payload.referrer = '';
+                    } catch (e) {}
+                    return payload;
+                };
+            </script>
+            <script defer src="{{ config('services.umami.script') }}" data-website-id="{{ config('services.umami.website_id') }}" data-domains="{{ parse_url(config('app.url'), PHP_URL_HOST) }}" data-before-send="fwUmamiBeforeSend"></script>
         @endif
 
         {{-- MUST stay last in <head>: the active skin's tokens are injected here so they win the cascade
