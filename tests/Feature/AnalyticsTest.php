@@ -100,20 +100,20 @@ it('stores the route template, never a token from the landing URL', function () 
     expect(session('analytics.first_touch.landing_path'))->toBe('/invite/{token}');
 });
 
-// ---------------------------------------------------------------- sign-up adoption (password)
+// ---------------------------------------------------------------- sign-up adoption (email code)
 
-it('adopts the visitor id and first touch on password sign-up', function () {
+it('adopts the visitor id and first touch on an email sign-up', function () {
     $events = umamiOn();
     $vid = (string) Str::uuid();
     get("/register?fw_vid={$vid}&fw_src=familywell.org&fw_med=referral&fw_cmp=launch")->assertOk();
 
-    $this->post('/register', ['name' => 'Ana', 'email' => 'ana@example.com', 'password' => 'password', 'password_confirmation' => 'password']);
+    signInWithCode('ana@example.com');
 
     $user = User::where('email', 'ana@example.com')->sole();
     expect($user->analytics_id)->toBe($vid)
         ->and($user->first_touch)->toMatchArray(['source' => 'familywell.org', 'medium' => 'referral', 'campaign' => 'launch'])
         ->and(session('analytics'))->toBeNull()
-        ->and($events())->toBe([['signed_up', ['method' => 'password'], $vid, '/register']]);
+        ->and($events())->toBe([['signed_up', ['method' => 'email'], $vid, '/register']]);
 });
 
 it('refuses a visitor id another account already has', function () {
@@ -122,7 +122,7 @@ it('refuses a visitor id another account already has', function () {
     User::factory()->create()->forceFill(['analytics_id' => $vid])->save();
     get("/register?fw_vid={$vid}&fw_src=familywell.org")->assertOk();
 
-    $this->post('/register', ['name' => 'Ana', 'email' => 'ana@example.com', 'password' => 'password', 'password_confirmation' => 'password']);
+    signInWithCode('ana@example.com');
 
     $user = User::where('email', 'ana@example.com')->sole();
     expect($user->analytics_id)->not->toBe($vid)
@@ -132,20 +132,20 @@ it('refuses a visitor id another account already has', function () {
 
 it('queues signup_completed for the browser through the redirects, sent once', function () {
     umamiOn();
-    $this->post('/register', ['name' => 'Ana', 'email' => 'ana@example.com', 'password' => 'password', 'password_confirmation' => 'password'])
-        ->assertRedirect(route('onboarding.index'));
+    signInWithCode('ana@example.com')
+        ->assertRedirect(route('onboarding.about'));
 
-    get('/onboarding')->assertInertia(fn ($page) => $page->has('analyticsEvents', 1)
-        ->where('analyticsEvents.0.name', 'signup_completed')->where('analyticsEvents.0.data', ['method' => 'password'])
+    get('/onboarding/about')->assertInertia(fn ($page) => $page->has('analyticsEvents', 1)
+        ->where('analyticsEvents.0.name', 'signup_completed')->where('analyticsEvents.0.data', ['method' => 'email'])
         ->where('analyticsEvents.0.id', fn ($id) => Str::isUuid($id)));
-    get('/onboarding')->assertInertia(fn ($page) => $page->where('analyticsEvents', []));
+    get('/onboarding/about')->assertInertia(fn ($page) => $page->where('analyticsEvents', []));
 });
 
 it('queues nothing for the browser without Umami configured', function () {
-    $this->post('/register', ['name' => 'Ana', 'email' => 'ana@example.com', 'password' => 'password', 'password_confirmation' => 'password']);
+    signInWithCode('ana@example.com');
 
     expect(session('analytics_events'))->toBeNull();
-    get('/onboarding')->assertInertia(fn ($page) => $page->where('analyticsEvents', []));
+    get('/onboarding/about')->assertInertia(fn ($page) => $page->where('analyticsEvents', []));
 });
 
 // ---------------------------------------------------------------- identify prop

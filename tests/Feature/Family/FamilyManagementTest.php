@@ -96,11 +96,11 @@ it('joins the family after registering from an invite', function () {
     [$family, $admin] = managedFamily();
     $invite = $family->invitations()->create(['email' => 'grace@example.com', 'role' => 'member', 'invited_by' => $admin->id]);
 
-    // Follow the guest flow: hitting the link sets the session token, then registration completes it.
+    // Follow the guest flow: hitting the link sets the session token, sign-up asks About you, which then
+    // goes on to the invitation.
     $this->get("/invite/{$invite->token}");
-    $this->post('/register', [
-        'name' => 'Grace', 'email' => 'grace@example.com', 'password' => 'password', 'password_confirmation' => 'password',
-    ])->assertRedirect(route('invite.show', $invite->token));
+    signInWithCode('grace@example.com')->assertRedirect(route('onboarding.about'));
+    $this->post('/onboarding/about', ['name' => 'Grace'])->assertRedirect(route('invite.show', $invite->token));
 
     // The accept page now joins.
     $grace = User::where('email', 'grace@example.com')->first();

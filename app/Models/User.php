@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Laravel\Passport\Contracts\OAuthenticatable;
 use Laravel\Passport\HasApiTokens;
@@ -38,6 +39,23 @@ class User extends Authenticatable implements OAuthenticatable
     }
 
     private ?bool $isDemoCache = null;
+
+    /**
+     * Someone just proved they own this address (an email code, or Google/Apple vouching for it). On an
+     * account that never verified its address, whoever registered it before may not be that person and may
+     * still be signed in: mark it verified, rotate the remember-me token and end every stored session, so
+     * only the proven owner gets in from now on. Already-verified accounts are left alone.
+     */
+    public function confirmEmailOwner(): void
+    {
+        if ($this->hasVerifiedEmail()) {
+            return;
+        }
+        $this->forceFill(['email_verified_at' => now(), 'remember_token' => Str::random(60)])->save();
+        if (config('session.driver') === 'database') {
+            DB::connection(config('session.connection'))->table(config('session.table', 'sessions'))->where('user_id', $this->id)->delete();
+        }
+    }
 
     public function families(): BelongsToMany
     {

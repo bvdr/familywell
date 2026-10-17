@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
+use App\Support\Translations;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -45,11 +48,13 @@ class ProfileController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
-        $request->validate([
-            'password' => ['required', 'current_password'],
-        ]);
-
         $user = $request->user();
+
+        // No password to re-enter any more: typing their own address is the "are you sure" for this.
+        $typed = Str::lower(trim((string) $request->input('email')));
+        if ($typed !== Str::lower($user->email)) {
+            throw ValidationException::withMessages(['email' => Translations::get('settings.delete_type_email_wrong')]);
+        }
 
         Auth::logout();
 

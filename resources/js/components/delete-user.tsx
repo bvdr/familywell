@@ -1,36 +1,35 @@
 import { useForm } from '@inertiajs/react';
-import { FormEventHandler, useRef } from 'react';
+import { FormEventHandler, useRef, useState } from 'react';
 
-// Components...
+import HeadingSmall from '@/components/heading-small';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-
-import HeadingSmall from '@/components/heading-small';
-
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useT } from '@/lib/i18n';
 
 export default function DeleteUser() {
     const t = useT();
-    const passwordInput = useRef<HTMLInputElement>(null);
-    const { data, setData, delete: destroy, processing, reset, errors, clearErrors } = useForm({ password: '' });
+    const [open, setOpen] = useState(false);
+    const emailInput = useRef<HTMLInputElement>(null);
+    // No passwords: typing their own email address confirms it (ProfileController::destroy checks it).
+    const { data, setData, delete: destroy, processing, reset, errors, clearErrors } = useForm({ email: '' });
 
     const deleteUser: FormEventHandler = (e) => {
         e.preventDefault();
-
         destroy(route('profile.destroy'), {
             preserveScroll: true,
-            onSuccess: () => closeModal(),
-            onError: () => passwordInput.current?.focus(),
-            onFinish: () => reset(),
+            onError: () => emailInput.current?.focus(),
         });
     };
 
-    const closeModal = () => {
-        clearErrors();
-        reset();
+    const close = (v: boolean) => {
+        setOpen(v);
+        if (!v) {
+            clearErrors();
+            reset();
+        }
     };
 
     return (
@@ -42,48 +41,45 @@ export default function DeleteUser() {
                     <p className="text-sm">{t('settings.delete_warning_text')}</p>
                 </div>
 
-                <Dialog>
-                    <DialogTrigger asChild>
-                        <Button variant="destructive">{t('settings.delete_account')}</Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogTitle>{t('settings.confirm_delete_title')}</DialogTitle>
-                        <DialogDescription>{t('settings.confirm_delete_desc')}</DialogDescription>
-                        <form className="space-y-6" onSubmit={deleteUser}>
-                            <div className="grid gap-2">
-                                <Label htmlFor="password" className="sr-only">
-                                    {t('settings.password')}
-                                </Label>
-
-                                <Input
-                                    id="password"
-                                    type="password"
-                                    name="password"
-                                    ref={passwordInput}
-                                    value={data.password}
-                                    onChange={(e) => setData('password', e.target.value)}
-                                    placeholder={t('settings.password')}
-                                    autoComplete="current-password"
-                                />
-
-                                <InputError message={errors.password} />
-                            </div>
-
-                            <DialogFooter>
-                                <DialogClose asChild>
-                                    <Button variant="secondary" onClick={closeModal}>
-                                        {t('common.cancel')}
-                                    </Button>
-                                </DialogClose>
-
-                                <Button variant="destructive" disabled={processing} asChild>
-                                    <button type="submit">{t('settings.delete_account')}</button>
-                                </Button>
-                            </DialogFooter>
-                        </form>
-                    </DialogContent>
-                </Dialog>
+                <Button variant="destructive" onClick={() => setOpen(true)}>
+                    {t('settings.delete_account')}
+                </Button>
             </div>
+
+            {/* ResponsiveModal, not a plain Dialog: on phones it's the keyboard-aware sheet whose pinned footer
+                stays above the iOS keyboard (a Dialog left the Delete button under the keyboard's accessory bar). */}
+            <ResponsiveModal
+                open={open}
+                onOpenChange={close}
+                title={t('settings.confirm_delete_title')}
+                description={t('settings.confirm_delete_desc')}
+                autoFocusRef={emailInput}
+                footer={
+                    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                        <Button type="button" variant="secondary" onClick={() => close(false)}>
+                            {t('common.cancel')}
+                        </Button>
+                        <Button type="submit" form="delete-account-form" variant="destructive" disabled={processing}>
+                            {t('settings.delete_account')}
+                        </Button>
+                    </div>
+                }
+            >
+                <form id="delete-account-form" className="grid gap-2" onSubmit={deleteUser}>
+                    <Label htmlFor="delete-email" className="sr-only">{t('settings.delete_type_email')}</Label>
+                    <Input
+                        id="delete-email"
+                        ref={emailInput}
+                        type="email"
+                        name="email"
+                        value={data.email}
+                        onChange={(e) => setData('email', e.target.value)}
+                        placeholder={t('auth.email_placeholder')}
+                        autoComplete="off"
+                    />
+                    <InputError message={errors.email} />
+                </form>
+            </ResponsiveModal>
         </div>
     );
 }

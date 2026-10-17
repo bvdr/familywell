@@ -3,9 +3,11 @@
 use App\Models\Family;
 use App\Models\OAuthClient;
 use App\Models\User;
+use App\Notifications\LoginCode;
 use App\Support\Modules\ModuleRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Laravel\Passport\ClientRepository;
@@ -257,9 +259,28 @@ function mcpToolNames(string $token): array
  * Put a family past its free period, so an unpaid one hits the paywall (Billing::paywallDue): it used
  * enough modules (engaged_at) and is older than the grace hours. Tests about the locked state call this.
  */
-function pastFreePeriod(App\Models\Family $family): App\Models\Family
+function pastFreePeriod(Family $family): Family
 {
     $family->forceFill(['created_at' => now()->subDays(2), 'engaged_at' => now()->subDay()])->save();
 
     return $family;
+}
+
+/**
+ * Sign in (or up) the way people do: ask for a code for $email, read it off the faked email, type it.
+ * Returns the verify response. Fakes notifications, so call it before asserting on other notifications.
+ */
+function signInWithCode(string $email, array $headers = []): TestResponse
+{
+    Notification::fake();
+    test()->post('/auth/code', ['email' => $email], $headers)->assertSessionHasNoErrors();
+
+    $code = null;
+    Notification::assertSentOnDemand(LoginCode::class, function (LoginCode $n) use (&$code) {
+        $code = $n->code;
+
+        return true;
+    });
+
+    return test()->post('/auth/code/verify', ['code' => $code], $headers);
 }

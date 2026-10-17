@@ -60,7 +60,6 @@
     "settings": {
         "title": "Settings",
         "profile": "Profile",
-        "password": "Password",
         "appearance": "Appearance",
         "language": "Language",
         "language_desc": "Choose the language you'd like to use across FamilyWell.",

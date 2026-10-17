@@ -1,39 +1,34 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
-use App\Http\Controllers\Auth\ConfirmablePasswordController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Auth\EmailVerificationPromptController;
-use App\Http\Controllers\Auth\NewPasswordController;
-use App\Http\Controllers\Auth\PasswordResetLinkController;
-use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\SocialLoginController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use App\Support\Auth\SocialLogin;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
-    Route::get('register', [RegisteredUserController::class, 'create'])
+    // One email-code flow for both (AuthenticatedSessionController): the two URLs only change the title.
+    Route::get('register', [AuthenticatedSessionController::class, 'register'])
         ->name('register');
-
-    Route::post('register', [RegisteredUserController::class, 'store']);
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
 
-    Route::post('login', [AuthenticatedSessionController::class, 'store']);
+    // Per IP. EmailCode also caps sends per address and wrong guesses per code.
+    Route::post('auth/code', [AuthenticatedSessionController::class, 'sendCode'])
+        ->middleware('throttle:10,1')
+        ->name('auth.code.send');
 
-    Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
-        ->name('password.request');
+    // ponytail: TEMPORARY, for app reviewers (see AuthenticatedSessionController::passwordLogin).
+    Route::post('login/password', [AuthenticatedSessionController::class, 'passwordLogin'])
+        ->middleware('throttle:10,1')
+        ->name('login.password');
 
-    Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
-        ->name('password.email');
-
-    Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
-        ->name('password.reset');
-
-    Route::post('reset-password', [NewPasswordController::class, 'store'])
-        ->name('password.store');
+    Route::post('auth/code/verify', [AuthenticatedSessionController::class, 'verifyCode'])
+        ->middleware('throttle:20,1')
+        ->name('auth.code.verify');
 
     // "Continue with Google / Apple". Google returns with a GET; Apple with a cross-site form POST, which is
     // why its callback is CSRF-exempt (bootstrap/app.php) and checks its own state cookie instead.
@@ -63,11 +58,6 @@ Route::middleware('auth')->group(function () {
     Route::post('email/verification-notification', [EmailVerificationNotificationController::class, 'store'])
         ->middleware('throttle:6,1')
         ->name('verification.send');
-
-    Route::get('confirm-password', [ConfirmablePasswordController::class, 'show'])
-        ->name('password.confirm');
-
-    Route::post('confirm-password', [ConfirmablePasswordController::class, 'store']);
 
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
         ->name('logout');

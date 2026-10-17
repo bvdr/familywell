@@ -5,6 +5,7 @@ use App\Http\Middleware\CaptureFirstTouch;
 use App\Http\Middleware\EnsureModuleEnabled;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RequireFamily;
+use App\Http\Middleware\RequireName;
 use App\Http\Middleware\SetActiveFamily;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\ShareModules;
@@ -53,6 +54,8 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
             SetActiveFamily::class,
+            // Signed in without a name (email sign-up): "About you" first. See RequireName.
+            RequireName::class,
             ShareTheme::class,
             ShareModules::class,
             ShareRealtime::class,

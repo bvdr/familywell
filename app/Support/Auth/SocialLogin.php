@@ -8,7 +8,6 @@ use App\Models\SocialAccount;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -31,11 +30,6 @@ class SocialLogin
 
     /** Carries Apple's state/nonce across its cross-site POST callback. See appleRedirect(). */
     public const APPLE_COOKIE = 'apple_oauth';
-
-    // Session key + lifetime of a link waiting for the account's password (see signIn()).
-    public const PENDING = 'social.pending';
-
-    public const PENDING_TTL = 600;
 
     /** @return list<string> providers whose config is complete, i.e. whose button shows. */
     public static function enabled(): array
@@ -231,8 +225,7 @@ class SocialLogin
 
     /**
      * Sign the person in: a linked account wins; else an account with this (provider-verified) email is
-     * linked straight away if it verified that email itself, or waits for its password if it never did
-     * (see below); else a new account is created through the normal registration path.
+     * linked; else a new account is created through the normal registration path.
      *
      * @param  array{sub: string, email: ?string, email_verified: bool, name: ?string}  $identity
      */
@@ -244,7 +237,7 @@ class SocialLogin
 
         $account = SocialAccount::where('provider', $provider)->where('provider_user_id', $identity['sub'])->first();
         if ($account) {
-            Auth::login($account->user);
+            Auth::login($account->user, remember: true);
 
             return AuthenticatedSessionController::signedIn($request);
         }
@@ -263,24 +256,15 @@ class SocialLogin
 
         // Case-insensitive: older accounts may have been registered with capitals in the address.
         if ($user = User::whereRaw('lower(email) = ?', [$email])->first()) {
-            // The account already proved it owns this address (clicked our verification link) and the provider
-            // proves the person signing in owns it too: same person, so link and sign in, no extra step.
-            // Safe because changing the profile email resets email_verified_at (Settings\ProfileController).
-            if ($user->hasVerifiedEmail()) {
-                $user->socialAccounts()->create($link);
-                Auth::login($user);
+            // The provider proves the person signing in owns this address, and with no passwords the address
+            // IS the account (an email code gets the same person in). So link and sign in. On an account that
+            // never proved its address, whoever registered it may be someone else: confirmEmailOwner() signs
+            // every other session out first.
+            $user->confirmEmailOwner();
+            $user->socialAccounts()->create($link);
+            Auth::login($user, remember: true);
 
-                return AuthenticatedSessionController::signedIn($request);
-            }
-
-            // Unverified account: NEVER link by email alone. FamilyWell doesn't make people verify their
-            // address, so anyone can register (or switch their profile to) someone else's email in advance;
-            // auto-linking would then log the real owner into the account the attacker controls. So the person
-            // proves they own THIS account with its password first: we park the link, send them to the login
-            // form, and completePendingLink() finishes it after a successful password login.
-            $request->session()->put(self::PENDING, encrypt($link + ['user_id' => $user->id, 'expires' => now()->getTimestamp() + self::PENDING_TTL]));
-
-            throw new SocialLoginException('auth.social_link_password');
+            return AuthenticatedSessionController::signedIn($request);
         }
 
         // One transaction: a user row without its link (e.g. two racing callbacks hitting the unique
@@ -288,11 +272,11 @@ class SocialLogin
         $user = DB::transaction(function () use ($identity, $email, $link) {
             $user = new User;
             $user->forceFill([
-                'name' => Str::limit($identity['name'] ?: Str::before($email, '@'), 255, ''),
+                // Null when the provider sends none (Apple after the first sign-in): About you asks.
+                'name' => $identity['name'] ? Str::limit($identity['name'], 255, '') : null,
                 'email' => $email,
                 'email_verified_at' => now(),
-                // The password column stays NOT NULL: a random one nobody knows means "no password". They can
-                // still set one through "Forgot password?" (the address is verified, so the link arrives).
+                // The password column stays NOT NULL: a random one nobody knows. Nothing checks passwords any more.
                 'password' => Hash::make(Str::random(64)),
                 'locale' => app()->getLocale(),
             ])->save();
@@ -301,48 +285,8 @@ class SocialLogin
             return $user;
         });
 
-        // Same Registered event, login, analytics adoption and onboarding/invite redirect as the sign-up form.
+        // Same Registered event, login, analytics adoption and onboarding/invite redirect as an email sign-up.
         return RegisteredUserController::registered($request, $user, $provider);
-    }
-
-    /**
-     * The parked "sign in with your password to connect" link (see signIn()), if it hasn't expired.
-     *
-     * @return array{provider: string, provider_user_id: string, email: string, user_id: int, expires: int}|null
-     */
-    public static function pendingLink(Request $request): ?array
-    {
-        try {
-            $pending = decrypt((string) $request->session()->get(self::PENDING));
-        } catch (\Throwable) {
-            return null;
-        }
-
-        return is_array($pending) && ($pending['expires'] ?? 0) >= now()->getTimestamp() ? $pending : null;
-    }
-
-    /**
-     * Called after a successful PASSWORD login (only there: the password is the proof of ownership).
-     * Consumes the parked link whatever happens, and creates it only for the same user and email.
-     * Returns the provider that got connected, or null.
-     */
-    public static function completePendingLink(Request $request, User $user): ?string
-    {
-        $pending = self::pendingLink($request);
-        $request->session()->forget(self::PENDING);
-
-        if (! $pending || $pending['user_id'] !== $user->id || Str::lower($user->email) !== $pending['email']
-            || SocialAccount::where('provider', $pending['provider'])->where('provider_user_id', $pending['provider_user_id'])->exists()) {
-            return null;
-        }
-
-        $user->socialAccounts()->create(Arr::only($pending, ['provider', 'provider_user_id', 'email']));
-        // The password proved they own the account, the provider proved they own the address.
-        if (! $user->hasVerifiedEmail()) {
-            $user->markEmailAsVerified();
-        }
-
-        return $pending['provider'];
     }
 
     public static function label(string $provider): string

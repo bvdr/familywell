@@ -34,7 +34,8 @@ const PAGES: [string, string][] = [
     ['expense-import', '/m/expense-import'],
     ['expense-import-settings', '/m/expense-import/settings'],
     ['settings-profile', '/settings/profile'],
-    ['settings-password', '/settings/password'],
+    ['settings-sign-in', '/settings/sign-in'],
+    ['onboarding-about', '/onboarding/about'],
     ['settings-appearance', '/settings/appearance'],
     ['settings-language', '/settings/language'],
     ['settings-notifications', '/settings/notifications'],
@@ -90,7 +91,6 @@ test.describe('signed out', () => {
     for (const [name, path] of [
         ['login', '/login'],
         ['register', '/register'],
-        ['forgot-password', '/forgot-password'],
     ] as const) {
         test(name, async ({ page }, info) => {
             await page.goto(path);

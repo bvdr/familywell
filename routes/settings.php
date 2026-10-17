@@ -3,9 +3,9 @@
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\Settings\ConnectedAppsController;
 use App\Http\Controllers\Settings\MediaLibraryController;
-use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\RecentlyDeletedController;
+use App\Http\Controllers\Settings\SignInController;
 use App\Models\Family;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Theming\ThemeTokens;
@@ -45,11 +45,10 @@ Route::middleware('auth')->group(function () {
 
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])->middleware('not-demo:email')->name('profile.update');
-    Route::delete('settings/profile', [ProfileController::class, 'destroy'])->middleware('not-demo:password')->name('profile.destroy');
+    Route::delete('settings/profile', [ProfileController::class, 'destroy'])->middleware('not-demo:email')->name('profile.destroy');
 
-    Route::get('settings/password', [PasswordController::class, 'edit'])->name('password.edit');
-    Route::put('settings/password', [PasswordController::class, 'update'])->middleware('not-demo:current_password')->name('password.update');
-    Route::delete('settings/social-accounts/{id}', [PasswordController::class, 'disconnectSocial'])->middleware('not-demo')
+    Route::get('settings/sign-in', [SignInController::class, 'edit'])->name('sign-in.edit');
+    Route::delete('settings/social-accounts/{id}', [SignInController::class, 'disconnectSocial'])->middleware('not-demo')
         ->whereNumber('id')->name('social.disconnect');
 
     Route::get('settings/appearance', function () {
