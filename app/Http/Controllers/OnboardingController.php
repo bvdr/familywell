@@ -6,6 +6,9 @@ use App\Models\Family;
 use App\Support\Analytics;
 use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
+use App\Support\Tenancy\CurrentFamily;
+use App\Support\Theming\ThemeTokens;
+use App\Support\Translations;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -20,6 +23,39 @@ class OnboardingController extends Controller
         return $request->user()->families()->exists()
             ? to_route('dashboard')
             : null;
+    }
+
+    // "About you": the first step for every new account (RegisteredUserController::registered), and where
+    // RequireName sends anyone still without a name. Language and colours save as they're picked, through the
+    // same endpoints as Settings (so the page switches language / skin in place); the form saves the name.
+    public function about(Request $request): Response
+    {
+        $user = $request->user();
+
+        return Inertia::render('onboarding/about-you', [
+            'name' => $user->name,
+            'locales' => Translations::options(),
+            'currentLocale' => app()->getLocale(),
+            'themes' => ThemeTokens::available(),
+            'currentTheme' => $user->theme,
+            'themeCss' => ThemeTokens::css(ThemeTokens::resolve($user, CurrentFamily::id())),
+        ]);
+    }
+
+    public function saveAbout(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['name' => ['required', 'string', 'max:255']]);
+        $user = $request->user();
+        // The language they're looking at is theirs from now on, picked or not (it came from the browser).
+        $user->update(['name' => trim($data['name']), 'locale' => $user->locale ?? app()->getLocale()]);
+
+        // Arrived from an invitation: finish joining that family instead of creating one.
+        if ($token = $request->session()->get('invite_token')) {
+            return to_route('invite.show', $token);
+        }
+
+        // Back to wherever sign-in was heading (e.g. connecting Claude), else on through onboarding.
+        return redirect()->intended(route($user->families()->exists() ? 'dashboard' : 'onboarding.index', absolute: false));
     }
 
     // "How would you like to begin?" — the first screen after registration.

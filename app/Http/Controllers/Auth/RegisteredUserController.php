@@ -6,80 +6,39 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Support\AdminPush;
 use App\Support\Analytics;
-use App\Support\Auth\SocialLogin;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules;
-use Illuminate\Validation\ValidationException;
-use Inertia\Inertia;
-use Inertia\Response;
 
 class RegisteredUserController extends Controller
 {
     /**
-     * Show the registration page.
-     */
-    public function create(): Response
-    {
-        return Inertia::render('auth/register');
-    }
-
-    /**
-     * Handle an incoming registration request.
+     * Everything that follows creating an account. Shared by the email code (AuthenticatedSessionController)
+     * and "Sign in with Google / Apple" (App\Support\Auth\SocialLogin) so every sign-up gets the same welcome.
      *
-     * @throws ValidationException
+     * @param  string  $method  'email' | 'google' | 'apple', for the signed_up analytics event
      */
-    public function store(Request $request): RedirectResponse
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
-        ]);
-
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            // The language the sign-up page was shown in (browser's, via SetLocale) becomes theirs.
-            'locale' => app()->getLocale(),
-        ]);
-
-        return self::registered($request, $user);
-    }
-
-    /**
-     * Everything that follows creating an account. Shared with "Sign in with Google / Apple"
-     * (App\Support\Auth\SocialLogin) so a social sign-up gets exactly the same welcome.
-     *
-     * @param  string  $method  'password' | 'google' | 'apple', for the signed_up analytics event
-     */
-    public static function registered(Request $request, User $user, string $method = 'password'): RedirectResponse
+    public static function registered(Request $request, User $user, string $method = 'email'): RedirectResponse
     {
         self::adoptAnalytics($request, $user);
         Analytics::track($user, 'signed_up', ['method' => $method], '/register');
         // signed_up (server) is the reliable count; signup_completed (browser) is the same step inside the
         // visitor's own Umami visit, so the familywell.org -> sign-up funnel can follow it.
         Analytics::queue('signup_completed', ['method' => $method]);
-        // Every sign-up path (form, Google, Apple) lands here, so this is the one "new account" admin push.
-        AdminPush::send('New account', "{$user->name} ({$user->email}) signed up".($method === 'password' ? '' : " with {$method}").'.', "/users/{$user->id}");
+        // Every sign-up path (email code, Google, Apple) lands here, so this is the one "new account" admin push.
+        // An email sign-up has no name yet (the About you step asks), so the address alone then.
+        $who = $user->name ? "{$user->name} ({$user->email})" : $user->email;
+        AdminPush::send('New account', "{$who} signed up".($method === 'email' ? '' : " with {$method}").'.', "/users/{$user->id}");
 
         event(new Registered($user));
 
-        Auth::login($user);
-        // A parked "connect Google/Apple" link belongs to an existing account, never to a new one.
-        $request->session()->forget(SocialLogin::PENDING);
+        // Remembered: with no password to type, signing in again means another code, so keep them signed in.
+        Auth::login($user, remember: true);
 
-        // If they arrived from an invitation link, finish that instead of onboarding. Otherwise new
-        // users choose in onboarding (create / join / demo); RequireFamily keeps the app gated until then.
-        if ($token = $request->session()->get('invite_token')) {
-            return to_route('invite.show', $token);
-        }
-
-        return to_route('onboarding.index');
+        // Every new account starts with "About you" (name, language, colours); that step then finishes a
+        // pending invitation, or goes on to the rest of onboarding (OnboardingController::saveAbout).
+        return to_route('onboarding.about');
     }
 
     /**

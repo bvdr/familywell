@@ -64,19 +64,20 @@ it('pushes a new account to admin devices only, not to people who are no longer 
     adminDevice();
     adminDevice(User::factory()->create(['is_platform_admin' => false]), 'https://push.example/ex-admin');
 
-    $this->post('/register', ['name' => 'Ana Pop', 'email' => 'ana@example.com', 'password' => 'password', 'password_confirmation' => 'password']);
+    signInWithCode('ana@example.com');
 
+    // An email sign-up has no name yet (About you asks next), so the push names the address.
     $ana = User::query()->where('email', 'ana@example.com')->sole();
     expect(adminPushes())->toBe([[
-        'title' => 'New account', 'body' => 'Ana Pop (ana@example.com) signed up.', 'url' => "/users/{$ana->id}", 'endpoints' => ['https://push.example/admin-1'],
+        'title' => 'New account', 'body' => 'ana@example.com signed up.', 'url' => "/users/{$ana->id}", 'endpoints' => ['https://push.example/admin-1'],
     ]]);
 });
 
 it('sends nothing when no admin has a device', function () {
-    Notification::fake();
-    $this->post('/register', ['name' => 'Ana', 'email' => 'ana@example.com', 'password' => 'password', 'password_confirmation' => 'password']);
+    signInWithCode('ana@example.com');
 
-    Notification::assertNothingSent();
+    // Only the sign-in code went out.
+    Notification::assertSentTimes(AdminAlert::class, 0);
 });
 
 it('pushes a checkout once Stripe has opened it', function () {

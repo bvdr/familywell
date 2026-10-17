@@ -68,9 +68,7 @@ it('shows guests the page in their browser language, English when unsupported', 
 });
 
 it('saves the sign-up page language as the new account locale', function () {
-    $this->post('/register', [
-        'name' => 'Ana', 'email' => 'ana@example.com', 'password' => 'password', 'password_confirmation' => 'password',
-    ], ['Accept-Language' => 'ro-RO,ro;q=0.9'])->assertRedirect();
+    signInWithCode('ana@example.com', ['Accept-Language' => 'ro-RO,ro;q=0.9'])->assertRedirect();
 
     expect(User::where('email', 'ana@example.com')->value('locale'))->toBe('ro');
 });

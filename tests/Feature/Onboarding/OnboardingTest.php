@@ -6,17 +6,38 @@ use App\Support\Modules\ModuleRegistry;
 use Illuminate\Support\Facades\DB;
 
 use function Pest\Laravel\actingAs;
-use function Pest\Laravel\post;
 
-it('sends a freshly registered user to onboarding with no family', function () {
-    post('/register', [
-        'name' => 'Ada Lovelace',
-        'email' => 'ada@example.com',
-        'password' => 'password',
-        'password_confirmation' => 'password',
-    ])->assertRedirect(route('onboarding.index', absolute: false));
+it('sends a freshly signed-up user to About you, with no family', function () {
+    signInWithCode('ada@example.com')->assertRedirect(route('onboarding.about'));
 
     expect(User::where('email', 'ada@example.com')->first()->families)->toHaveCount(0);
+});
+
+it('keeps someone without a name on About you until they give one', function () {
+    $user = User::factory()->create(['name' => null]);
+
+    actingAs($user)->get('/onboarding')->assertRedirect(route('onboarding.about'));
+    actingAs($user)->get('/onboarding/about')->assertOk()->assertInertia(fn ($page) => $page->component('onboarding/about-you'));
+    actingAs($user)->post('/onboarding/about', ['name' => ''])->assertSessionHasErrors('name');
+
+    actingAs($user)->post('/onboarding/about', ['name' => '  Ada  '])->assertRedirect(route('onboarding.index', absolute: false));
+    expect($user->fresh()->name)->toBe('Ada')->and($user->fresh()->locale)->toBe('en');
+    actingAs($user->fresh())->get('/onboarding')->assertOk();
+});
+
+it('lets About you switch language and colours before the name is in', function () {
+    $user = User::factory()->create(['name' => null]);
+
+    actingAs($user)->from('/onboarding/about')->patch('/settings/language', ['locale' => 'nl'])->assertRedirect('/onboarding/about');
+    actingAs($user)->from('/onboarding/about')->patch('/settings/appearance/theme', ['theme' => 'minimal-mono'])->assertRedirect('/onboarding/about');
+    expect($user->fresh()->locale)->toBe('nl')->and($user->fresh()->theme)->toBe('minimal-mono');
+});
+
+it('goes on to an invitation after About you', function () {
+    $user = User::factory()->create(['name' => null]);
+
+    actingAs($user)->withSession(['invite_token' => 'tok'])->post('/onboarding/about', ['name' => 'Ada'])
+        ->assertRedirect(route('invite.show', 'tok'));
 });
 
 it('holds a family-less user out of the app', function () {

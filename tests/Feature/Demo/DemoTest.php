@@ -276,13 +276,11 @@ it('blocks the demo owner from account takeover, invites, billing and public lin
     $other = User::factory()->create(['email' => 'real-user@example.com']);
     $msg = 'Not available in the demo. Sign up to manage your own account and family.';
 
-    // Takeover path: change the email (no password needed) -> "forgot password" to it. Blocked, nothing changes.
+    // Takeover path: change the email -> sign in with a code sent to it. Blocked, nothing changes.
     actingAs($owner)->patch('/settings/profile', ['name' => 'Mallory', 'email' => 'attacker@example.com'])
         ->assertSessionHasErrors(['email' => $msg]);
     expect($owner->fresh()->email)->toBe(DemoSeeder::OWNER_EMAIL)->and($owner->fresh()->name)->toBe('Sarah Miller');
-    actingAs($owner)->put('/settings/password', ['current_password' => 'x', 'password' => 'new-pass-123', 'password_confirmation' => 'new-pass-123'])
-        ->assertSessionHasErrors('current_password');
-    actingAs($owner)->delete('/settings/profile', ['password' => 'x'])->assertSessionHasErrors('password');
+    actingAs($owner)->delete('/settings/profile', ['email' => DemoSeeder::OWNER_EMAIL])->assertSessionHasErrors(['email' => $msg]);
     expect(User::find($owner->id))->not->toBeNull();
 
     // A spam relay to any address, with a visitor-written family name: blocked, nothing sent.

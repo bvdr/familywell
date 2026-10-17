@@ -8,7 +8,7 @@ import { Link, usePage } from '@inertiajs/react';
 // key is a translation key resolved at render (so the nav is localized).
 const sidebarNavItems: { key: string; url: string }[] = [
     { key: 'settings.profile', url: '/settings/profile' },
-    { key: 'settings.password', url: '/settings/password' },
+    { key: 'settings.sign_in_methods', url: '/settings/sign-in' },
     { key: 'settings.appearance', url: '/settings/appearance' },
     { key: 'settings.language', url: '/settings/language' },
     { key: 'settings.media', url: '/settings/media' },

@@ -61,10 +61,13 @@ Route::get('demo', function (Request $request) {
     $request->session()->put('active_family_id', $family->id);
     Analytics::queue('demo_opened');
 
-    return redirect()->route('dashboard');
+    // intended(): an app reviewer connecting Claude/ChatGPT signs in with the demo and goes on to consent.
+    return redirect()->intended(route('dashboard'));
 })->middleware('throttle:30,1')->name('demo.enter');
 
 Route::middleware(['auth'])->group(function () {
+    Route::get('onboarding/about', [OnboardingController::class, 'about'])->name('onboarding.about');
+    Route::post('onboarding/about', [OnboardingController::class, 'saveAbout'])->name('onboarding.about.store');
     Route::get('onboarding', [OnboardingController::class, 'index'])->name('onboarding.index');
     Route::get('onboarding/create', [OnboardingController::class, 'create'])->name('onboarding.create');
     Route::post('onboarding', [OnboardingController::class, 'store'])->name('onboarding.store');

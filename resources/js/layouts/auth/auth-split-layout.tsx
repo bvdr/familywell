@@ -14,10 +14,10 @@ interface AuthLayoutProps {
 }
 
 // Brand-panel content per auth screen (design: "Web · Auth Flow"). Keyed by route name so the pages
-// stay focused on their forms; anything not listed (reset-password, verify-email, confirm-password)
+// stay focused on their forms; anything not listed (verify-email)
 // falls back to the calm login panel, keeping the whole auth surface consistent.
 // The images are photos of cosy home interiors generated for FamilyWell (public/images/auth/*.webp,
-// 1024x1536, ~150 KB): evening living room (login), morning kitchen (register), rainy reading nook (reset).
+// 1024x1536, ~150 KB): evening living room (login), morning kitchen (register).
 type PanelContent = { headline: string; sub: string; image: string };
 
 const PANELS: Record<string, PanelContent> = {
@@ -30,11 +30,6 @@ const PANELS: Record<string, PanelContent> = {
         headline: 'Start something calm together.',
         sub: 'Create a shared home for schedules, lists, and the little moments in between.',
         image: '/images/auth/register.webp',
-    },
-    'password.request': {
-        headline: "We'll help you back in.",
-        sub: 'Resetting your password only takes a moment.',
-        image: '/images/auth/reset.webp',
     },
 };
 

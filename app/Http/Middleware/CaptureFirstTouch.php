@@ -97,7 +97,7 @@ class CaptureFirstTouch
             'medium' => $medium,
             'campaign' => $campaign,
             'referrer' => $sameOrigin ? null : $referrer,
-            // The route's URI template (invite/{token}, reset-password/{token}), not the real path: a landing
+            // The route's URI template (e.g. invite/{token}), not the real path: a landing
             // URL can carry a secret token or an email address, which must never end up in analytics.
             'landing_path' => '/'.ltrim($request->route()?->uri() ?? $request->path(), '/'),
             'at' => now()->toIso8601ZuluString(),
