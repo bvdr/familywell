@@ -26,7 +26,7 @@ export default function Welcome({ firstName }: { firstName: string }) {
                     href={route('onboarding.create')}
                     className="bg-accent-subtle group flex items-center gap-4 rounded-lg p-4 transition-colors hover:brightness-[0.98]"
                 >
-                    <span className="bg-accent text-text-inverse flex size-11 shrink-0 items-center justify-center rounded-md">
+                    <span className="bg-accent-strong text-accent-strong-foreground flex size-11 shrink-0 items-center justify-center rounded-md">
                         <Home className="size-5" />
                     </span>
                     <span className="flex-1">
