@@ -113,3 +113,22 @@ it('pushes when a subscriber cancels, and again when the subscription ends', fun
         ['Subscription ended', "{$family->name}: now canceled."],
     ]);
 });
+
+it('pushes a new subscriber once, whether the checkout redirect or the webhook sees it first', function () {
+    Notification::fake();
+    stripeOn();
+    adminDevice();
+    [, $family] = paidFamily();
+    $event = fn (string $status) => ['type' => 'customer.subscription.updated', 'data' => ['object' => [
+        'customer' => 'cus_1', 'status' => $status, 'metadata' => ['family_id' => (string) $family->id],
+        'items' => ['data' => [['price' => ['id' => 'price_y']]]],
+    ]]];
+
+    signedWebhook($event('incomplete'))->assertNoContent();
+    signedWebhook($event('active'))->assertNoContent();
+    signedWebhook($event('active'))->assertNoContent(); // renewal / resend: no second push
+
+    expect(collect(adminPushes())->map(fn ($p) => [$p['title'], $p['body'], $p['url']])->all())->toBe([
+        ['New subscriber', "{$family->name} subscribed (yearly).", "/families/{$family->id}"],
+    ]);
+});
