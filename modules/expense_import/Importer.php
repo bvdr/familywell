@@ -13,6 +13,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Modules\ExpenseImport\Statement\Values;
+use Modules\Spending\Currencies;
 use Modules\Spending\Spend;
 use Modules\Spending\SpendCategorizer;
 use Modules\Spending\SpendCategory;
@@ -333,7 +334,7 @@ class Importer
     /** The currency a statement without one is in: the family's Spending default, else its "Others" list's, else EUR. */
     public static function fallbackCurrency(): string
     {
-        return SpendSetting::defaultCurrency() ?? SpendEvent::whereNull('archived_at')->orderBy('id')->value('currency') ?? 'EUR';
+        return SpendSetting::defaultCurrency() ?? SpendEvent::whereNull('archived_at')->orderBy('id')->value('currency') ?? Currencies::FALLBACK;
     }
 
     /** @return Collection<int, array{id: int, name: string, currency: string}> lists this person can add expenses to */

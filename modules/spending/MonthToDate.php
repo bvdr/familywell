@@ -29,7 +29,7 @@ class MonthToDate
     public static function displayCurrencyFor(Collection $eventCcy): string
     {
         return SpendSetting::defaultCurrency()
-            ?: ($eventCcy->countBy()->sortDesc()->keys()->first() ?? SpendingController::CURRENCIES[0]);
+            ?: ($eventCcy->countBy()->sortDesc()->keys()->first() ?? Currencies::FALLBACK);
     }
 
     /**

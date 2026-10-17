@@ -1,3 +1,4 @@
+import { currencyOptions } from '@/lib/money';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
@@ -142,7 +143,7 @@ export default function ExpenseImportMap({ batch, headers, samples, currencies, 
                                 <Picker
                                     id="map-fixed"
                                     searchable={false}
-                                    options={currencies.map((c) => ({ value: c, label: c }))}
+                                    options={currencyOptions(currencies)}
                                     selected={[fixedCurrency]}
                                     onChange={([v]) => v && setFixedCurrency(v)}
                                 />

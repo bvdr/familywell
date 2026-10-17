@@ -25,7 +25,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SpendingController extends Controller
 {
-    public const CURRENCIES = ['EUR', 'RON', 'USD', 'GBP'];
+    // Every supported currency (was EUR/RON/USD/GBP only). One list, see Currencies.
+    public const CURRENCIES = Currencies::ALL;
 
     // Most recent spends shown on the overview's Expenses feed (see index()).
     public const FEED_CAP = 200;
@@ -129,9 +130,9 @@ class SpendingController extends Controller
             'currencies' => self::CURRENCIES,
             'scanEnabled' => ReceiptScanner::configured(), // "Scan receipt" in the quick-add sheet
             'aiCategorize' => TypeSafe::configured(), // type-ahead category suggestion in the sheet
-            // Pre-select the family's default currency on the create form (falls back to the first
-            // supported currency client-side when unset).
-            'defaultCurrency' => SpendSetting::defaultCurrency(),
+            // Pre-select the family's default currency on the create form, else Currencies::FALLBACK (never
+            // the list's first entry, which is just alphabetical).
+            'defaultCurrency' => SpendSetting::defaultCurrency() ?? Currencies::FALLBACK,
             // Current-month spend for the top widget (display cents + the currency they are in).
             'thisMonth' => ['total' => $monthTotal, 'currency' => $monthCurrency],
             // Expenses tab feed (see above); `converted` is in thisMonth.currency. feedCap tells the client

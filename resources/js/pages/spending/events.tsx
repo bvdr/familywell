@@ -26,7 +26,7 @@ import AppLayout from '@/layouts/app-layout';
 import { catColor, catIconName, catLabel, categoryMap, defaultCategoryKey, type CategoryDef } from '@/lib/categories';
 import { groupByDateBucket, localToday } from '@/lib/date-groups';
 import { useLocale, useT } from '@/lib/i18n';
-import { money } from '@/lib/money';
+import { currencyOptions, money } from '@/lib/money';
 import { type BreadcrumbItem } from '@/types';
 
 type Member = { id: number; name: string };
@@ -75,7 +75,7 @@ function Avatars({ members }: { members: Member[] }) {
 export default function Events({
     events,
     currencies,
-    defaultCurrency = null,
+    defaultCurrency,
     thisMonth,
     expenses,
     feedCap,
@@ -90,7 +90,7 @@ export default function Events({
     currencies: string[];
     scanEnabled?: boolean; // Gemini key present => "Scan receipt" shows in the quick-add sheet
     aiCategorize?: boolean; // TypeSafe key present => the note suggests a category as you type
-    defaultCurrency?: string | null;
+    defaultCurrency: string; // family default, else the server's fallback (EUR)
     // Month-to-date total across every visible list, already rolled up server-side into one currency.
     thisMonth: { total: number; currency: string };
     expenses: Expense[];
@@ -158,7 +158,7 @@ export default function Events({
     const spend = useForm({
         event_id: '' as string, // '' => the family's "Others" list (resolved server-side)
         amount: '',
-        currency: defaultCurrency ?? currencies[0],
+        currency: defaultCurrency,
         category: defaultCategory,
         payer_key: 'u' + authId,
         spent_at: today(),
@@ -225,7 +225,7 @@ export default function Events({
             ...d,
             event_id: id,
             // A list's spends are frozen into its base currency, so pre-select that; back to the family default otherwise.
-            currency: ev ? ev.baseCurrency : (defaultCurrency ?? currencies[0]),
+            currency: ev ? ev.baseCurrency : defaultCurrency,
             // Keep the payer if still on the roster, else fall back to the viewer.
             payer_key: (ev ? ev.members : members).some((m) => 'u' + m.id === d.payer_key) ? d.payer_key : 'u' + authId,
             // Follow the picked list's "count in monthly spending" (a project list starts off).
@@ -263,7 +263,7 @@ export default function Events({
     // Pre-select the family's default currency; fall back to the first supported one when unset.
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
-        currency: defaultCurrency ?? currencies[0],
+        currency: defaultCurrency,
         icon: null as string | null, // optional lucide key; null keeps the default Wallet icon
     });
 
@@ -420,7 +420,7 @@ export default function Events({
                                     <Picker
                                         id="quick-currency"
                                         fallbackIcon={Banknote}
-                                        options={currencies.map((c) => ({ value: c, label: c }))}
+                                        options={currencyOptions(currencies, locale)}
                                         selected={[spend.data.currency]}
                                         onChange={([c]) => c && spend.setData('currency', c)}
                                     />
