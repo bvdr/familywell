@@ -9,6 +9,7 @@ import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { catLabel as catLabelOf, categoryMap, type CategoryDef } from '@/lib/categories';
 import { useT } from '@/lib/i18n';
+import { currencyOptions } from '@/lib/money';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
 import { Banknote, Plus, Sparkles, Trash2 } from 'lucide-react';
@@ -172,7 +173,7 @@ export default function SpendingSettings({ currencies, defaultCurrency, categori
                     </div>
                     <div className="md:max-w-xs">
                         <Picker
-                            options={[{ value: '', label: t('spending.currency_auto') }, ...currencies.map((c) => ({ value: c, label: c }))]}
+                            options={[{ value: '', label: t('spending.currency_auto') }, ...currencyOptions(currencies)]}
                             selected={[currencyOpt.get('default', defaultCurrency ?? '')]}
                             onChange={([c]) => c !== undefined && setCurrency(c)}
                             disabled={!canManage}

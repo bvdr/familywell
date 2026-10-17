@@ -3,7 +3,7 @@ import { Picker } from '@/components/picker';
 import AppLayout from '@/layouts/app-layout';
 import { catColor as catColorOf, catLabel as catLabelOf, categoryMap, type CategoryDef, type CategoryMap } from '@/lib/categories';
 import { useT, type TFn } from '@/lib/i18n';
-import { money } from '@/lib/money';
+import { currencyOptions, money } from '@/lib/money';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
 import { Banknote } from 'lucide-react';
@@ -141,7 +141,7 @@ export default function Analytics({
                     <div className="relative h-[42px] w-[120px] shrink-0 self-start">
                         <div className="absolute top-0 right-0 z-30 w-[120px] shadow-sm">
                             <Picker
-                                options={currencies.map((c) => ({ value: c, label: c }))}
+                                options={currencyOptions(currencies)}
                                 selected={[currency]}
                                 onChange={([c]) => c && c !== currency && reload({ currency: c })}
                                 fallbackIcon={Banknote}

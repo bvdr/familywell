@@ -7,7 +7,9 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 // Currency conversion via ECB reference rates (frankfurter.dev, free, no key), with a fallback.
-// All supported currencies have 2 minor digits, so converting minor units is a straight multiply.
+// Amounts are integer hundredths in every currency (see Currencies), so converting is a straight multiply.
+// ECB covers ~30 currencies (with history); the rest come from open.er-api.com (latest only, so a back-dated
+// spend in e.g. MDL converts at today's rate).
 class Fx
 {
     /**
@@ -67,14 +69,36 @@ class Fx
         return 1.0;
     }
 
-    /** Latest rates from a base to each supported currency, for the display-currency selector. */
+    /**
+     * Latest rates from a base to each of $currencies, for the display-currency selector. ONE table fetch per
+     * base (cached 12h), not one call per currency: with every currency supported that was ~150 requests on
+     * a cold cache. ECB rates win where ECB has them, so the table agrees with convert(); the rest come from
+     * open.er-api.com. A currency neither source knows gets no entry (the client keeps the base figure).
+     */
     public static function ratesFrom(string $base, array $currencies): array
     {
-        $out = [];
-        foreach ($currencies as $c) {
-            $out[$c] = self::rate($base, $c);
-        }
+        $table = Cache::get("fx:table:{$base}") ?? (function () use ($base) {
+            $rates = [];
+            try {
+                $rates = (array) Http::timeout(8)->get("https://open.er-api.com/v6/latest/{$base}")->json('rates', []);
+            } catch (\Throwable $e) {
+                Log::warning('fx table fallback failed', ['e' => $e->getMessage()]);
+            }
+            try {
+                $rates = array_merge($rates, (array) Http::timeout(8)->get('https://api.frankfurter.dev/v1/latest', ['base' => $base])->json('rates', []));
+            } catch (\Throwable $e) {
+                Log::warning('fx table frankfurter failed', ['e' => $e->getMessage()]);
+            }
 
-        return $out;
+            // Only a real table is cached: an outage must not pin an empty one for 12h.
+            if ($rates) {
+                Cache::put("fx:table:{$base}", $rates, now()->addHours(12));
+            }
+
+            return $rates;
+        })();
+        $table[$base] = 1.0;
+
+        return array_map('floatval', array_intersect_key($table, array_flip($currencies)));
     }
 }

@@ -19,7 +19,7 @@ use Inertia\Response;
 use Modules\Notes\Note;
 use Modules\Notifications\Notify;
 use Modules\Shopping\ShoppingList;
-use Modules\Spending\SpendingController;
+use Modules\Spending\Currencies;
 use Modules\Spending\SpendSetting;
 use Modules\Tasks\Task;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -585,7 +585,7 @@ class ProjectsController extends Controller
         $data = $request->validate(['name' => ['required', 'string', 'max:255']]);
 
         ProjectLinkables::createSpendList($project, $request->user(), $data['name'],
-            SpendSetting::defaultCurrency() ?? SpendingController::CURRENCIES[0]);
+            SpendSetting::defaultCurrency() ?? Currencies::FALLBACK);
         Realtime::broadcast(new ProjectsChanged((int) CurrentFamily::id()));
         Realtime::broadcast(new SpendingChanged((int) CurrentFamily::id()));
 

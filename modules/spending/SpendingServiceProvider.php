@@ -2,16 +2,20 @@
 
 namespace Modules\Spending;
 
+use App\Http\Middleware\TrackLastSeen;
 use App\Models\EntityVisit;
+use App\Models\Family;
 use App\Support\Dashboard\DashboardItems;
 use App\Support\Dashboard\DashboardWidgets;
 use App\Support\Engagement;
 use App\Support\Guests\GuestableRegistry;
 use App\Support\Mcp\McpTools;
+use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Trash\Trash;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\Notifications\NotificationCategories;
@@ -24,6 +28,15 @@ class SpendingServiceProvider extends ServiceProvider
     {
         // Adding a Spend counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('spending', Spend::class);
+
+        // A new family's default currency is where its creator signs up from: Cloudflare's country on the
+        // onboarding request -> that country's currency (RO -> RON). Unknown country (local, Tor, no
+        // Cloudflare) leaves it unset, which falls back to Currencies::FALLBACK. Changeable in Settings.
+        app(Hooks::class)->listen('family.created', function (Family $family, Request $request) {
+            if ($currency = Currencies::forCountry(TrackLastSeen::country($request))) {
+                SpendSetting::current($family->id)->update(['default_currency' => $currency]);
+            }
+        });
 
         // MCP: tools an AI assistant can use on this module, gated by the `spending:read` / `spending:write`
         // scopes the person grants on the consent screen (see docs/mcp.md). No split/balance editing,

@@ -12,6 +12,7 @@ use Laravel\Mcp\ResponseFactory;
 use Modules\Notifications\Notify;
 use Modules\Projects\Mcp\ProjectData;
 use Modules\Projects\ProjectLinkables;
+use Modules\Spending\Currencies;
 use Modules\Spending\SpendEvent;
 use Modules\Spending\SpendingController;
 use Modules\Spending\SpendSetting;
@@ -46,7 +47,7 @@ class CreateList extends Tool
             'count_in_monthly' => ['nullable', 'boolean'],
         ]);
         $user = $this->user();
-        $currency = $data['currency'] ?? (SpendSetting::defaultCurrency() ?? SpendingController::CURRENCIES[0]);
+        $currency = $data['currency'] ?? (SpendSetting::defaultCurrency() ?? Currencies::FALLBACK);
         $flag = isset($data['count_in_monthly']) ? (bool) $data['count_in_monthly'] : null;
 
         $project = null;

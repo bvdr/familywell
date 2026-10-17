@@ -54,7 +54,7 @@ import { avatarColorFor } from '@/lib/avatar';
 import { catColor, categoryMap, catLabel, defaultCategoryKey, type CategoryDef } from '@/lib/categories';
 import { compressImage, makeThumbnail } from '@/lib/compress-image';
 import { useT, type TFn } from '@/lib/i18n';
-import { money, selectAllOnFocus } from '@/lib/money';
+import { currencyOptions, money, selectAllOnFocus } from '@/lib/money';
 import { type BreadcrumbItem } from '@/types';
 
 type Member = { id: number; name: string };
@@ -397,8 +397,11 @@ export default function Event({
         return () => echo.leave(`family.${familyId}`);
     }, [familyId]);
 
-    // Currency choices as Picker options (header display switcher + the expense form).
-    const currencyOptions = event.currencies.map((c) => ({ value: c, label: c }));
+    // Currency choices as Picker options: every supported currency for the expense form; the header display
+    // switcher only offers the ones we have a rate for (a missing rate would show the base figure under the
+    // wrong currency).
+    const currencyChoices = currencyOptions(event.currencies);
+    const displayChoices = currencyChoices.filter((o) => o.value in event.rates);
     const allKeys = participants.map((p) => p.key);
     const form = useForm<{
         amount: string;
@@ -823,7 +826,7 @@ export default function Event({
                                 <div className="relative h-[42px] w-[120px]">
                                     <div className="absolute top-0 right-0 z-30 w-[120px] shadow-sm">
                                         <Picker
-                                            options={currencyOptions}
+                                            options={displayChoices}
                                             selected={[display]}
                                             onChange={([c]) => c && changeDisplay(c)}
                                             fallbackIcon={Banknote}
@@ -1403,7 +1406,7 @@ export default function Event({
                                         <div className="w-[120px]">
                                             <Picker
                                                 id="spend-currency"
-                                                options={currencyOptions}
+                                                options={currencyChoices}
                                                 selected={[form.data.currency]}
                                                 onChange={([c]) => c && form.setData('currency', c)}
                                                 fallbackIcon={Banknote}
