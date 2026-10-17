@@ -1,0 +1,19 @@
+{
+    "title": "Teilen",
+    "access_title": "Wer hat Zugriff",
+    "people_title": "Personen",
+    "owner": "Besitzer",
+    "no_access": "Kein Zugriff",
+    "can_edit": "Kann bearbeiten",
+    "can_view": "Kann ansehen",
+    "invite_link": "Einladungslink",
+    "link_view_desc": "Jeder mit dem Link kann dies ansehen.",
+    "create_link": "Nur-Ansicht-Link erstellen",
+    "no_link": "Kein Einladungslink.",
+    "vis_family_title": "Jeder in der Familie",
+    "vis_family_sub": "Alle Familienmitglieder haben Zugriff",
+    "vis_invited_title": "Nur eingeladene Personen",
+    "vis_invited_sub": "Nur die Personen, die du unten hinzufügst",
+    "vis_private_title": "Privat",
+    "vis_private_sub": "Nur für dich sichtbar"
+}

@@ -8,7 +8,7 @@ namespace App\Support;
 class Translations
 {
     /** Available locales: code => native label. Add a language by adding a lang/{code}.json + a row here. */
-    public const LOCALES = ['en' => 'English', 'ro' => 'Română'];
+    public const LOCALES = ['en' => 'English', 'ro' => 'Română', 'de' => 'Deutsch'];
 
     /** @return array<string, mixed> full nested map for $locale, English-filled. */
     public static function for(string $locale): array
@@ -26,7 +26,7 @@ class Translations
      *
      * @return array<string, mixed>
      */
-    private static function all(string $locale): array
+    public static function all(string $locale): array
     {
         $map = self::load($locale);
         $dir = lang_path($locale);

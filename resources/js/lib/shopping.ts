@@ -133,6 +133,7 @@ export const listColor = (slug: string) => LIST_COLORS[slug] ?? LIST_COLORS.gree
 export const VOICE_LANGS = [
     { code: 'ro-RO', label: 'Română' },
     { code: 'en-US', label: 'English' },
+    { code: 'de-DE', label: 'Deutsch' },
 ];
 const VOICE_LANG_KEY = 'familywell:voiceLang';
 export const getVoiceLang = (): string => (typeof window === 'undefined' ? 'ro-RO' : localStorage.getItem(VOICE_LANG_KEY) || 'ro-RO');
