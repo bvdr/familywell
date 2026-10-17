@@ -568,7 +568,11 @@ function RunningCosts({ vehicle, analytics, unitSystem, t }: { vehicle: Vehicle;
             <div className="bg-border grid grid-cols-3 gap-px overflow-hidden rounded-xl border">
                 {stats.map((s) => (
                     <div key={s.label} className="bg-surface-card flex flex-col gap-0.5 p-3">
-                        <span className="text-muted-foreground text-[11px] font-semibold tracking-widest uppercase">{s.label}</span>
+                        {/* German labels are single long words ("Durchschnitt") that overflow a third-width phone cell:
+                            hyphenate them (html lang is the user locale), break as a last resort. */}
+                        <span className="text-muted-foreground text-[11px] font-semibold tracking-widest break-words uppercase hyphens-auto">
+                            {s.label}
+                        </span>
                         <span className="text-primary text-base font-semibold tabular-nums">{s.value}</span>
                     </div>
                 ))}
