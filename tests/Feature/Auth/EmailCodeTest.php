@@ -111,3 +111,28 @@ it('logs out', function () {
     actingAs(User::factory()->create())->post('/logout')->assertRedirect('/');
     $this->assertGuest();
 });
+
+// TEMPORARY password sign-in for app reviewers (AuthenticatedSessionController::passwordLogin).
+it('still signs an existing account in with its password', function () {
+    $user = User::factory()->create(['email' => 'reviewer@example.com']); // factory password: "password"
+
+    $this->post('/login/password', ['email' => 'Reviewer@Example.com', 'password' => 'password'])
+        ->assertRedirect(route('dashboard', absolute: false));
+    $this->assertAuthenticatedAs($user);
+});
+
+it('refuses a wrong password and throttles guessing', function () {
+    User::factory()->create(['email' => 'reviewer@example.com']);
+
+    foreach (range(1, 5) as $_) {
+        $this->post('/login/password', ['email' => 'reviewer@example.com', 'password' => 'nope'])->assertSessionHasErrors('email');
+    }
+    // Locked now, even with the right one.
+    $this->post('/login/password', ['email' => 'reviewer@example.com', 'password' => 'password'])->assertSessionHasErrors('email');
+    $this->assertGuest();
+});
+
+it('never creates an account from the password form', function () {
+    $this->post('/login/password', ['email' => 'new@example.com', 'password' => 'whatever'])->assertSessionHasErrors('email');
+    expect(User::where('email', 'new@example.com')->exists())->toBeFalse();
+});

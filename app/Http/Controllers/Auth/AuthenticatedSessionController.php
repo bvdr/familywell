@@ -98,6 +98,33 @@ class AuthenticatedSessionController extends Controller
     }
 
     /**
+     * ponytail: TEMPORARY. Password sign-in for existing accounts only, kept for the Claude / ChatGPT app
+     * reviewers (they sign in to demo@familywell.co with DEMO_PASSWORD and can't receive codes). No password
+     * sign-up and no reset. Remove this, its route, the page's "Use a password" link and the auth.password*
+     * strings once the app directory approvals are through.
+     */
+    public function passwordLogin(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['email' => ['required', 'string', 'email'], 'password' => ['required', 'string']]);
+        $email = EmailCode::normalize($data['email']);
+
+        $key = 'password-login:'.hash('sha256', $email.'|'.$request->ip());
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            throw ValidationException::withMessages(['email' => Translations::get('auth.code_too_many')]);
+        }
+
+        $user = User::whereRaw('lower(email) = ?', [$email])->first();
+        if (! $user || ! Hash::check($data['password'], $user->password)) {
+            RateLimiter::hit($key, 60);
+            throw ValidationException::withMessages(['email' => Translations::get('auth.password_wrong')]);
+        }
+        RateLimiter::clear($key);
+        Auth::login($user, remember: true);
+
+        return self::signedIn($request);
+    }
+
+    /**
      * Everything a successful sign-in does once the user is authenticated. Shared with "Sign in with
      * Google / Apple" (App\Support\Auth\SocialLogin) so both ways in land the same way.
      */

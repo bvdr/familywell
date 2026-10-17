@@ -21,6 +21,11 @@ Route::middleware('guest')->group(function () {
         ->middleware('throttle:10,1')
         ->name('auth.code.send');
 
+    // ponytail: TEMPORARY, for app reviewers (see AuthenticatedSessionController::passwordLogin).
+    Route::post('login/password', [AuthenticatedSessionController::class, 'passwordLogin'])
+        ->middleware('throttle:10,1')
+        ->name('login.password');
+
     Route::post('auth/code/verify', [AuthenticatedSessionController::class, 'verifyCode'])
         ->middleware('throttle:20,1')
         ->name('auth.code.verify');

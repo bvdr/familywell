@@ -29,11 +29,18 @@ export default function EmailCode({ mode, status, canDemo, codeSentTo }: Props) 
     const [changing, setChanging] = useState(false);
     const askCode = !!codeSentTo && !changing;
 
-    const emailForm = useForm({ email: codeSentTo ?? '' });
+    // ponytail: TEMPORARY password sign-in for app reviewers (AuthenticatedSessionController::passwordLogin).
+    // Remove withPassword, the password field and its link once the app directory approvals are through.
+    const [withPassword, setWithPassword] = useState(false);
+    const emailForm = useForm({ email: codeSentTo ?? '', password: '' });
     const codeForm = useForm({ code: '' });
 
     const sendCode: FormEventHandler = (e) => {
         e.preventDefault();
+        if (withPassword) {
+            emailForm.post(route('login.password'), { onFinish: () => emailForm.reset('password') });
+            return;
+        }
         emailForm.post(route('auth.code.send'), { preserveScroll: true, onSuccess: () => setChanging(false) });
     };
     // Sends the code it's given, not codeForm.data: on the auto-submit after the sixth digit, setData hasn't
@@ -122,10 +129,34 @@ export default function EmailCode({ mode, status, canDemo, codeSentTo }: Props) 
                             <InputError message={emailForm.errors.email} />
                         </div>
 
+                        {withPassword && (
+                            <div className="grid gap-2">
+                                <Label htmlFor="password">{t('auth.password')}</Label>
+                                <Input
+                                    id="password"
+                                    type="password"
+                                    required
+                                    autoComplete="current-password"
+                                    value={emailForm.data.password}
+                                    onChange={(e) => emailForm.setData('password', e.target.value)}
+                                />
+                            </div>
+                        )}
+
                         <Button type="submit" className="w-full" disabled={emailForm.processing}>
                             {emailForm.processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                            {t('auth.code_send')}
+                            {withPassword ? t('auth.password_sign_in') : t('auth.code_send')}
                         </Button>
+
+                        {!register && (
+                            <button
+                                type="button"
+                                className="text-muted-foreground -mt-2 text-center text-sm underline underline-offset-4"
+                                onClick={() => setWithPassword(!withPassword)}
+                            >
+                                {withPassword ? t('auth.password_use_code') : t('auth.password_use')}
+                            </button>
+                        )}
 
                         <div className="text-muted-foreground text-center text-sm">
                             {register ? t('auth.already_have_account') : t('auth.new_to_familywell')}{' '}
