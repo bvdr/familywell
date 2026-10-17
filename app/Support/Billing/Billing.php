@@ -227,6 +227,7 @@ class Billing
             $owner = User::find($family->owner_id);
             if ($isPaid) {
                 Analytics::track($owner, 'subscription_started', ['plan' => self::plan($subscription)], '/billing');
+                AdminPush::send('New subscriber', "{$family->name} subscribed (".self::plan($subscription).').', "/families/{$family->id}");
             } else {
                 // canceled / unpaid / incomplete_expired: access ended (a cancel at period end lands here later).
                 Analytics::track($owner, 'subscription_canceled', [], '/billing');
