@@ -29,7 +29,7 @@ it('translates every English key in every locale', function () {
 
 it('lists locale options', function () {
     $codes = collect(Translations::options())->pluck('code');
-    expect($codes)->toContain('en')->toContain('ro')->toContain('de');
+    expect($codes)->toContain('en')->toContain('ro')->toContain('de')->toContain('fr')->toContain('nl');
 });
 
 it('saves the user locale and applies it to the shared translations', function () {

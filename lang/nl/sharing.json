@@ -1,0 +1,19 @@
+{
+    "title": "Delen",
+    "access_title": "Wie heeft toegang",
+    "people_title": "Mensen",
+    "owner": "Eigenaar",
+    "no_access": "Geen toegang",
+    "can_edit": "Mag bewerken",
+    "can_view": "Mag bekijken",
+    "invite_link": "Uitnodigingslink",
+    "link_view_desc": "Iedereen met de link kan dit bekijken.",
+    "create_link": "Maak een link om te bekijken",
+    "no_link": "Geen uitnodigingslink.",
+    "vis_family_title": "Iedereen in het gezin",
+    "vis_family_sub": "Alle gezinsleden hebben toegang",
+    "vis_invited_title": "Alleen uitgenodigden",
+    "vis_invited_sub": "Alleen de mensen die je hieronder toevoegt",
+    "vis_private_title": "Privé",
+    "vis_private_sub": "Alleen zichtbaar voor jou"
+}
