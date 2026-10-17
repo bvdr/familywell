@@ -26,10 +26,12 @@ function subscribedFamilies(int $n): void
 }
 
 it('counts every family that has subscribed against the intro spots, demo excluded', function () {
-    standardPricesOn(3);
+    standardPricesOn(4);
     subscribedFamilies(2);
+    Family::factory()->create()->forceFill(['subscription_status' => 'active'])->save(); // subscribed before subscription_plan existed
     Family::factory()->create()->forceFill(['subscription_plan' => 'yearly', 'subscription_status' => 'canceled'])->save(); // a spot stays claimed
     Family::factory()->create()->forceFill(['is_demo' => true, 'subscription_plan' => 'monthly'])->save();
+    Family::factory()->create(); // never subscribed
 
     expect(Billing::introSpotsLeft())->toBe(0)->and(Billing::pricing())->toMatchArray(['intro' => false, 'spotsLeft' => 0, 'monthly' => 6, 'yearly' => 54]);
 });

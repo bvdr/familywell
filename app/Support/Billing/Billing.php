@@ -77,16 +77,18 @@ class Billing
     }
 
     /**
-     * Intro spots still open: config pricing.intro_spots minus every family that has ever subscribed (a
-     * subscription_plan is recorded on the first Stripe sync and kept after a cancel, so a spot, once
-     * claimed, stays claimed). Counting all subscribers works because the switch is one-way: once the
+     * Intro spots still open: config pricing.intro_spots minus every family that has ever subscribed. Any
+     * Stripe subscription sets subscription_status (since billing launched) and subscription_plan (since
+     * 2026-10-16, backfilled lazily, so older subscribers can still have it empty: hence either column).
+     * Both are kept after a cancel, so a spot, once claimed, stays claimed. Counting all subscribers works because the switch is one-way: once the
      * spots are gone nobody gets the intro price again, so the first N subscribers ARE the intro ones.
      * ponytail: two families checking out at the same moment for the last spot can both get it; at 100
      * spots one extra intro subscriber is fine, a row lock would be the upgrade.
      */
     public static function introSpotsLeft(): int
     {
-        $claimed = Family::query()->whereNotNull('subscription_plan')->where('is_demo', false)->count();
+        $claimed = Family::query()->where('is_demo', false)
+            ->where(fn ($q) => $q->whereNotNull('subscription_plan')->orWhereNotNull('subscription_status'))->count();
 
         return max(0, (int) config('familywell.pricing.intro_spots') - $claimed);
     }
