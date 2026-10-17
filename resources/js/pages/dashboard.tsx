@@ -6,7 +6,7 @@ import { Slot } from '@/lib/modules';
 import { money } from '@/lib/money';
 import { listColor as shoppingListColor, listIcon as shoppingListIcon } from '@/lib/shopping';
 import { listColor as taskListColor, listIcon as taskListIcon } from '@/lib/tasks';
-import { type BreadcrumbItem, type SharedData } from '@/types';
+import { type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     Blocks,
@@ -24,8 +24,6 @@ import {
     type LucideIcon,
 } from 'lucide-react';
 import { useState } from 'react';
-
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' }];
 
 // A recently-opened entity ("Pick up where you left off"). visitedAt drives the order server-side.
 // `category` is the module id (groups the cards); `icon`/`color` are the entity's own (a spend event's
@@ -241,7 +239,7 @@ export default function Dashboard({
     const monthName = new Date().toLocaleDateString(locale, { month: 'long' });
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <AppLayout breadcrumbs={[{ title: t('nav.dashboard'), href: '/dashboard' }]}>
             <Head title={t('nav.dashboard')} />
             <div className="mx-auto flex w-full max-w-6xl flex-col gap-7 p-4 md:p-8">
                 <div className="flex flex-wrap items-end justify-between gap-4">

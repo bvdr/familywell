@@ -39,6 +39,12 @@ return Application::configure(basePath: dirname(__DIR__))
         // the container is only reachable through the LB, never directly.
         $middleware->trustProxies(at: '*');
 
+        // A visitor who isn't signed in lands on sign-up, not login: most people reaching familywell.co
+        // are new (from familywell.org, Reddit, search), and the sign-up page links to login underneath.
+        // Connecting Claude/ChatGPT (/oauth/authorize) is the exception: that's someone who already has
+        // an account and wants to link it, so it still asks them to log in.
+        $middleware->redirectGuestsTo(fn ($request) => $request->is('oauth/*') ? route('login') : route('register'));
+
         $middleware->web(append: [
             // SetLocale runs BEFORE HandleInertiaRequests on purpose: Inertia resolves share() at the
             // start of the chain, and the translations once-prop key needs the final locale right

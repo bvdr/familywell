@@ -29,7 +29,7 @@ it('translates every English key in every locale', function () {
 
 it('lists locale options', function () {
     $codes = collect(Translations::options())->pluck('code');
-    expect($codes)->toContain('en')->toContain('ro')->toContain('de');
+    expect($codes)->toContain('en')->toContain('ro')->toContain('de')->toContain('fr')->toContain('nl');
 });
 
 it('saves the user locale and applies it to the shared translations', function () {
@@ -56,4 +56,27 @@ it('picks the plural form for the count and the language', function () {
         ->and(Translations::choice('vehicles.repairs_count', 1, 'ro'))->toBe('1 reparație')
         ->and(Translations::choice('vehicles.repairs_count', 5, 'ro'))->toBe('5 reparații')
         ->and(Translations::choice('vehicles.repairs_count', 21, 'ro'))->toBe('21 de reparații');
+});
+
+// Guests (login / sign-up) get the browser's language, so the welcome is in their own language.
+it('shows guests the page in their browser language, English when unsupported', function () {
+    $this->get('/login', ['Accept-Language' => 'de-AT,de;q=0.9,en;q=0.8'])
+        ->assertInertia(fn ($page) => $page->where('locale', 'de'));
+    $this->get('/login', ['Accept-Language' => 'ja-JP,ja;q=0.9'])
+        ->assertInertia(fn ($page) => $page->where('locale', 'en'));
+    $this->get('/login')->assertInertia(fn ($page) => $page->where('locale', 'en'));
+});
+
+it('saves the sign-up page language as the new account locale', function () {
+    $this->post('/register', [
+        'name' => 'Ana', 'email' => 'ana@example.com', 'password' => 'password', 'password_confirmation' => 'password',
+    ], ['Accept-Language' => 'ro-RO,ro;q=0.9'])->assertRedirect();
+
+    expect(User::where('email', 'ana@example.com')->value('locale'))->toBe('ro');
+});
+
+it('keeps a chosen locale over the browser language', function () {
+    $user = User::factory()->create(['locale' => 'en']);
+    actingAs($user)->get('/settings/language', ['Accept-Language' => 'de'])
+        ->assertInertia(fn ($page) => $page->where('locale', 'en'));
 });
