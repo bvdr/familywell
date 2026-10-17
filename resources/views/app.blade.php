@@ -12,7 +12,9 @@
         {{-- Installable PWA: added to the home screen it launches full-screen (no browser chrome).
              iOS reads the apple-* tags; Android/Chrome read the manifest. --}}
         <link rel="manifest" href="/manifest.webmanifest">
-        <meta name="theme-color" content="#2D5E3A">
+        {{-- Status-bar colour on Android. Only the first-paint value: use-appearance.tsx swaps in the page's
+             own background (light/dark + skin) as soon as the app boots. --}}
+        <meta name="theme-color" content="#F5F3EE">
         <meta name="mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="default">

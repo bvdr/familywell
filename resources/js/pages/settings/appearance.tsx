@@ -3,6 +3,7 @@ import { Head, router } from '@inertiajs/react';
 import AppearanceTabs from '@/components/appearance-tabs';
 import HeadingSmall from '@/components/heading-small';
 import { SkinPicker, type Skin } from '@/components/skin-picker';
+import { useSkinCss } from '@/hooks/use-appearance';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import { useT } from '@/lib/i18n';
 import { type BreadcrumbItem } from '@/types';
@@ -14,16 +15,19 @@ export default function Appearance({
     themes = [],
     currentTheme = null,
     familyDefault = 'minimal-mono',
+    themeCss,
 }: {
     themes?: Skin[];
     currentTheme?: string | null; // null => inherit the family default
+    themeCss?: string; // the skin CSS in effect; applied in place by useSkinCss
     familyDefault?: string;
 }) {
     const t = useT();
+    useSkinCss(themeCss);
     const breadcrumbs: BreadcrumbItem[] = [{ title: t('settings.appearance_settings'), href: '/settings/appearance' }];
 
     const familySkin = themes.find((s) => s.id === familyDefault);
-    // Optimistic highlight only: the skin CSS is injected server-side, so colours switch when the reload lands.
+    // Optimistic highlight only: the colours switch when the visit returns the new skin CSS (useSkinCss).
     const picked = useOptimistic<string | null>();
     const selectSkin = (id: string | null) => {
         picked.set('theme', id);

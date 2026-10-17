@@ -59,6 +59,8 @@ Route::middleware('auth')->group(function () {
             'themes' => ThemeTokens::available(),
             'currentTheme' => auth()->user()->theme, // null => inherit the family default
             'familyDefault' => ($familyId ? Family::find($familyId)?->theme : null) ?: 'minimal-mono',
+            // The skin CSS this person sees right now, so picking a skin applies in place (useSkinCss).
+            'themeCss' => ThemeTokens::css(ThemeTokens::resolve(auth()->user(), $familyId)),
         ]);
     })->name('appearance');
     // Personal skin. null/absent => inherit the family default. Light/dark is separate (client-side).

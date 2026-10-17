@@ -79,3 +79,16 @@ it('lets an admin set the family skin but forbids a member', function () {
     session(['active_family_id' => $family->id]);
     actingAs($member)->patch('/family/theme', ['theme' => 'default'])->assertForbidden();
 });
+
+it('hands the skin pickers the skin CSS in effect, so a pick applies without a reload', function () {
+    $user = User::factory()->create(['theme' => 'warm']);
+    $family = Family::factory()->create(['owner_id' => $user->id, 'theme' => 'minimal-mono']);
+    $family->members()->attach($user, ['role' => 'admin']);
+    session(['active_family_id' => $family->id]);
+
+    actingAs($user)->get('/settings/appearance')->assertInertia(fn ($page) => $page->where('themeCss', ThemeTokens::css('warm')));
+    actingAs($user)->get('/family/members')->assertInertia(fn ($page) => $page->where('themeCss', ThemeTokens::css('warm')));
+
+    $user->update(['theme' => null]); // back to the family default
+    actingAs($user)->get('/settings/appearance')->assertInertia(fn ($page) => $page->where('themeCss', ThemeTokens::css('minimal-mono')));
+});

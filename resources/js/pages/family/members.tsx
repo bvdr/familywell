@@ -1,3 +1,4 @@
+import { useSkinCss } from '@/hooks/use-appearance';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Check, Mail, Plus, Trash2, X } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
@@ -26,6 +27,7 @@ type Props = {
     canManage: boolean;
     palette: { colors: string[]; emojis: string[] };
     themes: Skin[];
+    themeCss?: string; // the skin CSS in effect; applied in place by useSkinCss
 };
 
 // Keep only the last emoji the user typed (one grapheme, so ZWJ sequences like 👨‍👩‍👧‍👦 stay intact).
@@ -52,7 +54,8 @@ function RoleBadge({ role }: { role: string }) {
     );
 }
 
-export default function Members({ family, members, invitations, canManage, palette, themes }: Props) {
+export default function Members({ family, members, invitations, canManage, palette, themes, themeCss }: Props) {
+    useSkinCss(themeCss);
     const t = useT();
     const breadcrumbs: BreadcrumbItem[] = [{ title: t('nav.members'), href: '/family/members' }];
     const authId = usePage<{ auth: { user: { id: number } } }>().props.auth.user.id;
