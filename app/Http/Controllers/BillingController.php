@@ -42,6 +42,8 @@ class BillingController extends Controller
             'status' => $family->subscription_status,
             'hasCustomer' => (bool) $family->stripe_customer_id,
             'canManage' => Gate::allows('manageBilling', $family),
+            // The paywall promises the free trial only when checkout will actually give one.
+            'trialDays' => Billing::trialDays($family),
         ]);
     }
 

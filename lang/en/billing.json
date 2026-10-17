@@ -7,9 +7,9 @@
     "badge": "Most families",
     "monthly_price": "$5",
     "monthly_unit": "per family / month",
-    "yearly_price": "$45",
-    "yearly_unit": "per family / year",
-    "yearly_hint": "That's 3 months free",
+    "yearly_price": "$3.75",
+    "yearly_unit": "per family / month",
+    "yearly_hint": "Billed $45 a year",
     "save": "Save 25%",
     "tagline": "No server, no updates, no 2 a.m. backups. We run it at familywell.co. You just use it.",
     "inc_modules": "Every module, updated automatically",
@@ -34,5 +34,9 @@
     "thanks": "Thank you for supporting FamilyWell",
     "renews_on": "Renews on :date",
     "ends_on": "Ends on :date",
-    "lifetime_line": "Lifetime access, on us"
+    "lifetime_line": "Lifetime access, on us",
+    "trial_line": ":days-day free trial. Cancel before it ends and you pay nothing.",
+    "start_trial": "Start your :days-day free trial",
+    "badge_trial": "Trial",
+    "trial_ends_on": "Free trial until :date, then your plan starts"
 }

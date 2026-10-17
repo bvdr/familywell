@@ -171,3 +171,19 @@ it('still renders the Plan card when the backfill call fails', function () {
 
     actingAs($owner)->get('/settings/billing')->assertOk()->assertInertia(fn ($page) => $page->where('plan', null));
 });
+
+it('gives a family its free trial on the first checkout only, and says so on the paywall', function () {
+    stripeOn();
+    Http::fake(['api.stripe.com/v1/checkout/sessions' => Http::response(['url' => 'https://checkout.stripe.com/c/x'])]);
+    [$admin, $family] = paidFamily();
+
+    actingAs($admin)->get('/settings/billing')->assertInertia(fn ($page) => $page->where('trialDays', 3));
+    actingAs($admin)->post('/settings/billing/checkout', ['plan' => 'monthly']);
+    Http::assertSent(fn ($r) => ($r['subscription_data']['trial_period_days'] ?? null) == 3);
+
+    // Subscribed (or tried) before: no second trial, and the paywall doesn't promise one.
+    $family->forceFill(['stripe_customer_id' => 'cus_back'])->save();
+    actingAs($admin)->get('/settings/billing')->assertInertia(fn ($page) => $page->where('trialDays', 0));
+    actingAs($admin)->post('/settings/billing/checkout', ['plan' => 'monthly']);
+    Http::assertSent(fn ($r) => ($r['customer'] ?? null) === 'cus_back' && ! isset($r['subscription_data']['trial_period_days']));
+});

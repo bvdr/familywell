@@ -7,9 +7,9 @@
     "badge": "Cele mai multe familii",
     "monthly_price": "$5",
     "monthly_unit": "per familie / lună",
-    "yearly_price": "$45",
-    "yearly_unit": "per familie / an",
-    "yearly_hint": "Adică 3 luni gratuite",
+    "yearly_price": "$3.75",
+    "yearly_unit": "per familie / lună",
+    "yearly_hint": "Facturat $45 pe an",
     "save": "Economisești 25%",
     "tagline": "Fără server, fără actualizări, fără backup-uri la 2 noaptea. Noi îl rulăm pe familywell.co. Tu doar îl folosești.",
     "inc_modules": "Toate modulele, actualizate automat",
@@ -34,5 +34,9 @@
     "thanks": "Îți mulțumim că susții FamilyWell",
     "renews_on": "Se reînnoiește pe :date",
     "ends_on": "Se încheie pe :date",
-    "lifetime_line": "Acces pe viață, din partea noastră"
+    "lifetime_line": "Acces pe viață, din partea noastră",
+    "trial_line": "Probă gratuită de :days zile. Anulezi înainte să se termine și nu plătești nimic.",
+    "start_trial": "Începe proba gratuită de :days zile",
+    "badge_trial": "Probă",
+    "trial_ends_on": "Probă gratuită până pe :date, apoi începe planul"
 }
