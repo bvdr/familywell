@@ -14,5 +14,7 @@ it('loads the tracker for the configured website and app host', function () {
     config(['services.umami.website_id' => 'site-123', 'app.url' => 'https://familywell.co']);
 
     get('/login')->assertOk()
-        ->assertSee('src="https://analytics.dragonpie.co/script.js" data-website-id="site-123" data-domains="familywell.co"', false);
+        ->assertSee('src="https://analytics.dragonpie.co/script.js" data-website-id="site-123" data-domains="familywell.co" data-before-send="fwUmamiBeforeSend"', false)
+        // Drops our own domains + sign-in/payment hops as referrers (docs/analytics.md).
+        ->assertSee('window.fwUmamiBeforeSend = function', false);
 });
