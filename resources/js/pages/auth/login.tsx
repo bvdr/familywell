@@ -3,6 +3,7 @@ import { LoaderCircle, Sparkles } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
 import InputError from '@/components/input-error';
+import LegalNote from '@/components/legal-note';
 import SocialButtons from '@/components/social-buttons';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
@@ -105,6 +106,8 @@ export default function Login({ status, canResetPassword, canDemo, email }: Logi
                     </TextLink>
                 </div>
             </form>
+
+            <LegalNote />
 
             {/* Public demo: a plain link (full page load) so the server can establish the session. */}
             {canDemo && (
