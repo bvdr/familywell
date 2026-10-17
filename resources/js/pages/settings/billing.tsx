@@ -1,5 +1,5 @@
 import { track } from '@/lib/analytics';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { ArrowLeft, ArrowRight, ArrowUpRight, Check, Crown, LogOut } from 'lucide-react';
 import { useState } from 'react';
 
@@ -245,13 +245,19 @@ function Paywall({
 
 // Mirrors the "Hosted FamilyWell" card on familywell.org (bvdr/familywell-site, #pricing), so the price
 // promise reads the same in-app. Brand colours are literal on purpose: this card is not skinned.
-// ponytail: prices are copy in lang/billing.json, not fetched from Stripe; keep them in sync with the
-// STRIPE_PRICE_* prices (or fetch them if prices start changing often).
+// Amounts come from the server (Billing::pricing, from .env): the intro price while intro spots last,
+// then the standard one, the same numbers checkout charges.
 function PlanCard({ plan, setPlan, children }: { plan: Plan; setPlan: (p: Plan) => void; children: React.ReactNode }) {
     const t = useT();
+    const { pricing } = usePage<{ pricing: { intro: boolean; spotsLeft: number; monthly: number; yearly: number } }>().props;
     const options: { id: Plan; price: string; unit: string; hint?: string }[] = [
-        { id: 'monthly', price: t('billing.monthly_price'), unit: t('billing.monthly_unit') },
-        { id: 'yearly', price: t('billing.yearly_price'), unit: t('billing.yearly_unit'), hint: t('billing.yearly_hint') },
+        { id: 'monthly', price: t('billing.monthly_price', { amount: pricing.monthly }), unit: t('billing.monthly_unit') },
+        {
+            id: 'yearly',
+            price: t('billing.yearly_price', { amount: pricing.yearly }),
+            unit: t('billing.yearly_unit'),
+            hint: t('billing.yearly_hint'),
+        },
     ];
     const includes = ['inc_modules', 'inc_members', 'inc_backups', 'inc_ai', 'inc_funds'];
 
@@ -259,7 +265,9 @@ function PlanCard({ plan, setPlan, children }: { plan: Plan; setPlan: (p: Plan) 
         <div className="flex flex-col gap-6 rounded-[28px] bg-[#121100] p-6 text-white sm:p-8">
             <div className="flex items-center justify-between gap-3">
                 <h3 className="text-xl font-bold">{t('billing.plan_name')}</h3>
-                <span className="rounded-full bg-[#FFDF00] px-3 py-1 text-xs font-bold whitespace-nowrap text-[#121100]">{t('billing.badge')}</span>
+                <span className="rounded-full bg-[#FFDF00] px-3 py-1 text-xs font-bold whitespace-nowrap text-[#121100]">
+                    {pricing.intro && pricing.spotsLeft > 0 ? t('billing.badge_intro', { left: pricing.spotsLeft }) : t('billing.badge')}
+                </span>
             </div>
             <div role="radiogroup" className="flex flex-col gap-2">
                 {options.map((o) => (

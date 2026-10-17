@@ -69,6 +69,10 @@ return [
         'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
         'price_monthly' => env('STRIPE_PRICE_MONTHLY'),
         'price_yearly' => env('STRIPE_PRICE_YEARLY'),
+        // The regular prices, used once the intro spots are gone (config familywell.pricing). Unset = the
+        // intro prices above stay in use for good, as before.
+        'price_monthly_standard' => env('STRIPE_PRICE_MONTHLY_STANDARD'),
+        'price_yearly_standard' => env('STRIPE_PRICE_YEARLY_STANDARD'),
     ],
 
     // Umami analytics (hosted familywell.co only). Empty = no tracker at all, so self-hosted installs never

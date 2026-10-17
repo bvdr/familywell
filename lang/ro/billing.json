@@ -5,9 +5,9 @@
     "locked_desc": "Un singur abonament acoperă pe toată lumea din :family.",
     "plan_name": "FamilyWell găzduit",
     "badge": "Cele mai multe familii",
-    "monthly_price": "$5",
+    "monthly_price": "$:amount",
     "monthly_unit": "per familie / lună",
-    "yearly_price": "$3.75",
+    "yearly_price": "$:amount",
     "yearly_unit": "per familie / lună",
     "yearly_hint": "Facturat $45 pe an",
     "save": "Economisești 25%",
@@ -37,5 +37,6 @@
     "lifetime_line": "Acces pe viață, din partea noastră",
     "badge_trial": "Probă",
     "trial_ends_on": "Probă gratuită până pe :date, apoi începe planul",
-    "back_to_app": "Înapoi în aplicație"
+    "back_to_app": "Înapoi în aplicație",
+    "badge_intro": "Preț de lansare · :left rămase"
 }
