@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
-import { useT, type TFn } from '@/lib/i18n';
+import { useT, type TFn, dayText } from '@/lib/i18n';
 import { documentTypeLabel, mileageText, vehicleTitle, type VehicleDocument, type VehicleHeader } from '@/lib/vehicles';
 import type { BreadcrumbItem } from '@/types';
 
@@ -154,7 +154,7 @@ function DocumentCard({
                     {document.expiresOn && (
                         <p className={`flex items-center gap-1.5 text-sm ${document.expiring ? 'text-[var(--warning)]' : 'text-muted-foreground'}`}>
                             {document.expiring && <AlertTriangle className="size-3.5" />}
-                            {t('vehicles.expires_on', { date: document.expiresOn })}
+                            {t('vehicles.expires_on', { date: dayText(document.expiresOn) })}
                         </p>
                     )}
                 </div>

@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
-import { useT, type TFn } from '@/lib/i18n';
+import { useT, type TFn, dayText } from '@/lib/i18n';
 import { distanceText, mileageText, tireSeasonLabel, vehicleTitle, type TireSet, type UnitSystem, type VehicleHeader } from '@/lib/vehicles';
 import type { BreadcrumbItem } from '@/types';
 
@@ -157,7 +157,7 @@ function TireCard({
 
     // "Fitted 2026-01-12 at 148,000 km", skipping whichever part is missing.
     const fitted: string | null = set.installedOn
-        ? t('vehicles.tire_fitted', { date: set.installedOn }) +
+        ? t('vehicles.tire_fitted', { date: dayText(set.installedOn) }) +
           (set.installedMileage != null ? ' ' + t('vehicles.tire_fitted_at', { mileage: distanceText(set.installedMileage, unitSystem) }) : '')
         : null;
 

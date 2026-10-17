@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import AppLayout from '@/layouts/app-layout';
-import { useT, type TFn } from '@/lib/i18n';
+import { useT, type TFn, dayText } from '@/lib/i18n';
 import {
     intervalText,
     MAINT_STATUS_META,
@@ -379,7 +379,7 @@ function MaintenanceHistoryList({ history, t }: { history: MaintenanceHistoryEnt
                     {history.map((h) => (
                         <li key={h.id} className="bg-surface-card flex flex-col gap-1 px-4 py-3">
                             <div className="flex items-center justify-between gap-3">
-                                <span className="text-primary text-sm font-medium">{h.performedAt}</span>
+                                <span className="text-primary text-sm font-medium">{h.performedAt ? dayText(h.performedAt) : ''}</span>
                                 <span className="text-muted-foreground text-sm tabular-nums">{mileageText(t, h.mileage)}</span>
                             </div>
                             <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
@@ -410,7 +410,7 @@ function lastPerformedText(t: TFn, s: MaintenanceSchedule): string {
     if (s.neverPerformed) return t('vehicles.never');
     const parts: string[] = [];
     if (s.lastPerformedMileage != null) parts.push(mileageText(t, s.lastPerformedMileage));
-    if (s.lastPerformedAt) parts.push(s.lastPerformedAt);
+    if (s.lastPerformedAt) parts.push(dayText(s.lastPerformedAt));
     return parts.join(' · ') || t('vehicles.never');
 }
 
@@ -418,7 +418,7 @@ function lastPerformedText(t: TFn, s: MaintenanceSchedule): string {
 function nextDueText(t: TFn, s: MaintenanceSchedule): string {
     const parts: string[] = [];
     if (s.nextDueMileage != null) parts.push(mileageText(t, s.nextDueMileage));
-    if (s.nextDueDate) parts.push(s.nextDueDate);
+    if (s.nextDueDate) parts.push(dayText(s.nextDueDate));
     return parts.length ? parts.join(' · ') : t('vehicles.next_due_unknown');
 }
 

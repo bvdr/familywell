@@ -22,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import AppLayout from '@/layouts/app-layout';
 import { compressImage, makeThumbnail } from '@/lib/compress-image';
-import { appLocale, useT, type TFn } from '@/lib/i18n';
+import { appLocale, useT, type TFn, dayText } from '@/lib/i18n';
 import { money } from '@/lib/money';
 import { relativeTime } from '@/lib/notifications';
 import {
@@ -467,7 +467,7 @@ function NextUp({ vehicle, next, unitSystem, t }: { vehicle: Vehicle; next: Over
                             <span className="text-primary block truncate text-sm font-medium">{next.document.title}</span>
                             <span className="text-muted-foreground block truncate text-xs">
                                 {documentTypeLabel(t, next.document.type)}
-                                {next.document.expiresOn ? ` · ${t('vehicles.expires_on', { date: next.document.expiresOn })}` : ''}
+                                {next.document.expiresOn ? ` · ${t('vehicles.expires_on', { date: dayText(next.document.expiresOn) })}` : ''}
                             </span>
                         </div>
                         <ChevronRight className="text-muted-foreground size-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
@@ -645,7 +645,7 @@ function DetailsCard({ vehicle, owner, primaryDriver, t }: { vehicle: Vehicle; o
         { label: t('vehicles.vin_label'), value: vehicle.vin },
         { label: t('vehicles.registration_label'), value: vehicle.registrationNumber },
         { label: t('vehicles.plate_label'), value: vehicle.licensePlate },
-        { label: t('vehicles.purchase_date_label'), value: vehicle.purchaseDate },
+        { label: t('vehicles.purchase_date_label'), value: vehicle.purchaseDate ? dayText(vehicle.purchaseDate) : null },
         { label: t('vehicles.insurance_label'), value: vehicle.insuranceCompany },
         { label: t('vehicles.road_tax_label'), value: vehicle.roadTaxStatus },
         { label: t('vehicles.inspection_label'), value: vehicle.inspectionStatus },

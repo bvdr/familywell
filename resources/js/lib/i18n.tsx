@@ -48,6 +48,11 @@ export function setAppLocale(locale: string | undefined): void {
     if (typeof document !== 'undefined') document.documentElement.lang = currentLocale;
 }
 
+// A server date ("2026-03-12", the API's day format) for display: "Mar 12, 2026" / "12. März 2026". Parsed
+// as a local day so it never shifts across midnight in the user's timezone.
+export const dayText = (iso: string): string =>
+    new Date(iso.slice(0, 10) + 'T00:00:00').toLocaleDateString(currentLocale, { day: 'numeric', month: 'short', year: 'numeric' });
+
 // "today" / "morgen" / "acum": relative words straight from the browser's CLDR data, no lang keys needed.
 export function relativeWord(value: number, unit: Intl.RelativeTimeFormatUnit): string {
     const word = new Intl.RelativeTimeFormat(currentLocale, { numeric: 'auto' }).format(value, unit);

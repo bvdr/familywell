@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
-import { useT, type TFn } from '@/lib/i18n';
+import { useT, type TFn, dayText } from '@/lib/i18n';
 import {
     consumptionText,
     costPerDistanceText,
@@ -194,7 +194,7 @@ function FuelCard({
                         )}
                     </h3>
                     <p className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm">
-                        {entry.filledOn && <span>{entry.filledOn}</span>}
+                        {entry.filledOn && <span>{dayText(entry.filledOn)}</span>}
                         <span className="tabular-nums">
                             {fmtDistance(entry.mileage, unitSystem)} {distanceUnitLabel(unitSystem)}
                         </span>
