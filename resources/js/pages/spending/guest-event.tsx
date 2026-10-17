@@ -8,7 +8,7 @@ import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import { catLabel, categoryMap, type CategoryDef } from '@/lib/categories';
 import { useT } from '@/lib/i18n';
-import { money, selectAllOnFocus } from '@/lib/money';
+import { currencyOptions, money, selectAllOnFocus } from '@/lib/money';
 import { Head, router, useForm } from '@inertiajs/react';
 import { Banknote, Pencil, Plus, Trash2, User } from 'lucide-react';
 import { FormEventHandler, useEffect, useMemo, useRef, useState } from 'react';
@@ -418,7 +418,7 @@ function SpendForm({ token, me, event, editing, onClose }: { token: string; me: 
                         <Picker
                             id="guest-currency"
                             fallbackIcon={Banknote}
-                            options={event.currencies.map((c) => ({ value: c, label: c }))}
+                            options={currencyOptions(event.currencies)}
                             selected={[form.data.currency]}
                             onChange={([c]) => c && form.setData('currency', c)}
                         />

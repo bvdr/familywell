@@ -22,7 +22,15 @@ class SpendSetting extends Model
     {
         $familyId ??= (int) CurrentFamily::id();
 
-        return static::withoutGlobalScopes()->firstOrCreate(['family_id' => $familyId]);
+        // family_id is set explicitly, not through firstOrCreate's attributes: it isn't fillable, so those
+        // dropped it and BelongsToFamily's creating hook filed the row under the ACTIVE family (or none),
+        // which broke current($otherFamilyId), e.g. setting up a family that isn't active yet (onboarding).
+        $setting = static::withoutGlobalScopes()->firstOrNew(['family_id' => $familyId]);
+        if (! $setting->exists) {
+            $setting->forceFill(['family_id' => $familyId])->save();
+        }
+
+        return $setting;
     }
 
     /** The family's chosen default currency, or null when unset (caller falls back). */

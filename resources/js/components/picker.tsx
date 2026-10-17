@@ -5,7 +5,9 @@ import { type ComponentType, useEffect, useId, useRef, useState } from 'react';
 // `icon` is any component taking className (a lucide icon, or a wrapper like <CategoryIcon> that adds its
 // own colour), so callers can pass per-option renderers, not just static lucide components.
 export type PickerIcon = ComponentType<{ className?: string }>;
-export type PickerOption = { value: string; label: string; icon?: PickerIcon };
+// `hint`: a second, smaller line in the list only (the control keeps showing the short label) that search
+// also matches, e.g. a currency's name under its code: "EUR" / "Euro", found by typing "euro".
+export type PickerOption = { value: string; label: string; icon?: PickerIcon; hint?: string };
 
 // THE app dropdown: every select in the app uses this (one look, search on top), except tiny fixed sets
 // (2-3 options), which use a segmented control. It expands INLINE (no portal), so it works inside the
@@ -72,7 +74,7 @@ export function Picker({
     const iconFor = (v: string) => byValue.get(v)?.icon ?? fallbackIcon;
 
     const q = query.trim().toLowerCase();
-    const shown = q ? options.filter((o) => o.label.toLowerCase().includes(q)) : options;
+    const shown = q ? options.filter((o) => o.label.toLowerCase().includes(q) || !!o.hint?.toLowerCase().includes(q)) : options;
     const canCreate = !!onCreate && q.length > 0 && !options.some((o) => o.label.toLowerCase() === q);
 
     const toggle = (value: string) => {
@@ -179,7 +181,10 @@ export function Picker({
                                     className="hover:bg-surface-card flex w-full items-center gap-2.5 px-3 py-2 text-left"
                                 >
                                     <Icon className="text-primary size-4 shrink-0" />
-                                    <span className="text-primary min-w-0 flex-1 truncate text-sm">{o.label}</span>
+                                    <span className="min-w-0 flex-1">
+                                        <span className="text-primary block truncate text-sm">{o.label}</span>
+                                        {o.hint && <span className="text-muted-foreground block truncate text-xs">{o.hint}</span>}
+                                    </span>
                                     {on && <Check className="text-primary size-4 shrink-0" />}
                                 </button>
                             );

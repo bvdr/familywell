@@ -66,7 +66,7 @@ class SpendEvent extends Model implements ProvidesGuestView, ProvidesPublicShare
         if (! $event) {
             $event = static::createFor($user, [
                 'name' => Translations::get('spending.others_list'),
-                'currency' => SpendSetting::defaultCurrency() ?? SpendingController::CURRENCIES[0],
+                'currency' => SpendSetting::defaultCurrency() ?? Currencies::FALLBACK,
                 'icon' => 'wallet',
             ]);
         }

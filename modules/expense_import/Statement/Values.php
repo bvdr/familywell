@@ -4,6 +4,7 @@ namespace Modules\ExpenseImport\Statement;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
+use Modules\Spending\Currencies;
 use Throwable;
 
 // Reading the loose values banks and Apple Shortcuts send: "1.234,56", "-50.00", "50,00 RON", "€12.50",
@@ -45,7 +46,10 @@ class Values
         }
 
         $currency = null;
-        if (preg_match('/\b([A-Z]{3})\b/', strtoupper($s), $m) && in_array($m[1], ['EUR', 'RON', 'USD', 'GBP', 'HUF', 'CHF', 'PLN', 'BGN', 'CZK', 'SEK', 'NOK', 'DKK'], true)) {
+        // Any currency Spending supports (was 12 European ones, so "1000 JPY" silently became the default
+        // currency). ponytail: the first 3-letter ISO word wins, so an amount string with another such word
+        // before the code ("TOP 10 EUR" reads as Tongan pa'anga) would misread; real amount fields don't.
+        if (preg_match('/\b([A-Z]{3})\b/', strtoupper($s), $m) && in_array($m[1], Currencies::ALL, true)) {
             $currency = $m[1];
         }
         foreach (self::SYMBOLS as $symbol => $code) {

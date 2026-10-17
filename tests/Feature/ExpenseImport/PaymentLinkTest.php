@@ -87,12 +87,23 @@ it('stops working when the link is revoked or rotated, the switch is off, the mo
     expect($ok($new))->toBe(404);
 });
 
+it('reads any supported currency from the amount, not only the European ones', function () {
+    [, $users] = importFamily();
+    $url = payUrl($users[1]);
+    auth()->logout();
+
+    postJson($url, ['amount' => '1500 JPY', 'merchant' => 'Lawson'])->assertOk();
+    postJson($url, ['amount' => '10 HUF', 'merchant' => 'Spar'])->assertOk();
+
+    expect(ImportBatch::sole()->rows()->orderBy('id')->pluck('currency')->all())->toBe(['JPY', 'HUF']);
+});
+
 it('refuses a payment without a usable amount', function () {
     [, $users] = importFamily();
     $url = payUrl($users[0]);
 
     postJson($url, ['merchant' => 'Shop'])->assertStatus(422);
-    postJson($url, ['amount' => '10 HUF'])->assertStatus(422); // a currency Spending can't hold
+    postJson($url, ['amount' => '10', 'currency' => 'XDR'])->assertStatus(422); // a currency Spending can't hold
     expect(ImportBatch::count())->toBe(0);
 });
 
