@@ -2,6 +2,7 @@
 
 namespace Modules\Inventory;
 
+use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\Hooks;
 use App\Support\Trash\Trash;
@@ -22,6 +23,9 @@ class InventoryServiceProvider extends ServiceProvider
 
     public function boot(Hooks $hooks): void
     {
+        // Adding a InventoryItem counts as using this module (paywall timing + the admin's progress bar).
+        Engagement::track('inventory', InventoryItem::class);
+
         // Close the Shopping -> Inventory half of the loop: when a shopping item the family bought is one
         // we surfaced from inventory, restock the linked item (see InventoryReplenishment). We listen on the
         // shared hooks bus rather than editing the Shopping controller — Shopping just publishes the event,

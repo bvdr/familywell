@@ -3,6 +3,7 @@
 namespace Modules\Vehicles;
 
 use App\Support\Calendar\CalendarSources;
+use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
@@ -26,6 +27,9 @@ class VehiclesServiceProvider extends ServiceProvider
 
     public function boot(Hooks $hooks): void
     {
+        // Adding a Vehicle counts as using this module (paywall timing + the admin's progress bar).
+        Engagement::track('vehicles', Vehicle::class);
+
         // Our notification category (maintenance-due pushes), so it gets its own on/off row on the
         // Notifications settings screen. Registration is idempotent (boot re-runs per request/worker).
         NotificationCategories::register('vehicles', 'Vehicles', 'car');

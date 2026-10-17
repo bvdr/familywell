@@ -24,23 +24,41 @@ class Billing
     // keeps access during that grace; it flips to unpaid/canceled when retries run out, which locks.
     private const PAID = ['active', 'trialing', 'past_due'];
 
-    // A family's FIRST checkout starts with a free trial (Stripe still takes the card up front and charges
-    // when it ends), like Folio's 7-day trial: 23 checkouts in the first week with no trial got 2 payments.
-    // Only first-timers: a family that already has a Stripe customer has subscribed (or tried) before, so
-    // cancel -> resubscribe can't farm trials. 'trialing' is in PAID, so the trial opens the app.
-    public const TRIAL_DAYS = 3;
+    // No paywall right after signup (23 checkouts in the first week, 2 payments): an unpaid family keeps
+    // full access until it has added items in Engagement::MODULES_NEEDED modules AND is this old. That free
+    // use IS the trial, so checkout has no Stripe trial (the 3-day one from #224 was dropped for this).
+    // 'trialing' stays in PAID for any subscription that started on that trial.
+    public const GRACE_HOURS = 24;
 
     public static function enabled(): bool
     {
         return filled(config('services.stripe.key'));
     }
 
+    /** May this family use the app? Paid (or comped, demo, self-hosted), or not yet due for the paywall. */
     public static function hasAccess(Family $family): bool
     {
-        // The public demo must always open, self-hosted installs never lock, and a comped family (lifetime
-        // VIP) has access whatever Stripe says: the Stripe paths never write access_override.
+        return self::isPaid($family) || ! self::paywallDue($family);
+    }
+
+    /**
+     * Paying or not needing to: the public demo always opens, self-hosted installs never lock, and a comped
+     * family (lifetime VIP) has access whatever Stripe says (the Stripe paths never write access_override).
+     * The Billing page shows the plan card for these and the plans for everyone else.
+     */
+    public static function isPaid(Family $family): bool
+    {
         return ! self::enabled() || $family->is_demo || self::isLifetime($family)
             || in_array($family->subscription_status, self::PAID, true);
+    }
+
+    /**
+     * The free period is over: the family used enough modules (engaged_at, see Engagement) and is at least
+     * GRACE_HOURS old. Both are on the row already, so the per-request gate costs no extra query.
+     */
+    public static function paywallDue(Family $family): bool
+    {
+        return $family->engaged_at !== null && $family->created_at->lte(now()->subHours(self::GRACE_HOURS));
     }
 
     public static function isLifetime(Family $family): bool
@@ -58,12 +76,6 @@ class Billing
         Log::info('billing: lifetime access '.($on ? 'granted' : 'revoked'), ['family_id' => $family->id, 'by' => $by]);
     }
 
-    /** Free-trial days this family's checkout gets: TRIAL_DAYS the first time, 0 after that. */
-    public static function trialDays(Family $family): int
-    {
-        return $family->stripe_customer_id ? 0 : self::TRIAL_DAYS;
-    }
-
     /** Stripe-hosted Checkout for one of the two plans. Returns the URL to redirect to. */
     public static function checkoutUrl(Family $family, string $email, string $plan): string
     {
@@ -78,10 +90,7 @@ class Billing
             'client_reference_id' => $family->id,
             // family_id rides on the SUBSCRIPTION so every later customer.subscription.* webhook maps
             // straight back to the family, with no lookup table and no ordering race vs. checkout events.
-            'subscription_data' => array_filter([
-                'metadata' => ['family_id' => $family->id],
-                'trial_period_days' => self::trialDays($family) ?: null,
-            ]),
+            'subscription_data' => ['metadata' => ['family_id' => $family->id]],
             'allow_promotion_codes' => 'true',
             'success_url' => route('billing.show').'?session_id={CHECKOUT_SESSION_ID}',
             'cancel_url' => route('billing.show'),

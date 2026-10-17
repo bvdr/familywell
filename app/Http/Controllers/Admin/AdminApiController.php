@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Family;
 use App\Models\User;
 use App\Support\Billing\Billing;
+use App\Support\Engagement;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -84,8 +85,10 @@ class AdminApiController extends Controller
         $rows = self::search($this->familyQuery(), self::q($request), ['families.name'])
             ->orderByDesc('families.created_at')->orderByDesc('families.id')
             ->offset((self::page($request) - 1) * self::PAGE)->limit(self::PAGE + 1)->get();
+        // Every family's module activity for this page in ONE query (the progress bar), not one per row.
+        $activity = DB::table('family_module_activity')->whereIn('family_id', $rows->pluck('id'))->get()->groupBy('family_id');
 
-        return self::paged($rows, fn (Family $f) => self::familyItem($f));
+        return self::paged($rows, fn (Family $f) => self::familyItem($f, $activity->get($f->id, collect())));
     }
 
     // The admin toggle: PUT grants comped lifetime access, DELETE revokes it. Idempotent; answers with
@@ -118,7 +121,7 @@ class AdminApiController extends Controller
             return response()->json(['error' => 'not_found'], 404);
         }
 
-        return response()->json(self::familyItem($family) + [
+        return response()->json(self::familyItem($family, null) + [
             'members' => $family->members()->orderBy('name')->get(['users.id', 'users.name', 'users.email'])
                 ->map(fn ($m) => ['id' => $m->id, 'name' => $m->name, 'email' => $m->email, 'role' => $m->pivot->role,
                     'joinedAt' => self::iso($m->pivot->created_at)])->values(),
@@ -139,7 +142,7 @@ class AdminApiController extends Controller
     {
         return Family::query()
             ->leftJoin('users as owners', 'owners.id', '=', 'families.owner_id')
-            ->select('families.id', 'families.name', 'families.created_at', 'families.is_demo', 'families.subscription_status', 'families.stripe_customer_id', 'families.access_override', 'owners.name as owner_name')
+            ->select('families.id', 'families.name', 'families.created_at', 'families.is_demo', 'families.subscription_status', 'families.stripe_customer_id', 'families.access_override', 'families.engaged_at', 'owners.name as owner_name')
             ->withCount('members');
     }
 
@@ -166,7 +169,8 @@ class AdminApiController extends Controller
         return ['lastActiveAt' => self::iso($session), 'lastActiveVia' => $session ? 'web' : null];
     }
 
-    private static function familyItem(Family $f): array
+    /** @param  iterable<object>|null  $activity  preloaded family_module_activity rows (null = load them) */
+    private static function familyItem(Family $f, ?iterable $activity): array
     {
         return [
             'id' => $f->id, 'name' => $f->name, 'ownerName' => $f->owner_name, 'memberCount' => (int) $f->members_count,
@@ -174,6 +178,9 @@ class AdminApiController extends Controller
             // The Stripe customer id isn't a secret (it only works with our Stripe key); the admin links to it.
             'subscriptionStatus' => $f->subscription_status, 'stripeCustomerId' => $f->stripe_customer_id,
             'lifetime' => $f->access_override === Family::LIFETIME, // comped access (admin toggle below)
+            // Free-period progress: modules used so far (the bar's segments) and when the paywall shows.
+            'engagement' => Engagement::summary($f, $activity),
+            'paying' => Billing::isPaid($f),
         ];
     }
 

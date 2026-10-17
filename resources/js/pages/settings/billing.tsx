@@ -1,6 +1,6 @@
 import { track } from '@/lib/analytics';
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowRight, ArrowUpRight, Check, Crown, LogOut } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ArrowUpRight, Check, Crown, LogOut } from 'lucide-react';
 import { useState } from 'react';
 
 import AppLogo from '@/components/app-logo';
@@ -23,7 +23,7 @@ type Props = {
     plan: string | null; // 'monthly' | 'yearly' | 'unknown', null until synced from Stripe
     periodEnd: string | null; // ISO; when the current period renews (or ends, when canceling)
     canceling: boolean; // canceled at period end: access runs until periodEnd, then stops
-    trialDays: number; // free trial the next checkout gets (0 = none: the family has subscribed before)
+    locked: boolean; // free period over: the app redirects here. False = came here on their own, can go back
 };
 
 type Plan = 'monthly' | 'yearly';
@@ -32,7 +32,7 @@ type Plan = 'monthly' | 'yearly';
 // full-screen paywall (no app chrome: every app link would bounce back here anyway). A subscribed
 // family sees the normal Settings > Billing view with the Stripe portal link. Checkout and the portal
 // are both Stripe-hosted: the server answers with an Inertia::location to Stripe.
-export default function Billing({ family, subscribed, lifetime, status, hasCustomer, canManage, plan, periodEnd, canceling, trialDays }: Props) {
+export default function Billing({ family, subscribed, lifetime, status, hasCustomer, canManage, plan, periodEnd, canceling, locked }: Props) {
     const t = useT();
     const breadcrumbs: BreadcrumbItem[] = [{ title: t('billing.title'), href: '/settings/billing' }];
     const [busy, setBusy] = useState(false);
@@ -47,7 +47,7 @@ export default function Billing({ family, subscribed, lifetime, status, hasCusto
             <Paywall
                 familyName={family.name}
                 canManage={canManage}
-                trialDays={trialDays}
+                locked={locked}
                 busy={busy}
                 onCheckout={(plan) => {
                     // Funnel step; Stripe's return sends checkout_completed (Analytics::queue).
@@ -164,13 +164,13 @@ function SubscriptionCard({
 function Paywall({
     familyName,
     canManage,
-    trialDays,
+    locked,
     busy,
     onCheckout,
 }: {
     familyName: string;
     canManage: boolean;
-    trialDays: number;
+    locked: boolean;
     busy: boolean;
     onCheckout: (plan: Plan) => void;
 }) {
@@ -184,15 +184,24 @@ function Paywall({
                 <div className="flex items-center">
                     <AppLogo />
                 </div>
-                <Link
-                    method="post"
-                    href={route('logout')}
-                    as="button"
-                    className="text-muted-foreground hover:text-primary flex items-center gap-2 text-sm"
-                >
-                    <LogOut className="size-4" />
-                    {t('billing.sign_out')}
-                </Link>
+                {/* Locked: nothing else is reachable, so sign out is the way off this page. Still in the free
+                    period (came here from Settings): back to the app instead. */}
+                {locked ? (
+                    <Link
+                        method="post"
+                        href={route('logout')}
+                        as="button"
+                        className="text-muted-foreground hover:text-primary flex items-center gap-2 text-sm"
+                    >
+                        <LogOut className="size-4" />
+                        {t('billing.sign_out')}
+                    </Link>
+                ) : (
+                    <Link href={route('dashboard')} className="text-muted-foreground hover:text-primary flex items-center gap-2 text-sm">
+                        <ArrowLeft className="size-4" />
+                        {t('billing.back_to_app')}
+                    </Link>
+                )}
             </header>
 
             <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center gap-10 px-4 py-8 sm:px-8 lg:flex-row lg:items-center lg:gap-16">
@@ -215,9 +224,6 @@ function Paywall({
 
                 <div className="w-full max-w-md lg:flex-1">
                     <PlanCard plan={plan} setPlan={setPlan}>
-                        {trialDays > 0 && (
-                            <p className="text-center text-sm font-semibold text-[#FFDF00]">{t('billing.trial_line', { days: trialDays })}</p>
-                        )}
                         {canManage ? (
                             <button
                                 type="button"
@@ -225,7 +231,7 @@ function Paywall({
                                 onClick={() => onCheckout(plan)}
                                 className="flex w-full items-center justify-center gap-2 rounded-full bg-[#FFDF00] px-6 py-4 font-bold text-[#121100] transition hover:brightness-95 disabled:opacity-60"
                             >
-                                {trialDays > 0 ? t('billing.start_trial', { days: trialDays }) : t('billing.start')} <ArrowRight className="size-4" />
+                                {t('billing.start')} <ArrowRight className="size-4" />
                             </button>
                         ) : (
                             <p className="text-center text-sm text-[#C9C6B6]">{t('billing.ask_admin')}</p>

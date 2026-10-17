@@ -6,6 +6,7 @@ use App\Models\EntityVisit;
 use App\Support\Calendar\CalendarSources;
 use App\Support\Dashboard\DashboardAgenda;
 use App\Support\Dashboard\DashboardItems;
+use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareableRegistry;
@@ -20,6 +21,9 @@ class ProjectsServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        // Adding a Project counts as using this module (paywall timing + the admin's progress bar).
+        Engagement::track('projects', Project::class);
+
         // Projects opt into the core sharing system (addressable as `project` in share URLs).
         ShareableRegistry::register('project', Project::class);
 

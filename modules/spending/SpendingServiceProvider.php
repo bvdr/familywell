@@ -7,6 +7,7 @@ use App\Models\EntityVisit;
 use App\Models\Family;
 use App\Support\Dashboard\DashboardItems;
 use App\Support\Dashboard\DashboardWidgets;
+use App\Support\Engagement;
 use App\Support\Guests\GuestableRegistry;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\Hooks;
@@ -25,6 +26,9 @@ class SpendingServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Adding a Spend counts as using this module (paywall timing + the admin's progress bar).
+        Engagement::track('spending', Spend::class);
+
         // A new family's default currency is where its creator signs up from: Cloudflare's country on the
         // onboarding request -> that country's currency (RO -> RON). Unknown country (local, Tor, no
         // Cloudflare) leaves it unset, which falls back to Currencies::FALLBACK. Changeable in Settings.

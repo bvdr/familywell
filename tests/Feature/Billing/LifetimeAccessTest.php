@@ -23,6 +23,7 @@ function lifetimeFamily(): array
     $user = User::factory()->create();
     $family = Family::factory()->create(['owner_id' => $user->id, 'name' => 'Lungu']);
     $family->members()->attach($user, ['role' => 'admin']);
+    pastFreePeriod($family); // unpaid + free period over = locked, which lifetime access must override
 
     return [$user, $family];
 }

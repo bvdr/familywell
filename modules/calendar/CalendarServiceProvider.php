@@ -5,6 +5,7 @@ namespace Modules\Calendar;
 use App\Support\Calendar\CalendarSources;
 use App\Support\Dashboard\DashboardAgenda;
 use App\Support\Dashboard\DashboardWidgets;
+use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
@@ -24,6 +25,9 @@ class CalendarServiceProvider extends ServiceProvider
 {
     public function boot(Hooks $hooks): void
     {
+        // Adding a CalendarEvent counts as using this module (paywall timing + the admin's progress bar).
+        Engagement::track('calendar', CalendarEvent::class);
+
         Trash::source('calendar', CalendarTrash::class);
         Trash::register(CalendarEvent::class);
         // A trashed to-do keeps its event link so it can be restored onto the event; drop the link once

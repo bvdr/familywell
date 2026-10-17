@@ -4,6 +4,7 @@ namespace Modules\Birthdays;
 
 use App\Support\Calendar\CalendarSources;
 use App\Support\Dashboard\DashboardWidgets;
+use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
@@ -40,6 +41,9 @@ class BirthdaysServiceProvider extends ServiceProvider
 
     public function boot(Hooks $hooks): void
     {
+        // Adding a BirthdayDate counts as using this module (paywall timing + the admin's progress bar).
+        Engagement::track('birthdays', BirthdayDate::class);
+
         // The birthday wish has its own on/off row on Settings > Notifications.
         NotificationCategories::register('birthdays', 'Birthdays', 'cake');
 

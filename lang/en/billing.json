@@ -35,8 +35,7 @@
     "renews_on": "Renews on :date",
     "ends_on": "Ends on :date",
     "lifetime_line": "Lifetime access, on us",
-    "trial_line": ":days-day free trial. Cancel before it ends and you pay nothing.",
-    "start_trial": "Start your :days-day free trial",
     "badge_trial": "Trial",
-    "trial_ends_on": "Free trial until :date, then your plan starts"
+    "trial_ends_on": "Free trial until :date, then your plan starts",
+    "back_to_app": "Back to the app"
 }

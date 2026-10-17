@@ -2,6 +2,7 @@
 
 namespace Modules\Contacts;
 
+use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
 use App\Support\Trash\Trash;
 use Illuminate\Support\Facades\Route;
@@ -11,6 +12,9 @@ class ContactsServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        // Adding a Person counts as using this module (paywall timing + the admin's progress bar).
+        Engagement::track('contacts', Person::class);
+
         // Full Inertia pages, gated by `module:contacts` so they only exist for families that enabled it.
         // The controller fires the person.* hooks, so `person` is a first-class extensible primitive.
         Route::middleware(['web', 'auth', 'family', 'module:contacts'])
