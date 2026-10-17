@@ -15,9 +15,20 @@ it('merges the locale over English so every key resolves', function () {
         ->and($ro['common']['save'])->not->toBeEmpty();
 });
 
+// English is the fallback, so a missing key never breaks a page; it just shows English.
+// This keeps every shipped locale complete anyway, so a new string can't silently stay untranslated.
+it('translates every English key in every locale', function () {
+    $flatten = fn (array $map) => array_keys(\Illuminate\Support\Arr::dot($map));
+    $en = $flatten(Translations::all('en'));
+
+    foreach (array_keys(Translations::LOCALES) as $locale) {
+        expect(array_values(array_diff($en, $flatten(Translations::all($locale)))))->toBe([], "missing in {$locale}");
+    }
+});
+
 it('lists locale options', function () {
     $codes = collect(Translations::options())->pluck('code');
-    expect($codes)->toContain('en')->toContain('ro');
+    expect($codes)->toContain('en')->toContain('ro')->toContain('de');
 });
 
 it('saves the user locale and applies it to the shared translations', function () {
