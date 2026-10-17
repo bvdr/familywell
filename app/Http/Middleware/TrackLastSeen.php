@@ -39,8 +39,9 @@ class TrackLastSeen
     }
 
     // Cloudflare's two-letter country, or null when there's none to trust: no header (local, self-hosted
-    // without Cloudflare), XX (unknown) or T1 (Tor).
-    private static function country(Request $request): ?string
+    // without Cloudflare), XX (unknown) or T1 (Tor). Public: Spending's location-based default currency
+    // reads the signup request the same way.
+    public static function country(Request $request): ?string
     {
         $code = strtoupper((string) $request->header('CF-IPCountry'));
 

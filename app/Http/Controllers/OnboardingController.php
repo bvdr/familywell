@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Family;
 use App\Support\Analytics;
+use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -63,6 +64,9 @@ class OnboardingController extends Controller
         ]);
         $family->members()->attach($user, ['role' => 'admin']);
         app(ModuleRegistry::class)->enableAll($family->id);
+        // Modules set up their per-family defaults here (e.g. Spending's currency from where the person
+        // signs up), with the request for context. Core doesn't know which modules care.
+        app(Hooks::class)->fire('family.created', $family, $request);
         Analytics::track($user, 'family_created', [], '/onboarding');
 
         // Make it the active tenant immediately (SetActiveFamily reads this on the next request).

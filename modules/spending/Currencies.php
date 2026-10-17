@@ -19,6 +19,21 @@ final class Currencies
     // is just alphabetical (AED).
     public const FALLBACK = 'EUR';
 
+    /**
+     * The currency used in a country (ISO 3166 alpha-2), from ICU's locale data, so there is no country
+     * list to maintain: RO -> RON, DE -> EUR, XK -> EUR. Null for a country with no currency we support
+     * (ICU answers XXX, e.g. Antarctica).
+     */
+    public static function forCountry(?string $country): ?string
+    {
+        if (! $country) {
+            return null;
+        }
+        $code = (new \NumberFormatter('en_'.strtoupper($country), \NumberFormatter::CURRENCY))->getTextAttribute(\NumberFormatter::CURRENCY_CODE);
+
+        return in_array($code, self::ALL, true) ? $code : null;
+    }
+
     public const ALL = [
         'AED', 'AFN', 'ALL', 'AMD', 'AOA', 'ARS', 'AUD', 'AWG', 'AZN', 'BAM', 'BBD', 'BDT', 'BGN', 'BHD', 'BIF', 'BMD',
         'BND', 'BOB', 'BRL', 'BSD', 'BTN', 'BWP', 'BYN', 'BZD', 'CAD', 'CDF', 'CHF', 'CLP', 'CNY', 'COP', 'CRC', 'CUP',
