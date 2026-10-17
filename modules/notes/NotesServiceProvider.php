@@ -4,6 +4,7 @@ namespace Modules\Notes;
 
 use App\Models\EntityVisit;
 use App\Support\Dashboard\DashboardItems;
+use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareableRegistry;
@@ -17,6 +18,9 @@ class NotesServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        // Adding a Note counts as using this module (paywall timing + the admin's progress bar).
+        Engagement::track('notes', Note::class);
+
         // MCP: tools an AI assistant can use on this module, gated by the `notes:read` / `notes:write`
         // scopes the person grants on the consent screen (see docs/mcp.md).
         McpTools::register('notes', 'Notes', [

@@ -5,6 +5,7 @@ namespace Modules\Spending;
 use App\Models\EntityVisit;
 use App\Support\Dashboard\DashboardItems;
 use App\Support\Dashboard\DashboardWidgets;
+use App\Support\Engagement;
 use App\Support\Guests\GuestableRegistry;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\ModuleRegistry;
@@ -21,6 +22,9 @@ class SpendingServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Adding a Spend counts as using this module (paywall timing + the admin's progress bar).
+        Engagement::track('spending', Spend::class);
+
         // MCP: tools an AI assistant can use on this module, gated by the `spending:read` / `spending:write`
         // scopes the person grants on the consent screen (see docs/mcp.md). No split/balance editing,
         // receipt upload or list management in v1.

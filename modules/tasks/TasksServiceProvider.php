@@ -6,6 +6,7 @@ use App\Models\EntityVisit;
 use App\Support\Calendar\CalendarSources;
 use App\Support\Dashboard\DashboardAgenda;
 use App\Support\Dashboard\DashboardItems;
+use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareableRegistry;
@@ -19,6 +20,9 @@ class TasksServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        // Adding a Task counts as using this module (paywall timing + the admin's progress bar).
+        Engagement::track('tasks', Task::class);
+
         // Reversible delete: trashed rows are purged after the retention window (trash:purge).
         // What this module shows in Settings > Recently deleted and its MCP trash tools.
         Trash::source('tasks', TasksTrash::class);

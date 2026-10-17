@@ -252,3 +252,14 @@ function mcpToolNames(string $token): array
 {
     return collect(mcpCall($token, 'tools/list')->assertOk()->json('result.tools'))->pluck('name')->sort()->values()->all();
 }
+
+/**
+ * Put a family past its free period, so an unpaid one hits the paywall (Billing::paywallDue): it used
+ * enough modules (engaged_at) and is older than the grace hours. Tests about the locked state call this.
+ */
+function pastFreePeriod(App\Models\Family $family): App\Models\Family
+{
+    $family->forceFill(['created_at' => now()->subDays(2), 'engaged_at' => now()->subDay()])->save();
+
+    return $family;
+}

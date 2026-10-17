@@ -20,7 +20,7 @@ class BillingController extends Controller
         if ($sessionId = $request->query('session_id')) {
             Billing::syncCheckoutSession($family, (string) $sessionId);
             // Funnel step in the browser's visit; the subscription_started count stays server-side (Billing).
-            if (Billing::hasAccess($family)) {
+            if (Billing::isPaid($family)) {
                 Analytics::queue('checkout_completed');
             }
 
@@ -36,14 +36,14 @@ class BillingController extends Controller
             'plan' => $family->subscription_plan,
             'periodEnd' => $family->subscription_period_end?->toIso8601String(),
             'canceling' => (bool) $family->subscription_canceling,
-            'subscribed' => Billing::hasAccess($family),
+            'subscribed' => Billing::isPaid($family),
+            // Still in the free period (no paywall yet): the plans page offers a way back into the app.
+            'locked' => ! Billing::hasAccess($family),
             // Comped by an admin: the page shows "Lifetime (VIP)" with no checkout or portal prompts.
             'lifetime' => Billing::isLifetime($family),
             'status' => $family->subscription_status,
             'hasCustomer' => (bool) $family->stripe_customer_id,
             'canManage' => Gate::allows('manageBilling', $family),
-            // The paywall promises the free trial only when checkout will actually give one.
-            'trialDays' => Billing::trialDays($family),
         ]);
     }
 

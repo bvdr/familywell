@@ -35,8 +35,7 @@
     "renews_on": "Se reînnoiește pe :date",
     "ends_on": "Se încheie pe :date",
     "lifetime_line": "Acces pe viață, din partea noastră",
-    "trial_line": "Probă gratuită de :days zile. Anulezi înainte să se termine și nu plătești nimic.",
-    "start_trial": "Începe proba gratuită de :days zile",
     "badge_trial": "Probă",
-    "trial_ends_on": "Probă gratuită până pe :date, apoi începe planul"
+    "trial_ends_on": "Probă gratuită până pe :date, apoi începe planul",
+    "back_to_app": "Înapoi în aplicație"
 }

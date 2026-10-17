@@ -4,6 +4,7 @@ namespace Modules\Recipes;
 
 use App\Models\EntityVisit;
 use App\Support\Dashboard\DashboardItems;
+use App\Support\Engagement;
 use App\Support\Guests\GuestableRegistry;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\ModuleRegistry;
@@ -17,6 +18,9 @@ class RecipesServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        // Adding a Recipe counts as using this module (paywall timing + the admin's progress bar).
+        Engagement::track('recipes', Recipe::class);
+
         // MCP: recipes for AI assistants, gated by the `recipes:read` / `recipes:write` scopes.
         McpTools::register('recipes', 'Recipes', [
             Mcp\ListRecipes::class, Mcp\GetRecipe::class, Mcp\ScaleRecipe::class,
