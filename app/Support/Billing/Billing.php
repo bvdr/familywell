@@ -4,6 +4,7 @@ namespace App\Support\Billing;
 
 use App\Models\Family;
 use App\Models\User;
+use App\Support\AdminPush;
 use App\Support\Analytics;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
@@ -210,6 +211,7 @@ class Billing
     private static function setStatus(Family $family, ?string $customer, array $subscription): void
     {
         $wasPaid = in_array($family->subscription_status, self::PAID, true);
+        $wasCanceling = (bool) $family->subscription_canceling;
         // Newer Stripe API versions moved current_period_end from the subscription onto its items.
         $periodEnd = $subscription['current_period_end'] ?? $subscription['items']['data'][0]['current_period_end'] ?? null;
         $family->forceFill([
@@ -228,7 +230,13 @@ class Billing
             } else {
                 // canceled / unpaid / incomplete_expired: access ended (a cancel at period end lands here later).
                 Analytics::track($owner, 'subscription_canceled', [], '/billing');
+                AdminPush::send('Subscription ended', "{$family->name}: now {$subscription['status']}.", "/families/{$family->id}");
             }
+        }
+        // The customer cancels in Stripe's portal: still paid until the period ends, so this is the moment
+        // they decide to leave (the "ended" push above comes weeks later).
+        if ($isPaid && ! $wasCanceling && $family->subscription_canceling) {
+            AdminPush::send('Subscription canceled', "{$family->name} canceled".($family->subscription_period_end ? ', access ends '.$family->subscription_period_end->toFormattedDateString() : '').'.', "/families/{$family->id}");
         }
     }
 
