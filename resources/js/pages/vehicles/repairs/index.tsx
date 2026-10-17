@@ -10,7 +10,7 @@ import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn } from '@/lib/i18n';
-import { fmtMileage, mileageText, vehicleTitle, type ProviderOption, type Repair, type RepairAttachment, type VehicleHeader } from '@/lib/vehicles';
+import { fmtMileage, mileageText, vehicleTitle, type ProviderOption, type Repair, type RepairAttachment, type VehicleHeader, useCarMoney } from '@/lib/vehicles';
 import type { BreadcrumbItem } from '@/types';
 
 import ProviderPicker from '../provider-picker';
@@ -107,6 +107,7 @@ function EmptyState({ t }: { t: TFn }) {
 
 // One repair record: what/when/mileage/cost/garage, its notes, and any attachments as tappable chips.
 function RepairCard({ repair, t, onEdit, onRemove }: { repair: Repair; t: TFn; onEdit: () => void; onRemove: () => void }) {
+    const carMoney = useCarMoney();
     return (
         <li className="bg-surface-card flex flex-col gap-2 rounded-2xl border p-4">
             <div className="flex items-start justify-between gap-3">
@@ -115,7 +116,7 @@ function RepairCard({ repair, t, onEdit, onRemove }: { repair: Repair; t: TFn; o
                     <p className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm">
                         {repair.occurredOn && <span>{repair.occurredOn}</span>}
                         {repair.mileage != null && <span className="tabular-nums">{mileageText(t, repair.mileage)}</span>}
-                        {repair.cost != null && <span className="tabular-nums">{t('vehicles.cost_value', { value: repair.cost.toFixed(2) })}</span>}
+                        {repair.cost != null && <span className="tabular-nums">{carMoney(repair.cost)}</span>}
                         {repair.provider && <span>{repair.provider}</span>}
                     </p>
                 </div>

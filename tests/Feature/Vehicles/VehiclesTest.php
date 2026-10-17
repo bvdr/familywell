@@ -191,3 +191,17 @@ it('deletes a vehicle and cascades its mileage history', function () {
     expect(Vehicle::find($vehicleId))->toBeNull();
     expect(VehicleMileageLog::where('vehicle_id', $vehicleId)->exists())->toBeFalse();
 });
+
+it('gives every Vehicles page the car currency, never a hard-coded euro', function () {
+    [$family, $users] = vehiclesFamily();
+    app(ModuleRegistry::class)->enable('spending', $family->id);
+    $car = makeVehicle();
+
+    // No Vehicles list or default yet: the fallback.
+    actingAs($users[0])->get("/m/vehicles/{$car->id}")->assertInertia(fn ($p) => $p->where('carCurrency', 'EUR')->etc());
+
+    // A RON family (the bug: its lei amounts showed as €1,072.29).
+    Modules\Spending\SpendSetting::current($family->id)->update(['default_currency' => 'RON']);
+    actingAs($users[0])->get("/m/vehicles/{$car->id}")->assertInertia(fn ($p) => $p->where('carCurrency', 'RON')->etc());
+    actingAs($users[0])->get("/m/vehicles/{$car->id}/fuel")->assertInertia(fn ($p) => $p->where('carCurrency', 'RON')->etc());
+});

@@ -25,6 +25,7 @@ import {
     type VehicleAnalyticsData,
     type VehicleEstimates,
     type VehicleHeader,
+    useCarMoney,
 } from '@/lib/vehicles';
 import type { BreadcrumbItem } from '@/types';
 
@@ -205,12 +206,13 @@ export default function VehicleAnalyticsPage({ vehicle, unitSystem, period, rang
 // The fuel section: the headline consumption/cost metrics (from FuelStats) and, once there are at least two
 // full-tank fills, the consumption trend curve. Hidden entirely until there's any fuel history.
 function FuelConsumption({ fuel, trend, unitSystem, t }: { fuel: FuelStats; trend: ConsumptionPoint[]; unitSystem: UnitSystem; t: TFn }) {
+    const carMoney = useCarMoney();
     if (fuel.entryCount === 0) return null;
 
     const cells: { label: string; value: string }[] = [
         { label: t('vehicles.fuel_consumption_avg'), value: consumptionText(fuel.avgConsumption, unitSystem) },
         { label: t('vehicles.fuel_consumption_latest'), value: consumptionText(fuel.latestConsumption, unitSystem) },
-        { label: t('vehicles.fuel_cost_per_km', { unit: distanceUnitLabel(unitSystem) }), value: costPerDistanceText(fuel.costPerKm, unitSystem) },
+        { label: t('vehicles.fuel_cost_per_km', { unit: distanceUnitLabel(unitSystem) }), value: costPerDistanceText(fuel.costPerKm, unitSystem, carMoney) },
     ];
 
     return (

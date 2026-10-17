@@ -1,4 +1,6 @@
 import type { TFn } from '@/lib/i18n';
+import { usePage } from '@inertiajs/react';
+
 import { money as moneyOf } from '@/lib/money';
 
 // The vehicle shape the server sends (Vehicle::toPayload + the controller's photo URLs). `state` and
@@ -381,11 +383,22 @@ export const consumptionText = (lPer100: number | null, unit: UnitSystem): strin
     return `${v.toFixed(1)} ${consumptionUnitLabel(unit)}`;
 };
 
-/** "€0.12/km" / "€0.19/mi" — cost per distance in the family's unit. Stored per-km. Null -> em dash. */
-export const costPerDistanceText = (costPerKm: number | null, unit: UnitSystem): string => {
+/**
+ * Car costs (repair/maintenance/fuel/part `cost`) are decimal amounts in the car currency: the family's
+ * "Vehicles" spend list, shared to every Vehicles page as `carCurrency` (Modules\Vehicles\ShareCarCurrency).
+ * They used to render through a hard-coded "€", so a RON family saw lei amounts as euros. Returns a
+ * formatter: `const carMoney = useCarMoney(); carMoney(1072.29)` -> "RON 1,072.29" / "1.072,29 lei".
+ */
+export function useCarMoney(): (amount: number) => string {
+    const currency = usePage<{ carCurrency?: string }>().props.carCurrency ?? 'EUR';
+    return (amount) => moneyOf(Math.round(amount * 100), currency);
+}
+
+/** "RON 0.12/km" / "€0.19/mi": cost per distance in the family's unit and car currency. Stored per-km. Null -> em dash. */
+export const costPerDistanceText = (costPerKm: number | null, unit: UnitSystem, carMoney: (amount: number) => string): string => {
     if (costPerKm == null) return '—';
     const perUnit = unit === 'imperial' ? costPerKm * KM_PER_MILE : costPerKm;
-    return `€${perUnit.toFixed(2)}/${distanceUnitLabel(unit)}`;
+    return `${carMoney(perUnit)}/${distanceUnitLabel(unit)}`;
 };
 
 // One recorded fuel fill (VehicleFuelEntry::toPayload). Litres/cost/mileage are stored metric; the Fuel tab

@@ -24,6 +24,7 @@ import {
     type FuelStats,
     type UnitSystem,
     type VehicleHeader,
+    useCarMoney,
 } from '@/lib/vehicles';
 import type { BreadcrumbItem } from '@/types';
 
@@ -136,19 +137,20 @@ function EmptyState({ t }: { t: TFn }) {
 // The computed metrics grid: consumption (latest / average), cost per km, monthly + annual fuel cost, plus
 // the totals. Each cell falls back to an em dash until there's enough history to compute it.
 function FuelMetrics({ stats, unitSystem, t }: { stats: FuelStats; unitSystem: UnitSystem; t: TFn }) {
+    const carMoney = useCarMoney();
     const cells: { label: string; value: string }[] = [
         { label: t('vehicles.fuel_consumption_latest'), value: consumptionText(stats.latestConsumption, unitSystem) },
         { label: t('vehicles.fuel_consumption_avg'), value: consumptionText(stats.avgConsumption, unitSystem) },
-        { label: t('vehicles.fuel_cost_per_km', { unit: distanceUnitLabel(unitSystem) }), value: costPerDistanceText(stats.costPerKm, unitSystem) },
+        { label: t('vehicles.fuel_cost_per_km', { unit: distanceUnitLabel(unitSystem) }), value: costPerDistanceText(stats.costPerKm, unitSystem, carMoney) },
         {
             label: t('vehicles.fuel_monthly'),
-            value: stats.monthlyCost != null ? t('vehicles.cost_value', { value: stats.monthlyCost.toFixed(2) }) : '—',
+            value: stats.monthlyCost != null ? carMoney(stats.monthlyCost) : '—',
         },
         {
             label: t('vehicles.fuel_annual'),
-            value: stats.annualCost != null ? t('vehicles.cost_value', { value: stats.annualCost.toFixed(2) }) : '—',
+            value: stats.annualCost != null ? carMoney(stats.annualCost) : '—',
         },
-        { label: t('vehicles.fuel_total_cost'), value: stats.totalCost > 0 ? t('vehicles.cost_value', { value: stats.totalCost.toFixed(2) }) : '—' },
+        { label: t('vehicles.fuel_total_cost'), value: stats.totalCost > 0 ? carMoney(stats.totalCost) : '—' },
     ];
 
     return (
@@ -177,6 +179,7 @@ function FuelCard({
     onEdit: () => void;
     onRemove: () => void;
 }) {
+    const carMoney = useCarMoney();
     return (
         <li className="bg-surface-card flex flex-col gap-2 rounded-2xl border p-4">
             <div className="flex items-start justify-between gap-3">
@@ -195,7 +198,7 @@ function FuelCard({
                         <span className="tabular-nums">
                             {fmtDistance(entry.mileage, unitSystem)} {distanceUnitLabel(unitSystem)}
                         </span>
-                        {entry.cost != null && <span className="tabular-nums">{t('vehicles.cost_value', { value: entry.cost.toFixed(2) })}</span>}
+                        {entry.cost != null && <span className="tabular-nums">{carMoney(entry.cost)}</span>}
                         {entry.station && <span>{entry.station}</span>}
                     </p>
                 </div>

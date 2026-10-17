@@ -171,7 +171,6 @@
     "save_expense": "Add expense",
     "maint_history": "History",
     "maint_history_empty": "No completed maintenance recorded yet.",
-    "cost_value": "€:value",
 
     "attention_count": "Needs attention: :count",
     "next_service_in": "Next service in :value",
