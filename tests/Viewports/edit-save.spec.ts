@@ -126,8 +126,8 @@ test('expense import: upload a statement, review, import, undo', async ({ page }
     // The card payment comes in ticked, the incoming money unticked.
     await expect(page.getByRole('checkbox', { name: shop, exact: true })).toBeChecked();
     await expect(page.getByRole('checkbox', { name: `Received money from ${shop}` })).not.toBeChecked();
-    await page.getByRole('button', { name: 'Import 1 expenses' }).click();
-    await expect(page.getByText('1 expenses were added to Spending.')).toBeVisible();
+    await page.getByRole('button', { name: 'Import 1 expense' }).click();
+    await expect(page.getByText('1 expense was added to Spending.')).toBeVisible();
 
     // It's a real Spending expense now...
     await page.getByRole('link', { name: 'Open the list' }).click();

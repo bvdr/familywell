@@ -52,6 +52,21 @@ class Translations
         return is_string($value) ? $value : $key;
     }
 
+    /**
+     * A counted string ("1 item" / "5 items") for SERVER-side use, with :count filled in. Same storage as the
+     * frontend t(): `key_one` / `key_few` / `key_other`, picked with ICU's plural rules for the locale (via
+     * intl's MessageFormatter, which already powers VehicleExportFormat), falling back to `key_other`.
+     */
+    public static function choice(string $key, int $count, ?string $locale = null): string
+    {
+        $locale ??= app()->getLocale();
+        $category = \MessageFormatter::formatMessage($locale, '{n, plural, zero{zero} one{one} two{two} few{few} many{many} other{other}}', ['n' => $count]) ?: 'other';
+        $map = self::for($locale);
+        $value = data_get($map, "{$key}_{$category}") ?? data_get($map, "{$key}_other") ?? $key;
+
+        return str_replace(':count', (string) $count, $value);
+    }
+
     /** @return array<int, array{code: string, label: string}> for the language picker. */
     public static function options(): array
     {

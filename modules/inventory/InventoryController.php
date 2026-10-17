@@ -5,6 +5,7 @@ namespace Modules\Inventory;
 use App\Http\Controllers\Controller;
 use App\Models\Family;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Translations;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -435,7 +436,7 @@ class InventoryController extends Controller
 
         $inUse = InventoryItem::where('category', $cat->key)->count();
         if ($inUse > 0) {
-            throw ValidationException::withMessages(['category' => __('inventory.category_in_use_n', ['count' => $inUse])]);
+            throw ValidationException::withMessages(['category' => Translations::choice('inventory.category_in_use_n', $inUse)]);
         }
         $cat->delete();
 
@@ -504,7 +505,7 @@ class InventoryController extends Controller
 
         $inUse = InventoryItem::where('location', $loc->key)->count();
         if ($inUse > 0) {
-            throw ValidationException::withMessages(['location' => __('inventory.location_in_use_n', ['count' => $inUse])]);
+            throw ValidationException::withMessages(['location' => Translations::choice('inventory.location_in_use_n', $inUse)]);
         }
         $loc->delete();
 

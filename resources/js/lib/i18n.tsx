@@ -19,9 +19,22 @@ function interpolate(str: string, params?: Record<string, string | number>): str
 
 export type TFn = (key: string, params?: Record<string, string | number>) => string;
 
+// Plurals: a counted string is stored as `key_one` / `key_other` (+ `key_few` etc. where the language has
+// them, e.g. Romanian "2 reparații" vs "20 de reparații"). Pass `count` (or `n`) and t('ns.key', {count})
+// picks the form with the browser's own CLDR rules (Intl.PluralRules), falling back to `_other`, then the
+// bare key. One rule object per locale is plenty.
+const pluralRules: Record<string, Intl.PluralRules> = {};
+const pluralCategory = (locale: string, n: number) => (pluralRules[locale] ??= new Intl.PluralRules(locale)).select(n);
+
 export function useT(): TFn {
-    const dict = (usePage().props as { translations?: Dict }).translations ?? {};
-    return (key, params) => interpolate(lookup(dict, key) ?? key, params);
+    const props = usePage().props as { translations?: Dict; locale?: string };
+    const dict = props.translations ?? {};
+    const locale = props.locale ?? 'en';
+    return (key, params) => {
+        const n = params?.count ?? params?.n;
+        const plural = typeof n === 'number' ? (lookup(dict, `${key}_${pluralCategory(locale, n)}`) ?? lookup(dict, `${key}_other`)) : undefined;
+        return interpolate(plural ?? lookup(dict, key) ?? key, params);
+    };
 }
 
 export function useLocale(): string {
