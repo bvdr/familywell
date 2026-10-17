@@ -25,10 +25,12 @@ return Application::configure(basePath: dirname(__DIR__))
         // MCP server + OAuth routes live outside the `web` group (bearer auth, no session). See routes/mcp.php.
         // routes/board.php: the module-requests board's bearer endpoints, same reasoning.
         // routes/admin.php: admin.familywell.org's bearer endpoints, same reasoning.
+        // routes/pricing.php: the public price + intro counter for familywell.org (no session, cacheable).
         then: function () {
             require base_path('routes/mcp.php');
             require base_path('routes/board.php');
             require base_path('routes/admin.php');
+            require base_path('routes/pricing.php');
         },
     )
     ->withMiddleware(function (Middleware $middleware) {

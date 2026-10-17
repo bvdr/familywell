@@ -44,6 +44,8 @@ class BillingController extends Controller
             'status' => $family->subscription_status,
             'hasCustomer' => (bool) $family->stripe_customer_id,
             'canManage' => Gate::allows('manageBilling', $family),
+            // Today's price for new subscribers (intro while spots last), shown on the plan picker.
+            'pricing' => Billing::pricing(),
         ]);
     }
 

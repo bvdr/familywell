@@ -76,12 +76,56 @@ class Billing
         Log::info('billing: lifetime access '.($on ? 'granted' : 'revoked'), ['family_id' => $family->id, 'by' => $by]);
     }
 
-    /** Stripe-hosted Checkout for one of the two plans. Returns the URL to redirect to. */
+    /**
+     * Intro spots still open: config pricing.intro_spots minus every family that has ever subscribed (a
+     * subscription_plan is recorded on the first Stripe sync and kept after a cancel, so a spot, once
+     * claimed, stays claimed). Counting all subscribers works because the switch is one-way: once the
+     * spots are gone nobody gets the intro price again, so the first N subscribers ARE the intro ones.
+     * ponytail: two families checking out at the same moment for the last spot can both get it; at 100
+     * spots one extra intro subscriber is fine, a row lock would be the upgrade.
+     */
+    public static function introSpotsLeft(): int
+    {
+        $claimed = Family::query()->whereNotNull('subscription_plan')->where('is_demo', false)->count();
+
+        return max(0, (int) config('familywell.pricing.intro_spots') - $claimed);
+    }
+
+    /** Intro prices apply while spots are left, or for good when no standard prices are configured. */
+    public static function isIntro(): bool
+    {
+        $standard = config('services.stripe.price_monthly_standard') && config('services.stripe.price_yearly_standard');
+
+        return ! $standard || self::introSpotsLeft() > 0;
+    }
+
+    /**
+     * What a new subscriber pays right now, for the billing page and familywell.org's pricing card
+     * (GET /pricing.json): whole-dollar amounts + the counter.
+     *
+     * @return array{intro: bool, spotsLeft: int, spotsTotal: int, monthly: int, yearly: int}
+     */
+    public static function pricing(): array
+    {
+        $intro = self::isIntro();
+        $amounts = config('familywell.pricing.'.($intro ? 'intro' : 'standard'));
+
+        return [
+            'intro' => $intro,
+            'spotsLeft' => $intro ? self::introSpotsLeft() : 0,
+            'spotsTotal' => (int) config('familywell.pricing.intro_spots'),
+            'monthly' => (int) $amounts['monthly'],
+            'yearly' => (int) $amounts['yearly'],
+        ];
+    }
+
+    /** Stripe-hosted Checkout for one of the two plans, at today's price. Returns the URL to redirect to. */
     public static function checkoutUrl(Family $family, string $email, string $plan): string
     {
-        $price = config("services.stripe.price_{$plan}");
+        $key = self::isIntro() ? "price_{$plan}" : "price_{$plan}_standard";
+        $price = config("services.stripe.{$key}");
         if (! $price) {
-            throw new RuntimeException('STRIPE_PRICE_'.strtoupper($plan).' is not set.');
+            throw new RuntimeException('STRIPE_'.strtoupper($key).' is not set.');
         }
 
         $params = [
@@ -186,12 +230,12 @@ class Billing
         }
     }
 
-    /** 'monthly' | 'yearly' from the subscription's price, 'unknown' for a price we don't configure. */
+    /** 'monthly' | 'yearly' from the subscription's price (intro or standard), 'unknown' for any other price. */
     private static function plan(array $subscription): string
     {
         $price = $subscription['items']['data'][0]['price']['id'] ?? null;
         foreach (['monthly', 'yearly'] as $plan) {
-            if ($price !== null && $price === config("services.stripe.price_{$plan}")) {
+            if ($price !== null && in_array($price, [config("services.stripe.price_{$plan}"), config("services.stripe.price_{$plan}_standard")], true)) {
                 return $plan;
             }
         }

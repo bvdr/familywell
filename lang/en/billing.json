@@ -5,9 +5,9 @@
     "locked_desc": "One subscription covers everyone in :family.",
     "plan_name": "Hosted FamilyWell",
     "badge": "Most families",
-    "monthly_price": "$5",
+    "monthly_price": "$:amount",
     "monthly_unit": "per family / month",
-    "yearly_price": "$3.75",
+    "yearly_price": "$:amount",
     "yearly_unit": "per family / month",
     "yearly_hint": "Billed $45 a year",
     "save": "Save 25%",
@@ -37,5 +37,6 @@
     "lifetime_line": "Lifetime access, on us",
     "badge_trial": "Trial",
     "trial_ends_on": "Free trial until :date, then your plan starts",
-    "back_to_app": "Back to the app"
+    "back_to_app": "Back to the app",
+    "badge_intro": "Intro price · :left left"
 }
