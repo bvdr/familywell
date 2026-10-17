@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\AdminPush;
 use App\Support\Analytics;
 use App\Support\Auth\SocialLogin;
 use Illuminate\Auth\Events\Registered;
@@ -61,6 +62,8 @@ class RegisteredUserController extends Controller
         // signed_up (server) is the reliable count; signup_completed (browser) is the same step inside the
         // visitor's own Umami visit, so the familywell.org -> sign-up funnel can follow it.
         Analytics::queue('signup_completed', ['method' => $method]);
+        // Every sign-up path (form, Google, Apple) lands here, so this is the one "new account" admin push.
+        AdminPush::send('New account', "{$user->name} ({$user->email}) signed up".($method === 'password' ? '' : " with {$method}").'.', "/users/{$user->id}");
 
         event(new Registered($user));
 

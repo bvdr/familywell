@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Family;
 use App\Models\User;
+use App\Support\AdminPush;
 use App\Support\Billing\Billing;
 use App\Support\Engagement;
 use Illuminate\Database\Eloquent\Builder;
@@ -112,6 +113,33 @@ class AdminApiController extends Controller
         Billing::setLifetime($family, $on, 'admin:'.$request->user()->id);
 
         return $this->family($id);
+    }
+
+    public function pushKey(): JsonResponse
+    {
+        return response()->json(['publicKey' => config('webpush.vapid.public_key')]);
+    }
+
+    public function pushSubscribe(Request $request): JsonResponse
+    {
+        $data = $request->validate(['endpoint' => ['required', 'url', 'max:500'], 'keys.p256dh' => ['required', 'string', 'max:200'], 'keys.auth' => ['required', 'string', 'max:100']]);
+        AdminPush::subscribe($request->user(), $data['endpoint'], $data['keys']['p256dh'], $data['keys']['auth']);
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function pushUnsubscribe(Request $request): JsonResponse
+    {
+        AdminPush::unsubscribe($request->validate(['endpoint' => ['required', 'string']])['endpoint']);
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function pushTest(): JsonResponse
+    {
+        AdminPush::send('FamilyWell Admin', 'Notifications are on for this device.');
+
+        return response()->json(['ok' => true]);
     }
 
     public function family(int $id): JsonResponse

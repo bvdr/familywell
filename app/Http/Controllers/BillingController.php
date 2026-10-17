@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Family;
+use App\Support\AdminPush;
 use App\Support\Analytics;
 use App\Support\Billing\Billing;
 use App\Support\Tenancy\CurrentFamily;
@@ -56,8 +57,12 @@ class BillingController extends Controller
         $plan = $request->validate(['plan' => ['required', 'in:monthly,yearly']])['plan'];
         abort_if(Billing::isLifetime($family), 409, 'This family has lifetime access.'); // never charge a comped family
 
+        $url = Billing::checkoutUrl($family, $request->user()->email, $plan);
+        // After the Stripe session exists (a Stripe error throws first, so no push for a checkout that never opened).
+        AdminPush::send('Checkout started', "{$family->name} opened the {$plan} checkout ({$request->user()->name}).", "/families/{$family->id}");
+
         // Inertia::location: a full-page redirect off-site (Stripe's hosted Checkout), not an XHR visit.
-        return Inertia::location(Billing::checkoutUrl($family, $request->user()->email, $plan));
+        return Inertia::location($url);
     }
 
     public function portal()
