@@ -6,7 +6,7 @@ import { CategoryTile, QtyBar, StateBadge } from '@/components/inventory';
 import { ItemFormModal, QuickUpdateModal } from '@/components/inventory-modals';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
-import { useT, type TFn } from '@/lib/i18n';
+import { appLocale, useT, type TFn } from '@/lib/i18n';
 import { byKey, catLabel, fmtNumber, locLabel, unitLabel, type InvCategory, type InvItem, type InvLocation } from '@/lib/inventory';
 import { relativeTime } from '@/lib/notifications';
 import type { BreadcrumbItem } from '@/types';
@@ -40,7 +40,7 @@ export default function InventoryItem({ item, categories, locations, shops, hist
         { label: t('inventory.target'), value: item.targetQuantity ? `${fmtNumber(item.targetQuantity)} ${unitLabel(t, item.unit)}` : '—' },
         { label: t('inventory.category_label'), value: catLabel(t, item.category, catMap) },
         { label: t('inventory.location_label'), value: item.location ? locLabel(t, item.location, locMap) : t('inventory.no_location') },
-        { label: t('inventory.expires_label'), value: item.expiresAt ? new Date(item.expiresAt + 'T00:00:00').toLocaleDateString() : t('inventory.no_expiry') },
+        { label: t('inventory.expires_label'), value: item.expiresAt ? new Date(item.expiresAt + 'T00:00:00').toLocaleDateString(appLocale()) : t('inventory.no_expiry') },
     ];
 
     return (

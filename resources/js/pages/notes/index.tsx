@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
-import { useT, type TFn } from '@/lib/i18n';
+import { appLocale, useT, type TFn } from '@/lib/i18n';
 import { noteColor, snippet } from '@/lib/notes';
 import { type BreadcrumbItem } from '@/types';
 
@@ -35,7 +35,7 @@ function relDate(iso: string, t: TFn): string {
     if (days <= 0) return t('notes.today');
     if (days === 1) return t('notes.yesterday');
     if (days < 7) return t('notes.days_ago', { days });
-    return then.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return then.toLocaleDateString(appLocale(), { month: 'short', day: 'numeric' });
 }
 
 function NoteCard({ note, folders, grid, t }: { note: Note; folders: Folder[]; grid: boolean; t: TFn }) {

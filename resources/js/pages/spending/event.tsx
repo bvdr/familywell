@@ -53,7 +53,7 @@ import AppLayout from '@/layouts/app-layout';
 import { avatarColorFor } from '@/lib/avatar';
 import { catColor, categoryMap, catLabel, defaultCategoryKey, type CategoryDef } from '@/lib/categories';
 import { compressImage, makeThumbnail } from '@/lib/compress-image';
-import { useT, type TFn } from '@/lib/i18n';
+import { appLocale, useT, type TFn } from '@/lib/i18n';
 import { currencyOptions, money, selectAllOnFocus } from '@/lib/money';
 import { type BreadcrumbItem } from '@/types';
 
@@ -167,7 +167,7 @@ const dayLabel = (t: TFn, date: string) => {
     const diff = Math.round((now.getTime() - d.getTime()) / 86_400_000);
     if (diff === 0) return t('dashboard.today');
     if (diff === 1) return t('spending.yesterday');
-    return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    return d.toLocaleDateString(appLocale(), { weekday: 'short', month: 'short', day: 'numeric' });
 };
 
 export default function Event({

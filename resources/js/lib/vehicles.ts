@@ -1,4 +1,4 @@
-import type { TFn } from '@/lib/i18n';
+import { appLocale, type TFn } from '@/lib/i18n';
 import { usePage } from '@inertiajs/react';
 
 import { money as moneyOf } from '@/lib/money';
@@ -323,7 +323,9 @@ export const transmissionLabel = (t: TFn, tr: string | null): string => {
 
 // A thousands-grouped number string ("142340" -> "142,340"). Locale-agnostic grouping keeps the value
 // readable without pulling a formatter per render.
-export const fmtMileage = (n: number): string => n.toLocaleString('en-US');
+export const fmtMileage = (n: number): string => n.toLocaleString(appLocale());
+// "34.5" / "34,5": one decimal in the app language.
+const oneDecimal = (n: number): string => n.toLocaleString(appLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 // ---- Units (P5) ------------------------------------------------------------------------------------
 // Distance is ALWAYS stored in km; the family's unit_system only decides how it is DISPLAYED (km vs
@@ -365,7 +367,7 @@ export const volumeUnitLabel = (unit: UnitSystem): string => (unit === 'imperial
 export const litersToUnit = (liters: number, unit: UnitSystem): number => (unit === 'imperial' ? liters / LITERS_PER_US_GALLON : liters);
 
 /** "52.0 L" / "13.7 gal" — a volume with its unit label, to one decimal. */
-export const volumeText = (liters: number, unit: UnitSystem): string => `${litersToUnit(liters, unit).toFixed(1)} ${volumeUnitLabel(unit)}`;
+export const volumeText = (liters: number, unit: UnitSystem): string => `${oneDecimal(litersToUnit(liters, unit))} ${volumeUnitLabel(unit)}`;
 
 /** The consumption-unit label ("L/100km" / "mpg"). */
 export const consumptionUnitLabel = (unit: UnitSystem): string => (unit === 'imperial' ? 'mpg' : 'L/100km');
@@ -380,7 +382,7 @@ export const consumptionValue = (lPer100: number | null, unit: UnitSystem): numb
 export const consumptionText = (lPer100: number | null, unit: UnitSystem): string => {
     const v = consumptionValue(lPer100, unit);
     if (v == null) return '—';
-    return `${v.toFixed(1)} ${consumptionUnitLabel(unit)}`;
+    return `${oneDecimal(v)} ${consumptionUnitLabel(unit)}`;
 };
 
 /**

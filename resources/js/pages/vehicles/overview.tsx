@@ -22,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import AppLayout from '@/layouts/app-layout';
 import { compressImage, makeThumbnail } from '@/lib/compress-image';
-import { useT, type TFn } from '@/lib/i18n';
+import { appLocale, useT, type TFn } from '@/lib/i18n';
 import { money } from '@/lib/money';
 import { relativeTime } from '@/lib/notifications';
 import {
@@ -413,7 +413,7 @@ function MileagePanel({ vehicle, unitSystem, t }: { vehicle: Vehicle; unitSystem
                         onClick={() => addPreset(delta)}
                         className="border-border text-primary hover:bg-surface rounded-lg border px-3 py-1.5 text-sm font-medium tabular-nums transition-colors disabled:opacity-50"
                     >
-                        +{delta.toLocaleString('en-US')} {unitLabel}
+                        +{delta.toLocaleString(appLocale())} {unitLabel}
                     </button>
                 ))}
             </div>

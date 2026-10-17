@@ -37,6 +37,23 @@ export function useT(): TFn {
     };
 }
 
+// The user's app language for plain (non-hook) helpers — relativeTime, shortDate, money, mileage — that
+// format dates/numbers outside a component. app.tsx sets it from the first page and every visit. Before
+// that (or in the MCP widgets, which don't run app.tsx) it stays English, which is the fallback anyway.
+let currentLocale = 'en';
+export const appLocale = (): string => currentLocale;
+export function setAppLocale(locale: string | undefined): void {
+    currentLocale = locale ?? 'en';
+    // html lang drives CSS hyphenation; keep it right after an in-app language switch too.
+    if (typeof document !== 'undefined') document.documentElement.lang = currentLocale;
+}
+
+// "today" / "morgen" / "acum": relative words straight from the browser's CLDR data, no lang keys needed.
+export function relativeWord(value: number, unit: Intl.RelativeTimeFormatUnit): string {
+    const word = new Intl.RelativeTimeFormat(currentLocale, { numeric: 'auto' }).format(value, unit);
+    return word.charAt(0).toLocaleUpperCase(currentLocale) + word.slice(1);
+}
+
 export function useLocale(): string {
     return (usePage().props as { locale?: string }).locale ?? 'en';
 }

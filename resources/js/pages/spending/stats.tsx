@@ -1,6 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { catColor as catColorOf, catLabel as catLabelOf, categoryMap, type CategoryDef, type CategoryMap } from '@/lib/categories';
-import { useT, type TFn } from '@/lib/i18n';
+import { appLocale, useT, type TFn } from '@/lib/i18n';
 import { money } from '@/lib/money';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
@@ -46,7 +46,7 @@ const SOURCE_TYPE_LABEL_KEY: Record<string, string> = {
 };
 const sourceTypeLabel = (t: TFn, type: string) => (SOURCE_TYPE_LABEL_KEY[type] ? t(SOURCE_TYPE_LABEL_KEY[type]) : type);
 
-const shortDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+const shortDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString(appLocale(), { month: 'short', day: 'numeric' });
 
 // A bar whose fill grows from 0 to its share on mount (snaps instantly under reduced motion).
 function Bar({ pct, color, grown }: { pct: number; color: string; grown: boolean }) {
