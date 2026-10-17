@@ -1,0 +1,18 @@
+{
+    "add": "Contact toevoegen",
+    "add_placeholder": "Naam nieuw contact",
+    "empty": "Nog geen contacten. Voeg hierboven iemand toe.",
+    "edit": "Contact bewerken",
+    "name": "Naam",
+    "methods": "Contactgegevens",
+    "type_phone": "Telefoon",
+    "type_email": "E-mail",
+    "type_address": "Adres",
+    "type_url": "Link",
+    "type_other": "Anders",
+    "value_placeholder": "Waarde",
+    "add_method": "Contactgegeven toevoegen",
+    "remove_method": "Verwijderen",
+    "delete": "Contact verwijderen",
+    "save": "Opslaan"
+}

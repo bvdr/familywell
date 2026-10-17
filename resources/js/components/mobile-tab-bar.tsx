@@ -162,7 +162,9 @@ export function MobileTabBar() {
                                 className={`${cell} ${active ? 'bg-accent-subtle text-primary font-semibold' : 'text-text-muted'}`}
                             >
                                 {loading ? <Loader2 className="size-5.5 animate-spin" /> : <item.icon className="size-5.5" />}
-                                {t(item.labelKey)}
+                                {/* A span, not a bare text node, so a label too long for the bar (Dutch "Boodschappen" did) truncates inside its
+                                    min-w-0 cell instead of spilling over the next tab. */}
+                                <span className="max-w-full truncate">{t(item.labelKey)}</span>
                             </Link>
                         );
                     })}

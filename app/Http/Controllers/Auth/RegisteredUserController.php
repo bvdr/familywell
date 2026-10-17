@@ -44,6 +44,8 @@ class RegisteredUserController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            // The language the sign-up page was shown in (browser's, via SetLocale) becomes theirs.
+            'locale' => app()->getLocale(),
         ]);
 
         return self::registered($request, $user);

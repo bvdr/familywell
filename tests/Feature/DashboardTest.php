@@ -11,9 +11,9 @@ class DashboardTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_guests_are_redirected_to_the_login_page()
+    public function test_guests_are_redirected_to_the_sign_up_page()
     {
-        $this->get('/dashboard')->assertRedirect('/login');
+        $this->get('/dashboard')->assertRedirect('/register');
     }
 
     public function test_authenticated_users_with_a_family_can_visit_the_dashboard()
