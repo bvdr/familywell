@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
-import { useT, type TFn } from '@/lib/i18n';
+import { useT, type TFn, dayText } from '@/lib/i18n';
 import { fmtMileage, mileageText, vehicleTitle, type ProviderOption, type Repair, type RepairAttachment, type VehicleHeader, useCarMoney } from '@/lib/vehicles';
 import type { BreadcrumbItem } from '@/types';
 
@@ -114,7 +114,7 @@ function RepairCard({ repair, t, onEdit, onRemove }: { repair: Repair; t: TFn; o
                 <div className="min-w-0">
                     <h3 className="text-primary font-medium">{repair.title}</h3>
                     <p className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm">
-                        {repair.occurredOn && <span>{repair.occurredOn}</span>}
+                        {repair.occurredOn && <span>{dayText(repair.occurredOn)}</span>}
                         {repair.mileage != null && <span className="tabular-nums">{mileageText(t, repair.mileage)}</span>}
                         {repair.cost != null && <span className="tabular-nums">{carMoney(repair.cost)}</span>}
                         {repair.provider && <span>{repair.provider}</span>}
