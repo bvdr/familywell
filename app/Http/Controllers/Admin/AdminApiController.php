@@ -132,6 +132,11 @@ class AdminApiController extends Controller
         return User::query()
             ->select('users.id', 'users.name', 'users.email', 'users.email_verified_at', 'users.created_at', 'users.last_seen_at', 'users.last_seen_via', 'users.country')
             ->selectSub(DB::table('sessions')->selectRaw('max(last_activity)')->whereColumn('sessions.user_id', 'users.id'), 'last_active')
+            // The best plan across their families, as a rank (PLAN_RANK), so the list can colour subscribers. One
+            // correlated subquery per row, like last_active.
+            ->selectSub(DB::table('family_user')->join('families', 'families.id', '=', 'family_user.family_id')
+                ->whereColumn('family_user.user_id', 'users.id')
+                ->selectRaw("max(case when families.access_override = ? then 4 when families.subscription_status = 'active' then 3 when families.subscription_status = 'past_due' then 2 when families.subscription_status = 'trialing' then 1 else 0 end)", [Family::LIFETIME]), 'plan_rank')
             ->withCount('families');
     }
 
@@ -143,6 +148,10 @@ class AdminApiController extends Controller
             ->withCount('members');
     }
 
+    // plan_rank (userQuery) back to what familyItem says: lifetime wins, then a paid plan, then one Stripe is
+    // retrying, then a trial.
+    private const PLAN_RANK = [3 => 'active', 2 => 'past_due', 1 => 'trialing'];
+
     private static function userItem(User $u): array
     {
         return [
@@ -151,6 +160,8 @@ class AdminApiController extends Controller
             ...self::lastActive($u),
             'familyCount' => (int) $u->families_count,
             'country' => $u->country, // ISO alpha-2 from Cloudflare, null until their first web visit since it was added
+            'subscriptionStatus' => self::PLAN_RANK[(int) $u->plan_rank] ?? null,
+            'lifetime' => (int) $u->plan_rank === 4,
         ];
     }
 

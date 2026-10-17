@@ -138,3 +138,25 @@ it('pages by 50', function () {
     $p2 = $this->withToken($token)->getJson('/api/admin/users?page=2')->json();
     expect([count($p1['items']), $p1['hasMore'], count($p2['items']), $p2['hasMore']])->toBe([50, true, 1, false]);
 });
+
+it('gives each user the best plan across their families', function () {
+    $token = adminApiToken();
+    $plan = function (array $families) {
+        $user = User::factory()->create();
+        foreach ($families as [$status, $override]) {
+            Family::factory()->create()->forceFill(['subscription_status' => $status, 'access_override' => $override])->save();
+            Family::latest('id')->first()->members()->attach($user, ['role' => 'member']);
+        }
+
+        return $user->id;
+    };
+    $ids = [
+        'none' => $plan([]), 'canceled' => $plan([['canceled', null]]), 'trial' => $plan([['trialing', null], ['canceled', null]]),
+        'active' => $plan([['trialing', null], ['active', null]]), 'vip' => $plan([['active', null], [null, Family::LIFETIME]]),
+    ];
+
+    $items = collect($this->withToken($token)->getJson('/api/admin/users')->json('items'))->keyBy('id');
+    expect(collect($ids)->map(fn ($id) => [$items[$id]['subscriptionStatus'], $items[$id]['lifetime']])->all())->toBe([
+        'none' => [null, false], 'canceled' => [null, false], 'trial' => ['trialing', false], 'active' => ['active', false], 'vip' => [null, true],
+    ]);
+});
