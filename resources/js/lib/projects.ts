@@ -1,3 +1,5 @@
+import { appLocale } from '@/lib/i18n';
+
 // Status metadata for projects and dependencies: labels + chip classes, single source of truth so
 // the index cards, detail hero, and pickers agree. Uses the app's tokens (primary = forest green).
 export const PROJECT_STATUS: Record<string, { label: string; chip: string; hero: string }> = {
@@ -22,7 +24,7 @@ export const avatarColor = (name: string): [string, string] =>
 export const shortDate = (iso: string | null): string => {
     if (!iso) return '—';
     const d = new Date(iso + 'T00:00:00');
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return d.toLocaleDateString(appLocale(), { month: 'short', day: 'numeric' });
 };
 export const projectStatus = (s: string) => PROJECT_STATUS[s] ?? PROJECT_STATUS.planning;
 export const PROJECT_STATUS_KEYS = Object.keys(PROJECT_STATUS);

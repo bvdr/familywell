@@ -47,3 +47,13 @@ it('rejects an unknown locale', function () {
     $user = User::factory()->create();
     actingAs($user)->patch('/settings/language', ['locale' => 'xx'])->assertSessionHasErrors('locale');
 });
+
+it('picks the plural form for the count and the language', function () {
+    expect(Translations::choice('vehicles.repairs_count', 1, 'en'))->toBe('1 repair')
+        ->and(Translations::choice('vehicles.repairs_count', 3, 'en'))->toBe('3 repairs')
+        ->and(Translations::choice('vehicles.repairs_count', 1, 'de'))->toBe('1 Reparatur')
+        // Romanian has three forms: one, few (0, 2-19) and other (20+, takes "de").
+        ->and(Translations::choice('vehicles.repairs_count', 1, 'ro'))->toBe('1 reparație')
+        ->and(Translations::choice('vehicles.repairs_count', 5, 'ro'))->toBe('5 reparații')
+        ->and(Translations::choice('vehicles.repairs_count', 21, 'ro'))->toBe('21 de reparații');
+});

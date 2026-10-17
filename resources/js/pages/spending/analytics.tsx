@@ -2,7 +2,7 @@ import { Bar, TrendCurve, useCountUp } from '@/components/charts';
 import { Picker } from '@/components/picker';
 import AppLayout from '@/layouts/app-layout';
 import { catColor as catColorOf, catLabel as catLabelOf, categoryMap, type CategoryDef, type CategoryMap } from '@/lib/categories';
-import { useT, type TFn } from '@/lib/i18n';
+import { appLocale, useT, type TFn } from '@/lib/i18n';
 import { currencyOptions, money } from '@/lib/money';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
@@ -36,9 +36,9 @@ type Granularity = Props['granularity'];
 
 // Category colour/label now come from the family's dynamic category list (passed as a prop), resolved
 // through a key→def map so this page reads the same as the per-event stats page.
-const shortDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+const shortDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString(appLocale(), { month: 'short', day: 'numeric' });
 // Monthly points read as "Jan 2026" — the day number is meaningless once buckets are whole months.
-const monthDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+const monthDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString(appLocale(), { month: 'short', year: 'numeric' });
 
 // The per-day/-month spend curve: the shared smooth TrendCurve, fed the spend series and a peak callout in
 // the display currency. Y is per-bucket spend (not cumulative), so the shape reads as the rhythm of spending.
@@ -69,7 +69,7 @@ const BY_KEY: Record<Granularity, string> = { day: 'spending.by_day', week: 'spe
 
 // The resolved period always spans a concrete date range; show it so "this year" / "all time" / a custom
 // range read unambiguously (a full date, with year, since all-time can reach back several years).
-const fullDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+const fullDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString(appLocale(), { day: 'numeric', month: 'short', year: 'numeric' });
 
 export default function Analytics({
     currency,

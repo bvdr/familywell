@@ -313,7 +313,7 @@ class SpendingController extends Controller
         $cat = SpendCategory::findOrFail($category); // family-scoped resolve
 
         if (Spend::where('category', $cat->key)->exists()) {
-            throw ValidationException::withMessages(['category' => __('spending.category_in_use')]);
+            throw ValidationException::withMessages(['category' => Translations::get('spending.category_in_use')]);
         }
         $cat->delete();
 

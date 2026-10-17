@@ -1,3 +1,5 @@
+import { appLocale, relativeWord } from '@/lib/i18n';
+
 import { Briefcase, CalendarDays, CheckSquare, Heart, Home, ListChecks, Plane, ShoppingBag, Sparkles, Star, type LucideIcon } from 'lucide-react';
 
 // Per-list icon, chosen on the New List screen. Default 'list'.
@@ -38,11 +40,11 @@ export function dueLabel(iso: string | null): { label: string; tone: string } | 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const days = Math.round((due.getTime() - today.getTime()) / 86400000);
-    const short = due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const short = due.toLocaleDateString(appLocale(), { month: 'short', day: 'numeric' });
     // overdue / today -> red, next couple of days -> amber, further out -> muted.
     if (days < 0) return { label: short, tone: 'bg-red-100 text-red-700' };
-    if (days === 0) return { label: 'Today', tone: 'bg-red-100 text-red-700' };
-    if (days === 1) return { label: 'Tomorrow', tone: 'bg-amber-100 text-amber-700' };
+    if (days === 0) return { label: relativeWord(0, 'day'), tone: 'bg-red-100 text-red-700' };
+    if (days === 1) return { label: relativeWord(1, 'day'), tone: 'bg-amber-100 text-amber-700' };
     if (days <= 3) return { label: short, tone: 'bg-amber-100 text-amber-700' };
     return { label: short, tone: 'bg-surface text-muted-foreground' };
 }

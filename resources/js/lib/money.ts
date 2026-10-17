@@ -1,10 +1,12 @@
 import type { FocusEvent } from 'react';
 
+import { appLocale } from '@/lib/i18n';
+
 import type { PickerOption } from '@/components/picker';
 
 // Format integer minor units (cents) as a currency string. The backend never sends floats.
 export function money(cents: number, currency: string): string {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(cents / 100);
+    return new Intl.NumberFormat(appLocale(), { style: 'currency', currency }).format(cents / 100);
 }
 
 // Select the whole value when a money input gains focus, so a tap-and-type overwrites it.

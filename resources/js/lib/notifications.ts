@@ -1,3 +1,4 @@
+import { appLocale, relativeWord } from '@/lib/i18n';
 import { Bell, FolderKanban, ListChecks, ShoppingCart, UserPlus, Wallet, type LucideIcon } from 'lucide-react';
 
 export type Notification = {
@@ -24,13 +25,15 @@ export const notificationIcon = (category: string | null): LucideIcon => (catego
 export function relativeTime(iso: string): string {
     const then = new Date(iso).getTime();
     const mins = Math.floor((Date.now() - then) / 60000);
-    if (mins < 1) return 'now';
-    if (mins < 60) return `${mins}m`;
+    // Compact "5m" / "3h" / "2d" in the app language ("3 T." in German) via narrow unit formatting.
+    const unit = (n: number, u: string) => new Intl.NumberFormat(appLocale(), { style: 'unit', unit: u, unitDisplay: 'narrow' }).format(n);
+    if (mins < 1) return relativeWord(0, 'second');
+    if (mins < 60) return unit(mins, 'minute');
     const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h`;
+    if (hrs < 24) return unit(hrs, 'hour');
     const days = Math.floor(hrs / 24);
-    if (days < 7) return `${days}d`;
-    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    if (days < 7) return unit(days, 'day');
+    return new Date(iso).toLocaleDateString(appLocale(), { month: 'short', day: 'numeric' });
 }
 
 // CSRF-aware fire-and-forget POST (these endpoints return 204, outside Inertia's router).

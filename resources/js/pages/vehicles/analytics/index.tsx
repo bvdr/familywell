@@ -5,7 +5,7 @@ import { type ReactNode } from 'react';
 
 import { Bar, TrendCurve, useCountUp } from '@/components/charts';
 import AppLayout from '@/layouts/app-layout';
-import { useT, type TFn } from '@/lib/i18n';
+import { appLocale, useT, type TFn } from '@/lib/i18n';
 import { money } from '@/lib/money';
 import {
     consumptionText,
@@ -46,9 +46,9 @@ type Props = {
 const PERIODS = ['mtd', 'last_month', 'ytd', 'all_time', 'custom'] as const;
 
 // Date label helpers, matching the Spending analytics screen so the two read identically.
-const shortDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-const monthDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
-const fullDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+const shortDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString(appLocale(), { month: 'short', day: 'numeric' });
+const monthDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString(appLocale(), { month: 'short', year: 'numeric' });
+const fullDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString(appLocale(), { day: 'numeric', month: 'short', year: 'numeric' });
 
 export default function VehicleAnalyticsPage({ vehicle, unitSystem, period, range, analytics, fuel, consumptionTrend, estimates }: Props) {
     const t = useT();
