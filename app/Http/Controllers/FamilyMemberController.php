@@ -38,6 +38,9 @@ class FamilyMemberController extends Controller
             'canManage' => $canManage,
             'palette' => ['colors' => Family::COLORS, 'emojis' => Family::EMOJIS],
             'themes' => ThemeTokens::available(),
+            // The skin CSS this person sees right now, so a family-default change applies in place
+            // (useSkinCss) instead of on the next full page load.
+            'themeCss' => ThemeTokens::css(ThemeTokens::resolve(auth()->user(), $family->id)),
         ]);
     }
 
