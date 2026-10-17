@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use App\Support\Translations;
+use Illuminate\Support\Arr;
 
 use function Pest\Laravel\actingAs;
 
@@ -18,7 +19,7 @@ it('merges the locale over English so every key resolves', function () {
 // English is the fallback, so a missing key never breaks a page; it just shows English.
 // This keeps every shipped locale complete anyway, so a new string can't silently stay untranslated.
 it('translates every English key in every locale', function () {
-    $flatten = fn (array $map) => array_keys(\Illuminate\Support\Arr::dot($map));
+    $flatten = fn (array $map) => array_keys(Arr::dot($map));
     $en = $flatten(Translations::all('en'));
 
     foreach (array_keys(Translations::LOCALES) as $locale) {
