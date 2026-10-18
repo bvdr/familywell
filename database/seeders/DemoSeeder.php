@@ -113,14 +113,17 @@ class DemoSeeder extends Seeder
         // working). Passwords are random (the only way in is the /demo route), except the owner's when
         // familywell.demo_password is set: that's the app-directory reviewers' login.
         foreach (self::MEMBERS as $m) {
-            $this->u[Str::before($m['name'], ' ')] = User::updateOrCreate(['email' => $m['email']], [
+            $user = User::updateOrCreate(['email' => $m['email']], [
                 'name' => $m['name'],
                 'password' => ($m['email'] === self::OWNER_EMAIL ? config('familywell.demo_password') : null) ?: Str::random(40),
-                'email_verified_at' => $this->today,
                 'locale' => 'en',
                 'theme' => null,
                 'notification_prefs' => null,
             ]);
+            // Not fillable on User, so updateOrCreate silently dropped it and demo@familywell.co stayed unverified,
+            // which sent /demo visitors to the "Verify email" page. forceFill sets it on every reset.
+            $user->forceFill(['email_verified_at' => $this->today])->save();
+            $this->u[Str::before($m['name'], ' ')] = $user;
         }
         $owner = $this->u['Sarah'];
 
