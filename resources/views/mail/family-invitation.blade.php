@@ -5,18 +5,18 @@
     <p style="margin:0 0 14px; font-family:'Geist Mono', 'SF Mono', Menlo, Consolas, monospace; font-size:12px; font-weight:500; letter-spacing:1px; text-transform:uppercase; color:#5E5B4E;">
         Invitation
     </p>
-    <h1 class="fw-ink" style="margin:0 0 12px; font-family:'Bricolage Grotesque', 'Helvetica Neue', Arial, sans-serif; font-weight:800; font-size:34px; line-height:1.1; letter-spacing:-1px; color:#121100;">
+    <h1 class="fw-ink" style="margin:0 0 12px; font-family:'Bricolage Grotesque', 'Helvetica Neue', Arial, sans-serif; font-weight:800; font-size:34px; line-height:1.1; letter-spacing:-1px; color:#121100; -webkit-text-fill-color:#121100;">
         You're invited
     </h1>
-    <p class="fw-ink" style="margin:0 0 28px; font-family:Inter, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:17px; line-height:1.55; color:#2A2918;">
+    <p class="fw-ink" style="margin:0 0 28px; font-family:Inter, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:17px; line-height:1.55; color:#2A2918; -webkit-text-fill-color:#2A2918;">
         {{ $inviter }} has invited you to join <strong>{{ $familyName }}</strong> on FamilyWell, a calm, shared space for your family's plans, lists and everyday moments.
     </p>
 
     {{-- The site's "sun" button: yellow, 2px ink outline, pill. --}}
     <table role="presentation" cellpadding="0" cellspacing="0" border="0">
         <tr>
-            <td class="fw-sun" style="background:#FFDF00; border:2px solid #121100; border-radius:999px;">
-                <a class="fw-ink" href="{{ $acceptUrl }}" style="display:inline-block; padding:15px 26px; font-family:Inter, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:16px; font-weight:700; color:#121100; text-decoration:none;">Accept invitation &rarr;</a>
+            <td class="fw-sun" style="background:#FFDF00; background-image:linear-gradient(#FFDF00,#FFDF00); border:2px solid #121100; border-radius:999px;">
+                <a class="fw-ink" href="{{ $acceptUrl }}" style="display:inline-block; padding:15px 26px; font-family:Inter, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:16px; font-weight:700; color:#121100; -webkit-text-fill-color:#121100; text-decoration:none;">Accept invitation &rarr;</a>
             </td>
         </tr>
     </table>
@@ -24,5 +24,5 @@
 
 @section('footer')
     If the button doesn't work, paste this link into your browser:<br>
-    <a class="fw-ink" href="{{ $acceptUrl }}" style="color:#121100; word-break:break-all;">{{ $acceptUrl }}</a>
+    <a class="fw-ink" href="{{ $acceptUrl }}" style="color:#121100; -webkit-text-fill-color:#121100; word-break:break-all;">{{ $acceptUrl }}</a>
 @endsection
