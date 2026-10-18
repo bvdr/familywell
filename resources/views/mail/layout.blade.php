@@ -2,13 +2,17 @@
      outline (the site's .btn-sun), line #E2DED1, muted #5E5B4E; Bricolage Grotesque display, Inter body, Geist Mono
      labels (web fonts load in Apple Mail / iOS; elsewhere each stack's system fonts take over).
 
-     ALWAYS WHITE, on purpose (product decision): the email must look the same in a dark-mode inbox.
-     - meta + :root color-scheme "light only": Apple Mail and most WebKit clients then leave it alone.
-     - Apps that force their own dark mode anyway (Spark, the Gmail apps, Outlook) recolour background COLOURS but not
-       background IMAGES, so every coloured box also paints its colour as a flat linear-gradient.
-     - The Gmail apps also lighten dark text: .gmail-screen > .gmail-difference blends it back to dark. Gmail wraps the
-       body in <u> + .body, so those rules only ever apply there.
-     - The logo PNG's letters carry a white halo: invisible on white, readable if a client still darkens the page.
+     ALWAYS WHITE, on purpose (product decision): the email must look the same in a dark-mode inbox. What works,
+     tested in Spark iOS dark mode through the real sender (2026-10-18), copied from how Wise does it:
+     - an @media (prefers-color-scheme: dark) block in <style>. Its PRESENCE tells Spark (and Apple Mail) that the
+       email handles dark mode itself, so they stop recolouring it; its rules just re-assert the light design on the
+       fw-* classes. Without it Spark darkens every box and lightens dark text, whatever else the email says.
+     - color-scheme "light only" (meta + :root) for the clients that read those.
+     Tried and NOT enough on their own: gradient / image backgrounds (Spark kept them but still lightened the text),
+     bgcolor attributes, Gmail-app blend-mode wrappers (Spark applied them and washed the text out).
+     Test sends must go through the real mailer: the Gmail send tool strips <head>, so it proves nothing.
+     Every coloured box carries an fw-* class: fw-page, fw-card, fw-sun (yellow), fw-ink (near-black text).
+     The logo PNG's letters carry a white halo, a fallback for any client that still darkens the page.
      Email-client HTML: tables + inline styles (Gmail drops much of <style>, Outlook ignores flex/grid), PNG not SVG.
 
      Slots: $subject, $preview (inbox preview line), $locale, $logo; @yield('content') goes inside the white card. --}}
@@ -22,19 +26,22 @@
     <title>{{ $subject }}</title>
     <style>
         :root { color-scheme: light only; supported-color-schemes: light only; }
-        u + .body .gmail-screen { background: #000; mix-blend-mode: screen; }
-        u + .body .gmail-difference { background: #000; mix-blend-mode: difference; }
+        @media (prefers-color-scheme: dark) {
+            .body, .fw-page, .fw-card { background-color: #FFFFFF !important; }
+            .fw-sun { background-color: #FFDF00 !important; }
+            .fw-ink { color: #121100 !important; -webkit-text-fill-color: #121100 !important; }
+        }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@96,700..800&family=Geist+Mono:wght@500;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
 </head>
-<body class="body" style="margin:0; padding:0; background:#FFFFFF; background-image:linear-gradient(#FFFFFF,#FFFFFF); -webkit-text-size-adjust:100%;">
+<body class="body" style="margin:0; padding:0; background:#FFFFFF; -webkit-text-size-adjust:100%;">
     @isset($preview)
         <div style="display:none; max-height:0; overflow:hidden; opacity:0; mso-hide:all;">{{ $preview }}&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;</div>
     @endisset
 
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#FFFFFF; background-image:linear-gradient(#FFFFFF,#FFFFFF);">
+    <table class="fw-page" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#FFFFFF;">
         <tr>
-            <td align="center" style="padding:40px 16px 48px; background:#FFFFFF; background-image:linear-gradient(#FFFFFF,#FFFFFF);">
+            <td class="fw-page" align="center" style="padding:40px 16px 48px; background:#FFFFFF;">
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;">
                     <tr>
                         <td style="padding:0 4px 28px;">
@@ -42,7 +49,7 @@
                         </td>
                     </tr>
                     <tr>
-                        <td style="background:#FFFFFF; background-image:linear-gradient(#FFFFFF,#FFFFFF); border:1px solid #E2DED1; border-radius:24px; padding:36px 32px 32px;">
+                        <td class="fw-card" style="background:#FFFFFF; border:1px solid #E2DED1; border-radius:24px; padding:36px 32px 32px;">
                             @yield('content')
                         </td>
                     </tr>
@@ -55,7 +62,7 @@
                     @endif
                     <tr>
                         <td style="padding:16px 4px 0; font-family:'Geist Mono', 'SF Mono', Menlo, Consolas, monospace; font-size:12px; letter-spacing:0.5px; color:#8F8B76;">
-                            <a href="https://familywell.org" style="color:#121100; text-decoration:none; font-weight:700;">familywell.org</a>@isset($tagline)<br>{{ $tagline }}@endisset
+                            <a class="fw-ink" href="https://familywell.org" style="color:#121100; text-decoration:none; font-weight:700;">familywell.org</a>@isset($tagline)<br>{{ $tagline }}@endisset
                         </td>
                     </tr>
                 </table>
