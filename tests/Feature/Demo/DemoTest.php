@@ -242,6 +242,18 @@ it('signs a visitor into the demo family from /demo and shows the button on the 
     get('/dashboard')->assertOk()->assertInertia(fn ($p) => $p->where('analyticsEvents.0.name', 'demo_opened'));
 });
 
+// email_verified_at isn't fillable: the hourly demo:reset (which runs the seeder guarded, unlike db:seed) dropped it,
+// so demo@familywell.co ended up unverified and /demo visitors hit "Verify email".
+it('keeps every demo member, the owner included, verified after the hourly reset', function () {
+    $demo = demoSeed();
+    User::whereIn('id', $demo->members()->pluck('users.id'))->update(['email_verified_at' => null]);
+
+    test()->artisan('demo:reset')->assertExitCode(0);
+
+    expect(User::find($demo->owner_id)->hasVerifiedEmail())->toBeTrue()
+        ->and($demo->members()->whereNull('email_verified_at')->count())->toBe(0);
+});
+
 it('keeps the demo session scoped to the demo family', function () {
     [$other] = demoOtherFamily();
     $demo = demoSeed();
