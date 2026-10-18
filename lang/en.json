@@ -17,7 +17,8 @@
         "refine_search": "Keep typing to narrow the results",
         "select": "Select…",
         "add_named": "Add “:name”",
-        "remove_named": "Remove :name"
+        "remove_named": "Remove :name",
+        "offline": "You're offline. Changes won't save until you're back online."
     },
     "nav": {
         "dashboard": "Dashboard",

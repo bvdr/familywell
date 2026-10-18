@@ -17,7 +17,8 @@
         "refine_search": "Typ verder om de resultaten te verfijnen",
         "select": "Kies…",
         "add_named": "“:name” toevoegen",
-        "remove_named": ":name verwijderen"
+        "remove_named": ":name verwijderen",
+        "offline": "Je bent offline. Wijzigingen worden pas opgeslagen als je weer online bent."
     },
     "nav": {
         "dashboard": "Dashboard",

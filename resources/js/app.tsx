@@ -1,5 +1,6 @@
 // Self-hosted fonts for every skin (bundled by Vite, no runtime CDN). All skins' fonts load so
 // switching a theme never fetches at runtime; the active theme's --font-* tokens pick which apply.
+import OfflineBanner from '@/components/offline-banner';
 import { Picker } from '@/components/picker';
 import '@fontsource/geist-mono/400.css';
 // Geist Sans — the Minimal Mono skin.
@@ -62,7 +63,15 @@ createInertiaApp({
 
         root.render(
             <ErrorBoundary>
-                <App {...props} />
+                {/* Render prop so the offline banner sits next to every page and can read its translations. */}
+                <App {...props}>
+                    {({ Component, key, props: pageProps }) => (
+                        <>
+                            <Component key={key} {...pageProps} />
+                            <OfflineBanner />
+                        </>
+                    )}
+                </App>
             </ErrorBoundary>,
         );
     },
