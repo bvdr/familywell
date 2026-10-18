@@ -92,3 +92,30 @@ it('hands the skin pickers the skin CSS in effect, so a pick applies without a r
     $user->update(['theme' => null]); // back to the family default
     actingAs($user)->get('/settings/appearance')->assertInertia(fn ($page) => $page->where('themeCss', ThemeTokens::css('minimal-mono')));
 });
+
+// The "inverted" cards (spending Total spent, the add-to-home-screen hint) put text-inverse / accent-light text on a
+// surface-dark background, in BOTH light and dark mode. Minimal Mono's dark mode once flipped those texts to near-black
+// on its dark card, so the total was unreadable. WCAG AA for large text (3:1) in every skin, both modes.
+it('keeps inverted-card text readable on surface-dark in every skin and mode', function () {
+    $luminance = function (string $hex): float {
+        $rgb = array_map(fn ($c) => hexdec($c) / 255, str_split(ltrim($hex, '#'), 2));
+        $lin = array_map(fn ($c) => $c <= 0.03928 ? $c / 12.92 : (($c + 0.055) / 1.055) ** 2.4, $rgb);
+
+        return 0.2126 * $lin[0] + 0.7152 * $lin[1] + 0.0722 * $lin[2];
+    };
+    $contrast = function (string $a, string $b) use ($luminance): float {
+        [$hi, $lo] = [max($luminance($a), $luminance($b)), min($luminance($a), $luminance($b))];
+
+        return ($hi + 0.05) / ($lo + 0.05);
+    };
+
+    foreach (glob(resource_path('themes/*/theme.json')) as $file) {
+        $theme = json_decode(file_get_contents($file), true);
+        foreach (['tokens', 'tokensDark'] as $mode) {
+            $t = $theme[$mode] + $theme['tokens'];
+            foreach (['text-inverse', 'accent-light'] as $text) {
+                expect($contrast($t[$text], $t['surface-dark']))->toBeGreaterThan(3.0, basename(dirname($file))." {$mode} {$text}");
+            }
+        }
+    }
+});

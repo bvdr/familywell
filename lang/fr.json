@@ -17,7 +17,8 @@
         "refine_search": "Continue à taper pour affiner les résultats",
         "select": "Choisir…",
         "add_named": "Ajouter « :name »",
-        "remove_named": "Retirer :name"
+        "remove_named": "Retirer :name",
+        "offline": "Tu es hors ligne. Tes modifications ne seront enregistrées qu'une fois reconnecté."
     },
     "nav": {
         "dashboard": "Accueil",
