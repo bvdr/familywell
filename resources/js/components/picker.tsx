@@ -27,6 +27,7 @@ export function Picker({
     id,
     ariaLabel,
     disabled = false,
+    floating = false,
 }: {
     options: PickerOption[];
     selected: string[];
@@ -39,6 +40,9 @@ export function Picker({
     id?: string; // set on the control, so a <Label htmlFor={id}> names it
     ariaLabel?: string; // accessible name when there is no visible <Label htmlFor>
     disabled?: boolean;
+    // Open the list OVER the content below instead of pushing it down (a toolbar control, like the calendar's
+    // View picker). Off by default: inline is what works inside the vaul drawers most pickers live in.
+    floating?: boolean;
 }) {
     const t = useT();
     const [open, setOpen] = useState(false);
@@ -46,6 +50,18 @@ export function Picker({
     const listId = useId();
     const rootRef = useRef<HTMLDivElement>(null);
     const controlRef = useRef<HTMLButtonElement>(null);
+    // Floating only: a list that covers the page closes on a tap anywhere outside it (inline lists don't cover anything).
+    useEffect(() => {
+        if (!floating || !open) return;
+        const onDown = (e: PointerEvent) => {
+            if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
+                setOpen(false);
+                setQuery('');
+            }
+        };
+        document.addEventListener('pointerdown', onDown);
+        return () => document.removeEventListener('pointerdown', onDown);
+    }, [floating, open]);
     const close = () => {
         setOpen(false);
         setQuery('');
@@ -95,7 +111,7 @@ export function Picker({
     };
 
     return (
-        <div ref={rootRef} className={`border-border overflow-hidden rounded-xl border ${disabled ? 'opacity-60' : ''}`}>
+        <div ref={rootRef} className={`border-border rounded-xl border ${floating ? 'relative' : 'overflow-hidden'} ${disabled ? 'opacity-60' : ''}`}>
             {/* Control: shows the current selection as chips (multi) or a single label. */}
             <button
                 ref={controlRef}
@@ -107,7 +123,7 @@ export function Picker({
                 aria-controls={open ? listId : undefined}
                 aria-label={ariaLabel}
                 onClick={() => setOpen((v) => !v)}
-                className="bg-background flex w-full items-center gap-2 px-3 py-2.5 text-left disabled:cursor-not-allowed"
+                className={`bg-background flex w-full items-center gap-2 px-3 py-2.5 text-left disabled:cursor-not-allowed ${floating ? 'rounded-xl' : ''}`}
             >
                 <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
                     {selected.length === 0 ? (
@@ -151,7 +167,13 @@ export function Picker({
             </button>
 
             {open && (
-                <div className="border-border bg-surface border-t">
+                <div
+                    className={
+                        floating
+                            ? 'border-border bg-surface absolute inset-x-0 top-full z-50 mt-1 overflow-hidden rounded-xl border shadow-lg'
+                            : 'border-border bg-surface border-t'
+                    }
+                >
                     {searchable && (
                         <div className="border-border flex items-center gap-2 border-b px-3 py-2">
                             <Search className="text-muted-foreground size-4 shrink-0" />

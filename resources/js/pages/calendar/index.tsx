@@ -99,6 +99,10 @@ export default function CalendarIndex({
             { preserveState: true, preserveScroll: true, only: ['view', 'zoom', 'date', 'range', 'items'] },
         );
     };
+    // Remembered per device; the server reads it when the calendar opens without a view.
+    const remember = (v: string) => {
+        document.cookie = `fw_calendar_view=${v}; path=/; max-age=31536000; samesite=lax`;
+    };
     const label = new Date(date + 'T12:00').toLocaleDateString(
         locale,
         view === 'timeline' && zoom === 'year' ? { year: 'numeric' } : { month: 'long', year: 'numeric' },
@@ -138,34 +142,43 @@ export default function CalendarIndex({
                 </div>
 
                 {/* View switch, plus the zoom on the timeline. Both are query params, so each tap is a partial reload
-                    and the server answers with the matching range. The calendar 1.1 preview folds both into one View
-                    dropdown (week, month, and the timeline at week / month / year); the server remembers the choice. */}
+                    and the server answers with the matching range. The calendar 1.1 preview: a View dropdown (week, month,
+                    timeline) that opens over the calendar, plus the timeline's week / month / year zoom beside it. Both are
+                    remembered per device (fw_calendar_view cookie, read by CalendarController::index). */}
                 {preview ? (
-                    <div className="flex items-center justify-between gap-2">
-                        <div className="w-56 max-w-full">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <div className="w-40">
                             <Picker
                                 searchable={false}
+                                floating
                                 ariaLabel={t('calendar.view')}
-                                selected={[view === 'timeline' ? `timeline:${zoom}` : view]}
+                                selected={[view]}
                                 onChange={([v]) => {
                                     if (!v) return;
-                                    // Remembered per device; the server reads it when the calendar opens without a view.
-                                    document.cookie = `fw_calendar_view=${v}; path=/; max-age=31536000; samesite=lax`;
-                                    const [nextView, nextZoom] = v.split(':') as [CalendarProps['view'], CalendarProps['zoom'] | undefined];
-                                    go({ view: nextView, ...(nextZoom ? { zoom: nextZoom } : {}) });
+                                    const next = v as CalendarProps['view'];
+                                    remember(next === 'timeline' ? `timeline:${zoom}` : next);
+                                    go({ view: next });
                                 }}
                                 options={[
                                     { value: 'week', label: t('calendar.week'), icon: CalendarRange },
                                     { value: 'month', label: t('calendar.month'), icon: CalendarDays },
-                                    ...(['week', 'month', 'year'] as const).map((z) => ({
-                                        value: `timeline:${z}`,
-                                        label: `${t('calendar.timeline')} · ${t(`calendar.${z}`)}`,
-                                        icon: ChartGantt,
-                                    })),
+                                    { value: 'timeline', label: t('calendar.timeline'), icon: ChartGantt },
                                 ]}
                             />
                         </div>
-                        <span className="bg-accent-subtle text-primary rounded-full px-2 py-0.5 text-xs font-medium">{t('common.preview')}</span>
+                        {view === 'timeline' && (
+                            <Segmented
+                                value={zoom}
+                                options={['week', 'month', 'year'] as const}
+                                onChange={(z) => {
+                                    remember(`timeline:${z}`);
+                                    go({ zoom: z });
+                                }}
+                            />
+                        )}
+                        <span className="bg-accent-subtle text-primary ml-auto hidden rounded-full px-2 py-0.5 text-xs font-medium sm:inline">
+                            {t('common.preview')}
+                        </span>
                     </div>
                 ) : (
                     <div className="flex flex-wrap items-center justify-between gap-2">
