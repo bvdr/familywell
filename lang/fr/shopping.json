@@ -133,5 +133,7 @@
     "already_on_list": ":name est déjà sur cette liste.",
     "add_anyway": "Ajouter quand même",
     "bump_to": "Passer à :n",
-    "on_list_tag": "Déjà sur la liste"
+    "on_list_tag": "Déjà sur la liste",
+    "waiting_to_sync_one": ":n article en attente de synchronisation",
+    "waiting_to_sync_other": ":n articles en attente de synchronisation"
 }

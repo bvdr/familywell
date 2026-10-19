@@ -18,7 +18,7 @@
         "select": "Select…",
         "add_named": "Add “:name”",
         "remove_named": "Remove :name",
-        "offline": "You're offline. Changes won't save until you're back online."
+        "offline": "You're offline. Ticked and added shopping items will sync when you're back; other changes won't save."
     },
     "nav": {
         "dashboard": "Dashboard",

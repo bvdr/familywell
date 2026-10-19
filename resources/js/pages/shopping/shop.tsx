@@ -15,6 +15,7 @@ import AppLayout from '@/layouts/app-layout';
 import { useAddAction } from '@/lib/add-action';
 import { useT } from '@/lib/i18n';
 import { aisleIcon } from '@/lib/shopping';
+import { newClientKey, PendingAdds, send, useQueuedBought } from '@/lib/shopping-outbox';
 import { type BreadcrumbItem } from '@/types';
 
 type Aisle = { slug: string; name: string; icon: string };
@@ -70,14 +71,17 @@ export default function ShopDetail({
     ];
 
     const boughtOpt = useOptimistic<boolean>();
-    const isBought = (i: Item) => boughtOpt.get(i.id, i.bought);
+    // A tick queued offline (lib/shopping-outbox) wins until it has synced.
+    const queuedBought = useQueuedBought();
+    const isBought = (i: Item) => queuedBought.get(i.id) ?? boughtOpt.get(i.id, i.bought);
+    // Sends the new value, not the bare toggle, so a replayed tick sets instead of flipping again; with no
+    // connection it waits in the outbox.
     const toggle = (i: Item) => {
-        boughtOpt.set(i.id, !isBought(i));
-        // Empty-body PATCH flips `bought` on the item in its own list.
-        router.patch(
-            route('shopping.items.update', i.id),
-            {},
-            { preserveScroll: true, preserveState: true, onSuccess: () => boughtOpt.clear(i.id), onError: () => boughtOpt.clear(i.id) },
+        const next = !isBought(i);
+        boughtOpt.set(i.id, next);
+        send(
+            { kind: 'bought', key: newClientKey(), method: 'patch', url: route('shopping.items.update', i.id), data: { bought: next }, itemId: i.id },
+            { preserveScroll: true, preserveState: true, onFinish: () => boughtOpt.clear(i.id) },
         );
     };
 
@@ -144,16 +148,19 @@ export default function ShopDetail({
         const opts = {
             preserveScroll: true,
             onSuccess: () => setEditingId(null),
+            onQueued: () => setEditingId(null),
             onError: (errors: Record<string, string>) => setDupWarning(errors.add_anyway ?? null),
             onFinish: () => setAdding(false),
         };
-        const payload = { ...buildPayload(draft), add_anyway: addAnyway };
+        const payload = { ...buildPayload(draft), add_anyway: addAnyway, client_key: newClientKey() };
+        const add = (url: string, data: Record<string, unknown>) =>
+            send({ kind: 'add', key: payload.client_key, method: 'post', url, data, page: window.location.pathname, name: payload.name }, opts);
         if (virtual) {
             // No shop to add "at": add straight to the chosen list (store stays whatever the picker set).
             if (!draft.list_id) return void setAdding(false);
-            router.post(route('shopping.items.store', draft.list_id), payload, opts);
+            add(route('shopping.items.store', draft.list_id), payload);
         } else {
-            router.post(route('shopping.shops.items.store', shop.id), { ...payload, list_id: draft.list_id }, opts);
+            add(route('shopping.shops.items.store', shop.id), { ...payload, list_id: draft.list_id });
         }
     };
     // Editing auto-saves (debounced); new items commit via the Add button.
@@ -312,6 +319,8 @@ export default function ShopDetail({
                         ))}
                     </div>
                 )}
+
+                <PendingAdds />
 
                 {/* Add an item at this shop (goes to your default list unless you pick another). */}
                 <Button type="button" variant="outline" onClick={openNew} className="mt-1">

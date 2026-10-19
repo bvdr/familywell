@@ -18,7 +18,7 @@
         "select": "Choisir…",
         "add_named": "Ajouter « :name »",
         "remove_named": "Retirer :name",
-        "offline": "Tu es hors ligne. Tes modifications ne seront enregistrées qu'une fois reconnecté."
+        "offline": "Tu es hors ligne. Les articles de courses cochés ou ajoutés seront synchronisés à ton retour ; les autres modifications ne seront pas enregistrées."
     },
     "nav": {
         "dashboard": "Accueil",
