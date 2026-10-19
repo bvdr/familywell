@@ -210,7 +210,6 @@ export default function Event({
     const defaultCategory = defaultCategoryKey(event.categories);
     const [tab, setTab] = useState<TabKey>('expenses');
     const [adding, setAdding] = useState(false);
-    useAddAction(() => setAdding(true));
     const [sharing, setSharing] = useState(false);
     const [guestSharing, setGuestSharing] = useState(false);
     // When set, the form is editing this spend id instead of creating a new one.
@@ -282,6 +281,21 @@ export default function Event({
     // Archive toggle: the menu label flips on tap, not after the round trip.
     const archivedOpt = useOptimistic<boolean>();
     const archived = archivedOpt.get(event.id, event.archived);
+    // The nav's "+" adds to this list, except when it's archived (read-only): then it falls back to the global sheet.
+    useAddAction(archived ? null : () => setAdding(true));
+    const toggleArchived = () => {
+        archivedOpt.set(event.id, !archived);
+        router.patch(
+            route('spending.events.update', event.id),
+            { archived: !archived },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: () => archivedOpt.clear(event.id),
+                onError: () => archivedOpt.clear(event.id),
+            },
+        );
+    };
     const monthlyOpt = useOptimistic<boolean>();
     const inMonthly = monthlyOpt.get(event.id, event.countInMonthly);
     // Mark-paid: the suggestion row disappears on tap (keyed from→to); the server re-derives balances.
@@ -347,21 +361,7 @@ export default function Event({
                         <Pencil className="size-4" /> {t('spending.rename_event')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                        onSelect={() => {
-                            archivedOpt.set(event.id, !archived);
-                            router.patch(
-                                route('spending.events.update', event.id),
-                                { archived: !archived },
-                                {
-                                    preserveScroll: true,
-                                    preserveState: true,
-                                    onSuccess: () => archivedOpt.clear(event.id),
-                                    onError: () => archivedOpt.clear(event.id),
-                                },
-                            );
-                        }}
-                    >
+                    <DropdownMenuItem onSelect={toggleArchived}>
                         <Archive className="size-4" /> {t(archived ? 'spending.unarchive_event' : 'spending.archive_event')}
                     </DropdownMenuItem>
                     {/* List-level "count in monthly spending": expenses without their own override follow it. */}
@@ -564,7 +564,9 @@ export default function Event({
         submit();
     };
 
+    // Archived lists are read-only (server: SpendEvent::assertWritable), so row taps don't open editors.
     const startEdit = (s: Spend) => {
+        if (archived) return;
         form.setData({
             amount: (s.amount / 100).toString(),
             currency: s.currency,
@@ -740,6 +742,7 @@ export default function Event({
         setRecording(true);
     };
     const startEditTransfer = (tr: Transfer) => {
+        if (archived) return;
         transferForm.clearErrors();
         transferForm.setData({ from_key: tr.fromKey, to_key: tr.toKey, amount: String(tr.amount / 100), note: tr.note ?? '', add_anyway: false });
         setEditingTransfer(tr.id);
@@ -1043,7 +1046,7 @@ export default function Event({
                                     <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
                                         {t('spending.transfers_between_you')}
                                     </h2>
-                                    {participants.length >= 2 && (
+                                    {participants.length >= 2 && !archived && (
                                         <button
                                             type="button"
                                             onClick={openRecord}
@@ -1056,7 +1059,7 @@ export default function Event({
                                 {visibleTransfers.length === 0 && (
                                     <div className="bg-surface-card text-muted-foreground rounded-xl border p-6 text-center text-sm">
                                         {t('spending.no_transfers_yet')}
-                                        {participants.length >= 2 && (
+                                        {participants.length >= 2 && !archived && (
                                             <button type="button" onClick={openRecord} className="text-primary ml-1 font-medium underline">
                                                 {t('spending.record_payment')}
                                             </button>
@@ -1174,9 +1177,11 @@ export default function Event({
                                                     <span className="text-primary font-medium">{s.to.name}</span>
                                                     <span className="text-primary ml-2 font-mono font-semibold tabular-nums">{fmt(s.amount)}</span>
                                                 </div>
-                                                <Button size="sm" variant="outline" onClick={() => markPaid(s)}>
-                                                    <Check className="size-4" /> {t('spending.mark_paid')}
-                                                </Button>
+                                                {!archived && (
+                                                    <Button size="sm" variant="outline" onClick={() => markPaid(s)}>
+                                                        <Check className="size-4" /> {t('spending.mark_paid')}
+                                                    </Button>
+                                                )}
                                             </div>
                                         ))}
                                     </section>
@@ -1304,7 +1309,20 @@ export default function Event({
                         )}
 
                         {/* EXPENSES — add / scan. Scan is only offered when the server has a Gemini key configured. */}
-                        {tab === 'expenses' && (
+                        {tab === 'expenses' && archived && (
+                            <div
+                                role="status"
+                                className="bg-surface-card flex flex-col gap-3 rounded-xl border p-4 text-sm sm:flex-row sm:items-center"
+                            >
+                                <span className="text-muted-foreground flex flex-1 items-center gap-2">
+                                    <Archive className="size-4 shrink-0" /> {t('spending.archived_notice')}
+                                </span>
+                                <Button variant="outline" size="sm" onClick={toggleArchived} className="shrink-0">
+                                    {t('spending.unarchive_event')}
+                                </Button>
+                            </div>
+                        )}
+                        {tab === 'expenses' && !archived && (
                             <div className="flex flex-col gap-2">
                                 {scanEnabled && (
                                     <>
@@ -1855,34 +1873,36 @@ export default function Event({
                                                             </div>
                                                         )}
                                                     </div>
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="text-muted-foreground size-8"
-                                                                aria-label={t('spending.spend_actions_aria')}
-                                                                onClick={(e) => e.stopPropagation()}
-                                                            >
-                                                                <MoreVertical className="size-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem onClick={() => startEdit(s)}>
-                                                                <Pencil className="size-4" /> {t('common.edit')}
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => duplicate(s)}>
-                                                                <Copy className="size-4" /> {t('spending.duplicate')}
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuSeparator />
-                                                            <DropdownMenuItem
-                                                                className="text-destructive focus:text-destructive"
-                                                                onClick={() => remove(s)}
-                                                            >
-                                                                <Trash2 className="size-4" /> {t('common.delete')}
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
+                                                    {!archived && (
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="text-muted-foreground size-8"
+                                                                    aria-label={t('spending.spend_actions_aria')}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                >
+                                                                    <MoreVertical className="size-4" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end">
+                                                                <DropdownMenuItem onClick={() => startEdit(s)}>
+                                                                    <Pencil className="size-4" /> {t('common.edit')}
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => duplicate(s)}>
+                                                                    <Copy className="size-4" /> {t('spending.duplicate')}
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuItem
+                                                                    className="text-destructive focus:text-destructive"
+                                                                    onClick={() => remove(s)}
+                                                                >
+                                                                    <Trash2 className="size-4" /> {t('common.delete')}
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    )}
                                                 </div>
                                             </div>
                                         ))}

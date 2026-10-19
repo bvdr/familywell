@@ -10,7 +10,7 @@ import { catLabel, categoryMap, type CategoryDef } from '@/lib/categories';
 import { useT } from '@/lib/i18n';
 import { currencyOptions, money, selectAllOnFocus } from '@/lib/money';
 import { Head, router, useForm } from '@inertiajs/react';
-import { Banknote, Pencil, Plus, Trash2, User } from 'lucide-react';
+import { Archive, Banknote, Pencil, Plus, Trash2, User } from 'lucide-react';
 import { FormEventHandler, useEffect, useMemo, useRef, useState } from 'react';
 
 type Guest = { id: number; name: string; role: 'viewer' | 'editor' };
@@ -27,7 +27,7 @@ type Spend = {
 type Balance = { id: string; name: string; net: number };
 type Suggestion = { from: { id: string; name: string }; to: { id: string; name: string }; amount: number };
 type Transfer = { id: number; from: string; to: string; amount: number; note: string | null; date: string };
-type EventT = { name: string; currency: string; total: number; categories: CategoryDef[]; currencies: string[] };
+type EventT = { name: string; currency: string; total: number; archived: boolean; categories: CategoryDef[]; currencies: string[] };
 
 type Props = {
     token: string;
@@ -112,6 +112,9 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
 
     const myKey = `g${me.id}`;
     const myBalance = balances.find((b) => b.id === myKey);
+    // Archived lists are read-only for everyone (server enforces it in SpendEvent::assertWritable), so
+    // even editors get no add/edit/record controls, just the notice below.
+    const canEdit = me.role === 'editor' && !event.archived;
 
     // One-click record of a suggested payment (records the exact suggested amount, no note).
     const markPaid = (s: Suggestion) => {
@@ -137,6 +140,12 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
                     {t('spending.change')}
                 </button>
             </div>
+
+            {event.archived && (
+                <div role="status" className="bg-surface-card text-muted-foreground flex items-center gap-2 rounded-xl border p-3 text-sm">
+                    <Archive className="size-4 shrink-0" /> {t('spending.archived_notice_guest')}
+                </div>
+            )}
 
             {/* Total + my standing */}
             <div className="bg-surface-dark text-text-inverse rounded-2xl p-5">
@@ -196,7 +205,7 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
                                     <span className="text-primary font-medium">{s.to.name}</span>
                                     <span className="text-primary ml-2 font-mono font-semibold tabular-nums">{money(s.amount, event.currency)}</span>
                                 </div>
-                                {me.role === 'editor' && involvesMe && (
+                                {canEdit && involvesMe && (
                                     <Button size="sm" variant="outline" onClick={() => markPaid(s)} className="shrink-0">
                                         {t('spending.mark_paid')}
                                     </Button>
@@ -211,7 +220,7 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
             <section className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                     <h2 className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('spending.transfers')}</h2>
-                    {me.role === 'editor' && balances.length >= 2 && (
+                    {canEdit && balances.length >= 2 && (
                         <button type="button" onClick={() => setSettling(true)} className="text-primary flex items-center gap-1 text-sm font-medium">
                             <Plus className="size-4" /> {t('spending.record')}
                         </button>
@@ -255,7 +264,7 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
                                 )}
                             </div>
                             {/* Editors manage only their own entries. */}
-                            {me.role === 'editor' && mine && (
+                            {canEdit && mine && (
                                 <div className="flex flex-col gap-1">
                                     <button
                                         onClick={() => setEditing(s)}
@@ -289,7 +298,7 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
             </section>
 
             {/* Editor add button */}
-            {me.role === 'editor' && (
+            {canEdit && (
                 <button
                     onClick={() => {
                         setEditing(null);
