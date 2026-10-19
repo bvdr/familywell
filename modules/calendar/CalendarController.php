@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Family;
 use App\Support\Calendar\CalendarSources;
 use App\Support\Modules\ModuleRegistry;
-use App\Support\Modules\Preview;
 use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
 use Carbon\CarbonImmutable;
@@ -32,11 +31,10 @@ class CalendarController extends Controller
             'zoom' => ['nullable', 'in:week,month,year'],
             'date' => ['nullable', 'date_format:Y-m-d'],
         ]);
-        // Calendar 1.1 preview: the last view picked is remembered per device, so opening the calendar lands where you
+        // The last view picked is remembered per device, so opening the calendar lands where you
         // left it with no client-side jump. A cookie the browser writes when you pick (pages/calendar/index.tsx), not
         // the session: the page's own background requests race the session write and could restore the old value.
-        // Only for the preview, which is the only UI that knows `week` / `year`.
-        if (Preview::on('calendar') && ! isset($q['view'])) {
+        if (! isset($q['view'])) {
             $remembered = $request->cookie('fw_calendar_view');
             if (in_array($remembered, ['week', 'month', 'timeline', 'timeline:week', 'timeline:month', 'timeline:year'], true)) {
                 [$q['view'], $rememberedZoom] = explode(':', $remembered.':');
@@ -70,7 +68,7 @@ class CalendarController extends Controller
     }
 
     /**
-     * Items for [from, to], for the infinite timeline (calendar 1.1 preview) to load the days it scrolls into. Same
+     * Items for [from, to], for the endless timeline to load the days it scrolls into. Same
      * sources, visibility and shape as the page's `items` prop; the range cap is Occurrences::MAX_RANGE_DAYS.
      */
     public function items(Request $request): JsonResponse

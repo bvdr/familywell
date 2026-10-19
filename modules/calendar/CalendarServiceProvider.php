@@ -138,7 +138,7 @@ class CalendarServiceProvider extends ServiceProvider
             ->name('calendar.')
             ->group(function () {
                 Route::get('/', [CalendarController::class, 'index'])->name('index');
-                // The infinite timeline (calendar 1.1 preview) loads more days as you scroll: items for a range, as JSON.
+                // The endless timeline loads more days as you scroll: items for a range, as JSON.
                 Route::get('/items', [CalendarController::class, 'items'])->name('items');
                 Route::post('/events', [CalendarController::class, 'store'])->name('events.store');
                 Route::get('/events/{event}', [CalendarController::class, 'show'])->name('events.show');
