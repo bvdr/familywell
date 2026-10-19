@@ -51,6 +51,7 @@ import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
+import { newClientKey, PendingAdds, send, useQueuedBought } from '@/lib/shopping-outbox';
 import { aisleIcon, bumpQuantity, getVoiceLang, LIST_COLORS, LIST_ICONS, listColor, listIcon, normalizeItemName } from '@/lib/shopping';
 import { type BreadcrumbItem } from '@/types';
 
@@ -175,7 +176,9 @@ export default function ListDetail({
     // background request + prop reload become authoritative. render THESE, not the raw server fields.
     const bought = useOptimistic<boolean>();
     const removed = useOptimistic<boolean>();
-    const isBought = (i: Item) => bought.get(i.id, i.bought);
+    // A tick queued offline (lib/shopping-outbox) wins over everything until it has synced.
+    const queuedBought = useQueuedBought();
+    const isBought = (i: Item) => queuedBought.get(i.id) ?? bought.get(i.id, i.bought);
     const isGone = (i: Item) => removed.get(i.id, false);
 
     const breadcrumbs: BreadcrumbItem[] = [
@@ -264,12 +267,14 @@ export default function ListDetail({
     const focusEmpty = focusStoreGroups.every((g) => g.aisles.length === 0);
     const doneItems = liveItems.filter((i) => isBought(i) && (focusStore === FOCUS_ALL || availableAt(i, focusStore)));
 
+    // Sends the new value, not the bare toggle: a queued tick that replays (or a fast double tap) sets the
+    // state instead of flipping it again. With no connection the tick waits in the outbox.
     const toggle = (item: Item) => {
-        bought.set(item.id, !isBought(item));
-        router.patch(
-            route('shopping.items.update', item.id),
-            {},
-            { preserveScroll: true, preserveState: true, onSuccess: () => bought.clear(item.id), onError: () => bought.clear(item.id) },
+        const next = !isBought(item);
+        bought.set(item.id, next);
+        send(
+            { kind: 'bought', key: newClientKey(), method: 'patch', url: route('shopping.items.update', item.id), data: { bought: next }, itemId: item.id },
+            { preserveScroll: true, preserveState: true, onFinish: () => bought.clear(item.id) },
         );
     };
     const remove = (item: Item) => {
@@ -357,12 +362,13 @@ export default function ListDetail({
     const addItem = (addAnyway = false) => {
         if (!draft.name.trim() || adding) return;
         setAdding(true);
-        router.post(
-            route('shopping.items.store', list.id),
-            { ...buildPayload(draft), add_anyway: addAnyway },
+        const data = { ...buildPayload(draft), add_anyway: addAnyway, client_key: newClientKey() };
+        send(
+            { kind: 'add', key: data.client_key, method: 'post', url: route('shopping.items.store', list.id), data, page: window.location.pathname, name: data.name },
             {
                 preserveScroll: true,
                 onSuccess: () => setEditingId(null),
+                onQueued: () => setEditingId(null),
                 onError: (errors) => setDupWarning(errors.add_anyway ?? null),
                 onFinish: () => setAdding(false),
             },
@@ -704,6 +710,8 @@ export default function ListDetail({
                     ))}
 
                     {liveItems.length === 0 && <p className="text-muted-foreground py-6 text-center text-sm">{t('shopping.no_items_yet')}</p>}
+
+                    <PendingAdds />
 
                     <div className="sticky bottom-4 flex flex-col gap-2">
                         <div className="flex gap-2">

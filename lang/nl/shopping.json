@@ -133,5 +133,7 @@
     "already_on_list": ":name staat al op deze lijst.",
     "add_anyway": "Toch toevoegen",
     "bump_to": "Verhoog naar :n",
-    "on_list_tag": "Staat al op lijst"
+    "on_list_tag": "Staat al op lijst",
+    "waiting_to_sync_one": ":n item wacht op synchronisatie",
+    "waiting_to_sync_other": ":n items wachten op synchronisatie"
 }

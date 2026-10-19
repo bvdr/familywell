@@ -29,6 +29,7 @@ import { identify, trackQueued } from './lib/analytics';
 import { setAppLocale } from './lib/i18n';
 import { loadModules, registerSlot } from './lib/modules';
 import { registerServiceWorker } from './lib/push';
+import { startShoppingOutbox } from './lib/shopping-outbox';
 
 declare global {
     const route: typeof routeFn;
@@ -88,6 +89,9 @@ router.on('navigate', (event) => {
 
 // This will set light / dark mode on load...
 initializeTheme();
+
+// Replay shopping ticks/adds made with no connection (lib/shopping-outbox), now and whenever we're back online.
+startShoppingOutbox();
 
 // Register the service worker so push notifications are received + clickable (no-op where unsupported).
 void registerServiceWorker();

@@ -15,6 +15,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -206,6 +207,7 @@ class ShoppingController extends Controller
             'list_id' => ['nullable', 'integer'],
             'alt_stores' => ['nullable', 'array'],
             'alt_stores.*' => ['string', 'max:120'],
+            'client_key' => ['nullable', 'string', 'max:64'], // see isReplay()
         ]);
 
         $list = null;
@@ -217,6 +219,9 @@ class ShoppingController extends Controller
         }
         $list ??= $this->defaultList($user);
         $this->warnIfDuplicate($request, $list, $data['name']);
+        if ($this->isReplay($request)) {
+            return back();
+        }
 
         $list->items()->create([
             'name' => $data['name'],
@@ -241,6 +246,18 @@ class ShoppingController extends Controller
     // list, so answer with a validation message on `add_anyway` instead of creating. It is NOT a block —
     // the client shows "X is already on this list" with Add anyway (re-posts with add_anyway=1), bump the
     // existing quantity, or cancel. Someone really can want milk on the list twice, so nothing is refused.
+    // The PWA queues adds made with no connection and replays them later (resources/js/lib/shopping-outbox.ts).
+    // A request can reach us and lose only its response, so the same add may arrive twice: each add carries a
+    // client_key, and a key seen in the last day is a replay that must not create a second row. Checked after
+    // the duplicate warning so a warned (422) attempt doesn't use up its key. Cache::add is atomic, so two
+    // copies racing each other still create one item.
+    private function isReplay(Request $request): bool
+    {
+        $key = $request->input('client_key');
+
+        return is_string($key) && $key !== '' && ! Cache::add("shopping-add:{$request->user()->id}:{$key}", true, now()->addDay());
+    }
+
     private function warnIfDuplicate(Request $request, ShoppingList $list, string $name): void
     {
         if ($request->boolean('add_anyway')) {
@@ -592,8 +609,12 @@ class ShoppingController extends Controller
             'store' => ['nullable', 'string', 'max:120'],           // primary shop; null => inherit list store
             'alt_stores' => ['nullable', 'array'],                  // also-available-at shops
             'alt_stores.*' => ['string', 'max:120'],
+            'client_key' => ['nullable', 'string', 'max:64'], // see isReplay()
         ]);
         $this->warnIfDuplicate($request, $list, $data['name']);
+        if ($this->isReplay($request)) {
+            return back();
+        }
 
         $list->items()->create([
             'name' => $data['name'],

@@ -133,5 +133,8 @@
     "already_on_list": ":name e deja pe această listă.",
     "add_anyway": "Adaugă oricum",
     "bump_to": "Crește la :n",
-    "on_list_tag": "Deja pe listă"
+    "on_list_tag": "Deja pe listă",
+    "waiting_to_sync_one": ":n produs așteaptă sincronizarea",
+    "waiting_to_sync_few": ":n produse așteaptă sincronizarea",
+    "waiting_to_sync_other": ":n de produse așteaptă sincronizarea"
 }
