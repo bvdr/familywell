@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { addDays, clip, daysBetween, filterItems, itemsOn, layoutWeek, shiftDate, timelineRows, weeksOf } from './calendar.ts';
+import { addDays, clip, daysBetween, filterItems, isOverdue, itemsOn, layoutWeek, shiftDate, timelineRows, weeksOf } from './calendar.ts';
 
 const item = (over) => ({
     source: 'calendar',
@@ -112,4 +112,14 @@ test('timelineRows breaks a same-start tie by title', () => {
         rows.map((r) => r.item.title),
         ['Art', 'Bake', 'Zoo'],
     );
+});
+
+test('isOverdue: open to-dos past their date; never done ones, events or birthdays', () => {
+    const today = '2026-10-19';
+    assert.equal(isOverdue(item({ kind: 'task', end: '2026-10-18' }), today), true);
+    assert.equal(isOverdue(item({ kind: 'task', end: '2026-10-19' }), today), false); // due today isn't late yet
+    assert.equal(isOverdue(item({ kind: 'task', end: '2026-10-18', done: true }), today), false);
+    assert.equal(isOverdue(item({ kind: 'vehicle_maintenance', end: '2026-10-01' }), today), true);
+    assert.equal(isOverdue(item({ kind: 'event', end: '2026-10-01' }), today), false);
+    assert.equal(isOverdue(item({ kind: 'birthday', end: '2026-10-01' }), today), false);
 });

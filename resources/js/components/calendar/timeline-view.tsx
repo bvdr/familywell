@@ -2,7 +2,7 @@ import { Link } from '@inertiajs/react';
 import { Fragment, useEffect, useRef, useState, type CSSProperties } from 'react';
 
 import { LucideIcon } from '@/components/lucide-icon';
-import { addDays, daysOf, itemKey, parseDay, timelineRows, ymd, type CalItem } from '@/lib/calendar';
+import { addDays, daysOf, isOverdue, itemKey, parseDay, timelineRows, ymd, type CalItem } from '@/lib/calendar';
 import { useLocale, useT } from '@/lib/i18n';
 import { itemTone } from '@/lib/tasks';
 
@@ -25,7 +25,8 @@ const pct = (n: number, total: number) => `${(n / total) * 100}%`;
 //    rows are about now; it comes back when you swipe to it (rows appear/disappear as you scroll, accepted).
 //  - Phones: each row carries its title as a small line at the top of the track, right of the icon column, faded
 //    until the item's bar is under it, then solid. The bar sits slimmer below that line (so they never overlap) and
-//    drops its own title there so the text never doubles. Desktop is unchanged.
+//    drops its own title there so the text never doubles.
+//  - Completed items are left out, and overdue ones (isOverdue: open to-dos past their date) are red.
 // When the preview ships, drop the `preview` checks and keep the new paths.
 const OLD_DAYS = 14;
 
@@ -33,7 +34,7 @@ export function TimelineView({ items, range, preview = false }: { items: CalItem
     const t = useT();
     const locale = useLocale();
     const days = daysOf(range.from, range.to);
-    const allRows = timelineRows(items, range.from, range.to);
+    const allRows = timelineRows(preview ? items.filter((i) => !i.done) : items, range.from, range.to);
     const todayIdx = days.indexOf(ymd(new Date()));
     const box = useRef<HTMLDivElement>(null);
     const track = useRef<HTMLDivElement>(null);
@@ -68,7 +69,9 @@ export function TimelineView({ items, range, preview = false }: { items: CalItem
         };
     }, [preview, days.length, range.from]);
 
-    const cutoff = addDays(ymd(new Date()), -OLD_DAYS);
+    const today = ymd(new Date());
+    const late = (i: CalItem) => preview && isOverdue(i, today);
+    const cutoff = addDays(today, -OLD_DAYS);
     const inView = (bars: (typeof allRows)[number]['bars'], from: number, to: number) =>
         bars.some((b) => b.offset <= to && b.offset + b.span - 1 >= from);
     const rows = preview && win ? allRows.filter((r) => r.bars.some((b) => b.item.end >= cutoff) || inView(r.bars, win[0], win[1])) : allRows;
@@ -105,7 +108,11 @@ export function TimelineView({ items, range, preview = false }: { items: CalItem
                             className="hover:bg-surface flex h-11 items-center justify-center gap-2 border-b px-3 text-sm sm:justify-start"
                         >
                             <LucideIcon name={item.icon} className="text-primary size-4 shrink-0" />
-                            <span className={`hidden truncate sm:inline ${item.done ? 'text-muted-foreground line-through' : ''}`}>{item.title}</span>
+                            <span
+                                className={`hidden truncate sm:inline ${item.done ? 'text-muted-foreground line-through' : ''} ${late(item) ? 'text-destructive' : ''}`}
+                            >
+                                {item.title}
+                            </span>
                         </Link>
                     ))}
                 </div>
@@ -150,7 +157,7 @@ export function TimelineView({ items, range, preview = false }: { items: CalItem
                                     <Link
                                         href={item.href}
                                         title={item.title}
-                                        className={`absolute top-1.5 flex h-8 items-center gap-1.5 overflow-hidden rounded-lg ${preview ? 'max-sm:top-5 max-sm:h-5 max-sm:rounded-md' : ''} text-sm font-medium whitespace-nowrap shadow-xs hover:brightness-95 ${span < SHORT ? 'justify-center px-0.5' : 'px-2'} ${itemTone(item.color)} ${item.done ? 'line-through opacity-60' : ''}`}
+                                        className={`absolute top-1.5 flex h-8 items-center gap-1.5 overflow-hidden rounded-lg ${preview ? 'max-sm:top-5 max-sm:h-5 max-sm:rounded-md' : ''} text-sm font-medium whitespace-nowrap shadow-xs hover:brightness-95 ${span < SHORT ? 'justify-center px-0.5' : 'px-2'} ${late(item) ? 'bg-destructive/15 text-destructive' : itemTone(item.color)} ${item.done ? 'line-through opacity-60' : ''}`}
                                         style={{ left: `calc(${pct(offset, days.length)} + 2px)`, width: `calc(${pct(span, days.length)} - 4px)` }}
                                     >
                                         <LucideIcon name={item.icon} className="size-4 shrink-0" />
@@ -160,7 +167,7 @@ export function TimelineView({ items, range, preview = false }: { items: CalItem
                                         24px); the row clips the label at the window's edge. */}
                                     {span < SHORT && (
                                         <span
-                                            className={`text-foreground pointer-events-none absolute top-1.5 flex h-8 items-center pl-1.5 text-sm whitespace-nowrap ${preview ? 'max-sm:hidden' : ''} ${item.done ? 'text-muted-foreground line-through' : ''}`}
+                                            className={`pointer-events-none absolute top-1.5 flex h-8 items-center pl-1.5 text-sm whitespace-nowrap ${late(item) ? 'text-destructive' : 'text-foreground'} ${preview ? 'max-sm:hidden' : ''} ${item.done ? 'text-muted-foreground line-through' : ''}`}
                                             style={{ left: pct(offset + span, days.length) }}
                                         >
                                             {item.title}
@@ -170,7 +177,7 @@ export function TimelineView({ items, range, preview = false }: { items: CalItem
                             ))}
                             {preview && (
                                 <span
-                                    className={`text-foreground pointer-events-none sticky left-14 z-[5] block w-max max-w-[calc(100vw-8rem)] truncate pt-0.5 text-xs leading-4 font-medium transition-opacity sm:hidden ${under(bars) ? 'opacity-100' : 'opacity-40'} ${first.done ? 'line-through' : ''}`}
+                                    className={`pointer-events-none sticky left-14 ${late(first) ? 'text-destructive' : 'text-foreground'} z-[5] block w-max max-w-[calc(100vw-8rem)] truncate pt-0.5 text-xs leading-4 font-medium transition-opacity sm:hidden ${under(bars) ? 'opacity-100' : 'opacity-40'} ${first.done ? 'line-through' : ''}`}
                                 >
                                     {first.title}
                                 </span>
