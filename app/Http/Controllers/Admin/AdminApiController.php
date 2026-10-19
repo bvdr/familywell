@@ -161,7 +161,7 @@ class AdminApiController extends Controller
         // Last activity = users.last_seen_at (web + MCP, see TrackLastSeen), falling back to the newest web
         // session for activity from before that column existed. One correlated subquery per row.
         return User::query()
-            ->select('users.id', 'users.name', 'users.email', 'users.email_verified_at', 'users.created_at', 'users.last_seen_at', 'users.last_seen_via', 'users.country')
+            ->select('users.id', 'users.name', 'users.email', 'users.email_verified_at', 'users.created_at', 'users.last_seen_at', 'users.last_seen_via', 'users.country', 'users.first_touch')
             ->selectSub(DB::table('sessions')->selectRaw('max(last_activity)')->whereColumn('sessions.user_id', 'users.id'), 'last_active')
             // The best plan across their families, as a rank (PLAN_RANK), so the list can colour subscribers. One
             // correlated subquery per row, like last_active.
@@ -191,6 +191,9 @@ class AdminApiController extends Controller
             ...self::lastActive($u),
             'familyCount' => (int) $u->families_count,
             'country' => $u->country, // ISO alpha-2 from Cloudflare, null until their first web visit since it was added
+            // Just the first touch's source for the list's Source column (the detail has the whole first touch).
+            // Null for users from before attribution existed (2026-10-10) or self-hosted installs.
+            'source' => $u->first_touch['source'] ?? null,
             'subscriptionStatus' => self::PLAN_RANK[(int) $u->plan_rank] ?? null,
             'lifetime' => (int) $u->plan_rank === 4,
         ];
