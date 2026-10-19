@@ -1,10 +1,11 @@
 import { Head, router } from '@inertiajs/react';
 import { CalendarDays, CalendarPlus, CalendarRange, ChartGantt, ChevronLeft, ChevronRight, Filter, Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { EventSheet } from '@/components/calendar/event-sheet';
 import { FeedSheet, type Subscription } from '@/components/calendar/feed-sheet';
 import { FilterSheet } from '@/components/calendar/filter-sheet';
+import { InfiniteTimeline, type TimelineHandle } from '@/components/calendar/infinite-timeline';
 import { MonthView } from '@/components/calendar/month-view';
 import { TimelineView } from '@/components/calendar/timeline-view';
 import { WeekView } from '@/components/calendar/week-view';
@@ -91,6 +92,11 @@ export default function CalendarIndex({
     const shown = filterItems(items, filter);
     const active = filter.people.length + filter.sources.length;
 
+    // The preview's endless timeline scrolls instead of loading another window: prev/next page through it, Today
+    // scrolls back, and the title follows the month on screen.
+    const endless = preview && view === 'timeline';
+    const strip = useRef<TimelineHandle>(null);
+    const [stripMonth, setStripMonth] = useState<string | null>(null);
     const go = (q: Partial<Pick<CalendarProps, 'view' | 'zoom' | 'date'>>) => {
         if (q.date) setSelected(q.date);
         router.get(
@@ -103,7 +109,7 @@ export default function CalendarIndex({
     const remember = (v: string) => {
         document.cookie = `fw_calendar_view=${v}; path=/; max-age=31536000; samesite=lax`;
     };
-    const label = new Date(date + 'T12:00').toLocaleDateString(
+    const label = new Date((endless && stripMonth ? stripMonth : date) + 'T12:00').toLocaleDateString(
         locale,
         view === 'timeline' && zoom === 'year' ? { year: 'numeric' } : { month: 'long', year: 'numeric' },
     );
@@ -118,14 +124,24 @@ export default function CalendarIndex({
                         variant="ghost"
                         size="icon"
                         aria-label={t('calendar.previous')}
-                        onClick={() => go({ date: shiftDate(view, zoom, date, -1) })}
+                        onClick={() => (endless ? strip.current?.scrollPage(-1) : go({ date: shiftDate(view, zoom, date, -1) }))}
                     >
                         <ChevronLeft className="size-5" />
                     </Button>
-                    <Button variant="outline" size="sm" className="rounded-full" onClick={() => go({ date: todayYmd })}>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-full"
+                        onClick={() => (endless ? strip.current?.scrollToToday() : go({ date: todayYmd }))}
+                    >
                         {t('calendar.today')}
                     </Button>
-                    <Button variant="ghost" size="icon" aria-label={t('calendar.next')} onClick={() => go({ date: shiftDate(view, zoom, date, 1) })}>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={t('calendar.next')}
+                        onClick={() => (endless ? strip.current?.scrollPage(1) : go({ date: shiftDate(view, zoom, date, 1) }))}
+                    >
                         <ChevronRight className="size-5" />
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => setFiltering(true)}>
@@ -189,7 +205,11 @@ export default function CalendarIndex({
                     </div>
                 )}
                 {view === 'timeline' ? (
-                    <TimelineView items={shown} range={range} preview={preview} />
+                    endless ? (
+                        <InfiniteTimeline key={zoom} ref={strip} items={items} range={range} zoom={zoom} filter={filter} onMonth={setStripMonth} />
+                    ) : (
+                        <TimelineView items={shown} range={range} />
+                    )
                 ) : view === 'week' ? (
                     <WeekView items={shown} range={range} onAdd={add} />
                 ) : (
