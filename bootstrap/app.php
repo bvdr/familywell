@@ -40,6 +40,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // the container is only reachable through the LB, never directly.
         $middleware->trustProxies(at: '*');
 
+        // Written by the browser (calendar view picker, CalendarController::index), so it can't be encrypted. It only
+        // ever holds a view name, which the server checks against a fixed list before using.
+        $middleware->encryptCookies(except: ['fw_calendar_view']);
+
         // A visitor who isn't signed in lands on sign-up, not login: most people reaching familywell.co
         // are new (from familywell.org, Reddit, search), and the sign-up page links to login underneath.
         // Connecting Claude/ChatGPT (/oauth/authorize) is the exception: that's someone who already has

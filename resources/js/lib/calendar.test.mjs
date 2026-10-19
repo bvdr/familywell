@@ -123,3 +123,9 @@ test('isOverdue: open to-dos past their date; never done ones, events or birthda
     assert.equal(isOverdue(item({ kind: 'event', end: '2026-10-01' }), today), false);
     assert.equal(isOverdue(item({ kind: 'birthday', end: '2026-10-01' }), today), false);
 });
+
+test('shiftDate: the week view steps a week, the year timeline a year', () => {
+    assert.equal(shiftDate('week', 'month', '2026-10-19', 1), '2026-10-26');
+    assert.equal(shiftDate('timeline', 'year', '2026-10-19', -1), '2025-01-01');
+    assert.equal(shiftDate('timeline', 'year', '2026-10-19', 1), '2027-01-01');
+});

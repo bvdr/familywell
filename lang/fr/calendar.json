@@ -82,5 +82,8 @@
     "sub_url": "Lien du calendrier (ICS ou webcal)",
     "sub_adding": "Vérification du lien…",
     "sub_add_button": "Ajouter le calendrier",
-    "external_from": "De :name. Modifie-le dans ce calendrier ; ici il est en lecture seule."
+    "external_from": "De :name. Modifie-le dans ce calendrier ; ici il est en lecture seule.",
+    "year": "Année",
+    "view": "Vue",
+    "everyone": "Tout le monde"
 }

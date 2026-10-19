@@ -82,5 +82,8 @@
     "sub_url": "Agendalink (ICS of webcal)",
     "sub_adding": "Link controleren…",
     "sub_add_button": "Agenda toevoegen",
-    "external_from": "Uit :name. Wijzig het in die agenda; hier is het alleen-lezen."
+    "external_from": "Uit :name. Wijzig het in die agenda; hier is het alleen-lezen.",
+    "year": "Jaar",
+    "view": "Weergave",
+    "everyone": "Iedereen"
 }

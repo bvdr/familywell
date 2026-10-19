@@ -82,5 +82,8 @@
     "sub_url": "Kalender-Link (ICS oder Webcal)",
     "sub_adding": "Link wird geprüft…",
     "sub_add_button": "Kalender hinzufügen",
-    "external_from": "Aus :name. Änderungen dort vornehmen; hier ist der Termin schreibgeschützt."
+    "external_from": "Aus :name. Änderungen dort vornehmen; hier ist der Termin schreibgeschützt.",
+    "year": "Jahr",
+    "view": "Ansicht",
+    "everyone": "Alle"
 }

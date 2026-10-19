@@ -1,3 +1,6 @@
+import { Contact, UserRound } from 'lucide-react';
+
+import { Picker } from '@/components/picker';
 import { Button } from '@/components/ui/button';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { type CalFilter } from '@/lib/calendar';
@@ -14,6 +17,7 @@ export function FilterSheet({
     sources,
     members,
     contacts,
+    preview = false,
 }: {
     open: boolean;
     onOpenChange: (v: boolean) => void;
@@ -22,6 +26,7 @@ export function FilterSheet({
     sources: string[];
     members: Named[];
     contacts: Named[];
+    preview?: boolean;
 }) {
     const t = useT();
     const toggle = (key: 'people' | 'sources', v: string) =>
@@ -58,39 +63,60 @@ export function FilterSheet({
                         ))}
                     </div>
                 </div>
-                <div className="flex flex-col gap-2">
-                    <span className="text-muted-foreground text-sm">{t('calendar.members')}</span>
-                    <div className="flex flex-wrap gap-2">
-                        {members.map((m) => (
-                            <button
-                                key={m.id}
-                                type="button"
-                                aria-pressed={value.people.includes(`user:${m.id}`)}
-                                className={chip(value.people.includes(`user:${m.id}`))}
-                                onClick={() => toggle('people', `user:${m.id}`)}
-                            >
-                                {m.name}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-                {contacts.length > 0 && (
+                {/* Calendar 1.1 preview: one searchable dropdown for family + contacts, instead of a chip per person
+                    (a family with 40 contacts filled the sheet with chips). When the preview ships, keep only this. */}
+                {preview ? (
                     <div className="flex flex-col gap-2">
-                        <span className="text-muted-foreground text-sm">{t('calendar.contacts')}</span>
-                        <div className="flex flex-wrap gap-2">
-                            {contacts.map((c) => (
-                                <button
-                                    key={c.id}
-                                    type="button"
-                                    aria-pressed={value.people.includes(`person:${c.id}`)}
-                                    className={chip(value.people.includes(`person:${c.id}`))}
-                                    onClick={() => toggle('people', `person:${c.id}`)}
-                                >
-                                    {c.name}
-                                </button>
-                            ))}
-                        </div>
+                        <span className="text-muted-foreground text-sm">{t('calendar.people')}</span>
+                        <Picker
+                            multi
+                            ariaLabel={t('calendar.people')}
+                            placeholder={t('calendar.everyone')}
+                            selected={value.people}
+                            onChange={(people) => onChange({ ...value, people })}
+                            options={[
+                                ...members.map((m) => ({ value: `user:${m.id}`, label: m.name, hint: t('calendar.members'), icon: UserRound })),
+                                ...contacts.map((c) => ({ value: `person:${c.id}`, label: c.name, hint: t('calendar.contacts'), icon: Contact })),
+                            ]}
+                        />
                     </div>
+                ) : (
+                    <>
+                        <div className="flex flex-col gap-2">
+                            <span className="text-muted-foreground text-sm">{t('calendar.members')}</span>
+                            <div className="flex flex-wrap gap-2">
+                                {members.map((m) => (
+                                    <button
+                                        key={m.id}
+                                        type="button"
+                                        aria-pressed={value.people.includes(`user:${m.id}`)}
+                                        className={chip(value.people.includes(`user:${m.id}`))}
+                                        onClick={() => toggle('people', `user:${m.id}`)}
+                                    >
+                                        {m.name}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        {contacts.length > 0 && (
+                            <div className="flex flex-col gap-2">
+                                <span className="text-muted-foreground text-sm">{t('calendar.contacts')}</span>
+                                <div className="flex flex-wrap gap-2">
+                                    {contacts.map((c) => (
+                                        <button
+                                            key={c.id}
+                                            type="button"
+                                            aria-pressed={value.people.includes(`person:${c.id}`)}
+                                            className={chip(value.people.includes(`person:${c.id}`))}
+                                            onClick={() => toggle('people', `person:${c.id}`)}
+                                        >
+                                            {c.name}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
         </ResponsiveModal>
