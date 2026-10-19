@@ -129,3 +129,8 @@ export function timelineRows(items: CalItem[], from: string, to: string): { key:
         })
         .sort((a, b) => a.bars[0].offset - b.bars[0].offset || a.item.title.localeCompare(b.item.title));
 }
+
+// Kinds that are something to get done by a date, as opposed to something that happens on it (an event, a birthday):
+// past their date and still open, they're overdue. A car document past its expiry date has expired, which counts.
+const ACTIONABLE = new Set(['task', 'vehicle_maintenance', 'vehicle_document']);
+export const isOverdue = (i: CalItem, today: string) => ACTIONABLE.has(i.kind) && !i.done && i.end < today;
