@@ -8,6 +8,7 @@ use App\Mcp\Tools\GetToday;
 use App\Models\Family;
 use App\Models\OAuthClient;
 use App\Models\User;
+use App\Support\Mcp\McpRegistrar;
 use App\Support\Mcp\McpTools;
 use App\Support\Mcp\ScopeRepository;
 use App\Support\Modules\Hooks;
@@ -19,6 +20,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Inertia\Inertia;
+use Laravel\Mcp\Server\Registrar;
 use Laravel\Passport\Bridge\ScopeRepository as PassportScopeRepository;
 use Laravel\Passport\Client;
 use Laravel\Passport\Passport;
@@ -47,6 +49,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->when(AuthorizeController::class)
             ->needs(StatefulGuard::class)
             ->give(fn () => Auth::guard(config('passport.guard')));
+        // Adds bearer_methods_supported to the protected-resource discovery document (see McpRegistrar).
+        $this->app->singleton(Registrar::class, McpRegistrar::class);
     }
 
     /**
