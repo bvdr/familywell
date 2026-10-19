@@ -243,5 +243,8 @@
     "record_anyway": "Record anyway",
     "edit_transfer": "Edit payment",
     "delete_transfer": "Delete payment",
-    "confirm_delete_transfer": "Delete this payment? You can restore it from Recently deleted for 30 days."
+    "confirm_delete_transfer": "Delete this payment? You can restore it from Recently deleted for 30 days.",
+    "list_archived": "This list is archived, so nothing can be added or changed.",
+    "archived_notice": "This list is archived. Unarchive it to add or change expenses.",
+    "archived_notice_guest": "This list is archived. Nothing can be added or changed."
 }

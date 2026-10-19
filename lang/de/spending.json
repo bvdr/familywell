@@ -243,5 +243,8 @@
     "record_anyway": "Trotzdem erfassen",
     "edit_transfer": "Zahlung bearbeiten",
     "delete_transfer": "Zahlung löschen",
-    "confirm_delete_transfer": "Diese Zahlung löschen? Du kannst sie 30 Tage lang aus „Zuletzt gelöscht“ wiederherstellen."
+    "confirm_delete_transfer": "Diese Zahlung löschen? Du kannst sie 30 Tage lang aus „Zuletzt gelöscht“ wiederherstellen.",
+    "list_archived": "Diese Liste ist archiviert, daher kann nichts hinzugefügt oder geändert werden.",
+    "archived_notice": "Diese Liste ist archiviert. Hol sie aus dem Archiv, um Ausgaben hinzuzufügen oder zu ändern.",
+    "archived_notice_guest": "Diese Liste ist archiviert. Es kann nichts hinzugefügt oder geändert werden."
 }

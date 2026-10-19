@@ -14,6 +14,7 @@ use App\Support\Translations;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Validation\ValidationException;
 
 class SpendEvent extends Model implements ProvidesGuestView, ProvidesPublicShareView
 {
@@ -145,6 +146,21 @@ class SpendEvent extends Model implements ProvidesGuestView, ProvidesPublicShare
         }
 
         return $names;
+    }
+
+    /**
+     * An archived list is read-only for everyone: members, guests, MCP and imports. Spend and
+     * SpendSettlement call this from their model events, so every write path goes through one check.
+     * Why: on 2026-10-19 a stranger used a list's old, open guest link (archived since 2026-08-25) to
+     * add a EUR 2.3M spend. Before this, archiving only hid a list from the dashboard and pickers.
+     * Ids are looked up without the family scope because the caller already holds the row.
+     */
+    public static function assertWritable(array $eventIds): void
+    {
+        $ids = array_values(array_filter($eventIds));
+        if ($ids && static::withoutGlobalScopes()->whereKey($ids)->whereNotNull('archived_at')->exists()) {
+            throw ValidationException::withMessages(['archived' => Translations::get('spending.list_archived')]);
+        }
     }
 
     /**
@@ -293,6 +309,7 @@ class SpendEvent extends Model implements ProvidesGuestView, ProvidesPublicShare
                     'name' => $this->name,
                     'currency' => $this->currency,
                     'total' => (int) $spends->sum('base_amount'),
+                    'archived' => $this->archived_at !== null, // read-only: the page hides every write control
                     // The family's dynamic categories (guest context has the event's family scope set).
                     'categories' => SpendCategory::payloadFor((int) $this->family_id),
                     'currencies' => SpendingController::CURRENCIES,

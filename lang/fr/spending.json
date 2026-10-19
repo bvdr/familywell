@@ -243,5 +243,8 @@
     "record_anyway": "Enregistrer quand même",
     "edit_transfer": "Modifier le paiement",
     "delete_transfer": "Supprimer le paiement",
-    "confirm_delete_transfer": "Supprimer ce paiement ? Tu peux le restaurer depuis Supprimés récemment pendant 30 jours."
+    "confirm_delete_transfer": "Supprimer ce paiement ? Tu peux le restaurer depuis Supprimés récemment pendant 30 jours.",
+    "list_archived": "Cette liste est archivée, rien ne peut être ajouté ni modifié.",
+    "archived_notice": "Cette liste est archivée. Désarchivez-la pour ajouter ou modifier des dépenses.",
+    "archived_notice_guest": "Cette liste est archivée. Rien ne peut être ajouté ni modifié."
 }

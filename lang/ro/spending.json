@@ -244,5 +244,8 @@
     "record_anyway": "Înregistrează oricum",
     "edit_transfer": "Editează plata",
     "delete_transfer": "Șterge plata",
-    "confirm_delete_transfer": "Ștergi această plată? O poți restaura din Șterse recent timp de 30 de zile."
+    "confirm_delete_transfer": "Ștergi această plată? O poți restaura din Șterse recent timp de 30 de zile.",
+    "list_archived": "Această listă este arhivată, deci nu se poate adăuga sau modifica nimic.",
+    "archived_notice": "Această listă este arhivată. Dezarhiveaz-o ca să adaugi sau să modifici cheltuieli.",
+    "archived_notice_guest": "Această listă este arhivată. Nu se poate adăuga sau modifica nimic."
 }

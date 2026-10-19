@@ -20,6 +20,21 @@ class SpendSettlement extends Model
 
     protected $casts = ['amount' => 'integer'];
 
+    protected static function booted(): void
+    {
+        // Archived lists are read-only (SpendEvent::assertWritable); same rules as Spend::booted.
+        static::saving(function (self $row) {
+            if (! $row->isDirty('deleted_at')) {
+                SpendEvent::assertWritable([$row->spend_event_id, $row->getOriginal('spend_event_id')]);
+            }
+        });
+        static::deleting(function (self $row) {
+            if (! $row->isForceDeleting()) {
+                SpendEvent::assertWritable([$row->spend_event_id]);
+            }
+        });
+    }
+
     public function event(): BelongsTo
     {
         return $this->belongsTo(SpendEvent::class, 'spend_event_id');

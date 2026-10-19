@@ -43,6 +43,20 @@ class Spend extends Model
 
     protected static function booted(): void
     {
+        // Archived lists are read-only (SpendEvent::assertWritable). Checks the list it's in AND the one
+        // it was in, so it can't be moved into or out of an archived list either. A trash restore
+        // (deleted_at changing) is allowed: it puts back what was there. Trash purge (force delete) too.
+        static::saving(function (self $row) {
+            if (! $row->isDirty('deleted_at')) {
+                SpendEvent::assertWritable([$row->spend_event_id, $row->getOriginal('spend_event_id')]);
+            }
+        });
+        static::deleting(function (self $row) {
+            if (! $row->isForceDeleting()) {
+                SpendEvent::assertWritable([$row->spend_event_id]);
+            }
+        });
+
         // Every create path (add, quick-add, duplicate, guest add, receipt scan) funnels through here:
         // an expense left in "Other" gets an AI category guess after the response (see SpendAutoCategorizer).
         static::created(fn (self $spend) => SpendAutoCategorizer::queue($spend));

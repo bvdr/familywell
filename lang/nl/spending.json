@@ -243,5 +243,8 @@
     "record_anyway": "Toch vastleggen",
     "edit_transfer": "Betaling bewerken",
     "delete_transfer": "Betaling verwijderen",
-    "confirm_delete_transfer": "Deze betaling verwijderen? Je kunt hem 30 dagen terugzetten via Onlangs verwijderd."
+    "confirm_delete_transfer": "Deze betaling verwijderen? Je kunt hem 30 dagen terugzetten via Onlangs verwijderd.",
+    "list_archived": "Deze lijst is gearchiveerd, dus er kan niets worden toegevoegd of gewijzigd.",
+    "archived_notice": "Deze lijst is gearchiveerd. Haal hem uit het archief om uitgaven toe te voegen of te wijzigen.",
+    "archived_notice_guest": "Deze lijst is gearchiveerd. Er kan niets worden toegevoegd of gewijzigd."
 }
