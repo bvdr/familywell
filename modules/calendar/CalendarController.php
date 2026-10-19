@@ -50,6 +50,8 @@ class CalendarController extends Controller
             'contacts' => $this->contactOptions(),
             'projects' => $this->projectOptions($request),
             'feedUrl' => CalendarFeed::urlFor($request->user()->id), // Task 10; null until then
+            // Other calendars for the Calendars sheet. A closure, so date navigation (partial reloads of items) skips it.
+            'subscriptions' => fn () => CalendarSubscriptionController::listFor($request->user()->id),
         ]);
     }
 

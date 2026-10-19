@@ -15,6 +15,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Modules\Calendar\CalendarEvent;
+use Modules\Calendar\CalendarSubscription;
+use Modules\Calendar\CalendarSubscriptionEvent;
 use Modules\Contacts\Person;
 use Modules\ExpenseImport\ImportBatch;
 use Modules\ExpenseImport\Importer;
@@ -614,6 +616,15 @@ class DemoSeeder extends Seeder
                 'start_time' => $from, 'end_time' => $to, 'repeat' => $repeat, 'people' => $people,
             ]));
         }
+
+        // An "other calendar" (ICS subscription, issue #222) Sarah shared with the family. Its rows are written here
+        // so seeding never needs the network; the hourly calendar:sync-subscriptions swaps in the real US holidays.
+        $holidays = CalendarSubscription::create([
+            'user_id' => $sarah->id, 'name' => 'US holidays', 'color' => 'amber', 'timezone' => 'America/Los_Angeles', 'shared' => true,
+            'url' => 'https://calendar.google.com/calendar/ical/en.usa%23holiday%40group.v.calendar.google.com/public/basic.ics',
+        ]);
+        CalendarSubscriptionEvent::insert(array_map(fn (array $e) => ['subscription_id' => $holidays->id, 'title' => $e[0], 'notes' => 'Public holiday',
+            'location' => null, 'start_date' => $e[1], 'end_date' => $e[1], 'start_time' => null, 'end_time' => null], [['Bank holiday', $day(3)], ['School holiday', $day(19)]]));
     }
 
     private function recipes(): void
