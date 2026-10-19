@@ -6,6 +6,9 @@ use Illuminate\Support\Facades\DB;
 
 class ModuleRegistry
 {
+    /** @var list<string>|null module ids marked "preview" in module.json, see enabledIds(). A singleton, so once per process. */
+    private ?array $previewIds = null;
+
     public function __construct(protected string $modulesPath) {}
 
     public function discover(): array
@@ -62,7 +65,15 @@ class ModuleRegistry
                 ->pluck('module_id')->all());
         }
 
-        return $bag->get($key);
+        // A module still in preview ("preview": true in module.json) is off for everyone not opted in to it, so its
+        // nav link, routes (EnsureModuleEnabled) and hooks all stay hidden through this one check. Read after the
+        // memo, since the person can differ per request while the family's set doesn't.
+        // ponytail: in console there's no person, so a preview module is off for scheduled commands too; fine while
+        // it's a preview, give it a family-level switch if one ever needs jobs before release.
+        // The list is read once per process: module.json files only change on deploy, which restarts it.
+        $preview = $this->previewIds ??= array_keys(array_filter($this->discover(), fn (ModuleManifest $m) => $m->preview));
+
+        return $preview === [] ? $bag->get($key) : array_values(array_filter($bag->get($key), fn ($id) => ! in_array($id, $preview, true) || Preview::on($id)));
     }
 
     /** Drop the per-request memo after a toggle so the same request sees the new state. */

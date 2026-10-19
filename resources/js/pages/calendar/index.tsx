@@ -13,6 +13,7 @@ import { useAddAction } from '@/lib/add-action';
 import { filterItems, shiftDate, ymd, type CalFilter, type CalItem } from '@/lib/calendar';
 import { openNewOnArrival } from '@/lib/create-intent';
 import { useLocale, useT } from '@/lib/i18n';
+import { usePreview } from '@/lib/preview';
 
 const FILTER_KEY = 'familywell:calendarFilter';
 const readFilter = (): CalFilter => {
@@ -82,6 +83,9 @@ export default function CalendarIndex({
             /* private mode: not remembered */
         }
     };
+    // Calendar 1.1 preview (App\Support\Modules\Preview): the timeline hides old rows while they're off-screen and
+    // labels rows on phones, see TimelineView `preview`.
+    const preview = usePreview('calendar');
     const shown = filterItems(items, filter);
     const active = filter.people.length + filter.sources.length;
 
@@ -132,10 +136,15 @@ export default function CalendarIndex({
                     and the server answers with the matching range. */}
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <Segmented value={view} options={['month', 'timeline'] as const} onChange={(v) => go({ view: v })} />
-                    {view === 'timeline' && <Segmented value={zoom} options={['week', 'month'] as const} onChange={(z) => go({ zoom: z })} />}
+                    <div className="ml-auto flex items-center gap-2">
+                        {preview && view === 'timeline' && (
+                            <span className="bg-accent-subtle text-primary rounded-full px-2 py-0.5 text-xs font-medium">{t('common.preview')}</span>
+                        )}
+                        {view === 'timeline' && <Segmented value={zoom} options={['week', 'month'] as const} onChange={(z) => go({ zoom: z })} />}
+                    </div>
                 </div>
                 {view === 'timeline' ? (
-                    <TimelineView items={shown} range={range} />
+                    <TimelineView items={shown} range={range} preview={preview} />
                 ) : (
                     <MonthView items={shown} range={range} date={date} selected={selected} onSelect={setSelected} onAdd={add} />
                 )}

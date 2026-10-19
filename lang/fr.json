@@ -2,6 +2,7 @@
     "common": {
         "save": "Enregistrer",
         "cancel": "Annuler",
+        "preview": "Aperçu",
         "delete": "Supprimer",
         "create": "Créer",
         "add": "Ajouter",
