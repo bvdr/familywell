@@ -176,7 +176,7 @@ export default function CalendarIndex({
                                 }}
                             />
                         )}
-                        <span className="bg-accent-subtle text-primary ml-auto rounded-full px-2 py-0.5 text-xs font-medium">
+                        <span className="bg-accent-subtle text-primary ml-auto hidden rounded-full px-2 py-0.5 text-xs font-medium sm:inline">
                             {t('common.preview')}
                         </span>
                     </div>
