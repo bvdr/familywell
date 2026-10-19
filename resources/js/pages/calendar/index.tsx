@@ -172,7 +172,7 @@ export default function CalendarIndex({
                                 onChange={([v]) => {
                                     if (!v) return;
                                     const next = v as CalendarProps['view'];
-                                    remember(next === 'timeline' ? `timeline:${zoom}` : next);
+                                    remember(next);
                                     go({ view: next });
                                 }}
                                 options={[
@@ -182,16 +182,6 @@ export default function CalendarIndex({
                                 ]}
                             />
                         </div>
-                        {view === 'timeline' && (
-                            <Segmented
-                                value={zoom}
-                                options={['week', 'month', 'year'] as const}
-                                onChange={(z) => {
-                                    remember(`timeline:${z}`);
-                                    go({ zoom: z });
-                                }}
-                            />
-                        )}
                         <span className="bg-accent-subtle text-primary ml-auto hidden rounded-full px-2 py-0.5 text-xs font-medium sm:inline">
                             {t('common.preview')}
                         </span>
@@ -206,7 +196,7 @@ export default function CalendarIndex({
                 )}
                 {view === 'timeline' ? (
                     endless ? (
-                        <InfiniteTimeline key={zoom} ref={strip} items={items} range={range} zoom={zoom} filter={filter} onMonth={setStripMonth} />
+                        <InfiniteTimeline ref={strip} items={items} range={range} filter={filter} onMonth={setStripMonth} />
                     ) : (
                         <TimelineView items={shown} range={range} />
                     )

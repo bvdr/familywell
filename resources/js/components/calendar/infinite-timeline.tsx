@@ -22,7 +22,8 @@ import { itemTone } from '@/lib/tasks';
 // The calendar 1.1 timeline (preview, see App\Support\Modules\Preview): one endless strip of days instead of a fixed
 // window. It starts on the server's range and loads more (/m/calendar/items) as you near either edge; days added on
 // the left shift the scroll position by their width, so the view doesn't jump. From feedback on the phone layout:
-//  - the week zoom shows 8 days on a phone (14 on desktop); month and year are denser zooms;
+//  - one scale: 8 days across a phone, 14 on desktop. No zoom: the strip is endless, so a "month" or "year" view only
+//    made the days smaller, and the feedback was to keep the days as they are;
 //  - the header corner names the month of the first visible day (OCT), with the year highlighted when it isn't this
 //    year, and a line marks where each month starts;
 //  - a Today button floats on the right whenever today is off-screen;
@@ -32,14 +33,12 @@ import { itemTone } from '@/lib/tasks';
 //  - phones: a faded title line on each row, solid while the item's bar is under it; completed items are hidden and
 //    overdue ones are red.
 
-type Zoom = 'week' | 'month' | 'year';
 export type TimelineHandle = { scrollPage: (dir: 1 | -1) => void; scrollToToday: () => void };
 
 const SHORT = 3; // bars under this many days carry only an icon; the title goes beside them
 const OLD_DAYS = 14;
-const CHUNK: Record<Zoom, number> = { week: 28, month: 62, year: 183 }; // days fetched per edge load
-const VISIBLE: Record<Exclude<Zoom, 'year'>, [phone: number, desktop: number]> = { week: [8, 14], month: [16, 31] };
-const YEAR_DAY_PX = 12;
+const CHUNK = 28; // days fetched per edge load
+const VISIBLE = { phone: 8, desktop: 14 }; // days across the visible track
 const isWeekend = (d: string) => [0, 6].includes(parseDay(d).getDay());
 
 async function fetchItems(from: string, to: string): Promise<CalItem[] | null> {
@@ -59,11 +58,10 @@ export const InfiniteTimeline = forwardRef<
     {
         items: CalItem[];
         range: { from: string; to: string };
-        zoom: Zoom;
         filter: CalFilter;
         onMonth?: (firstVisibleDay: string) => void;
     }
->(function InfiniteTimeline({ items: pageItems, range: pageRange, zoom, filter, onMonth }, ref) {
+>(function InfiniteTimeline({ items: pageItems, range: pageRange, filter, onMonth }, ref) {
     const t = useT();
     const locale = useLocale();
     const today = ymd(new Date());
@@ -91,21 +89,19 @@ export const InfiniteTimeline = forwardRef<
     const box = useRef<HTMLDivElement>(null);
     const nameCol = useRef<HTMLDivElement>(null);
 
-    // Day width: the zoom's number of days across the visible track (box minus the sticky name column).
+    // Day width: VISIBLE days across the visible track (box minus the sticky name column).
     const [dayW, setDayW] = useState(0); // 0 until measured: nothing scrolls before the real width is known
     useLayoutEffect(() => {
         const measure = () => {
             const b = box.current;
             if (!b) return;
-            if (zoom === 'year') return setDayW(YEAR_DAY_PX);
             const track = b.clientWidth - (nameCol.current?.offsetWidth ?? 48);
-            const [phone, desktop] = VISIBLE[zoom];
-            setDayW(Math.max(20, track / (window.innerWidth < 640 ? phone : desktop)));
+            setDayW(Math.max(20, track / (window.innerWidth < 640 ? VISIBLE.phone : VISIBLE.desktop)));
         };
         measure();
         window.addEventListener('resize', measure);
         return () => window.removeEventListener('resize', measure);
-    }, [zoom]);
+    }, []);
 
     // Scroll position → visible day window [first, last]; re-measured once per frame while scrolling.
     const [win, setWin] = useState<[number, number] | null>(null);
@@ -117,7 +113,7 @@ export const InfiniteTimeline = forwardRef<
         if (loading.current.left) return;
         loading.current.left = true;
         const was = spanRef.current.from;
-        const from = addDays(was, -CHUNK[zoom]);
+        const from = addDays(was, -CHUNK);
         const got = await fetchItems(from, addDays(was, -1));
         if (got && spanRef.current.from === was) {
             merge(got);
@@ -130,7 +126,7 @@ export const InfiniteTimeline = forwardRef<
         if (loading.current.right) return;
         loading.current.right = true;
         const was = spanRef.current.to;
-        const to = addDays(was, CHUNK[zoom]);
+        const to = addDays(was, CHUNK);
         const got = await fetchItems(addDays(was, 1), to);
         if (got && spanRef.current.to === was) {
             merge(got);
@@ -196,8 +192,8 @@ export const InfiniteTimeline = forwardRef<
         if (!b) return;
         if (todayIdx >= 0) return b.scrollTo({ left: Math.max(0, (todayIdx - 1) * dayW), behavior: 'smooth' });
         // Today isn't loaded (scrolled far away): start a fresh strip around it.
-        const from = addDays(today, -CHUNK[zoom]);
-        const to = addDays(today, CHUNK[zoom]);
+        const from = addDays(today, -CHUNK);
+        const to = addDays(today, CHUNK);
         void fetchItems(from, to).then((got) => {
             if (got) merge(got);
             scrollTo.current = today;
@@ -262,7 +258,7 @@ export const InfiniteTimeline = forwardRef<
                                 <div
                                     key={d}
                                     style={{ width: px(dayW) }}
-                                    className={`shrink-0 ${d.endsWith('-01') ? 'border-l' : ''} ${zoom !== 'year' && isWeekend(d) ? 'bg-foreground/[0.04]' : ''}`}
+                                    className={`shrink-0 ${d.endsWith('-01') ? 'border-l' : ''} ${isWeekend(d) ? 'bg-foreground/[0.04]' : ''}`}
                                 />
                             ))}
                         </div>
@@ -278,29 +274,14 @@ export const InfiniteTimeline = forwardRef<
                                 <div
                                     key={d}
                                     style={{ width: px(dayW) }}
-                                    className={`text-muted-foreground relative flex shrink-0 flex-col items-center justify-center text-xs tabular-nums ${d.endsWith('-01') ? 'border-l' : ''} ${zoom !== 'year' && isWeekend(d) ? 'bg-foreground/[0.04]' : ''}`}
+                                    className={`text-muted-foreground relative flex shrink-0 flex-col items-center justify-center text-xs tabular-nums ${d.endsWith('-01') ? 'border-l' : ''} ${isWeekend(d) ? 'bg-foreground/[0.04]' : ''}`}
                                 >
-                                    {zoom === 'year' ? (
-                                        d.endsWith('-01') && (
-                                            <span className="absolute left-1.5 whitespace-nowrap first-letter:uppercase">
-                                                {parseDay(d).toLocaleDateString(locale, { month: 'short' })}
-                                            </span>
-                                        )
-                                    ) : (
-                                        <>
-                                            <span className="text-[10px] uppercase">
-                                                {parseDay(d).toLocaleDateString(locale, { weekday: 'narrow' })}
-                                            </span>
-                                            <span
-                                                className={`flex size-6 items-center justify-center rounded-full ${i === todayIdx ? 'bg-primary text-primary-foreground font-semibold' : ''}`}
-                                            >
-                                                {Number(d.slice(8))}
-                                            </span>
-                                        </>
-                                    )}
-                                    {zoom === 'year' && i === todayIdx && (
-                                        <span className="bg-primary absolute bottom-1 left-1/2 size-1.5 -translate-x-1/2 rounded-full" />
-                                    )}
+                                    <span className="text-[10px] uppercase">{parseDay(d).toLocaleDateString(locale, { weekday: 'narrow' })}</span>
+                                    <span
+                                        className={`flex size-6 items-center justify-center rounded-full ${i === todayIdx ? 'bg-primary text-primary-foreground font-semibold' : ''}`}
+                                    >
+                                        {Number(d.slice(8))}
+                                    </span>
                                 </div>
                             ))}
                         </div>
@@ -313,10 +294,10 @@ export const InfiniteTimeline = forwardRef<
                                         <Link
                                             href={item.href}
                                             title={item.title}
-                                            className={`absolute top-1.5 flex h-8 items-center gap-1.5 overflow-hidden rounded-lg text-sm font-medium whitespace-nowrap shadow-xs hover:brightness-95 max-sm:top-5 max-sm:h-5 max-sm:rounded-md ${len < SHORT ? 'justify-center px-0.5' : 'px-2'} ${zoom === 'year' && len < SHORT ? 'border border-current/40' : ''} ${late(item) ? 'bg-destructive/15 text-destructive' : itemTone(item.color)}`}
+                                            className={`absolute top-1.5 flex h-8 items-center gap-1.5 overflow-hidden rounded-lg text-sm font-medium whitespace-nowrap shadow-xs hover:brightness-95 max-sm:top-5 max-sm:h-5 max-sm:rounded-md ${len < SHORT ? 'justify-center px-0.5' : 'px-2'} ${late(item) ? 'bg-destructive/15 text-destructive' : itemTone(item.color)}`}
                                             style={{ left: px(offset * dayW + 2), width: px(Math.max(4, len * dayW - 4)) }}
                                         >
-                                            {!(zoom === 'year' && len < SHORT) && <LucideIcon name={item.icon} className="size-4 shrink-0" />}
+                                            <LucideIcon name={item.icon} className="size-4 shrink-0" />
                                             {len >= SHORT && <span className="truncate max-sm:hidden">{item.title}</span>}
                                         </Link>
                                         {len < SHORT && (
