@@ -26,6 +26,7 @@
         "laravel/reverb": "^1.10",
         "laravel/tinker": "^2.10.1",
         "league/flysystem-aws-s3-v3": "^3.35",
+        "sabre/vobject": "^4.5",
         "tightenco/ziggy": "^2.4"
     },
     "require-dev": {

@@ -14,6 +14,7 @@ use App\Support\Tenancy\CurrentFamily;
 use App\Support\Translations;
 use App\Support\Trash\Trash;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
@@ -23,8 +24,18 @@ use Modules\Tasks\Task;
 
 class CalendarServiceProvider extends ServiceProvider
 {
+    public function register(): void
+    {
+        $this->commands([Console\SyncSubscriptions::class]);
+    }
+
     public function boot(Hooks $hooks): void
     {
+        // Other calendars (ICS subscriptions) refresh hourly; withoutOverlapping so a slow host can't stack runs.
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
+            $schedule->command('calendar:sync-subscriptions')->hourly()->withoutOverlapping();
+        });
+
         // Adding a CalendarEvent counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('calendar', CalendarEvent::class);
 
@@ -55,7 +66,8 @@ class CalendarServiceProvider extends ServiceProvider
                 people: $p[0]->assignee ? [['type' => 'user', 'id' => $p[0]->assignee->id, 'name' => $p[0]->assignee->name]] : [],
             ), CalendarEvent::datedTodos($userId, fn ($q) => $q->whereDate('due_date', '>=', $from)->whereDate('due_date', '<=', $to)));
 
-            return [...CalendarEvent::itemsFor($userId, $from, $to), ...$todos];
+            // Plus other calendars the person subscribed to, or that someone shared with the family (read-only).
+            return [...CalendarEvent::itemsFor($userId, $from, $to), ...$todos, ...CalendarSubscription::itemsFor($userId, $from, $to)];
         });
 
         // Today / This Week: occurrences overlapping today..end of week. An ongoing multi-day event appears ONCE,
@@ -135,6 +147,11 @@ class CalendarServiceProvider extends ServiceProvider
                 Route::patch('/tasks/{task}', [CalendarController::class, 'updateTask'])->name('tasks.update');
                 Route::delete('/tasks/{task}', [CalendarController::class, 'destroyTask'])->name('tasks.destroy');
                 Route::post('/feed', [CalendarFeedController::class, 'reset'])->name('feed.reset');
+                // Other calendars (ICS subscriptions). Adding one fetches a URL from our server, hence the throttle.
+                Route::post('/subscriptions', [CalendarSubscriptionController::class, 'store'])->middleware('throttle:10,1')->name('subscriptions.store');
+                Route::patch('/subscriptions/{subscription}', [CalendarSubscriptionController::class, 'update'])->name('subscriptions.update');
+                Route::delete('/subscriptions/{subscription}', [CalendarSubscriptionController::class, 'destroy'])->name('subscriptions.destroy');
+                Route::get('/external/{event}', [CalendarSubscriptionController::class, 'show'])->name('external.show');
             });
 
         // Two limits, not one: per-TOKEN (not guest IP) is the main guard — Google/Apple fetch every
