@@ -19,7 +19,7 @@ import {
 import { useLocale, useT } from '@/lib/i18n';
 import { itemTone } from '@/lib/tasks';
 
-// The calendar 1.1 timeline (preview, see App\Support\Modules\Preview): one endless strip of days instead of a fixed
+// The calendar timeline (1.1): one endless strip of days instead of a fixed
 // window. It starts on the server's range and loads more (/m/calendar/items) as you near either edge; days added on
 // the left shift the scroll position by their width, so the view doesn't jump. From feedback on the phone layout:
 //  - one scale: 8 days across a phone, 14 on desktop. No zoom: the strip is endless, so a "month" or "year" view only

@@ -7,7 +7,7 @@ import { daysOf, itemKey, itemsOn, parseDay, ymd, type CalItem } from '@/lib/cal
 import { useLocale, useT } from '@/lib/i18n';
 import { itemTone } from '@/lib/tasks';
 
-// Week view (calendar 1.1 preview): Monday..Sunday with every item of each day. Desktop: seven columns side by side;
+// Week view: Monday..Sunday with every item of each day. Desktop: seven columns side by side;
 // phones: the days stacked as a list, since seven columns of cards don't fit 390px. No hour grid on purpose: the
 // family calendar is mostly all-day things (trips, birthdays, due dates), and timed ones show their time in the card.
 export function WeekView({ items, range, onAdd }: { items: CalItem[]; range: { from: string; to: string }; onAdd: (day: string) => void }) {

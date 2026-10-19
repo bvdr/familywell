@@ -18,18 +18,16 @@ it('gives each view its window', function (string $view, string $zoom, array $ra
     'month grid: six weeks' => ['month', 'month', ['2026-09-28', '2026-11-08']],
 ]);
 
-it('opens on the remembered view for a preview user, and only for them', function () {
-    [, [$preview, $other]] = calendarFamily(['calendar']);
-    $preview->forceFill(['preview_modules' => ['calendar']])->save();
+it('opens on the remembered view for everyone; the URL wins and junk is ignored', function () {
+    [, [$user]] = calendarFamily(['calendar']);
 
-    actingAs($preview)->withUnencryptedCookie('fw_calendar_view', 'timeline:year')->get('/m/calendar?date=2026-10-21')
-        ->assertInertia(fn ($p) => $p->where('view', 'timeline')->where('zoom', 'year')->where('range.to', '2026-12-31'));
+    actingAs($user)->withUnencryptedCookie('fw_calendar_view', 'timeline')->get('/m/calendar?date=2026-10-21')
+        ->assertInertia(fn ($p) => $p->where('view', 'timeline'));
+    actingAs($user)->withUnencryptedCookie('fw_calendar_view', 'week')->get('/m/calendar?date=2026-10-21')
+        ->assertInertia(fn ($p) => $p->where('view', 'week')->where('range.from', '2026-10-19'));
     // An explicit view in the URL wins over the remembered one; junk in the cookie is ignored.
-    actingAs($preview)->withUnencryptedCookie('fw_calendar_view', 'timeline:year')->get('/m/calendar?view=week')->assertInertia(fn ($p) => $p->where('view', 'week'));
-    actingAs($preview)->withUnencryptedCookie('fw_calendar_view', 'bogus')->get('/m/calendar')->assertInertia(fn ($p) => $p->where('view', 'month'));
-
-    actingAs($other)->withUnencryptedCookie('fw_calendar_view', 'timeline:year')->get('/m/calendar')
-        ->assertInertia(fn ($p) => $p->where('view', 'month')->where('zoom', 'month'));
+    actingAs($user)->withUnencryptedCookie('fw_calendar_view', 'timeline')->get('/m/calendar?view=week')->assertInertia(fn ($p) => $p->where('view', 'week'));
+    actingAs($user)->withUnencryptedCookie('fw_calendar_view', 'bogus')->get('/m/calendar')->assertInertia(fn ($p) => $p->where('view', 'month'));
 });
 
 it('serves items for a range as JSON for the endless timeline, within the family and range cap', function () {

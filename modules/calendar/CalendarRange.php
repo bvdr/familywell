@@ -10,7 +10,7 @@ use Carbon\CarbonImmutable;
 //   timeline + week  two weeks from the Monday of `date`
 //   timeline + month the calendar month of `date`
 //   timeline + year  the calendar year of `date` (365/366 days, inside Occurrences::MAX_RANGE_DAYS)
-//   week             Monday..Sunday of `date` (calendar 1.1 preview)
+//   week             Monday..Sunday of `date` (the week view)
 final class CalendarRange
 {
     /** @return array{0: string, 1: string} */

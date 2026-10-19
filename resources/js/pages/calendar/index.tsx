@@ -7,7 +7,6 @@ import { FeedSheet, type Subscription } from '@/components/calendar/feed-sheet';
 import { FilterSheet } from '@/components/calendar/filter-sheet';
 import { InfiniteTimeline, type TimelineHandle } from '@/components/calendar/infinite-timeline';
 import { MonthView } from '@/components/calendar/month-view';
-import { TimelineView } from '@/components/calendar/timeline-view';
 import { WeekView } from '@/components/calendar/week-view';
 import { Picker } from '@/components/picker';
 import { Button } from '@/components/ui/button';
@@ -16,7 +15,6 @@ import { useAddAction } from '@/lib/add-action';
 import { filterItems, shiftDate, ymd, type CalFilter, type CalItem } from '@/lib/calendar';
 import { openNewOnArrival } from '@/lib/create-intent';
 import { useLocale, useT } from '@/lib/i18n';
-import { usePreview } from '@/lib/preview';
 
 const FILTER_KEY = 'familywell:calendarFilter';
 const readFilter = (): CalFilter => {
@@ -86,15 +84,12 @@ export default function CalendarIndex({
             /* private mode: not remembered */
         }
     };
-    // Calendar 1.1 preview (App\Support\Modules\Preview): the timeline hides old rows while they're off-screen and
-    // labels rows on phones, see TimelineView `preview`.
-    const preview = usePreview('calendar');
     const shown = filterItems(items, filter);
     const active = filter.people.length + filter.sources.length;
 
-    // The preview's endless timeline scrolls instead of loading another window: prev/next page through it, Today
-    // scrolls back, and the title follows the month on screen.
-    const endless = preview && view === 'timeline';
+    // The endless timeline scrolls instead of loading another window: prev/next page through it, Today scrolls back,
+    // and the title follows the month on screen.
+    const endless = view === 'timeline';
     const strip = useRef<TimelineHandle>(null);
     const [stripMonth, setStripMonth] = useState<string | null>(null);
     const go = (q: Partial<Pick<CalendarProps, 'view' | 'zoom' | 'date'>>) => {
@@ -157,49 +152,30 @@ export default function CalendarIndex({
                     </Button>
                 </div>
 
-                {/* View switch, plus the zoom on the timeline. Both are query params, so each tap is a partial reload
-                    and the server answers with the matching range. The calendar 1.1 preview: a View dropdown (week, month,
-                    timeline) that opens over the calendar, plus the timeline's week / month / year zoom beside it. Both are
-                    remembered per device (fw_calendar_view cookie, read by CalendarController::index). */}
-                {preview ? (
-                    <div className="flex flex-wrap items-center gap-2">
-                        <div className="w-40">
-                            <Picker
-                                searchable={false}
-                                floating
-                                ariaLabel={t('calendar.view')}
-                                selected={[view]}
-                                onChange={([v]) => {
-                                    if (!v) return;
-                                    const next = v as CalendarProps['view'];
-                                    remember(next);
-                                    go({ view: next });
-                                }}
-                                options={[
-                                    { value: 'week', label: t('calendar.week'), icon: CalendarRange },
-                                    { value: 'month', label: t('calendar.month'), icon: CalendarDays },
-                                    { value: 'timeline', label: t('calendar.timeline'), icon: ChartGantt },
-                                ]}
-                            />
-                        </div>
-                        <span className="bg-accent-subtle text-primary ml-auto hidden rounded-full px-2 py-0.5 text-xs font-medium sm:inline">
-                            {t('common.preview')}
-                        </span>
-                    </div>
-                ) : (
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                        <Segmented value={view as 'month' | 'timeline'} options={['month', 'timeline'] as const} onChange={(v) => go({ view: v })} />
-                        {view === 'timeline' && (
-                            <Segmented value={zoom as 'week' | 'month'} options={['week', 'month'] as const} onChange={(z) => go({ zoom: z })} />
-                        )}
-                    </div>
-                )}
+                {/* View dropdown (week, month, timeline), opening over the calendar. A query param, so each pick is a partial
+                    reload and the server answers with the matching range; remembered per device (fw_calendar_view cookie,
+                    read by CalendarController::index). The timeline has no zoom: it is endless, at one day size. */}
+                <div className="w-40">
+                    <Picker
+                        searchable={false}
+                        floating
+                        ariaLabel={t('calendar.view')}
+                        selected={[view]}
+                        onChange={([v]) => {
+                            if (!v) return;
+                            const next = v as CalendarProps['view'];
+                            remember(next);
+                            go({ view: next });
+                        }}
+                        options={[
+                            { value: 'week', label: t('calendar.week'), icon: CalendarRange },
+                            { value: 'month', label: t('calendar.month'), icon: CalendarDays },
+                            { value: 'timeline', label: t('calendar.timeline'), icon: ChartGantt },
+                        ]}
+                    />
+                </div>
                 {view === 'timeline' ? (
-                    endless ? (
-                        <InfiniteTimeline ref={strip} items={items} range={range} filter={filter} onMonth={setStripMonth} />
-                    ) : (
-                        <TimelineView items={shown} range={range} />
-                    )
+                    <InfiniteTimeline ref={strip} items={items} range={range} filter={filter} onMonth={setStripMonth} />
                 ) : view === 'week' ? (
                     <WeekView items={shown} range={range} onAdd={add} />
                 ) : (
@@ -222,29 +198,8 @@ export default function CalendarIndex({
                 sources={sources}
                 members={members}
                 contacts={contacts}
-                preview={preview}
             />
             <FeedSheet open={feedOpen} onOpenChange={setFeedOpen} url={feedUrl} subscriptions={subscriptions} />
         </AppLayout>
-    );
-}
-
-// Pill segmented control; labels are the calendar.<option> strings (month / timeline / week).
-function Segmented<T extends string>({ value, options, onChange }: { value: T; options: readonly T[]; onChange: (v: T) => void }) {
-    const t = useT();
-    return (
-        <div className="bg-surface-card flex rounded-full border p-0.5 text-sm">
-            {options.map((o) => (
-                <button
-                    key={o}
-                    type="button"
-                    aria-pressed={value === o}
-                    onClick={() => value !== o && onChange(o)}
-                    className={`rounded-full px-3 py-1 transition-colors ${value === o ? 'bg-accent-subtle text-primary font-medium' : 'text-muted-foreground hover:text-primary'}`}
-                >
-                    {t(`calendar.${o}`)}
-                </button>
-            ))}
-        </div>
     );
 }
