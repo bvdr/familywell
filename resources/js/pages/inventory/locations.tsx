@@ -1,4 +1,4 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Check, ChevronRight, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
@@ -12,6 +12,7 @@ import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
 import { byKey, locLabel, type InvLocation } from '@/lib/inventory';
+import { save } from '@/lib/save';
 import type { BreadcrumbItem } from '@/types';
 
 // A location card carries its item tallies plus the DB id used by the manage endpoints.
@@ -71,11 +72,13 @@ function LocationRow({ l, canManage, locMap }: { l: LocRow; canManage: boolean; 
     const icon = useOptimistic<string | null>();
     const label = useOptimistic<string>();
     const removed = useOptimistic<boolean>();
-    const settle = (o: { clear: (id: number) => void }) => ({ onSuccess: () => o.clear(l.id), onError: () => o.clear(l.id) });
+    // lib/save: the request can't be cancelled by the next tap, and the overlay clears once the reload shows the real value.
+    const send = (method: 'patch' | 'delete', url: string, o: { clear: (id: number) => void }, data?: object) =>
+        void save(method, url, data).then(() => o.clear(l.id));
 
     const changeIcon = (next: string | null) => {
         icon.set(l.id, next);
-        router.patch(route('inventory.locations.update', l.id), { icon: next }, { preserveScroll: true, preserveState: true, ...settle(icon) });
+        send('patch', route('inventory.locations.update', l.id), icon, { icon: next });
     };
 
     const startEdit = () => {
@@ -87,7 +90,7 @@ function LocationRow({ l, canManage, locMap }: { l: LocRow; canManage: boolean; 
         if (trimmed === '') return;
         label.set(l.id, trimmed);
         setEditing(false); // close now; a failed save clears the overlay and the old name returns
-        router.patch(route('inventory.locations.update', l.id), { name: trimmed }, { preserveScroll: true, preserveState: true, ...settle(label) });
+        send('patch', route('inventory.locations.update', l.id), label, { name: trimmed });
     };
 
     const remove = () => {
@@ -96,7 +99,7 @@ function LocationRow({ l, canManage, locMap }: { l: LocRow; canManage: boolean; 
             return;
         }
         removed.set(l.id, true);
-        router.delete(route('inventory.locations.destroy', l.id), { preserveScroll: true, preserveState: true, ...settle(removed) });
+        send('delete', route('inventory.locations.destroy', l.id), removed);
     };
 
     if (removed.get(l.id, false)) return null;

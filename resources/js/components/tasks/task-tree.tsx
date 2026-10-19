@@ -12,7 +12,6 @@ import {
 } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { router } from '@inertiajs/react';
 import { Calendar, Check, Plus, Trash2, UserCircle2 } from 'lucide-react';
 import { type Ref, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -407,11 +406,12 @@ function EditTaskModal({
     const deleted = useRef(false);
 
     const patch = () =>
-        router.patch(
-            taskUrl(task.id),
-            { title: title.trim() || task.title, note: note.trim() || null, due_date: due || null, assigned_to: assigned },
-            { preserveScroll: true, preserveState: true },
-        );
+        void save('patch', taskUrl(task.id), {
+            title: title.trim() || task.title,
+            note: note.trim() || null,
+            due_date: due || null,
+            assigned_to: assigned,
+        });
     // Auto-save: debounce field changes; skip the initial mount values; flush on close (below).
     const first = useRef(true);
     useEffect(() => {
@@ -502,13 +502,12 @@ function EditTaskModal({
                 </div>
                 {/* Extension point: a module can inject extra editor fields for this task (e.g. an
                     "important" toggle). `onPatch` lets it persist through the same task endpoint —
-                    the primitive keeps ownership of the router. Renders nothing with no module. */}
+                    the primitive keeps ownership of the save. Renders nothing with no module. */}
                 <Slot
                     name="task.editor.fields"
                     ctx={{
                         task,
-                        onPatch: (data: Record<string, string | number | boolean | null>) =>
-                            router.patch(taskUrl(task.id), data, { preserveScroll: true, preserveState: true }),
+                        onPatch: (data: Record<string, string | number | boolean | null>) => void save('patch', taskUrl(task.id), data),
                     }}
                 />
                 <button

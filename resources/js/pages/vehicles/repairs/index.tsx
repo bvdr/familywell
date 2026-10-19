@@ -11,6 +11,7 @@ import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn, dayText } from '@/lib/i18n';
 import { fmtMileage, mileageText, vehicleTitle, type ProviderOption, type Repair, type RepairAttachment, type VehicleHeader, useCarMoney } from '@/lib/vehicles';
+import { save } from '@/lib/save';
 import type { BreadcrumbItem } from '@/types';
 
 import ProviderPicker from '../provider-picker';
@@ -33,12 +34,7 @@ export default function VehicleRepairs({ vehicle, repairs, canExpense, providers
     const removeRepair = (repair: Repair) => {
         if (!confirm(t('vehicles.repair_delete_confirm'))) return;
         removed.set(repair.id, true);
-        router.delete(`/m/vehicles/${vehicle.id}/repairs/${repair.id}`, {
-            preserveScroll: true,
-            preserveState: true,
-            onSuccess: () => removed.clear(repair.id),
-            onError: () => removed.clear(repair.id),
-        });
+        void save('delete', `/m/vehicles/${vehicle.id}/repairs/${repair.id}`).then(() => removed.clear(repair.id));
     };
 
     const breadcrumbs: BreadcrumbItem[] = [

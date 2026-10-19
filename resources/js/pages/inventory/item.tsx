@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Check, Pencil, RefreshCw, ShoppingCart, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 
@@ -9,6 +9,7 @@ import AppLayout from '@/layouts/app-layout';
 import { appLocale, useT, type TFn } from '@/lib/i18n';
 import { byKey, catLabel, fmtNumber, locLabel, unitLabel, type InvCategory, type InvItem, type InvLocation } from '@/lib/inventory';
 import { relativeTime } from '@/lib/notifications';
+import { save } from '@/lib/save';
 import type { BreadcrumbItem } from '@/types';
 
 type HistoryEntry = { id: number; type: string; delta: number | null; user: string | null; at: string | null };
@@ -97,7 +98,7 @@ export default function InventoryItem({ item, categories, locations, shops, hist
                             label={t('inventory.add_to_shopping')}
                             onClick={() => {
                                 setOptAdded(true); // instant "added" state; reconcile below
-                                router.post(route('inventory.items.shopping', item.id), {}, { preserveScroll: true, preserveState: true, onFinish: () => setOptAdded(false) });
+                                void save('post', route('inventory.items.shopping', item.id), {}).then(() => setOptAdded(false));
                             }}
                         />
                     )}

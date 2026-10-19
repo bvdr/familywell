@@ -9,6 +9,7 @@ import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import type { ListOption, MemberOption } from '@/lib/expense-import';
 import { useT } from '@/lib/i18n';
+import { save as saveInBackground } from '@/lib/save';
 import type { BreadcrumbItem } from '@/types';
 
 type Settings = {
@@ -39,11 +40,7 @@ export default function ExpenseImportSettings({ settings, lists, members, canMan
     // Instant-save: each control sends only its own field; the switch flips at once and snaps back on failure.
     const save = (key: keyof Settings, value: string | boolean | number | null, field: string) => {
         opt.set(key, value);
-        router.patch(
-            route('expense_import.settings.update'),
-            { [field]: value },
-            { preserveScroll: true, preserveState: true, onSuccess: () => opt.clear(key), onError: () => opt.clear(key) },
-        );
+        void saveInBackground('patch', route('expense_import.settings.update'), { [field]: value }).then(() => opt.clear(key));
     };
 
     const copy = async () => {

@@ -1,10 +1,11 @@
-import { Head, router } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { useState } from 'react';
 
 import { Segmented } from '@/components/segmented';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn } from '@/lib/i18n';
+import { save as saveInBackground } from '@/lib/save';
 import { templateLabel, type SettingsTemplate, type UnitSystem, type VehicleSettings } from '@/lib/vehicles';
 import type { BreadcrumbItem } from '@/types';
 
@@ -32,7 +33,8 @@ export default function VehiclesSettings({ settings, unitSystems, canManage }: P
         { title: t('vehicles.settings'), href: route('vehicles.settings') },
     ];
 
-    const save = (patch: Patch) => router.patch(route('vehicles.settings.update'), patch, { preserveScroll: true });
+    // Template intervals keep their own input state; this only sends them (lib/save: the next tap can't cancel it).
+    const save = (patch: Patch) => void saveInBackground('patch', route('vehicles.settings.update'), patch);
 
     // Optimistic overlay for the instant controls (unit select + the three switches): the control flips
     // on tap and snaps back only if the save fails. Keyed by the settings prop name. Template intervals
@@ -42,12 +44,7 @@ export default function VehiclesSettings({ settings, unitSystems, canManage }: P
     const notify = (key: 'notifyMaintenance' | 'notifyDocuments' | 'notifyMileageMilestone') => opt.get(key, settings[key]) as boolean;
     const saveInstant = (key: string, value: string | boolean, patch: Patch) => {
         opt.set(key, value);
-        router.patch(route('vehicles.settings.update'), patch, {
-            preserveScroll: true,
-            preserveState: true,
-            onSuccess: () => opt.clear(key),
-            onError: () => opt.clear(key),
-        });
+        void saveInBackground('patch', route('vehicles.settings.update'), patch).then(() => opt.clear(key));
     };
 
     return (

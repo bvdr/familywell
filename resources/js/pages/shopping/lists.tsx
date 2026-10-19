@@ -14,6 +14,7 @@ import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
+import { save } from '@/lib/save';
 import { LIST_COLORS, LIST_ICONS, listColor, listIcon } from '@/lib/shopping';
 import { type BreadcrumbItem } from '@/types';
 
@@ -404,15 +405,8 @@ export default function Lists({
                                                 type="button"
                                                 onClick={() => {
                                                     archivedOpt.set(l.id, false);
-                                                    router.patch(
-                                                        route('shopping.lists.update', l.id),
-                                                        { archived: false },
-                                                        {
-                                                            preserveScroll: true,
-                                                            preserveState: true,
-                                                            onSuccess: () => archivedOpt.clear(l.id),
-                                                            onError: () => archivedOpt.clear(l.id),
-                                                        },
+                                                    void save('patch', route('shopping.lists.update', l.id), { archived: false }).then(() =>
+                                                        archivedOpt.clear(l.id),
                                                     );
                                                 }}
                                                 aria-label={t('shopping.restore_list')}

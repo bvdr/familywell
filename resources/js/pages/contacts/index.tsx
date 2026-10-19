@@ -11,6 +11,7 @@ import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
 import { Slot } from '@/lib/modules';
+import { save as saveInBackground } from '@/lib/save';
 import type { BreadcrumbItem } from '@/types';
 
 // A contact method (phone/email/…). `id` is present for existing rows loaded from the server.
@@ -50,12 +51,7 @@ export default function ContactsIndex({ people, contactTypes }: { people: Person
     const removePerson = (person: Person) => {
         removed.set(person.id, true);
         setEditing(null);
-        router.delete(route('contacts.people.destroy', person.id), {
-            preserveScroll: true,
-            preserveState: true,
-            onSuccess: () => removed.clear(person.id),
-            onError: () => removed.clear(person.id),
-        });
+        void saveInBackground('delete', route('contacts.people.destroy', person.id)).then(() => removed.clear(person.id));
     };
 
     const addPerson = () => {
@@ -201,7 +197,7 @@ function PersonModal({
                     ctx={{
                         person,
                         onPatch: (data: Record<string, string | number | boolean | null>) =>
-                            router.patch(route('contacts.people.update', person.id), data, { preserveScroll: true, preserveState: true }),
+                            void saveInBackground('patch', route('contacts.people.update', person.id), data),
                     }}
                 />
 

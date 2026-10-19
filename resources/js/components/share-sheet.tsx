@@ -2,6 +2,7 @@ import { MemberAvatar } from '@/components/member-avatar';
 import { Segmented } from '@/components/segmented';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useT } from '@/lib/i18n';
+import { save } from '@/lib/save';
 import { router } from '@inertiajs/react';
 import { Check, Copy, Link2, Lock, UserCheck, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -50,17 +51,17 @@ export function ShareSheet({
     const revert = () => setState(share);
     const setVisibility = (visibility: ShareState['visibility']) => {
         setState((s) => ({ ...s, visibility })); // optimistic
-        router.patch(`${base}/visibility`, { visibility }, { ...opts, onError: revert });
+        void save('patch', `${base}/visibility`, { visibility }).then((r) => r !== 'ok' && revert());
     };
     const setRole = (userId: number, role: ShareMember['role']) => {
         setState((s) => ({ ...s, members: s.members.map((m) => (m.id === userId ? { ...m, role } : m)) })); // optimistic
-        router.put(`${base}/members/${userId}`, { role }, { ...opts, onError: revert });
+        void save('put', `${base}/members/${userId}`, { role }).then((r) => r !== 'ok' && revert());
     };
     // Revoke a person's access (deletes their grant). In "invited"/"private" mode they lose access;
     // in "family" mode everyone can add regardless, so it only bites once you narrow visibility.
     const removeMember = (userId: number) => {
         setState((s) => ({ ...s, members: s.members.map((m) => (m.id === userId ? { ...m, role: null } : m)) })); // optimistic
-        router.delete(`${base}/members/${userId}`, { ...opts, onError: revert });
+        void save('delete', `${base}/members/${userId}`).then((r) => r !== 'ok' && revert());
     };
     const createLink = () => router.post(`${base}/link`, {}, opts);
     const copy = () => {

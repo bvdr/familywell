@@ -10,6 +10,7 @@ import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn, dayText } from '@/lib/i18n';
+import { save } from '@/lib/save';
 import {
     consumptionText,
     costPerDistanceText,
@@ -50,12 +51,7 @@ export default function VehicleFuel({ vehicle, unitSystem, entries, stats, canEx
     const removeEntry = (entry: FuelEntry) => {
         if (!confirm(t('vehicles.fuel_delete_confirm'))) return;
         removed.set(entry.id, true);
-        router.delete(`/m/vehicles/${vehicle.id}/fuel/${entry.id}`, {
-            preserveScroll: true,
-            preserveState: true,
-            onSuccess: () => removed.clear(entry.id),
-            onError: () => removed.clear(entry.id),
-        });
+        void save('delete', `/m/vehicles/${vehicle.id}/fuel/${entry.id}`).then(() => removed.clear(entry.id));
     };
 
     const breadcrumbs: BreadcrumbItem[] = [

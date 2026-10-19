@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useT, type TFn } from '@/lib/i18n';
 import { byKey, catLabel, fmtNumber, locLabel, unitLabel, type InvCategory, type InvItem, type InvLocation, type InvUnit } from '@/lib/inventory';
+import { save as saveInBackground } from '@/lib/save';
 
 // A field label styled like the rest of the app's form controls.
 function FieldLabel({ children }: { children: React.ReactNode }) {
@@ -396,16 +397,8 @@ export function QuickUpdateModal({
         const target = next;
         onOptimistic?.(target);
         onOpenChange(false);
-        router.post(
-            route('inventory.items.adjust', item.id),
-            { quantity: target },
-            {
-                preserveScroll: true,
-                preserveState: true,
-                onSuccess: () => onReconcile?.(),
-                onError: () => onReconcile?.(),
-            },
-        );
+        // lib/save: the next tap can't cancel it; onReconcile runs once the reload shows the real amount.
+        void saveInBackground('post', route('inventory.items.adjust', item.id), { quantity: target }).then(() => onReconcile?.());
     };
 
     return (

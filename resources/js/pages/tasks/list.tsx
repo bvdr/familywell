@@ -13,6 +13,7 @@ import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useAddAction } from '@/lib/add-action';
 import { useT } from '@/lib/i18n';
+import { save } from '@/lib/save';
 import { LIST_COLORS, LIST_ICONS, listColor, listIcon } from '@/lib/tasks';
 import { type BreadcrumbItem } from '@/types';
 
@@ -39,18 +40,13 @@ export default function ListDetail({ list, share, members, tasks }: { list: List
     const done = tasks.reduce((n, t) => n + (t.done ? 1 : 0) + t.subtasks.filter((s) => s.done).length, 0);
     const total = tasks.reduce((n, t) => n + 1 + t.subtasks.length, 0);
 
-    const patchList = (data: Record<string, string | number | boolean | null>) =>
-        router.patch(route('tasks.lists.update', list.id), data, { preserveScroll: true });
+    const patchList = (data: Record<string, string | number | boolean | null>) => void save('patch', route('tasks.lists.update', list.id), data);
     // Optimistic visibility: the lock icon + menu item flip on tap, snapping back only if the PATCH fails.
     const visibilityOpt = useOptimistic<string>();
     const visibility = visibilityOpt.get(list.id, list.visibility);
     const setVisibility = (v: string) => {
         visibilityOpt.set(list.id, v);
-        router.patch(
-            route('tasks.lists.update', list.id),
-            { visibility: v },
-            { preserveScroll: true, preserveState: true, onSuccess: () => visibilityOpt.clear(list.id), onError: () => visibilityOpt.clear(list.id) },
-        );
+        void save('patch', route('tasks.lists.update', list.id), { visibility: v }).then(() => visibilityOpt.clear(list.id));
     };
 
     const headerActions = (

@@ -1,5 +1,6 @@
 import { Segmented } from '@/components/segmented';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
+import { save } from '@/lib/save';
 import { router } from '@inertiajs/react';
 import { Check, Copy, Link2, Lock, LockOpen, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -56,7 +57,7 @@ export function GuestSheet({
 
     const toggle = (enabled: boolean) => {
         setState((s) => ({ ...s, enabled })); // optimistic
-        router.patch(base, { enabled }, { ...opts, onError: revert });
+        void save('patch', base, { enabled }).then((r) => r !== 'ok' && revert());
     };
     const savePassword = () => {
         router.patch(`${base}/password`, { password }, { ...opts, onSuccess: () => setPassword('') });
@@ -69,11 +70,11 @@ export function GuestSheet({
     };
     const setRole = (id: number, role: GuestPerson['role']) => {
         setState((s) => ({ ...s, guests: s.guests.map((g) => (g.id === id ? { ...g, role } : g)) })); // optimistic
-        router.patch(`${base}/guests/${id}`, { role }, { ...opts, onError: revert });
+        void save('patch', `${base}/guests/${id}`, { role }).then((r) => r !== 'ok' && revert());
     };
     const removeGuest = (id: number) => {
         setState((s) => ({ ...s, guests: s.guests.filter((g) => g.id !== id) })); // optimistic
-        router.delete(`${base}/guests/${id}`, { ...opts, onError: revert });
+        void save('delete', `${base}/guests/${id}`).then((r) => r !== 'ok' && revert());
     };
     const copy = () => {
         if (!state.url) return;

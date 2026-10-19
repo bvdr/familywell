@@ -1,6 +1,6 @@
 import { useAddAction } from '@/lib/add-action';
 import { openNewOnArrival } from '@/lib/create-intent';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { Archive, FolderKanban, Link2, Plus, RotateCcw } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
@@ -14,6 +14,7 @@ import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn } from '@/lib/i18n';
 import { PROJECT_STATUS_KEYS, projectStatus } from '@/lib/projects';
+import { save } from '@/lib/save';
 import { type BreadcrumbItem } from '@/types';
 
 type Member = { id: number; name: string };
@@ -157,15 +158,8 @@ export default function ProjectsIndex({ projects }: { projects: Project[] }) {
                                         type="button"
                                         onClick={() => {
                                             archivedOpt.set(p.id, false);
-                                            router.patch(
-                                                route('projects.update', p.id),
-                                                { archived: false },
-                                                {
-                                                    preserveScroll: true,
-                                                    preserveState: true,
-                                                    onSuccess: () => archivedOpt.clear(p.id),
-                                                    onError: () => archivedOpt.clear(p.id),
-                                                },
+                                            void save('patch', route('projects.update', p.id), { archived: false }).then(() =>
+                                                archivedOpt.clear(p.id),
                                             );
                                         }}
                                         aria-label={t('projects.restore_project')}

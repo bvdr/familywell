@@ -12,6 +12,7 @@ import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn } from '@/lib/i18n';
 import { relativeTime } from '@/lib/notifications';
 import { mileageText, vehicleTitle, type VehicleHeader, type VehicleNote } from '@/lib/vehicles';
+import { save } from '@/lib/save';
 import type { BreadcrumbItem } from '@/types';
 
 import VehicleNav from '../vehicle-nav';
@@ -32,12 +33,7 @@ export default function VehicleNotes({ vehicle, notes, canManage }: Props) {
     const removeNote = (note: VehicleNote) => {
         if (!confirm(t('vehicles.note_delete_confirm'))) return;
         removed.set(note.id, true);
-        router.delete(`/m/vehicles/${vehicle.id}/notes/${note.id}`, {
-            preserveScroll: true,
-            preserveState: true,
-            onSuccess: () => removed.clear(note.id),
-            onError: () => removed.clear(note.id),
-        });
+        void save('delete', `/m/vehicles/${vehicle.id}/notes/${note.id}`).then(() => removed.clear(note.id));
     };
 
     const breadcrumbs: BreadcrumbItem[] = [

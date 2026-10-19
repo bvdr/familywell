@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import {
     Cake,
     CalendarDays,
@@ -22,6 +22,7 @@ import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { useLocale, useT } from '@/lib/i18n';
+import { save } from '@/lib/save';
 
 type Item = {
     module: string;
@@ -61,11 +62,7 @@ export default function RecentlyDeleted({ items, days }: { items: Item[]; days: 
 
     const restore = (i: Item) => {
         restored.set(key(i), true);
-        router.post(
-            route('recently-deleted.restore', { module: i.module, type: i.type, id: i.id }),
-            {},
-            { preserveScroll: true, preserveState: true, onSuccess: () => restored.clear(key(i)), onError: () => restored.clear(key(i)) },
-        );
+        void save('post', route('recently-deleted.restore', { module: i.module, type: i.type, id: i.id }), {}).then(() => restored.clear(key(i)));
     };
 
     return (

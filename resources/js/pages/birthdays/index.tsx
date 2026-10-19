@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useLocale, useT } from '@/lib/i18n';
+import { save as saveInBackground } from '@/lib/save';
 import type { BreadcrumbItem } from '@/types';
 
 // A birthday row as the birthdays module serializes it. `year`, `age` and `turning` are null when the
@@ -123,12 +124,7 @@ export default function BirthdaysIndex({ birthdays }: { birthdays: Birthday[] })
     const remove = (b: Birthday) => {
         if (!confirm(t('birthdays.confirm_remove'))) return;
         removed.set(b.id, true);
-        router.delete(route('birthdays.destroy', b.id), {
-            preserveScroll: true,
-            preserveState: true,
-            onSuccess: () => removed.clear(b.id),
-            onError: () => removed.clear(b.id),
-        });
+        void saveInBackground('delete', route('birthdays.destroy', b.id)).then(() => removed.clear(b.id));
     };
 
     // Quick-add needs the server (a new person id), so it is not optimistic; the button locks while
@@ -261,7 +257,7 @@ function EditRow({
     });
     const save = () => {
         if (!complete(parts)) return;
-        router.patch(route('birthdays.update', birthday.id), payload(parts), { preserveScroll: true, preserveState: true });
+        void saveInBackground('patch', route('birthdays.update', birthday.id), payload(parts));
         onClose();
     };
     return (

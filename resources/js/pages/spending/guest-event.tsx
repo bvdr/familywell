@@ -9,6 +9,7 @@ import { useOptimistic } from '@/hooks/use-optimistic';
 import { catLabel, categoryMap, type CategoryDef } from '@/lib/categories';
 import { useT } from '@/lib/i18n';
 import { currencyOptions, money, selectAllOnFocus } from '@/lib/money';
+import { save } from '@/lib/save';
 import { Head, router, useForm } from '@inertiajs/react';
 import { Archive, Banknote, Pencil, Plus, Trash2, User } from 'lucide-react';
 import { FormEventHandler, useEffect, useMemo, useRef, useState } from 'react';
@@ -276,13 +277,9 @@ export default function GuestEvent({ token, event, guests, spends, balances, sug
                                     <button
                                         onClick={() => {
                                             removedOpt.set(s.id, true);
-                                            router.delete(`/m/spending/guest/${token}/spends/${s.id}`, {
-                                                data: { guest_id: me.id },
-                                                preserveScroll: true,
-                                                preserveState: true,
-                                                onSuccess: () => removedOpt.clear(s.id),
-                                                onError: () => removedOpt.clear(s.id),
-                                            });
+                                            void save('delete', `/m/spending/guest/${token}/spends/${s.id}`, { guest_id: me.id }).then(() =>
+                                                removedOpt.clear(s.id),
+                                            );
                                         }}
                                         aria-label={t('common.delete')}
                                         className="text-muted-foreground flex size-7 items-center justify-center hover:text-[var(--warning)]"

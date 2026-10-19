@@ -10,6 +10,7 @@ import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import type { TFn } from '@/lib/i18n';
 import type { PartRequest } from '@/lib/vehicles';
+import { save } from '@/lib/save';
 
 // The vehicle-level "Parts" card on the Overview: the parts requested/bought for this car (each a labelled
 // row on the family shopping list), with an "add part" modal. Shown whenever Shopping is on or the car
@@ -21,12 +22,7 @@ export function PartsSection({ vehicleId, parts, canShopping, t }: { vehicleId: 
     const visibleParts = parts.filter((p) => !removed.get(p.id, false));
     const removePart = (part: PartRequest) => {
         removed.set(part.id, true);
-        router.delete(`/m/vehicles/${vehicleId}/parts/${part.id}`, {
-            preserveScroll: true,
-            preserveState: true,
-            onSuccess: () => removed.clear(part.id),
-            onError: () => removed.clear(part.id),
-        });
+        void save('delete', `/m/vehicles/${vehicleId}/parts/${part.id}`).then(() => removed.clear(part.id));
     };
 
     if (!canShopping && parts.length === 0) return null;
