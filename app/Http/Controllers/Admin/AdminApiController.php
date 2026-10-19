@@ -55,8 +55,16 @@ class AdminApiController extends Controller
 
     public function users(Request $request): JsonResponse
     {
-        $rows = self::search($this->userQuery(), self::q($request), ['users.name', 'users.email'])
-            ->orderByDesc('users.created_at')->orderByDesc('users.id')
+        $query = $this->userQuery();
+        $rows = self::sorted(self::search($query, self::q($request), ['users.name', 'users.email']), $request, [
+            'name' => 'lower(users.name)', 'email' => 'lower(users.email)', 'country' => 'users.country',
+            // The grammar writes the JSON lookup for the driver (->> on Postgres, json_extract on SQLite).
+            'source' => $query->getQuery()->getGrammar()->wrap('users.first_touch->source'),
+            'familyCount' => 'families_count', 'subscription' => 'plan_rank', 'createdAt' => 'users.created_at',
+            // ponytail: last_seen_at only, not the old web-session fallback lastActive() adds; that fallback
+            // only matters for users unseen since last_seen_at shipped, who sort last anyway.
+            'lastActive' => 'users.last_seen_at',
+        ], 'users')
             ->offset((self::page($request) - 1) * self::PAGE)->limit(self::PAGE + 1)->get();
 
         return self::paged($rows, fn (User $u) => self::userItem($u));
@@ -83,8 +91,13 @@ class AdminApiController extends Controller
 
     public function families(Request $request): JsonResponse
     {
-        $rows = self::search($this->familyQuery(), self::q($request), ['families.name'])
-            ->orderByDesc('families.created_at')->orderByDesc('families.id')
+        $rows = self::sorted(self::search($this->familyQuery(), self::q($request), ['families.name', 'owners.name', 'owners.email']), $request, [
+            'name' => 'lower(families.name)', 'ownerName' => 'lower(owners.name)', 'memberCount' => 'members_count',
+            // Same order as the badge reads: lifetime, paid, past due, trial, none.
+            'subscription' => "case when families.access_override = '".Family::LIFETIME."' then 4 when families.subscription_status = 'active' then 3 when families.subscription_status = 'past_due' then 2 when families.subscription_status = 'trialing' then 1 else 0 end",
+            'engagement' => '(select count(*) from family_module_activity where family_module_activity.family_id = families.id)',
+            'createdAt' => 'families.created_at',
+        ], 'families')
             ->offset((self::page($request) - 1) * self::PAGE)->limit(self::PAGE + 1)->get();
         // Every family's module activity for this page in ONE query (the progress bar), not one per row.
         $activity = DB::table('family_module_activity')->whereIn('family_id', $rows->pluck('id'))->get()->groupBy('family_id');
@@ -242,6 +255,22 @@ class AdminApiController extends Controller
                 $w->orWhereRaw("lower({$column}) like ? escape '!'", [$like]);
             }
         });
+    }
+
+    // The admin tables sort on the server (a page holds 50 rows, so sorting in the browser only sorted
+    // that page). ?sort is the table's column id, looked up in $sorts (column id => SQL), so it can never
+    // inject SQL; unknown or missing = newest first. NULLs go last both ways so blanks never top the list.
+    // id breaks ties so paging stays stable.
+    private static function sorted(Builder $query, Request $request, array $sorts, string $table): Builder
+    {
+        $sort = $request->query('sort');
+        if (is_string($sort) && isset($sorts[$sort])) {
+            $query->orderByRaw($sorts[$sort].' '.($request->query('dir') === 'asc' ? 'asc' : 'desc').' nulls last');
+        } else {
+            $query->orderByDesc("{$table}.created_at");
+        }
+
+        return $query->orderByDesc("{$table}.id");
     }
 
     private static function q(Request $request): string
