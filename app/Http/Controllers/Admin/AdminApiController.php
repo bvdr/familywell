@@ -96,7 +96,7 @@ class AdminApiController extends Controller
             // Same order as the badge reads: lifetime, paid, past due, trial, none.
             'subscription' => "case when families.access_override = '".Family::LIFETIME."' then 4 when families.subscription_status = 'active' then 3 when families.subscription_status = 'past_due' then 2 when families.subscription_status = 'trialing' then 1 else 0 end",
             'engagement' => '(select count(*) from family_module_activity where family_module_activity.family_id = families.id)',
-            'createdAt' => 'families.created_at',
+            'createdAt' => 'families.created_at', 'lastActive' => 'last_active',
         ], 'families')
             ->offset((self::page($request) - 1) * self::PAGE)->limit(self::PAGE + 1)->get();
         // Every family's module activity for this page in ONE query (the progress bar), not one per row.
@@ -189,6 +189,10 @@ class AdminApiController extends Controller
         return Family::query()
             ->leftJoin('users as owners', 'owners.id', '=', 'families.owner_id')
             ->select('families.id', 'families.name', 'families.created_at', 'families.is_demo', 'families.subscription_status', 'families.stripe_customer_id', 'families.access_override', 'families.engaged_at', 'owners.name as owner_name')
+            // The family was last active when its most recently seen member was (users.last_seen_at, web + MCP).
+            // One correlated subquery per row, like the users list's last_active.
+            ->selectSub(DB::table('family_user')->join('users', 'users.id', '=', 'family_user.user_id')
+                ->whereColumn('family_user.family_id', 'families.id')->selectRaw('max(users.last_seen_at)'), 'last_active')
             ->withCount('members');
     }
 
@@ -229,7 +233,7 @@ class AdminApiController extends Controller
     {
         return [
             'id' => $f->id, 'name' => $f->name, 'ownerName' => $f->owner_name, 'memberCount' => (int) $f->members_count,
-            'createdAt' => self::iso($f->created_at), 'isDemo' => (bool) $f->is_demo,
+            'createdAt' => self::iso($f->created_at), 'lastActiveAt' => self::iso($f->last_active), 'isDemo' => (bool) $f->is_demo,
             // The Stripe customer id isn't a secret (it only works with our Stripe key); the admin links to it.
             'subscriptionStatus' => $f->subscription_status, 'stripeCustomerId' => $f->stripe_customer_id,
             'lifetime' => $f->access_override === Family::LIFETIME, // comped access (admin toggle below)

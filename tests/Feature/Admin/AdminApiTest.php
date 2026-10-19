@@ -150,7 +150,13 @@ it('sorts on the server by a whitelisted column, blanks last, newest first other
     Family::factory()->create(['name' => 'Free', 'created_at' => now()->subDay()]);
     $families = fn (string $qs) => collect($this->withToken($token)->getJson('/api/admin/families?'.$qs)->assertOk()->json('items'))->pluck('name')->all();
 
-    expect($families('sort=subscription&dir=desc'))->toBe(['Vip', 'Paid', 'Free'])
+    Family::where('name', 'Paid')->first()->members()->attach(User::factory()->create(['last_seen_at' => now()->subDays(5)]), ['role' => 'member']);
+    Family::where('name', 'Paid')->first()->members()->attach(User::factory()->create(['last_seen_at' => now()->subHour()]), ['role' => 'member']);
+    Family::where('name', 'Free')->first()->members()->attach(User::factory()->create(['last_seen_at' => now()->subDay()]), ['role' => 'member']);
+    $paid = collect($this->withToken($token)->getJson('/api/admin/families')->json('items'))->firstWhere('name', 'Paid');
+    expect(Carbon\Carbon::parse($paid['lastActiveAt'])->diffInMinutes(now()->subHour()))->toBeLessThan(1) // the newest member
+        ->and($families('sort=lastActive&dir=desc'))->toBe(['Paid', 'Free', 'Vip']) // never seen = last
+        ->and($families('sort=subscription&dir=desc'))->toBe(['Vip', 'Paid', 'Free'])
         ->and($families('q=zed@'))->toBe(['Vip']);
 });
 
