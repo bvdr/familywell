@@ -2,7 +2,7 @@
     "id": "calendar",
     "name": "Calendar",
     "description": "The family calendar: trips, conferences, appointments and holidays, with people and to-dos, next to task due dates, birthdays, car due dates and project starts. Month and timeline views, a subscribe link for Google/Apple Calendar.",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "provider": "Modules\\Calendar\\CalendarServiceProvider",
     "frontend": "",
     "requires": ["tasks", "contacts"]
