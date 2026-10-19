@@ -38,7 +38,7 @@ class CalendarController extends Controller
         // Only for the preview, which is the only UI that knows `week` / `year`.
         if (Preview::on('calendar') && ! isset($q['view'])) {
             $remembered = $request->cookie('fw_calendar_view');
-            if (in_array($remembered, ['week', 'month', 'timeline:week', 'timeline:month', 'timeline:year'], true)) {
+            if (in_array($remembered, ['week', 'month', 'timeline', 'timeline:week', 'timeline:month', 'timeline:year'], true)) {
                 [$q['view'], $rememberedZoom] = explode(':', $remembered.':');
                 $q['zoom'] ??= $rememberedZoom ?: null;
             }
