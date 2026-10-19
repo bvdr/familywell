@@ -9,6 +9,8 @@ use App\Support\Modules\ModuleRegistry;
 use App\Support\Modules\Preview;
 use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
+use Carbon\CarbonImmutable;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -65,6 +67,21 @@ class CalendarController extends Controller
             // Other calendars for the Calendars sheet. A closure, so date navigation (partial reloads of items) skips it.
             'subscriptions' => fn () => CalendarSubscriptionController::listFor($request->user()->id),
         ]);
+    }
+
+    /**
+     * Items for [from, to], for the infinite timeline (calendar 1.1 preview) to load the days it scrolls into. Same
+     * sources, visibility and shape as the page's `items` prop; the range cap is Occurrences::MAX_RANGE_DAYS.
+     */
+    public function items(Request $request): JsonResponse
+    {
+        $q = $request->validate([
+            'from' => ['required', 'date_format:Y-m-d'],
+            'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from'],
+        ]);
+        abort_if(CarbonImmutable::parse($q['from'])->diffInDays(CarbonImmutable::parse($q['to'])) > Occurrences::MAX_RANGE_DAYS, 422);
+
+        return response()->json(['items' => CalendarSources::collect($q['from'], $q['to'], $request->user()->id)]);
     }
 
     public function store(Request $request): RedirectResponse

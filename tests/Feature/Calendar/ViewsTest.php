@@ -31,3 +31,16 @@ it('opens on the remembered view for a preview user, and only for them', functio
     actingAs($other)->withUnencryptedCookie('fw_calendar_view', 'timeline:year')->get('/m/calendar')
         ->assertInertia(fn ($p) => $p->where('view', 'month')->where('zoom', 'month'));
 });
+
+it('serves items for a range as JSON for the endless timeline, within the family and range cap', function () {
+    [, [$user, $other]] = calendarFamily(['calendar']);
+    actingAs($user);
+    trip($user, ['title' => 'Mine', 'start_date' => '2027-02-03', 'end_date' => '2027-02-05']);
+    $secret = trip($other, ['title' => 'Secret', 'start_date' => '2027-02-04', 'end_date' => '2027-02-04']);
+    $secret->setVisibility('private');
+
+    $this->getJson('/m/calendar/items?from=2027-02-01&to=2027-02-28')->assertOk()
+        ->assertJsonPath('items.0.title', 'Mine')->assertJsonCount(1, 'items');
+    $this->getJson('/m/calendar/items?from=2027-02-01&to=2028-06-01')->assertStatus(422); // over the range cap
+    $this->getJson('/m/calendar/items?from=2027-02-10&to=2027-02-01')->assertStatus(422); // backwards
+});
