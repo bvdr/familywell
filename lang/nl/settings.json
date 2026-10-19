@@ -37,5 +37,9 @@
     "disconnect_social_confirm": ":provider ontkoppelen? Je kunt er dan niet meer mee inloggen.",
     "social_connected": ":provider gekoppeld. Je kunt er nu mee inloggen.",
     "delete_type_email": "Typ je e-mailadres om te bevestigen",
-    "delete_type_email_wrong": "Dat is niet je e-mailadres."
+    "delete_type_email_wrong": "Dat is niet je e-mailadres.",
+    "email_change_sent": "We hebben een code van 6 cijfers naar :email gestuurd. Typ hem hier om je e-mail te wijzigen; tot dan houd je je huidige.",
+    "email_change_confirm": "Nieuw e-mailadres bevestigen",
+    "email_change_cancel": "Huidig e-mailadres houden",
+    "email_taken": "Dat e-mailadres wordt al door een ander account gebruikt."
 }

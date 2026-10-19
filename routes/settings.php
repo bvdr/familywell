@@ -45,6 +45,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])->middleware('not-demo:email')->name('profile.update');
+    // Confirming a new email address with the code sent to it (ProfileController::update sends it).
+    Route::post('settings/profile/email', [ProfileController::class, 'confirmEmail'])->middleware(['not-demo:code', 'throttle:20,1'])->name('profile.email.confirm');
+    Route::delete('settings/profile/email', [ProfileController::class, 'cancelEmail'])->name('profile.email.cancel');
     Route::delete('settings/profile', [ProfileController::class, 'destroy'])->middleware('not-demo:email')->name('profile.destroy');
 
     Route::get('settings/sign-in', [SignInController::class, 'edit'])->name('sign-in.edit');

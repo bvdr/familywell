@@ -37,5 +37,9 @@
     "disconnect_social_confirm": "Disconnect :provider? You won't be able to sign in with it anymore.",
     "social_connected": ":provider connected. You can now sign in with it.",
     "delete_type_email": "Type your email address to confirm",
-    "delete_type_email_wrong": "That isn't your email address."
+    "delete_type_email_wrong": "That isn't your email address.",
+    "email_change_sent": "We sent a 6-digit code to :email. Type it here to switch your email; until then you keep your current one.",
+    "email_change_confirm": "Confirm new email",
+    "email_change_cancel": "Keep my current email",
+    "email_taken": "That email is already used by another account."
 }

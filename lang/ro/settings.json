@@ -37,5 +37,9 @@
     "disconnect_social_confirm": "Deconectezi :provider? Nu te vei mai putea autentifica cu el.",
     "social_connected": ":provider a fost conectat. Acum te poți autentifica cu el.",
     "delete_type_email": "Scrie adresa ta de email ca să confirmi",
-    "delete_type_email_wrong": "Aceasta nu e adresa ta de email."
+    "delete_type_email_wrong": "Aceasta nu e adresa ta de email.",
+    "email_change_sent": "Am trimis un cod de 6 cifre la :email. Scrie-l aici ca să schimbi emailul; până atunci îl păstrezi pe cel actual.",
+    "email_change_confirm": "Confirmă emailul nou",
+    "email_change_cancel": "Păstrez emailul actual",
+    "email_taken": "Emailul este deja folosit de alt cont."
 }

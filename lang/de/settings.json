@@ -37,5 +37,9 @@
     "disconnect_social_confirm": ":provider trennen? Du kannst dich dann nicht mehr damit anmelden.",
     "social_connected": ":provider verbunden. Du kannst dich jetzt damit anmelden.",
     "delete_type_email": "Gib zur Bestätigung deine E-Mail-Adresse ein",
-    "delete_type_email_wrong": "Das ist nicht deine E-Mail-Adresse."
+    "delete_type_email_wrong": "Das ist nicht deine E-Mail-Adresse.",
+    "email_change_sent": "Wir haben einen 6-stelligen Code an :email geschickt. Gib ihn hier ein, um deine E-Mail zu ändern; bis dahin bleibt deine bisherige.",
+    "email_change_confirm": "Neue E-Mail bestätigen",
+    "email_change_cancel": "Bisherige E-Mail behalten",
+    "email_taken": "Diese E-Mail wird schon von einem anderen Konto genutzt."
 }

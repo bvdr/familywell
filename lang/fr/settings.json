@@ -37,5 +37,9 @@
     "disconnect_social_confirm": "Déconnecter :provider ? Tu ne pourras plus te connecter avec.",
     "social_connected": ":provider est connecté. Tu peux maintenant te connecter avec.",
     "delete_type_email": "Tape ton adresse e-mail pour confirmer",
-    "delete_type_email_wrong": "Ce n'est pas ton adresse e-mail."
+    "delete_type_email_wrong": "Ce n'est pas ton adresse e-mail.",
+    "email_change_sent": "On a envoyé un code à 6 chiffres à :email. Tape-le ici pour changer d'e-mail ; d'ici là, tu gardes l'actuel.",
+    "email_change_confirm": "Confirmer le nouvel e-mail",
+    "email_change_cancel": "Garder mon e-mail actuel",
+    "email_taken": "Cet e-mail est déjà utilisé par un autre compte."
 }

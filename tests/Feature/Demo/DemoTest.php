@@ -308,8 +308,8 @@ it('blocks the demo owner from account takeover, invites, billing and public lin
     expect(Task::where('title', 'Demo visitor task')->exists())->toBeTrue();
 
     // A normal account is untouched by all of this.
-    actingAs($other)->patch('/settings/profile', ['name' => 'Real', 'email' => 'real-new@example.com'])->assertSessionHasNoErrors();
-    expect($other->fresh()->email)->toBe('real-new@example.com');
+    actingAs($other)->patch('/settings/profile', ['name' => 'Real', 'email' => $other->email])->assertSessionHasNoErrors();
+    expect($other->fresh()->name)->toBe('Real');
 });
 
 it('still lets a reviewer connect Claude as the demo owner and use the MCP tools', function () {
