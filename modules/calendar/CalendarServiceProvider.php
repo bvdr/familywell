@@ -97,7 +97,7 @@ class CalendarServiceProvider extends ServiceProvider
                 ->concat(array_map(fn (array $p) => [
                     'title' => $p[0]->title, 'subtitle' => $p[1]->title, 'href' => "/m/calendar/events/{$p[1]->id}", 'icon' => 'list-checks',
                     'dueDate' => $p[0]->due_date->toDateString(),
-                    'toggleUrl' => "/m/calendar/tasks/{$p[0]->id}", // empty-body PATCH toggles done
+                    'toggleUrl' => "/m/calendar/tasks/{$p[0]->id}", 'toggleBody' => ['done' => true], // the dashboard tick sends this: set done, never flip
                     'kind' => 'calendar_todo', 'id' => $p[0]->id, // get_today's widget ticks it via calendar_update_todo
                 ], CalendarEvent::datedTodos($userId, fn ($q) => $q->where('done', false)->whereDate('due_date', '<=', now()->endOfWeek()->toDateString()))))
                 ->values()->all();

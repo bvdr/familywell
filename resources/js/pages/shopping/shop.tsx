@@ -15,7 +15,7 @@ import AppLayout from '@/layouts/app-layout';
 import { useAddAction } from '@/lib/add-action';
 import { useT } from '@/lib/i18n';
 import { aisleIcon } from '@/lib/shopping';
-import { newClientKey, PendingAdds, send, useQueuedBought } from '@/lib/shopping-outbox';
+import { newClientKey, PendingAdds, saveTick, send, useQueuedBought } from '@/lib/shopping-outbox';
 import { type BreadcrumbItem } from '@/types';
 
 type Aisle = { slug: string; name: string; icon: string };
@@ -79,10 +79,14 @@ export default function ShopDetail({
     const toggle = (i: Item) => {
         const next = !isBought(i);
         boughtOpt.set(i.id, next);
-        send(
-            { kind: 'bought', key: newClientKey(), method: 'patch', url: route('shopping.items.update', i.id), data: { bought: next }, itemId: i.id },
-            { preserveScroll: true, preserveState: true, onFinish: () => boughtOpt.clear(i.id) },
-        );
+        void saveTick({
+            kind: 'bought',
+            key: newClientKey(),
+            method: 'patch',
+            url: route('shopping.items.update', i.id),
+            data: { bought: next },
+            itemId: i.id,
+        }).then(() => boughtOpt.clear(i.id));
     };
 
     // Item editor: null = closed, 0 = new item at this shop, >0 = editing that id.

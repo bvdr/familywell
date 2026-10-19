@@ -119,7 +119,7 @@ class ProjectsServiceProvider extends ServiceProvider
                         'href' => "/m/projects/{$project->id}",
                         'icon' => 'folder-kanban',
                         'dueDate' => $t->due_date->toDateString(),
-                        'toggleUrl' => "/m/projects/tasks/{$t->id}", // empty-body PATCH toggles done
+                        'toggleUrl' => "/m/projects/tasks/{$t->id}", 'toggleBody' => ['done' => true], // the dashboard tick sends this: set done, never flip
                         'kind' => 'project_task', // kind + id: get_today's widget ticks it off via the MCP tool
                         'id' => $t->id,
                     ];
