@@ -97,7 +97,7 @@ export default function InventoryItem({ item, categories, locations, shops, hist
                             label={t('inventory.add_to_shopping')}
                             onClick={() => {
                                 setOptAdded(true); // instant "added" state; reconcile below
-                                router.post(route('inventory.items.shopping', item.id), {}, { preserveScroll: true, preserveState: true, onError: () => setOptAdded(false) });
+                                router.post(route('inventory.items.shopping', item.id), {}, { preserveScroll: true, preserveState: true, onFinish: () => setOptAdded(false) });
                             }}
                         />
                     )}
