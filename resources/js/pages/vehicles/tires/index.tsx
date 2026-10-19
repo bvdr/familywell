@@ -12,6 +12,7 @@ import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn, dayText } from '@/lib/i18n';
 import { distanceText, mileageText, tireSeasonLabel, vehicleTitle, type TireSet, type UnitSystem, type VehicleHeader } from '@/lib/vehicles';
+import { save } from '@/lib/save';
 import type { BreadcrumbItem } from '@/types';
 
 import VehicleNav from '../vehicle-nav';
@@ -38,21 +39,12 @@ export default function VehicleTires({ vehicle, unitSystem, sets, canRemind }: P
     const isMounted = (s: TireSet) => (optMountedId !== null ? s.id === optMountedId : s.isMounted);
     const mountSet = (s: TireSet) => {
         setOptMountedId(s.id);
-        router.post(
-            `/m/vehicles/${vehicle.id}/tires/${s.id}/mount`,
-            {},
-            { preserveScroll: true, preserveState: true, onFinish: () => setOptMountedId(null) },
-        );
+        void save('post', `/m/vehicles/${vehicle.id}/tires/${s.id}/mount`, {}).then(() => setOptMountedId(null));
     };
     const removeSet = (s: TireSet) => {
         if (!confirm(t('vehicles.tire_delete_confirm'))) return;
         removed.set(s.id, true);
-        router.delete(`/m/vehicles/${vehicle.id}/tires/${s.id}`, {
-            preserveScroll: true,
-            preserveState: true,
-            onSuccess: () => removed.clear(s.id),
-            onError: () => removed.clear(s.id),
-        });
+        void save('delete', `/m/vehicles/${vehicle.id}/tires/${s.id}`).then(() => removed.clear(s.id));
     };
 
     const breadcrumbs: BreadcrumbItem[] = [

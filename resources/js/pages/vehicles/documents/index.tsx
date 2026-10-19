@@ -12,6 +12,7 @@ import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn, dayText } from '@/lib/i18n';
 import { documentTypeLabel, mileageText, vehicleTitle, type VehicleDocument, type VehicleHeader } from '@/lib/vehicles';
+import { save } from '@/lib/save';
 import type { BreadcrumbItem } from '@/types';
 
 import VehicleNav from '../vehicle-nav';
@@ -33,12 +34,7 @@ export default function VehicleDocuments({ vehicle, documents, types, canTask }:
     const removeDocument = (document: VehicleDocument) => {
         if (!confirm(t('vehicles.document_delete_confirm'))) return;
         removed.set(document.id, true);
-        router.delete(`/m/vehicles/${vehicle.id}/documents/${document.id}`, {
-            preserveScroll: true,
-            preserveState: true,
-            onSuccess: () => removed.clear(document.id),
-            onError: () => removed.clear(document.id),
-        });
+        void save('delete', `/m/vehicles/${vehicle.id}/documents/${document.id}`).then(() => removed.clear(document.id));
     };
 
     const breadcrumbs: BreadcrumbItem[] = [
@@ -134,11 +130,7 @@ function DocumentCard({
 
     const createRenewalTask = () => {
         setOptCreated(true);
-        router.post(
-            `/m/vehicles/${vehicle.id}/documents/${document.id}/renewal-task`,
-            {},
-            { preserveScroll: true, preserveState: true, onFinish: () => setOptCreated(false) },
-        );
+        void save('post', `/m/vehicles/${vehicle.id}/documents/${document.id}/renewal-task`, {}).then(() => setOptCreated(false));
     };
 
     return (

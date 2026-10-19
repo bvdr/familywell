@@ -8,7 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
+import { useOptimistic } from '@/hooks/use-optimistic';
 import { useLocale, useT } from '@/lib/i18n';
+import { save } from '@/lib/save';
 import { itemTone, LIST_COLOR_KEYS, listColor } from '@/lib/tasks';
 
 // "5 minutes ago" / "now" in the app language, lower-case so it reads inside "Updated :time".
@@ -63,11 +65,20 @@ export function FeedSheet({
             /* clipboard blocked: the field is selectable */
         }
     };
-    const patch = (s: Subscription, data: Partial<Pick<Subscription, 'enabled' | 'shared'>>) =>
-        router.patch(`/m/calendar/subscriptions/${s.id}`, data, { preserveScroll: true, preserveState: true });
-    const remove = (s: Subscription) =>
-        confirm(t('calendar.sub_remove_confirm', { name: s.name })) &&
-        router.delete(`/m/calendar/subscriptions/${s.id}`, { preserveScroll: true, preserveState: true });
+    // Switches flip and a removed calendar disappears on tap (optimistic overlays); lib/save sends them in the
+    // background, and each overlay clears once the reload shows the real state (or the save failed).
+    const subOpt = useOptimistic<Partial<Subscription>>();
+    const removedOpt = useOptimistic<boolean>();
+    const shown = subscriptions.filter((s) => !removedOpt.get(s.id, false)).map((s) => ({ ...s, ...subOpt.get(s.id, {}) }));
+    const patch = (s: Subscription, data: Partial<Pick<Subscription, 'enabled' | 'shared'>>) => {
+        subOpt.set(s.id, { ...subOpt.get(s.id, {}), ...data });
+        void save('patch', `/m/calendar/subscriptions/${s.id}`, data).then(() => subOpt.clear(s.id));
+    };
+    const remove = (s: Subscription) => {
+        if (!confirm(t('calendar.sub_remove_confirm', { name: s.name }))) return;
+        removedOpt.set(s.id, true);
+        void save('delete', `/m/calendar/subscriptions/${s.id}`).then(() => removedOpt.clear(s.id));
+    };
 
     return (
         <ResponsiveModal open={open} onOpenChange={onOpenChange} title={t('calendar.calendars_title')}>
@@ -78,7 +89,7 @@ export function FeedSheet({
                         <p className="text-muted-foreground text-sm">{t('calendar.sub_help')}</p>
                     </div>
 
-                    {subscriptions.map((s) => (
+                    {shown.map((s) => (
                         <div key={s.id} className="bg-surface-card flex flex-col gap-3 rounded-2xl border p-3">
                             <div className="flex items-center gap-3">
                                 <span className={`size-3 shrink-0 rounded-full ${itemTone(s.color)}`} />

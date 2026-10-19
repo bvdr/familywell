@@ -42,7 +42,7 @@ const chains = new Map<string, Promise<unknown>>(); // per URL: the last save se
 let inFlight = 0;
 let waiting: (() => void)[] = [];
 
-export function save(method: 'post' | 'patch' | 'delete', url: string, body?: unknown): Promise<SaveResult> {
+export function save(method: 'post' | 'put' | 'patch' | 'delete', url: string, body?: unknown): Promise<SaveResult> {
     inFlight++;
     const sent = (chains.get(url) ?? Promise.resolve()).then(() => request(method, url, body)).then((r) => r.result);
     chains.set(url, sent);

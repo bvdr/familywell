@@ -16,6 +16,7 @@ import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
 import { NOTE_COLOR_KEYS, NOTE_SWATCHES, noteColor } from '@/lib/notes';
+import { save as saveNote } from '@/lib/save';
 import { type BreadcrumbItem } from '@/types';
 
 type Folder = { id: number; name: string; color: string };
@@ -55,7 +56,7 @@ export default function NoteDetail({ note, folders, share }: { note: Note; folde
         if (Object.keys(pending.current).length === 0) return;
         const data = pending.current;
         pending.current = {};
-        router.patch(route('notes.update', note.id), data, { preserveScroll: true, preserveState: true });
+        void saveNote('patch', route('notes.update', note.id), data);
     };
     const queue = (data: Payload) => {
         pending.current = { ...pending.current, ...data };
@@ -77,8 +78,7 @@ export default function NoteDetail({ note, folders, share }: { note: Note; folde
     const save = (data: Payload) => {
         const keys = Object.keys(data);
         keys.forEach((k) => fieldOpt.set(k, data[k]));
-        const settle = () => keys.forEach((k) => fieldOpt.clear(k));
-        router.patch(route('notes.update', note.id), data, { preserveScroll: true, preserveState: true, onSuccess: settle, onError: settle });
+        void saveNote('patch', route('notes.update', note.id), data).then(() => keys.forEach((k) => fieldOpt.clear(k)));
     };
 
     const onTitle = (v: string) => {

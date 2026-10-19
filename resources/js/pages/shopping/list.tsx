@@ -51,6 +51,7 @@ import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
+import { save } from '@/lib/save';
 import { aisleIcon, bumpQuantity, getVoiceLang, LIST_COLORS, LIST_ICONS, listColor, listIcon, normalizeItemName } from '@/lib/shopping';
 import { newClientKey, PendingAdds, saveTick, send, useQueuedBought } from '@/lib/shopping-outbox';
 import { type BreadcrumbItem } from '@/types';
@@ -283,21 +284,12 @@ export default function ListDetail({
     };
     const remove = (item: Item) => {
         removed.set(item.id, true);
-        router.delete(route('shopping.items.destroy', item.id), {
-            preserveScroll: true,
-            preserveState: true,
-            onError: () => removed.clear(item.id),
-        });
+        void save('delete', route('shopping.items.destroy', item.id)).then(() => removed.clear(item.id));
     };
 
     const patchList = (data: Partial<List>) => {
         listOpt.set(list.id, { ...listOpt.get(list.id, {}), ...data });
-        router.patch(route('shopping.lists.update', list.id), data, {
-            preserveScroll: true,
-            preserveState: true,
-            onSuccess: () => listOpt.clear(list.id),
-            onError: () => listOpt.clear(list.id),
-        });
+        void save('patch', route('shopping.lists.update', list.id), data).then(() => listOpt.clear(list.id));
     };
 
     const saveTitle = () => {
@@ -355,8 +347,7 @@ export default function ListDetail({
         setEditingId(item.id);
     };
     const buildPayload = (d: Draft) => ({ ...d, name: d.name.trim(), due_date: d.due_date || null, store: d.store || null });
-    const patchItem = (id: number) =>
-        router.patch(route('shopping.items.update', id), buildPayload(draft), { preserveScroll: true, preserveState: true });
+    const patchItem = (id: number) => void save('patch', route('shopping.items.update', id), buildPayload(draft));
     // Only the "Add item" (new item) button commits; editing an existing item auto-saves (below).
     // `adding` guards against a double-tap creating duplicate items.
     const [adding, setAdding] = useState(false);
@@ -392,7 +383,7 @@ export default function ListDetail({
     const dupBump = dupItem ? bumpQuantity(dupItem.quantity) : null;
     const bumpExisting = () => {
         if (!dupItem || dupBump === null) return;
-        router.patch(route('shopping.items.update', dupItem.id), { quantity: dupBump }, { preserveScroll: true, preserveState: true });
+        void save('patch', route('shopping.items.update', dupItem.id), { quantity: dupBump });
         setEditingId(null);
     };
     useEffect(() => setDupWarning(null), [draft.name, editingId]);
@@ -1363,11 +1354,7 @@ export default function ListDetail({
                                 const id = editingId;
                                 removed.set(id, true);
                                 setEditingId(null);
-                                router.delete(route('shopping.items.destroy', id), {
-                                    preserveScroll: true,
-                                    preserveState: true,
-                                    onError: () => removed.clear(id),
-                                });
+                                void save('delete', route('shopping.items.destroy', id)).then(() => removed.clear(id));
                             }}
                             className="text-destructive flex items-center justify-center gap-2 py-1 text-sm font-medium"
                         >

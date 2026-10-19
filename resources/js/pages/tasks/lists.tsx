@@ -1,4 +1,4 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { openNewOnArrival } from '@/lib/create-intent';
 import { useAddAction } from '@/lib/add-action';
 import { Archive, Check, ChevronRight, ListChecks, Lock, Plus, RotateCcw, UserCheck, Users } from 'lucide-react';
@@ -14,6 +14,7 @@ import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
 import { LIST_COLORS, LIST_ICONS, listColor, listIcon } from '@/lib/tasks';
+import { save } from '@/lib/save';
 import { type BreadcrumbItem } from '@/types';
 
 type Member = { id: number; name: string };
@@ -243,16 +244,7 @@ export default function Lists({ lists }: { lists: List[] }) {
                                         type="button"
                                         onClick={() => {
                                             archivedOpt.set(l.id, false);
-                                            router.patch(
-                                                route('tasks.lists.update', l.id),
-                                                { archived: false },
-                                                {
-                                                    preserveScroll: true,
-                                                    preserveState: true,
-                                                    onSuccess: () => archivedOpt.clear(l.id),
-                                                    onError: () => archivedOpt.clear(l.id),
-                                                },
-                                            );
+                                            void save('patch', route('tasks.lists.update', l.id), { archived: false }).then(() => archivedOpt.clear(l.id));
                                         }}
                                         aria-label={t('tasks.restore_list')}
                                         className="text-muted-foreground hover:text-primary flex size-8 items-center justify-center rounded-lg transition-colors"

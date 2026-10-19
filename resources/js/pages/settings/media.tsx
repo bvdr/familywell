@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { ImageOff, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 
@@ -7,6 +7,7 @@ import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { useT } from '@/lib/i18n';
+import { save } from '@/lib/save';
 import { type BreadcrumbItem } from '@/types';
 
 type MediaItem = {
@@ -30,12 +31,7 @@ export default function Media({ items }: { items: MediaItem[] }) {
     const remove = (m: MediaItem) => {
         if (!confirm(t('settings.confirm_delete_media', { kind: m.kind.toLowerCase() }))) return;
         removed.set(key(m), true);
-        router.delete(route('media.destroy', { type: m.type, id: m.id }), {
-            preserveScroll: true,
-            preserveState: true,
-            onSuccess: () => removed.clear(key(m)),
-            onError: () => removed.clear(key(m)),
-        });
+        void save('delete', route('media.destroy', { type: m.type, id: m.id })).then(() => removed.clear(key(m)));
     };
 
     return (

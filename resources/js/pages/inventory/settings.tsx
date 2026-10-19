@@ -1,10 +1,11 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { LayoutGrid, MapPin } from 'lucide-react';
 
 import { Segmented } from '@/components/segmented';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
+import { save as saveInBackground } from '@/lib/save';
 import type { BreadcrumbItem } from '@/types';
 
 // Mirrors InventorySetting::toPayload() (camelCase). Family-level policy — the per-user push mute lives
@@ -49,20 +50,16 @@ export default function InventorySettings({ settings, unitSystems, replenishment
     // snaps back if the patch fails. Render each toggle's `on` through `flag(field, serverValue)`.
     const toggleOpt = useOptimistic<boolean>();
     const flag = (field: keyof Patch, serverValue: boolean) => toggleOpt.get(field, serverValue);
-    const save = (patch: Patch) => router.patch(route('inventory.settings.update'), patch, { preserveScroll: true });
+    // The unit system picks on tap too (same overlay idea, its own key since it's a string).
+    const unitOpt = useOptimistic<string>();
+    const pickUnit = (u: string) => {
+        unitOpt.set('unit_system', u);
+        void saveInBackground('patch', route('inventory.settings.update'), { unit_system: u }).then(() => unitOpt.clear('unit_system'));
+    };
     // Flip a boolean setting: overlay the new value now, patch in the background, clear on settle.
     const toggle = (field: keyof Patch, current: boolean) => {
         toggleOpt.set(field, !current);
-        router.patch(
-            route('inventory.settings.update'),
-            { [field]: !current },
-            {
-                preserveScroll: true,
-                preserveState: true,
-                onSuccess: () => toggleOpt.clear(field),
-                onError: () => toggleOpt.clear(field),
-            },
-        );
+        void saveInBackground('patch', route('inventory.settings.update'), { [field]: !current }).then(() => toggleOpt.clear(field));
     };
 
     return (
@@ -83,8 +80,8 @@ export default function InventorySettings({ settings, unitSystems, replenishment
                     <div className="md:max-w-xs">
                         <Segmented
                             options={unitSystems.map((u) => ({ value: u, label: t(`inventory.unit_system_${u}`) }))}
-                            value={settings.unitSystem}
-                            onChange={(u) => save({ unit_system: u })}
+                            value={unitOpt.get('unit_system', settings.unitSystem) as typeof settings.unitSystem}
+                            onChange={pickUnit}
                             disabled={!canManage}
                             ariaLabel={t('inventory.unit_system')}
                         />

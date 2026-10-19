@@ -1,6 +1,6 @@
 import { useAddAction } from '@/lib/add-action';
 import { openNewOnArrival } from '@/lib/create-intent';
-import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { Archive, Banknote, Camera, ChartLine, ChevronRight, Loader2, Plus, RotateCcw, Settings, Store, Tag, User, Wallet } from 'lucide-react';
 import { FormEventHandler, useRef, useState } from 'react';
 
@@ -27,6 +27,7 @@ import { catColor, catIconName, catLabel, categoryMap, defaultCategoryKey, type 
 import { groupByDateBucket, localToday } from '@/lib/date-groups';
 import { useLocale, useT } from '@/lib/i18n';
 import { currencyOptions, money } from '@/lib/money';
+import { save } from '@/lib/save';
 import { type BreadcrumbItem } from '@/types';
 
 type Member = { id: number; name: string };
@@ -690,15 +691,8 @@ export default function Events({
                                             type="button"
                                             onClick={() => {
                                                 archivedOpt.set(ev.id, false);
-                                                router.patch(
-                                                    route('spending.events.update', ev.id),
-                                                    { archived: false },
-                                                    {
-                                                        preserveScroll: true,
-                                                        preserveState: true,
-                                                        onSuccess: () => archivedOpt.clear(ev.id),
-                                                        onError: () => archivedOpt.clear(ev.id),
-                                                    },
+                                                void save('patch', route('spending.events.update', ev.id), { archived: false }).then(() =>
+                                                    archivedOpt.clear(ev.id),
                                                 );
                                             }}
                                             aria-label={t('spending.restore_event')}

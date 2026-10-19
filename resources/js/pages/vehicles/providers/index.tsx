@@ -10,6 +10,7 @@ import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn } from '@/lib/i18n';
+import { save } from '@/lib/save';
 import type { ServiceProvider, ServiceProviderWithCount } from '@/lib/vehicles';
 import type { BreadcrumbItem } from '@/types';
 
@@ -26,12 +27,7 @@ export default function ServiceProviders({ providers }: Props) {
     const removeProvider = (provider: ServiceProviderWithCount) => {
         if (!confirm(t('vehicles.provider_delete_confirm'))) return;
         removed.set(provider.id, true);
-        router.delete(`/m/vehicles/providers/${provider.id}`, {
-            preserveScroll: true,
-            preserveState: true,
-            onSuccess: () => removed.clear(provider.id),
-            onError: () => removed.clear(provider.id),
-        });
+        void save('delete', `/m/vehicles/providers/${provider.id}`).then(() => removed.clear(provider.id));
     };
 
     const breadcrumbs: BreadcrumbItem[] = [

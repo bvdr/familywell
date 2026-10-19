@@ -55,6 +55,7 @@ import { catColor, categoryMap, catLabel, defaultCategoryKey, type CategoryDef }
 import { compressImage, makeThumbnail } from '@/lib/compress-image';
 import { appLocale, useT, type TFn } from '@/lib/i18n';
 import { currencyOptions, money, selectAllOnFocus } from '@/lib/money';
+import { save } from '@/lib/save';
 import { type BreadcrumbItem } from '@/types';
 
 type Member = { id: number; name: string };
@@ -250,7 +251,7 @@ export default function Event({
     const fmt = (baseCents: number) => money(Math.round(baseCents * (event.rates[display] ?? 1)), display);
     const changeDisplay = (v: string) => {
         setDisplay(v); // optimistic: reflect the choice immediately
-        router.patch(route('spending.events.update', event.id), { display_currency: v }, { preserveScroll: true, preserveState: true });
+        void save('patch', route('spending.events.update', event.id), { display_currency: v });
     };
 
     // The list's lucide icon (shown left of the title). Optimistic like the title; null → Wallet default.
@@ -258,7 +259,7 @@ export default function Event({
     useEffect(() => setIcon(event.icon), [event.icon]);
     const changeIcon = (key: string | null) => {
         setIcon(key); // reflect the choice immediately
-        router.patch(route('spending.events.update', event.id), { icon: key }, { preserveScroll: true, preserveState: true });
+        void save('patch', route('spending.events.update', event.id), { icon: key });
     };
 
     // Inline title editing. `title` mirrors the server value (optimistic on save, re-synced on reload).
@@ -285,16 +286,7 @@ export default function Event({
     useAddAction(archived ? null : () => setAdding(true));
     const toggleArchived = () => {
         archivedOpt.set(event.id, !archived);
-        router.patch(
-            route('spending.events.update', event.id),
-            { archived: !archived },
-            {
-                preserveScroll: true,
-                preserveState: true,
-                onSuccess: () => archivedOpt.clear(event.id),
-                onError: () => archivedOpt.clear(event.id),
-            },
-        );
+        void save('patch', route('spending.events.update', event.id), { archived: !archived }).then(() => archivedOpt.clear(event.id));
     };
     const monthlyOpt = useOptimistic<boolean>();
     const inMonthly = monthlyOpt.get(event.id, event.countInMonthly);
@@ -368,15 +360,8 @@ export default function Event({
                     <DropdownMenuItem
                         onSelect={() => {
                             monthlyOpt.set(event.id, !inMonthly);
-                            router.patch(
-                                route('spending.events.update', event.id),
-                                { count_in_monthly: !inMonthly },
-                                {
-                                    preserveScroll: true,
-                                    preserveState: true,
-                                    onSuccess: () => monthlyOpt.clear(event.id),
-                                    onError: () => monthlyOpt.clear(event.id),
-                                },
+                            void save('patch', route('spending.events.update', event.id), { count_in_monthly: !inMonthly }).then(() =>
+                                monthlyOpt.clear(event.id),
                             );
                         }}
                     >
@@ -666,11 +651,7 @@ export default function Event({
     const duplicate = (s: Spend) => router.post(route('spending.spends.duplicate', s.id), {}, { preserveScroll: true });
     const remove = (s: Spend) => {
         removedSpends.set(s.id, true); // hide the row now; server response reconciles totals/balances
-        router.delete(route('spending.spends.destroy', s.id), {
-            preserveScroll: true,
-            preserveState: true, // keep the override alive across the prop reload the delete triggers
-            onError: () => removedSpends.clear(s.id),
-        });
+        void save('delete', route('spending.spends.destroy', s.id)).then(() => removedSpends.clear(s.id));
     };
 
     // Settle-up records a payment between two participants (members or guests). Suggestion ids are
@@ -678,11 +659,9 @@ export default function Event({
     const markPaid = (s: Suggestion) => {
         const key = `${s.from.id}-${s.to.id}`;
         settledOpt.set(key, true); // hide the suggestion now; reappears only if the settle fails
-        router.post(
-            route('spending.settle', event.id),
-            // add_anyway: a suggestion is the outstanding balance, so it can't be the duplicate the check guards against.
-            { from_key: s.from.id, to_key: s.to.id, amount: s.amount, add_anyway: true },
-            { preserveScroll: true, preserveState: true, onSuccess: () => settledOpt.clear(key), onError: () => settledOpt.clear(key) },
+        // add_anyway: a suggestion is the outstanding balance, so it can't be the duplicate the check guards against.
+        void save('post', route('spending.settle', event.id), { from_key: s.from.id, to_key: s.to.id, amount: s.amount, add_anyway: true }).then(() =>
+            settledOpt.clear(key),
         );
     };
 
@@ -690,15 +669,8 @@ export default function Event({
     const canManageSettings = share?.canManage ?? false;
     const patchParticipant = (p: Participant, weight: number, coveredBy: string | null) => {
         participantOpt.set(p.key, { weight, coveredBy });
-        router.patch(
-            route('spending.participants.update', { event: event.id, key: p.key }),
-            { weight, covered_by: coveredBy ?? '' },
-            {
-                preserveScroll: true,
-                preserveState: true,
-                onSuccess: () => participantOpt.clear(p.key),
-                onError: () => participantOpt.clear(p.key),
-            },
+        void save('patch', route('spending.participants.update', { event: event.id, key: p.key }), { weight, covered_by: coveredBy ?? '' }).then(() =>
+            participantOpt.clear(p.key),
         );
     };
     const setWeight = (p: Participant, w: number) => patchParticipant(p, Math.max(1, w), p.coveredBy);
@@ -772,11 +744,7 @@ export default function Event({
         if (!confirm(t('spending.confirm_delete_transfer'))) return;
         closeTransfer();
         removedTransfers.set(id, true);
-        router.delete(route('spending.transfers.destroy', id), {
-            preserveScroll: true,
-            preserveState: true,
-            onError: () => removedTransfers.clear(id),
-        });
+        void save('delete', route('spending.transfers.destroy', id)).then(() => removedTransfers.clear(id));
     };
 
     return (

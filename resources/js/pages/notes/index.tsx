@@ -12,6 +12,7 @@ import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { appLocale, useT, type TFn } from '@/lib/i18n';
 import { noteColor, snippet } from '@/lib/notes';
+import { save } from '@/lib/save';
 import { type BreadcrumbItem } from '@/types';
 
 type Folder = { id: number; name: string; color: string; count: number };
@@ -83,12 +84,7 @@ export default function NotesIndex({ notes, folders }: { notes: Note[]; folders:
     const deleteFolder = (folder: Folder) => {
         removedFolder.set(folder.id, true);
         setActiveFolder(ALL);
-        router.delete(route('notes.folders.destroy', folder.id), {
-            preserveScroll: true,
-            preserveState: true,
-            onSuccess: () => removedFolder.clear(folder.id),
-            onError: () => removedFolder.clear(folder.id),
-        });
+        void save('delete', route('notes.folders.destroy', folder.id)).then(() => removedFolder.clear(folder.id));
     };
 
     // The nav's "+" (and the desktop header "+") create a note in the active folder, if one is

@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { Calendar, Check, ChevronLeft, Minus, Plus, Settings, ShoppingCart, Store, Trash2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -14,6 +14,7 @@ import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useAddAction } from '@/lib/add-action';
 import { useT } from '@/lib/i18n';
+import { save } from '@/lib/save';
 import { aisleIcon } from '@/lib/shopping';
 import { newClientKey, PendingAdds, saveTick, send, useQueuedBought } from '@/lib/shopping-outbox';
 import { type BreadcrumbItem } from '@/types';
@@ -138,8 +139,7 @@ export default function ShopDetail({
             alt_stores: shopsUniq.slice(1),
         };
     };
-    const patchItem = (id: number) =>
-        router.patch(route('shopping.items.update', id), buildPayload(draft), { preserveScroll: true, preserveState: true });
+    const patchItem = (id: number) => void save('patch', route('shopping.items.update', id), buildPayload(draft));
     // `adding` guards a double-tap from creating duplicate items.
     const [adding, setAdding] = useState(false);
     // Soft duplicate warning from the server ("Milk is already on this list"), shown in the footer with
@@ -184,12 +184,7 @@ export default function ShopDetail({
         if (!id) return;
         setEditingId(null);
         removedOpt.set(id, true);
-        router.delete(route('shopping.items.destroy', id), {
-            preserveScroll: true,
-            preserveState: true,
-            onSuccess: () => removedOpt.clear(id),
-            onError: () => removedOpt.clear(id),
-        });
+        void save('delete', route('shopping.items.destroy', id)).then(() => removedOpt.clear(id));
     };
     const bump = (delta: number) =>
         setDraft((d) => {
@@ -207,11 +202,7 @@ export default function ShopDetail({
         const n = name.trim();
         if (!n || n === shop.name) return;
         nameOpt.set(shop.id, n);
-        router.patch(
-            route('shopping.shops.update', shop.id),
-            { name: n },
-            { preserveScroll: true, preserveState: true, onSuccess: () => nameOpt.clear(shop.id), onError: () => nameOpt.clear(shop.id) },
-        );
+        void save('patch', route('shopping.shops.update', shop.id), { name: n }).then(() => nameOpt.clear(shop.id));
     };
 
     // Split into "to buy" (grouped by the shop's aisles, walk order) and a bought pile at the bottom.

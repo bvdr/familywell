@@ -1,9 +1,10 @@
-import { Link, router } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import { Check, ShoppingCart } from 'lucide-react';
 import { useState } from 'react';
 
 import { LucideIcon } from '@/components/lucide-icon';
 import { useT } from '@/lib/i18n';
+import { save } from '@/lib/save';
 import { fmtNumber, STATE_META, stateLabel, unitLabel, type InvCategory, type InvItem, type InvState } from '@/lib/inventory';
 
 // A thin quantity bar (e.g. Eggs 4/12). The fill grows to `item.bar` (0..1), coloured by state; an
@@ -104,12 +105,8 @@ export function AddToShoppingButton({
             aria-label={t('inventory.add_to_shopping')}
             onClick={() => {
                 setOptAdded(true); // instant Added state; reconcile with the server below
-                router.post(
-                    route('inventory.items.shopping', item.id),
-                    {},
-                    // preserveState keeps this local optimistic flag alive across the prop reload the POST triggers.
-                    { preserveScroll: true, preserveState: true, onFinish: () => setOptAdded(false) },
-                );
+                // lib/save: the flag clears once the reload shows the real "on the list" state (or the add failed).
+                void save('post', route('inventory.items.shopping', item.id), {}).then(() => setOptAdded(false));
             }}
             className={`${base} text-primary hover:bg-surface`}
         >
