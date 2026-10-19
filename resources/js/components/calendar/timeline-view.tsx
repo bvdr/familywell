@@ -27,6 +27,8 @@ const pct = (n: number, total: number) => `${(n / total) * 100}%`;
 //    until the item's bar is under it, then solid. The bar sits slimmer below that line (so they never overlap) and
 //    drops its own title there so the text never doubles.
 //  - Completed items are left out, and overdue ones (isOverdue: open to-dos past their date) are red.
+//  - Desktop scrolls sideways too (44px days everywhere, instead of squeezing a month into the window), and a year
+//    zoom: 12px days, the header names each month on its 1st instead of every day, months divided by a line.
 // When the preview ships, drop the `preview` checks and keep the new paths.
 const OLD_DAYS = 14;
 
@@ -36,6 +38,8 @@ export function TimelineView({ items, range, preview = false }: { items: CalItem
     const days = daysOf(range.from, range.to);
     const allRows = timelineRows(preview ? items.filter((i) => !i.done) : items, range.from, range.to);
     const todayIdx = days.indexOf(ymd(new Date()));
+    const year = days.length > 62; // the year zoom (365/366 days); weeks are 14, months up to 31
+    const trackMin = !preview ? TRACK_MIN : year ? 'min-w-[calc(var(--days)*12px)]' : 'min-w-[calc(var(--days)*44px)]';
     const box = useRef<HTMLDivElement>(null);
     const track = useRef<HTMLDivElement>(null);
     const todayCell = useRef<HTMLDivElement>(null);
@@ -118,11 +122,14 @@ export function TimelineView({ items, range, preview = false }: { items: CalItem
                 </div>
 
                 {/* Track: day columns + bars, positioned in % of its width. */}
-                <div ref={track} className={`relative flex-1 ${TRACK_MIN}`} style={{ '--days': days.length } as CSSProperties}>
+                <div ref={track} className={`relative flex-1 ${trackMin}`} style={{ '--days': days.length } as CSSProperties}>
                     {/* Weekend shading + today line: painted first, so the sticky header covers them and the bars sit on top. */}
                     <div className="pointer-events-none absolute inset-0 flex" aria-hidden>
                         {days.map((d) => (
-                            <div key={d} className={`flex-1 ${isWeekend(d) ? 'bg-foreground/[0.04]' : ''}`} />
+                            <div
+                                key={d}
+                                className={`flex-1 ${year ? (d.endsWith('-01') ? 'border-l' : '') : isWeekend(d) ? 'bg-foreground/[0.04]' : ''}`}
+                            />
                         ))}
                     </div>
                     {todayIdx >= 0 && (
@@ -133,20 +140,37 @@ export function TimelineView({ items, range, preview = false }: { items: CalItem
                         />
                     )}
                     <div className="bg-surface-card sticky top-0 z-10 flex h-12 border-b">
-                        {days.map((d, i) => (
-                            <div
-                                key={d}
-                                ref={i === todayIdx ? todayCell : undefined}
-                                className={`text-muted-foreground flex flex-1 flex-col items-center justify-center text-xs tabular-nums ${isWeekend(d) ? 'bg-foreground/[0.04]' : ''}`}
-                            >
-                                <span className="text-[10px] uppercase">{parseDay(d).toLocaleDateString(locale, { weekday: 'narrow' })}</span>
-                                <span
-                                    className={`flex size-6 items-center justify-center rounded-full ${i === todayIdx ? 'bg-primary text-primary-foreground font-semibold' : ''}`}
+                        {days.map((d, i) =>
+                            year ? (
+                                <div
+                                    key={d}
+                                    ref={i === todayIdx ? todayCell : undefined}
+                                    className={`text-muted-foreground relative flex flex-1 items-center text-xs ${d.endsWith('-01') ? 'border-l' : ''}`}
                                 >
-                                    {Number(d.slice(8))}
-                                </span>
-                            </div>
-                        ))}
+                                    {d.endsWith('-01') && (
+                                        <span className="absolute left-1.5 whitespace-nowrap first-letter:uppercase">
+                                            {parseDay(d).toLocaleDateString(locale, { month: 'short' })}
+                                        </span>
+                                    )}
+                                    {i === todayIdx && (
+                                        <span className="bg-primary absolute bottom-1 left-1/2 size-1.5 -translate-x-1/2 rounded-full" />
+                                    )}
+                                </div>
+                            ) : (
+                                <div
+                                    key={d}
+                                    ref={i === todayIdx ? todayCell : undefined}
+                                    className={`text-muted-foreground flex flex-1 flex-col items-center justify-center text-xs tabular-nums ${isWeekend(d) ? 'bg-foreground/[0.04]' : ''}`}
+                                >
+                                    <span className="text-[10px] uppercase">{parseDay(d).toLocaleDateString(locale, { weekday: 'narrow' })}</span>
+                                    <span
+                                        className={`flex size-6 items-center justify-center rounded-full ${i === todayIdx ? 'bg-primary text-primary-foreground font-semibold' : ''}`}
+                                    >
+                                        {Number(d.slice(8))}
+                                    </span>
+                                </div>
+                            ),
+                        )}
                     </div>
                     {rows.map(({ key, item: first, bars }) => (
                         // overflow-clip, not hidden, in the preview: hidden makes the row a scroll container and the
@@ -157,10 +181,12 @@ export function TimelineView({ items, range, preview = false }: { items: CalItem
                                     <Link
                                         href={item.href}
                                         title={item.title}
-                                        className={`absolute top-1.5 flex h-8 items-center gap-1.5 overflow-hidden rounded-lg ${preview ? 'max-sm:top-5 max-sm:h-5 max-sm:rounded-md' : ''} text-sm font-medium whitespace-nowrap shadow-xs hover:brightness-95 ${span < SHORT ? 'justify-center px-0.5' : 'px-2'} ${late(item) ? 'bg-destructive/15 text-destructive' : itemTone(item.color)} ${item.done ? 'line-through opacity-60' : ''}`}
+                                        className={`absolute top-1.5 flex h-8 items-center gap-1.5 overflow-hidden rounded-lg ${preview ? 'max-sm:top-5 max-sm:h-5 max-sm:rounded-md' : ''} text-sm font-medium whitespace-nowrap shadow-xs hover:brightness-95 ${span < SHORT ? 'justify-center px-0.5' : 'px-2'} ${year && span < SHORT ? 'border border-current/40' : ''} ${late(item) ? 'bg-destructive/15 text-destructive' : itemTone(item.color)} ${item.done ? 'line-through opacity-60' : ''}`}
                                         style={{ left: `calc(${pct(offset, days.length)} + 2px)`, width: `calc(${pct(span, days.length)} - 4px)` }}
                                     >
-                                        <LucideIcon name={item.icon} className="size-4 shrink-0" />
+                                        {/* A year's 12px days leave a short bar no room for an icon: it's a plain coloured mark (outlined
+                                            so a pale tone still shows) with its title beside it. */}
+                                        {!(year && span < SHORT) && <LucideIcon name={item.icon} className="size-4 shrink-0" />}
                                         {span >= SHORT && <span className={`truncate ${preview ? 'max-sm:hidden' : ''}`}>{item.title}</span>}
                                     </Link>
                                     {/* Gantt-style outside label for short bars (which carry only a centred icon, as one desktop day is

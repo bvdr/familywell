@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react';
-import { CalendarPlus, ChevronLeft, ChevronRight, Filter, Plus } from 'lucide-react';
+import { CalendarDays, CalendarPlus, CalendarRange, ChartGantt, ChevronLeft, ChevronRight, Filter, Plus } from 'lucide-react';
 import { useState } from 'react';
 
 import { EventSheet } from '@/components/calendar/event-sheet';
@@ -7,6 +7,8 @@ import { FeedSheet, type Subscription } from '@/components/calendar/feed-sheet';
 import { FilterSheet } from '@/components/calendar/filter-sheet';
 import { MonthView } from '@/components/calendar/month-view';
 import { TimelineView } from '@/components/calendar/timeline-view';
+import { WeekView } from '@/components/calendar/week-view';
+import { Picker } from '@/components/picker';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { useAddAction } from '@/lib/add-action';
@@ -27,8 +29,8 @@ const readFilter = (): CalFilter => {
 
 type Named = { id: number; name: string };
 export type CalendarProps = {
-    view: 'month' | 'timeline';
-    zoom: 'week' | 'month';
+    view: 'month' | 'week' | 'timeline';
+    zoom: 'week' | 'month' | 'year';
     date: string;
     range: { from: string; to: string };
     items: CalItem[];
@@ -97,7 +99,10 @@ export default function CalendarIndex({
             { preserveState: true, preserveScroll: true, only: ['view', 'zoom', 'date', 'range', 'items'] },
         );
     };
-    const label = new Date(date + 'T12:00').toLocaleDateString(locale, { month: 'long', year: 'numeric' });
+    const label = new Date(date + 'T12:00').toLocaleDateString(
+        locale,
+        view === 'timeline' && zoom === 'year' ? { year: 'numeric' } : { month: 'long', year: 'numeric' },
+    );
 
     return (
         <AppLayout breadcrumbs={[{ title: t('nav.calendar'), href: '/m/calendar' }]}>
@@ -133,18 +138,47 @@ export default function CalendarIndex({
                 </div>
 
                 {/* View switch, plus the zoom on the timeline. Both are query params, so each tap is a partial reload
-                    and the server answers with the matching range. */}
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                    <Segmented value={view} options={['month', 'timeline'] as const} onChange={(v) => go({ view: v })} />
-                    <div className="ml-auto flex items-center gap-2">
-                        {preview && view === 'timeline' && (
-                            <span className="bg-accent-subtle text-primary rounded-full px-2 py-0.5 text-xs font-medium">{t('common.preview')}</span>
-                        )}
-                        {view === 'timeline' && <Segmented value={zoom} options={['week', 'month'] as const} onChange={(z) => go({ zoom: z })} />}
+                    and the server answers with the matching range. The calendar 1.1 preview folds both into one View
+                    dropdown (week, month, and the timeline at week / month / year); the server remembers the choice. */}
+                {preview ? (
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="w-56 max-w-full">
+                            <Picker
+                                searchable={false}
+                                ariaLabel={t('calendar.view')}
+                                selected={[view === 'timeline' ? `timeline:${zoom}` : view]}
+                                onChange={([v]) => {
+                                    if (!v) return;
+                                    // Remembered per device; the server reads it when the calendar opens without a view.
+                                    document.cookie = `fw_calendar_view=${v}; path=/; max-age=31536000; samesite=lax`;
+                                    const [nextView, nextZoom] = v.split(':') as [CalendarProps['view'], CalendarProps['zoom'] | undefined];
+                                    go({ view: nextView, ...(nextZoom ? { zoom: nextZoom } : {}) });
+                                }}
+                                options={[
+                                    { value: 'week', label: t('calendar.week'), icon: CalendarRange },
+                                    { value: 'month', label: t('calendar.month'), icon: CalendarDays },
+                                    ...(['week', 'month', 'year'] as const).map((z) => ({
+                                        value: `timeline:${z}`,
+                                        label: `${t('calendar.timeline')} · ${t(`calendar.${z}`)}`,
+                                        icon: ChartGantt,
+                                    })),
+                                ]}
+                            />
+                        </div>
+                        <span className="bg-accent-subtle text-primary rounded-full px-2 py-0.5 text-xs font-medium">{t('common.preview')}</span>
                     </div>
-                </div>
+                ) : (
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <Segmented value={view as 'month' | 'timeline'} options={['month', 'timeline'] as const} onChange={(v) => go({ view: v })} />
+                        {view === 'timeline' && (
+                            <Segmented value={zoom as 'week' | 'month'} options={['week', 'month'] as const} onChange={(z) => go({ zoom: z })} />
+                        )}
+                    </div>
+                )}
                 {view === 'timeline' ? (
                     <TimelineView items={shown} range={range} preview={preview} />
+                ) : view === 'week' ? (
+                    <WeekView items={shown} range={range} onAdd={add} />
                 ) : (
                     <MonthView items={shown} range={range} date={date} selected={selected} onSelect={setSelected} onAdd={add} />
                 )}
@@ -165,6 +199,7 @@ export default function CalendarIndex({
                 sources={sources}
                 members={members}
                 contacts={contacts}
+                preview={preview}
             />
             <FeedSheet open={feedOpen} onOpenChange={setFeedOpen} url={feedUrl} subscriptions={subscriptions} />
         </AppLayout>

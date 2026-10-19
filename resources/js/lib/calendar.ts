@@ -103,10 +103,11 @@ export function filterItems(items: CalItem[], f: CalFilter): CalItem[] {
 }
 
 // Prev/next: a month view or month-zoom timeline steps to the 1st of the next/previous month (avoids
-// Jan 31 + 1 month overflowing); a week-zoom timeline steps 7 days.
+// Jan 31 + 1 month overflowing); the week view and a week-zoom timeline step 7 days; a year-zoom timeline a year.
 export function shiftDate(view: string, zoom: string, date: string, dir: 1 | -1): string {
-    if (view === 'timeline' && zoom === 'week') return addDays(date, 7 * dir);
+    if (view === 'week' || (view === 'timeline' && zoom === 'week')) return addDays(date, 7 * dir);
     const d = parseDay(date);
+    if (view === 'timeline' && zoom === 'year') return ymd(new Date(d.getFullYear() + dir, 0, 1));
     return ymd(new Date(d.getFullYear(), d.getMonth() + dir, 1));
 }
 

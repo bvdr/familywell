@@ -84,5 +84,8 @@
     "sub_url": "Linkul calendarului (ICS sau webcal)",
     "sub_adding": "Se verifică linkul…",
     "sub_add_button": "Adaugă calendarul",
-    "external_from": "Din :name. Modifică-l în acel calendar; aici e doar pentru citire."
+    "external_from": "Din :name. Modifică-l în acel calendar; aici e doar pentru citire.",
+    "year": "An",
+    "view": "Vizualizare",
+    "everyone": "Toată lumea"
 }

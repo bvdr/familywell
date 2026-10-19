@@ -82,5 +82,8 @@
     "sub_url": "Calendar link (ICS or webcal)",
     "sub_adding": "Checking the link…",
     "sub_add_button": "Add calendar",
-    "external_from": "From :name. Change it in that calendar; here it's read-only."
+    "external_from": "From :name. Change it in that calendar; here it's read-only.",
+    "year": "Year",
+    "view": "View",
+    "everyone": "Everyone"
 }
