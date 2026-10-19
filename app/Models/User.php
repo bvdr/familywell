@@ -108,6 +108,8 @@ class User extends Authenticatable implements OAuthenticatable
         // only as the `analyticsId` prop, and only where Umami is configured (HandleInertiaRequests).
         'analytics_id',
         'first_touch',
+        // Reaches the page only as the `preview` prop (HandleInertiaRequests), not inside every serialized user.
+        'preview_modules',
     ];
 
     /**
@@ -123,6 +125,8 @@ class User extends Authenticatable implements OAuthenticatable
             'password' => 'hashed',
             'notification_prefs' => 'array',
             'first_touch' => 'array',
+            // Module previews (App\Support\Modules\Preview); set only by module:preview, deliberately not fillable.
+            'preview_modules' => 'array',
             // Set only by admin:grant / admin:revoke; deliberately not fillable.
             'is_platform_admin' => 'boolean',
         ];

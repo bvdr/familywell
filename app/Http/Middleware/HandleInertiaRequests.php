@@ -60,6 +60,8 @@ class HandleInertiaRequests extends Middleware
             // share() at the START of the middleware chain, before SetActiveFamily sets the family
             // context, so this must defer to render time when CurrentFamily::id() is available.
             'modules' => fn () => ['enabled' => $this->enabledModuleIds()],
+            // Module previews this person is opted in to (App\Support\Modules\Preview), for usePreview() in React.
+            'preview' => fn () => $request->user()?->preview_modules ?? [],
             // Web Push public (VAPID) key, so the client can subscribe the browser to push. Public by design.
             // Hosted-plan billing on/off (STRIPE_KEY set). Shows Settings > Billing; self-hosted = false.
             'billingEnabled' => Billing::enabled(),

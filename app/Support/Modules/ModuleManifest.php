@@ -13,6 +13,8 @@ class ModuleManifest
         public string $path,
         public ?string $frontend = null,
         public string $description = '',
+        // A module still in preview: hidden from everyone not opted in (Preview, ModuleRegistry::enabledIds).
+        public bool $preview = false,
     ) {}
 
     public static function fromPath(string $dir): self
@@ -28,6 +30,7 @@ class ModuleManifest
             path: $dir,
             frontend: $data['frontend'] ?? null,
             description: $data['description'] ?? '',
+            preview: (bool) ($data['preview'] ?? false),
         );
     }
 
