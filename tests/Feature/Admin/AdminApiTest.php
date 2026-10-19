@@ -132,6 +132,28 @@ it('lists and shows families with owner, members and the demo flag', function ()
     $this->withToken($token)->getJson('/api/admin/families/999999')->assertNotFound();
 });
 
+it('sorts on the server by a whitelisted column, blanks last, newest first otherwise', function () {
+    $token = adminApiToken(); // Bogdan, no first touch
+    User::factory()->create(['name' => 'cleo', 'created_at' => now()->subDays(3)])->forceFill(['first_touch' => ['source' => 'reddit']])->save();
+    User::factory()->create(['name' => 'Ana', 'created_at' => now()->subDays(2)])->forceFill(['first_touch' => ['source' => 'google']])->save();
+    $names = fn (string $qs) => collect($this->withToken($token)->getJson('/api/admin/users?'.$qs)->assertOk()->json('items'))->pluck('name')->all();
+
+    expect($names('sort=name&dir=asc'))->toBe(['Ana', 'Bogdan', 'cleo'])
+        ->and($names('sort=source&dir=asc'))->toBe(['Ana', 'cleo', 'Bogdan'])
+        ->and($names('sort=source&dir=desc'))->toBe(['cleo', 'Ana', 'Bogdan'])
+        ->and($names('sort=password&dir=asc'))->toBe(['Bogdan', 'Ana', 'cleo'])
+        ->and($names('sort[]=name'))->toBe(['Bogdan', 'Ana', 'cleo']);
+
+    $owner = User::factory()->create(['name' => 'Zed', 'email' => 'zed@example.com']);
+    Family::factory()->create(['name' => 'Paid', 'created_at' => now()->subDays(2)])->forceFill(['subscription_status' => 'active'])->save();
+    Family::factory()->create(['name' => 'Vip', 'owner_id' => $owner->id, 'created_at' => now()->subDays(3)])->forceFill(['access_override' => Family::LIFETIME])->save();
+    Family::factory()->create(['name' => 'Free', 'created_at' => now()->subDay()]);
+    $families = fn (string $qs) => collect($this->withToken($token)->getJson('/api/admin/families?'.$qs)->assertOk()->json('items'))->pluck('name')->all();
+
+    expect($families('sort=subscription&dir=desc'))->toBe(['Vip', 'Paid', 'Free'])
+        ->and($families('q=zed@'))->toBe(['Vip']);
+});
+
 it('pages by 50', function () {
     $token = adminApiToken();
     User::factory()->count(50)->create(['created_at' => now()->subDay()]);
