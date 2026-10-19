@@ -258,7 +258,7 @@ export default function Dashboard({
                             {t('nav.members')}
                         </Link>
                         <Link
-                            href="/settings/profile"
+                            href="/settings"
                             className="bg-surface-card text-primary hover:border-accent inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-colors"
                         >
                             <Settings className="size-4" />

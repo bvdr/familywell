@@ -41,5 +41,16 @@
     "email_change_sent": "We sent a 6-digit code to :email. Type it here to switch your email; until then you keep your current one.",
     "email_change_confirm": "Confirm new email",
     "email_change_cancel": "Keep my current email",
-    "email_taken": "That email is already used by another account."
+    "email_taken": "That email is already used by another account.",
+    "group_account": "Account",
+    "group_family": "Family",
+    "hint_profile": "Your name, email and account",
+    "hint_sign_in": "Google and Apple sign-in",
+    "hint_appearance": "Skin, light or dark",
+    "hint_language": "The app's language",
+    "hint_media": "Photos your family uploaded",
+    "hint_trash": "Bring back things deleted in the last 30 days",
+    "hint_connected_apps": "AI assistants linked to FamilyWell",
+    "hint_billing": "Your family's plan",
+    "hint_notifications": "Push alerts on this device"
 }

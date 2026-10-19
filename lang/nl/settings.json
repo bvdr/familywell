@@ -41,5 +41,16 @@
     "email_change_sent": "We hebben een code van 6 cijfers naar :email gestuurd. Typ hem hier om je e-mail te wijzigen; tot dan houd je je huidige.",
     "email_change_confirm": "Nieuw e-mailadres bevestigen",
     "email_change_cancel": "Huidig e-mailadres houden",
-    "email_taken": "Dat e-mailadres wordt al door een ander account gebruikt."
+    "email_taken": "Dat e-mailadres wordt al door een ander account gebruikt.",
+    "group_account": "Account",
+    "group_family": "Gezin",
+    "hint_profile": "Je naam, e-mail en account",
+    "hint_sign_in": "Inloggen met Google en Apple",
+    "hint_appearance": "Skin, licht of donker",
+    "hint_language": "De taal van de app",
+    "hint_media": "Foto's die je gezin heeft geüpload",
+    "hint_trash": "Haal terug wat de afgelopen 30 dagen is verwijderd",
+    "hint_connected_apps": "AI-assistenten gekoppeld aan FamilyWell",
+    "hint_billing": "Het abonnement van je gezin",
+    "hint_notifications": "Pushmeldingen op dit apparaat"
 }

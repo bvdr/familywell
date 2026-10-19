@@ -33,6 +33,7 @@ const PAGES: [string, string][] = [
     ['vehicles-settings', '/m/vehicles/settings'],
     ['expense-import', '/m/expense-import'],
     ['expense-import-settings', '/m/expense-import/settings'],
+    ['settings', '/settings'],
     ['settings-profile', '/settings/profile'],
     ['settings-sign-in', '/settings/sign-in'],
     ['onboarding-about', '/onboarding/about'],
@@ -141,10 +142,10 @@ test.describe('phone navigation', () => {
     });
 });
 
-// Settings > Modules: one link per enabled module that has a settings page (resources/js/layouts/settings/layout.tsx).
+// Settings home > Modules: one link per enabled module that has a settings page (resources/js/layouts/settings/layout.tsx).
 // Every link must open a real page, so a module that moves or drops its settings URL fails here.
 test('settings-modules', async ({ page }) => {
-    await page.goto('/settings/profile');
+    await page.goto('/settings');
     const group = page.getByRole('group', { name: 'Modules' });
     await expect(group).toBeVisible();
     const hrefs = await group.getByRole('link').evaluateAll((as) => as.map((a) => (a as HTMLAnchorElement).getAttribute('href')!));

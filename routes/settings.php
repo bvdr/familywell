@@ -20,7 +20,8 @@ use Modules\Notifications\NotificationCategories;
 Route::post('stripe/webhook', [BillingController::class, 'webhook'])->name('billing.webhook');
 
 Route::middleware('auth')->group(function () {
-    Route::redirect('settings', 'settings/profile');
+    // Settings home: the section menu (phones drill down from here; see layouts/settings/layout.tsx).
+    Route::get('settings', fn () => Inertia::render('settings/index'))->name('settings');
 
     // Media library needs the active family (to list its uploads), so it also runs the family middleware.
     Route::middleware('family')->group(function () {

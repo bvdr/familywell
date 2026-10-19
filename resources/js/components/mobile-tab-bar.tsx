@@ -37,7 +37,7 @@ type Item = { key: string; labelKey: string; url: string; icon: LucideIcon; meth
 
 const HOME: Item = { key: 'dashboard', labelKey: 'nav.home', url: '/dashboard', icon: LayoutGrid };
 // Page-modules earn a nav entry when the family has enabled them (order = preferred display order).
-const MODULE_ITEMS: Item[] = [
+export const MODULE_ITEMS: Item[] = [
     { key: 'projects', labelKey: 'nav.projects', url: '/m/projects', icon: FolderKanban },
     { key: 'calendar', labelKey: 'nav.calendar', url: '/m/calendar', icon: CalendarDays },
     { key: 'tasks', labelKey: 'nav.tasks', url: '/m/tasks', icon: ListChecks },
@@ -54,7 +54,7 @@ const MODULE_ITEMS: Item[] = [
 const SECONDARY: Item[] = [
     { key: 'members', labelKey: 'nav.members', url: '/family/members', icon: Users },
     { key: 'modules', labelKey: 'nav.modules', url: '/family/modules', icon: Blocks },
-    { key: 'settings', labelKey: 'nav.settings', url: '/settings/profile', icon: Settings },
+    { key: 'settings', labelKey: 'nav.settings', url: '/settings', icon: Settings },
 ];
 
 // The green "+" quick-add: each enabled module's top-level create, deep-linked with ?new=1 so the
