@@ -51,8 +51,8 @@ import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
-import { newClientKey, PendingAdds, send, useQueuedBought } from '@/lib/shopping-outbox';
 import { aisleIcon, bumpQuantity, getVoiceLang, LIST_COLORS, LIST_ICONS, listColor, listIcon, normalizeItemName } from '@/lib/shopping';
+import { newClientKey, PendingAdds, saveTick, send, useQueuedBought } from '@/lib/shopping-outbox';
 import { type BreadcrumbItem } from '@/types';
 
 type Member = { id: number; name: string };
@@ -272,10 +272,14 @@ export default function ListDetail({
     const toggle = (item: Item) => {
         const next = !isBought(item);
         bought.set(item.id, next);
-        send(
-            { kind: 'bought', key: newClientKey(), method: 'patch', url: route('shopping.items.update', item.id), data: { bought: next }, itemId: item.id },
-            { preserveScroll: true, preserveState: true, onFinish: () => bought.clear(item.id) },
-        );
+        void saveTick({
+            kind: 'bought',
+            key: newClientKey(),
+            method: 'patch',
+            url: route('shopping.items.update', item.id),
+            data: { bought: next },
+            itemId: item.id,
+        }).then(() => bought.clear(item.id));
     };
     const remove = (item: Item) => {
         removed.set(item.id, true);
@@ -364,7 +368,15 @@ export default function ListDetail({
         setAdding(true);
         const data = { ...buildPayload(draft), add_anyway: addAnyway, client_key: newClientKey() };
         send(
-            { kind: 'add', key: data.client_key, method: 'post', url: route('shopping.items.store', list.id), data, page: window.location.pathname, name: data.name },
+            {
+                kind: 'add',
+                key: data.client_key,
+                method: 'post',
+                url: route('shopping.items.store', list.id),
+                data,
+                page: window.location.pathname,
+                name: data.name,
+            },
             {
                 preserveScroll: true,
                 onSuccess: () => setEditingId(null),

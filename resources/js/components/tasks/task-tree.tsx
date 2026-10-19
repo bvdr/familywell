@@ -24,6 +24,7 @@ import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import { useT } from '@/lib/i18n';
 import { Slot } from '@/lib/modules';
+import { save } from '@/lib/save';
 import { dueLabel } from '@/lib/tasks';
 import { buildTree, type FlatTask, flatten, getProjection, INDENT, removeChildrenOf } from './tree-utils';
 
@@ -68,6 +69,8 @@ export function TaskTree({ tasks, members, canEdit, addUrl, taskUrl, reorderUrl,
     // needs no re-sync (the server key is unchanged, so the mirror would not refresh on its own).
     const removed = useOptimistic<boolean>();
     const [newTitle, setNewTitle] = useState('');
+    // Adds sent but not on screen yet (lib/save): shown faded under the list so typing several in a row is instant.
+    const [adding, setAdding] = useState<{ key: number; title: string }[]>([]);
     const [editing, setEditing] = useState<SubTask | null>(null);
     const [openSwipe, setOpenSwipe] = useState<number | null>(null); // row whose delete action is revealed
 
@@ -106,28 +109,30 @@ export function TaskTree({ tasks, members, canEdit, addUrl, taskUrl, reorderUrl,
     const activeItem = activeId != null ? flattened.find((i) => i.id === activeId) : null;
 
     const isDone = (t: SubTask) => doneOpt.get(t.id, t.done);
+    // Ticks, adds and deletes go through lib/save (plain fetch, never cancelled by the next tap, one reload after),
+    // and a tick sends the value it wants, not "flip": a fast tick-untick-tick ends where the screen says.
     const toggle = (t: SubTask) => {
         if (!canEdit) return;
-        doneOpt.set(t.id, !isDone(t));
-        router.patch(
-            taskUrl(t.id),
-            {},
-            { preserveScroll: true, preserveState: true, onSuccess: () => doneOpt.clear(t.id), onError: () => doneOpt.clear(t.id) },
-        );
+        const next = !isDone(t);
+        doneOpt.set(t.id, next);
+        void save('patch', taskUrl(t.id), { done: next }).then(() => doneOpt.clear(t.id));
     };
     const addTask = () => {
-        if (!newTitle.trim()) return;
-        router.post(addUrl, { title: newTitle.trim() }, { preserveScroll: true, onSuccess: () => setNewTitle('') });
+        const title = newTitle.trim();
+        if (!title) return;
+        const key = Date.now() + Math.random();
+        setAdding((a) => [...a, { key, title }]);
+        setNewTitle('');
+        void save('post', addUrl, { title }).then((result) => {
+            setAdding((a) => a.filter((p) => p.key !== key));
+            // Not saved: give the text back instead of losing it (only into an empty box, never over new typing).
+            if (result !== 'ok') setNewTitle((current) => current || title);
+        });
     };
     const del = (id: number) => {
         setOpenSwipe(null);
         removed.set(id, true);
-        router.delete(taskUrl(id), {
-            preserveScroll: true,
-            preserveState: true,
-            onSuccess: () => removed.clear(id),
-            onError: () => removed.clear(id),
-        });
+        void save('delete', taskUrl(id)).then(() => removed.clear(id));
     };
 
     function resetDrag() {
@@ -165,7 +170,7 @@ export function TaskTree({ tasks, members, canEdit, addUrl, taskUrl, reorderUrl,
         }
 
         setItems(result);
-        router.post(reorderUrl, { order: result.map((i) => ({ id: i.id, parent_id: i.parentId })) }, { preserveScroll: true, preserveState: true });
+        void save('post', reorderUrl, { order: result.map((i) => ({ id: i.id, parent_id: i.parentId })) });
     }
 
     const tree = buildTree(visibleItems); // for the empty check + counts if needed
@@ -209,6 +214,13 @@ export function TaskTree({ tasks, members, canEdit, addUrl, taskUrl, reorderUrl,
                     ) : null}
                 </DragOverlay>
             </DndContext>
+
+            {adding.map((p) => (
+                <div key={p.key} className="flex items-center gap-2 rounded-lg px-3 py-2.5 opacity-60" aria-busy>
+                    <span className="border-border size-5 shrink-0 rounded-full border" />
+                    <span className="text-primary text-[15px] break-words">{p.title}</span>
+                </div>
+            ))}
 
             {canEdit && (
                 <div className="mt-1 flex items-center gap-2">

@@ -4,13 +4,14 @@ import { CloudOff } from 'lucide-react';
 import { useSyncExternalStore } from 'react';
 
 import { useT } from '@/lib/i18n';
+import { request, save } from '@/lib/save';
 
 // Offline queue for the two things you do in a shop with no signal: tick an item bought, and add an item.
 // Everything else in the app still just shows the offline banner (offline-banner.tsx) and rolls back.
 //
-// Flow: send() fires the normal Inertia request. If the browser is offline, or the request got no response at
-// all (Inertia then fires neither onSuccess nor onError, only onFinish), the change goes into a queue in
-// localStorage, so it survives the app being closed. The queue replays in order when the browser comes back
+// Flow: a tick goes out through saveTick() (lib/save: a plain fetch), an add through send() (the normal Inertia
+// request, since the add sheet shows the server's duplicate warning). If the browser is offline, or the request got
+// no response at all, the change goes into a queue in localStorage, so it survives the app being closed. The queue replays in order when the browser comes back
 // online or any app request succeeds, then reloads the page props once.
 //
 // Replays must be safe to run twice (a request can reach the server and lose only its response):
@@ -86,9 +87,11 @@ export function send(op: QueuedOp, options: VisitOptions & { onQueued?: () => vo
     });
 }
 
-function xsrf(): string {
-    const m = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
-    return m ? decodeURIComponent(m[1]) : '';
+// A tick: lib/save when online (a plain fetch the next tap can't cancel, one reload after), the outbox when there's
+// no connection or the save got no response. Resolves once the screen shows the real state (or the queued one).
+export async function saveTick(op: Extract<QueuedOp, { kind: 'bought' }>): Promise<void> {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return enqueue(op);
+    if ((await save(op.method, op.url, op.data)) === 'offline') enqueue(op);
 }
 
 let flushing = false;
@@ -102,20 +105,9 @@ export async function flush() {
     flushing = true;
     const settled = new Set<string>();
     for (const op of ops) {
-        let res: Response;
-        try {
-            res = await fetch(op.url, {
-                method: op.method.toUpperCase(),
-                headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-XSRF-TOKEN': xsrf() },
-                body: JSON.stringify(op.data),
-                credentials: 'same-origin',
-                redirect: 'manual', // the controllers answer with a redirect back; following it would render a page for nothing
-            });
-        } catch {
-            break; // still no connection
-        }
-        const done = res.type === 'opaqueredirect' || res.ok;
-        if (!done && (res.status === 401 || res.status === 419 || res.status === 429 || res.status >= 500)) break;
+        const { result, status } = await request(op.method, op.url, op.data);
+        if (result === 'offline') break; // still no connection
+        if (result === 'rejected' && (status === 401 || status === 419 || status === 429 || status >= 500)) break;
         settled.add(op.key);
     }
     const finish = () => {
