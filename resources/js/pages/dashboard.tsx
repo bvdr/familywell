@@ -4,10 +4,11 @@ import AppLayout from '@/layouts/app-layout';
 import { useLocale, useT, type TFn } from '@/lib/i18n';
 import { Slot } from '@/lib/modules';
 import { money } from '@/lib/money';
+import { save } from '@/lib/save';
 import { listColor as shoppingListColor, listIcon as shoppingListIcon } from '@/lib/shopping';
 import { listColor as taskListColor, listIcon as taskListIcon } from '@/lib/tasks';
 import { type SharedData } from '@/types';
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import {
     Blocks,
     CalendarDays,
@@ -30,9 +31,10 @@ import { useState } from 'react';
 // lucide key, a list's icon slug + colour swatch), so the card shows what the user picked.
 type DashItem = { title: string; subtitle: string; href: string; icon: string; category?: string; color?: string | null };
 // A dated leaf item (a task / shopping item due on a day) for the Today / This Week sections.
-// toggleUrl: empty-body PATCH marks it done/bought (and it drops off on the next dashboard load).
-// toggleUrl is absent for display-only rows (e.g. calendar events: they aren't "done").
-type AgendaItem = DashItem & { dueDate: string; toggleUrl?: string };
+// toggleUrl + toggleBody: PATCH toggleBody (e.g. { done: true }) marks it done/bought, and it drops off on the reload.
+// Each source names its own field (shopping says `bought`), so the dashboard never guesses and never sends a "flip".
+// Both are absent for display-only rows (e.g. calendar events: they aren't "done").
+type AgendaItem = DashItem & { dueDate: string; toggleUrl?: string; toggleBody?: Record<string, boolean> };
 // Unique per row: a repeating event recurs under one href+title, and two to-dos of one event share href and
 // maybe title, so the date and the per-task toggle URL go into the key too.
 const agendaKey = (it: AgendaItem) => `${it.toggleUrl ?? it.href}-${it.title}-${it.dueDate}`;
@@ -169,9 +171,10 @@ function AgendaRow({ item }: { item: AgendaItem }) {
     const badge = dueBadge(item.dueDate, t, locale);
     const [done, setDone] = useState(false);
     const toggle = () => {
-        if (!item.toggleUrl) return;
-        setDone(true); // optimistic check; the redirect back reloads the dashboard and removes it
-        router.patch(item.toggleUrl, {}, { preserveScroll: true });
+        if (!item.toggleUrl || done) return; // one-way: a second tap before it drops off does nothing
+        setDone(true); // optimistic check; the reload after the save removes the row
+        // lib/save: never cancelled by the next tap; if it didn't save, the circle unticks again.
+        void save('patch', item.toggleUrl, item.toggleBody ?? { done: true }).then((result) => result !== 'ok' && setDone(false));
     };
     return (
         <div className="bg-surface-card flex items-center gap-2.5 rounded-xl border px-3 py-2.5">

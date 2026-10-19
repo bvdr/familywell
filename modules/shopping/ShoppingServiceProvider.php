@@ -98,7 +98,7 @@ class ShoppingServiceProvider extends ServiceProvider
                     'href' => "/m/shopping/lists/{$i->shopping_list_id}",
                     'icon' => 'shopping-cart',
                     'dueDate' => $i->due_date->toDateString(),
-                    'toggleUrl' => "/m/shopping/items/{$i->id}", // empty-body PATCH toggles bought
+                    'toggleUrl' => "/m/shopping/items/{$i->id}", 'toggleBody' => ['bought' => true], // the dashboard tick sends this: set bought, never flip
                     'kind' => 'shopping_item', // kind + id: get_today's widget ticks it off via the MCP tool
                     'id' => $i->id,
                 ])->values()->all();

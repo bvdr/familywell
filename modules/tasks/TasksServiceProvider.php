@@ -100,7 +100,7 @@ class TasksServiceProvider extends ServiceProvider
                     'href' => "/m/tasks/lists/{$t->task_list_id}",
                     'icon' => 'list-checks',
                     'dueDate' => $t->due_date->toDateString(),
-                    'toggleUrl' => "/m/tasks/tasks/{$t->id}", // empty-body PATCH toggles done
+                    'toggleUrl' => "/m/tasks/tasks/{$t->id}", 'toggleBody' => ['done' => true], // the dashboard tick sends this: set done, never flip
                     'kind' => 'task', // kind + id: get_today's widget ticks it off via the MCP tool
                     'id' => $t->id,
                 ])->values()->all();
