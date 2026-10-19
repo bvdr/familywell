@@ -41,7 +41,7 @@ export default function VehicleTires({ vehicle, unitSystem, sets, canRemind }: P
         router.post(
             `/m/vehicles/${vehicle.id}/tires/${s.id}/mount`,
             {},
-            { preserveScroll: true, preserveState: true, onSuccess: () => setOptMountedId(null), onError: () => setOptMountedId(null) },
+            { preserveScroll: true, preserveState: true, onFinish: () => setOptMountedId(null) },
         );
     };
     const removeSet = (s: TireSet) => {

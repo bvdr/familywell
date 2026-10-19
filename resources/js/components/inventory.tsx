@@ -108,7 +108,7 @@ export function AddToShoppingButton({
                     route('inventory.items.shopping', item.id),
                     {},
                     // preserveState keeps this local optimistic flag alive across the prop reload the POST triggers.
-                    { preserveScroll: true, preserveState: true, onError: () => setOptAdded(false) },
+                    { preserveScroll: true, preserveState: true, onFinish: () => setOptAdded(false) },
                 );
             }}
             className={`${base} text-primary hover:bg-surface`}

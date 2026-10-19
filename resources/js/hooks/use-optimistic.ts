@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { router } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
 
 // Optimistic overlay for list-item state that syncs to the server in the background.
 //
@@ -18,8 +19,15 @@ import { useState } from 'react';
 //   };
 //
 // preserveState:true keeps these overrides alive across the prop reload the request triggers.
+//
+// No connection: Inertia fires neither onSuccess nor onError when a request gets no response at all (only its
+// global 'exception' event + onFinish), so the callers' onError rollback never ran and an offline tap stayed on
+// screen as if it had saved. Dropping every override on 'exception' fixes all callers in one place. Dropping
+// all (not just the failed one) is safe: any other in-flight request that does succeed reloads the props anyway.
 export function useOptimistic<V>() {
     const [overrides, setOverrides] = useState<Record<string, V>>({});
+
+    useEffect(() => router.on('exception', () => setOverrides({})), []);
 
     return {
         // The value to render: the pending override if one exists, else the server value.

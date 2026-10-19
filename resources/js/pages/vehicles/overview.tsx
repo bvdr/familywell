@@ -353,8 +353,8 @@ function MileagePanel({ vehicle, unitSystem, t }: { vehicle: Vehicle; unitSystem
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     // Optimistic odometer: show the new reading the instant it's submitted, then reconcile with the server.
-    // Cleared on success (the reloaded prop is authoritative) and on error (roll back to the confirmed value,
-    // e.g. a rejected backwards reading), so the big number never lies while the request is in flight.
+    // Cleared when the request finishes: on success the reloaded prop is authoritative; on error or no connection
+    // it rolls back to the confirmed value (e.g. a rejected backwards reading), so the big number never lies while the request is in flight.
     const [optMileage, setOptMileage] = useState<number | null>(null);
     const shownMileage = optMileage ?? vehicle.currentMileage;
 
@@ -370,13 +370,16 @@ function MileagePanel({ vehicle, unitSystem, t }: { vehicle: Vehicle; unitSystem
                 onSuccess: () => {
                     setManual('');
                     setError(null);
-                    setOptMileage(null);
                 },
                 onError: (errs) => {
                     setError(errs.mileage ?? null);
+                },
+                // onFinish, not onSuccess/onError: a dropped connection fires neither, and the reading must
+                // still roll back.
+                onFinish: () => {
+                    setProcessing(false);
                     setOptMileage(null);
                 },
-                onFinish: () => setProcessing(false),
             },
         );
     };
