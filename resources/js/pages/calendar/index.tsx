@@ -3,7 +3,7 @@ import { CalendarPlus, ChevronLeft, ChevronRight, Filter, Plus } from 'lucide-re
 import { useState } from 'react';
 
 import { EventSheet } from '@/components/calendar/event-sheet';
-import { FeedSheet } from '@/components/calendar/feed-sheet';
+import { FeedSheet, type Subscription } from '@/components/calendar/feed-sheet';
 import { FilterSheet } from '@/components/calendar/filter-sheet';
 import { MonthView } from '@/components/calendar/month-view';
 import { TimelineView } from '@/components/calendar/timeline-view';
@@ -36,11 +36,24 @@ export type CalendarProps = {
     contacts: Named[];
     projects: Named[] | null;
     feedUrl: string | null;
+    subscriptions: Subscription[];
 };
 
 // View, zoom and date live in the query string (back/forward + shareable); the server answers with the range
 // and its items. Navigation is a partial reload of only those props: members/contacts/projects stay put.
-export default function CalendarIndex({ view, zoom, date, range, items, sources, members, contacts, projects, feedUrl }: CalendarProps) {
+export default function CalendarIndex({
+    view,
+    zoom,
+    date,
+    range,
+    items,
+    sources,
+    members,
+    contacts,
+    projects,
+    feedUrl,
+    subscriptions,
+}: CalendarProps) {
     const t = useT();
     const locale = useLocale();
     const todayYmd = ymd(new Date());
@@ -106,7 +119,7 @@ export default function CalendarIndex({ view, zoom, date, range, items, sources,
                         <Filter className="size-4" />
                         {active > 0 ? ` ${active}` : ''}
                     </Button>
-                    <Button variant="ghost" size="icon" aria-label={t('calendar.subscribe')} onClick={() => setFeedOpen(true)}>
+                    <Button variant="ghost" size="icon" aria-label={t('calendar.calendars_title')} onClick={() => setFeedOpen(true)}>
                         <CalendarPlus className="size-5" />
                     </Button>
                     {/* Hidden on mobile: the nav's context-aware "+" adds an event there. */}
@@ -144,7 +157,7 @@ export default function CalendarIndex({ view, zoom, date, range, items, sources,
                 members={members}
                 contacts={contacts}
             />
-            <FeedSheet open={feedOpen} onOpenChange={setFeedOpen} url={feedUrl} />
+            <FeedSheet open={feedOpen} onOpenChange={setFeedOpen} url={feedUrl} subscriptions={subscriptions} />
         </AppLayout>
     );
 }

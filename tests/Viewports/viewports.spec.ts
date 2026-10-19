@@ -50,6 +50,7 @@ const PAGES: [string, string][] = [
 // An optional 4th item is a sub-page path appended to that link (e.g. a car's /timeline).
 const DETAILS: [string, string, RegExp, string?][] = [
     ['calendar-event', '/m/calendar', /\/m\/calendar\/events\/\d+$/],
+    ['calendar-external-event', '/m/calendar', /\/m\/calendar\/external\/\d+$/],
     ['note', '/m/notes', /\/m\/notes\/\d+$/],
     ['project', '/m/projects', /\/m\/projects\/\d+$/],
     ['recipe', '/m/recipes', /\/m\/recipes\/\d+$/],
