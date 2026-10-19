@@ -13,7 +13,16 @@ import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { useT } from '@/lib/i18n';
 
-export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: boolean; status?: string }) {
+export default function Profile({
+    mustVerifyEmail,
+    status,
+    pendingEmail,
+}: {
+    mustVerifyEmail: boolean;
+    status?: string;
+    // A new address waiting for the code we sent it; the email only changes once that code is typed.
+    pendingEmail?: string | null;
+}) {
     const { auth } = usePage<SharedData>().props;
     const t = useT();
     const breadcrumbs: BreadcrumbItem[] = [
@@ -31,7 +40,17 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
 
-        patch(route('profile.update'));
+        patch(route('profile.update'), { preserveScroll: true });
+    };
+
+    const codeForm = useForm({ code: '' });
+    const confirmEmail: FormEventHandler = (e) => {
+        e.preventDefault();
+        codeForm.post(route('profile.email.confirm'), {
+            preserveScroll: true,
+            onSuccess: () => codeForm.reset(),
+            onError: () => codeForm.setData('code', ''),
+        });
     };
 
     return (
@@ -75,6 +94,39 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
 
                             <InputError className="mt-2" message={errors.email} />
                         </div>
+
+                        {pendingEmail && (
+                            <div className="bg-accent-subtle grid gap-3 rounded-xl p-4">
+                                <p className="text-sm">{t('settings.email_change_sent', { email: pendingEmail })}</p>
+                                <Label htmlFor="email-code">{t('auth.code_label')}</Label>
+                                <Input
+                                    id="email-code"
+                                    inputMode="numeric"
+                                    autoComplete="one-time-code"
+                                    pattern="[0-9]*"
+                                    maxLength={6}
+                                    value={codeForm.data.code}
+                                    onChange={(e) => codeForm.setData('code', e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                    placeholder="123456"
+                                    className="text-center font-mono text-lg tracking-[0.4em]"
+                                />
+                                <InputError message={codeForm.errors.code} />
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <Button type="button" onClick={confirmEmail} disabled={codeForm.processing || codeForm.data.code.length !== 6}>
+                                        {t('settings.email_change_confirm')}
+                                    </Button>
+                                    <Link
+                                        href={route('profile.email.cancel')}
+                                        method="delete"
+                                        as="button"
+                                        preserveScroll
+                                        className="text-muted-foreground text-sm underline underline-offset-4"
+                                    >
+                                        {t('settings.email_change_cancel')}
+                                    </Link>
+                                </div>
+                            </div>
+                        )}
 
                         {mustVerifyEmail && auth.user.email_verified_at === null && (
                             <div>

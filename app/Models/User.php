@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Laravel\Passport\Contracts\OAuthenticatable;
 use Laravel\Passport\HasApiTokens;
+use Laravel\Passport\RefreshToken;
+use Laravel\Passport\Token;
 use NotificationChannels\WebPush\HasPushSubscriptions;
 
 class User extends Authenticatable implements OAuthenticatable
@@ -42,9 +44,14 @@ class User extends Authenticatable implements OAuthenticatable
 
     /**
      * Someone just proved they own this address (an email code, or Google/Apple vouching for it). On an
-     * account that never verified its address, whoever registered it before may not be that person and may
-     * still be signed in: mark it verified, rotate the remember-me token and end every stored session, so
-     * only the proven owner gets in from now on. Already-verified accounts are left alone.
+     * account that never verified its address, whoever registered it before may not be that person: they may
+     * have planted it under someone else's address. Hand the account over clean, so only the proven owner gets
+     * in from now on: mark it verified, rotate the remember-me token, end every stored session, and remove
+     * every other way back in, the linked Google/Apple sign-ins (SocialLogin checks those before the email),
+     * MCP/OAuth tokens and push subscriptions. Already-verified accounts are left alone.
+     *
+     * Security audit 2026-10-19: the first version only did the session part, so a squatter's linked Google
+     * account and Passport token still got them back into the account after the real owner claimed it.
      */
     public function confirmEmailOwner(): void
     {
@@ -55,6 +62,11 @@ class User extends Authenticatable implements OAuthenticatable
         if (config('session.driver') === 'database') {
             DB::connection(config('session.connection'))->table(config('session.table', 'sessions'))->where('user_id', $this->id)->delete();
         }
+        $this->socialAccounts()->delete();
+        $tokenIds = Token::where('user_id', $this->id)->pluck('id');
+        Token::whereKey($tokenIds)->update(['revoked' => true]);
+        RefreshToken::whereIn('access_token_id', $tokenIds)->update(['revoked' => true]);
+        $this->pushSubscriptions()->delete();
     }
 
     public function families(): BelongsToMany
