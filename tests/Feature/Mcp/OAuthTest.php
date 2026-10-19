@@ -20,7 +20,10 @@ it('serves the discovery documents pointing at the authorization server', functi
 
     $this->getJson('/.well-known/oauth-protected-resource/mcp')->assertOk()
         ->assertJsonPath('resource', url('/mcp'))
-        ->assertJsonPath('authorization_servers', ['https://familywell.co']);
+        ->assertJsonPath('authorization_servers', ['https://familywell.co'])
+        ->assertJsonPath('bearer_methods_supported', ['header']);
+    $this->getJson('/.well-known/oauth-protected-resource')->assertOk()
+        ->assertJsonPath('bearer_methods_supported', ['header']);
 
     $this->getJson('/.well-known/oauth-authorization-server')->assertOk()
         ->assertJsonPath('registration_endpoint', url('oauth/register'))
