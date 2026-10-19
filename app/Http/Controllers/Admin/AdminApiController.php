@@ -232,11 +232,14 @@ class AdminApiController extends Controller
         if ($q === '') {
             return $query;
         }
-        $like = '%'.addcslashes(mb_strtolower($q), '\\%_').'%';
+        // '!' escapes, not a backslash: PDO's pgsql placeholder scanner reads the backslash in escape '\' as escaping
+        // the quote, loses track of the string and then miscounts the ? placeholders, so the users search
+        // (which has a ? earlier, in plan_rank) failed on Postgres. SQLite tests never saw it.
+        $like = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], mb_strtolower($q)).'%';
 
         return $query->where(function (Builder $w) use ($columns, $like) {
             foreach ($columns as $column) {
-                $w->orWhereRaw("lower({$column}) like ? escape '\\'", [$like]);
+                $w->orWhereRaw("lower({$column}) like ? escape '!'", [$like]);
             }
         });
     }
