@@ -2,7 +2,7 @@
     "id": "projects",
     "name": "Projects",
     "description": "Plan the bigger things: tasks, progress, and linked shopping lists.",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "provider": "Modules\\Projects\\ProjectsServiceProvider",
     "frontend": "",
     "requires": []
