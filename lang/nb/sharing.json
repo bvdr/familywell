@@ -1,0 +1,19 @@
+{
+    "title": "Del",
+    "access_title": "Hvem har tilgang",
+    "people_title": "Personer",
+    "owner": "Eier",
+    "no_access": "Ingen tilgang",
+    "can_edit": "Kan redigere",
+    "can_view": "Kan se",
+    "invite_link": "Invitasjonslenke",
+    "link_view_desc": "Alle med lenken kan se dette.",
+    "create_link": "Lag en lenke som bare kan vises",
+    "no_link": "Ingen invitasjonslenke.",
+    "vis_family_title": "Alle i familien",
+    "vis_family_sub": "Alle familiemedlemmer har tilgang",
+    "vis_invited_title": "Bare inviterte",
+    "vis_invited_sub": "Bare de du legger til nedenfor",
+    "vis_private_title": "Privat",
+    "vis_private_sub": "Bare synlig for deg"
+}

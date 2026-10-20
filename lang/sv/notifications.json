@@ -1,0 +1,12 @@
+{
+    "title": "Aviseringar",
+    "aria": "Aviseringar",
+    "aria_unread": "Aviseringar, :n olästa",
+    "mark_all_read": "Markera alla som lästa",
+    "caught_up": "Du har sett allt.",
+    "see_all": "Visa alla",
+    "empty": "Inget än. Familjeaktivitet som du kan se dyker upp här.",
+    "today": "Idag",
+    "yesterday": "Igår",
+    "now": "nu"
+}

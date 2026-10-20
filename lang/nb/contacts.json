@@ -1,0 +1,18 @@
+{
+    "add": "Legg til kontakt",
+    "add_placeholder": "Navn på ny kontakt",
+    "empty": "Ingen kontakter ennå. Legg til noen ovenfor.",
+    "edit": "Rediger kontakt",
+    "name": "Navn",
+    "methods": "Kontaktinfo",
+    "type_phone": "Telefon",
+    "type_email": "E-post",
+    "type_address": "Adresse",
+    "type_url": "Lenke",
+    "type_other": "Annet",
+    "value_placeholder": "Verdi",
+    "add_method": "Legg til kontaktinfo",
+    "remove_method": "Fjern",
+    "delete": "Slett kontakt",
+    "save": "Lagre"
+}

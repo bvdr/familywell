@@ -1,0 +1,19 @@
+{
+    "title": "Dela",
+    "access_title": "Vem har åtkomst",
+    "people_title": "Personer",
+    "owner": "Ägare",
+    "no_access": "Ingen åtkomst",
+    "can_edit": "Kan redigera",
+    "can_view": "Kan visa",
+    "invite_link": "Inbjudningslänk",
+    "link_view_desc": "Alla med länken kan se det här.",
+    "create_link": "Skapa en länk för visning",
+    "no_link": "Ingen inbjudningslänk.",
+    "vis_family_title": "Alla i familjen",
+    "vis_family_sub": "Alla familjemedlemmar har åtkomst",
+    "vis_invited_title": "Bara inbjudna",
+    "vis_invited_sub": "Bara personerna du lägger till nedan",
+    "vis_private_title": "Privat",
+    "vis_private_sub": "Syns bara för dig"
+}
