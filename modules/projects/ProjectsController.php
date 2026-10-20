@@ -38,16 +38,26 @@ class ProjectsController extends Controller
         $memberNames = Family::findOrFail(CurrentFamily::id())->members->pluck('name', 'id');
 
         $projects = Project::query()
-            ->with(['shareSetting', 'shares', 'tasks:id,project_id,assigned_to,done'])
+            ->with(['shareSetting', 'shares'])
             ->orderBy('position')->latest()->get()
             ->filter(fn (Project $p) => $p->visibility() === 'family' || $p->shares->contains('user_id', $userId))
             ->values();
 
+        // Card counts = the project page's: its to-dos (listless tasks-module tasks linked via `task` rows) plus their
+        // sub-tasks, trashed ones excluded. Not Project::tasks(): that is the retired projects_tasks table, which still
+        // held old rows and showed e.g. "0 of 3" on a project whose real to-dos differ. Two queries for all cards.
+        $links = ProjectLink::whereIn('project_id', $projects->pluck('id'))->where('linkable_type', 'task')->get(['project_id', 'linkable_id']);
+        $projectOf = $links->pluck('project_id', 'linkable_id');
+        $tasksByProject = Task::where(fn ($q) => $q->whereIn('id', $projectOf->keys())->orWhereIn('parent_id', $projectOf->keys()))
+            ->get(['id', 'parent_id', 'done', 'assigned_to'])
+            ->groupBy(fn (Task $t) => $projectOf[$t->parent_id ?? $t->id] ?? null);
+
         return Inertia::render('projects/index', [
-            'projects' => $projects->map(function (Project $p) use ($memberNames) {
-                $done = $p->tasks->where('done', true)->count();
-                $total = $p->tasks->count();
-                $memberIds = $p->tasks->pluck('assigned_to')->push($p->owner_id)->filter()->unique()->values();
+            'projects' => $projects->map(function (Project $p) use ($memberNames, $tasksByProject) {
+                $tasks = $tasksByProject[$p->id] ?? collect();
+                $done = $tasks->where('done', true)->count();
+                $total = $tasks->count();
+                $memberIds = $tasks->pluck('assigned_to')->push($p->owner_id)->filter()->unique()->values();
 
                 return [
                     'id' => $p->id,

@@ -5,6 +5,7 @@ use App\Models\User;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareAccess;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Modules\Notes\Note;
 use Modules\Projects\Project;
@@ -227,4 +228,21 @@ it('offers only viewable notes as linkable and excludes already-linked ones', fu
     expect($titles)->toContain('Mine')
         ->and($titles)->not->toContain('Linked')
         ->and($titles)->not->toContain('Secret');
+});
+
+it('counts a project card from its real to-dos and sub-tasks, like the project page', function () {
+    [, $users] = projectsFamily();
+    actingAs($users[0])->post('/m/projects', ['name' => 'Flat']);
+    $project = Project::withoutGlobalScopes()->first();
+    // Leftover rows in the retired projects_tasks table must not count (they showed "0 of 3" on a real project).
+    DB::table('projects_tasks')->insert(array_map(fn ($n) => ['family_id' => $project->family_id, 'project_id' => $project->id, 'name' => $n, 'done' => false, 'position' => 0, 'created_by' => $users[0]->id], ['a', 'b', 'c']));
+
+    foreach (['Paint', 'Floor'] as $title) {
+        actingAs($users[0])->post("/m/projects/{$project->id}/tasks", ['title' => $title]);
+    }
+    $paint = Task::withoutGlobalScopes()->where('title', 'Paint')->first();
+    actingAs($users[0])->post("/m/projects/{$project->id}/tasks", ['title' => 'Buy primer', 'parent_id' => $paint->id]);
+    actingAs($users[0])->patch("/m/projects/tasks/{$paint->id}", ['done' => true]);
+
+    actingAs($users[0])->get('/m/projects')->assertInertia(fn ($p) => $p->where('projects.0.done', 1)->where('projects.0.total', 3));
 });
