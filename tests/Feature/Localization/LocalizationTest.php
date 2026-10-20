@@ -29,7 +29,7 @@ it('translates every English key in every locale', function () {
 
 it('lists locale options', function () {
     $codes = collect(Translations::options())->pluck('code');
-    expect($codes)->toContain('en')->toContain('ro')->toContain('de')->toContain('fr')->toContain('nl');
+    expect($codes)->toContain('en')->toContain('ro')->toContain('de')->toContain('fr')->toContain('nl')->toContain('sv')->toContain('nb');
 });
 
 it('saves the user locale and applies it to the shared translations', function () {
@@ -77,4 +77,12 @@ it('keeps a chosen locale over the browser language', function () {
     $user = User::factory()->create(['locale' => 'en']);
     actingAs($user)->get('/settings/language', ['Accept-Language' => 'de'])
         ->assertInertia(fn ($page) => $page->where('locale', 'en'));
+});
+
+it('greets a Norwegian browser in Bokmål, whichever code it sends', function (string $header) {
+    $this->get('/login', ['Accept-Language' => $header])->assertInertia(fn ($page) => $page->where('locale', 'nb'));
+})->with(['nb-NO,nb;q=0.9', 'no', 'nn-NO,nn;q=0.9']);
+
+it('greets a Swedish browser in Swedish', function () {
+    $this->get('/login', ['Accept-Language' => 'sv-SE,sv;q=0.9,en;q=0.5'])->assertInertia(fn ($page) => $page->where('locale', 'sv'));
 });

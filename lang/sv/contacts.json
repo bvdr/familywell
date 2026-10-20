@@ -1,0 +1,18 @@
+{
+    "add": "Lägg till kontakt",
+    "add_placeholder": "Namn på ny kontakt",
+    "empty": "Inga kontakter än. Lägg till någon ovan.",
+    "edit": "Redigera kontakt",
+    "name": "Namn",
+    "methods": "Kontaktuppgifter",
+    "type_phone": "Telefon",
+    "type_email": "E-post",
+    "type_address": "Adress",
+    "type_url": "Länk",
+    "type_other": "Annat",
+    "value_placeholder": "Värde",
+    "add_method": "Lägg till kontaktuppgift",
+    "remove_method": "Ta bort",
+    "delete": "Radera kontakt",
+    "save": "Spara"
+}

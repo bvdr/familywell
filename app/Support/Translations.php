@@ -8,7 +8,7 @@ namespace App\Support;
 class Translations
 {
     /** Available locales: code => native label. Add a language by adding a lang/{code}.json + a row here. */
-    public const LOCALES = ['en' => 'English', 'ro' => 'Română', 'de' => 'Deutsch', 'fr' => 'Français', 'nl' => 'Nederlands'];
+    public const LOCALES = ['en' => 'English', 'ro' => 'Română', 'de' => 'Deutsch', 'fr' => 'Français', 'nl' => 'Nederlands', 'sv' => 'Svenska', 'nb' => 'Norsk'];
 
     /** @return array<string, mixed> full nested map for $locale, English-filled. */
     public static function for(string $locale): array

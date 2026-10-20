@@ -17,7 +17,12 @@ class SetLocale
         $locale = $request->user()?->locale;
         if (! $locale || ! Translations::supported($locale)) {
             // Symfony matches "fr-BE" to "fr" and returns the first locale (English) when nothing matches.
-            $locale = $request->getPreferredLanguage(array_keys(Translations::LOCALES));
+            // Norwegian: we ship Bokmål as `nb`, but many browsers send the macro code `no` (or Nynorsk `nn`), which
+            // Symfony wouldn't match to `nb`. Offer those too and fold them into nb.
+            $locale = $request->getPreferredLanguage([...array_keys(Translations::LOCALES), 'no', 'nn']);
+            if (in_array($locale, ['no', 'nn'], true)) {
+                $locale = 'nb';
+            }
         }
         app()->setLocale($locale);
 
