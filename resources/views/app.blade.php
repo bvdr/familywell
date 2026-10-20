@@ -3,8 +3,8 @@
     <head>
         <meta charset="utf-8">
         {{-- viewport-fit=cover lets the standalone PWA paint under the notch; the tab bar uses the safe-area inset.
-             interactive-widget=resizes-content shrinks the layout viewport for the keyboard (iOS 17+), so the
-             drawer's pinned footer sits right above it. --}}
+             interactive-widget=resizes-content shrinks the layout viewport for the keyboard on Android Chrome; shipping
+             iOS WebKit ignores it (useKeyboardOffset in responsive-modal.tsx lifts sheets there). --}}
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
         <title inertia>{{ config('app.name', 'Familywell') }}</title>
