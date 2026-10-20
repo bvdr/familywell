@@ -8,11 +8,19 @@ import * as React from 'react';
 // Drag stops like the Google Maps sheet: a peek (drag down to glance at what's behind) and full. Opens full.
 const SNAP_POINTS = [0.62, 1];
 
+// Fields that bring up the iOS keyboard when focused.
+const EDITABLE = 'input, textarea, select, [contenteditable="true"]';
+
 // Height of the keyboard, i.e. how far a bottom-anchored fixed element must lift to clear it.
 // innerHeight is the layout viewport (unchanged by an overlaying keyboard); visualViewport.height is
-// the part still visible. Their difference is the keyboard. This is self-correcting: where the platform
-// already resizes the layout for the keyboard (interactive-widget=resizes-content, iOS 17+), the two
-// heights match and the offset is 0, so we never lift twice.
+// the part still visible. Their difference is the keyboard. Shipping iOS WebKit ignores
+// interactive-widget=resizes-content, so this lift is what keeps the sheet above the keyboard there;
+// where the layout does resize (Android Chrome) the two heights match and the offset is 0.
+//
+// Only a FOCUSED FIELD counts as a keyboard. After the installed iOS app is reopened, WebKit can keep a
+// keyboard-sized visualViewport with no keyboard on screen (2026-10-20 recording: a constant 345px gap on
+// a Pro Max). Reading that gap as a keyboard lifted the More / + sheets to mid-screen. focusin/focusout
+// re-check it because in that stale state the visualViewport never fires an event to correct us.
 function useKeyboardOffset(active: boolean) {
     const [offset, setOffset] = React.useState(0);
     React.useEffect(() => {
@@ -23,13 +31,18 @@ function useKeyboardOffset(active: boolean) {
         }
         // Keyboard top in layout coordinates = visualViewport top (offsetTop) + its height; the drawer's
         // bottom must clear exactly that. Omitting offsetTop lifts it too high and leaves a gap under it.
-        const update = () => setOffset(Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)));
+        const update = () =>
+            setOffset(document.activeElement?.matches(EDITABLE) ? Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)) : 0);
         vv.addEventListener('resize', update);
         vv.addEventListener('scroll', update);
+        document.addEventListener('focusin', update);
+        document.addEventListener('focusout', update);
         update();
         return () => {
             vv.removeEventListener('resize', update);
             vv.removeEventListener('scroll', update);
+            document.removeEventListener('focusin', update);
+            document.removeEventListener('focusout', update);
         };
     }, [active]);
     return offset;
@@ -40,8 +53,8 @@ function useKeyboardOffset(active: boolean) {
 //
 // Keyboard-safe sheet layout: the title and the footer (e.g. a Save button) are pinned, and only the
 // body between them scrolls. So no matter how the keyboard resizes or overlays the viewport, the header
-// and the primary action stay put and the fields scroll under them. interactive-widget=resizes-content
-// (viewport meta) shrinks the layout viewport for the keyboard, so the pinned footer lands right above it.
+// and the primary action stay put and the fields scroll under them; useKeyboardOffset lifts the whole
+// sheet so the pinned footer lands right above the keyboard.
 export function ResponsiveModal({
     open,
     onOpenChange,
@@ -100,7 +113,7 @@ export function ResponsiveModal({
     }, [keyboardOffset, centreFocused]);
     const onBodyFocus = (e: React.FocusEvent) => {
         const t = e.target as HTMLElement;
-        if (t === autoFocusRef?.current || !t.matches('input, textarea, select, [contenteditable="true"]')) return;
+        if (t === autoFocusRef?.current || !t.matches(EDITABLE)) return;
         focusedRef.current = t;
         setTimeout(centreFocused, 300); // after the keyboard animates in
     };
