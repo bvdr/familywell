@@ -101,7 +101,7 @@ docker compose exec app php artisan migrate --force
 docker compose exec app php artisan modules:migrate
 ```
 
-A prebuilt image is published at `ghcr.io/bvdr/familywell`. See **[docs/self-hosting.md](docs/self-hosting.md)** for the full guide, including storage and Reverb configuration.
+A prebuilt image is published at `ghcr.io/bvdr/familywell` (use the `:stable` tag; `:latest` is every merge to main). See **[docs/self-hosting.md](docs/self-hosting.md)** for the full guide, including storage and Reverb configuration.
 
 ### Public demo account (optional)
 

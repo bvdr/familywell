@@ -34,13 +34,23 @@ The compose file ships with development-grade defaults. For a real deployment:
 
 ## With the prebuilt image
 
-A prebuilt image is published to the GitHub Container Registry:
+A prebuilt image is published to the GitHub Container Registry, no login needed:
 
 ```bash
-docker pull ghcr.io/bvdr/familywell:latest
+docker pull ghcr.io/bvdr/familywell:stable
 ```
 
-You can swap `build: .` for `image: ghcr.io/bvdr/familywell:latest` in `docker-compose.yml` to skip building locally, or run the image directly against your own Postgres/Redis by passing the [environment variables](configuration.md) it needs.
+You can swap `build: { context: ., pull: true }` for `image: ghcr.io/bvdr/familywell:stable` in `docker-compose.yml` (on both the `app` and `reverb` services) to skip building locally, or run the image directly against your own Postgres/Redis by passing the [environment variables](configuration.md) it needs.
+
+Which tag to use:
+
+| Tag | What it is |
+|---|---|
+| `stable` | The latest release. Recommended for self-hosting. |
+| `v1.2.3` / `v1.2` | A specific release, if you want to pin and upgrade on your own schedule. Releases are listed on [GitHub Releases](https://github.com/bvdr/familywell/releases). |
+| `latest` | Every merge to `main`, the same image familywell.co runs. Newest features, and also half-finished preview modules. |
+
+A release is the exact image familywell.co already ran for that commit, not a separate build.
 
 ## Upgrading
 
@@ -54,7 +64,7 @@ docker compose exec app php artisan modules:migrate
 
 Run `migrate` and `modules:migrate` after every upgrade, core and module schema changes are applied separately.
 
-On the prebuilt image, `docker compose pull && docker compose up -d` does the same job.
+On the prebuilt image, `docker compose pull && docker compose up -d` does the same job (then the two `migrate` commands). With `:stable` that moves you to the newest release; with a `vX.Y.Z` tag, edit the tag first.
 
 ### Keeping PHP patched
 
