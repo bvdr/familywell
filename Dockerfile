@@ -7,6 +7,9 @@ COPY . .
 RUN npm run build
 
 FROM dunglas/frankenphp:1-php8.3 AS app
+# Refuse to build on a PHP with known critical holes. A stale cached base (docker build without --pull) would
+# otherwise quietly ship one. 8.3.36 fixes PHP2Shell (CVE-2026-109618/-109619, unauthenticated RCE, Oct 2026).
+RUN php -r 'if (version_compare(PHP_VERSION, "8.3.36", "<")) { fwrite(STDERR, "PHP ".PHP_VERSION." is vulnerable (PHP2Shell). Rebuild with --pull to get 8.3.36+.\n"); exit(1); }'
 RUN install-php-extensions pdo_pgsql pdo_sqlite intl bcmath opcache zip pcntl
 # PHP's 2M default drops real receipt photos (iPhone JPEGs are several MB) before the app sees them,
 # surfacing as "the receipt failed to upload". Raise the upload/body limits well above the app's cap.
