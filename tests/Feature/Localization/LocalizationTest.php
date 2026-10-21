@@ -29,7 +29,7 @@ it('translates every English key in every locale', function () {
 
 it('lists locale options', function () {
     $codes = collect(Translations::options())->pluck('code');
-    expect($codes)->toContain('en')->toContain('ro')->toContain('de')->toContain('fr')->toContain('nl')->toContain('sv')->toContain('nb');
+    expect($codes)->toContain('en')->toContain('ro')->toContain('de')->toContain('fr')->toContain('nl')->toContain('sv')->toContain('nb')->toContain('pt');
 });
 
 it('saves the user locale and applies it to the shared translations', function () {
@@ -85,4 +85,8 @@ it('greets a Norwegian browser in Bokmål, whichever code it sends', function (s
 
 it('greets a Swedish browser in Swedish', function () {
     $this->get('/login', ['Accept-Language' => 'sv-SE,sv;q=0.9,en;q=0.5'])->assertInertia(fn ($page) => $page->where('locale', 'sv'));
+});
+
+it('greets a Brazilian browser in Brazilian Portuguese', function () {
+    $this->get('/login', ['Accept-Language' => 'pt-BR,pt;q=0.9,en;q=0.5'])->assertInertia(fn ($page) => $page->where('locale', 'pt'));
 });

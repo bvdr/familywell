@@ -1,0 +1,12 @@
+{
+    "title": "Notificações",
+    "aria": "Notificações",
+    "aria_unread": "Notificações, :n não lidas",
+    "mark_all_read": "Marcar todas como lidas",
+    "caught_up": "Você está em dia.",
+    "see_all": "Ver todas",
+    "empty": "Nada ainda. A atividade da família que você pode ver vai aparecer aqui.",
+    "today": "Hoje",
+    "yesterday": "Ontem",
+    "now": "agora"
+}
