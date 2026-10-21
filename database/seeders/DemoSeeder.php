@@ -76,12 +76,24 @@ class DemoSeeder extends Seeder
 
     private Carbon $today;
 
+    /**
+     * Content language: 'en' for the public demo (always), or another locale for the localized familywell.org
+     * screenshots, seeded on a local database only (DEMO_LOCALE=de, see config/familywell.php). Every visible
+     * string goes through t(); currency, units and the generated contact names follow the locale too.
+     */
+    private string $locale = 'en';
+
+    /** @var array{strings?: array<string,string>, first?: list<string>, last?: list<string>, holidays?: array{url:string,timezone:string}} */
+    private array $lang = [];
+
     /** @var array<string, User> keyed by first name */
     private array $u = [];
 
     public function run(): void
     {
         $this->today = today();
+        $this->locale = (string) config('familywell.demo_locale', 'en');
+        $this->lang = $this->locale === 'en' ? [] : require database_path("seeders/demo/{$this->locale}.php");
 
         // The ONLY way the demo family is found. Throws on 2+ flagged rows; null means first run.
         $family = DemoFamily::locate();
@@ -116,9 +128,9 @@ class DemoSeeder extends Seeder
         // familywell.demo_password is set: that's the app-directory reviewers' login.
         foreach (self::MEMBERS as $m) {
             $user = User::updateOrCreate(['email' => $m['email']], [
-                'name' => $m['name'],
+                'name' => $this->t($m['name']),
                 'password' => ($m['email'] === self::OWNER_EMAIL ? config('familywell.demo_password') : null) ?: Str::random(40),
-                'locale' => 'en',
+                'locale' => $this->locale,
                 'theme' => null,
                 'notification_prefs' => null,
             ]);
@@ -137,8 +149,8 @@ class DemoSeeder extends Seeder
         }
 
         $family->forceFill([
-            'name' => self::FAMILY_NAME,
-            'description' => 'Public demo household. Poke around, change anything: it resets every night.',
+            'name' => $this->t(self::FAMILY_NAME),
+            'description' => $this->t('Public demo household. Poke around, change anything: it resets every night.'),
             'color' => Family::COLORS[0],
             'emoji' => '🏡',
             'theme' => null,
@@ -179,10 +191,10 @@ class DemoSeeder extends Seeder
         ImportSetting::current()->update(['statements_enabled' => true, 'shortcut_enabled' => true]);
         $day = fn (int $ago) => $this->today->copy()->subDays($ago)->toDateString();
         $tx = fn (int $ago, float $usd, string $merchant, string $kind = 'expense', ?string $ref = null) => [
-            'date' => $day($ago), 'amount' => (int) round($usd * 100), 'currency' => 'USD', 'merchant' => $merchant, 'reference' => $ref, 'kind' => $kind,
+            'date' => $day($ago), 'amount' => (int) round($usd * 100), 'currency' => $this->currency(), 'merchant' => $this->t($merchant), 'reference' => $ref, 'kind' => $kind,
         ];
 
-        $statement = ImportBatch::create(['user_id' => $sarah->id, 'source' => 'statement', 'status' => ImportBatch::REVIEW, 'bank' => 'Wise', 'filename' => 'wise-statement.csv']);
+        $statement = ImportBatch::create(['user_id' => $sarah->id, 'source' => 'statement', 'status' => ImportBatch::REVIEW, 'bank' => $this->t('Wise'), 'filename' => 'wise-statement.csv']);
         Importer::stage($statement, [
             $tx(0, -6.45, 'Starbucks', ref: 'CARD-9001'),
             $tx(1, -63.12, "Trader Joe's", ref: 'CARD-9002'),
@@ -192,10 +204,10 @@ class DemoSeeder extends Seeder
             $tx(4, -500.00, 'To savings', 'transfer', 'BALANCE-9006'),
             $tx(5, -27.30, 'Target', ref: 'CARD-9007'),
             $tx(5, 19.99, 'Amazon refund', 'refund', 'CARD-9008'),
-        ], 'USD', $sarah);
+        ], $this->currency(), $sarah);
 
-        $queue = ImportBatch::create(['user_id' => $sarah->id, 'source' => 'shortcut', 'status' => ImportBatch::REVIEW, 'bank' => 'Apple Pay']);
-        Importer::stage($queue, [$tx(0, -5.75, 'Blue Bottle Coffee'), $tx(0, -18.40, 'Uber')], 'USD', $sarah);
+        $queue = ImportBatch::create(['user_id' => $sarah->id, 'source' => 'shortcut', 'status' => ImportBatch::REVIEW, 'bank' => $this->t('Apple Pay')]);
+        Importer::stage($queue, [$tx(0, -5.75, 'Blue Bottle Coffee'), $tx(0, -18.40, 'Uber')], $this->currency(), $sarah);
     }
 
     // ---- Shopping ------------------------------------------------------------------------------------
@@ -203,7 +215,7 @@ class DemoSeeder extends Seeder
     private function shopping(): void
     {
         foreach ([['Costco', 'amber'], ['Target', 'red'], ["Trader Joe's", 'green'], ['Walmart', 'blue'], ['Whole Foods', 'green']] as $i => [$name, $color]) {
-            ShoppingShop::create(['name' => $name, 'icon' => 'store', 'color' => $color, 'position' => $i]);
+            ShoppingShop::create(['name' => $this->t($name), 'icon' => 'store', 'color' => $color, 'position' => $i]);
         }
 
         $lists = [
@@ -237,11 +249,11 @@ class DemoSeeder extends Seeder
         ];
 
         foreach ($lists as $li => [$name, $store, $color, $icon, $by, $items]) {
-            $list = ShoppingList::create(['name' => $name, 'store' => $store, 'color' => $color, 'icon' => $icon, 'position' => $li, 'created_by' => $this->u[$by]->id]);
+            $list = ShoppingList::create(['name' => $this->t($name), 'store' => $this->t($store), 'color' => $color, 'icon' => $icon, 'position' => $li, 'created_by' => $this->u[$by]->id]);
             foreach ($items as $ii => [$item, $qty, $dept, $bought]) {
                 ShoppingItem::create([
-                    'shopping_list_id' => $list->id, 'name' => $item, 'quantity' => $qty, 'department' => $dept,
-                    'bought' => $bought, 'store' => $store, 'position' => $ii, 'created_by' => $this->u[$by]->id,
+                    'shopping_list_id' => $list->id, 'name' => $this->t($item), 'quantity' => $this->t($qty), 'department' => $dept,
+                    'bought' => $bought, 'store' => $this->t($store), 'position' => $ii, 'created_by' => $this->u[$by]->id,
                 ]);
             }
         }
@@ -251,15 +263,15 @@ class DemoSeeder extends Seeder
 
     private function spending(): void
     {
-        SpendSetting::current()->forceFill(['default_currency' => 'USD'])->save();
+        SpendSetting::current()->forceFill(['default_currency' => $this->currency()])->save();
         SpendCategory::ensureDefaults();
         $sarah = $this->u['Sarah'];
 
         $lists = [
             'others' => SpendEvent::others($sarah),
-            'groceries' => SpendEvent::createFor($sarah, ['name' => 'Groceries & household', 'currency' => 'USD', 'icon' => 'shopping-cart']),
-            'kids' => SpendEvent::createFor($this->u['David'], ['name' => 'Kids & school', 'currency' => 'USD', 'icon' => 'backpack']),
-            'trip' => SpendEvent::createFor($sarah, ['name' => 'Fall road trip', 'currency' => 'USD', 'icon' => 'car']),
+            'groceries' => SpendEvent::createFor($sarah, ['name' => $this->t('Groceries & household'), 'currency' => $this->currency(), 'icon' => 'shopping-cart']),
+            'kids' => SpendEvent::createFor($this->u['David'], ['name' => $this->t('Kids & school'), 'currency' => $this->currency(), 'icon' => 'backpack']),
+            'trip' => SpendEvent::createFor($sarah, ['name' => $this->t('Fall road trip'), 'currency' => $this->currency(), 'icon' => 'car']),
         ];
 
         // [days ago, list, amount in dollars, category, shop, note, payer]. Days 0-6 always fall in the
@@ -317,8 +329,8 @@ class DemoSeeder extends Seeder
             $cents = (int) round($dollars * 100);
             Spend::create([
                 'spend_event_id' => $lists[$list]->id, 'payer_id' => $this->u[$payer]->id, 'created_by' => $this->u[$payer]->id,
-                'amount' => $cents, 'currency' => 'USD', 'base_amount' => $cents, 'rate' => 1,
-                'category' => $category, 'store' => $shop, 'note' => $note, 'spent_at' => $this->today->copy()->subDays($ago),
+                'amount' => $cents, 'currency' => $this->currency(), 'base_amount' => $cents, 'rate' => 1,
+                'category' => $category, 'store' => $this->t($shop), 'note' => $this->t($note), 'spent_at' => $this->today->copy()->subDays($ago),
             ]);
         }
     }
@@ -329,7 +341,7 @@ class DemoSeeder extends Seeder
     {
         InventoryCategory::ensureDefaults($family->id);
         InventoryLocation::ensureDefaults($family->id);
-        InventorySetting::current($family->id)->forceFill(['unit_system' => 'imperial'])->save();
+        InventorySetting::current($family->id)->forceFill(['unit_system' => $this->units()])->save();
 
         // [name, qty (null = not counted), unit, category, location, min, target, shop, expires in days]
         $items = [
@@ -361,8 +373,8 @@ class DemoSeeder extends Seeder
 
         foreach ($items as [$name, $qty, $unit, $cat, $loc, $min, $target, $shop, $expires]) {
             InventoryItem::create([
-                'name' => $name, 'quantity' => $qty, 'unit' => $unit, 'category' => $cat, 'location' => $loc,
-                'min_quantity' => $min, 'target_quantity' => $target, 'shop' => $shop,
+                'name' => $this->t($name), 'quantity' => $qty, 'unit' => $unit, 'category' => $cat, 'location' => $loc,
+                'min_quantity' => $min, 'target_quantity' => $target, 'shop' => $this->t($shop),
                 'expires_at' => $expires === null ? null : $this->today->copy()->addDays($expires),
                 'auto_replenish' => true, 'created_by' => $this->u['Sarah']->id,
             ]);
@@ -373,7 +385,7 @@ class DemoSeeder extends Seeder
 
     private function vehicles(Family $family): void
     {
-        VehicleSetting::current($family->id)->forceFill(['unit_system' => 'imperial'])->save();
+        VehicleSetting::current($family->id)->forceFill(['unit_system' => $this->units()])->save();
         $mi = fn (int $miles) => (int) round($miles * 1.609344); // stored metric, displayed in miles
         $gal = fn (float $g) => round($g * 3.78541, 2);
         $sarah = $this->u['Sarah'];
@@ -381,18 +393,18 @@ class DemoSeeder extends Seeder
 
         $crv = Vehicle::create([
             'make' => 'Honda', 'model' => 'CR-V', 'year' => 2019, 'version' => 'EX-L AWD', 'fuel_type' => 'petrol',
-            'transmission' => 'automatic', 'color' => 'Modern Steel', 'license_plate' => 'VA 7KL-2841',
+            'transmission' => 'automatic', 'color' => $this->t('Modern Steel'), 'license_plate' => $this->t('VA 7KL-2841'),
             'vin' => '2HKRW2H85KH612345', 'purchase_date' => '2019-06-15', 'purchase_price' => 31450,
-            'insurance_company' => 'State Farm', 'owner_id' => $sarah->id, 'primary_driver_id' => $sarah->id,
-            'current_mileage' => $mi(62410), 'created_by' => $sarah->id, 'notes' => 'The family hauler. Roof box lives in the garage.',
+            'insurance_company' => $this->t('State Farm'), 'owner_id' => $sarah->id, 'primary_driver_id' => $sarah->id,
+            'current_mileage' => $mi(62410), 'created_by' => $sarah->id, 'notes' => $this->t('The family hauler. Roof box lives in the garage.'),
             'photo_path' => $this->demoImage('vehicle-crv'),
         ]);
         $camry = Vehicle::create([
             'make' => 'Toyota', 'model' => 'Camry', 'year' => 2016, 'version' => 'SE', 'fuel_type' => 'petrol',
-            'transmission' => 'automatic', 'color' => 'Blue Crush Metallic', 'license_plate' => 'VA 3XG-9027',
+            'transmission' => 'automatic', 'color' => $this->t('Blue Crush Metallic'), 'license_plate' => $this->t('VA 3XG-9027'),
             'vin' => '4T1BF1FK6GU123456', 'purchase_date' => '2018-03-02', 'purchase_price' => 17900,
-            'insurance_company' => 'State Farm', 'owner_id' => $david->id, 'primary_driver_id' => $david->id,
-            'current_mileage' => $mi(98230), 'created_by' => $david->id, 'notes' => "David's commuter.",
+            'insurance_company' => $this->t('State Farm'), 'owner_id' => $david->id, 'primary_driver_id' => $david->id,
+            'current_mileage' => $mi(98230), 'created_by' => $david->id, 'notes' => $this->t("David's commuter."),
             'photo_path' => $this->demoImage('vehicle-camry'),
         ]);
 
@@ -418,12 +430,12 @@ class DemoSeeder extends Seeder
         foreach ($schedules as [$v, $name, $type, $intMiles, $months, $lastMiles, $lastAgo, $cost]) {
             $lastAt = $this->today->copy()->subMonths($lastAgo);
             $v->maintenanceSchedules()->create([
-                'name' => $name, 'type' => $type, 'interval_km' => $intMiles ? $mi($intMiles) : null, 'interval_months' => $months,
+                'name' => $this->t($name), 'type' => $type, 'interval_km' => $intMiles ? $mi($intMiles) : null, 'interval_months' => $months,
                 'last_performed_at' => $lastAt, 'last_performed_mileage' => $mi($lastMiles), 'active' => true, 'created_by' => $sarah->id,
             ]);
             $v->maintenanceHistory()->create([
-                'name' => $name, 'performed_at' => $lastAt, 'mileage' => $mi($lastMiles), 'cost' => $cost ?: null,
-                'provider' => $v->make === 'Honda' ? 'Honda of Fairfax' : 'Jiffy Lube', 'created_by' => $sarah->id,
+                'name' => $this->t($name), 'performed_at' => $lastAt, 'mileage' => $mi($lastMiles), 'cost' => $cost ?: null,
+                'provider' => $this->t($v->make === 'Honda' ? 'Honda of Fairfax' : 'Jiffy Lube'), 'created_by' => $sarah->id,
             ]);
         }
 
@@ -437,18 +449,18 @@ class DemoSeeder extends Seeder
         foreach ($fuel as [$v, $ago, $gallons, $cost, $miles, $station]) {
             $v->fuelEntries()->create([
                 'filled_on' => $this->today->copy()->subDays($ago), 'liters' => $gal($gallons), 'cost' => $cost,
-                'mileage' => $mi($miles), 'is_full_tank' => true, 'station' => $station, 'created_by' => $v->owner_id,
+                'mileage' => $mi($miles), 'is_full_tank' => true, 'station' => $this->t($station), 'created_by' => $v->owner_id,
             ]);
         }
 
         $crv->repairs()->create([
-            'title' => 'Rear brake pads + rotors', 'occurred_on' => $this->today->copy()->subDays(95), 'mileage' => $mi(59900),
-            'cost' => 412.80, 'provider' => 'Midas', 'notes' => 'Grinding noise when braking. Pads were down to metal on the left rear.',
+            'title' => $this->t('Rear brake pads + rotors'), 'occurred_on' => $this->today->copy()->subDays(95), 'mileage' => $mi(59900),
+            'cost' => 412.80, 'provider' => $this->t('Midas'), 'notes' => $this->t('Grinding noise when braking. Pads were down to metal on the left rear.'),
             'created_by' => $sarah->id,
         ]);
         $camry->repairs()->create([
-            'title' => 'Replaced starter motor', 'occurred_on' => $this->today->copy()->subDays(210), 'mileage' => $mi(94300),
-            'cost' => 386.00, 'provider' => 'Jiffy Lube', 'notes' => 'Intermittent no-start on cold mornings.', 'created_by' => $david->id,
+            'title' => $this->t('Replaced starter motor'), 'occurred_on' => $this->today->copy()->subDays(210), 'mileage' => $mi(94300),
+            'cost' => 386.00, 'provider' => $this->t('Jiffy Lube'), 'notes' => $this->t('Intermittent no-start on cold mornings.'), 'created_by' => $david->id,
         ]);
     }
 
@@ -486,14 +498,14 @@ class DemoSeeder extends Seeder
         ];
 
         foreach ($lists as $li => [$name, $color, $icon, $tasks]) {
-            $list = TaskList::create(['name' => $name, 'color' => $color, 'icon' => $icon, 'position' => $li, 'created_by' => $sarah->id]);
+            $list = TaskList::create(['name' => $this->t($name), 'color' => $color, 'icon' => $icon, 'position' => $li, 'created_by' => $sarah->id]);
             foreach ($tasks as $ti => [$title, $who, $done, $due, $subs]) {
                 $task = Task::create([
-                    'task_list_id' => $list->id, 'title' => $title, 'assigned_to' => $this->u[$who]->id, 'done' => $done,
+                    'task_list_id' => $list->id, 'title' => $this->t($title), 'assigned_to' => $this->u[$who]->id, 'done' => $done,
                     'due_date' => $due === null ? null : $d($due), 'position' => $ti, 'created_by' => $sarah->id,
                 ]);
                 foreach ($subs as $si => [$sub, $subDone]) {
-                    Task::create(['task_list_id' => $list->id, 'parent_id' => $task->id, 'title' => $sub, 'done' => $subDone, 'position' => $si, 'created_by' => $sarah->id]);
+                    Task::create(['task_list_id' => $list->id, 'parent_id' => $task->id, 'title' => $this->t($sub), 'done' => $subDone, 'position' => $si, 'created_by' => $sarah->id]);
                 }
             }
         }
@@ -505,9 +517,9 @@ class DemoSeeder extends Seeder
     {
         $sarah = $this->u['Sarah'];
         $david = $this->u['David'];
-        $home = Folder::create(['name' => 'Home', 'color' => 'green', 'position' => 0, 'created_by' => $sarah->id]);
-        $recipes = Folder::create(['name' => 'Recipes', 'color' => 'yellow', 'position' => 1, 'created_by' => $sarah->id]);
-        $trips = Folder::create(['name' => 'Trips', 'color' => 'blue', 'position' => 2, 'created_by' => $david->id]);
+        $home = Folder::create(['name' => $this->t('Home'), 'color' => 'green', 'position' => 0, 'created_by' => $sarah->id]);
+        $recipes = Folder::create(['name' => $this->t('Recipes'), 'color' => 'yellow', 'position' => 1, 'created_by' => $sarah->id]);
+        $trips = Folder::create(['name' => $this->t('Trips'), 'color' => 'blue', 'position' => 2, 'created_by' => $david->id]);
 
         $notes = [
             [$home, 'House info & wifi', "**Wifi:** MillerHouse / password on the fridge\n**Trash:** Tuesday (recycling every other week)\n**HVAC:** Comfort Air, 703-555-0142\n**Water shutoff:** basement, behind the stairs", 'yellow', true, $sarah],
@@ -518,7 +530,7 @@ class DemoSeeder extends Seeder
             [$home, 'Gift ideas', "**Emma:** drawing tablet, concert tickets\n**Noah:** telescope, Lego Technic\n**Lily:** scooter, the big dollhouse\n**David:** smoker (the pellet one)", 'green', false, $sarah],
         ];
         foreach ($notes as $i => [$folder, $title, $body, $color, $pinned, $by]) {
-            Note::create(['folder_id' => $folder->id, 'title' => $title, 'body' => $body, 'color' => $color, 'pinned' => $pinned, 'position' => $i, 'created_by' => $by->id]);
+            Note::create(['folder_id' => $folder->id, 'title' => $this->t($title), 'body' => $this->t($body), 'color' => $color, 'pinned' => $pinned, 'position' => $i, 'created_by' => $by->id]);
         }
     }
 
@@ -575,14 +587,14 @@ class DemoSeeder extends Seeder
         ];
         foreach ($projects as [$name, $cover, $owner, $status, $progress, $color, $start, $desc, $tasks]) {
             $project = Project::create([
-                'name' => $name, 'description' => $desc, 'status' => $status, 'progress' => $progress, 'color' => $color,
+                'name' => $this->t($name), 'description' => $this->t($desc), 'status' => $status, 'progress' => $progress, 'color' => $color,
                 'owner_id' => $owner->id, 'target_start' => $this->today->copy()->addDays($start), 'created_by' => $owner->id,
                 'cover_path' => $this->demoImage($cover),
             ]);
             $project->shares()->create(['user_id' => $owner->id, 'role' => 'owner']);
             foreach ($tasks as $i => [$title, $who, $done]) {
                 // Project tasks are listless tasks-module tasks linked to the project (see the projects module).
-                $task = Task::create(['task_list_id' => null, 'title' => $title, 'assigned_to' => $this->u[$who]->id, 'done' => $done, 'position' => $i, 'created_by' => $owner->id]);
+                $task = Task::create(['task_list_id' => null, 'title' => $this->t($title), 'assigned_to' => $this->u[$who]->id, 'done' => $done, 'position' => $i, 'created_by' => $owner->id]);
                 ProjectLink::create(['project_id' => $project->id, 'linkable_type' => 'task', 'linkable_id' => $task->id]);
             }
         }
@@ -596,11 +608,11 @@ class DemoSeeder extends Seeder
 
         // A trip happening now (shows on the home screen's Now & next card and the timeline).
         $trip = CalendarEvent::createFor($sarah, CalendarEvent::validated([
-            'title' => 'Lake Tahoe trip', 'icon' => 'tent', 'color' => 'blue', 'start_date' => $day(-2), 'end_date' => $day(5),
-            'notes' => 'Cabin check-in after 3pm. Bring the kayak paddles.', 'people' => $users('Sarah', 'David', 'Emma', 'Noah', 'Lily'),
+            'title' => $this->t('Lake Tahoe trip'), 'icon' => 'tent', 'color' => 'blue', 'start_date' => $day(-2), 'end_date' => $day(5),
+            'notes' => $this->t('Cabin check-in after 3pm. Bring the kayak paddles.'), 'people' => $users('Sarah', 'David', 'Emma', 'Noah', 'Lily'),
         ]));
         foreach (['Pack the kayak paddles', 'Download offline maps', 'Book the boat tour'] as $i => $title) {
-            $t = Task::create(['task_list_id' => null, 'title' => $title, 'done' => $i === 0, 'position' => $i, 'created_by' => $sarah->id]);
+            $t = Task::create(['task_list_id' => null, 'title' => $this->t($title), 'done' => $i === 0, 'position' => $i, 'created_by' => $sarah->id]);
             $trip->links()->create(['linkable_type' => 'task', 'linkable_id' => $t->id]);
         }
         $events = [
@@ -612,7 +624,7 @@ class DemoSeeder extends Seeder
         ];
         foreach ($events as [$title, $icon, $color, $start, $end, $from, $to, $repeat, $people]) {
             CalendarEvent::createFor($sarah, CalendarEvent::validated([
-                'title' => $title, 'icon' => $icon, 'color' => $color, 'start_date' => $start, 'end_date' => $end,
+                'title' => $this->t($title), 'icon' => $icon, 'color' => $color, 'start_date' => $start, 'end_date' => $end,
                 'start_time' => $from, 'end_time' => $to, 'repeat' => $repeat, 'people' => $people,
             ]));
         }
@@ -620,17 +632,19 @@ class DemoSeeder extends Seeder
         // An "other calendar" (ICS subscription, issue #222) Sarah shared with the family. Its rows are written here
         // so seeding never needs the network; the hourly calendar:sync-subscriptions swaps in the real US holidays.
         $holidays = CalendarSubscription::create([
-            'user_id' => $sarah->id, 'name' => 'US holidays', 'color' => 'amber', 'timezone' => 'America/Los_Angeles', 'shared' => true,
-            'url' => 'https://calendar.google.com/calendar/ical/en.usa%23holiday%40group.v.calendar.google.com/public/basic.ics',
+            'user_id' => $sarah->id, 'name' => $this->t('US holidays'), 'color' => 'amber', 'shared' => true,
+            'timezone' => $this->lang['holidays']['timezone'] ?? 'America/Los_Angeles',
+            'url' => $this->lang['holidays']['url'] ?? 'https://calendar.google.com/calendar/ical/en.usa%23holiday%40group.v.calendar.google.com/public/basic.ics',
         ]);
-        CalendarSubscriptionEvent::insert(array_map(fn (array $e) => ['subscription_id' => $holidays->id, 'title' => $e[0], 'notes' => 'Public holiday',
+        CalendarSubscriptionEvent::insert(array_map(fn (array $e) => ['subscription_id' => $holidays->id, 'title' => $this->t($e[0]), 'notes' => $this->t('Public holiday'),
             'location' => null, 'start_date' => $e[1], 'end_date' => $e[1], 'start_time' => null, 'end_time' => null], [['Bank holiday', $day(3)], ['School holiday', $day(19)]]));
     }
 
     private function recipes(): void
     {
         $sarah = $this->u['Sarah'];
-        Recipe::createFor($sarah, [
+        $recipe = fn (array $r) => Recipe::createFor($sarah, $this->localizeRecipe($r));
+        $recipe([
             'title' => 'Sunday pancakes', 'description' => 'Fluffy buttermilk pancakes, the kids\' weekend favourite.',
             'servings' => 4, 'prep_minutes' => 10, 'cook_minutes' => 20, 'tags' => ['breakfast', 'kids'],
             'ingredients' => [
@@ -640,7 +654,7 @@ class DemoSeeder extends Seeder
             ],
             'steps' => ['Whisk the dry ingredients.', 'Beat the eggs into the buttermilk, then fold into the flour. Leave a few lumps.', 'Cook on a hot buttered pan until bubbles pop, flip once.'],
         ]);
-        Recipe::createFor($sarah, [
+        $recipe([
             'title' => 'Weeknight tomato soup', 'description' => 'Ready in 30 minutes, great with grilled cheese.',
             'servings' => 6, 'prep_minutes' => 10, 'cook_minutes' => 20, 'tags' => ['dinner', 'vegetarian'],
             'ingredients' => [
@@ -650,6 +664,44 @@ class DemoSeeder extends Seeder
             ],
             'steps' => ['Soften the onion and garlic in olive oil.', 'Add tomatoes and stock, simmer 15 minutes.', 'Blend smooth and stir in the cream.'],
         ]);
+    }
+
+    /** Title, description, tags, ingredient names/notes and steps through t(); quantities and unit codes stay. */
+    private function localizeRecipe(array $r): array
+    {
+        foreach (['title', 'description'] as $k) {
+            $r[$k] = $this->t($r[$k]);
+        }
+        $r['tags'] = array_map(fn ($tag) => $this->t($tag), $r['tags']);
+        $r['steps'] = array_map(fn ($step) => $this->t($step), $r['steps']);
+        $r['ingredients'] = array_map(fn ($i) => ['name' => $this->t($i['name'])] + (isset($i['note']) ? ['note' => $this->t($i['note'])] : []) + $i, $r['ingredients']);
+
+        return $r;
+    }
+
+    /**
+     * Text in the demo's language, looked up by its English original in database/seeders/demo/{locale}.php.
+     * A missing translation throws: a half-English screenshot is worse than a failed seed. Text without
+     * letters (quantities like "4", phone numbers) needs no entry.
+     */
+    private function t(?string $en): ?string
+    {
+        if ($en === null || $this->locale === 'en' || ! preg_match('/\p{L}/u', $en)) {
+            return $en;
+        }
+
+        return $this->lang['strings'][$en]
+            ?? throw new \LogicException("DemoSeeder: no {$this->locale} text for \"{$en}\" in database/seeders/demo/{$this->locale}.php");
+    }
+
+    private function currency(): string
+    {
+        return $this->locale === 'en' ? 'USD' : 'EUR';
+    }
+
+    private function units(): string
+    {
+        return $this->locale === 'en' ? 'imperial' : 'metric';
     }
 
     /**
@@ -680,14 +732,17 @@ class DemoSeeder extends Seeder
     {
         $sarah = $this->u['Sarah'];
         $now = $this->today->copy()->startOfDay();
+        // Localized name lists keep the English sizes (120 and 61), which the no-repeat argument above relies on.
+        $first = $this->lang['first'] ?? self::FIRST;
+        $last = $this->lang['last'] ?? self::LAST;
         $people = [];
         foreach (self::MEMBERS as $m) {
-            $people[$m['name']] = $m['birthday'];
+            $people[$this->t($m['name'])] = $m['birthday'];
         }
         $leap = Carbon::create(2024, 1, 1); // any leap year: only month/day are taken from it
         for ($d = 0; $d < 366; $d++) {
             $date = $leap->copy()->addDays($d);
-            $name = self::FIRST[$d % count(self::FIRST)].' '.self::LAST[($d * 7) % count(self::LAST)];
+            $name = $first[$d % count($first)].' '.$last[($d * 7) % count($last)];
             $year = 1948 + ($d * 17) % 62;
             if ($date->month === 2 && $date->day === 29) {
                 $year -= $year % 4; // 1948..2008: every multiple of 4 in range is a leap year
@@ -718,7 +773,8 @@ class DemoSeeder extends Seeder
 
         // A few phone numbers on the grandparents so the contact cards aren't all bare.
         foreach ([['Grandma Jo (Josephine Miller)', '703-555-0117'], ['Grandpa Frank (Frank Miller)', '703-555-0118'], ['Nana Ruth (Ruth Callahan)', '804-555-0163']] as $i => [$name, $phone]) {
-            $person = Person::create(['name' => $name, 'created_by' => $sarah->id]);
+            // ponytail: phone numbers stay US-format in every locale; contact cards aren't in any screenshot.
+            $person = Person::create(['name' => $this->t($name), 'created_by' => $sarah->id]);
             $person->contactMethods()->create(['family_id' => CurrentFamily::id(), 'type' => 'phone', 'label' => 'Mobile', 'value' => $phone, 'position' => 0]);
             DB::table('birthdays_dates')->insert([
                 'family_id' => CurrentFamily::id(), 'person_id' => $person->id, 'birthdate' => ['1951-08-03', '1949-11-21', '1955-04-17'][$i],

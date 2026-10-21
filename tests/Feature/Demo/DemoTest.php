@@ -323,3 +323,15 @@ it('still lets a reviewer connect Claude as the demo owner and use the MCP tools
     [$err] = mcpTool($token, 'tasks_create_task', ['list_id' => $lists['lists'][0]['id'], 'title' => 'From Claude']);
     expect($err)->toBeFalse()->and(Task::where('title', 'From Claude')->exists())->toBeTrue();
 });
+
+it('seeds the German screenshot family when demo_locale is de, with every string translated', function () {
+    // DemoSeeder::t() throws on any string missing from database/seeders/demo/de.php, so seeding at all is the check.
+    config(['familywell.demo_locale' => 'de']);
+    $demo = demoSeed();
+
+    $owner = User::where('email', DemoSeeder::OWNER_EMAIL)->first();
+    expect($demo->name)->toBe('Familie Weber')
+        ->and([$owner->name, $owner->locale])->toBe(['Sarah Weber', 'de'])
+        ->and(DB::table('shopping_lists')->where('family_id', $demo->id)->pluck('name')->all())->toContain('Wocheneinkauf')
+        ->and(DB::table('spending_spends')->where('family_id', $demo->id)->distinct()->pluck('currency')->all())->toBe(['EUR']);
+});
