@@ -52,6 +52,9 @@ jobs:
         with:
           context: .
           push: true
+          # Always re-resolve the base image (dunglas/frankenphp:1-php8.3) from the registry, so a PHP security
+          # release lands on the next build even though the layer cache below holds the old base.
+          pull: true
           # :latest is what the App Platform spec pulls; the sha tag is for traceability/rollback.
           tags: |
             ghcr.io/${{ github.repository_owner }}/familywell:latest
