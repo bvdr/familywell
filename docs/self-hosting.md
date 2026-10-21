@@ -46,12 +46,25 @@ You can swap `build: .` for `image: ghcr.io/bvdr/familywell:latest` in `docker-c
 
 ```bash
 git pull
-docker compose up -d --build
+docker compose build --pull
+docker compose up -d
 docker compose exec app php artisan migrate --force
 docker compose exec app php artisan modules:migrate
 ```
 
 Run `migrate` and `modules:migrate` after every upgrade, core and module schema changes are applied separately.
+
+On the prebuilt image, `docker compose pull && docker compose up -d` does the same job.
+
+### Keeping PHP patched
+
+PHP itself comes from the base image (`dunglas/frankenphp:1-php8.3`), not from this repo. Docker keeps a cached copy of it, so a PHP security release only reaches you when you build with `--pull` (the compose file now does this on every build) or pull a fresh prebuilt image. Check what you're running:
+
+```bash
+docker compose exec app php -v
+```
+
+**October 2026 (PHP2Shell, CVE-2026-109618 / CVE-2026-109619):** you need **PHP 8.3.36 or newer**. Older versions allow unauthenticated remote code execution. See the [php.net advisory](https://www.php.net/archive/2026.php). If `php -v` shows 8.3.35 or older after upgrading, the patched base image isn't out yet or wasn't pulled: run `docker compose build --pull` again.
 
 ## Realtime without Reverb
 
