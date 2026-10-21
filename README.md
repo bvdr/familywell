@@ -91,11 +91,11 @@ Open http://localhost:8000, register an account (the first user creates a family
 
 ## Self-hosting
 
-The whole app is a single image with a `docker compose` stack (app + Reverb + Postgres + Redis):
+The whole app is a single image with a `docker compose` stack (app + Postgres + Redis, optional Reverb for realtime). Only Docker is needed on the server:
 
 ```bash
 cp .env.example .env
-php artisan key:generate            # or generate an APP_KEY and paste it into .env
+sed -i "s|^APP_KEY=.*|APP_KEY=$(docker compose run --rm --no-deps -T app php artisan key:generate --show)|" .env
 docker compose up -d
 docker compose exec app php artisan migrate --force
 docker compose exec app php artisan modules:migrate

@@ -1,26 +1,29 @@
 # Self-hosting
 
-FamilyWell ships as a single image (FrankenPHP running Laravel Octane, with the frontend built in). The same image runs locally, self-hosted, and in the cloud. The repo includes a `docker-compose.yml` that brings up everything you need: the app, a Reverb WebSocket server, PostgreSQL, and Redis.
+FamilyWell ships as a single image (FrankenPHP running Laravel Octane, with the frontend built in). The same image runs locally, self-hosted, and in the cloud. The repo includes a `docker-compose.yml` that brings up everything you need: the app, PostgreSQL and Redis, plus an optional Reverb WebSocket server for realtime updates.
 
 ## With Docker Compose (recommended)
+
+You only need Docker on the server, no PHP.
 
 ```bash
 git clone https://github.com/bvdr/familywell.git
 cd familywell
 
 cp .env.example .env
-php artisan key:generate     # or generate an APP_KEY yourself and paste it into .env
+# Generate the app's encryption key inside the container and write it into .env
+sed -i "s|^APP_KEY=.*|APP_KEY=$(docker compose run --rm --no-deps -T app php artisan key:generate --show)|" .env
 
-docker compose up -d --build
+docker compose up -d
 
 # one-time database setup
 docker compose exec app php artisan migrate --force
 docker compose exec app php artisan modules:migrate
 ```
 
-The app is now on **http://localhost:8000** and the Reverb realtime server on port `8080`. Register the first account (it creates a family), then enable modules from **Settings → Modules**.
+The app is now on **http://localhost:8000**. Register the first account (it creates a family), then enable modules from **Settings → Modules**.
 
-The compose file wires the app to its Postgres, Redis, and Reverb services for you, so the only file you edit is `.env` (mainly `APP_KEY`, `APP_URL`, and mail/storage if you want them).
+The compose file wires the app to its Postgres and Redis for you, so the only file you edit is `.env` (mainly `APP_KEY`, `APP_URL`, and mail/storage if you want them). Realtime updates are optional and off by default, see [Realtime updates](#realtime-updates).
 
 ### Before exposing it publicly
 
@@ -29,7 +32,7 @@ The compose file ships with development-grade defaults. For a real deployment:
 - **Change the database password.** Set `POSTGRES_PASSWORD` (the `db` service) and the matching `DB_PASSWORD` (the `app` and `reverb` services) to a strong value.
 - Set `APP_ENV=production` and `APP_DEBUG=false` in `.env`.
 - Set `APP_URL` and the `REVERB_PUBLIC_*` values to your real domain and scheme (`https`).
-- Put a reverse proxy (Caddy, nginx, Traefik) in front for TLS, and point it at the app (`8000`) and Reverb (`8080`).
+- Put a reverse proxy (Caddy, nginx, Traefik) in front for TLS, and point it at the app (`8000`), plus Reverb (`8080`) if you turned on realtime.
 - Configure real [file storage](configuration.md#file-storage-receipts-and-uploads) so receipt photos survive container restarts, and [mail](configuration.md#mail) for invites.
 
 ## With the prebuilt image
@@ -57,7 +60,7 @@ A release is the exact image familywell.co already ran for that commit, not a se
 ```bash
 git pull
 docker compose build --pull
-docker compose up -d
+docker compose up -d          # add --profile realtime if you run Reverb
 docker compose exec app php artisan migrate --force
 docker compose exec app php artisan modules:migrate
 ```
@@ -76,8 +79,25 @@ docker compose exec app php -v
 
 **October 2026 (PHP2Shell, CVE-2026-109618 / CVE-2026-109619):** you need **PHP 8.3.36 or newer**. Older versions allow unauthenticated remote code execution. See the [php.net advisory](https://www.php.net/archive/2026.php). If `php -v` shows 8.3.35 or older after upgrading, the patched base image isn't out yet or wasn't pulled: run `docker compose build --pull` again.
 
-## Realtime without Reverb
+## Realtime updates
 
-Realtime is optional. If you'd rather not run the Reverb service, set `BROADCAST_CONNECTION=log` in `.env` and drop the `reverb` service, the app works fully; members simply refresh to see each other's changes.
+Without realtime the app works fully; family members just refresh to see each other's changes. To have changes appear live, run the bundled Reverb WebSocket server:
+
+1. Add to `.env` (and change `BROADCAST_CONNECTION=log` to `reverb`):
+
+   ```bash
+   BROADCAST_CONNECTION=reverb
+   REVERB_APP_ID=<any short id, e.g. from: openssl rand -hex 4>
+   REVERB_APP_KEY=<openssl rand -hex 16>
+   REVERB_APP_SECRET=<openssl rand -hex 32>
+   ```
+
+2. Start it with the `realtime` profile:
+
+   ```bash
+   docker compose --profile realtime up -d
+   ```
+
+Reverb listens on port `8080`. Behind a reverse proxy, set the `REVERB_PUBLIC_HOST` / `REVERB_PUBLIC_PORT` / `REVERB_PUBLIC_SCHEME` values in `docker-compose.yml` to the address browsers use.
 
 See **[configuration.md](configuration.md)** for the complete environment variable reference.
