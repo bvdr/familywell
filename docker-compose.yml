@@ -1,6 +1,8 @@
 services:
   app:
-    build: .
+    # pull: true re-downloads the base image (dunglas/frankenphp:1-php8.3) on every build. Without it Docker reuses
+    # its cached copy forever, so `docker compose up -d --build` would never pick up a PHP security release.
+    build: { context: ., pull: true }
     ports: ["8000:8000"]
     env_file: .env
     environment:
@@ -21,7 +23,7 @@ services:
       REDIS_HOST: redis
     depends_on: [db, redis, reverb]
   reverb:
-    build: .
+    build: { context: ., pull: true }
     command: php artisan reverb:start --host=0.0.0.0 --port=8080
     ports: ["8080:8080"]
     env_file: .env
