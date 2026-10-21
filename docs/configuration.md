@@ -10,7 +10,7 @@ FamilyWell is configured entirely through environment variables in `.env`. Start
 |---|---|---|
 | `APP_NAME` | `FamilyWell` | Shown in the UI and emails. |
 | `APP_ENV` | `local` | `production` in production. |
-| `APP_KEY` | none | **Required.** Generate with `php artisan key:generate`. |
+| `APP_KEY` | none | **Required.** Generate with `php artisan key:generate --show`, or with only Docker: `docker compose run --rm --no-deps -T app php artisan key:generate --show`. |
 | `APP_DEBUG` | `true` | Set to `false` in production. |
 | `APP_URL` | `http://localhost` | The public URL the app is served from. |
 
@@ -47,7 +47,7 @@ Live updates between family members use WebSockets via Laravel Reverb.
 | `REVERB_HOST`, `REVERB_PORT`, `REVERB_SCHEME` | Where the Reverb server is reachable. |
 | `VITE_REVERB_APP_KEY`, `VITE_REVERB_HOST`, `VITE_REVERB_PORT`, `VITE_REVERB_SCHEME` | The `VITE_` copies are bundled into the client, so they must be the **public** values only. |
 
-Realtime is optional. With `BROADCAST_CONNECTION=log` the app works fully; members just refresh to see each other's changes.
+Realtime is optional. With `BROADCAST_CONNECTION=log` the app works fully; members just refresh to see each other's changes. With Docker Compose, the Reverb server only starts with `docker compose --profile realtime up -d`; see [Realtime updates](self-hosting.md#realtime-updates).
 
 ## File storage (receipts and uploads)
 

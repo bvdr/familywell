@@ -12,7 +12,9 @@ services:
       DB_DATABASE: familywell
       DB_USERNAME: familywell
       DB_PASSWORD: familywell
-      BROADCAST_CONNECTION: reverb
+      # BROADCAST_CONNECTION comes from .env (log by default). Forcing reverb here crashed a fresh clone on boot:
+      # .env.example has no REVERB_APP_* credentials, so Laravel couldn't build the broadcaster (issue #267).
+      # Realtime is opt-in, see "Realtime updates" in docs/self-hosting.md.
       REVERB_HOST: reverb
       REVERB_PORT: 8080
       REVERB_SCHEME: http
@@ -21,10 +23,22 @@ services:
       REVERB_PUBLIC_SCHEME: http
       REVERB_SCALING_ENABLED: "true"
       REDIS_HOST: redis
-    depends_on: [db, redis, reverb]
+    depends_on:
+      db: { condition: service_started }
+      redis: { condition: service_started }
+      # Only started with --profile realtime; not required for the app to run.
+      reverb: { condition: service_started, required: false }
   reverb:
+    # Optional realtime server: `docker compose --profile realtime up -d` once REVERB_APP_* are set in .env.
+    profiles: [realtime]
     build: { context: ., pull: true }
     command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    # The image's HEALTHCHECK probes FrankenPHP's admin port, which Reverb doesn't run, so it would always read
+    # "unhealthy". Check Reverb's own port instead.
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 8080) ? 0 : 1);"]
+      interval: 30s
+      timeout: 5s
     ports: ["8080:8080"]
     env_file: .env
     environment:
