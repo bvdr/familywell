@@ -4,7 +4,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Picker } from '@/components/picker';
 import { useLocale, useT } from '@/lib/i18n';
 import { factorFor, formatQty, scaleIngredient } from '@/lib/recipe-scale.js';
-import { minutesText, type Recipe, type ScaleTarget } from '@/lib/recipes';
+import { minutesText, unitLabel, type Recipe, type ScaleTarget } from '@/lib/recipes';
 
 // The cooking part of a recipe, shared by the app page and the public guest page: the calculator (scale
 // by servings, by how much to make, or by what you have of one ingredient), the scaled ingredients and
@@ -76,7 +76,7 @@ export function RecipeView({ recipe, shop }: { recipe: Recipe; shop?: (factor: n
         rows.push(
             <li key={i} className="flex items-baseline gap-3 px-4 py-2.5">
                 <span className="text-primary w-20 shrink-0 font-semibold tabular-nums">
-                    {s.qty === null ? '' : `${formatQty(s.qty, s.unit, locale)} ${s.unit ?? ''}`}
+                    {s.qty === null ? '' : `${formatQty(s.qty, s.unit, locale)} ${unitLabel(t, s.unit)}`}
                 </span>
                 <span className="min-w-0 flex-1">
                     {ing.name}
@@ -172,7 +172,7 @@ export function RecipeView({ recipe, shop }: { recipe: Recipe; shop?: (factor: n
                                 aria-label={t('recipes.unit')}
                             />
                             <span className="text-muted-foreground text-xs">
-                                {t('recipes.recipe_makes', { value: `${recipe.yieldAmount} ${recipe.yieldUnit ?? ''}` })}
+                                {t('recipes.recipe_makes', { value: `${recipe.yieldAmount} ${unitLabel(t, recipe.yieldUnit)}` })}
                             </span>
                         </div>
                     )}
@@ -289,7 +289,7 @@ export function RecipeHeader({ recipe, photo }: { recipe: Recipe; photo?: ReactN
         recipe.prepMinutes ? `${t('recipes.prep')} ${minutesText(recipe.prepMinutes)}` : null,
         recipe.cookMinutes ? `${t('recipes.cook')} ${minutesText(recipe.cookMinutes)}` : null,
         recipe.servings ? t('recipes.servings_n', { n: recipe.servings }) : null,
-        recipe.yieldAmount ? t('recipes.makes', { value: `${recipe.yieldAmount} ${recipe.yieldUnit ?? ''}`.trim() }) : null,
+        recipe.yieldAmount ? t('recipes.makes', { value: `${recipe.yieldAmount} ${unitLabel(t, recipe.yieldUnit)}`.trim() }) : null,
     ].filter(Boolean);
     return (
         <div className="flex flex-col gap-3">

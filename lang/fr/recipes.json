@@ -78,5 +78,18 @@
     "tags_label": "Tags",
     "tags_hint": "Sépare-les par des virgules.",
     "tags_placeholder": "dessert, végétarien",
-    "source_label": "Lien de la source"
+    "source_label": "Lien de la source",
+    "unit_g": "g",
+    "unit_kg": "kg",
+    "unit_ml": "ml",
+    "unit_l": "l",
+    "unit_tsp": "c. à c.",
+    "unit_tbsp": "c. à s.",
+    "unit_cup": "tasse",
+    "unit_pcs": "pce",
+    "unit_pinch": "pincée",
+    "unit_clove": "gousse",
+    "unit_slice": "tranche",
+    "unit_can": "boîte",
+    "unit_pack": "paquet"
 }

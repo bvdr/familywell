@@ -78,5 +78,18 @@
     "tags_label": "Taggar",
     "tags_hint": "Separera med kommatecken.",
     "tags_placeholder": "efterrätt, vegetariskt",
-    "source_label": "Källänk"
+    "source_label": "Källänk",
+    "unit_g": "g",
+    "unit_kg": "kg",
+    "unit_ml": "ml",
+    "unit_l": "l",
+    "unit_tsp": "tsk",
+    "unit_tbsp": "msk",
+    "unit_cup": "kopp",
+    "unit_pcs": "st",
+    "unit_pinch": "nypa",
+    "unit_clove": "klyfta",
+    "unit_slice": "skiva",
+    "unit_can": "burk",
+    "unit_pack": "förp."
 }

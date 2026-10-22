@@ -78,5 +78,18 @@
     "tags_label": "Tags",
     "tags_hint": "Scheid met komma's.",
     "tags_placeholder": "dessert, vegetarisch",
-    "source_label": "Bronlink"
+    "source_label": "Bronlink",
+    "unit_g": "g",
+    "unit_kg": "kg",
+    "unit_ml": "ml",
+    "unit_l": "l",
+    "unit_tsp": "tl",
+    "unit_tbsp": "el",
+    "unit_cup": "kop",
+    "unit_pcs": "st.",
+    "unit_pinch": "snufje",
+    "unit_clove": "teentje",
+    "unit_slice": "plak",
+    "unit_can": "blik",
+    "unit_pack": "pak"
 }

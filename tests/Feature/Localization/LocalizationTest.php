@@ -3,6 +3,7 @@
 use App\Models\User;
 use App\Support\Translations;
 use Illuminate\Support\Arr;
+use Modules\Spending\SpendCategory;
 
 use function Pest\Laravel\actingAs;
 
@@ -89,4 +90,20 @@ it('greets a Swedish browser in Swedish', function () {
 
 it('greets a Brazilian browser in Brazilian Portuguese', function () {
     $this->get('/login', ['Accept-Language' => 'pt-BR,pt;q=0.9,en;q=0.5'])->assertInertia(fn ($page) => $page->where('locale', 'pt'));
+});
+
+// Default spending categories are stored with English names but displayed through
+// spending.category_<key> (lib/categories.ts catLabel), so each needs a key in every locale.
+it('has a label for every default spending category in every locale', function () {
+    foreach (array_keys(Translations::LOCALES) as $locale) {
+        foreach (SpendCategory::DEFAULTS as $cat) {
+            expect(Translations::get('spending.category_'.$cat['key'], $locale))->not->toStartWith('spending.');
+        }
+    }
+    expect(Translations::get('spending.others_list', 'de'))->toBe('Sonstiges');
+});
+
+it('shows recipe units in the viewer language', function () {
+    expect(Translations::get('recipes.unit_pcs', 'de'))->toBe('Stk')
+        ->and(Translations::get('recipes.unit_tbsp', 'de'))->toBe('EL');
 });

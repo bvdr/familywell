@@ -1,0 +1,62 @@
+{
+    "birthdays": {
+        "name": "Aniversários",
+        "description": "Adicione aniversários com dia e mês (ano opcional) ou defina um em qualquer contato. Mostra a idade, o próximo aniversário, um selo no contato e um widget de próximos aniversários na tela inicial."
+    },
+    "calendar": {
+        "name": "Agenda",
+        "description": "A agenda da família para viagens, compromissos e feriados, junto com prazos de tarefas, aniversários e datas dos veículos. Visões de mês e linha do tempo, além de um link de assinatura para o Google ou Apple Agenda."
+    },
+    "contacts": {
+        "name": "Contatos",
+        "description": "Uma agenda de contatos compartilhada da família. Cada entrada é uma pessoa com dados de contato que outros módulos usam: Aniversários adiciona uma data de nascimento e os projetos podem vincular pessoas."
+    },
+    "expense_import": {
+        "name": "Importar gastos",
+        "description": "Traga os gastos do cartão para Gastos: envie um extrato bancário (Wise, Revolut, ING, BT ou qualquer CSV/XLSX depois de mapear as colunas uma vez) ou envie cada pagamento do Apple Pay por um Atalho do iPhone. Cada linha é revisada antes de ser salva, duplicatas são sinalizadas, cada importação pode ser desfeita e transações importadas nunca entram duas vezes."
+    },
+    "important_todos": {
+        "name": "Tarefas importantes",
+        "description": "Adiciona um marcador \"importante\" às tarefas: uma chave no editor, uma estrela na linha e as tarefas importantes aparecem primeiro."
+    },
+    "inventory": {
+        "name": "Estoque",
+        "description": "Saiba o que você tem, o que está acabando e o que precisa repor: o estoque da casa com calma, sem cara de armazém."
+    },
+    "notes": {
+        "name": "Notas",
+        "description": "Notas rápidas e listas de verificação da família, organizadas em pastas."
+    },
+    "notifications": {
+        "name": "Notificações",
+        "description": "Alertas no app e notificações push para que ninguém perca a atividade da família."
+    },
+    "projects": {
+        "name": "Projetos",
+        "description": "Planeje as coisas maiores: tarefas, progresso e listas de compras vinculadas."
+    },
+    "recipes": {
+        "name": "Receitas",
+        "description": "Receitas da família com fotos e uma calculadora: ajuste por porções, pela quantidade que quer fazer ou pelo que você tem."
+    },
+    "recurring_todos": {
+        "name": "Tarefas recorrentes",
+        "description": "Faça uma tarefa se repetir em um cronograma: escolha uma data e um intervalo, e depois de concluída ela volta para \"a fazer\" na próxima ocorrência."
+    },
+    "shopping": {
+        "name": "Compras",
+        "description": "Listas de compras compartilhadas que toda a família pode marcar junta."
+    },
+    "spending": {
+        "name": "Gastos",
+        "description": "Acompanhe custos compartilhados e acerte quem deve a quem, divididos como você quiser."
+    },
+    "tasks": {
+        "name": "Tarefas",
+        "description": "Listas de tarefas compartilhadas com prazos, subtarefas e responsáveis."
+    },
+    "vehicles": {
+        "name": "Veículos",
+        "description": "O lar de tudo sobre os carros da família: estado, quilometragem, manutenção, gastos e documentos. Cuidado tranquilo com o carro, não um sistema de oficina."
+    }
+}

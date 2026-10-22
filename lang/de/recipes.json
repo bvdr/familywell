@@ -78,5 +78,18 @@
     "tags_label": "Tags",
     "tags_hint": "Mit Kommas trennen.",
     "tags_placeholder": "Dessert, vegetarisch",
-    "source_label": "Quelllink"
+    "source_label": "Quelllink",
+    "unit_g": "g",
+    "unit_kg": "kg",
+    "unit_ml": "ml",
+    "unit_l": "l",
+    "unit_tsp": "TL",
+    "unit_tbsp": "EL",
+    "unit_cup": "Tasse",
+    "unit_pcs": "Stk",
+    "unit_pinch": "Prise",
+    "unit_clove": "Zehe",
+    "unit_slice": "Scheibe",
+    "unit_can": "Dose",
+    "unit_pack": "Pck."
 }

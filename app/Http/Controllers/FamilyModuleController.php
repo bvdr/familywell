@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Family;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Translations;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 
@@ -14,12 +15,16 @@ class FamilyModuleController extends Controller
     {
         $family = Family::findOrFail(CurrentFamily::id());
 
+        // Name/description come from lang/{locale}/modules.json (modules.<id>.name|description); module.json
+        // stays the English source and the fallback for a module with no lang entry yet.
+        $strings = Translations::for(app()->getLocale())['modules'] ?? [];
+
         $modules = collect($registry->discover())
             ->filter(fn ($m) => $registry->isInstalled($m->id))
             ->map(fn ($m) => [
                 'id' => $m->id,
-                'name' => $m->name,
-                'description' => $m->description,
+                'name' => $strings[$m->id]['name'] ?? $m->name,
+                'description' => $strings[$m->id]['description'] ?? $m->description,
                 'version' => $m->version,
                 'enabled' => $registry->isEnabled($m->id, $family->id),
             ])->values();

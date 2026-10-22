@@ -1,0 +1,62 @@
+{
+    "birthdays": {
+        "name": "Bursdager",
+        "description": "Legg til bursdager med dag og måned (år er valgfritt), eller sett en på en kontakt. Viser alder, neste bursdag, et merke på kontakten og en widget med kommende bursdager på startsiden."
+    },
+    "calendar": {
+        "name": "Kalender",
+        "description": "Familiekalenderen for reiser, avtaler og helligdager, ved siden av frister for oppgaver, bursdager og kjøretøyfrister. Måneds- og tidslinjevisning, pluss en abonnementslenke for Google eller Apple Kalender."
+    },
+    "contacts": {
+        "name": "Kontakter",
+        "description": "En delt adressebok for familien. Hver oppføring er en person med kontaktinformasjon som andre moduler bygger videre på: Bursdager legger til en fødselsdato, og prosjekter kan knytte til personer."
+    },
+    "expense_import": {
+        "name": "Utgiftsimport",
+        "description": "Hent kortutgifter inn i Utgifter: last opp et kontoutskrift (Wise, Revolut, ING, BT eller en hvilken som helst CSV/XLSX etter at du har koblet kolonnene én gang) eller send hver Apple Pay-betaling fra en iPhone-snarvei. Hver rad kontrolleres før den lagres, duplikater merkes, hver import kan angres, og importerte transaksjoner legges aldri til to ganger."
+    },
+    "important_todos": {
+        "name": "Viktige oppgaver",
+        "description": "Legger til et «viktig»-flagg på oppgaver: en bryter i redigeringen, en stjerne på raden og viktige oppgaver sorteres først."
+    },
+    "inventory": {
+        "name": "Lager",
+        "description": "Vit hva du har, hva som snart er tomt og hva som må fylles på: rolig husholdningslager, ikke et varehus."
+    },
+    "notes": {
+        "name": "Notater",
+        "description": "Raske familienotater og sjekklister, ryddig i mapper."
+    },
+    "notifications": {
+        "name": "Varsler",
+        "description": "Varsler i appen og push-varsler, slik at ingen går glipp av noe i familien."
+    },
+    "projects": {
+        "name": "Prosjekt",
+        "description": "Planlegg de større tingene: oppgaver, fremdrift og tilknyttede handlelister."
+    },
+    "recipes": {
+        "name": "Oppskrifter",
+        "description": "Familieoppskrifter med bilder og en kalkulator: skaler etter porsjoner, etter hvor mye du vil lage eller etter hva du har."
+    },
+    "recurring_todos": {
+        "name": "Gjentakende oppgaver",
+        "description": "La en oppgave gjentas etter en plan: velg en dato og et intervall, så settes den tilbake til «å gjøre» ved neste forekomst når den er ferdig."
+    },
+    "shopping": {
+        "name": "Handling",
+        "description": "Delte handlelister som hele familien kan krysse av sammen."
+    },
+    "spending": {
+        "name": "Utgifter",
+        "description": "Hold oversikt over felles kostnader og gjør opp hvem som skylder hvem, fordelt som du vil."
+    },
+    "tasks": {
+        "name": "Oppgaver",
+        "description": "Delte gjøremålslister med frister, deloppgaver og hvem som har ansvaret."
+    },
+    "vehicles": {
+        "name": "Kjøretøy",
+        "description": "Alt om familiens biler på ett sted: status, kilometerstand, vedlikehold, utgifter og dokumenter. Rolig bilstell, ikke et verkstedsystem."
+    }
+}

@@ -18,3 +18,15 @@ test('parses amounts, known units, notes and sections', () => {
         ],
     );
 });
+
+// Units are shown localised but stay as stored: aliases collapse, unknown units pass through.
+test('unitLabel localises known units and leaves the rest alone', async () => {
+    const { unitLabel } = await import('./recipes.ts');
+    const dict = { 'recipes.unit_pcs': 'Stk', 'recipes.unit_tbsp': 'EL' };
+    const t = (key) => dict[key] ?? key;
+    assert.equal(unitLabel(t, 'pcs'), 'Stk');
+    assert.equal(unitLabel(t, 'Pieces'), 'Stk'); // alias, case-insensitive
+    assert.equal(unitLabel(t, 'tbsp.'), 'EL');
+    assert.equal(unitLabel(t, 'handful'), 'handful'); // no key: as typed
+    assert.equal(unitLabel(t, null), '');
+});

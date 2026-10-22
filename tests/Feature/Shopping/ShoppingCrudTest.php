@@ -4,10 +4,12 @@ use App\Models\Family;
 use App\Models\User;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareAccess;
+use App\Support\Translations;
 use Modules\Shopping\ShoppingAisle;
 use Modules\Shopping\ShoppingItem;
 use Modules\Shopping\ShoppingList;
 use Modules\Shopping\ShoppingShop;
+use Modules\Shopping\StoreTemplates;
 
 use function Pest\Laravel\actingAs;
 
@@ -372,4 +374,51 @@ it('promotes the shop when a list is created with one', function () {
     $list = ShoppingList::withoutGlobalScopes()->where('name', 'Pharmacy')->first();
     expect($list->store)->toBe('Farmacia Tei')
         ->and(ShoppingShop::withoutGlobalScopes()->where('name', 'Farmacia Tei')->exists())->toBeTrue();
+});
+
+// Built-in aisle names are stored in English but shown in the viewer's language; the slug, which items
+// reference, never changes, and a name the family typed is left alone.
+it('shows built-in aisle names in the viewer locale without touching stored data', function () {
+    [, $users] = shoppingFamily();
+    $users[0]->update(['locale' => 'de']);
+    actingAs($users[0])->post('/m/shopping/lists', ['name' => 'Weekly', 'store' => 'Metro']);
+    $list = ShoppingList::withoutGlobalScopes()->first();
+
+    // Virtual default set (no rows yet).
+    actingAs($users[0])->get("/m/shopping/lists/{$list->id}")
+        ->assertInertia(fn ($p) => $p->where('defaultAisles.0.slug', 'produce')
+            ->where('defaultAisles.0.name', 'Obst & Gemüse')
+            ->where('defaultAisles.1.name', 'Milch & Eier')
+            ->where('defaultAisles.2.name', 'Backwaren')
+            ->where('defaultAisles.3.name', 'Vorrat'));
+
+    // Materialised rows keep English in the DB; the editor payload is translated, a custom rename is not.
+    $res = actingAs($users[0])->postJson("/m/shopping/lists/{$list->id}/aisles/ensure")->assertOk();
+    expect(collect($res->json('aisles'))->firstWhere('slug', 'produce')['name'])->toBe('Obst & Gemüse');
+    $produce = ShoppingAisle::where('store', 'Metro')->where('slug', 'produce')->first();
+    expect($produce->name)->toBe('Produce');
+
+    // Saving the translated name untouched (blur) must not overwrite the English original.
+    actingAs($users[0])->patchJson("/m/shopping/aisles/{$produce->id}", ['name' => 'Obst & Gemüse'])->assertOk();
+    expect($produce->fresh()->name)->toBe('Produce');
+
+    $dairy = ShoppingAisle::where('store', 'Metro')->where('slug', 'dairy')->first();
+    $res = actingAs($users[0])->patchJson("/m/shopping/aisles/{$dairy->id}", ['name' => 'Kühlregal'])->assertOk();
+    expect(collect($res->json('aisles'))->firstWhere('slug', 'dairy')['name'])->toBe('Kühlregal');
+});
+
+it('translates every built-in aisle and template name in every locale', function () {
+    foreach (array_keys(Translations::LOCALES) as $locale) {
+        if ($locale === 'en') {
+            continue;
+        }
+        foreach (StoreTemplates::TEMPLATES as $aisles) {
+            foreach ($aisles as [$slug, $name]) {
+                $shown = Translations::get('shopping.aisle_'.str_replace('-', '_', $slug), $locale);
+                expect($shown)->not->toStartWith('shopping.');
+            }
+        }
+    }
+    app()->setLocale('de');
+    expect(collect(StoreTemplates::options())->pluck('label')->all())->toBe(['Lebensmittel', 'Heimwerken / DIY', 'Apotheke', 'Leer']);
 });

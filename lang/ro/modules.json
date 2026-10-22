@@ -1,0 +1,62 @@
+{
+    "birthdays": {
+        "name": "Zile de naștere",
+        "description": "Adaugă zile de naștere cu zi și lună (anul e opțional) sau setează una pe un contact. Afișează vârsta, următoarea zi de naștere, o insignă pe contact și un widget cu zilele de naștere apropiate pe ecranul principal."
+    },
+    "calendar": {
+        "name": "Calendar",
+        "description": "Calendarul familiei pentru călătorii, programări și sărbători, alături de termenele sarcinilor, zilele de naștere și scadențele vehiculelor. Vizualizări lunare și pe cronologie, plus un link de abonare pentru Google sau Apple Calendar."
+    },
+    "contacts": {
+        "name": "Contacte",
+        "description": "O agendă de contacte comună a familiei. Fiecare intrare este o persoană cu date de contact pe care se bazează alte module: Zile de naștere adaugă o dată de naștere, iar proiectele pot lega persoane."
+    },
+    "expense_import": {
+        "name": "Import cheltuieli",
+        "description": "Adu cheltuielile cu cardul în Cheltuieli: încarcă un extras de cont (Wise, Revolut, ING, BT sau orice CSV/XLSX după ce îi asociezi o dată coloanele) sau trimite fiecare plată Apple Pay dintr-o comandă rapidă de pe iPhone. Fiecare rând este verificat înainte de salvare, duplicatele sunt marcate, fiecare import poate fi anulat, iar tranzacțiile importate nu se adaugă niciodată de două ori."
+    },
+    "important_todos": {
+        "name": "Sarcini importante",
+        "description": "Adaugă un marcaj „important” sarcinilor: un comutator în editor, o stea pe rând, iar sarcinile importante sunt sortate primele."
+    },
+    "inventory": {
+        "name": "Inventar",
+        "description": "Știi ce ai, ce se termină și ce trebuie reaprovizionat: stocul casei, pe îndelete, nu un depozit."
+    },
+    "notes": {
+        "name": "Notițe",
+        "description": "Notițe rapide și liste de verificare pentru familie, ordonate în dosare."
+    },
+    "notifications": {
+        "name": "Notificări",
+        "description": "Alerte în aplicație și notificări push, ca nimeni să nu piardă activitatea familiei."
+    },
+    "projects": {
+        "name": "Proiecte",
+        "description": "Planifică lucrurile mai mari: sarcini, progres și liste de cumpărături asociate."
+    },
+    "recipes": {
+        "name": "Rețete",
+        "description": "Rețetele familiei cu poze și un calculator: scalează după porții, după cât vrei să prepari sau după ce ai."
+    },
+    "recurring_todos": {
+        "name": "Sarcini recurente",
+        "description": "Fă o sarcină să se repete după un program: alege o dată și un interval, iar după ce e finalizată revine la „de făcut” la următoarea apariție."
+    },
+    "shopping": {
+        "name": "Cumpărături",
+        "description": "Liste de cumpărături comune pe care întreaga familie le poate bifa împreună."
+    },
+    "spending": {
+        "name": "Cheltuieli",
+        "description": "Urmărește costurile comune și închide socotelile cine cui datorează, împărțite cum vrei."
+    },
+    "tasks": {
+        "name": "Sarcini",
+        "description": "Liste de sarcini comune cu termene, subsarcini și persoana responsabilă."
+    },
+    "vehicles": {
+        "name": "Vehicule",
+        "description": "Locul pentru tot ce ține de mașinile familiei: stare, kilometraj, întreținere, cheltuieli și documente. Grija liniștită pentru mașină, nu un sistem de service."
+    }
+}

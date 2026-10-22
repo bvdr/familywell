@@ -770,7 +770,12 @@ class ShoppingController extends Controller
     /** This shop's aisles as {slug,name,icon}, falling back to the default Grocery set. */
     private function resolveAisles(?string $store): array
     {
-        return ShoppingAisle::resolve($store, (int) CurrentFamily::id());
+        // Built-in names are localised for display only (see StoreTemplates::displayName); AisleGuesser
+        // calls ShoppingAisle::resolve directly and keeps the English names for its AI prompt.
+        return array_map(
+            fn (array $a) => [...$a, 'name' => StoreTemplates::displayName($a['slug'], $a['name'])],
+            ShoppingAisle::resolve($store, (int) CurrentFamily::id()),
+        );
     }
 
     private function aisleSlugs(?string $store): array
@@ -806,7 +811,7 @@ class ShoppingController extends Controller
     private function aisleListJson(?string $store): array
     {
         return $this->aisleRows($store)
-            ->map(fn (ShoppingAisle $a) => ['id' => $a->id, 'slug' => $a->slug, 'name' => $a->name, 'icon' => $a->icon, 'position' => $a->position])
+            ->map(fn (ShoppingAisle $a) => ['id' => $a->id, 'slug' => $a->slug, 'name' => StoreTemplates::displayName($a->slug, $a->name), 'icon' => $a->icon, 'position' => $a->position])
             ->values()->all();
     }
 
@@ -860,6 +865,11 @@ class ShoppingController extends Controller
             'name' => ['sometimes', 'string', 'max:60'],
             'icon' => ['sometimes', 'string', 'max:40'],
         ]);
+        // The editor shows built-in names translated; saving that field untouched (blur) must not
+        // overwrite the stored English name with the translation, or it would stop following the locale.
+        if (($data['name'] ?? null) === StoreTemplates::displayName($aisle->slug, $aisle->name)) {
+            unset($data['name']);
+        }
         $aisle->update($data);
         Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
 

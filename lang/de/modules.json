@@ -1,0 +1,62 @@
+{
+    "birthdays": {
+        "name": "Geburtstage",
+        "description": "Füge Geburtstage mit Tag und Monat hinzu (Jahr optional) oder lege einen bei einem Kontakt fest. Zeigt das Alter, den nächsten Geburtstag, ein Abzeichen am Kontakt und ein Widget mit den nächsten Geburtstagen auf der Startseite."
+    },
+    "calendar": {
+        "name": "Kalender",
+        "description": "Der Familienkalender für Reisen, Termine und Feiertage, neben Fälligkeiten von Aufgaben, Geburtstagen und Fahrzeugterminen. Monats- und Zeitleistenansicht sowie ein Abo-Link für Google oder Apple Kalender."
+    },
+    "contacts": {
+        "name": "Kontakte",
+        "description": "Ein gemeinsames Adressbuch der Familie. Jeder Eintrag ist eine Person mit Kontaktdaten, auf die andere Module aufbauen: Geburtstage ergänzt ein Geburtsdatum, und Projekte können Personen verknüpfen."
+    },
+    "expense_import": {
+        "name": "Ausgabenimport",
+        "description": "Übernimm Kartenausgaben in Ausgaben: lade einen Kontoauszug hoch (Wise, Revolut, ING, BT oder eine beliebige CSV/XLSX, nachdem du die Spalten einmal zugeordnet hast) oder sende jede Apple-Pay-Zahlung per iPhone-Kurzbefehl. Jede Zeile wird vor dem Speichern geprüft, Duplikate werden markiert, jeder Import lässt sich rückgängig machen und importierte Buchungen werden nie doppelt hinzugefügt."
+    },
+    "important_todos": {
+        "name": "Wichtige Aufgaben",
+        "description": "Fügt Aufgaben eine Markierung „wichtig“ hinzu: ein Schalter im Aufgabeneditor, ein Stern in der Zeile und wichtige Aufgaben stehen oben."
+    },
+    "inventory": {
+        "name": "Inventar",
+        "description": "Wisse, was du hast, was zur Neige geht und was nachgekauft werden muss: ruhiger Haushaltsvorrat, kein Lager."
+    },
+    "notes": {
+        "name": "Notizen",
+        "description": "Schnelle Familiennotizen und Checklisten, übersichtlich in Ordnern."
+    },
+    "notifications": {
+        "name": "Benachrichtigungen",
+        "description": "Benachrichtigungen in der App und per Push, damit niemand etwas in der Familie verpasst."
+    },
+    "projects": {
+        "name": "Projekte",
+        "description": "Plane die größeren Vorhaben: Aufgaben, Fortschritt und verknüpfte Einkaufslisten."
+    },
+    "recipes": {
+        "name": "Rezepte",
+        "description": "Familienrezepte mit Fotos und Rechner: skaliere nach Portionen, nach gewünschter Menge oder nach dem, was du da hast."
+    },
+    "recurring_todos": {
+        "name": "Wiederkehrende Aufgaben",
+        "description": "Lass eine Aufgabe nach Zeitplan wiederkehren: wähle ein Datum und ein Intervall, und nach dem Erledigen springt sie beim nächsten Termin wieder auf „offen“."
+    },
+    "shopping": {
+        "name": "Einkäufe",
+        "description": "Gemeinsame Einkaufslisten, die die ganze Familie zusammen abhaken kann."
+    },
+    "spending": {
+        "name": "Ausgaben",
+        "description": "Verfolge gemeinsame Kosten und gleiche aus, wer wem etwas schuldet, aufgeteilt, wie du willst."
+    },
+    "tasks": {
+        "name": "Aufgaben",
+        "description": "Gemeinsame To-do-Listen mit Fälligkeitsdaten, Unteraufgaben und Zuständigen."
+    },
+    "vehicles": {
+        "name": "Fahrzeuge",
+        "description": "Das Zuhause für alles rund um die Familienautos: Zustand, Kilometerstand, Wartung, Ausgaben und Dokumente. Entspannte Autopflege, kein Werkstattsystem."
+    }
+}
