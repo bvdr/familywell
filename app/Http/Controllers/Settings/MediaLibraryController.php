@@ -24,7 +24,8 @@ use Modules\Spending\SpendReceipt;
 // modules, so it can be browsed and deleted in one place. Enumerated live from each source (project
 // covers, spend receipts) rather than a central table — there are only a couple of image types today,
 // and this reuses each module's existing auth-gated serve route. Only shows media the user may view,
-// and deleting clears the owner's reference so nothing is left pointing at a missing file.
+// and deleting clears the owner's reference so nothing is left pointing at a missing file. The kind label
+// ("Project cover", "Receipt") is translated on the page from `type`, so no English text is sent from here.
 class MediaLibraryController extends Controller
 {
     public function __construct(private ShareAccess $access) {}
@@ -45,7 +46,6 @@ class MediaLibraryController extends Controller
                     'type' => 'cover',
                     'id' => $p->id,
                     'name' => $p->name,
-                    'kind' => 'Project cover',
                     'thumbUrl' => StoredImage::url('projects.cover.show', $p, $p->cover_path, thumb: true),
                     'fullUrl' => StoredImage::url('projects.cover.show', $p, $p->cover_path),
                 ];
@@ -66,8 +66,7 @@ class MediaLibraryController extends Controller
                 $items[] = [
                     'type' => 'receipt',
                     'id' => $r->id,
-                    'name' => $names[$r->spend->spend_event_id] ?? 'Receipt',
-                    'kind' => 'Receipt',
+                    'name' => $names[$r->spend->spend_event_id], // always set: receipts are filtered to $eventIds above
                     'thumbUrl' => StoredImage::url('spending.receipts.show', $r->id, $r->path, thumb: true),
                     'fullUrl' => StoredImage::url('spending.receipts.show', $r->id, $r->path),
                 ];
