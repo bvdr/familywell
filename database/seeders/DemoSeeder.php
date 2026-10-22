@@ -94,6 +94,9 @@ class DemoSeeder extends Seeder
         $this->today = today();
         $this->locale = (string) config('familywell.demo_locale', 'en');
         $this->lang = $this->locale === 'en' ? [] : require database_path("seeders/demo/{$this->locale}.php");
+        // Defaults the app names itself (e.g. the "Others" spending list) come from Translations::get() in the
+        // app locale, which is 'en' in a console run. The German screenshot family needs them in German.
+        app()->setLocale($this->locale);
 
         // The ONLY way the demo family is found. Throws on 2+ flagged rows; null means first run.
         $family = DemoFamily::locate();

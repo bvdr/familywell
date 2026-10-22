@@ -333,5 +333,7 @@ it('seeds the German screenshot family when demo_locale is de, with every string
     expect($demo->name)->toBe('Familie Weber')
         ->and([$owner->name, $owner->locale])->toBe(['Sarah Weber', 'de'])
         ->and(DB::table('shopping_lists')->where('family_id', $demo->id)->pluck('name')->all())->toContain('Wocheneinkauf')
-        ->and(DB::table('spending_spends')->where('family_id', $demo->id)->distinct()->pluck('currency')->all())->toBe(['EUR']);
+        ->and(DB::table('spending_spends')->where('family_id', $demo->id)->distinct()->pluck('currency')->all())->toBe(['EUR'])
+        // App-named defaults follow the demo locale too (DemoSeeder sets it).
+        ->and(DB::table('spending_events')->where('family_id', $demo->id)->pluck('name')->all())->toContain('Sonstiges');
 });
