@@ -1,5 +1,8 @@
 <?php
 
+use Illuminate\Contracts\Http\Kernel;
+use Illuminate\Http\Request;
+
 // Boots the app the way an Octane worker does (HTTP kernel bootstrap + the services Octane pre-warms) and prints
 // the real error if that fails. Without it a broken boot only shows FrankenPHP's "worker ... has not reached
 // frankenphp_handle_request()", which never says why: a malformed APP_KEY (no base64: prefix, wrong length) did
@@ -9,9 +12,9 @@ require __DIR__.'/../vendor/autoload.php';
 
 try {
     $app = require __DIR__.'/../bootstrap/app.php';
-    $app->make(Illuminate\Contracts\Http\Kernel::class)->bootstrap();
+    $app->make(Kernel::class)->bootstrap();
     // Octane gives each worker a request before warming; services like `url` need one.
-    $app->instance('request', Illuminate\Http\Request::create('/'));
+    $app->instance('request', Request::create('/'));
     // Only what the app binds: Octane's list also names worker-only bindings (e.g. `routes`) that don't exist here.
     foreach ($app['config']->get('octane.warm', []) as $service) {
         if ($app->bound($service)) {
