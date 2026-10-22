@@ -33,6 +33,7 @@ The compose file ships with development-grade defaults. For a real deployment:
 - Set `APP_ENV=production` and `APP_DEBUG=false` in `.env`.
 - Set `APP_URL` and the `REVERB_PUBLIC_*` values to your real domain and scheme (`https`).
 - Put a reverse proxy (Caddy, nginx, Traefik) in front for TLS, and point it at the app (`8000`), plus Reverb (`8080`) if you turned on realtime.
+- **Keep Postgres and Redis off the network.** The compose file binds them to `127.0.0.1` (since v1.1.0). If your copy still says `"5432:5432"` or `"6379:6379"`, change it: Docker's published ports bypass host firewalls like ufw, so those lines expose your database to the internet.
 - Configure real [file storage](configuration.md#file-storage-receipts-and-uploads) so receipt photos survive container restarts, and [mail](configuration.md#mail) for invites.
 
 ## With the prebuilt image
@@ -42,6 +43,8 @@ A prebuilt image is published to the GitHub Container Registry, no login needed:
 ```bash
 docker pull ghcr.io/bvdr/familywell:stable
 ```
+
+The image is built for **x86-64 (amd64) only**. On ARM (Raspberry Pi, Apple Silicon, Ampere) use the Docker Compose steps above, which build it on your machine.
 
 You can swap `build: { context: ., pull: true }` for `image: ghcr.io/bvdr/familywell:stable` in `docker-compose.yml` (on both the `app` and `reverb` services) to skip building locally, or run the image directly against your own Postgres/Redis by passing the [environment variables](configuration.md) it needs.
 
@@ -101,3 +104,14 @@ Without realtime the app works fully; family members just refresh to see each ot
 Reverb listens on port `8080`. Behind a reverse proxy, set the `REVERB_PUBLIC_HOST` / `REVERB_PUBLIC_PORT` / `REVERB_PUBLIC_SCHEME` values in `docker-compose.yml` to the address browsers use.
 
 See **[configuration.md](configuration.md)** for the complete environment variable reference.
+
+## Troubleshooting
+
+**The app container keeps restarting with `worker public/frankenphp-worker.php has not reached frankenphp_handle_request()`.**
+Usually `APP_KEY` is empty in `.env`. Generate one (see the first step under [With Docker Compose](#with-docker-compose-recommended)) and run `docker compose up -d` again. Images from v1.1.0 on say `APP_KEY is empty` instead. If the key is set and it still fails, open an issue with the output of `docker compose logs app`.
+
+**`docker pull` fails with `denied` or `forbidden`.**
+The image is public, so this almost always means Docker is sending an old, expired GitHub login. Run `docker logout ghcr.io` and pull again.
+
+**`no matching manifest for linux/arm64`.**
+The prebuilt image is x86-64 only. Build it on your machine with `docker compose build`.
