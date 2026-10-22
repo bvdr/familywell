@@ -13,6 +13,7 @@
 // "good morning" and "today" matches the server's dates.
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
+import process from 'node:process';
 
 const [base = 'http://127.0.0.1:8131', out = 'docs/screenshots'] = process.argv.slice(2);
 mkdirSync(out, { recursive: true });
