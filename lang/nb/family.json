@@ -35,5 +35,6 @@
     "disabled": "av",
     "enable": "Slå på",
     "disable": "Slå av",
-    "demo_blocked": "Ikke tilgjengelig i demoen. Registrer deg for å styre din egen konto og familie."
+    "demo_blocked": "Ikke tilgjengelig i demoen. Registrer deg for å styre din egen konto og familie.",
+    "nav_label": "Familie"
 }

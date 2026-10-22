@@ -35,5 +35,6 @@
     "disabled": "desativado",
     "enable": "Ativar",
     "disable": "Desativar",
-    "demo_blocked": "Não disponível na demonstração. Cadastre-se para gerenciar sua própria conta e família."
+    "demo_blocked": "Não disponível na demonstração. Cadastre-se para gerenciar sua própria conta e família.",
+    "nav_label": "Família"
 }
