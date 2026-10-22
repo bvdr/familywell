@@ -14,7 +14,6 @@ type MediaItem = {
     type: 'cover' | 'receipt';
     id: number;
     name: string;
-    kind: string;
     thumbUrl: string;
     fullUrl: string;
 };
@@ -26,10 +25,12 @@ export default function Media({ items }: { items: MediaItem[] }) {
 
     // Optimistic removal: the tile disappears on confirm and only comes back if the delete fails.
     const removed = useOptimistic<boolean>();
+    const kind = (m: MediaItem) => t(`settings.media_${m.type}`);
     const key = (m: MediaItem) => `${m.type}-${m.id}`;
     const visible = items.filter((m) => !removed.get(key(m), false));
     const remove = (m: MediaItem) => {
-        if (!confirm(t('settings.confirm_delete_media', { kind: m.kind.toLowerCase() }))) return;
+        // One full sentence per type: splicing a lowercased label into a shared sentence broke gender and capitals (German nouns).
+        if (!confirm(t(`settings.confirm_delete_${m.type}`))) return;
         removed.set(key(m), true);
         void save('delete', route('media.destroy', { type: m.type, id: m.id })).then(() => removed.clear(key(m)));
     };
@@ -63,7 +64,7 @@ export default function Media({ items }: { items: MediaItem[] }) {
                                     </button>
                                     <div className="p-2">
                                         <div className="text-primary truncate text-xs font-medium">{m.name}</div>
-                                        <div className="text-text-muted text-[11px]">{m.kind}</div>
+                                        <div className="text-text-muted text-[11px]">{kind(m)}</div>
                                     </div>
                                 </div>
                             ))}
@@ -77,7 +78,7 @@ export default function Media({ items }: { items: MediaItem[] }) {
                     <div className="flex items-center justify-between text-white">
                         <div className="min-w-0">
                             <div className="truncate font-medium">{preview.name}</div>
-                            <div className="text-xs text-white/60">{preview.kind}</div>
+                            <div className="text-xs text-white/60">{kind(preview)}</div>
                         </div>
                         <div className="flex items-center gap-2">
                             <button
