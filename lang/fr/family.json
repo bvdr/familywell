@@ -35,5 +35,6 @@
     "disabled": "désactivé",
     "enable": "Activer",
     "disable": "Désactiver",
-    "demo_blocked": "Pas disponible dans la démo. Inscris-toi pour gérer ton propre compte et ta famille."
+    "demo_blocked": "Pas disponible dans la démo. Inscris-toi pour gérer ton propre compte et ta famille.",
+    "nav_label": "Famille"
 }

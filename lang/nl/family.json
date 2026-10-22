@@ -35,5 +35,6 @@
     "disabled": "uit",
     "enable": "Aanzetten",
     "disable": "Uitzetten",
-    "demo_blocked": "Niet beschikbaar in de demo. Meld je aan om je eigen account en gezin te beheren."
+    "demo_blocked": "Niet beschikbaar in de demo. Meld je aan om je eigen account en gezin te beheren.",
+    "nav_label": "Gezin"
 }

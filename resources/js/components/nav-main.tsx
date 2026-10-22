@@ -1,16 +1,18 @@
 import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
+import { useT } from '@/lib/i18n';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 
 export function NavMain({ items = [] }: { items: NavItem[] }) {
     const page = usePage();
+    const t = useT();
     return (
         <SidebarGroup className="px-2 py-0">
             {/* max-md: = the phone drawer (below md the desktop sidebar is hidden and this renders in a Sheet):
                 touch-sized, 17px text, 22px icons, 48px rows. md: = the desktop sidebar: a step up from the stock
                 compact shadcn size (14px/16px/32px) to 15px text, 20px icons, 40px rows. The collapsed icon rail
                 keeps its 32px buttons, so its icons stay 16px (group-data-[collapsible=icon]). */}
-            <SidebarGroupLabel className="max-md:h-9 max-md:text-sm md:text-[13px]">Family</SidebarGroupLabel>
+            <SidebarGroupLabel className="max-md:h-9 max-md:text-sm md:text-[13px]">{t('family.nav_label')}</SidebarGroupLabel>
             <SidebarMenu className="max-md:gap-0.5">
                 {items.map((item) => (
                     <SidebarMenuItem key={item.title}>

@@ -35,5 +35,6 @@
     "disabled": "av",
     "enable": "Slå på",
     "disable": "Slå av",
-    "demo_blocked": "Inte tillgängligt i demon. Registrera dig för att hantera ditt eget konto och din familj."
+    "demo_blocked": "Inte tillgängligt i demon. Registrera dig för att hantera ditt eget konto och din familj.",
+    "nav_label": "Familj"
 }

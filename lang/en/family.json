@@ -35,5 +35,6 @@
     "disabled": "disabled",
     "enable": "Enable",
     "disable": "Disable",
-    "demo_blocked": "Not available in the demo. Sign up to manage your own account and family."
+    "demo_blocked": "Not available in the demo. Sign up to manage your own account and family.",
+    "nav_label": "Family"
 }
