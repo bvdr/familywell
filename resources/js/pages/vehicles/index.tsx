@@ -19,8 +19,10 @@ export default function VehiclesIndex({ vehicles, unitSystem, canManage }: Props
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={t('vehicles.title')} />
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 p-4">
-                <header className="flex items-start justify-between gap-3">
-                    <div>
+                {/* Wraps: on a phone the buttons drop under the title instead of squeezing it into a narrow column
+                    (long labels like "Añadir vehículo" left the title two words wide). */}
+                <header className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-56 flex-1">
                         <h1 className="font-heading text-primary text-2xl">{t('vehicles.my_cars')}</h1>
                         <p className="text-muted-foreground text-sm">{t('vehicles.subtitle')}</p>
                     </div>
@@ -84,7 +86,10 @@ function VehicleCard({ vehicle, unitSystem, t }: { vehicle: Vehicle; unitSystem:
                         <h2 className="font-heading text-primary truncate text-lg">{vehicleTitle(vehicle)}</h2>
                         <p className="text-muted-foreground truncate text-sm">{vehicleSubtitle(vehicle) || t('vehicles.no_details')}</p>
                     </div>
-                    <span className="flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium" style={{ color, borderColor: color }}>
+                    <span
+                        className="flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium"
+                        style={{ color, borderColor: color }}
+                    >
                         <span className="size-1.5 rounded-full" style={{ background: color }} />
                         {stateLabel(t, vehicle.state)}
                     </span>
