@@ -55,14 +55,17 @@ services:
     depends_on: [redis]
   redis:
     image: redis:7-alpine
-    ports: ["6379:6379"]
+    # Localhost only: Docker's published ports bypass host firewalls like ufw, so "6379:6379" exposed an
+    # unauthenticated Redis to the internet on a public VPS. The app reaches it over the compose network.
+    ports: ["127.0.0.1:6379:6379"]
   db:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: familywell
       POSTGRES_USER: familywell
       POSTGRES_PASSWORD: familywell
-    ports: ["5432:5432"]
+    # Localhost only, same reason: this Postgres uses the default familywell/familywell login.
+    ports: ["127.0.0.1:5432:5432"]
     volumes: ["dbdata:/var/lib/postgresql/data"]
 volumes:
   dbdata:
