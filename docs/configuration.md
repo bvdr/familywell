@@ -10,7 +10,7 @@ FamilyWell is configured entirely through environment variables in `.env`. Start
 |---|---|---|
 | `APP_NAME` | `FamilyWell` | Shown in the UI and emails. |
 | `APP_ENV` | `local` | `production` in production. |
-| `APP_KEY` | none | **Required.** Generate with `php artisan key:generate --show`, or with only Docker: `docker compose run --rm --no-deps -T app php artisan key:generate --show`. |
+| `APP_KEY` | generated | The encryption key. The Docker image generates one on first start and keeps it in the `storage` volume (`storage/app.key`), so you don't need to set it. If you do set it, it wins. Outside Docker, generate one with `php artisan key:generate --show`. Never change it on a running install: people get logged out and encrypted data becomes unreadable. |
 | `APP_DEBUG` | `true` | Set to `false` in production. |
 | `APP_URL` | `http://localhost` | The public URL the app is served from. |
 

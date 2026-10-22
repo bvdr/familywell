@@ -1,11 +1,22 @@
+# One-command install: this file alone is enough. `docker compose up -d` pulls the release image, which makes
+# its own APP_KEY and runs migrations on start (docker/start.sh). A .env next to it is optional (domain, mail,
+# storage...). On ARM, or to run your own changes, build instead: `docker compose up -d --build` from a clone.
 services:
   app:
+    image: ghcr.io/bvdr/familywell:stable
     # pull: true re-downloads the base image (dunglas/frankenphp:1-php8.3) on every build. Without it Docker reuses
     # its cached copy forever, so `docker compose up -d --build` would never pick up a PHP security release.
     build: { context: ., pull: true }
+    restart: unless-stopped
     ports: ["8000:8000"]
-    env_file: .env
+    env_file: [{ path: .env, required: false }]
+    # Uploads (receipts, project covers) and the generated APP_KEY. Without a volume both were lost whenever the
+    # container was recreated, e.g. on every upgrade.
+    volumes: ["storage:/app/storage"]
     environment:
+      # Logs go to `docker compose logs app`, not a file inside the container. Without mail set up, that is also
+      # where the sign-in code shows up, so the first account can be created before configuring MAIL_*.
+      LOG_CHANNEL: ${LOG_CHANNEL:-stderr}
       DB_CONNECTION: pgsql
       DB_HOST: db
       DB_PORT: 5432
@@ -24,14 +35,17 @@ services:
       REVERB_SCALING_ENABLED: "true"
       REDIS_HOST: redis
     depends_on:
-      db: { condition: service_started }
+      # Healthy, not just started: the app migrates on boot and Postgres takes a few seconds to accept connections.
+      db: { condition: service_healthy }
       redis: { condition: service_started }
       # Only started with --profile realtime; not required for the app to run.
       reverb: { condition: service_started, required: false }
   reverb:
     # Optional realtime server: `docker compose --profile realtime up -d` once REVERB_APP_* are set in .env.
     profiles: [realtime]
+    image: ghcr.io/bvdr/familywell:stable
     build: { context: ., pull: true }
+    restart: unless-stopped
     command: php artisan reverb:start --host=0.0.0.0 --port=8080
     # The image's HEALTHCHECK probes FrankenPHP's admin port, which Reverb doesn't run, so it would always read
     # "unhealthy". Check Reverb's own port instead.
@@ -40,8 +54,9 @@ services:
       interval: 30s
       timeout: 5s
     ports: ["8080:8080"]
-    env_file: .env
+    env_file: [{ path: .env, required: false }]
     environment:
+      LOG_CHANNEL: ${LOG_CHANNEL:-stderr}
       BROADCAST_CONNECTION: reverb
       REVERB_HOST: 0.0.0.0
       REVERB_PORT: 8080
@@ -55,11 +70,13 @@ services:
     depends_on: [redis]
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     # Localhost only: Docker's published ports bypass host firewalls like ufw, so "6379:6379" exposed an
     # unauthenticated Redis to the internet on a public VPS. The app reaches it over the compose network.
     ports: ["127.0.0.1:6379:6379"]
   db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: familywell
       POSTGRES_USER: familywell
@@ -67,5 +84,11 @@ services:
     # Localhost only, same reason: this Postgres uses the default familywell/familywell login.
     ports: ["127.0.0.1:5432:5432"]
     volumes: ["dbdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "familywell", "-d", "familywell"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
 volumes:
   dbdata:
+  storage:

@@ -91,17 +91,15 @@ Open http://localhost:8000, register an account (the first user creates a family
 
 ## Self-hosting
 
-The whole app is a single image with a `docker compose` stack (app + Postgres + Redis, optional Reverb for realtime). Only Docker is needed on the server:
+The whole app is a single image with a `docker compose` stack (app + Postgres + Redis, optional Reverb for realtime). Only Docker is needed on the server. In an empty folder:
 
 ```bash
-cp .env.example .env
-sed -i "s|^APP_KEY=.*|APP_KEY=$(docker compose run --rm --no-deps -T app php artisan key:generate --show)|" .env
-docker compose up -d
-docker compose exec app php artisan migrate --force
-docker compose exec app php artisan modules:migrate
+curl -fsSL https://raw.githubusercontent.com/bvdr/familywell/main/docker-compose.yml -o docker-compose.yml && docker compose up -d
 ```
 
-A prebuilt image is published at `ghcr.io/bvdr/familywell` (use the `:stable` tag; `:latest` is every merge to main). See **[docs/self-hosting.md](docs/self-hosting.md)** for the full guide, including storage and Reverb configuration.
+Then open **http://localhost:8000** and sign up. The container generates its own encryption key and sets up the database on first start. Until mail is configured, read your sign-in code with `docker compose logs app | grep "FamilyWell code"`.
+
+Upgrade with `docker compose pull && docker compose up -d`. The image is `ghcr.io/bvdr/familywell:stable` (x86-64; on ARM, clone and run `docker compose up -d --build`). See **[docs/self-hosting.md](docs/self-hosting.md)** for the full guide: going public, backups, mail, storage and Reverb.
 
 ### Public demo account (optional)
 
