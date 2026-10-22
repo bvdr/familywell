@@ -11,6 +11,11 @@ return [
     // re-applies it on every nightly reset, so a visitor changing it only lasts until midnight.
     'demo_password' => env('DEMO_PASSWORD'),
 
+    // Language of DemoSeeder's content: 'en' (default, the public demo) or a locale with a string table in
+    // database/seeders/demo/<locale>.php. Only set it on a throwaway local database to capture the localized
+    // familywell.org screenshots: the hourly demo:reset would otherwise reseed the public demo in it.
+    'demo_locale' => env('DEMO_LOCALE', 'en'),
+
     // Hosted pricing (Billing::pricing). The first `intro_spots` families to subscribe get the intro prices
     // (STRIPE_PRICE_MONTHLY / _YEARLY); after that checkout switches to the standard ones
     // (STRIPE_PRICE_*_STANDARD) and familywell.org's counter reads 0. Amounts are display copy and must
