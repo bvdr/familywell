@@ -29,4 +29,7 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction
 # One production-grade image: FrankenPHP serves Octane (multi-threaded), no nginx+php-fpm to orchestrate.
 # Octane keeps the app in memory between requests, so tenant state must never live in a raw static (see tenancy).
 EXPOSE 8000
-CMD ["php", "artisan", "octane:start", "--server=frankenphp", "--host=0.0.0.0", "--port=8000"]
+# Refuse to start without APP_KEY. Octane warms the encrypter while booting its workers, so an empty key kills
+# every worker and FrankenPHP only says "worker ... has not reached frankenphp_handle_request()" (issue #267,
+# still hit by self-hosters after #275). The key comes from the environment (compose env_file) or a mounted .env.
+CMD ["sh", "-c", "if [ -z \"$APP_KEY\" ] && ! grep -qs '^APP_KEY=..*' .env; then echo 'APP_KEY is empty. Generate one with: docker compose run --rm --no-deps -T app php artisan key:generate --show' >&2; echo 'then set APP_KEY=<that value> in .env and start again. See docs/self-hosting.md.' >&2; exit 1; fi; exec php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=8000"]
