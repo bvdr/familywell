@@ -101,7 +101,11 @@ See **[configuration.md](configuration.md)** for the complete environment variab
 ## Troubleshooting
 
 **The app container keeps restarting with `worker public/frankenphp-worker.php has not reached frankenphp_handle_request()`.**
-This is an older setup (v1.1 or before) with an empty `APP_KEY`. Download the current `docker-compose.yml` (see [Install](#install)), which generates the key for you, and run `docker compose up -d`. If it still fails, open an issue with the output of `docker compose logs app`.
+FrankenPHP's message never says why. From v1.2.1 the container checks the app boots before starting it, and prints the real error instead (`docker compose logs app`). The usual causes:
+- `APP_KEY` is set but malformed. It must look like `base64:` followed by 44 characters. Remove the `APP_KEY` line from `.env` to let the container generate one.
+- `APP_KEY` is empty on v1.1 or older. Download the current `docker-compose.yml` (see [Install](#install)), which generates the key for you.
+
+If it still fails, open an issue with the output of `docker compose logs app`.
 
 **`docker pull` fails with `denied` or `forbidden`.**
 The image is public, so this almost always means Docker is sending an old, expired GitHub login. Run `docker logout ghcr.io` and pull again.
