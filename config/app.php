@@ -97,7 +97,10 @@ return [
 
     'cipher' => 'AES-256-CBC',
 
-    'key' => env('APP_KEY'),
+    // Self-hosted installs need no APP_KEY step: on first start docker/start.sh writes a key to
+    // storage/app.key (a persistent volume), used only when APP_KEY isn't set. Read here so every process
+    // (Octane, `docker compose exec app php artisan ...`) sees the same key. An APP_KEY env var always wins.
+    'key' => env('APP_KEY') ?: (is_file(storage_path('app.key')) ? trim((string) file_get_contents(storage_path('app.key'))) : null),
 
     'previous_keys' => [
         ...array_filter(
