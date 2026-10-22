@@ -1,0 +1,62 @@
+{
+    "birthdays": {
+        "name": "Anniversaires",
+        "description": "Ajoutez des anniversaires avec jour et mois (année facultative) ou sur un contact. Affiche l'âge, le prochain anniversaire, un badge sur le contact et un widget des prochains anniversaires sur l'accueil."
+    },
+    "calendar": {
+        "name": "Calendrier",
+        "description": "Le calendrier familial pour les voyages, rendez-vous et jours fériés, à côté des échéances de tâches, anniversaires et échéances des véhicules. Vues mois et chronologie, plus un lien d'abonnement pour Google ou Apple Calendrier."
+    },
+    "contacts": {
+        "name": "Contacts",
+        "description": "Un carnet d'adresses familial partagé. Chaque entrée est une personne avec ses coordonnées, sur lesquelles d'autres modules s'appuient : Anniversaires ajoute une date de naissance et les projets peuvent lier des personnes."
+    },
+    "expense_import": {
+        "name": "Import de dépenses",
+        "description": "Importez vos dépenses par carte dans Dépenses : envoyez un relevé bancaire (Wise, Revolut, ING, BT ou tout CSV/XLSX après avoir associé ses colonnes une fois) ou transmettez chaque paiement Apple Pay depuis un raccourci iPhone. Chaque ligne est vérifiée avant l'enregistrement, les doublons sont signalés, chaque import peut être annulé et les transactions importées ne sont jamais ajoutées deux fois."
+    },
+    "important_todos": {
+        "name": "Tâches importantes",
+        "description": "Ajoute un marqueur « important » aux tâches : un interrupteur dans l'éditeur, une étoile sur la ligne, et les tâches importantes passent en premier."
+    },
+    "inventory": {
+        "name": "Stock",
+        "description": "Sachez ce que vous avez, ce qui s'épuise et ce qu'il faut réapprovisionner : un stock domestique serein, pas un entrepôt."
+    },
+    "notes": {
+        "name": "Notes",
+        "description": "Notes et listes de contrôle rapides pour la famille, bien rangées dans des dossiers."
+    },
+    "notifications": {
+        "name": "Notifications",
+        "description": "Alertes dans l'appli et notifications push pour que personne ne rate l'activité de la famille."
+    },
+    "projects": {
+        "name": "Projets",
+        "description": "Planifiez les projets plus importants : tâches, avancement et listes de courses liées."
+    },
+    "recipes": {
+        "name": "Recettes",
+        "description": "Les recettes de la famille avec photos et calculateur : adaptez les quantités selon les portions, la quantité voulue ou ce que vous avez."
+    },
+    "recurring_todos": {
+        "name": "Tâches récurrentes",
+        "description": "Faites répéter une tâche selon un calendrier : choisissez une date et un intervalle, et une fois terminée elle repasse à « à faire » à la prochaine occurrence."
+    },
+    "shopping": {
+        "name": "Courses",
+        "description": "Des listes de courses partagées que toute la famille peut cocher ensemble."
+    },
+    "spending": {
+        "name": "Dépenses",
+        "description": "Suivez les frais partagés et réglez qui doit quoi à qui, répartis comme vous voulez."
+    },
+    "tasks": {
+        "name": "Tâches",
+        "description": "Des listes de tâches partagées avec échéances, sous-tâches et personnes assignées."
+    },
+    "vehicles": {
+        "name": "Véhicules",
+        "description": "Tout sur les voitures de la famille au même endroit : état, kilométrage, entretien, dépenses et documents. Un suivi serein, pas un logiciel d'atelier."
+    }
+}

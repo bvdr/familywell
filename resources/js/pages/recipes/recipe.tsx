@@ -12,7 +12,7 @@ import AppLayout from '@/layouts/app-layout';
 import { compressImage, makeThumbnail } from '@/lib/compress-image';
 import { useLocale, useT } from '@/lib/i18n';
 import { formatQty, scaleIngredient } from '@/lib/recipe-scale.js';
-import { type Recipe } from '@/lib/recipes';
+import { unitLabel, type Recipe } from '@/lib/recipes';
 import { type BreadcrumbItem } from '@/types';
 
 type Props = {
@@ -174,7 +174,7 @@ function ShoppingModal({
             .filter((l) => picked.has(l.i))
             .map(({ ing, s }) => ({
                 name: ing.name,
-                quantity: `${formatQty(s.qty, s.unit, 'en-US').replace(/,/g, '')} ${s.unit ?? ''}`.trim(),
+                quantity: `${formatQty(s.qty, s.unit, 'en-US').replace(/,/g, '')} ${unitLabel(t, s.unit)}`.trim(),
                 note: recipe.title,
             }));
         if (!items.length) return;
@@ -244,7 +244,7 @@ function ShoppingModal({
                                     className="size-4 accent-[var(--accent-strong)]"
                                 />
                                 <span className="text-primary w-20 shrink-0 font-medium tabular-nums">
-                                    {formatQty(s.qty, s.unit, locale)} {s.unit ?? ''}
+                                    {formatQty(s.qty, s.unit, locale)} {unitLabel(t, s.unit)}
                                 </span>
                                 <span className="min-w-0 flex-1 truncate">{ing.name}</span>
                             </label>

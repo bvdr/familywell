@@ -1,3 +1,4 @@
+import type { TFn } from './i18n';
 import { RECIPE_UNITS, normUnit } from './recipe-scale.js';
 
 // A recipe as the pages get it (Recipe::toPayload). Ingredients/steps are the stored JSON as-is.
@@ -34,6 +35,19 @@ export type ScaleTarget =
     | { type: 'servings'; value: number }
     | { type: 'yield'; amount: number; unit: string | null }
     | { type: 'ingredient'; index: number; amount: number; unit: string | null };
+
+/**
+ * Display label for a stored ingredient/yield unit. The stored value stays as typed or imported ("pcs",
+ * "piece", "tbsp"); only what is shown is localised, via recipes.unit_<canonical> (aliases collapse through
+ * normUnit, so "pieces" and "buc" both show "Stk" in German). A unit with no entry (oz, "handful", anything
+ * the user typed in their own language) renders as-is.
+ */
+export function unitLabel(t: TFn, unit: string | null | undefined): string {
+    if (!unit) return '';
+    const key = `recipes.unit_${normUnit(unit)}`;
+    const label = t(key);
+    return label === key ? unit : label; // t() returns the key itself on a miss
+}
 
 /** "1 h 15 min" / "40 min". */
 export function minutesText(m: number | null): string | null {

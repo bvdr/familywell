@@ -80,5 +80,18 @@
     "tags_label": "Etichete",
     "tags_hint": "Separate prin virgulă.",
     "tags_placeholder": "desert, vegetarian",
-    "source_label": "Link sursă"
+    "source_label": "Link sursă",
+    "unit_g": "g",
+    "unit_kg": "kg",
+    "unit_ml": "ml",
+    "unit_l": "l",
+    "unit_tsp": "linguriță",
+    "unit_tbsp": "lingură",
+    "unit_cup": "cană",
+    "unit_pcs": "buc",
+    "unit_pinch": "vârf de cuțit",
+    "unit_clove": "cățel",
+    "unit_slice": "felie",
+    "unit_can": "conservă",
+    "unit_pack": "pachet"
 }

@@ -1,0 +1,62 @@
+{
+    "birthdays": {
+        "name": "Birthdays",
+        "description": "A Birthdays page (quick-add a person with day + month, year optional) plus a birthday on each contact: age when the year is known, the next birthday (repeats every year), a badge on the contact, and an 'Upcoming birthdays' widget on the home screen. People added here are contacts too."
+    },
+    "calendar": {
+        "name": "Calendar",
+        "description": "The family calendar: trips, conferences, appointments and holidays, with people and to-dos, next to task due dates, birthdays, car due dates and project starts. Month and timeline views, a subscribe link for Google/Apple Calendar."
+    },
+    "contacts": {
+        "name": "Contacts",
+        "description": "A shared family address book. Each entry is a 'person' — a reusable primitive (name + contact methods) that other modules extend: Birthdays adds a birthdate, and projects can link people."
+    },
+    "expense_import": {
+        "name": "Expense import",
+        "description": "Bring card spending into Spending: upload a bank statement (Wise, Revolut, ING, BT, or any CSV/XLSX after mapping its columns once) or send each Apple Pay payment from an iPhone Shortcut. Every row is reviewed before it's saved, duplicates are flagged, each import can be undone, and imported transactions are remembered so they never come in twice."
+    },
+    "important_todos": {
+        "name": "Important Todos",
+        "description": "Adds an \"important\" flag to tasks: a toggle in the task editor, a star on the row, and important tasks sorted first. A worked example of extending a primitive through hooks."
+    },
+    "inventory": {
+        "name": "Inventory",
+        "description": "Know what you have, what's running low, and what needs replenishing — calm household stock, not a warehouse."
+    },
+    "notes": {
+        "name": "Notes",
+        "description": "Quick family notes and checklists, kept tidy in folders."
+    },
+    "notifications": {
+        "name": "Notifications",
+        "description": "In-app and push alerts so nobody misses family activity."
+    },
+    "projects": {
+        "name": "Projects",
+        "description": "Plan the bigger things: tasks, progress, and linked shopping lists."
+    },
+    "recipes": {
+        "name": "Recipes",
+        "description": "Family recipes with photos and a calculator: scale by servings, by how much you want to make, or by what you have."
+    },
+    "recurring_todos": {
+        "name": "Recurring To-dos",
+        "description": "Make a to-do repeat on a schedule: pick a date and an interval, and once it's completed it resets to 'to do' again on its next occurrence."
+    },
+    "shopping": {
+        "name": "Shopping",
+        "description": "Shared grocery and shopping lists the whole family can check off together."
+    },
+    "spending": {
+        "name": "Spending",
+        "description": "Track shared costs and settle up who owes who, split any way you like."
+    },
+    "tasks": {
+        "name": "Tasks",
+        "description": "Shared to-do lists with due dates, sub-tasks, and who's assigned."
+    },
+    "vehicles": {
+        "name": "Vehicles",
+        "description": "The home for everything about the family cars — state, mileage, maintenance, expenses and documents. Calm car care, not a workshop system."
+    }
+}

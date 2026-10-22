@@ -78,5 +78,18 @@
     "tags_label": "Tags",
     "tags_hint": "Separate with commas.",
     "tags_placeholder": "dessert, vegetarian",
-    "source_label": "Source link"
+    "source_label": "Source link",
+    "unit_g": "g",
+    "unit_kg": "kg",
+    "unit_ml": "ml",
+    "unit_l": "l",
+    "unit_tsp": "tsp",
+    "unit_tbsp": "tbsp",
+    "unit_cup": "cup",
+    "unit_pcs": "pcs",
+    "unit_pinch": "pinch",
+    "unit_clove": "clove",
+    "unit_slice": "slice",
+    "unit_can": "can",
+    "unit_pack": "pack"
 }

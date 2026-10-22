@@ -78,5 +78,18 @@
     "tags_label": "Tags",
     "tags_hint": "Separe com vírgulas.",
     "tags_placeholder": "sobremesa, vegetariano",
-    "source_label": "Link da fonte"
+    "source_label": "Link da fonte",
+    "unit_g": "g",
+    "unit_kg": "kg",
+    "unit_ml": "ml",
+    "unit_l": "l",
+    "unit_tsp": "c. chá",
+    "unit_tbsp": "c. sopa",
+    "unit_cup": "xícara",
+    "unit_pcs": "un.",
+    "unit_pinch": "pitada",
+    "unit_clove": "dente",
+    "unit_slice": "fatia",
+    "unit_can": "lata",
+    "unit_pack": "pacote"
 }

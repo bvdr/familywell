@@ -15,6 +15,16 @@ class Translations
     /** @return array<string, mixed> full nested map for $locale, English-filled. */
     public static function for(string $locale): array
     {
+        // Memoised per process: the lang files only change on deploy, and server-side callers (Translations::get,
+        // e.g. once per aisle) would otherwise re-read and re-merge every JSON file on each call.
+        static $cache = [];
+
+        return $cache[$locale] ??= self::build($locale);
+    }
+
+    /** @return array<string, mixed> */
+    private static function build(string $locale): array
+    {
         $en = self::all('en');
 
         return $locale === 'en' ? $en : array_replace_recursive($en, self::all($locale));

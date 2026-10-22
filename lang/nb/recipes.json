@@ -78,5 +78,18 @@
     "tags_label": "Stikkord",
     "tags_hint": "Skill med komma.",
     "tags_placeholder": "dessert, vegetar",
-    "source_label": "Kildelenke"
+    "source_label": "Kildelenke",
+    "unit_g": "g",
+    "unit_kg": "kg",
+    "unit_ml": "ml",
+    "unit_l": "l",
+    "unit_tsp": "ts",
+    "unit_tbsp": "ss",
+    "unit_cup": "kopp",
+    "unit_pcs": "stk",
+    "unit_pinch": "klype",
+    "unit_clove": "fedd",
+    "unit_slice": "skive",
+    "unit_can": "boks",
+    "unit_pack": "pk."
 }
