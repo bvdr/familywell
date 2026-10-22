@@ -16,4 +16,7 @@ fi
 php artisan migrate --force
 php artisan modules:migrate
 
+# Catch a boot failure here, where its real message can be printed. See docker/preflight.php.
+php docker/preflight.php
+
 exec php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=8000
