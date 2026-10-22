@@ -1,0 +1,19 @@
+{
+    "title": "Compartir",
+    "access_title": "Quién tiene acceso",
+    "people_title": "Personas",
+    "owner": "Propietario",
+    "no_access": "Sin acceso",
+    "can_edit": "Puede editar",
+    "can_view": "Puede ver",
+    "invite_link": "Enlace de invitación",
+    "link_view_desc": "Cualquiera con el enlace puede verlo.",
+    "create_link": "Crear un enlace de solo lectura",
+    "no_link": "Sin enlace de invitación.",
+    "vis_family_title": "Cualquiera de la familia",
+    "vis_family_sub": "Todos los miembros de la familia tienen acceso",
+    "vis_invited_title": "Solo personas invitadas",
+    "vis_invited_sub": "Solo las personas que añadas abajo",
+    "vis_private_title": "Privado",
+    "vis_private_sub": "Solo tú puedes verlo"
+}
