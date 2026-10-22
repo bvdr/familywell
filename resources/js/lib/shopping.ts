@@ -139,6 +139,7 @@ export const VOICE_LANGS = [
     { code: 'sv-SE', label: 'Svenska' },
     { code: 'nb-NO', label: 'Norsk' },
     { code: 'pt-BR', label: 'Português (Brasil)' },
+    { code: 'es-ES', label: 'Español' },
 ];
 const VOICE_LANG_KEY = 'familywell:voiceLang';
 export const getVoiceLang = (): string => (typeof window === 'undefined' ? 'ro-RO' : localStorage.getItem(VOICE_LANG_KEY) || 'ro-RO');

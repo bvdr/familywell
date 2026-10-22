@@ -10,7 +10,7 @@ class Translations
     /** Available locales: code => native label. Add a language by adding a lang/{code}.json + a row here. */
     // `pt` is Brazilian Portuguese: Intl/ICU treat plain `pt` as Brazil (dates, numbers, plurals), and a
     // bare code lets Symfony match both pt-BR and pt-PT browsers. Rename to pt-BR only if pt-PT ever ships.
-    public const LOCALES = ['en' => 'English', 'ro' => 'Română', 'de' => 'Deutsch', 'fr' => 'Français', 'nl' => 'Nederlands', 'sv' => 'Svenska', 'nb' => 'Norsk', 'pt' => 'Português (Brasil)'];
+    public const LOCALES = ['en' => 'English', 'ro' => 'Română', 'de' => 'Deutsch', 'fr' => 'Français', 'nl' => 'Nederlands', 'sv' => 'Svenska', 'nb' => 'Norsk', 'pt' => 'Português (Brasil)', 'es' => 'Español'];
 
     /** @return array<string, mixed> full nested map for $locale, English-filled. */
     public static function for(string $locale): array

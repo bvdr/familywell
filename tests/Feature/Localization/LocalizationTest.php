@@ -30,7 +30,7 @@ it('translates every English key in every locale', function () {
 
 it('lists locale options', function () {
     $codes = collect(Translations::options())->pluck('code');
-    expect($codes)->toContain('en')->toContain('ro')->toContain('de')->toContain('fr')->toContain('nl')->toContain('sv')->toContain('nb')->toContain('pt');
+    expect($codes)->toContain('en')->toContain('ro')->toContain('de')->toContain('fr')->toContain('nl')->toContain('sv')->toContain('nb')->toContain('pt')->toContain('es');
 });
 
 it('saves the user locale and applies it to the shared translations', function () {
@@ -107,3 +107,7 @@ it('shows recipe units in the viewer language', function () {
     expect(Translations::get('recipes.unit_pcs', 'de'))->toBe('Stk')
         ->and(Translations::get('recipes.unit_tbsp', 'de'))->toBe('EL');
 });
+
+it('greets a Spanish browser in Spanish, from Spain or Latin America', function (string $header) {
+    $this->get('/login', ['Accept-Language' => $header])->assertInertia(fn ($page) => $page->where('locale', 'es'));
+})->with(['es-ES,es;q=0.9', 'es-MX,es;q=0.9,en;q=0.5', 'es-419']);

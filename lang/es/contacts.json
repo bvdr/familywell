@@ -1,0 +1,18 @@
+{
+    "add": "Añadir contacto",
+    "add_placeholder": "Nombre del nuevo contacto",
+    "empty": "Aún no hay contactos. Añade a alguien arriba.",
+    "edit": "Editar contacto",
+    "name": "Nombre",
+    "methods": "Formas de contacto",
+    "type_phone": "Teléfono",
+    "type_email": "Correo",
+    "type_address": "Dirección",
+    "type_url": "Enlace",
+    "type_other": "Otro",
+    "value_placeholder": "Valor",
+    "add_method": "Añadir forma de contacto",
+    "remove_method": "Quitar",
+    "delete": "Eliminar contacto",
+    "save": "Guardar"
+}
