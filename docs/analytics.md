@@ -80,6 +80,7 @@ as the reliable totals.
 | `demo_opened` | | queued by `/demo` |
 | `checkout_started` | plan: monthly / yearly | the paywall's plan buttons |
 | `checkout_completed` | | queued when Stripe's return shows the family paid |
+| `added_<module>` (e.g. `added_shopping`) | module | queued by `Engagement::track`'s `created` hook: someone added an item (not a list or folder) in that module from the app or a guest link. Not sent for MCP (no session; `assistant_tool` covers it) |
 
 "Queued" = `Analytics::queue()`: kept in the session, shared to the next rendered page as
 `analyticsEvents`, sent by `app.tsx` (for steps that end in a redirect the browser never renders).

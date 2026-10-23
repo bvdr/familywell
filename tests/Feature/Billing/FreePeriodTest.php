@@ -111,3 +111,16 @@ it('shows each family\'s module progress and paywall time in the admin API', fun
     $listed = collect($this->withToken($token)->getJson('/api/admin/families')->assertOk()->json('items'))->firstWhere('id', $family->id);
     expect(count($listed['engagement']['modules']))->toBe(3)->and($listed['paying'])->toBeFalse();
 });
+
+it('queues an added_<module> event for the browser when someone adds an item', function () {
+    test()->artisan('modules:migrate')->assertExitCode(0);
+    config(['services.umami.website_id' => 'test-site']);
+    [$user, $family] = freeFamily();
+    CurrentFamily::set($family->id);
+    request()->setLaravelSession(app('session.store'));
+
+    Folder::create(['name' => 'Recipes', 'created_by' => $user->id]); // a container: no event
+    Note::create(['title' => 'Groceries', 'created_by' => $user->id]);
+
+    expect(collect(session('analytics_events'))->pluck('name')->all())->toBe(['added_notes']);
+});
