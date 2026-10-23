@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Notification;
 use NotificationChannels\WebPush\PushSubscription;
 
 use function Pest\Laravel\actingAs;
+use function Pest\Laravel\get;
 
 // Pushes to the admin PWA (App\Support\AdminPush). adminApiToken() is in AdminApiTest, stripeOn() /
 // paidFamily() / signedWebhook() in Billing/PaywallTest.
@@ -71,6 +72,19 @@ it('pushes a new account to admin devices only, not to people who are no longer 
     expect(adminPushes())->toBe([[
         'title' => 'New account', 'body' => 'ana@example.com signed up.', 'url' => "/users/{$ana->id}", 'endpoints' => ['https://push.example/admin-1'],
     ]]);
+});
+
+it('says in the new account push where the person came from', function () {
+    Notification::fake();
+    umamiOn();
+    adminDevice();
+
+    get('/register?fw_src=reddit&fw_med=social&fw_cmp=launch')->assertOk();
+    signInWithCode('ana@example.com');
+
+    expect(array_column(adminPushes(), 'body'))->toBe([
+        'ana@example.com signed up. From reddit (social, launch).',
+    ]);
 });
 
 it('sends nothing when no admin has a device', function () {

@@ -29,7 +29,7 @@ class RegisteredUserController extends Controller
         // Every sign-up path (email code, Google, Apple) lands here, so this is the one "new account" admin push.
         // An email sign-up has no name yet (the About you step asks), so the address alone then.
         $who = $user->name ? "{$user->name} ({$user->email})" : $user->email;
-        AdminPush::send('New account', "{$who} signed up".($method === 'email' ? '' : " with {$method}").'.', "/users/{$user->id}");
+        AdminPush::send('New account', "{$who} signed up".($method === 'email' ? '' : " with {$method}").'.'.self::sourceLine($user), "/users/{$user->id}");
 
         event(new Registered($user));
 
@@ -39,6 +39,25 @@ class RegisteredUserController extends Controller
         // Every new account starts with "About you" (name, language, colours); that step then finishes a
         // pending invitation, or goes on to the rest of onboarding (OnboardingController::saveAbout).
         return to_route('onboarding.about');
+    }
+
+    /**
+     * " From reddit (social, launch)." for the admin push, from the first touch adoptAnalytics just saved.
+     * Nothing when there is none (Umami off), so the push never claims a source we didn't see.
+     */
+    private static function sourceLine(User $user): string
+    {
+        $touch = $user->first_touch;
+        if (! is_array($touch) || empty($touch['source'])) {
+            return '';
+        }
+        // 'none' / 'unknown' mediums add nothing next to the source.
+        $details = array_filter([
+            in_array($touch['medium'] ?? null, ['none', 'unknown'], true) ? null : ($touch['medium'] ?? null),
+            $touch['campaign'] ?? null,
+        ]);
+
+        return " From {$touch['source']}".($details ? ' ('.implode(', ', $details).')' : '').'.';
     }
 
     /**
