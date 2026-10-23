@@ -32,7 +32,14 @@ final class Engagement
     public static function track(string $module, string $model): void
     {
         self::$tracked[$module] = $model;
-        $model::created(fn (Model $item) => self::record((int) $item->family_id, $module));
+        $model::created(function (Model $item) use ($module) {
+            self::record((int) $item->family_id, $module);
+            // What people actually do in the app, in their own Umami visit (docs/analytics.md). The module is
+            // in the event NAME (added_shopping), not only in data, because the admin's per-person timeline
+            // shows names only. Queued for the browser, so it no-ops where there's no session (MCP, which
+            // assistant_tool already covers; console; seeders) and without Umami configured.
+            Analytics::queue('added_'.$module, ['module' => $module]);
+        });
     }
 
     /**
