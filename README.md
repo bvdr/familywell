@@ -1,5 +1,13 @@
 # FamilyWell
 
+<!-- Homer, the mascot: rendered from the character sheet (familywell-site: mascot/homer, tools/readme-greeting.mjs). Dark variant has light outlines for GitHub's dark theme. -->
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/homer-hello-dark.webp">
+    <img src="docs/images/homer-hello-light.webp" width="200" alt="Homer, the FamilyWell mascot, sways, jumps, then lifts his roof like a hat to say hello">
+  </picture>
+</p>
+
 **The family organizer for the people you live with.** Shared shopping lists, to-dos, a family calendar, spending, projects, recipes, the car and more, in one installable app. A small, stable core with self-contained **modules** you switch on per family, so each household only sees what it uses.
 
 Self-host it for your own family, or use the hosted version at **[familywell.co](https://familywell.co)** (there's a one-click live demo).
