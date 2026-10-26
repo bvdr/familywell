@@ -78,6 +78,11 @@ Route::middleware(['auth'])->group(function () {
     Route::post('onboarding/modules', [OnboardingController::class, 'saveModules'])->name('onboarding.modules.store');
     Route::get('onboarding/install', [OnboardingController::class, 'install'])->name('onboarding.install');
     Route::post('onboarding/install', [OnboardingController::class, 'saveInstall'])->name('onboarding.install.store');
+    Route::get('onboarding/notifications', [OnboardingController::class, 'notifications'])->name('onboarding.notifications');
+    Route::post('onboarding/notifications', [OnboardingController::class, 'saveNotifications'])->name('onboarding.notifications.store');
+    Route::get('onboarding/ready', [OnboardingController::class, 'ready'])->name('onboarding.ready');
+    Route::post('onboarding/ready', [OnboardingController::class, 'saveReady'])->name('onboarding.ready.store');
+    Route::post('onboarding/tour', [OnboardingController::class, 'finishTour'])->name('onboarding.tour.finish');
     // Sign-in links for the phone (App\Support\Auth\Handoff): throttled, the email one harder since it sends mail.
     Route::post('onboarding/handoff', [OnboardingController::class, 'handoff'])->middleware('throttle:10,1')->name('onboarding.handoff');
     Route::post('onboarding/handoff/email', [OnboardingController::class, 'emailHandoff'])->middleware('throttle:3,10')->name('onboarding.handoff.email');

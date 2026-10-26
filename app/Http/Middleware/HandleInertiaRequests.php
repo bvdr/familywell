@@ -75,6 +75,8 @@ class HandleInertiaRequests extends Middleware
             // goes out once; a partial reload doesn't evaluate it, leaving them for the next full page.
             'analyticsEvents' => fn () => Analytics::enabled() ? $request->session()->pull('analytics_events', []) : [],
             'vapidPublicKey' => config('webpush.vapid.public_key'),
+            // The onboarding tour runs over the real dashboard right after "Show me around" (OnboardingController::saveReady).
+            'tour' => fn () => $request->user()?->onboarding_step === 'tour',
             // i18n: the current locale + the picker options + the full translation map for that locale
             // (English-filled). SetLocale already ran (see bootstrap/app.php), so both are eager.
             'locale' => $locale,

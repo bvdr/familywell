@@ -148,7 +148,11 @@ export function MobileTabBar() {
                 the viewport bottom instead of letting it scroll with the body (a known iOS fixed bug). */}
             <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex [transform:translateZ(0)] items-center gap-2.5 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden [@media(display-mode:standalone)]:pb-[max(0.5rem,calc(env(safe-area-inset-bottom)/2))]">
                 {/* Pill fills the width; the + stays a fixed circle on the right. */}
-                <div className="border-border/60 bg-surface-card/75 pointer-events-auto flex flex-1 items-center justify-around gap-0.5 rounded-full border p-1.5 shadow-[var(--shadow-fw-md)] backdrop-blur-xl">
+                {/* data-tour: what the onboarding tour spotlights (components/onboarding-tour.tsx). */}
+                <div
+                    data-tour="modules"
+                    className="border-border/60 bg-surface-card/75 pointer-events-auto flex flex-1 items-center justify-around gap-0.5 rounded-full border p-1.5 shadow-[var(--shadow-fw-md)] backdrop-blur-xl"
+                >
                     {pinned.map((item) => {
                         const active = isActive(item.url);
                         const loading = pending === item.url;
@@ -186,6 +190,7 @@ export function MobileTabBar() {
                         if (!runAddAction()) setAddOpen(true);
                     }}
                     aria-label="Add"
+                    data-tour="add"
                     className="bg-accent-strong text-accent-strong-foreground pointer-events-auto flex size-14 shrink-0 items-center justify-center rounded-full shadow-[var(--shadow-fw-md)] transition-transform active:scale-95"
                 >
                     <Plus className="size-6" />

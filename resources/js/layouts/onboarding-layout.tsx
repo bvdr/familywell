@@ -37,6 +37,14 @@ type Props = {
     aside?: ReactNode;
     /** Homer on the desktop rail (design: listening on invites, thinking while they choose modules, walking to the phone). */
     homer?: RailHomer;
+    /** false = no desktop rail (the screens after setup, D05 on, go full width). */
+    rail?: boolean;
+    /** Desktop-only sun panel on the right (e.g. the notification examples on D05). */
+    panel?: ReactNode;
+    /** Overrides the tablet / desktop eyebrow above the title (e.g. "YOU'RE IN · NOTIFICATIONS"). */
+    eyebrow?: ReactNode;
+    /** Above the eyebrow and title, every size (e.g. the "Opened from your Home Screen" pill). */
+    above?: ReactNode;
 };
 
 export type RailHomer = { face?: HomerFace; loop?: HomerAction };
@@ -140,7 +148,22 @@ export function Progress({ step }: { step: number }) {
 // - desktop (lg): the dark rail instead of the header, a bottom bar with Back · hint · CTA.
 // Drawn in the fixed brand colours (bg-paper, text-ink, ...), not the skin tokens: this is the brand's first
 // impression and the design has one look.
-export default function OnboardingLayout({ step, back, title, sub, cta, hint, children, wide = false, aside, homer }: Props) {
+export default function OnboardingLayout({
+    step,
+    back,
+    title,
+    sub,
+    cta,
+    hint,
+    children,
+    wide = false,
+    aside,
+    homer,
+    rail = true,
+    panel,
+    eyebrow,
+    above,
+}: Props) {
     const t = useT();
     // Any validation or server error in the flow: Homer glitches and shakes his head (the text says what's wrong).
     useEffect(() => {
@@ -152,7 +175,7 @@ export default function OnboardingLayout({ step, back, title, sub, cta, hint, ch
 
     return (
         <div className="bg-paper text-ink flex min-h-dvh font-sans">
-            <Rail step={step} homer={homer} />
+            {rail && <Rail step={step} homer={homer} />}
 
             <div className="flex min-w-0 flex-1 flex-col">
                 {step && (
@@ -181,7 +204,11 @@ export default function OnboardingLayout({ step, back, title, sub, cta, hint, ch
                 <main className={cn('flex flex-1 flex-col md:px-14 lg:px-16 lg:pt-14 lg:pb-6', !wide && 'lg:max-w-[720px]')}>
                     <div className="flex flex-col gap-3 px-5 pt-[22px] pb-5 md:flex-row md:items-end md:justify-between md:gap-8 md:px-0 md:pt-10 md:pb-7 lg:pt-0">
                         <div className="flex flex-col gap-2.5">
-                            {step && (
+                            {above}
+                            {eyebrow && (
+                                <p className="text-stone hidden font-mono text-xs font-semibold tracking-[0.8px] uppercase md:block">{eyebrow}</p>
+                            )}
+                            {step && !eyebrow && (
                                 <p className="text-stone hidden font-mono text-xs font-semibold tracking-[0.8px] uppercase md:block">
                                     <span className="lg:hidden">{step <= 4 ? t('onboarding.step_of', { n: step, total: 4 }) : label}</span>
                                     <span className="hidden lg:inline">{label}</span>
@@ -216,6 +243,11 @@ export default function OnboardingLayout({ step, back, title, sub, cta, hint, ch
                     </footer>
                 )}
             </div>
+            {panel && (
+                <aside className="bg-sun sticky top-0 hidden h-dvh w-[520px] shrink-0 flex-col items-center justify-center gap-4 px-12 lg:flex">
+                    {panel}
+                </aside>
+            )}
         </div>
     );
 }

@@ -8,6 +8,7 @@ use App\Models\Family;
 use App\Models\User;
 use App\Support\Analytics;
 use App\Support\Auth\Handoff;
+use App\Support\Billing\Billing;
 use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
@@ -21,6 +22,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Notifications\NotificationCategories;
 
 class OnboardingController extends Controller
 {
@@ -201,7 +203,7 @@ class OnboardingController extends Controller
         }
         Analytics::queue('onboarding_invites', ['count' => $invites->count()]);
 
-        return $this->advance($request->user(), self::FLOW['invite']);
+        return $this->advance($request->user(), $this->next('invite'));
     }
 
     // The modules a family picks from in step 3 (design order). Add-ons that extend one of these (important /
@@ -247,7 +249,7 @@ class OnboardingController extends Controller
         }
         Analytics::queue('onboarding_modules', ['modules' => implode(',', $data['modules'])]);
 
-        return $this->advance($request->user(), self::FLOW['modules']);
+        return $this->advance($request->user(), $this->next('modules'));
     }
 
     /**
@@ -280,8 +282,10 @@ class OnboardingController extends Controller
         // "continue in the browser" escape (shown only after a while, for browsers that can't install).
         $data = $request->validate(['via' => ['required', 'in:standalone,desktop,browser']]);
         Analytics::queue('onboarding_installed', ['via' => $data['via']]);
+        // For the next screens: the "Opened from your Home Screen" pill and the recap's install line.
+        $request->session()->put('onboarding.installed_via', $data['via']);
 
-        return $this->advance($request->user(), self::FLOW['install']);
+        return $this->advance($request->user(), $this->next('install'));
     }
 
     // A fresh sign-in link for the computer's QR code. JSON, so the page can renew it before it expires.
@@ -318,11 +322,109 @@ class OnboardingController extends Controller
     }
 
     /**
-     * The steps after the family exists, each pointing at the next (null = done, into the app). A step's GET
-     * route is `onboarding.<step>`; `users.onboarding_step` remembers where someone is, so RequireFamily can
-     * bring them back to it.
+     * Step 5 (design 05 / D05): what FamilyWell may notify about, with real-looking examples from the modules they
+     * picked. The toggles save through Settings' own endpoint (push.prefs) and the browser asks for permission;
+     * this only records the answer and moves on.
      */
-    private const FLOW = ['invite' => 'modules', 'modules' => 'install', 'install' => null];
+    public function notifications(Request $request): RedirectResponse|Response
+    {
+        if (! $family = $this->onboardingFamily($request)) {
+            return $this->leave($request);
+        }
+        $picked = app(ModuleRegistry::class)->enabledIds($family->id);
+        // A toggle per picked module that has a push category (Calendar has none yet, so it isn't offered).
+        $categories = array_values(array_intersect(self::PICKABLE, $picked, NotificationCategories::ids()));
+
+        return Inertia::render('onboarding/notifications', [
+            'categories' => $categories,
+            'names' => $this->invitedNames($family) ?: [str($request->user()->name)->before(' ')->toString()],
+            'installedVia' => $request->session()->get('onboarding.installed_via'),
+        ]);
+    }
+
+    public function saveNotifications(Request $request): RedirectResponse
+    {
+        if (! $this->onboardingFamily($request)) {
+            return $this->leave($request);
+        }
+        $data = $request->validate(['granted' => ['required', 'boolean']]);
+        Analytics::queue('onboarding_notifications', ['granted' => $data['granted'] ? 'yes' : 'no']);
+
+        return $this->advance($request->user(), $this->next('notifications'));
+    }
+
+    // Step 6, "Welcome to <family>" (design 06 / D06): the recap of what they built, then the tour or straight on.
+    public function ready(Request $request): RedirectResponse|Response
+    {
+        if (! $family = $this->onboardingFamily($request)) {
+            return $this->leave($request);
+        }
+        $user = $request->user();
+        $picked = array_values(array_intersect(self::PICKABLE, app(ModuleRegistry::class)->enabledIds($family->id)));
+        $pushOn = $user->pushSubscriptions()->exists()
+            ? count(array_filter(array_intersect_key($user->notification_prefs ?? [], array_flip($picked)), fn ($on) => $on))
+            : 0;
+
+        return Inertia::render('onboarding/ready', [
+            'family' => $family->only(['name', 'color', 'symbol', 'emoji']),
+            'me' => str($user->name)->before(' ')->toString(),
+            'invited' => $this->invitedNames($family),
+            'modules' => $picked,
+            'installedVia' => $request->session()->get('onboarding.installed_via'),
+            'pushOn' => $pushOn,
+            // The plan comes after the tour only where there's billing; self-hosted (and dev) goes straight in.
+            'planNext' => Billing::enabled(),
+        ]);
+    }
+
+    // "Show me around" (tour = true) or "Skip the tour". The tour runs on the real dashboard (shared `tour` prop).
+    public function saveReady(Request $request): RedirectResponse
+    {
+        if (! $this->onboardingFamily($request)) {
+            return $this->leave($request);
+        }
+        $tour = $request->boolean('tour');
+        Analytics::queue('onboarding_ready', ['tour' => $tour ? 'yes' : 'no']);
+        if ($tour) {
+            $request->user()->forceFill(['onboarding_step' => 'tour'])->save();
+
+            return to_route('dashboard');
+        }
+
+        return $this->advance($request->user(), $this->next('tour'));
+    }
+
+    // End of the tour ("Let's go" or "Skip tour"), from the dashboard.
+    public function finishTour(Request $request): RedirectResponse
+    {
+        if ($request->user()->onboarding_step !== 'tour') {
+            return to_route('dashboard');
+        }
+        Analytics::queue('onboarding_toured');
+
+        return $this->advance($request->user(), $this->next('tour'));
+    }
+
+    /** First names from the pending invites ("marco.rivera@..." -> "Marco"), for the examples and the recap. */
+    private function invitedNames(Family $family): array
+    {
+        return $family->invitations()->whereNotNull('email')->orderBy('id')->pluck('email')
+            ->map(fn ($e) => ucfirst(strtolower((string) preg_split('/[._+\-]/', explode('@', $e)[0])[0])))
+            ->filter()->values()->all();
+    }
+
+    /**
+     * The steps after the family exists, each pointing at the next (null = done, into the app). A step's GET
+     * route is `onboarding.<step>` (the tour runs on the dashboard instead); `users.onboarding_step` remembers
+     * where someone is, so RequireFamily can bring them back to it.
+     */
+    private const FLOW = ['invite' => 'modules', 'modules' => 'install', 'install' => 'notifications', 'notifications' => 'ready'];
+
+    private function next(string $step): ?string
+    {
+        // After the tour comes the plan, only where billing is on (hosted); self-hosted / dev go straight in.
+        return $step === 'tour' ? (Billing::enabled() ? 'plan' : null) : self::FLOW[$step];
+    }
 
     // Not (or no longer) in an onboarding they can do, e.g. they switched to a family they don't run: stop
     // remembering a step, or RequireFamily would send them straight back here in a loop.

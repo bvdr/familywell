@@ -21,7 +21,13 @@ class RequireFamily
 
         // Mid-onboarding (step 1 done, the rest not): back to the step they're on. GET only, so nothing a page
         // posts in the meantime is lost. This is also how opening the app from the Home Screen resumes it.
+        // The tour is the exception: it runs on the dashboard itself (the shared `tour` prop), so only other pages
+        // send them back there.
         if (($step = $request->user()->onboarding_step) && $request->isMethod('GET')) {
+            if ($step === 'tour') {
+                return $request->routeIs('dashboard') ? $next($request) : to_route('dashboard');
+            }
+
             return to_route("onboarding.{$step}");
         }
 

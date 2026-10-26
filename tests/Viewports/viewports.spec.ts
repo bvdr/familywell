@@ -43,6 +43,8 @@ const PAGES: [string, string][] = [
     ['onboarding-invite', '/onboarding/invite?preview=1'],
     ['onboarding-modules', '/onboarding/modules?preview=1'],
     ['onboarding-install', '/onboarding/install?preview=1'],
+    ['onboarding-notifications', '/onboarding/notifications?preview=1'],
+    ['onboarding-ready', '/onboarding/ready?preview=1'],
     ['settings-appearance', '/settings/appearance'],
     ['settings-language', '/settings/language'],
     ['settings-notifications', '/settings/notifications'],

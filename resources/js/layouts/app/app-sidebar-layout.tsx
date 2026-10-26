@@ -4,6 +4,7 @@ import { AppShell } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
 import { MobileTabBar } from '@/components/mobile-tab-bar';
+import { OnboardingTour } from '@/components/onboarding-tour';
 import { type BreadcrumbItem } from '@/types';
 
 export default function AppSidebarLayout({
@@ -41,6 +42,8 @@ export default function AppSidebarLayout({
             </AppContent>
             <MobileTabBar />
             <AddToHomeScreenHint />
+            {/* Right after onboarding's "Show me around" (shared `tour` prop); renders nothing otherwise. */}
+            <OnboardingTour />
         </AppShell>
     );
 }
