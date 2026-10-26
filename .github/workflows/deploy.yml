@@ -1,6 +1,7 @@
 name: deploy
 
-# Auto-deploy to DigitalOcean App Platform on every push to main.
+# Auto-deploy to DigitalOcean App Platform: main -> familywell.co (:latest, vars.DO_APP_ID),
+# dev -> dev.familywell.co (:dev, vars.DO_DEV_APP_ID). Same Dockerfile, so dev tests the real prod image.
 #
 # Why this workflow does the pushing instead of App Platform building on push:
 # App Platform's native build-on-push needs its GitHub app authorized against this private repo,
@@ -10,7 +11,7 @@ name: deploy
 # github: source with deploy_on_push.
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
     # Skip a ~4 min build+deploy for changes that cannot alter the running image.
     # .do/** included on purpose: this workflow only triggers a redeploy of :latest, it never
     # applies the spec, so a spec/script edit here would rebuild pointlessly AND look deployed
@@ -25,12 +26,17 @@ on:
 # One production deploy at a time. Don't cancel an in-flight one: a half-applied deploy is worse
 # than a slightly stale one, and App Platform already supersedes older deployments safely.
 concurrency:
-  group: deploy-production
+  # Per branch, so a dev deploy never queues behind (or blocks) a production one.
+  group: deploy-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      # Each App Platform app pulls its own fixed tag; the sha tag below is for traceability/rollback.
+      TAG: ${{ github.ref_name == 'main' && 'latest' || 'dev' }}
+      APP_ID: ${{ github.ref_name == 'main' && vars.DO_APP_ID || vars.DO_DEV_APP_ID }}
     permissions:
       contents: read
       packages: write
@@ -55,9 +61,9 @@ jobs:
           # Always re-resolve the base image (dunglas/frankenphp:1-php8.3) from the registry, so a PHP security
           # release lands on the next build even though the layer cache below holds the old base.
           pull: true
-          # :latest is what the App Platform spec pulls; the sha tag is for traceability/rollback.
+          # :latest (prod) / :dev (dev) is what each App Platform spec pulls; the sha tag is for traceability/rollback.
           tags: |
-            ghcr.io/${{ github.repository_owner }}/familywell:latest
+            ghcr.io/${{ github.repository_owner }}/familywell:${{ env.TAG }}
             ghcr.io/${{ github.repository_owner }}/familywell:${{ github.sha }}
           # Layer cache in Actions so unchanged deps (composer/npm) don't rebuild every push.
           cache-from: type=gha
@@ -70,6 +76,6 @@ jobs:
 
       - name: Trigger App Platform deployment
         # The app is an image: source, so it does not auto-pull. Creating a deployment makes it
-        # re-pull :latest (which we just pushed) and run the PRE_DEPLOY migrate job. --wait blocks
+        # re-pull its tag (which we just pushed) and run the PRE_DEPLOY migrate job. --wait blocks
         # until it is ACTIVE or ERROR, so a failed deploy fails this job instead of passing silently.
-        run: doctl apps create-deployment "${{ vars.DO_APP_ID }}" --wait
+        run: doctl apps create-deployment "$APP_ID" --wait
