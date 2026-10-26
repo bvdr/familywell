@@ -115,7 +115,7 @@ export default function CreateFamily({ userName, colors, region, family }: Props
                                 maxLength={255}
                                 value={data.name}
                                 onChange={(e) => setData('name', e.target.value)}
-                                className="border-ink h-12 rounded-[14px] border-[1.5px] bg-white px-4 text-base font-medium focus-visible:border-ink focus-visible:ring-0 focus-visible:ring-offset-0"
+                                className="border-ink focus-visible:border-ink h-12 rounded-[14px] border-[1.5px] bg-white px-4 text-base font-medium focus-visible:ring-0 focus-visible:ring-offset-0"
                             />
                             <InputError message={form.errors.name} />
                             <div className="flex flex-wrap items-center gap-2">

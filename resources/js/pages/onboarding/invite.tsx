@@ -95,7 +95,7 @@ export default function Invite({ link, invited }: { link: string; invited: Invit
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder={t('onboarding.invite_placeholder')}
                                 aria-label={t('onboarding.invite_placeholder')}
-                                className="border-ink h-[52px] rounded-[14px] border-[1.5px] bg-white pl-11 text-[15px] focus-visible:border-ink focus-visible:ring-0 focus-visible:ring-offset-0"
+                                className="border-ink focus-visible:border-ink h-[52px] rounded-[14px] border-[1.5px] bg-white pl-11 text-[15px] focus-visible:ring-0 focus-visible:ring-offset-0"
                             />
                         </div>
                         <Button
