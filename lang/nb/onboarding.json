@@ -280,7 +280,6 @@
     "plan_renews_short": "Fornyes :date for :amount",
     "plan_pay": "Betal :amount og start",
     "plan_checkout": "Sikker betaling",
-    "plan_methods": "Apple Pay, Google Pay eller kort, på Stripes sikre side.",
     "plan_payer": "Du betaler for :name. :names får aldri en regning.",
     "plan_payer_solo": "Du betaler for :name, én pris for alle du legger til.",
     "plan_secure": "Sikker betaling med Stripe. :line",
@@ -311,5 +310,8 @@
     "notify_example_calendar": "Svømmetreningen til :b er flyttet til 17.30 i dag.",
     "role_kid": "Barn",
     "role_kid_desc": "En profil du styrer, uten e-post",
-    "invite_kids": "Små uten e-post? Legg dem til som profiler senere, uten konto."
+    "invite_kids": "Små uten e-post? Legg dem til som profiler senere, uten konto.",
+    "plan_card": "Betal med kort",
+    "plan_or_card": "eller betal med kort",
+    "plan_error": "Betalingen gikk ikke gjennom. Prøv igjen, eller bruk et annet kort."
 }

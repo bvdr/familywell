@@ -280,7 +280,6 @@
     "plan_renews_short": "Verlengt op :date voor :amount",
     "plan_pay": "Betaal :amount en begin",
     "plan_checkout": "Veilig afrekenen",
-    "plan_methods": "Apple Pay, Google Pay of kaart, op de beveiligde pagina van Stripe.",
     "plan_payer": "Je betaalt voor :name. :names krijgen nooit een rekening.",
     "plan_payer_solo": "Je betaalt voor :name, één prijs voor iedereen die je toevoegt.",
     "plan_secure": "Veilig betalen via Stripe. :line",
@@ -311,5 +310,8 @@
     "notify_example_calendar": "De zwemles van :b is vandaag verplaatst naar 17.30.",
     "role_kid": "Kind",
     "role_kid_desc": "Een profiel dat jij beheert, zonder e-mail",
-    "invite_kids": "Kleintjes zonder e-mail? Voeg ze later toe als profiel, geen account nodig."
+    "invite_kids": "Kleintjes zonder e-mail? Voeg ze later toe als profiel, geen account nodig.",
+    "plan_card": "Betalen met kaart",
+    "plan_or_card": "of betaal met kaart",
+    "plan_error": "De betaling is niet gelukt. Probeer het opnieuw of gebruik een andere kaart."
 }

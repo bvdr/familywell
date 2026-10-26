@@ -284,7 +284,6 @@
     "plan_renews_short": "Se reînnoiește pe :date la :amount",
     "plan_pay": "Plătește :amount și începe",
     "plan_checkout": "Plată securizată",
-    "plan_methods": "Apple Pay, Google Pay sau card, pe pagina securizată Stripe.",
     "plan_payer": "Plătești pentru :name. :names nu primesc niciodată factură.",
     "plan_payer_solo": "Plătești pentru :name, un singur preț pentru toți cei pe care îi adaugi.",
     "plan_secure": "Plată securizată prin Stripe. :line",
@@ -317,5 +316,8 @@
     "notify_example_calendar": "Antrenamentul de înot al lui :b s-a mutat azi la 17:30.",
     "role_kid": "Copil",
     "role_kid_desc": "Un profil pe care îl gestionezi tu, fără email",
-    "invite_kids": "Cei mici n-au email? Îi adaugi ca profiluri mai târziu, fără cont."
+    "invite_kids": "Cei mici n-au email? Îi adaugi ca profiluri mai târziu, fără cont.",
+    "plan_card": "Plătește cu cardul",
+    "plan_or_card": "sau plătește cu cardul",
+    "plan_error": "Plata n-a mers. Încearcă din nou sau folosește alt card."
 }

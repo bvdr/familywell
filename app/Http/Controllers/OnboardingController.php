@@ -407,58 +407,74 @@ class OnboardingController extends Controller
 
     /**
      * The last stop (design 09 / T09 / D09), after the tour and only where billing is on: one plan, yearly
-     * preselected, the total in plain sight, paid through Stripe Checkout (which offers Apple Pay / Google Pay /
-     * card itself). Returning from Stripe lands on paid() below.
+     * preselected, the total in plain sight, paid right here with Stripe Elements (Apple Pay / Google Pay through the
+     * Express Checkout Element, cards through the Payment Element). See subscribe() and paid().
      */
     public function plan(Request $request): RedirectResponse|Response
     {
         if (! Billing::enabled() || ! $family = $this->onboardingFamily($request)) {
             return $this->leave($request);
         }
-        $pricing = Billing::pricing();
 
         return Inertia::render('onboarding/plan', [
             'family' => $family->only(['name']),
             'invited' => $this->invitedNames($family),
-            'pricing' => $pricing,
+            'pricing' => Billing::pricing(),
             // The list price, for the "Intro price -$9" line while the intro offer lasts.
             'standard' => ['monthly' => (int) config('familywell.pricing.standard.monthly'), 'yearly' => (int) config('familywell.pricing.standard.yearly')],
+            // Publishable key only (it's meant for the browser); the secret never leaves the server.
+            'stripeKey' => config('services.stripe.key'),
+            'email' => $request->user()->email,
             // Still inside the free period: they may look around first ("Not yet"), as before onboarding v2.
             'canWait' => ! Billing::paywallDue($family),
-            'canceled' => $request->boolean('canceled'),
+            'failed' => $request->boolean('failed'),
             'paid' => false,
             'selfHostingUrl' => config('familywell.self_hosting_url') ?: null,
         ]);
     }
 
-    public function checkout(Request $request)
+    /**
+     * Pay: the browser has collected the payment details (elements.submit()); create the incomplete subscription
+     * and hand back the secret it confirms with. A plan switch after an abandoned attempt cancels that first one,
+     * so a family never piles up incomplete subscriptions (Stripe would expire them after a day anyway).
+     */
+    public function subscribe(Request $request): JsonResponse
     {
-        if (! Billing::enabled() || ! $family = $this->onboardingFamily($request)) {
-            return $this->leave($request);
-        }
+        abort_unless(Billing::enabled() && ($family = $this->onboardingFamily($request)), 403);
         $this->authorize('manageBilling', $family);
+        abort_if(Billing::isPaid($family), 409, 'Already subscribed.');
         $plan = $request->validate(['plan' => ['required', 'in:monthly,yearly']])['plan'];
+
+        if ($stale = $request->session()->pull('onboarding.pending_subscription')) {
+            Billing::cancelIncomplete($stale);
+        }
+        $started = Billing::startSubscription($family, $request->user()->email, $plan);
+        $request->session()->put('onboarding.pending_subscription', $started['subscription']);
         Analytics::queue('checkout_started', ['plan' => $plan]);
 
-        // Inertia::location: a full-page redirect to Stripe's hosted Checkout.
-        return Inertia::location(Billing::checkoutUrl($family, $request->user()->email, $plan, route('onboarding.plan.paid'), route('onboarding.plan', ['canceled' => 1])));
+        return response()->json($started);
     }
 
-    // Back from Stripe: sync the subscription now (the webhook stays the source of truth), then the win and in.
+    // Paid: sync the subscription now (the webhook stays the source of truth), then the win and into the app. Also
+    // Stripe's return_url when a card needs a 3-D Secure redirect.
     public function paid(Request $request): RedirectResponse|Response
     {
         if (! Billing::enabled() || ! $family = $this->onboardingFamily($request)) {
             return $this->leave($request);
         }
-        Billing::syncCheckoutSession($family, (string) $request->query('session_id'));
-        if (! Billing::isPaid($family)) {
-            return to_route('onboarding.plan', ['canceled' => 1]);
+        $subscription = (string) $request->query('subscription', $request->session()->get('onboarding.pending_subscription', ''));
+        if ($subscription !== '') {
+            Billing::syncSubscription($family, $subscription);
         }
+        if (! Billing::isPaid($family)) {
+            return to_route('onboarding.plan', ['failed' => 1]);
+        }
+        $request->session()->forget('onboarding.pending_subscription');
         Analytics::queue('checkout_completed');
         $request->user()->forceFill(['onboarding_step' => null])->save();
 
         // The page celebrates for a beat, then goes into the app.
-        return Inertia::render('onboarding/plan', ['family' => $family->only(['name']), 'invited' => [], 'pricing' => Billing::pricing(), 'standard' => null, 'canWait' => false, 'canceled' => false, 'paid' => true, 'selfHostingUrl' => null]);
+        return Inertia::render('onboarding/plan', ['family' => $family->only(['name']), 'invited' => [], 'pricing' => Billing::pricing(), 'standard' => null, 'stripeKey' => null, 'email' => '', 'canWait' => false, 'failed' => false, 'paid' => true, 'selfHostingUrl' => null]);
     }
 
     // "Not yet": only while the family is still in its free period; the paywall takes over when that ends.

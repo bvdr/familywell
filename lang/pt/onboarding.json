@@ -280,7 +280,6 @@
     "plan_renews_short": "Renova em :date por :amount",
     "plan_pay": "Pagar :amount e começar",
     "plan_checkout": "Pagamento seguro",
-    "plan_methods": "Apple Pay, Google Pay ou cartão, na página segura da Stripe.",
     "plan_payer": "Você paga por :name. :names nunca recebem cobrança.",
     "plan_payer_solo": "Você paga por :name, um preço para todos que adicionar.",
     "plan_secure": "Pagamento seguro pela Stripe. :line",
@@ -311,5 +310,8 @@
     "notify_example_calendar": "A natação de :b mudou para 17h30 hoje.",
     "role_kid": "Criança",
     "role_kid_desc": "Um perfil que você gerencia, sem e-mail",
-    "invite_kids": "Pequenos sem e-mail? Adicione como perfis depois, sem conta."
+    "invite_kids": "Pequenos sem e-mail? Adicione como perfis depois, sem conta.",
+    "plan_card": "Pagar com cartão",
+    "plan_or_card": "ou pague com cartão",
+    "plan_error": "O pagamento não passou. Tente de novo ou use outro cartão."
 }

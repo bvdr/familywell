@@ -280,7 +280,6 @@
     "plan_renews_short": "Renews :date at :amount",
     "plan_pay": "Pay :amount and start",
     "plan_checkout": "Secure checkout",
-    "plan_methods": "Apple Pay, Google Pay or card, on Stripe's secure page.",
     "plan_payer": "You're paying for :name. :names never get a bill.",
     "plan_payer_solo": "You're paying for :name, one price for everyone you add.",
     "plan_secure": "Secure checkout by Stripe. :line",
@@ -311,5 +310,8 @@
     "notify_example_calendar": ":b's swim practice moved to 5:30 today.",
     "role_kid": "Kid",
     "role_kid_desc": "A profile you manage, no email",
-    "invite_kids": "Little ones without email? Add them as profiles later, no account needed."
+    "invite_kids": "Little ones without email? Add them as profiles later, no account needed.",
+    "plan_card": "Pay with card",
+    "plan_or_card": "or pay with card",
+    "plan_error": "The payment didn't go through. Try again, or use another card."
 }

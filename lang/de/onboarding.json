@@ -280,7 +280,6 @@
     "plan_renews_short": "Verlängert sich am :date für :amount",
     "plan_pay": ":amount zahlen und loslegen",
     "plan_checkout": "Sichere Zahlung",
-    "plan_methods": "Apple Pay, Google Pay oder Karte, auf der sicheren Stripe-Seite.",
     "plan_payer": "Du zahlst für :name. :names bekommen nie eine Rechnung.",
     "plan_payer_solo": "Du zahlst für :name, ein Preis für alle, die du hinzufügst.",
     "plan_secure": "Sichere Zahlung über Stripe. :line",
@@ -311,5 +310,8 @@
     "notify_example_calendar": ":bs Schwimmtraining ist heute auf 17:30 verschoben.",
     "role_kid": "Kind",
     "role_kid_desc": "Ein Profil, das du verwaltest, ohne E-Mail",
-    "invite_kids": "Kleine ohne E-Mail? Füg sie später als Profile hinzu, ganz ohne Konto."
+    "invite_kids": "Kleine ohne E-Mail? Füg sie später als Profile hinzu, ganz ohne Konto.",
+    "plan_card": "Mit Karte zahlen",
+    "plan_or_card": "oder mit Karte zahlen",
+    "plan_error": "Die Zahlung hat nicht geklappt. Versuch es noch mal oder nimm eine andere Karte."
 }
