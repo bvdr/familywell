@@ -15,12 +15,18 @@ const buttonVariants = cva(
                 secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
                 ghost: 'hover:bg-accent hover:text-accent-foreground',
                 link: 'text-primary underline-offset-4 hover:underline',
+                // The brand pill CTA (design-app.pen "Button · Primary"): fixed brand colours, not the skin's.
+                sun: 'rounded-full border-[1.5px] border-ink bg-sun font-bold text-ink hover:brightness-[0.97]',
+                // Its dark sibling ("Button · Dark").
+                ink: 'rounded-full bg-ink font-bold text-white hover:bg-ink-2',
             },
             size: {
                 default: 'h-10 px-4 py-2',
                 sm: 'h-9 rounded-md px-3',
                 lg: 'h-11 rounded-md px-8',
                 icon: 'h-10 w-10',
+                // 49px brand CTA with an 18px trailing icon.
+                cta: 'h-[49px] gap-2.5 px-[22px] text-base [&_svg]:size-[18px]',
             },
         },
         defaultVariants: {
