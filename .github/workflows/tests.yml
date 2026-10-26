@@ -3,7 +3,7 @@ name: tests
 on:
   push:
     branches:
-      - develop
+      - dev
       - main
   # Run on every pull request, including stacked PRs whose base is a feature branch.
   pull_request:
