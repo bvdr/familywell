@@ -98,8 +98,8 @@ export function AppSidebar() {
             {/* A mask (not an overlay) so the links themselves fade out, on any skin's background. */}
             <SidebarContent
                 ref={navRef}
-                // What the onboarding tour spotlights on a computer: where their modules live.
-                data-tour="modules"
+                // What the onboarding tour spotlights on a computer (design D07): where their modules live.
+                data-tour="modules-sidebar"
                 data-more={moreBelow || undefined}
                 className="data-[more]:[mask-image:linear-gradient(to_bottom,black_calc(100%-64px),transparent)]"
             >

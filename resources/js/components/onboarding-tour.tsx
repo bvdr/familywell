@@ -17,7 +17,22 @@ const STOPS = [
 const PAD = 8;
 const CARD_W = 350;
 
-function findTarget(key: string): DOMRect | null {
+// Stop 1 points at the sidebar on a computer (D07) and at the dashboard's "Your modules" grid on tablets and
+// phones (T07 / 07); either falls back to the other if it isn't on screen.
+function targetsFor(key: string): string[] {
+    if (key !== 'modules') return [key];
+    return window.innerWidth >= 1024 ? ['modules-sidebar', 'modules'] : ['modules', 'modules-sidebar'];
+}
+
+function findTarget(stopKey: string): DOMRect | null {
+    for (const key of targetsFor(stopKey)) {
+        const r = findOne(key);
+        if (r) return r;
+    }
+    return null;
+}
+
+function findOne(key: string): DOMRect | null {
     for (const el of document.querySelectorAll<HTMLElement>(`[data-tour="${key}"]`)) {
         const r = el.getBoundingClientRect();
         if (r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden') return r;
