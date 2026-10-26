@@ -9,6 +9,7 @@ use App\Support\Billing\Billing;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 // Settings > Billing: the paywall page (locked families land here) and, once subscribed, the link to
@@ -77,7 +78,12 @@ class BillingController extends Controller
     // Stripe -> us. Unauthenticated + CSRF-exempt (bootstrap/app.php); trust comes from the signature.
     public function webhook(Request $request)
     {
-        abort_unless(Billing::validSignature($request->getContent(), $request->header('Stripe-Signature')), 400);
+        if (! Billing::validSignature($request->getContent(), $request->header('Stripe-Signature'))) {
+            // Logged so a misconfigured STRIPE_WEBHOOK_SECRET shows up in the app logs instead of only as
+            // "pending" deliveries in Stripe. Never logs the payload or the signature.
+            Log::warning('Stripe webhook rejected: signature check failed', ['has_header' => $request->hasHeader('Stripe-Signature')]);
+            abort(400);
+        }
 
         $event = $request->json()->all();
         if (str_starts_with($event['type'] ?? '', 'customer.subscription.')) {
