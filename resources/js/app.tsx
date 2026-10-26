@@ -33,6 +33,7 @@ import { armCrashRecovery, ErrorBoundary } from './components/error-boundary';
 import { initializeTheme } from './hooks/use-appearance';
 import { identify, trackQueued } from './lib/analytics';
 import { setAppLocale } from './lib/i18n';
+import { listenForInstallPrompt } from './lib/install';
 import { loadModules, registerSlot } from './lib/modules';
 import { registerServiceWorker } from './lib/push';
 import { startShoppingOutbox } from './lib/shopping-outbox';
@@ -101,3 +102,5 @@ startShoppingOutbox();
 
 // Register the service worker so push notifications are received + clickable (no-op where unsupported).
 void registerServiceWorker();
+// Keep Chrome's one-tap install offer for the onboarding's install step (lib/install.ts).
+listenForInstallPrompt();

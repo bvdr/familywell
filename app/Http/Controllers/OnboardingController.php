@@ -3,17 +3,22 @@
 namespace App\Http\Controllers;
 
 use App\Http\Middleware\TrackLastSeen;
+use App\Mail\HandoffLinkMail;
 use App\Models\Family;
 use App\Models\User;
 use App\Support\Analytics;
+use App\Support\Auth\Handoff;
 use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Theming\ThemeTokens;
 use App\Support\Translations;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -246,11 +251,78 @@ class OnboardingController extends Controller
     }
 
     /**
+     * Step 4: on a phone, "Put FamilyWell on your Home Screen" (required: it's the only way reminders reach an
+     * iPhone). The page moves on by itself once it runs installed (display-mode: standalone), which is also
+     * where RequireFamily brings someone who opens the new Home Screen icon. On a computer it's "Now take it to
+     * your phone": a QR code / emailed link that signs the phone in (Handoff), or installing on the computer.
+     */
+    public function install(Request $request): RedirectResponse|Response
+    {
+        if (! $this->onboardingFamily($request)) {
+            return $this->leave($request);
+        }
+
+        return Inertia::render('onboarding/install', [
+            'email' => $request->user()->email,
+            // Polled by the computer while the phone does this step: once the phone has moved on, so does it.
+            'step' => fn () => $request->user()->fresh()->onboarding_step,
+            // ?preview=1 shows the screen without following anyone's progress.
+            'preview' => $request->boolean('preview'),
+        ]);
+    }
+
+    public function saveInstall(Request $request): RedirectResponse
+    {
+        if (! $this->onboardingFamily($request)) {
+            return $this->leave($request);
+        }
+        // How they got past it, for the funnel: opened installed, installed on the computer, or the phone's
+        // "continue in the browser" escape (shown only after a while, for browsers that can't install).
+        $data = $request->validate(['via' => ['required', 'in:standalone,desktop,browser']]);
+        Analytics::queue('onboarding_installed', ['via' => $data['via']]);
+
+        return $this->advance($request->user(), self::FLOW['install']);
+    }
+
+    // A fresh sign-in link for the computer's QR code. JSON, so the page can renew it before it expires.
+    public function handoff(Request $request): JsonResponse
+    {
+        abort_unless($this->onboardingFamily($request), 403);
+
+        return response()->json(['url' => Handoff::create($request->user()), 'ttl' => Handoff::TTL_MINUTES * 60]);
+    }
+
+    // "No camera handy? We'll email you a sign-in link." Only ever to the account's own address: a link that
+    // signs this account in must not be sendable to someone else's inbox.
+    public function emailHandoff(Request $request): RedirectResponse
+    {
+        if (! $this->onboardingFamily($request)) {
+            return $this->leave($request);
+        }
+        Mail::to($request->user()->email)->send(new HandoffLinkMail(Handoff::create($request->user())));
+
+        return back();
+    }
+
+    // GET /h/{token}: the phone end of the QR code / emailed link. Signs in, then the app resumes the onboarding.
+    public function useHandoff(Request $request, string $token): RedirectResponse
+    {
+        $user = Handoff::consume($token);
+        if (! $user) {
+            return to_route('login')->with('status', __('That sign-in link has expired or was already used. Sign in to carry on.'));
+        }
+        Auth::login($user, remember: true);
+        $request->session()->regenerate();
+
+        return to_route('dashboard');
+    }
+
+    /**
      * The steps after the family exists, each pointing at the next (null = done, into the app). A step's GET
      * route is `onboarding.<step>`; `users.onboarding_step` remembers where someone is, so RequireFamily can
      * bring them back to it.
      */
-    private const FLOW = ['invite' => 'modules', 'modules' => null];
+    private const FLOW = ['invite' => 'modules', 'modules' => 'install', 'install' => null];
 
     // Not (or no longer) in an onboarding they can do, e.g. they switched to a family they don't run: stop
     // remembering a step, or RequireFamily would send them straight back here in a loop.

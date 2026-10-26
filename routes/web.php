@@ -76,6 +76,11 @@ Route::middleware(['auth'])->group(function () {
     Route::post('onboarding/invite', [OnboardingController::class, 'sendInvites'])->middleware('throttle:10,1')->name('onboarding.invite.store');
     Route::get('onboarding/modules', [OnboardingController::class, 'modules'])->name('onboarding.modules');
     Route::post('onboarding/modules', [OnboardingController::class, 'saveModules'])->name('onboarding.modules.store');
+    Route::get('onboarding/install', [OnboardingController::class, 'install'])->name('onboarding.install');
+    Route::post('onboarding/install', [OnboardingController::class, 'saveInstall'])->name('onboarding.install.store');
+    // Sign-in links for the phone (App\Support\Auth\Handoff): throttled, the email one harder since it sends mail.
+    Route::post('onboarding/handoff', [OnboardingController::class, 'handoff'])->middleware('throttle:10,1')->name('onboarding.handoff');
+    Route::post('onboarding/handoff/email', [OnboardingController::class, 'emailHandoff'])->middleware('throttle:3,10')->name('onboarding.handoff.email');
 
     // Accepting requires a logged-in user, but NOT a family (a new/joining user has none yet).
     Route::post('invite/{token}', [FamilyInviteController::class, 'accept'])->name('invite.accept');
@@ -83,6 +88,10 @@ Route::middleware(['auth'])->group(function () {
     // Web Push subscription + the in-app notifications feed now live in the notifications module
     // (Modules\Notifications\NotificationsServiceProvider), registered globally there.
 });
+
+// The phone end of the onboarding's QR code / emailed sign-in link. No auth by design (it IS the sign-in); the
+// token is single-use, expires in 10 minutes and is throttled per IP against guessing.
+Route::get('/h/{token}', [OnboardingController::class, 'useHandoff'])->middleware('throttle:20,1')->name('handoff');
 
 // Public read-only view of a shared entity via its invite-link token. No auth by design; the token
 // is a 48-char unguessable secret. Throttled since it's unauthenticated (enumeration / abuse guard).

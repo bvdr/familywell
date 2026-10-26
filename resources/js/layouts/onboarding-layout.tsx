@@ -167,7 +167,7 @@ export default function OnboardingLayout({ step, back, title, sub, cta, hint, ch
                     {children}
                 </main>
 
-                {(cta || back) && (
+                {cta && (
                     <footer className="bg-paper lg:border-line sticky bottom-0 mt-auto flex flex-col items-center gap-3 px-5 pt-3.5 pb-[calc(30px+env(safe-area-inset-bottom))] lg:static lg:flex-row lg:justify-between lg:border-t lg:px-16 lg:py-[18px]">
                         {back ? (
                             <Link href={back} className="text-ink-2 hidden items-center gap-1.5 text-sm font-semibold lg:flex">
