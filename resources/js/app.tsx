@@ -2,7 +2,12 @@
 // switching a theme never fetches at runtime; the active theme's --font-* tokens pick which apply.
 import OfflineBanner from '@/components/offline-banner';
 import { Picker } from '@/components/picker';
+// Bricolage Grotesque: the brand display face of the onboarding (design-app.pen) and family monograms. Like
+// every @font-face here, a weight only downloads when something on the page uses it.
+import '@fontsource/bricolage-grotesque/700.css';
+import '@fontsource/bricolage-grotesque/800.css';
 import '@fontsource/geist-mono/400.css';
+import '@fontsource/geist-mono/600.css';
 // Geist Sans — the Minimal Mono skin.
 import '@fontsource/geist-sans/400.css';
 import '@fontsource/geist-sans/500.css';
@@ -11,6 +16,7 @@ import '@fontsource/geist-sans/700.css';
 import '@fontsource/inter/400.css';
 import '@fontsource/inter/500.css';
 import '@fontsource/inter/600.css';
+import '@fontsource/inter/700.css';
 import '@fontsource/playfair-display/500.css';
 import '@fontsource/playfair-display/600.css';
 import '@fontsource/playfair-display/700.css';

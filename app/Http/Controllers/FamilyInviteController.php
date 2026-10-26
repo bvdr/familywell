@@ -76,7 +76,7 @@ class FamilyInviteController extends Controller
         return Inertia::render('family/invite', [
             'invite' => [
                 'token' => $invite->token,
-                'family' => ['name' => $invite->family->name, 'emoji' => $invite->family->emoji, 'color' => $invite->family->color],
+                'family' => ['name' => $invite->family->name, 'emoji' => $invite->family->emoji, 'symbol' => $invite->family->symbol, 'color' => $invite->family->color],
                 'inviter' => $invite->inviter->name,
                 'memberCount' => $invite->family->members()->count(),
             ],

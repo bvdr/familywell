@@ -1,138 +1,265 @@
-import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Check, LoaderCircle } from 'lucide-react';
-import { FormEventHandler } from 'react';
+import { Head, useForm } from '@inertiajs/react';
+import { ArrowRight, Check, Ellipsis, Globe, LoaderCircle } from 'lucide-react';
+import { type IconName } from 'lucide-react/dynamic';
+import { FormEventHandler, useState } from 'react';
 
+import { FamilyMark, inkOn, monogramOf, SymbolIcon } from '@/components/family-mark';
+import { FamilySymbolSheet } from '@/components/family-symbol-sheet';
 import InputError from '@/components/input-error';
+import { Picker } from '@/components/picker';
+import { Segmented } from '@/components/segmented';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import AuthSplitLayout from '@/layouts/auth/auth-split-layout';
+import OnboardingLayout from '@/layouts/onboarding-layout';
+import { useT } from '@/lib/i18n';
+import { cn } from '@/lib/utils';
 
-// Must match OnboardingController::COLORS / EMOJIS (validated server-side against the same sets).
-const COLORS = ['#2D5E3A', '#D4943A', '#C2453A', '#4A6B52', '#1B3A28', '#7A9A80'];
-const EMOJIS = ['🌿', '🏡', '☀️', '🐻', '🌸', '⭐'];
+type Region = {
+    country: string | null;
+    countryName: string | null;
+    // Present only when the module that owns it is installed (OnboardingController::region).
+    currency?: string;
+    currencies?: string[];
+    units?: 'metric' | 'imperial';
+};
 
-export default function CreateFamily() {
-    const { data, setData, post, processing, errors } = useForm({
-        name: '',
-        description: '',
-        color: COLORS[0],
-        emoji: EMOJIS[0],
+type Props = { userName: string; colors: string[]; region: Region };
+
+// The quick row of symbols next to the monogram; the rest live in the library sheet.
+const QUICK: IconName[] = ['house', 'sun', 'sprout', 'mountain'];
+
+// The family name we start with, from the person's surname ("Ana Rivera" -> "The Riveras" in English,
+// "Familia Rivera" in Romanian), so nobody faces an empty box. No surname -> empty, the chips still help.
+function surnameOf(name: string): string {
+    const parts = name.trim().split(/\s+/);
+    return parts.length > 1 ? parts[parts.length - 1] : '';
+}
+// English plural for the "The :surnames" default (Rivera -> Riveras, Jones -> Joneses). Only the English
+// string uses :surnames; the other languages say "Familia :surname" and never need it.
+const pluralOf = (s: string) => (/(s|x|z|ch|sh)$/i.test(s) ? `${s}es` : `${s}s`);
+
+// Step 1 (design 01): name, colour + symbol with a live preview, region & units. Creates the family.
+export default function CreateFamily({ userName, colors, region }: Props) {
+    const t = useT();
+    const surname = surnameOf(userName);
+    const firstName = userName.trim().split(/\s+/)[0] ?? '';
+
+    const form = useForm({
+        name: surname ? t('onboarding.default_name', { surname, surnames: pluralOf(surname) }) : '',
+        color: colors[0],
+        symbol: 'house' as string,
+        currency: region.currency ?? null,
+        units: region.units ?? null,
     });
+    const { data, setData } = form;
+    const [sheet, setSheet] = useState(false);
+    const [regionOpen, setRegionOpen] = useState(false);
+
+    const suggestions = surname
+        ? [1, 2, 3].map((n) => t(`onboarding.suggest_${n}`, { surname }))
+        : [1, 2, 3].map((n) => t(`onboarding.suggest_plain_${n}`));
+    const quick: IconName[] =
+        QUICK.includes(data.symbol as IconName) || data.symbol === 'monogram' ? QUICK : [data.symbol as IconName, ...QUICK.slice(0, 3)];
+    const displayName = data.name.trim() || t('onboarding.your_family');
+
+    const regionLine = [region.countryName, region.units && t(`onboarding.units_${data.units}`), data.currency].filter(Boolean).join(' · ');
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        post(route('onboarding.store'));
+        form.post(route('onboarding.store'));
     };
 
     return (
-        <AuthSplitLayout
-            headline="Name your family."
-            sub="This is the shared home your family will gather around. You can change it anytime."
-            image="/images/auth/register.webp"
-        >
-            <Head title="Create your family" />
-
-            {/* Stepper — step 1 of 2. Step 2 (invite) arrives with the invite system; the bar reflects that. */}
-            <div>
-                <div className="flex gap-2">
-                    <div className="bg-accent h-1 flex-1 rounded-full" />
-                    <div className="bg-border h-1 flex-1 rounded-full" />
-                </div>
-                <div className="mt-2 flex justify-between text-sm">
-                    <span className="text-primary font-medium">Step 1 of 2</span>
-                    <span className="text-muted-foreground">Family details</span>
-                </div>
-            </div>
-
-            {/* Header below the stepper, above the form (design order). */}
-            <div className="flex flex-col gap-2">
-                <h1 className="font-heading text-primary text-[32px] leading-tight">Create your family</h1>
-                <p className="text-muted-foreground text-[15px]">Give it a name and a look everyone will recognize.</p>
-            </div>
-
-            <form className="flex flex-col gap-6" onSubmit={submit}>
-                <div className="grid gap-2">
-                    <Label htmlFor="name">Family name</Label>
-                    <Input
-                        id="name"
-                        autoFocus
-                        required
-                        value={data.name}
-                        onChange={(e) => setData('name', e.target.value)}
-                        placeholder="The Rivera Family"
-                    />
-                    <InputError message={errors.name} />
-                </div>
-
-                <div className="grid gap-2">
-                    <Label htmlFor="description">Short description (optional)</Label>
-                    <Input
-                        id="description"
-                        value={data.description}
-                        onChange={(e) => setData('description', e.target.value)}
-                        placeholder="e.g. Home base for the Riveras"
-                    />
-                    <InputError message={errors.description} />
-                </div>
-
-                <div className="grid gap-3">
-                    <Label>Choose a color &amp; emoji</Label>
-                    <div className="flex items-center gap-4">
-                        {/* Live preview of the chosen avatar. */}
-                        <div
-                            className="flex size-14 shrink-0 items-center justify-center rounded-md text-2xl"
-                            style={{ backgroundColor: data.color }}
-                        >
-                            {data.emoji}
+        <form onSubmit={submit} className="contents">
+            <Head title={t('onboarding.family_title')} />
+            <OnboardingLayout
+                step={1}
+                back={route('onboarding.index')}
+                title={t('onboarding.family_title')}
+                sub={t('onboarding.family_sub')}
+                cta={
+                    <Button type="submit" variant="sun" size="cta" disabled={form.processing}>
+                        <span className="truncate">{t('onboarding.family_cta', { name: displayName })}</span>
+                        {form.processing ? <LoaderCircle className="animate-spin" /> : <ArrowRight />}
+                    </Button>
+                }
+                hint={t('onboarding.family_hint')}
+            >
+                <div className="flex flex-col px-5 lg:px-0">
+                    {/* Live preview: what everyone sees when they open FamilyWell. */}
+                    <div className="border-line flex items-center gap-3.5 rounded-[20px] border bg-white p-4">
+                        <FamilyMark
+                            name={displayName}
+                            color={data.color}
+                            symbol={data.symbol}
+                            className="border-ink size-14 rounded-[18px] border-[1.5px] text-2xl [&_svg]:size-7"
+                        />
+                        <div className="min-w-0 flex-1">
+                            <p className="font-display truncate text-xl font-bold tracking-[-0.4px]">{displayName}</p>
+                            <p className="text-stone truncate text-[13px]">{t('onboarding.just_you', { name: firstName })}</p>
                         </div>
+                        <span className="text-stone font-mono text-[10px] font-semibold tracking-[0.8px]">{t('onboarding.preview')}</span>
+                    </div>
+
+                    <div className="flex flex-col gap-[18px] pt-5">
                         <div className="flex flex-col gap-2">
-                            <div className="flex gap-2">
-                                {COLORS.map((c) => (
+                            <Label htmlFor="name" className="text-[13px] font-semibold">
+                                {t('onboarding.family_name')}
+                            </Label>
+                            <Input
+                                id="name"
+                                required
+                                maxLength={255}
+                                value={data.name}
+                                onChange={(e) => setData('name', e.target.value)}
+                                className="border-ink h-12 rounded-[14px] border-[1.5px] bg-white px-4 text-base font-medium"
+                            />
+                            <InputError message={form.errors.name} />
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-stone text-xs">{t('onboarding.try')}</span>
+                                {suggestions.map((s) => (
+                                    <button
+                                        key={s}
+                                        type="button"
+                                        onClick={() => setData('name', s)}
+                                        className="bg-paper-2 text-ink-2 rounded-full px-[11px] py-1.5 text-xs font-medium"
+                                    >
+                                        {s}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-3">
+                            <span className="text-[13px] font-semibold">{t('onboarding.color_symbol')}</span>
+                            <div className="flex justify-between lg:justify-start lg:gap-3" role="radiogroup" aria-label={t('onboarding.color')}>
+                                {colors.map((c) => (
                                     <button
                                         key={c}
                                         type="button"
-                                        aria-label={`Color ${c}`}
+                                        role="radio"
+                                        aria-checked={data.color === c}
+                                        aria-label={c}
                                         onClick={() => setData('color', c)}
-                                        className="flex size-7 items-center justify-center rounded-md"
-                                        style={{ backgroundColor: c }}
+                                        className={cn(
+                                            'flex size-11 items-center justify-center rounded-full',
+                                            data.color === c && 'border-ink border-[1.5px]',
+                                        )}
+                                        style={{ backgroundColor: c, color: inkOn(c) }}
                                     >
-                                        {data.color === c && <Check className="text-text-inverse size-4" />}
+                                        {data.color === c && <Check className="size-5" strokeWidth={2.5} />}
                                     </button>
                                 ))}
                             </div>
-                            <div className="flex gap-2">
-                                {EMOJIS.map((em) => (
-                                    <button
-                                        key={em}
-                                        type="button"
-                                        aria-label={`Emoji ${em}`}
-                                        onClick={() => setData('emoji', em)}
-                                        className={`flex size-7 items-center justify-center rounded-md border text-base ${
-                                            data.emoji === em ? 'border-accent bg-accent-subtle' : 'border-border bg-surface-card'
-                                        }`}
-                                    >
-                                        {em}
-                                    </button>
-                                ))}
+                            <div className="flex justify-between lg:justify-start lg:gap-3" role="radiogroup" aria-label={t('onboarding.symbol')}>
+                                {(['monogram', ...quick] as string[]).map((s) => {
+                                    const on = data.symbol === s;
+                                    return (
+                                        <button
+                                            key={s}
+                                            type="button"
+                                            role="radio"
+                                            aria-checked={on}
+                                            aria-label={s}
+                                            onClick={() => setData('symbol', s)}
+                                            className={cn(
+                                                'flex size-11 items-center justify-center rounded-[14px] border',
+                                                on ? 'border-ink border-[1.5px]' : 'border-line bg-white',
+                                            )}
+                                            style={on ? { backgroundColor: data.color, color: inkOn(data.color) } : undefined}
+                                        >
+                                            {s === 'monogram' ? (
+                                                <span className="font-display text-[22px] font-extrabold tracking-[-0.5px]">
+                                                    {monogramOf(displayName)}
+                                                </span>
+                                            ) : (
+                                                <SymbolIcon name={s as IconName} className="size-[22px]" />
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                                <button
+                                    type="button"
+                                    aria-label={t('onboarding.symbol_more')}
+                                    onClick={() => setSheet(true)}
+                                    className="bg-paper-2 flex size-11 items-center justify-center rounded-[14px]"
+                                >
+                                    <Ellipsis className="size-[22px]" />
+                                </button>
                             </div>
+                            <InputError message={form.errors.color || form.errors.symbol} />
                         </div>
+
+                        {region.countryName && (
+                            <div className="flex flex-col gap-2">
+                                <span className="text-[13px] font-semibold">{t('onboarding.region')}</span>
+                                <div className="bg-paper-2 flex items-center gap-3 rounded-2xl px-3.5 py-3">
+                                    <Globe className="size-[18px] shrink-0" />
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate text-[14.5px] font-bold">{regionLine}</p>
+                                        <p className="text-stone truncate text-xs">{t('onboarding.region_sub')}</p>
+                                    </div>
+                                    {(region.currencies || region.units) && (
+                                        <button type="button" onClick={() => setRegionOpen(true)} className="text-[13.5px] font-bold">
+                                            {t('onboarding.change')}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
-                    <InputError message={errors.color || errors.emoji} />
                 </div>
+            </OnboardingLayout>
 
-                <Button type="submit" className="w-full" disabled={processing}>
-                    {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                    Create family
-                </Button>
-            </form>
+            <FamilySymbolSheet
+                open={sheet}
+                onOpenChange={setSheet}
+                value={data.symbol}
+                onPick={(s) => setData('symbol', s)}
+                familyName={displayName}
+                color={data.color}
+            />
 
-            <div className="text-center">
-                <Link href={route('onboarding.index')} className="text-muted-foreground inline-flex items-center gap-2 text-sm">
-                    <ArrowLeft className="size-4" />
-                    Back
-                </Link>
-            </div>
-        </AuthSplitLayout>
+            <Dialog open={regionOpen} onOpenChange={setRegionOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{t('onboarding.region')}</DialogTitle>
+                        <DialogDescription>{t('onboarding.region_desc')}</DialogDescription>
+                    </DialogHeader>
+                    {region.currencies && (
+                        <div className="flex flex-col gap-2">
+                            <Label>{t('onboarding.currency')}</Label>
+                            <Picker
+                                options={region.currencies.map((c) => ({ value: c, label: c }))}
+                                selected={data.currency ? [data.currency] : []}
+                                onChange={([c]) => c && setData('currency', c)}
+                                ariaLabel={t('onboarding.currency')}
+                            />
+                        </div>
+                    )}
+                    {region.units && (
+                        <div className="flex flex-col gap-2">
+                            <Label>{t('onboarding.distance')}</Label>
+                            <Segmented
+                                options={[
+                                    { value: 'metric', label: t('onboarding.units_metric') },
+                                    { value: 'imperial', label: t('onboarding.units_imperial') },
+                                ]}
+                                value={data.units ?? 'metric'}
+                                onChange={(u) => setData('units', u)}
+                                ariaLabel={t('onboarding.distance')}
+                            />
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button type="button" variant="ink" onClick={() => setRegionOpen(false)}>
+                            {t('onboarding.done')}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </form>
     );
 }

@@ -4,6 +4,8 @@ use App\Models\Family;
 use App\Models\User;
 use App\Support\Modules\ModuleRegistry;
 use Illuminate\Support\Facades\DB;
+use Modules\Spending\SpendSetting;
+use Modules\Vehicles\VehicleSetting;
 
 use function Pest\Laravel\actingAs;
 
@@ -106,4 +108,49 @@ it('starts a new family with every module on and leaves existing families alone'
     $family = $user->fresh()->families()->first();
     expect($registry->enabledIds($family->id))->toEqualCanonicalizing(array_keys($registry->discover()))
         ->and(DB::table('family_modules')->where('family_id', $existing->id)->pluck('module_id')->all())->toBe(['tasks']);
+});
+
+it('creates a family with a symbol from the onboarding palette, emoji defaulting for older screens', function () {
+    $user = User::factory()->create();
+
+    actingAs($user)->post('/onboarding', ['name' => 'The Riveras', 'color' => '#FFDF00', 'symbol' => 'paw-print'])->assertRedirect();
+
+    $family = $user->fresh()->families()->first();
+    expect($family->symbol)->toBe('paw-print')->and($family->color)->toBe('#FFDF00')->and($family->emoji)->toBe('🏡');
+});
+
+it('rejects a symbol that is not an icon key', function () {
+    $user = User::factory()->create();
+
+    actingAs($user)->post('/onboarding', ['name' => 'X', 'color' => '#FFDF00', 'symbol' => '<b>hi</b>'])->assertSessionHasErrors('symbol');
+});
+
+it('shows the region guess and applies the currency and units picked in onboarding', function () {
+    test()->artisan('modules:migrate')->assertExitCode(0);
+    $user = User::factory()->create(['name' => 'Ana Rivera']);
+
+    actingAs($user)->withHeader('CF-IPCountry', 'RO')->get('/onboarding/create')->assertOk()
+        ->assertInertia(fn ($page) => $page->component('onboarding/create-family')
+            ->where('userName', 'Ana Rivera')
+            ->where('region.country', 'RO')
+            ->where('region.currency', 'RON')
+            ->where('region.units', 'metric'));
+
+    actingAs($user)->withHeader('CF-IPCountry', 'RO')
+        ->post('/onboarding', ['name' => 'The Riveras', 'color' => '#FFDF00', 'symbol' => 'house', 'currency' => 'USD', 'units' => 'imperial'])
+        ->assertRedirect();
+
+    $family = $user->fresh()->families()->first();
+    expect(SpendSetting::current($family->id)->default_currency)->toBe('USD')
+        ->and(VehicleSetting::current($family->id)->unit_system)->toBe('imperial');
+});
+
+it('lets ?preview=1 show a step to someone already onboarded, but never create through it', function () {
+    $user = User::factory()->create();
+    $family = Family::create(['name' => 'First', 'owner_id' => $user->id]);
+    $family->members()->attach($user, ['role' => 'admin']);
+
+    actingAs($user)->get('/onboarding/create?preview=1')->assertOk();
+    actingAs($user)->post('/onboarding?preview=1', ['name' => 'Second', 'color' => '#FFDF00', 'preview' => 1])->assertRedirect(route('dashboard'));
+    expect($user->fresh()->families)->toHaveCount(1);
 });

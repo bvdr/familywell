@@ -2,6 +2,7 @@
 
 namespace Modules\Vehicles;
 
+use App\Models\Family;
 use App\Support\Calendar\CalendarSources;
 use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
@@ -10,6 +11,7 @@ use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Trash\Trash;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\Notifications\NotificationCategories;
@@ -33,6 +35,18 @@ class VehiclesServiceProvider extends ServiceProvider
         // Our notification category (maintenance-due pushes), so it gets its own on/off row on the
         // Notifications settings screen. Registration is idempotent (boot re-runs per request/worker).
         NotificationCategories::register('vehicles', 'Vehicles', 'car');
+
+        // Km or miles for a new family: the onboarding "Region & units" row shows the guess from the sign-up
+        // country (onboarding.region) and can change it; family.created stores what was sent. Miles are the
+        // road unit in the US, the UK, Liberia and Myanmar, everyone else drives in km.
+        $hooks->listen('onboarding.region', fn (array $region, ?string $country) => [
+            ...$region, 'units' => in_array($country, ['US', 'GB', 'LR', 'MM'], true) ? 'imperial' : 'metric',
+        ]);
+        $hooks->listen('family.created', function (Family $family, Request $request) {
+            if (in_array($request->input('units'), ['metric', 'imperial'], true)) {
+                VehicleSetting::current($family->id)->update(['unit_system' => $request->input('units')]);
+            }
+        });
         $this->loadViewsFrom(__DIR__.'/resources/views', 'vehicles'); // the history PDF template
 
         // MCP: tools an AI assistant can use on the family's cars, gated by the `vehicles:read` /

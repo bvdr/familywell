@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Middleware\TrackLastSeen;
 use App\Models\Family;
 use App\Support\Analytics;
 use App\Support\Modules\Hooks;
@@ -18,8 +19,14 @@ class OnboardingController extends Controller
 {
     // Once a user belongs to a family, onboarding is done: bounce them to the app instead of
     // letting them create a second family through the first-run flow.
+    // `?preview=1` on a GET shows the screen anyway (the viewport checks run as the demo family, and it's how
+    // to look at a step again). Only the page renders: every POST still goes through this guard.
     private function redirectIfOnboarded(Request $request): ?RedirectResponse
     {
+        if ($request->isMethod('GET') && $request->boolean('preview')) {
+            return null;
+        }
+
         return $request->user()->families()->exists()
             ? to_route('dashboard')
             : null;
@@ -58,7 +65,7 @@ class OnboardingController extends Controller
         return redirect()->intended(route($user->families()->exists() ? 'dashboard' : 'onboarding.index', absolute: false));
     }
 
-    // "How would you like to begin?" — the first screen after registration.
+    // Welcome: what the next four steps are and the no-card promise (design-app.pen "Onboarding · Flow", 00).
     public function index(Request $request): RedirectResponse|Response
     {
         return $this->redirectIfOnboarded($request)
@@ -67,11 +74,31 @@ class OnboardingController extends Controller
             ]);
     }
 
-    // The "Create a family" form (name, description, color + emoji).
+    // Step 1, "What should we call your family?": name (with suggestions), colour + symbol, region & units.
     public function create(Request $request): RedirectResponse|Response
     {
         return $this->redirectIfOnboarded($request)
-            ?? Inertia::render('onboarding/create-family');
+            ?? Inertia::render('onboarding/create-family', [
+                'userName' => (string) $request->user()->name,
+                'colors' => Family::ONBOARDING_COLORS,
+                'region' => $this->region($request),
+            ]);
+    }
+
+    /**
+     * The "Region & units" row: the country Cloudflare saw this request come from, plus whatever the modules
+     * derive from it through the `onboarding.region` filter (Spending: currency; Vehicles: km or miles). Core
+     * doesn't know which modules care, same as `family.created`; whatever they add here is what they read
+     * back from the create request in their `family.created` listener.
+     *
+     * @return array<string, mixed>
+     */
+    private function region(Request $request): array
+    {
+        $country = TrackLastSeen::country($request);
+        $name = $country ? \Locale::getDisplayRegion('-'.$country, app()->getLocale()) : null;
+
+        return app(Hooks::class)->filter('onboarding.region', ['country' => $country, 'countryName' => $name ?: null], $country);
     }
 
     public function store(Request $request): RedirectResponse
@@ -83,10 +110,13 @@ class OnboardingController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:255'],
-            // Constrained to the palette/emoji sets the picker offers, so a crafted request can't
-            // store arbitrary values that would later render as raw text in the UI.
-            'color' => ['required', 'string', 'in:'.implode(',', Family::COLORS)],
-            'emoji' => ['required', 'string', 'in:'.implode(',', Family::EMOJIS)],
+            // Constrained to the palettes the pickers offer (the onboarding one, and the older settings one),
+            // so a crafted request can't store arbitrary values that would later render as raw text in the UI.
+            'color' => ['required', 'string', 'in:'.implode(',', [...Family::ONBOARDING_COLORS, ...Family::COLORS])],
+            // The new onboarding picks a symbol; the emoji stays accepted (and defaults in the column) so a
+            // family always has the older mark to fall back on.
+            'symbol' => ['nullable', 'string', Family::SYMBOL_RULE],
+            'emoji' => ['nullable', 'string', 'in:'.implode(',', Family::EMOJIS)],
         ]);
 
         $user = $request->user();
@@ -95,15 +125,19 @@ class OnboardingController extends Controller
             'name' => $data['name'],
             'description' => $data['description'] ?? null,
             'color' => $data['color'],
-            'emoji' => $data['emoji'],
+            'emoji' => $data['emoji'] ?? '🏡',
+            'symbol' => $data['symbol'] ?? null,
             'owner_id' => $user->id,
         ]);
         $family->members()->attach($user, ['role' => 'admin']);
         app(ModuleRegistry::class)->enableAll($family->id);
-        // Modules set up their per-family defaults here (e.g. Spending's currency from where the person
-        // signs up), with the request for context. Core doesn't know which modules care.
+        // Modules set up their per-family defaults here (e.g. Spending's currency, Vehicles' units: from where the
+        // person signs up, or what they changed in the "Region & units" row), with the request for context.
+        // Core doesn't know which modules care.
         app(Hooks::class)->fire('family.created', $family, $request);
         Analytics::track($user, 'family_created', [], '/onboarding');
+        // Onboarding funnel, browser side (docs/analytics.md): one `onboarding_<step>` per finished step.
+        Analytics::queue('onboarding_family', ['symbol' => $family->symbol ?? 'emoji']);
 
         // Make it the active tenant immediately (SetActiveFamily reads this on the next request).
         $request->session()->put('active_family_id', $family->id);
