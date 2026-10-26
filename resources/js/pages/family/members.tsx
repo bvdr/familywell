@@ -3,6 +3,7 @@ import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Check, Mail, Plus, Trash2, X } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
+import { FamilyMark } from '@/components/family-mark';
 import InputError from '@/components/input-error';
 import { MemberAvatar } from '@/components/member-avatar';
 import { Segmented } from '@/components/segmented';
@@ -19,7 +20,16 @@ import { type BreadcrumbItem } from '@/types';
 
 type Member = { id: number; name: string; email: string; role: string };
 type Invitation = { id: number; email: string; role: string };
-type Family = { id: number; name: string; description: string | null; color: string; emoji: string; owner_id: number; theme: string };
+type Family = {
+    id: number;
+    name: string;
+    description: string | null;
+    color: string;
+    emoji: string;
+    symbol: string | null;
+    owner_id: number;
+    theme: string;
+};
 type Props = {
     family: Family;
     members: Member[];
@@ -61,7 +71,13 @@ export default function Members({ family, members, invitations, canManage, palet
     const authId = usePage<{ auth: { user: { id: number } } }>().props.auth.user.id;
     const [inviteOpen, setInviteOpen] = useState(false);
 
-    const settings = useForm({ name: family.name, description: family.description ?? '', color: family.color, emoji: family.emoji });
+    const settings = useForm({
+        name: family.name,
+        description: family.description ?? '',
+        color: family.color,
+        emoji: family.emoji,
+        symbol: family.symbol,
+    });
     const customColor = !palette.colors.includes(settings.data.color);
     const customEmoji = !palette.emojis.includes(settings.data.emoji);
     const invite = useForm({ email: '', role: 'member' });
@@ -112,12 +128,7 @@ export default function Members({ family, members, invitations, canManage, palet
                 {canManage ? (
                     <form onSubmit={saveSettings} className="bg-surface-card flex flex-col gap-5 rounded-2xl border p-6">
                         <div className="flex items-center gap-4">
-                            <span
-                                className="flex size-14 shrink-0 items-center justify-center rounded-2xl text-3xl"
-                                style={{ backgroundColor: settings.data.color }}
-                            >
-                                {settings.data.emoji}
-                            </span>
+                            <FamilyMark {...settings.data} className="size-14 rounded-2xl text-3xl" />
                             <div className="flex-1">
                                 <h1 className="font-heading text-primary text-2xl leading-tight">{t('family.settings_title')}</h1>
                                 <p className="text-muted-foreground text-sm">{t('family.settings_desc')}</p>
@@ -185,7 +196,7 @@ export default function Members({ family, members, invitations, canManage, palet
                                             key={em}
                                             type="button"
                                             aria-label={t('family.emoji_aria', { emoji: em })}
-                                            onClick={() => settings.setData('emoji', em)}
+                                            onClick={() => settings.setData((d) => ({ ...d, emoji: em, symbol: null }))}
                                             className={`flex size-7 items-center justify-center rounded-md border text-base transition-transform hover:scale-110 ${
                                                 settings.data.emoji === em ? 'border-accent bg-accent-subtle' : 'border-border bg-surface-card'
                                             }`}
@@ -197,7 +208,7 @@ export default function Members({ family, members, invitations, canManage, palet
                                     <input
                                         type="text"
                                         value={settings.data.emoji}
-                                        onChange={(e) => settings.setData('emoji', lastEmoji(e.target.value))}
+                                        onChange={(e) => settings.setData((d) => ({ ...d, emoji: lastEmoji(e.target.value), symbol: null }))}
                                         aria-label={t('family.type_any_emoji')}
                                         title={t('family.type_any_emoji_title')}
                                         className={`flex size-7 items-center justify-center rounded-md border border-dashed text-center text-base ${

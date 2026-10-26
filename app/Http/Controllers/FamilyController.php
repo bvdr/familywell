@@ -25,6 +25,9 @@ class FamilyController extends Controller
             // ZWJ sequences like 👨‍👩‍👧‍👦).
             'color' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'emoji' => ['required', 'string', 'max:16', 'regex:/^\p{Extended_Pictographic}/u'],
+            // The onboarding symbol (lucide key / 'monogram'). Settings still edits the emoji: picking one
+            // there sends symbol=null, so the emoji the person just chose is what shows.
+            'symbol' => ['nullable', 'string', Family::SYMBOL_RULE],
         ]);
 
         $family->update($data);

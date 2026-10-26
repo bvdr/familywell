@@ -25,6 +25,7 @@ class FamilyMemberController extends Controller
                 'description' => $family->description,
                 'color' => $family->color,
                 'emoji' => $family->emoji,
+                'symbol' => $family->symbol,
                 'owner_id' => $family->owner_id,
                 'theme' => $family->theme ?: 'minimal-mono',
             ],
