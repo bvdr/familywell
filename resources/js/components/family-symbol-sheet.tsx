@@ -148,12 +148,14 @@ export function FamilySymbolSheet({
             onOpenChange={onOpenChange}
             title={t('onboarding.symbol_title')}
             description={familyName}
-            className="bg-paper text-ink [&_h2]:font-display sm:max-w-[520px] [&_h2]:text-[22px] [&_h2]:font-bold [&_h2]:tracking-[-0.5px]"
+            className="bg-paper text-ink [&_h2]:font-display sm:max-w-[760px] [&_h2]:text-[22px] [&_h2]:font-bold [&_h2]:tracking-[-0.5px]"
             footer={
+                <div className="flex items-center justify-between gap-4">
+                <p className="text-stone hidden text-[13px] md:block">{t('onboarding.symbol_hint')}</p>
                 <Button
                     variant="sun"
                     size="cta"
-                    className="w-full"
+                    className="w-full md:w-auto md:min-w-[240px]"
                     disabled={!isLucideIconName(draft)}
                     onClick={() => {
                         onPick(draft);
@@ -163,10 +165,12 @@ export function FamilySymbolSheet({
                     {t('onboarding.symbol_use')}
                     <Check />
                 </Button>
+                </div>
             }
         >
             <div className="flex flex-col gap-3.5">
-                <div className="relative">
+                <div className="flex flex-col gap-3.5 md:flex-row md:items-center">
+                <div className="relative md:flex-1">
                     <Search className="text-stone pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2" />
                     <Input
                         type="search"
@@ -196,7 +200,7 @@ export function FamilySymbolSheet({
                         <h3 className="text-stone font-mono text-[10.5px] font-semibold tracking-[0.8px] uppercase">
                             {t(`onboarding.symbol_group_${g.id}`)}
                         </h3>
-                        <div className="grid grid-cols-6 gap-2.5">{g.symbols.map(([name]) => cell(name))}</div>
+                        <div className="grid grid-cols-6 gap-2.5 md:grid-cols-12 md:gap-3">{g.symbols.map(([name]) => cell(name))}</div>
                     </section>
                 ))}
                 {extra.length > 0 && (
@@ -204,7 +208,7 @@ export function FamilySymbolSheet({
                         <h3 className="text-stone font-mono text-[10.5px] font-semibold tracking-[0.8px] uppercase">
                             {t('onboarding.symbol_group_more')}
                         </h3>
-                        <div className="grid grid-cols-6 gap-2.5">{extra.map(cell)}</div>
+                        <div className="grid grid-cols-6 gap-2.5 md:grid-cols-12 md:gap-3">{extra.map(cell)}</div>
                     </section>
                 )}
                 {groups.length === 0 && extra.length === 0 && <p className="text-stone py-6 text-center text-sm">{t('onboarding.symbol_none')}</p>}

@@ -70,7 +70,7 @@ export default function Invite({ link, invited }: { link: string; invited: Invit
                         <Button
                             variant="sun"
                             size="cta"
-                            className="w-full lg:order-3 lg:w-auto lg:min-w-[260px]"
+                            className="w-full lg:order-3 md:w-auto md:min-w-[260px]"
                             disabled={processing || all.length === 0}
                             onClick={() => send(all)}
                         >

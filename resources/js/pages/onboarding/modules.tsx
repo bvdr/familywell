@@ -92,7 +92,7 @@ export default function Modules({ available, picked: initial, requestsUrl }: Pro
                     <Button
                         variant="sun"
                         size="cta"
-                        className="w-full lg:w-auto lg:min-w-[260px]"
+                        className="w-full md:w-auto md:min-w-[260px]"
                         disabled={processing || picked.length === 0}
                         onClick={submit}
                     >

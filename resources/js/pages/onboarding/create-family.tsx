@@ -77,20 +77,23 @@ export default function CreateFamily({ userName, colors, region, family }: Props
             <Head title={t('onboarding.family_title')} />
             <OnboardingLayout
                 step={1}
+                wide
                 back={family ? undefined : route('onboarding.index')}
                 title={t('onboarding.family_title')}
                 sub={t('onboarding.family_sub')}
                 cta={
-                    <Button type="submit" variant="sun" size="cta" className="w-full lg:w-auto lg:min-w-[260px]" disabled={form.processing}>
+                    <Button type="submit" variant="sun" size="cta" className="w-full md:w-auto md:min-w-[260px]" disabled={form.processing}>
                         <span className="truncate">{family ? t('onboarding.continue') : t('onboarding.family_cta', { name: displayName })}</span>
                         {form.processing ? <LoaderCircle className="animate-spin" /> : <ArrowRight />}
                     </Button>
                 }
                 hint={t('onboarding.family_hint')}
             >
-                <div className="flex flex-col px-5 lg:px-0">
+                {/* Phone: preview on top, form under it. Tablet / desktop: form left, a bigger live preview right. */}
+                <div className="flex flex-col px-5 md:grid md:grid-cols-[minmax(0,1fr)_250px] md:items-start md:gap-8 md:px-0 lg:grid-cols-[minmax(0,474px)_290px] lg:gap-12">
+                    <div className="flex flex-col">
                     {/* Live preview: what everyone sees when they open FamilyWell. */}
-                    <div className="border-line flex items-center gap-3.5 rounded-[20px] border bg-white p-4">
+                    <div className="border-line flex items-center gap-3.5 rounded-[20px] border bg-white p-4 md:hidden">
                         <FamilyMark
                             name={displayName}
                             color={data.color}
@@ -104,7 +107,7 @@ export default function CreateFamily({ userName, colors, region, family }: Props
                         <span className="text-stone font-mono text-[10px] font-semibold tracking-[0.8px]">{t('onboarding.preview')}</span>
                     </div>
 
-                    <div className="flex flex-col gap-[18px] pt-5">
+                    <div className="flex flex-col gap-[18px] pt-5 md:pt-0">
                         <div className="flex flex-col gap-2">
                             <Label htmlFor="name" className="text-[13px] font-semibold">
                                 {t('onboarding.family_name')}
@@ -212,6 +215,8 @@ export default function CreateFamily({ userName, colors, region, family }: Props
                             </div>
                         )}
                     </div>
+                    </div>
+                    <LivePreview name={displayName} color={data.color} symbol={data.symbol} firstName={firstName} />
                 </div>
             </OnboardingLayout>
 
@@ -263,5 +268,39 @@ export default function CreateFamily({ userName, colors, region, family }: Props
                 </DialogContent>
             </Dialog>
         </form>
+    );
+}
+
+// Tablet / desktop: their home taking shape as they type, as it'll open on everyone's phone.
+function LivePreview({ name, color, symbol, firstName }: { name: string; color: string; symbol: string; firstName: string }) {
+    const t = useT();
+    return (
+        <aside className="hidden flex-col gap-2.5 md:flex">
+            <span className="text-stone font-mono text-[10.5px] font-semibold tracking-[0.8px] uppercase">{t('onboarding.live_preview')}</span>
+            <div className="border-line overflow-hidden rounded-[20px] border bg-white">
+                <div className="flex flex-col gap-3 p-[18px]" style={{ backgroundColor: color, color: inkOn(color) }}>
+                    <FamilyMark
+                        name={name}
+                        color="#FFFFFF"
+                        symbol={symbol}
+                        className="border-ink size-14 rounded-2xl border-[1.5px] text-2xl [&_svg]:size-6"
+                    />
+                    <div className="min-w-0">
+                        <p className="font-display truncate text-2xl font-bold tracking-[-0.6px]">{name}</p>
+                        <p className="truncate text-[13px] opacity-80">{t('onboarding.just_you', { name: firstName })}</p>
+                    </div>
+                </div>
+                <div className="flex flex-col gap-3 p-[18px]">
+                    <p className="font-display text-[17px] font-bold">{t('onboarding.preview_greeting', { name: firstName })}</p>
+                    {[80, 55, 90].map((w) => (
+                        <span key={w} className="flex items-center gap-2.5">
+                            <span className="bg-paper-2 size-[18px] rounded-[5px]" />
+                            <span className="bg-paper-2 h-2 rounded-full" style={{ width: `${w}%` }} />
+                        </span>
+                    ))}
+                </div>
+            </div>
+            <p className="text-stone text-xs leading-normal">{t('onboarding.preview_caption')}</p>
+        </aside>
     );
 }
