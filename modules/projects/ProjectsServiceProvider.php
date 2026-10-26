@@ -6,6 +6,7 @@ use App\Models\EntityVisit;
 use App\Support\Calendar\CalendarSources;
 use App\Support\Dashboard\DashboardAgenda;
 use App\Support\Dashboard\DashboardItems;
+use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\ModuleRegistry;
@@ -21,6 +22,8 @@ class ProjectsServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        // "Your modules" tile: projects still going (not archived) that this person can see.
+        DashboardSummaries::register('projects', fn (int $userId) => ['key' => 'dashboard.sum_projects', 'params' => ['count' => Project::visibleTo($userId)->whereNull('archived_at')->count()]]);
         // Adding a Project counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('projects', Project::class);
 

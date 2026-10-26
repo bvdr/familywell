@@ -3,6 +3,7 @@
 namespace Modules\Birthdays;
 
 use App\Support\Calendar\CalendarSources;
+use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Dashboard\DashboardWidgets;
 use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
@@ -41,6 +42,10 @@ class BirthdaysServiceProvider extends ServiceProvider
 
     public function boot(Hooks $hooks): void
     {
+        // "Your modules" tile: birthdays in the next 30 days.
+        DashboardSummaries::register('birthdays', fn () => ['key' => 'dashboard.sum_birthdays', 'params' => [
+            'count' => BirthdayDate::with('person')->get()->filter(fn (BirthdayDate $b) => $b->person && $b->daysUntil() <= 30)->count(),
+        ]]);
         // Adding a BirthdayDate counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('birthdays', BirthdayDate::class);
 

@@ -4,6 +4,7 @@ namespace Modules\Vehicles;
 
 use App\Models\Family;
 use App\Support\Calendar\CalendarSources;
+use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\Hooks;
@@ -29,6 +30,8 @@ class VehiclesServiceProvider extends ServiceProvider
 
     public function boot(Hooks $hooks): void
     {
+        // "Your modules" tile: how many cars the family keeps here.
+        DashboardSummaries::register('vehicles', fn () => ['key' => 'dashboard.sum_vehicles', 'params' => ['count' => Vehicle::count()]]);
         // Adding a Vehicle counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('vehicles', Vehicle::class);
 

@@ -2,6 +2,7 @@
 
 namespace Modules\Inventory;
 
+use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\Hooks;
@@ -23,6 +24,8 @@ class InventoryServiceProvider extends ServiceProvider
 
     public function boot(Hooks $hooks): void
     {
+        // "Your modules" tile: items that need attention (low, empty, expiring), the Needs attention page's count.
+        DashboardSummaries::register('inventory', fn () => ['key' => 'dashboard.sum_inventory', 'params' => ['count' => InventoryItem::all()->filter->needsAttention()->count()]]);
         // Adding a InventoryItem counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('inventory', InventoryItem::class);
 

@@ -4,6 +4,7 @@ namespace Modules\Recipes;
 
 use App\Models\EntityVisit;
 use App\Support\Dashboard\DashboardItems;
+use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Engagement;
 use App\Support\Guests\GuestableRegistry;
 use App\Support\Mcp\McpTools;
@@ -18,6 +19,8 @@ class RecipesServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        // "Your modules" tile: how many recipes this person can see.
+        DashboardSummaries::register('recipes', fn (int $userId) => ['key' => 'dashboard.sum_recipes', 'params' => ['count' => Recipe::visibleTo($userId)->count()]]);
         // Adding a Recipe counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('recipes', Recipe::class);
 

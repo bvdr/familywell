@@ -6,6 +6,7 @@ use App\Http\Middleware\TrackLastSeen;
 use App\Models\EntityVisit;
 use App\Models\Family;
 use App\Support\Dashboard\DashboardItems;
+use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Dashboard\DashboardWidgets;
 use App\Support\Engagement;
 use App\Support\Guests\GuestableRegistry;
@@ -26,6 +27,14 @@ class SpendingServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // "Your modules" tile: this month's total, the same number as the dashboard's Spending card.
+        DashboardSummaries::register('spending', function (int $userId) {
+            $eventCcy = MonthToDate::visibleEventCurrencies($userId);
+            $currency = MonthToDate::displayCurrencyFor($eventCcy);
+            $amount = (new \NumberFormatter(app()->getLocale(), \NumberFormatter::CURRENCY))->formatCurrency(MonthToDate::total($eventCcy, $currency) / 100, $currency);
+
+            return ['key' => 'dashboard.sum_spending', 'params' => ['amount' => $amount]];
+        });
         // Adding a Spend counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('spending', Spend::class);
 

@@ -4,6 +4,7 @@ namespace Modules\Notes;
 
 use App\Models\EntityVisit;
 use App\Support\Dashboard\DashboardItems;
+use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\ModuleRegistry;
@@ -18,6 +19,8 @@ class NotesServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        // "Your modules" tile: how many notes this person can see.
+        DashboardSummaries::register('notes', fn (int $userId) => ['key' => 'dashboard.sum_notes', 'params' => ['count' => Note::visibleTo($userId)->count()]]);
         // Adding a Note counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('notes', Note::class);
 
