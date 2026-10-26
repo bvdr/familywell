@@ -151,49 +151,50 @@ export function FamilySymbolSheet({
             className="bg-paper text-ink [&_h2]:font-display sm:max-w-[760px] [&_h2]:text-[22px] [&_h2]:font-bold [&_h2]:tracking-[-0.5px]"
             footer={
                 <div className="flex items-center justify-between gap-4">
-                <p className="text-stone hidden text-[13px] md:block">{t('onboarding.symbol_hint')}</p>
-                <Button
-                    variant="sun"
-                    size="cta"
-                    className="w-full md:w-auto md:min-w-[240px]"
-                    disabled={!isLucideIconName(draft)}
-                    onClick={() => {
-                        onPick(draft);
-                        onOpenChange(false);
-                    }}
-                >
-                    {t('onboarding.symbol_use')}
-                    <Check />
-                </Button>
+                    <p className="text-stone hidden text-[13px] md:block">{t('onboarding.symbol_hint')}</p>
+                    <Button
+                        variant="sun"
+                        size="cta"
+                        className="w-full md:w-auto md:min-w-[240px]"
+                        disabled={!isLucideIconName(draft)}
+                        onClick={() => {
+                            onPick(draft);
+                            onOpenChange(false);
+                        }}
+                    >
+                        {t('onboarding.symbol_use')}
+                        <Check />
+                    </Button>
                 </div>
             }
         >
             <div className="flex flex-col gap-3.5">
                 <div className="flex flex-col gap-3.5 md:flex-row md:items-center">
-                <div className="relative md:flex-1">
-                    <Search className="text-stone pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2" />
-                    <Input
-                        type="search"
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        placeholder={t('onboarding.symbol_search')}
-                        className="border-line h-[41px] rounded-[14px] bg-white pl-10 text-sm"
-                    />
-                </div>
-                <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1" data-scroll-x>
-                    {(['all', ...SYMBOL_GROUPS.map((g) => g.id)] as const).map((id) => (
-                        <button
-                            key={id}
-                            type="button"
-                            onClick={() => setGroup(id)}
-                            className={cn(
-                                'shrink-0 rounded-full px-[11px] py-1.5 text-xs font-semibold',
-                                group === id ? 'bg-ink text-white' : 'bg-paper-2 text-ink-2',
-                            )}
-                        >
-                            {t(`onboarding.symbol_group_${id}`)}
-                        </button>
-                    ))}
+                    <div className="relative md:flex-1">
+                        <Search className="text-stone pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2" />
+                        <Input
+                            type="search"
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            placeholder={t('onboarding.symbol_search')}
+                            className="border-line h-[41px] rounded-[14px] bg-white pl-10 text-sm"
+                        />
+                    </div>
+                    <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 md:mx-0 md:px-0" data-scroll-x>
+                        {(['all', ...SYMBOL_GROUPS.map((g) => g.id)] as const).map((id) => (
+                            <button
+                                key={id}
+                                type="button"
+                                onClick={() => setGroup(id)}
+                                className={cn(
+                                    'shrink-0 rounded-full px-[11px] py-1.5 text-xs font-semibold',
+                                    group === id ? 'bg-ink text-white' : 'bg-paper-2 text-ink-2',
+                                )}
+                            >
+                                {t(`onboarding.symbol_group_${id}`)}
+                            </button>
+                        ))}
+                    </div>
                 </div>
                 {groups.map((g) => (
                     <section key={g.id} className="flex flex-col gap-2">

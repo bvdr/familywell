@@ -17,6 +17,7 @@ import QRCode from 'qrcode';
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 
 import AppLogoIcon from '@/components/app-logo-icon';
+import { Homer, reactHomer } from '@/components/homer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import OnboardingLayout, { Rail } from '@/layouts/onboarding-layout';
@@ -29,8 +30,14 @@ type Via = 'standalone' | 'desktop' | 'browser';
 
 const advance = (via: Via) => router.post(route('onboarding.install.store'), { via });
 const useCanPrompt = () => useSyncExternalStore(onInstallPromptChange, canPromptInstall, () => false);
-// The computer layout, same breakpoint as the rail (lg). Only the computer asks for a QR sign-in link.
-const isDesktop = () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
+// A computer (app.css `desk:` variant): wide and with a fine pointer. Only a computer gets the QR hand-off; an iPad,
+// however wide, installs like a phone. Only the computer asks for a QR sign-in link.
+const DESK = '(min-width: 64rem) and (pointer: fine)';
+const isDesktop = () => typeof window !== 'undefined' && window.matchMedia(DESK).matches;
+// iPadOS Safari reports itself as a Mac; the touch points give it away.
+const isIpad = () =>
+    typeof navigator !== 'undefined' &&
+    (/ipad/i.test(navigator.userAgent) || (/macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1));
 
 // After this long on the phone screen, offer a quiet way on for browsers that can't install (in-app browsers).
 const ESCAPE_AFTER_MS = 30_000;
@@ -42,7 +49,11 @@ export default function Install({ email, step, preview }: Props) {
 
     // Opened from the Home Screen (or the installed desktop app): that's the step done.
     useEffect(() => {
-        if (isStandalone()) advance('standalone');
+        // Opened installed: Homer celebrates for a beat, then on to the next step.
+        if (!isStandalone()) return;
+        reactHomer('celebrate');
+        const id = window.setTimeout(() => advance('standalone'), 1500);
+        return () => window.clearTimeout(id);
     }, []);
 
     // On the computer, follow the phone: once it has moved past this step, so do we (the app resumes the
@@ -60,10 +71,10 @@ export default function Install({ email, step, preview }: Props) {
     return (
         <>
             <Head title={t('onboarding.install_title')} />
-            <div className="lg:hidden">
+            <div className="desk:hidden">
                 <PhoneInstall />
             </div>
-            <div className="hidden lg:block">
+            <div className="desk:block hidden">
                 <DesktopHandoff email={email} preview={preview} />
             </div>
         </>
@@ -76,6 +87,9 @@ function PhoneInstall() {
         typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent) ? 'android' : 'ios',
     );
     const canPrompt = useCanPrompt();
+    // iPad: Share lives in Safari's top bar, so the steps say so and the bubble points up (design T04).
+    const [ipad, setIpad] = useState(false);
+    useEffect(() => setIpad(isIpad()), []);
     const [escape, setEscape] = useState(false);
     useEffect(() => {
         const id = window.setTimeout(() => setEscape(true), ESCAPE_AFTER_MS);
@@ -83,7 +97,7 @@ function PhoneInstall() {
     }, []);
 
     const ios: [ReactNode, string, string, boolean?][] = [
-        [<Share key="s" className="size-6" />, 'onboarding.ios_1', 'onboarding.ios_1_sub', true],
+        [<Share key="s" className="size-6" />, 'onboarding.ios_1', ipad ? 'onboarding.ios_1_sub_ipad' : 'onboarding.ios_1_sub', true],
         [<SquarePlus key="p" className="size-6" />, 'onboarding.ios_2', 'onboarding.ios_2_sub'],
         [<AppIcon key="a" />, 'onboarding.install_3', 'onboarding.install_3_sub'],
     ];
@@ -94,9 +108,15 @@ function PhoneInstall() {
     ];
 
     return (
-        <OnboardingLayout step={4} back={route('onboarding.modules')} title={t('onboarding.install_title')} sub={t('onboarding.install_sub')}>
-            <div className="flex flex-col px-5 pb-6">
-                <div className="bg-paper-2 mb-3.5 grid grid-cols-2 rounded-full p-1" role="tablist">
+        <OnboardingLayout
+            step={4}
+            homer={{ loop: 'walk' }}
+            back={route('onboarding.modules')}
+            title={t('onboarding.install_title')}
+            sub={t('onboarding.install_sub')}
+        >
+            <div className="flex flex-col px-5 pb-6 md:px-0">
+                <div className="bg-paper-2 mb-3.5 grid grid-cols-2 rounded-full p-1 md:max-w-[420px]" role="tablist">
                     {(['ios', 'android'] as const).map((d) => (
                         <button
                             key={d}
@@ -106,7 +126,7 @@ function PhoneInstall() {
                             onClick={() => setDevice(d)}
                             className={cn('rounded-full py-2 text-[13px]', device === d ? 'bg-white font-bold' : 'text-stone font-medium')}
                         >
-                            {t(`onboarding.device_${d}`)}
+                            {t(`onboarding.device_${d === 'ios' && ipad ? 'ipad' : d}`)}
                         </button>
                     ))}
                 </div>
@@ -155,15 +175,16 @@ function PhoneInstall() {
                 </ul>
 
                 <div
-                    className="border-line mt-1 flex items-center gap-2 self-center rounded-full border bg-white py-2 pr-3.5 pl-3"
+                    className="border-line mt-1 flex items-center gap-1.5 self-center rounded-full border bg-white py-1 pr-3.5 pl-1.5 md:order-last md:mt-10"
                     aria-live="polite"
                 >
-                    <span className="relative flex size-2.5">
-                        <span className="bg-sun absolute inline-flex size-full animate-ping rounded-full opacity-75" />
-                        <span className="bg-sun border-ink relative inline-flex size-2.5 rounded-full border" />
-                    </span>
+                    {/* Homer walking: the design's 30px loader while they go and install. */}
+                    <Homer loop="walk" className="-my-1 size-[30px]" />
                     <span className="text-ink-2 text-[12.5px] font-semibold">{t('onboarding.install_waiting')}</span>
                 </div>
+
+                {/* Tablet: Homer walking in the empty space while they install. */}
+                <Homer loop="walk" className="mt-10 hidden size-[180px] self-center md:block" />
 
                 {escape && (
                     <button
@@ -177,7 +198,19 @@ function PhoneInstall() {
             </div>
 
             {/* iPhone: a bubble pointing down at Safari's real Share button, in the toolbar right under the page. */}
-            {device === 'ios' && (
+            {/* iPad: Share is top right in Safari's own bar, just above the page, so the bubble points up there. */}
+            {device === 'ios' && ipad && (
+                <div className="pointer-events-none fixed top-2 right-4 z-20 flex flex-col items-end">
+                    <svg width="16" height="9" viewBox="0 0 16 9" className="fill-ink mr-6" aria-hidden>
+                        <path d="M0 9h16L8 0z" />
+                    </svg>
+                    <span className="bg-ink flex items-center gap-2 rounded-[14px] px-3.5 py-2.5 text-[13px] font-bold text-white">
+                        <Pointer className="text-sun size-4" />
+                        {t('onboarding.ios_bubble')}
+                    </span>
+                </div>
+            )}
+            {device === 'ios' && !ipad && (
                 <div className="pointer-events-none sticky bottom-[calc(12px+env(safe-area-inset-bottom))] mt-auto flex flex-col items-center">
                     <span className="bg-ink flex items-center gap-2 rounded-[14px] px-3.5 py-2.5 text-[13px] font-bold text-white">
                         <Pointer className="text-sun size-4" />
@@ -246,7 +279,7 @@ function DesktopHandoff({ email, preview }: { email: string; preview: boolean })
 
     return (
         <div className="bg-paper text-ink flex min-h-dvh">
-            <Rail step={4} />
+            <Rail step={4} homer={{ loop: 'walk' }} />
             <main className="flex min-w-0 flex-1 flex-col justify-center gap-[26px] py-14 pr-14 pl-16">
                 <div className="flex max-w-[440px] flex-col gap-3">
                     <p className="text-stone font-mono text-xs font-semibold tracking-[0.8px] uppercase">

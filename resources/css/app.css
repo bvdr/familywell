@@ -5,6 +5,8 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 
 @custom-variant dark (&:is(.dark *));
+/* A computer: wide AND a mouse/trackpad. iPads are wide but touch, and install like a phone (onboarding step 4). */
+@custom-variant desk (@media (min-width: 64rem) and (pointer: fine));
 
 @theme {
     --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';

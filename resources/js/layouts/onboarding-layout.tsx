@@ -1,10 +1,10 @@
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { ArrowLeft, Check, ChevronLeft, CreditCard, UsersRound } from 'lucide-react';
-import { type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 
 import { AppWordmark } from '@/components/app-logo';
 import AppLogoIcon from '@/components/app-logo-icon';
-import { Homer, type HomerFace } from '@/components/homer';
+import { Homer, reactHomer, type HomerFace } from '@/components/homer';
 import type { HomerAction } from '@/lib/homer';
 import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -101,7 +101,13 @@ export function Rail({ step, homer }: { step?: number; homer?: RailHomer }) {
                     {t('onboarding.after_tour')}
                     <span className="bg-garage-line h-px flex-1" />
                 </p>
-                <ol>{row(5, 'onboarding.rail_plan', state(5) === 'done' ? <Check className="size-3.5" strokeWidth={3} /> : <CreditCard className="size-3.5" />)}</ol>
+                <ol>
+                    {row(
+                        5,
+                        'onboarding.rail_plan',
+                        state(5) === 'done' ? <Check className="size-3.5" strokeWidth={3} /> : <CreditCard className="size-3.5" />,
+                    )}
+                </ol>
             </div>
             <div className="mt-auto flex flex-col items-center gap-6">
                 {homer && <Homer {...homer} onDark className="size-[150px]" />}
@@ -122,10 +128,7 @@ export function Progress({ step }: { step: number }) {
     return (
         <div className="flex gap-1.5" aria-hidden>
             {Array.from({ length: 5 }, (_, i) => (
-                <span
-                    key={i}
-                    className={cn('h-1 flex-1 rounded-full', i + 1 < step ? 'bg-ink md:bg-sun' : i + 1 === step ? 'bg-sun' : 'bg-line')}
-                />
+                <span key={i} className={cn('h-1 flex-1 rounded-full', i + 1 < step ? 'bg-ink md:bg-sun' : i + 1 === step ? 'bg-sun' : 'bg-line')} />
             ))}
         </div>
     );
@@ -139,6 +142,11 @@ export function Progress({ step }: { step: number }) {
 // impression and the design has one look.
 export default function OnboardingLayout({ step, back, title, sub, cta, hint, children, wide = false, aside, homer }: Props) {
     const t = useT();
+    // Any validation or server error in the flow: Homer glitches and shakes his head (the text says what's wrong).
+    useEffect(() => {
+        const offs = [router.on('error', () => reactHomer('error')), router.on('exception', () => reactHomer('error'))];
+        return () => offs.forEach((off) => off());
+    }, []);
     const meta = step && step <= 4 ? STEPS[step - 1] : undefined;
     const label = step && step <= 4 ? `${t('onboarding.step_of', { n: step, total: 4 })} · ${t(meta!.label)}` : t('onboarding.step_plan');
 
@@ -197,9 +205,13 @@ export default function OnboardingLayout({ step, back, title, sub, cta, hint, ch
                                 {t('onboarding.back')}
                             </Link>
                         )}
-                        <div className="flex w-full flex-col items-center gap-3 md:flex-row md:justify-between md:gap-[18px] lg:w-auto lg:justify-end">
+                        <div className="flex w-full flex-col items-center gap-3 md:flex-row md:justify-between md:gap-[18px] lg:ml-auto lg:w-auto lg:justify-end">
                             <div className="flex w-full md:order-2 md:w-auto">{cta}</div>
-                            {hint && <div className="text-stone text-center text-xs md:order-1 md:text-left md:text-[13px] md:font-medium md:text-ink-2 lg:font-normal lg:text-stone">{hint}</div>}
+                            {hint && (
+                                <div className="text-stone md:text-ink-2 lg:text-stone text-center text-xs md:order-1 md:text-left md:text-[13px] md:font-medium lg:font-normal">
+                                    {hint}
+                                </div>
+                            )}
                         </div>
                     </footer>
                 )}

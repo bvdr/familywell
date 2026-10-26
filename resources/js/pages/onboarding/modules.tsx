@@ -64,7 +64,7 @@ export default function Modules({ available, picked: initial, requestsUrl }: Pro
         );
 
     const counter = (
-        <div className="border-line flex w-fit items-center gap-2.5 rounded-full lg:shrink-0 lg:border lg:bg-white lg:px-3.5 lg:py-2">
+        <div className="border-line flex w-fit items-center gap-2.5 rounded-full md:shrink-0 md:border md:bg-white md:px-3.5 md:py-2">
             <span className="flex gap-1" aria-hidden>
                 {Array.from({ length: MAX }, (_, i) => (
                     <span key={i} className={cn('h-2 w-5 rounded-full', i < picked.length ? 'bg-ink' : 'bg-line')} />
@@ -83,6 +83,7 @@ export default function Modules({ available, picked: initial, requestsUrl }: Pro
             <Head title={t('onboarding.modules_title')} />
             <OnboardingLayout
                 step={3}
+                homer={{ face: 'thinking' }}
                 wide
                 back={route('onboarding.invite')}
                 title={t('onboarding.modules_title')}
@@ -102,7 +103,7 @@ export default function Modules({ available, picked: initial, requestsUrl }: Pro
                 }
                 hint={
                     full ? (
-                        <span className="lg:hidden">{t('onboarding.modules_more')}</span>
+                        <span className="md:hidden">{t('onboarding.modules_more')}</span>
                     ) : picked.length ? (
                         t('onboarding.modules_one_more', { n: picked.length })
                     ) : (
@@ -110,7 +111,7 @@ export default function Modules({ available, picked: initial, requestsUrl }: Pro
                     )
                 }
             >
-                <div className="grid grid-cols-2 gap-2 px-5 lg:grid-cols-4 lg:gap-3 lg:px-0">
+                <div className="grid grid-cols-2 gap-2 px-5 md:grid-cols-4 md:gap-3 md:px-0">
                     {available.map((id) => {
                         const meta = META[id];
                         if (!meta) return null;
@@ -123,40 +124,42 @@ export default function Modules({ available, picked: initial, requestsUrl }: Pro
                                 aria-pressed={on}
                                 onClick={() => toggle(id)}
                                 className={cn(
-                                    'flex flex-col gap-2 rounded-2xl border px-3 py-[11px] text-left transition-colors lg:gap-3 lg:rounded-[18px] lg:p-4',
+                                    'flex flex-col gap-2 rounded-2xl border px-3 py-[11px] text-left transition-colors md:gap-3 md:rounded-[18px] md:p-4',
                                     on ? 'border-ink bg-sun-soft border-[1.5px]' : 'border-line bg-white',
-                                    meta.desktopOnly && 'hidden lg:flex',
+                                    meta.desktopOnly && 'hidden md:flex',
                                 )}
                             >
                                 <span className="flex w-full items-start justify-between">
                                     <span
                                         className={cn(
-                                            'flex size-[30px] items-center justify-center rounded-[9px] lg:size-9 lg:rounded-[10px]',
+                                            'flex size-[30px] items-center justify-center rounded-[9px] md:size-9 md:rounded-[10px]',
                                             on ? 'bg-sun' : 'bg-paper-2',
                                         )}
                                     >
-                                        <Icon className="size-4 lg:size-[18px]" />
+                                        <Icon className="size-4 md:size-[18px]" />
                                     </span>
                                     <span
                                         className={cn(
-                                            'flex size-5 items-center justify-center rounded-full lg:size-[22px]',
+                                            'flex size-5 items-center justify-center rounded-full md:size-[22px]',
                                             on ? 'bg-ink text-sun' : 'border-line border-[1.5px]',
                                         )}
                                     >
-                                        {on && <Check className="size-[13px] lg:size-3.5" strokeWidth={3} />}
+                                        {on && <Check className="size-[13px] md:size-3.5" strokeWidth={3} />}
                                     </span>
                                 </span>
-                                <span className="flex min-w-0 flex-col gap-px lg:gap-[3px]">
+                                <span className="flex min-w-0 flex-col gap-px md:gap-[3px]">
                                     <span className="flex items-center gap-1.5">
-                                        <span className="text-sm font-bold lg:text-[15px]">{t(`onboarding.module_${id}`)}</span>
+                                        <span className="text-sm font-bold md:text-[15px]">{t(`onboarding.module_${id}`)}</span>
                                         {meta.popular && (
                                             <span className="bg-ink text-sun rounded-full px-1.5 py-px font-mono text-[8.5px] font-bold tracking-[0.5px]">
                                                 {t('onboarding.popular')}
                                             </span>
                                         )}
                                     </span>
-                                    <span className="text-stone text-[11.5px] leading-snug lg:text-[12.5px]">
-                                        {t(`onboarding.module_${id}_desc`)}
+                                    {/* Short on phones, the design's longer line where there's room. */}
+                                    <span className="text-stone text-[11.5px] leading-snug md:hidden">{t(`onboarding.module_${id}_desc`)}</span>
+                                    <span className="text-stone hidden text-[12.5px] leading-snug md:block">
+                                        {t(`onboarding.module_${id}_desc_long`)}
                                     </span>
                                 </span>
                             </button>
@@ -167,7 +170,7 @@ export default function Modules({ available, picked: initial, requestsUrl }: Pro
                             href={requestsUrl}
                             target="_blank"
                             rel="noopener"
-                            className="border-line hidden flex-col gap-3 rounded-[18px] border p-4 lg:flex"
+                            className="border-line hidden flex-col gap-3 rounded-[18px] border p-4 md:flex"
                         >
                             <span className="flex w-full items-start justify-between">
                                 <span className="bg-sun flex size-9 items-center justify-center rounded-[10px]">
