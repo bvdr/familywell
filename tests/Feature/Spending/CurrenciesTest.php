@@ -52,6 +52,8 @@ it('accepts a list in any supported currency', function () {
     test()->artisan('modules:migrate')->assertExitCode(0);
     $user = User::factory()->create();
     actingAs($user)->post('/onboarding', ['name' => 'Tanaka', 'color' => '#2D5E3A', 'emoji' => '🏡']);
+    // Skip the rest of the onboarding (invite, modules, ...), or the app would resume it instead of opening Spending.
+    $user->forceFill(['onboarding_step' => null])->save();
     Http::fake(['*' => Http::response(['rates' => []])]);
 
     actingAs($user)->get('/m/spending')->assertInertia(fn ($page) => $page
