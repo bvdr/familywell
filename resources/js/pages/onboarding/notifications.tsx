@@ -27,6 +27,7 @@ type Props = { categories: string[]; names: string[]; installedVia: 'standalone'
 
 const ICON: Record<string, LucideIcon> = {
     shopping: ShoppingCart,
+    calendar: CalendarDays,
     tasks: ListChecks,
     spending: Wallet,
     notes: NotebookPen,

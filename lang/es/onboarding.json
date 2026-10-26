@@ -306,5 +306,7 @@
     "about_item_3": "Pagar la guardería",
     "about_today_one": ":count cosa hoy",
     "about_today_other": ":count cosas hoy",
-    "about_add": "Añadir"
+    "about_add": "Añadir",
+    "notify_calendar": "Cambios en el calendario",
+    "notify_example_calendar": "La natación de :b se movió hoy a las 17:30."
 }

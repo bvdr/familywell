@@ -306,5 +306,7 @@
     "about_item_3": "Kita bezahlen",
     "about_today_one": ":count Sache heute",
     "about_today_other": ":count Sachen heute",
-    "about_add": "Hinzufügen"
+    "about_add": "Hinzufügen",
+    "notify_calendar": "Kalenderänderungen",
+    "notify_example_calendar": ":bs Schwimmtraining ist heute auf 17:30 verschoben."
 }

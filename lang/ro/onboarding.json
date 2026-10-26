@@ -312,5 +312,7 @@
     "about_today_other": ":count de lucruri azi",
     "about_add": "Adaugă",
     "about_languages_few": ":count limbi",
-    "about_today_few": ":count lucruri azi"
+    "about_today_few": ":count lucruri azi",
+    "notify_calendar": "Schimbări în calendar",
+    "notify_example_calendar": "Antrenamentul de înot al lui :b s-a mutat azi la 17:30."
 }

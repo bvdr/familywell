@@ -306,5 +306,7 @@
     "about_item_3": "Betala förskolan",
     "about_today_one": ":count sak i dag",
     "about_today_other": ":count saker i dag",
-    "about_add": "Lägg till"
+    "about_add": "Lägg till",
+    "notify_calendar": "Kalenderändringar",
+    "notify_example_calendar": ":bs simträning är flyttad till 17.30 i dag."
 }

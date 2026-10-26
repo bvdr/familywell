@@ -209,16 +209,34 @@ class CalendarEvent extends Model
         $event = static::create(self::onlyColumns($data) + ['created_by' => $user->id]);
         $event->shares()->create(['user_id' => $user->id, 'role' => 'owner']);
         $event->syncLinks($data);
+        // Push to everyone who can see it (the "Calendar changes" category), never the person who made it.
+        Notify::toAccessOf($event, 'calendar', $user->id, 'Calendar', "{$user->name} added {$event->title} on {$event->start_date->format('D j M')}", $event->url());
 
         return $event;
     }
 
-    /** Partial update: merge onto current values, validate the whole, save, sync links that were sent. */
-    public function applyUpdate(array $input): void
+    /**
+     * Partial update: merge onto current values, validate the whole, save, sync links that were sent. Shared by the
+     * web app and MCP, so this is where a change is announced: moved (date / time) or renamed, by $actor.
+     */
+    public function applyUpdate(array $input, ?User $actor = null): void
     {
         $data = self::validated(array_merge($this->formValues(), $input));
         $this->update(self::onlyColumns($data));
         $this->syncLinks(array_intersect_key($data, array_flip(array_keys($input))));
+
+        $moved = $this->wasChanged(['start_date', 'end_date', 'start_time', 'end_time']);
+        if ($actor && ($moved || $this->wasChanged('title'))) {
+            $when = $this->start_date->format('D j M').($this->start_time ? ' '.substr((string) $this->start_time, 0, 5) : '');
+            $body = $moved ? "{$actor->name} moved {$this->title} to {$when}" : "{$actor->name} updated {$this->title}";
+            Notify::toAccessOf($this, 'calendar', $actor->id, 'Calendar', $body, $this->url());
+        }
+    }
+
+    /** Where a push about this event opens. */
+    public function url(): string
+    {
+        return route('calendar.events.show', $this, false);
     }
 
     private static function onlyColumns(array $data): array

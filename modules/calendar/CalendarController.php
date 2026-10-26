@@ -113,7 +113,7 @@ class CalendarController extends Controller
     public function update(Request $request, CalendarEvent $event): RedirectResponse
     {
         abort_unless($this->access->canEdit($request->user(), $event), 403);
-        $event->applyUpdate($request->only([...CalendarEvent::COLUMNS, 'people', 'project_id']));
+        $event->applyUpdate($request->only([...CalendarEvent::COLUMNS, 'people', 'project_id']), $request->user());
 
         return back();
     }

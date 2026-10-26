@@ -64,10 +64,11 @@ it('reorders and re-nests to-dos', function () {
 });
 
 it('refuses an assignee from another family, without notifying them', function () {
-    Notification::fake();
     [, $users] = calendarFamily();
     $stranger = User::factory()->create();
     $e = trip($users[0]);
+    // Faked after the setup: adding the event itself pushes the family ("Calendar changes").
+    Notification::fake();
     actingAs($users[0])->post("/m/calendar/events/{$e->id}/tasks", ['title' => 'Pack', 'assigned_to' => $stranger->id])
         ->assertSessionHasErrors('assigned_to');
     $t = $e->addTask($users[0], ['title' => 'Book hotel']);

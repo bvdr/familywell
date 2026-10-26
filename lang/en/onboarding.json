@@ -306,5 +306,7 @@
     "about_item_3": "Pay daycare",
     "about_today_one": ":count thing today",
     "about_today_other": ":count things today",
-    "about_add": "Add"
+    "about_add": "Add",
+    "notify_calendar": "Calendar changes",
+    "notify_example_calendar": ":b's swim practice moved to 5:30 today."
 }

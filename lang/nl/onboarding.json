@@ -306,5 +306,7 @@
     "about_item_3": "Opvang betalen",
     "about_today_one": ":count ding vandaag",
     "about_today_other": ":count dingen vandaag",
-    "about_add": "Toevoegen"
+    "about_add": "Toevoegen",
+    "notify_calendar": "Agendawijzigingen",
+    "notify_example_calendar": "De zwemles van :b is vandaag verplaatst naar 17.30."
 }

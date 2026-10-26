@@ -306,5 +306,7 @@
     "about_item_3": "Betale barnehagen",
     "about_today_one": ":count ting i dag",
     "about_today_other": ":count ting i dag",
-    "about_add": "Legg til"
+    "about_add": "Legg til",
+    "notify_calendar": "Endringer i kalenderen",
+    "notify_example_calendar": "Svømmetreningen til :b er flyttet til 17.30 i dag."
 }
