@@ -21,13 +21,9 @@ export default function Welcome({ firstName }: { firstName: string }) {
             <Head title={t('onboarding.welcome_title')} />
             <Rail />
 
-            <div className="relative flex min-w-0 flex-1 flex-col overflow-clip">
-                {/* The sun peeking in from the top right corner. */}
-                <span
-                    className="bg-sun pointer-events-none absolute -top-[60px] -right-[60px] size-[200px] rounded-full lg:-top-24 lg:-right-24 lg:size-[320px]"
-                    aria-hidden
-                />
-
+            {/* The sun peeking in from the top right corner: a background, not an element hanging off the edge, so
+                nothing is clipped (and the viewport check doesn't read it as cut-off content). */}
+            <div className="relative flex min-w-0 flex-1 flex-col bg-[radial-gradient(circle_at_calc(100%-40px)_40px,var(--color-sun)_100px,transparent_101px)] lg:bg-[radial-gradient(circle_at_calc(100%-64px)_64px,var(--color-sun)_160px,transparent_161px)]">
                 <div className="relative px-5 pt-5 lg:hidden">
                     <Logo />
                 </div>
