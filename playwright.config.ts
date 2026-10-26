@@ -31,6 +31,22 @@ export default defineConfig({
                 storageState: 'tests/Viewports/.auth/demo.json',
             },
         },
+        // iPad portrait (the onboarding design's tablet set, 834 wide): only the onboarding pages, which have their own
+        // tablet layout; the rest of the app is covered by phone + desktop.
+        {
+            name: 'tablet',
+            dependencies: ['auth'],
+            testMatch: /viewports\.spec\.ts/,
+            grep: /onboarding/,
+            use: {
+                browserName: 'chromium',
+                viewport: { width: 834, height: 1194 },
+                isMobile: true,
+                hasTouch: true,
+                deviceScaleFactor: 2,
+                storageState: 'tests/Viewports/.auth/demo.json',
+            },
+        },
         {
             name: 'desktop',
             dependencies: ['auth'],

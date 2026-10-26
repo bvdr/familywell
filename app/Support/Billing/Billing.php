@@ -122,8 +122,12 @@ class Billing
         ];
     }
 
-    /** Stripe-hosted Checkout for one of the two plans, at today's price. Returns the URL to redirect to. */
-    public static function checkoutUrl(Family $family, string $email, string $plan): string
+    /**
+     * Stripe-hosted Checkout for one of the two plans, at today's price. Returns the URL to redirect to.
+     * Comes back to Settings > Billing unless the caller says otherwise (the onboarding's plan step returns to
+     * itself); `{CHECKOUT_SESSION_ID}` is appended for the success sync.
+     */
+    public static function checkoutUrl(Family $family, string $email, string $plan, ?string $returnTo = null, ?string $cancelTo = null): string
     {
         $key = self::isIntro() ? "price_{$plan}" : "price_{$plan}_standard";
         $price = config("services.stripe.{$key}");
@@ -139,8 +143,8 @@ class Billing
             // straight back to the family, with no lookup table and no ordering race vs. checkout events.
             'subscription_data' => ['metadata' => ['family_id' => $family->id]],
             'allow_promotion_codes' => 'true',
-            'success_url' => route('billing.show').'?session_id={CHECKOUT_SESSION_ID}',
-            'cancel_url' => route('billing.show'),
+            'success_url' => ($returnTo ?? route('billing.show')).'?session_id={CHECKOUT_SESSION_ID}',
+            'cancel_url' => $cancelTo ?? route('billing.show'),
         ];
         // Re-subscribing after a cancel reuses the family's customer, so the portal shows one history.
         $family->stripe_customer_id

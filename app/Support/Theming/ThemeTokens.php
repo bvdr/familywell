@@ -74,14 +74,25 @@ class ThemeTokens
                     'id' => basename(dirname($p)),
                     'name' => $data['name'] ?? basename(dirname($p)),
                     // Swatch: page ground, a card, the action accent, and the ink — enough to read the skin.
-                    'swatch' => [
-                        'bg' => $t['background'] ?? '#fff',
-                        'card' => $t['card'] ?? '#fff',
-                        'accent' => $t['accent-strong'] ?? ($t['primary'] ?? '#000'),
-                        'ink' => $t['foreground'] ?? '#000',
-                    ],
+                    'swatch' => self::swatch($t),
+                    // The same four in dark mode (dark tokens over light), for previews that follow the
+                    // Light / Dark choice (the onboarding's About you card).
+                    'swatchDark' => self::swatch([...$t, ...($data['tokensDark'] ?? [])]),
+                    // "NEW" badge on a freshly added skin ("badge": "new" in its theme.json).
+                    'badge' => $data['badge'] ?? null,
                 ];
             })
             ->sortBy('id')->values()->all();
+    }
+
+    /** @return array{bg: string, card: string, accent: string, ink: string} */
+    private static function swatch(array $t): array
+    {
+        return [
+            'bg' => $t['background'] ?? '#fff',
+            'card' => $t['card'] ?? '#fff',
+            'accent' => $t['accent-strong'] ?? ($t['primary'] ?? '#000'),
+            'ink' => $t['foreground'] ?? '#000',
+        ];
     }
 }
