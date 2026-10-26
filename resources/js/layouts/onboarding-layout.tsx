@@ -225,22 +225,35 @@ export default function OnboardingLayout({
                 </main>
 
                 {cta && (
-                    <footer className="bg-paper md:border-line sticky bottom-0 mt-auto flex flex-col items-center gap-3 px-5 pt-3.5 pb-[calc(30px+env(safe-area-inset-bottom))] md:flex-row md:justify-between md:border-t md:px-14 md:py-[18px] lg:static lg:px-16">
-                        {back && (
-                            <Link href={back} className="text-ink-2 hidden items-center gap-1.5 text-sm font-semibold lg:flex">
-                                <ArrowLeft className="size-4" />
-                                {t('onboarding.back')}
-                            </Link>
-                        )}
-                        <div className="flex w-full flex-col items-center gap-3 md:flex-row md:justify-between md:gap-[18px] lg:ml-auto lg:w-auto lg:justify-end">
-                            <div className="flex w-full md:order-2 md:w-auto">{cta}</div>
-                            {hint && (
-                                <div className="text-stone md:text-ink-2 lg:text-stone text-center text-xs md:order-1 md:text-left md:text-[13px] md:font-medium lg:font-normal">
-                                    {hint}
+                    <>
+                        {/* Below lg the action bar is FIXED to the bottom (content scrolls under it, like the app's tab bar),
+                            and this invisible copy in the flow reserves its height so the last row can scroll clear of it.
+                            invisible = not focusable, not read out. On desktop it's a plain bar after the content. */}
+                        <div aria-hidden className="invisible mt-auto lg:hidden">
+                            <div className="flex flex-col items-center gap-3 px-5 pt-3.5 pb-[calc(30px+env(safe-area-inset-bottom))] md:flex-row md:px-14 md:py-[18px]">
+                                <div className="flex w-full flex-col items-center gap-3 md:flex-row">
+                                    {cta}
+                                    {hint && <div className="text-xs md:text-[13px]">{hint}</div>}
                                 </div>
-                            )}
+                            </div>
                         </div>
-                    </footer>
+                        <footer className="bg-paper md:border-line fixed inset-x-0 bottom-0 z-10 flex flex-col items-center gap-3 px-5 pt-3.5 pb-[calc(30px+env(safe-area-inset-bottom))] md:flex-row md:justify-between md:border-t md:px-14 md:py-[18px] lg:static lg:mt-auto lg:px-16">
+                            {back && (
+                                <Link href={back} className="text-ink-2 hidden items-center gap-1.5 text-sm font-semibold lg:flex">
+                                    <ArrowLeft className="size-4" />
+                                    {t('onboarding.back')}
+                                </Link>
+                            )}
+                            <div className="flex w-full flex-col items-center gap-3 md:flex-row md:justify-between md:gap-[18px] lg:ml-auto lg:w-auto lg:justify-end">
+                                <div className="flex w-full md:order-2 md:w-auto">{cta}</div>
+                                {hint && (
+                                    <div className="text-stone md:text-ink-2 lg:text-stone text-center text-xs md:order-1 md:text-left md:text-[13px] md:font-medium lg:font-normal">
+                                        {hint}
+                                    </div>
+                                )}
+                            </div>
+                        </footer>
+                    </>
                 )}
             </div>
             {panel && (
