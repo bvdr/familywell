@@ -7,6 +7,7 @@ namespace App\Support\Dashboard;
 //  - today:    dated items due today or overdue ("Today")
 //  - thisWeek: dated items due later this week ("This Week")
 //  - widgets:  keyed headline data per module (e.g. widgets.spending = this month's total)
+//  - summaries: the one-line status per enabled module for the "Your modules" grid
 class DashboardData
 {
     public static function build(): array
@@ -32,6 +33,6 @@ class DashboardData
             ->filter(fn ($i) => $i['dueDate'] > $today && $i['dueDate'] <= $weekEnd)
             ->sortBy('dueDate')->values()->all();
 
-        return ['recent' => $recent, 'today' => $todayItems, 'thisWeek' => $weekItems, 'widgets' => DashboardWidgets::collect()];
+        return ['recent' => $recent, 'today' => $todayItems, 'thisWeek' => $weekItems, 'widgets' => DashboardWidgets::collect(), 'summaries' => DashboardSummaries::collect()];
     }
 }

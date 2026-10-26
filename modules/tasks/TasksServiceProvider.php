@@ -6,6 +6,7 @@ use App\Models\EntityVisit;
 use App\Support\Calendar\CalendarSources;
 use App\Support\Dashboard\DashboardAgenda;
 use App\Support\Dashboard\DashboardItems;
+use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\ModuleRegistry;
@@ -20,6 +21,10 @@ class TasksServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        // "Your modules" tile: open tasks due today (or overdue) on the lists this person can see.
+        DashboardSummaries::register('tasks', fn (int $userId) => ['key' => 'dashboard.sum_tasks', 'params' => [
+            'count' => Task::where('done', false)->whereDate('due_date', '<=', today())->whereHas('list', fn ($q) => $q->visibleTo($userId))->count(),
+        ]]);
         // Adding a Task counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('tasks', Task::class);
 

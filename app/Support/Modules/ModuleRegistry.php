@@ -2,6 +2,7 @@
 
 namespace App\Support\Modules;
 
+use App\Models\Family;
 use Illuminate\Support\Facades\DB;
 
 class ModuleRegistry
@@ -73,7 +74,27 @@ class ModuleRegistry
         // The list is read once per process: module.json files only change on deploy, which restarts it.
         $preview = $this->previewIds ??= array_keys(array_filter($this->discover(), fn (ModuleManifest $m) => $m->preview));
 
-        return $preview === [] ? $bag->get($key) : array_values(array_filter($bag->get($key), fn ($id) => ! in_array($id, $preview, true) || Preview::on($id)));
+        $ids = $preview === [] ? $bag->get($key) : array_values(array_filter($bag->get($key), fn ($id) => ! in_array($id, $preview, true) || Preview::on($id)));
+
+        // A teen sees their lists, tasks and calendar only (the onboarding's "What each role can do"). Filtered here,
+        // per person like previews, so the nav, the module routes (EnsureModuleEnabled), hooks and MCP all agree.
+        return $this->isTeen($familyId) ? array_values(array_intersect($ids, Family::TEEN_MODULES)) : $ids;
+    }
+
+    /** Is this request's person a teen in the family? One small query per family per request, memoized like above. */
+    private function isTeen(int $familyId): bool
+    {
+        $userId = app('request')->user()?->id;
+        if (! $userId) {
+            return false;
+        }
+        $bag = app('request')->attributes;
+        $key = "family.teen.{$familyId}.{$userId}";
+        if (! $bag->has($key)) {
+            $bag->set($key, DB::table('family_user')->where(['family_id' => $familyId, 'user_id' => $userId])->value('role') === 'teen');
+        }
+
+        return $bag->get($key);
     }
 
     /** Drop the per-request memo after a toggle so the same request sees the new state. */

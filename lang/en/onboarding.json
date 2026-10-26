@@ -84,8 +84,8 @@
     "invite_remove": "Remove",
     "role_adult": "Adult",
     "role_teen": "Teen",
-    "role_adult_desc": "Sees and edits everything, runs the family",
-    "role_teen_desc": "Sees and edits everything, can't manage people",
+    "role_adult_desc": "Sees and edits everything",
+    "role_teen_desc": "Their lists, tasks and calendar",
     "invite_link": "Or share a link instead",
     "copy": "Copy",
     "modules_title": "Pick 4 to start.",
@@ -280,7 +280,6 @@
     "plan_renews_short": "Renews :date at :amount",
     "plan_pay": "Pay :amount and start",
     "plan_checkout": "Secure checkout",
-    "plan_methods": "Apple Pay, Google Pay or card, on Stripe's secure page.",
     "plan_payer": "You're paying for :name. :names never get a bill.",
     "plan_payer_solo": "You're paying for :name, one price for everyone you add.",
     "plan_secure": "Secure checkout by Stripe. :line",
@@ -306,5 +305,13 @@
     "about_item_3": "Pay daycare",
     "about_today_one": ":count thing today",
     "about_today_other": ":count things today",
-    "about_add": "Add"
+    "about_add": "Add",
+    "notify_calendar": "Calendar changes",
+    "notify_example_calendar": ":b's swim practice moved to 5:30 today.",
+    "role_kid": "Kid",
+    "role_kid_desc": "A profile you manage, no email",
+    "invite_kids": "Little ones without email? Add them as profiles later, no account needed.",
+    "plan_card": "Pay with card",
+    "plan_or_card": "or pay with card",
+    "plan_error": "The payment didn't go through. Try again, or use another card."
 }

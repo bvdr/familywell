@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react';
-import { ArrowRight, Check, ChevronDown, Link2, LoaderCircle, Mail, Plus, UsersRound, X } from 'lucide-react';
+import { ArrowRight, Baby, Check, ChevronDown, Link2, LoaderCircle, Mail, Plus, UsersRound, X } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 import { reactHomer } from '@/components/homer';
@@ -183,6 +183,10 @@ export default function Invite({ link, invited }: { link: string; invited: Invit
                                 {copied ? <Check /> : t('onboarding.copy')}
                             </Button>
                         </div>
+                        <p className="text-stone flex items-start gap-2 px-0.5 text-[12.5px] leading-[1.45]">
+                            <Baby className="mt-px size-4 shrink-0" />
+                            {t('onboarding.invite_kids')}
+                        </p>
                     </div>
                     <SideNotes />
                 </div>
@@ -219,7 +223,7 @@ function SideNotes() {
             </div>
             <div className="flex flex-col">
                 <span className="text-stone pb-2 font-mono text-[11px] font-semibold tracking-[0.8px] uppercase">{t('onboarding.roles_title')}</span>
-                {(['adult', 'teen'] as const).map((r) => (
+                {(['adult', 'teen', 'kid'] as const).map((r) => (
                     <div key={r} className="border-line flex items-center gap-3 border-b py-2.5">
                         <span className="border-line w-[56px] rounded-full border bg-white py-1 text-center text-xs font-semibold">
                             {t(`onboarding.role_${r}`)}

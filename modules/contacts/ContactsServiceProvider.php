@@ -2,6 +2,7 @@
 
 namespace Modules\Contacts;
 
+use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
 use App\Support\Trash\Trash;
@@ -12,6 +13,8 @@ class ContactsServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        // "Your modules" tile: the family address book's size.
+        DashboardSummaries::register('contacts', fn () => ['key' => 'dashboard.sum_contacts', 'params' => ['count' => Person::count()]]);
         // Adding a Person counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('contacts', Person::class);
 

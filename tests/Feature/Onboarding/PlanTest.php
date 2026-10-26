@@ -2,6 +2,7 @@
 
 use App\Models\Family;
 use App\Models\User;
+use App\Support\Billing\Billing;
 use Illuminate\Support\Facades\Http;
 
 use function Pest\Laravel\actingAs;
@@ -47,15 +48,37 @@ it('goes from the tour to the plan where billing is on', function () {
         ->where('canWait', true));
 });
 
-it('opens Stripe Checkout that comes back to the onboarding', function () {
+it('starts an incomplete subscription on the intro price and hands back only the client secret', function () {
     planBilling();
-    [$user] = planOwner();
-    Http::fake(['api.stripe.com/v1/checkout/sessions' => Http::response(['url' => 'https://checkout.stripe.test/s'])]);
+    [$user, $family] = planOwner();
+    Http::fake([
+        'api.stripe.com/v1/customers' => Http::response(['id' => 'cus_1']),
+        'api.stripe.com/v1/subscriptions' => Http::response(['id' => 'sub_1', 'latest_invoice' => ['confirmation_secret' => ['client_secret' => 'pi_1_secret_x']]]),
+    ]);
 
-    actingAs($user)->post('/onboarding/plan', ['plan' => 'yearly'])->assertRedirect('https://checkout.stripe.test/s');
+    actingAs($user)->postJson('/onboarding/plan', ['plan' => 'yearly'])->assertOk()
+        ->assertExactJson(['subscription' => 'sub_1', 'clientSecret' => 'pi_1_secret_x']);
 
-    Http::assertSent(fn ($r) => str_contains($r->body(), urlencode(route('onboarding.plan.paid')))
-        && str_contains($r->body(), 'price_y'));
+    expect($family->fresh()->stripe_customer_id)->toBe('cus_1');
+    Http::assertSent(fn ($r) => str_ends_with($r->url(), '/subscriptions')
+        && $r['payment_behavior'] === 'default_incomplete'
+        && $r['items'][0]['price'] === 'price_y'
+        && $r['metadata']['family_id'] == $family->id
+        && $r->header('Stripe-Version')[0] === Billing::INLINE_API_VERSION);
+});
+
+it('finishes the onboarding once the paid subscription syncs, and only for this family', function () {
+    planBilling();
+    [$user, $family] = planOwner();
+    $sub = fn ($familyId, $status) => (['id' => 'sub_1', 'customer' => 'cus_1', 'status' => $status, 'metadata' => ['family_id' => $familyId],
+        'items' => ['data' => [['price' => ['id' => 'price_y'], 'current_period_end' => now()->addYear()->timestamp]]]]);
+    // One subscription read per visit: first one that belongs to another family (ignored), then theirs.
+    Http::fake(['api.stripe.com/v1/subscriptions/sub_1' => Http::sequence()->push($sub(999, 'active'))->push($sub($family->id, 'active'))]);
+
+    actingAs($user)->get('/onboarding/plan/paid?subscription=sub_1')->assertRedirect(route('onboarding.plan', ['failed' => 1]));
+
+    actingAs($user)->get('/onboarding/plan/paid?subscription=sub_1')->assertOk()->assertInertia(fn ($page) => $page->where('paid', true));
+    expect($user->fresh()->onboarding_step)->toBeNull()->and($family->fresh()->subscription_status)->toBe('active');
 });
 
 it('lets a family in its free period look around first', function () {

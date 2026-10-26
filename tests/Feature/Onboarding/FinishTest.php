@@ -25,12 +25,12 @@ function finishingOwner(string $step): array
     return [$user, $family];
 }
 
-it('offers a toggle for each picked module with a push category, with the invitees in the examples', function () {
+it('offers a toggle for each picked module (all four have push categories), with the invitees in the examples', function () {
     [$user] = finishingOwner('notifications');
 
     actingAs($user)->get('/onboarding/notifications')->assertOk()->assertInertia(fn ($page) => $page
         ->component('onboarding/notifications')
-        ->where('categories', ['shopping', 'tasks', 'spending']) // calendar has no push category
+        ->where('categories', ['shopping', 'tasks', 'calendar', 'spending'])
         ->where('names', ['Marco']));
 
     actingAs($user)->post('/onboarding/notifications', ['granted' => true])->assertRedirect(route('onboarding.ready'));

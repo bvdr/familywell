@@ -33,7 +33,7 @@ class UpdateEvent extends Tool
         if (! $e || ! app(ShareAccess::class)->canEdit($this->user(), $e)) {
             return $this->notFound('Event');
         }
-        $e->applyUpdate(collect($request->all())->except('id')->all());
+        $e->applyUpdate(collect($request->all())->except('id')->all(), $this->user());
 
         return Response::structured(CalendarData::payload($e->fresh(), fn ($p) => $this->url($p)));
     }

@@ -5,6 +5,7 @@ namespace Modules\Shopping;
 use App\Models\EntityVisit;
 use App\Support\Dashboard\DashboardAgenda;
 use App\Support\Dashboard\DashboardItems;
+use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\ModuleRegistry;
@@ -19,6 +20,10 @@ class ShoppingServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        // "Your modules" tile: what's still to buy on the lists this person can see.
+        DashboardSummaries::register('shopping', fn (int $userId) => ['key' => 'dashboard.sum_shopping', 'params' => [
+            'count' => ShoppingItem::where('bought', false)->whereHas('list', fn ($q) => $q->visibleTo($userId))->count(),
+        ]]);
         // Adding a ShoppingItem counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('shopping', ShoppingItem::class);
 

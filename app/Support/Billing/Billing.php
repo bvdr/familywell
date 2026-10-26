@@ -122,12 +122,8 @@ class Billing
         ];
     }
 
-    /**
-     * Stripe-hosted Checkout for one of the two plans, at today's price. Returns the URL to redirect to.
-     * Comes back to Settings > Billing unless the caller says otherwise (the onboarding's plan step returns to
-     * itself); `{CHECKOUT_SESSION_ID}` is appended for the success sync.
-     */
-    public static function checkoutUrl(Family $family, string $email, string $plan, ?string $returnTo = null, ?string $cancelTo = null): string
+    /** Stripe-hosted Checkout for one of the two plans, at today's price. Returns the URL to redirect to. */
+    public static function checkoutUrl(Family $family, string $email, string $plan): string
     {
         $key = self::isIntro() ? "price_{$plan}" : "price_{$plan}_standard";
         $price = config("services.stripe.{$key}");
@@ -143,8 +139,8 @@ class Billing
             // straight back to the family, with no lookup table and no ordering race vs. checkout events.
             'subscription_data' => ['metadata' => ['family_id' => $family->id]],
             'allow_promotion_codes' => 'true',
-            'success_url' => ($returnTo ?? route('billing.show')).'?session_id={CHECKOUT_SESSION_ID}',
-            'cancel_url' => $cancelTo ?? route('billing.show'),
+            'success_url' => route('billing.show').'?session_id={CHECKOUT_SESSION_ID}',
+            'cancel_url' => route('billing.show'),
         ];
         // Re-subscribing after a cancel reuses the family's customer, so the portal shows one history.
         $family->stripe_customer_id
@@ -153,6 +149,70 @@ class Billing
 
         return self::post('checkout/sessions', $params)['url'];
     }
+
+    /**
+     * The inline checkout (onboarding Plan & pay, Stripe Elements): an INCOMPLETE subscription on today's price
+     * (intro or standard, like checkoutUrl) whose first invoice the browser pays with the Payment Element or Apple /
+     * Google Pay (Express Checkout Element). Returns the subscription id and the client secret to confirm with.
+     * The customer is created once per family and reused. The webhook stays the source of truth for the status.
+     *
+     * Pinned to an API version that has `invoice.confirmation_secret`, whatever the account's default is.
+     *
+     * @return array{subscription: string, clientSecret: string}
+     */
+    public static function startSubscription(Family $family, string $email, string $plan): array
+    {
+        $key = self::isIntro() ? "price_{$plan}" : "price_{$plan}_standard";
+        $price = config("services.stripe.{$key}") ?: throw new RuntimeException('STRIPE_'.strtoupper($key).' is not set.');
+
+        if (! $family->stripe_customer_id) {
+            $customer = self::post('customers', ['email' => $email, 'name' => $family->name, 'metadata' => ['family_id' => $family->id]]);
+            $family->forceFill(['stripe_customer_id' => $customer['id']])->save();
+        }
+
+        $sub = self::request()->withHeaders(['Stripe-Version' => self::INLINE_API_VERSION])->asForm()->post('subscriptions', [
+            'customer' => $family->stripe_customer_id,
+            'items' => [['price' => $price]],
+            'payment_behavior' => 'default_incomplete',
+            'payment_settings' => ['save_default_payment_method' => 'on_subscription'],
+            // Same as Checkout: the webhook maps every customer.subscription.* event back to the family.
+            'metadata' => ['family_id' => $family->id],
+            'expand' => ['latest_invoice.confirmation_secret'],
+        ])->throw()->json();
+
+        return ['subscription' => $sub['id'], 'clientSecret' => $sub['latest_invoice']['confirmation_secret']['client_secret']];
+    }
+
+    /** After the browser confirmed the payment: read the subscription now and store it (only if it's this family's). */
+    public static function syncSubscription(Family $family, string $subscriptionId): void
+    {
+        $sub = self::request()->get('subscriptions/'.rawurlencode($subscriptionId))->throw()->json();
+        if ((string) ($sub['metadata']['family_id'] ?? '') !== (string) $family->id) {
+            return;
+        }
+        self::setStatus($family, $sub['customer'], $sub);
+    }
+
+    /** Best effort: drop an abandoned incomplete subscription (a plan switch mid-checkout). Never throws. */
+    public static function cancelIncomplete(string $subscriptionId): void
+    {
+        try {
+            $sub = self::request()->get('subscriptions/'.rawurlencode($subscriptionId))->json();
+            if (($sub['status'] ?? null) === 'incomplete') {
+                self::request()->delete('subscriptions/'.rawurlencode($subscriptionId));
+            }
+        } catch (\Throwable) {
+            // Stripe expires incomplete subscriptions after 23 hours on its own.
+        }
+    }
+
+    /** Apple Pay / Google Pay need the site's domain registered with Stripe (stripe:register-domains). */
+    public static function registerDomain(string $domain): array
+    {
+        return self::post('payment_method_domains', ['domain_name' => $domain]);
+    }
+
+    public const INLINE_API_VERSION = '2025-03-31.basil';
 
     /** Stripe-hosted billing portal for the family's customer (change plan, card, cancel, invoices). */
     public static function portalUrl(Family $family): string

@@ -1,9 +1,12 @@
 import { Head, router } from '@inertiajs/react';
+import { Elements, ExpressCheckoutElement, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
+import { loadStripe, type Appearance, type Stripe } from '@stripe/stripe-js';
 import { ArrowRight, Check, CreditCard, Github, LoaderCircle, Lock, Sparkles } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { Homer, reactHomer } from '@/components/homer';
 import { Button } from '@/components/ui/button';
+import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import OnboardingLayout from '@/layouts/onboarding-layout';
 import { useLocale, useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -15,18 +18,53 @@ type Props = {
     // Billing::pricing(): today's whole-dollar prices (intro while spots last) and the counter.
     pricing: { intro: boolean; spotsLeft: number; spotsTotal: number; monthly: number; yearly: number };
     standard: { monthly: number; yearly: number } | null;
+    // The publishable key (STRIPE_KEY); the secret stays on the server.
+    stripeKey: string | null;
+    email: string;
     canWait: boolean;
-    canceled: boolean;
+    failed: boolean;
     paid: boolean;
     selfHostingUrl: string | null;
 };
 
 const INCLUDED = ['plan_inc_modules', 'plan_inc_members', 'plan_inc_backups', 'plan_inc_ai', 'plan_inc_open', 'plan_inc_ads'];
 
+// Stripe.js loads once per key (it's a script from js.stripe.com, required to be loaded from there).
+const stripes: Record<string, Promise<Stripe | null>> = {};
+const stripeFor = (key: string) => (stripes[key] ??= loadStripe(key));
+
+// The Elements iframes in the onboarding's look: paper fields, ink text, 12px corners, Inter.
+const APPEARANCE: Appearance = {
+    theme: 'flat',
+    variables: {
+        colorPrimary: '#121100',
+        colorText: '#121100',
+        colorBackground: '#F7F5EE',
+        borderRadius: '12px',
+        fontFamily: 'Inter, system-ui, sans-serif',
+        fontSizeBase: '14px',
+    },
+    rules: { '.Input': { border: '1px solid #E2DED1' }, '.Input:focus': { border: '1.5px solid #121100', boxShadow: 'none' } },
+};
+
+// Phone layout (< md): Apple / Google Pay + "Pay with card" in a sheet. Tablet / desktop: the checkout card inline.
+// Only one is mounted, since a Payment Element can exist once per Elements group.
+function usePhone(): boolean {
+    const [phone, setPhone] = useState(false);
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 767px)');
+        const on = () => setPhone(mq.matches);
+        on();
+        mq.addEventListener('change', on);
+        return () => mq.removeEventListener('change', on);
+    }, []);
+    return phone;
+}
+
 // Step 9 (design 09 / T09 / D09): the last screen, after the tour. One plan for the whole family, yearly preselected,
-// the total in plain sight, then Stripe's secure Checkout (Apple Pay, Google Pay or card) and straight into the app.
-// Prices come from Billing::pricing() (config/familywell.php), never from here.
-export default function PlanStep({ family, invited, pricing, standard, canWait, canceled, paid, selfHostingUrl }: Props) {
+// the total in plain sight, paid right here with Stripe Elements (Apple Pay / Google Pay first, card second) and
+// straight into the app. Prices come from Billing::pricing() (config/familywell.php), never from here.
+export default function PlanStep({ family, invited, pricing, standard, stripeKey, email, canWait, failed, paid, selfHostingUrl }: Props) {
     const t = useT();
     const locale = useLocale();
     const [plan, setPlan] = useState<Plan>('yearly');
@@ -41,8 +79,8 @@ export default function PlanStep({ family, invited, pricing, standard, canWait, 
             const id = window.setTimeout(() => router.visit(route('dashboard')), 1800);
             return () => window.clearTimeout(id);
         }
-        if (canceled) reactHomer('error');
-    }, [paid, canceled]);
+        if (failed) reactHomer('error');
+    }, [paid, failed]);
 
     const save = Math.round((1 - pricing.yearly / (pricing.monthly * 12)) * 100);
     const due = plan === 'yearly' ? pricing.yearly : pricing.monthly;
@@ -52,14 +90,8 @@ export default function PlanStep({ family, invited, pricing, standard, canWait, 
     else renews.setMonth(renews.getMonth() + 1);
     const renewsText = renews.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' });
 
-    const pay = () => {
-        reactHomer('thinking');
-        router.post(
-            route('onboarding.plan.checkout'),
-            { plan },
-            { onStart: () => setBusy(true), onFinish: () => setBusy(false), onError: () => reactHomer('error') },
-        );
-    };
+    const phone = usePhone();
+    const stripePromise = useMemo(() => (stripeKey ? stripeFor(stripeKey) : null), [stripeKey]);
     const later = () => router.post(route('onboarding.plan.later'));
 
     if (paid) {
@@ -97,15 +129,20 @@ export default function PlanStep({ family, invited, pricing, standard, canWait, 
         </div>
     );
 
-    const payButton = (
-        <Button variant="sun" size="cta" className="w-full" disabled={busy} onClick={pay}>
-            {t('onboarding.plan_pay', { amount: usd(due) })}
-            {busy ? <LoaderCircle className="animate-spin" /> : <ArrowRight />}
-        </Button>
-    );
+    const payLabel = t('onboarding.plan_pay', { amount: usd(due) });
 
     return (
-        <>
+        // Deferred intent: Elements knows the amount up front and the subscription is only created on Pay (subscribe).
+        <Elements
+            stripe={stripePromise}
+            options={{
+                mode: 'subscription',
+                amount: due * 100,
+                currency: 'usd',
+                appearance: APPEARANCE,
+                fonts: [{ cssSrc: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap' }],
+            }}
+        >
             <Head title={t('onboarding.plan_title', { name: family.name })} />
             <OnboardingLayout
                 step={5}
@@ -117,7 +154,7 @@ export default function PlanStep({ family, invited, pricing, standard, canWait, 
                 <div className="grid gap-6 px-5 pb-6 md:grid-cols-2 md:gap-x-5 md:px-0 lg:grid-cols-[minmax(0,430px)_372px] lg:gap-x-10">
                     {/* Plans, the intro offer and what's included (left); checkout (right on tablet / desktop). */}
                     <div className="flex flex-col gap-5 md:col-span-2 lg:col-span-1">
-                        {canceled && <p className="bg-ok-soft text-ink rounded-xl px-3.5 py-2.5 text-[13px]">{t('onboarding.plan_canceled')}</p>}
+                        {failed && <p className="bg-ok-soft text-ink rounded-xl px-3.5 py-2.5 text-[13px]">{t('onboarding.plan_canceled')}</p>}
                         {pricing.intro && (
                             <span className="border-ink bg-sun-soft inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold">
                                 <Sparkles className="size-4" />
@@ -216,7 +253,7 @@ export default function PlanStep({ family, invited, pricing, standard, canWait, 
                                 {list > due && <span className="text-stone block text-xs line-through">{usd(list)}</span>}
                             </span>
                         </div>
-                        {payButton}
+                        {phone && <Pay variant="phone" plan={plan} email={email} label={payLabel} busy={busy} setBusy={setBusy} />}
                         <p className="text-stone text-center text-xs">{t('onboarding.plan_secure', { line: payLine })}</p>
                         {canWait && (
                             <button type="button" onClick={later} className="text-ink-2 text-sm font-semibold">
@@ -235,11 +272,7 @@ export default function PlanStep({ family, invited, pricing, standard, canWait, 
                             <span className="text-stone font-mono text-[10.5px] font-semibold tracking-[0.8px]">STRIPE</span>
                         </div>
                         {summary}
-                        <p className="text-ink-2 flex items-center gap-2 text-[13px]">
-                            <CreditCard className="size-4 shrink-0" />
-                            {t('onboarding.plan_methods')}
-                        </p>
-                        {payButton}
+                        {!phone && <Pay variant="desk" plan={plan} email={email} label={payLabel} busy={busy} setBusy={setBusy} />}
                         <p className="text-stone text-center text-xs">{payLine}</p>
                         {canWait && (
                             <button type="button" onClick={later} className="text-ink-2 text-sm font-semibold">
@@ -249,6 +282,137 @@ export default function PlanStep({ family, invited, pricing, standard, canWait, 
                     </div>
                 </div>
             </OnboardingLayout>
-        </>
+        </Elements>
     );
+}
+
+// Paying: Apple Pay / Google Pay (Express Checkout Element) and card (Payment Element). Both go through pay():
+// collect + validate the details, have the server create the incomplete subscription (subscribe), confirm its first
+// invoice here, then sync and finish (paid). A card that needs 3-D Secure redirects to Stripe and comes back to paid.
+function Pay({
+    variant,
+    plan,
+    email,
+    label,
+    busy,
+    setBusy,
+}: {
+    variant: 'phone' | 'desk';
+    plan: Plan;
+    email: string;
+    label: string;
+    busy: boolean;
+    setBusy: (b: boolean) => void;
+}) {
+    const t = useT();
+    const stripe = useStripe();
+    const elements = useElements();
+    const [error, setError] = useState<string | null>(null);
+    const [sheet, setSheet] = useState(false);
+    const [express, setExpress] = useState(false);
+    // Homer thinks while Stripe loads.
+    useEffect(() => {
+        if (!stripe) reactHomer('thinking');
+    }, [stripe]);
+
+    const fail = (message?: string) => {
+        setError(message ?? t('onboarding.plan_error'));
+        setBusy(false);
+        reactHomer('error');
+    };
+
+    const pay = async () => {
+        if (!stripe || !elements) return;
+        setBusy(true);
+        setError(null);
+        const { error: invalid } = await elements.submit();
+        if (invalid) return fail(invalid.message);
+        const res = await fetch(route('onboarding.plan.subscribe'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-XSRF-TOKEN': xsrf() },
+            credentials: 'same-origin',
+            body: JSON.stringify({ plan }),
+        });
+        if (!res.ok) return fail();
+        const { subscription, clientSecret } = (await res.json()) as { subscription: string; clientSecret: string };
+        const back = route('onboarding.plan.paid', { subscription });
+        const { error: declined } = await stripe.confirmPayment({
+            elements,
+            clientSecret,
+            confirmParams: { return_url: back, payment_method_data: { billing_details: { email } } },
+            redirect: 'if_required',
+        });
+        if (declined) return fail(declined.message);
+        reactHomer('celebrate');
+        router.visit(back);
+    };
+
+    const expressButton = (
+        <ExpressCheckoutElement
+            onReady={({ availablePaymentMethods }) => setExpress(!!availablePaymentMethods)}
+            onConfirm={() => void pay()}
+            options={{
+                buttonHeight: 48,
+                buttonTheme: { applePay: 'black', googlePay: 'black' },
+                buttonType: { applePay: 'plain', googlePay: 'plain' },
+                paymentMethods: { link: 'never' },
+            }}
+        />
+    );
+    const payButton = (
+        <Button variant="sun" size="cta" className="w-full" disabled={busy || !stripe} onClick={() => void pay()}>
+            {label}
+            {busy ? <LoaderCircle className="animate-spin" /> : <ArrowRight />}
+        </Button>
+    );
+    const errorLine = error && (
+        <p className="text-[13px] text-[#C2381E]" role="alert">
+            {error}
+        </p>
+    );
+
+    if (variant === 'phone') {
+        return (
+            <div className="flex flex-col gap-3">
+                {expressButton}
+                <Button variant="sun" size="cta" className="w-full" disabled={busy || !stripe} onClick={() => setSheet(true)}>
+                    {t('onboarding.plan_card')}
+                    <CreditCard />
+                </Button>
+                {!sheet && errorLine}
+                <ResponsiveModal
+                    open={sheet}
+                    onOpenChange={setSheet}
+                    title={t('onboarding.plan_card')}
+                    className="bg-paper text-ink"
+                    footer={payButton}
+                >
+                    <div className="flex flex-col gap-3">
+                        <PaymentElement options={{ layout: 'tabs', wallets: { applePay: 'never', googlePay: 'never' } }} />
+                        {errorLine}
+                    </div>
+                </ResponsiveModal>
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex flex-col gap-3">
+            {expressButton}
+            {express && (
+                <p className="text-stone flex items-center gap-3 text-xs">
+                    <span className="bg-line h-px flex-1" />
+                    {t('onboarding.plan_or_card')}
+                    <span className="bg-line h-px flex-1" />
+                </p>
+            )}
+            <PaymentElement options={{ layout: 'tabs', wallets: { applePay: 'never', googlePay: 'never' } }} />
+            {errorLine}
+            {payButton}
+        </div>
+    );
+}
+
+function xsrf(): string {
+    return decodeURIComponent(document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]+)/)?.[1] ?? '');
 }

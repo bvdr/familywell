@@ -191,7 +191,7 @@ it('sends the onboarding invites with a role each and moves on', function () {
     ]])->assertRedirect();
 
     expect($family->invitations()->whereNotNull('email')->pluck('role', 'email')->all())
-        ->toEqual(['lucia@rivera.family' => 'member', 'marco@rivera.family' => 'admin']);
+        ->toEqual(['lucia@rivera.family' => 'teen', 'marco@rivera.family' => 'admin']);
     Mail::assertSent(FamilyInvitationMail::class, 2);
 });
 

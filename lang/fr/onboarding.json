@@ -84,8 +84,8 @@
     "invite_remove": "Retirer",
     "role_adult": "Adulte",
     "role_teen": "Ado",
-    "role_adult_desc": "Voit et modifie tout, gère la famille",
-    "role_teen_desc": "Voit et modifie tout, ne gère pas les personnes",
+    "role_adult_desc": "Voit et modifie tout",
+    "role_teen_desc": "Ses listes, tâches et agenda",
     "invite_link": "Ou partagez un lien",
     "copy": "Copier",
     "modules_title": "Choisissez-en 4 pour commencer.",
@@ -280,7 +280,6 @@
     "plan_renews_short": "Renouvelé le :date à :amount",
     "plan_pay": "Payer :amount et commencer",
     "plan_checkout": "Paiement sécurisé",
-    "plan_methods": "Apple Pay, Google Pay ou carte, sur la page sécurisée de Stripe.",
     "plan_payer": "Vous payez pour :name. :names ne reçoivent jamais de facture.",
     "plan_payer_solo": "Vous payez pour :name, un seul prix pour tous ceux que vous ajoutez.",
     "plan_secure": "Paiement sécurisé par Stripe. :line",
@@ -306,5 +305,13 @@
     "about_item_3": "Payer la crèche",
     "about_today_one": ":count chose aujourd'hui",
     "about_today_other": ":count choses aujourd'hui",
-    "about_add": "Ajouter"
+    "about_add": "Ajouter",
+    "notify_calendar": "Changements d'agenda",
+    "notify_example_calendar": "La natation de :b est déplacée à 17 h 30 aujourd'hui.",
+    "role_kid": "Enfant",
+    "role_kid_desc": "Un profil que vous gérez, sans e-mail",
+    "invite_kids": "Les petits sans e-mail ? Ajoutez-les plus tard en profils, sans compte.",
+    "plan_card": "Payer par carte",
+    "plan_or_card": "ou payez par carte",
+    "plan_error": "Le paiement n'est pas passé. Réessayez ou utilisez une autre carte."
 }

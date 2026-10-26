@@ -84,8 +84,8 @@
     "invite_remove": "Ta bort",
     "role_adult": "Vuxen",
     "role_teen": "Tonåring",
-    "role_adult_desc": "Ser och ändrar allt, styr familjen",
-    "role_teen_desc": "Ser och ändrar allt, hanterar inte personer",
+    "role_adult_desc": "Ser och ändrar allt",
+    "role_teen_desc": "Egna listor, uppgifter och kalender",
     "invite_link": "Eller dela en länk",
     "copy": "Kopiera",
     "modules_title": "Välj 4 att börja med.",
@@ -280,7 +280,6 @@
     "plan_renews_short": "Förnyas :date för :amount",
     "plan_pay": "Betala :amount och börja",
     "plan_checkout": "Säker betalning",
-    "plan_methods": "Apple Pay, Google Pay eller kort, på Stripes säkra sida.",
     "plan_payer": "Du betalar för :name. :names får aldrig en räkning.",
     "plan_payer_solo": "Du betalar för :name, ett pris för alla du lägger till.",
     "plan_secure": "Säker betalning via Stripe. :line",
@@ -306,5 +305,13 @@
     "about_item_3": "Betala förskolan",
     "about_today_one": ":count sak i dag",
     "about_today_other": ":count saker i dag",
-    "about_add": "Lägg till"
+    "about_add": "Lägg till",
+    "notify_calendar": "Kalenderändringar",
+    "notify_example_calendar": ":bs simträning är flyttad till 17.30 i dag.",
+    "role_kid": "Barn",
+    "role_kid_desc": "En profil du hanterar, utan e-post",
+    "invite_kids": "Små utan e-post? Lägg till dem som profiler senare, inget konto behövs.",
+    "plan_card": "Betala med kort",
+    "plan_or_card": "eller betala med kort",
+    "plan_error": "Betalningen gick inte igenom. Försök igen eller använd ett annat kort."
 }

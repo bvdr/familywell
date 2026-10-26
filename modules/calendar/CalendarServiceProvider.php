@@ -4,6 +4,7 @@ namespace Modules\Calendar;
 
 use App\Support\Calendar\CalendarSources;
 use App\Support\Dashboard\DashboardAgenda;
+use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Dashboard\DashboardWidgets;
 use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
@@ -20,6 +21,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\Contacts\Person;
+use Modules\Notifications\NotificationCategories;
 use Modules\Tasks\Task;
 
 class CalendarServiceProvider extends ServiceProvider
@@ -31,6 +33,14 @@ class CalendarServiceProvider extends ServiceProvider
 
     public function boot(Hooks $hooks): void
     {
+        // "Your modules" tile: events from today to the end of the week (their own calendar view, recurrences included).
+        DashboardSummaries::register('calendar', fn (int $userId) => ['key' => 'dashboard.sum_calendar', 'params' => [
+            'count' => count(CalendarEvent::itemsFor($userId, now()->toDateString(), now()->endOfWeek()->toDateString())),
+        ]]);
+        // "Calendar changes": its own on/off row in Settings > Notifications and the onboarding's notifications step.
+        // Pushed by CalendarEvent::createFor / applyUpdate (events added, moved or renamed).
+        NotificationCategories::register('calendar', 'Calendar', 'calendar-days');
+
         // Other calendars (ICS subscriptions) refresh hourly; withoutOverlapping so a slow host can't stack runs.
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
             $schedule->command('calendar:sync-subscriptions')->hourly()->withoutOverlapping();

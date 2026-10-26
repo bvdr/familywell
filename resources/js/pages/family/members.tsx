@@ -289,6 +289,8 @@ export default function Members({ family, members, invitations, canManage, palet
                                                 options={[
                                                     { value: 'member', label: t('family.role_member') },
                                                     { value: 'admin', label: t('family.role_admin') },
+                                                    // Their lists, tasks and calendar only (Family::TEEN_MODULES).
+                                                    { value: 'teen', label: t('family.role_teen') },
                                                 ]}
                                                 value={invite.data.role}
                                                 onChange={(v) => invite.setData('role', v)}

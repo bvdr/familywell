@@ -9,6 +9,8 @@ import { listColor as shoppingListColor, listIcon as shoppingListIcon } from '@/
 import { listColor as taskListColor, listIcon as taskListIcon } from '@/lib/tasks';
 import { type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
+
+import { YourModules, type ModuleSummary } from '@/components/your-modules';
 import {
     Blocks,
     CalendarDays,
@@ -209,7 +211,10 @@ export default function Dashboard({
     today = [],
     thisWeek = [],
     widgets = {},
+    summaries = {},
 }: {
+    // One live line per enabled module for the "Your modules" grid (DashboardSummaries).
+    summaries?: Record<string, ModuleSummary>;
     recent?: DashItem[];
     today?: AgendaItem[];
     thisWeek?: AgendaItem[];
@@ -269,6 +274,8 @@ export default function Dashboard({
                         </Link>
                     </div>
                 </div>
+
+                <YourModules enabled={modules?.enabled ?? []} summaries={summaries} />
 
                 {/* Spending headline: this month's total (same figure + currency as the Spending overview
                     widget). The card opens Spending on its default Expenses tab; the "+" opens it with the
