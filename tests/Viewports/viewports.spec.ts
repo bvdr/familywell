@@ -40,6 +40,9 @@ const PAGES: [string, string][] = [
     // Onboarding steps as the demo owner: ?preview=1 renders a step for someone already onboarded (GET only).
     ['onboarding-welcome', '/onboarding?preview=1'],
     ['onboarding-family', '/onboarding/create?preview=1'],
+    ['onboarding-invite', '/onboarding/invite?preview=1'],
+    ['onboarding-modules', '/onboarding/modules?preview=1'],
+    ['onboarding-install', '/onboarding/install?preview=1'],
     ['settings-appearance', '/settings/appearance'],
     ['settings-language', '/settings/language'],
     ['settings-notifications', '/settings/notifications'],

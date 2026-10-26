@@ -31,6 +31,8 @@ type Props = {
     children: ReactNode;
     /** Wider main column on desktop (the module grid); the default keeps forms at a readable width. */
     wide?: boolean;
+    /** Beside the title on desktop, under it on phones (the module counter). */
+    aside?: ReactNode;
 };
 
 export function Logo({ dark = false }: { dark?: boolean }) {
@@ -108,7 +110,7 @@ export function Rail({ step }: { step?: number }) {
 // bar, CTA pinned to the bottom; desktop = the dark rail + a paper main column with a bottom bar (Back · hint ·
 // CTA). Drawn in the fixed brand colours (bg-paper, text-ink, ...), not the skin tokens: this is the brand's
 // first impression and the design has one look.
-export default function OnboardingLayout({ step, back, title, sub, cta, hint, children, wide = false }: Props) {
+export default function OnboardingLayout({ step, back, title, sub, cta, hint, children, wide = false, aside }: Props) {
     const t = useT();
     const meta = step ? STEPS[step - 1] : undefined;
 
@@ -148,21 +150,24 @@ export default function OnboardingLayout({ step, back, title, sub, cta, hint, ch
                 )}
 
                 <main className={cn('flex flex-1 flex-col lg:px-16 lg:pt-14 lg:pb-6', !wide && 'lg:max-w-[720px]')}>
-                    <div className="flex flex-col gap-2.5 px-5 pt-[22px] pb-5 lg:px-0 lg:pt-0 lg:pb-7">
-                        {step && (
-                            <p className="text-stone hidden font-mono text-xs font-semibold tracking-[0.8px] uppercase lg:block">
-                                {t('onboarding.step_of', { n: step, total: 4 })}
-                            </p>
-                        )}
-                        <h1 className="font-display text-[34px] leading-[1.02] font-bold tracking-[-1.2px] text-balance lg:text-[44px] lg:leading-none lg:tracking-[-1.6px]">
-                            {title}
-                        </h1>
-                        {sub && <p className="text-ink-2 text-[15px] leading-normal lg:max-w-[520px] lg:text-base">{sub}</p>}
+                    <div className="flex flex-col gap-3 px-5 pt-[22px] pb-5 lg:flex-row lg:items-end lg:justify-between lg:gap-8 lg:px-0 lg:pt-0 lg:pb-7">
+                        <div className="flex flex-col gap-2.5">
+                            {step && (
+                                <p className="text-stone hidden font-mono text-xs font-semibold tracking-[0.8px] uppercase lg:block">
+                                    {t('onboarding.step_of', { n: step, total: 4 })}
+                                </p>
+                            )}
+                            <h1 className="font-display text-[34px] leading-[1.02] font-bold tracking-[-1.2px] text-balance lg:text-[44px] lg:leading-none lg:tracking-[-1.6px]">
+                                {title}
+                            </h1>
+                            {sub && <p className="text-ink-2 text-[15px] leading-normal lg:max-w-[520px] lg:text-base">{sub}</p>}
+                        </div>
+                        {aside}
                     </div>
                     {children}
                 </main>
 
-                {(cta || back) && (
+                {cta && (
                     <footer className="bg-paper lg:border-line sticky bottom-0 mt-auto flex flex-col items-center gap-3 px-5 pt-3.5 pb-[calc(30px+env(safe-area-inset-bottom))] lg:static lg:flex-row lg:justify-between lg:border-t lg:px-16 lg:py-[18px]">
                         {back ? (
                             <Link href={back} className="text-ink-2 hidden items-center gap-1.5 text-sm font-semibold lg:flex">
@@ -173,7 +178,7 @@ export default function OnboardingLayout({ step, back, title, sub, cta, hint, ch
                             <span className="hidden lg:block" />
                         )}
                         <div className="flex w-full flex-col items-center gap-3 lg:w-auto lg:flex-row lg:gap-[18px]">
-                            <div className="w-full lg:order-2 lg:w-auto [&>*]:w-full lg:[&>*]:w-auto lg:[&>*]:min-w-[260px]">{cta}</div>
+                            <div className="flex w-full lg:order-2 lg:w-auto">{cta}</div>
                             {hint && <div className="text-stone text-center text-xs lg:order-1 lg:text-[13px]">{hint}</div>}
                         </div>
                     </footer>

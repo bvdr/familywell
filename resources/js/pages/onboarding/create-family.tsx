@@ -25,7 +25,8 @@ type Region = {
     units?: 'metric' | 'imperial';
 };
 
-type Props = { userName: string; colors: string[]; region: Region };
+// `family` is set when they came back from step 2: the family exists and the form edits it.
+type Props = { userName: string; colors: string[]; region: Region; family: { name: string; color: string; symbol: string | null } | null };
 
 // The quick row of symbols next to the monogram; the rest live in the library sheet.
 const QUICK: IconName[] = ['house', 'sun', 'sprout', 'mountain'];
@@ -41,15 +42,15 @@ function surnameOf(name: string): string {
 const pluralOf = (s: string) => (/(s|x|z|ch|sh)$/i.test(s) ? `${s}es` : `${s}s`);
 
 // Step 1 (design 01): name, colour + symbol with a live preview, region & units. Creates the family.
-export default function CreateFamily({ userName, colors, region }: Props) {
+export default function CreateFamily({ userName, colors, region, family }: Props) {
     const t = useT();
     const surname = surnameOf(userName);
     const firstName = userName.trim().split(/\s+/)[0] ?? '';
 
     const form = useForm({
-        name: surname ? t('onboarding.default_name', { surname, surnames: pluralOf(surname) }) : '',
-        color: colors[0],
-        symbol: 'house' as string,
+        name: family?.name ?? (surname ? t('onboarding.default_name', { surname, surnames: pluralOf(surname) }) : ''),
+        color: family?.color ?? colors[0],
+        symbol: (family?.symbol ?? 'house') as string,
         currency: region.currency ?? null,
         units: region.units ?? null,
     });
@@ -76,12 +77,12 @@ export default function CreateFamily({ userName, colors, region }: Props) {
             <Head title={t('onboarding.family_title')} />
             <OnboardingLayout
                 step={1}
-                back={route('onboarding.index')}
+                back={family ? undefined : route('onboarding.index')}
                 title={t('onboarding.family_title')}
                 sub={t('onboarding.family_sub')}
                 cta={
-                    <Button type="submit" variant="sun" size="cta" disabled={form.processing}>
-                        <span className="truncate">{t('onboarding.family_cta', { name: displayName })}</span>
+                    <Button type="submit" variant="sun" size="cta" className="w-full lg:w-auto lg:min-w-[260px]" disabled={form.processing}>
+                        <span className="truncate">{family ? t('onboarding.continue') : t('onboarding.family_cta', { name: displayName })}</span>
                         {form.processing ? <LoaderCircle className="animate-spin" /> : <ArrowRight />}
                     </Button>
                 }
@@ -114,7 +115,7 @@ export default function CreateFamily({ userName, colors, region }: Props) {
                                 maxLength={255}
                                 value={data.name}
                                 onChange={(e) => setData('name', e.target.value)}
-                                className="border-ink h-12 rounded-[14px] border-[1.5px] bg-white px-4 text-base font-medium"
+                                className="border-ink focus-visible:border-ink h-12 rounded-[14px] border-[1.5px] bg-white px-4 text-base font-medium focus-visible:ring-0 focus-visible:ring-offset-0"
                             />
                             <InputError message={form.errors.name} />
                             <div className="flex flex-wrap items-center gap-2">
@@ -192,7 +193,8 @@ export default function CreateFamily({ userName, colors, region }: Props) {
                             <InputError message={form.errors.color || form.errors.symbol} />
                         </div>
 
-                        {region.countryName && (
+                        {/* Applied when the family is created, so not offered again when editing it. */}
+                        {!family && region.countryName && (
                             <div className="flex flex-col gap-2">
                                 <span className="text-[13px] font-semibold">{t('onboarding.region')}</span>
                                 <div className="bg-paper-2 flex items-center gap-3 rounded-2xl px-3.5 py-3">

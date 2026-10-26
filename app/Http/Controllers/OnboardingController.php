@@ -3,15 +3,22 @@
 namespace App\Http\Controllers;
 
 use App\Http\Middleware\TrackLastSeen;
+use App\Mail\HandoffLinkMail;
 use App\Models\Family;
+use App\Models\User;
 use App\Support\Analytics;
+use App\Support\Auth\Handoff;
 use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Theming\ThemeTokens;
 use App\Support\Translations;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -75,14 +82,20 @@ class OnboardingController extends Controller
     }
 
     // Step 1, "What should we call your family?": name (with suggestions), colour + symbol, region & units.
+    // Back from step 2 lands here again with the family already made: the form then edits it (`family` set).
     public function create(Request $request): RedirectResponse|Response
     {
-        return $this->redirectIfOnboarded($request)
-            ?? Inertia::render('onboarding/create-family', [
-                'userName' => (string) $request->user()->name,
-                'colors' => Family::ONBOARDING_COLORS,
-                'region' => $this->region($request),
-            ]);
+        $family = $this->onboardingFamily($request);
+        if (! $family && ($redirect = $this->redirectIfOnboarded($request))) {
+            return $redirect;
+        }
+
+        return Inertia::render('onboarding/create-family', [
+            'userName' => (string) $request->user()->name,
+            'colors' => Family::ONBOARDING_COLORS,
+            'region' => $this->region($request),
+            'family' => $family?->only(['name', 'color', 'symbol']),
+        ]);
     }
 
     /**
@@ -103,7 +116,8 @@ class OnboardingController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        if ($redirect = $this->redirectIfOnboarded($request)) {
+        $editing = $this->onboardingFamily($request);
+        if (! $editing && ($redirect = $this->redirectIfOnboarded($request))) {
             return $redirect;
         }
 
@@ -120,6 +134,13 @@ class OnboardingController extends Controller
         ]);
 
         $user = $request->user();
+
+        // Came back to step 1 from step 2: rename / restyle the family made a moment ago, then carry on.
+        if ($editing) {
+            $editing->update(['name' => $data['name'], 'color' => $data['color'], 'symbol' => $data['symbol'] ?? null]);
+
+            return $this->advance($user, 'invite');
+        }
 
         $family = Family::create([
             'name' => $data['name'],
@@ -142,6 +163,198 @@ class OnboardingController extends Controller
         // Make it the active tenant immediately (SetActiveFamily reads this on the next request).
         $request->session()->put('active_family_id', $family->id);
 
+        return $this->advance($user, 'invite');
+    }
+
+    // Step 2, "Who shares your home?": email invites with a role each, or the family's share link.
+    public function invite(Request $request): RedirectResponse|Response
+    {
+        if (! $family = $this->onboardingFamily($request)) {
+            return $this->leave($request);
+        }
+
+        return Inertia::render('onboarding/invite', [
+            'link' => FamilyInviteController::link($family, $request->user()),
+            'invited' => $family->invitations()->whereNotNull('email')->get()
+                ->map(fn ($i) => ['email' => $i->email, 'role' => $i->role === 'admin' ? 'adult' : 'teen'])->values(),
+        ]);
+    }
+
+    public function sendInvites(Request $request): RedirectResponse
+    {
+        if (! $family = $this->onboardingFamily($request)) {
+            return $this->leave($request);
+        }
+
+        // Adult = admin (can manage the family, like the person inviting), Teen = member. The design speaks in
+        // household terms; the app's two roles stay the source of truth. Empty list = "I'll invite them later".
+        $data = $request->validate([
+            'invites' => ['array', 'max:20'],
+            'invites.*.email' => ['required', 'email', 'max:255', 'distinct'],
+            'invites.*.role' => ['required', 'in:adult,teen'],
+        ]);
+        $invites = collect($data['invites'] ?? [])
+            ->reject(fn ($i) => $family->members()->where('email', $i['email'])->exists());
+
+        foreach ($invites as $i) {
+            FamilyInviteController::send($family, $i['email'], $i['role'] === 'adult' ? 'admin' : 'member', $request->user());
+        }
+        Analytics::queue('onboarding_invites', ['count' => $invites->count()]);
+
+        return $this->advance($request->user(), self::FLOW['invite']);
+    }
+
+    // The modules a family picks from in step 3 (design order). Add-ons that extend one of these (important /
+    // recurring to-dos, expense import) and Notifications aren't choices: they stay on.
+    private const PICKABLE = ['shopping', 'tasks', 'calendar', 'spending', 'notes', 'recipes', 'inventory', 'vehicles', 'projects', 'contacts', 'birthdays'];
+
+    // Suggested when nothing's been picked yet: the four the design starts ticked.
+    private const SUGGESTED = ['shopping', 'tasks', 'calendar', 'spending'];
+
+    // Step 3, "Pick 4 to start": a small start sticks. Nothing is locked, the rest turn on in Settings > Modules.
+    public function modules(Request $request): RedirectResponse|Response
+    {
+        if (! $family = $this->onboardingFamily($request)) {
+            return $this->leave($request);
+        }
+        $registry = app(ModuleRegistry::class);
+        $available = array_values(array_filter(self::PICKABLE, fn ($id) => $registry->isInstalled($id)));
+        $enabled = array_values(array_intersect($available, $registry->enabledIds($family->id)));
+
+        return Inertia::render('onboarding/modules', [
+            'available' => $available,
+            // A new family has every module on (enableAll), which isn't a pick: start from the suggestion then.
+            // Back from a later step, it's what they picked.
+            'picked' => count($enabled) <= 4 ? $enabled : array_values(array_intersect(self::SUGGESTED, $available)),
+            'requestsUrl' => config('familywell.requests_url') ?: null,
+        ]);
+    }
+
+    public function saveModules(Request $request): RedirectResponse
+    {
+        if (! $family = $this->onboardingFamily($request)) {
+            return $this->leave($request);
+        }
+        $registry = app(ModuleRegistry::class);
+        $available = array_values(array_filter(self::PICKABLE, fn ($id) => $registry->isInstalled($id)));
+        $data = $request->validate([
+            'modules' => ['required', 'array', 'min:1', 'max:4'],
+            'modules.*' => ['string', 'distinct', 'in:'.implode(',', $available)],
+        ]);
+
+        foreach ($available as $id) {
+            in_array($id, $data['modules'], true) ? $registry->enable($id, $family->id) : $registry->disable($id, $family->id);
+        }
+        Analytics::queue('onboarding_modules', ['modules' => implode(',', $data['modules'])]);
+
+        return $this->advance($request->user(), self::FLOW['modules']);
+    }
+
+    /**
+     * Step 4: on a phone, "Put FamilyWell on your Home Screen" (required: it's the only way reminders reach an
+     * iPhone). The page moves on by itself once it runs installed (display-mode: standalone), which is also
+     * where RequireFamily brings someone who opens the new Home Screen icon. On a computer it's "Now take it to
+     * your phone": a QR code / emailed link that signs the phone in (Handoff), or installing on the computer.
+     */
+    public function install(Request $request): RedirectResponse|Response
+    {
+        if (! $this->onboardingFamily($request)) {
+            return $this->leave($request);
+        }
+
+        return Inertia::render('onboarding/install', [
+            'email' => $request->user()->email,
+            // Polled by the computer while the phone does this step: once the phone has moved on, so does it.
+            'step' => fn () => $request->user()->fresh()->onboarding_step,
+            // ?preview=1 shows the screen without following anyone's progress.
+            'preview' => $request->boolean('preview'),
+        ]);
+    }
+
+    public function saveInstall(Request $request): RedirectResponse
+    {
+        if (! $this->onboardingFamily($request)) {
+            return $this->leave($request);
+        }
+        // How they got past it, for the funnel: opened installed, installed on the computer, or the phone's
+        // "continue in the browser" escape (shown only after a while, for browsers that can't install).
+        $data = $request->validate(['via' => ['required', 'in:standalone,desktop,browser']]);
+        Analytics::queue('onboarding_installed', ['via' => $data['via']]);
+
+        return $this->advance($request->user(), self::FLOW['install']);
+    }
+
+    // A fresh sign-in link for the computer's QR code. JSON, so the page can renew it before it expires.
+    public function handoff(Request $request): JsonResponse
+    {
+        abort_unless($this->onboardingFamily($request), 403);
+
+        return response()->json(['url' => Handoff::create($request->user()), 'ttl' => Handoff::TTL_MINUTES * 60]);
+    }
+
+    // "No camera handy? We'll email you a sign-in link." Only ever to the account's own address: a link that
+    // signs this account in must not be sendable to someone else's inbox.
+    public function emailHandoff(Request $request): RedirectResponse
+    {
+        if (! $this->onboardingFamily($request)) {
+            return $this->leave($request);
+        }
+        Mail::to($request->user()->email)->send(new HandoffLinkMail(Handoff::create($request->user())));
+
+        return back();
+    }
+
+    // GET /h/{token}: the phone end of the QR code / emailed link. Signs in, then the app resumes the onboarding.
+    public function useHandoff(Request $request, string $token): RedirectResponse
+    {
+        $user = Handoff::consume($token);
+        if (! $user) {
+            return to_route('login')->with('status', __('That sign-in link has expired or was already used. Sign in to carry on.'));
+        }
+        Auth::login($user, remember: true);
+        $request->session()->regenerate();
+
         return to_route('dashboard');
+    }
+
+    /**
+     * The steps after the family exists, each pointing at the next (null = done, into the app). A step's GET
+     * route is `onboarding.<step>`; `users.onboarding_step` remembers where someone is, so RequireFamily can
+     * bring them back to it.
+     */
+    private const FLOW = ['invite' => 'modules', 'modules' => 'install', 'install' => null];
+
+    // Not (or no longer) in an onboarding they can do, e.g. they switched to a family they don't run: stop
+    // remembering a step, or RequireFamily would send them straight back here in a loop.
+    private function leave(Request $request): RedirectResponse
+    {
+        if (! $request->boolean('preview')) {
+            $request->user()->forceFill(['onboarding_step' => null])->save();
+        }
+
+        return to_route('dashboard');
+    }
+
+    private function advance(User $user, ?string $step): RedirectResponse
+    {
+        $user->forceFill(['onboarding_step' => $step])->save();
+
+        return $step ? to_route("onboarding.{$step}") : to_route('dashboard');
+    }
+
+    /**
+     * The family whose onboarding this person is in the middle of: the active one, when they're mid-onboarding
+     * and an admin of it (an invited member never set it up, so never gets these steps). `?preview=1` on a GET
+     * shows the steps for the active family without changing anything.
+     */
+    private function onboardingFamily(Request $request): ?Family
+    {
+        $user = $request->user();
+        if ($user->onboarding_step === null && ! ($request->isMethod('GET') && $request->boolean('preview'))) {
+            return null;
+        }
+        $family = Family::find(CurrentFamily::id());
+
+        return $family && Gate::forUser($user)->allows('manageMembers', $family) ? $family : null;
     }
 }

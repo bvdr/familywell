@@ -34,7 +34,8 @@ class FamilyMemberController extends Controller
             ])->values(),
             // Pending invites are admin-only detail.
             'invitations' => $canManage
-                ? $family->invitations->map(fn ($i) => ['id' => $i->id, 'email' => $i->email, 'role' => $i->role])->values()
+                // The family join link (email null) isn't a pending person, so it isn't listed.
+                ? $family->invitations->whereNotNull('email')->map(fn ($i) => ['id' => $i->id, 'email' => $i->email, 'role' => $i->role])->values()
                 : [],
             'canManage' => $canManage,
             'palette' => ['colors' => Family::COLORS, 'emojis' => Family::EMOJIS],
