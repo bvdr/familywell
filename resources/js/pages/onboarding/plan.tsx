@@ -136,6 +136,9 @@ export default function PlanStep({ family, invited, pricing, standard, stripeKey
         <Elements
             stripe={stripePromise}
             options={{
+                // No Link (its sign-in and "save with Link" prompt aren't in the design); cards, Apple Pay and Google
+                // Pay stay.
+                excludedPaymentMethodTypes: ['link'],
                 mode: 'subscription',
                 amount: due * 100,
                 currency: 'usd',
@@ -151,7 +154,7 @@ export default function PlanStep({ family, invited, pricing, standard, stripeKey
                 title={t('onboarding.plan_title', { name: family.name })}
                 sub={t('onboarding.plan_sub')}
             >
-                <div className="grid gap-6 px-5 pb-6 md:grid-cols-2 md:gap-x-5 md:px-0 lg:grid-cols-[minmax(0,430px)_372px] lg:gap-x-10">
+                <div className="grid gap-6 px-5 pb-6 md:grid-cols-2 md:gap-x-5 md:px-0 lg:grid-cols-[minmax(0,430px)_372px] lg:grid-rows-[auto_1fr] lg:gap-x-10">
                     {/* Plans, the intro offer and what's included (left); checkout (right on tablet / desktop). */}
                     <div className="flex flex-col gap-5 md:col-span-2 lg:col-span-1">
                         {failed && <p className="bg-ok-soft text-ink rounded-xl px-3.5 py-2.5 text-[13px]">{t('onboarding.plan_canceled')}</p>}
