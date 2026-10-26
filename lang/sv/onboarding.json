@@ -1,6 +1,6 @@
 {
     "about_title": "Om dig",
-    "about_desc": "Hur familjen ser dig och hur FamilyWell ser ut för dig. Du kan ändra allt senare i Inställningar.",
+    "about_desc": "Hur familjen ser dig, och hur FamilyWell ser ut för dig.",
     "about_headline": "Gör den till din.",
     "about_sub": "Ett namn som familjen ser, ditt språk och färgerna du gillar.",
     "your_name": "Ditt namn",
@@ -288,5 +288,23 @@
     "plan_selfhost": "Hellre köra det själv? Det är öppen källkod.",
     "plan_selfhost_link": "Guide för egen drift",
     "plan_paid": "Allt är klart.",
-    "plan_paid_sub": "Välkommen hem till :name."
+    "plan_paid_sub": "Välkommen hem till :name.",
+    "about_eyebrow": "Innan vi börjar",
+    "about_heading": "Om dig.",
+    "about_hint_name": "Det familjen ser",
+    "about_hint_lang_phone": "Från din mobil",
+    "about_hint_lang_browser": "Från din webbläsare",
+    "about_hint_colours": "Ändras när du väljer",
+    "about_languages_one": ":count språk",
+    "about_languages_other": ":count språk",
+    "badge_new": "NY",
+    "about_later": "Du kan ändra allt senare i Inställningar.",
+    "about_preview_you": "Du",
+    "about_preview_note": "Välj ett annat språk så talar kortet det. Välj Mörkt eller ett annat tema så ändras det också, innan du trycker Fortsätt.",
+    "about_item_1": "Mjölk",
+    "about_item_2": "Ägg",
+    "about_item_3": "Betala förskolan",
+    "about_today_one": ":count sak i dag",
+    "about_today_other": ":count saker i dag",
+    "about_add": "Lägg till"
 }

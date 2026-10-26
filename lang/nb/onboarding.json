@@ -1,6 +1,6 @@
 {
     "about_title": "Om deg",
-    "about_desc": "Hvordan familien ser deg, og hvordan FamilyWell ser ut for deg. Du kan endre alt senere i Innstillinger.",
+    "about_desc": "Hvordan familien ser deg, og hvordan FamilyWell ser ut for deg.",
     "about_headline": "Gjør den til din.",
     "about_sub": "Et navn familien ser, språket ditt og fargene du liker.",
     "your_name": "Navnet ditt",
@@ -288,5 +288,23 @@
     "plan_selfhost": "Vil du heller drifte den selv? Den er åpen kildekode.",
     "plan_selfhost_link": "Guide for egen drift",
     "plan_paid": "Alt klart.",
-    "plan_paid_sub": "Velkommen hjem til :name."
+    "plan_paid_sub": "Velkommen hjem til :name.",
+    "about_eyebrow": "Før vi starter",
+    "about_heading": "Om deg.",
+    "about_hint_name": "Det familien ser",
+    "about_hint_lang_phone": "Fra mobilen din",
+    "about_hint_lang_browser": "Fra nettleseren din",
+    "about_hint_colours": "Endres mens du velger",
+    "about_languages_one": ":count språk",
+    "about_languages_other": ":count språk",
+    "badge_new": "NY",
+    "about_later": "Du kan endre alt senere i Innstillinger.",
+    "about_preview_you": "Deg",
+    "about_preview_note": "Velg et annet språk, så snakker kortet det. Velg Mørk eller et annet tema, så endrer det seg også, før du trykker Fortsett.",
+    "about_item_1": "Melk",
+    "about_item_2": "Egg",
+    "about_item_3": "Betale barnehagen",
+    "about_today_one": ":count ting i dag",
+    "about_today_other": ":count ting i dag",
+    "about_add": "Legg til"
 }

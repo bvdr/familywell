@@ -1,6 +1,6 @@
 {
     "about_title": "Over jou",
-    "about_desc": "Hoe je gezin je ziet en hoe FamilyWell er voor jou uitziet. Je kunt alles later wijzigen in Instellingen.",
+    "about_desc": "Hoe je gezin je ziet en hoe FamilyWell er voor jou uitziet.",
     "about_headline": "Maak het van jou.",
     "about_sub": "Een naam die je gezin ziet, je taal en de kleuren die je mooi vindt.",
     "your_name": "Je naam",
@@ -288,5 +288,23 @@
     "plan_selfhost": "Liever zelf hosten? Het is open source.",
     "plan_selfhost_link": "Handleiding zelf hosten",
     "plan_paid": "Helemaal klaar.",
-    "plan_paid_sub": "Welkom thuis bij :name."
+    "plan_paid_sub": "Welkom thuis bij :name.",
+    "about_eyebrow": "Voor we beginnen",
+    "about_heading": "Over jou.",
+    "about_hint_name": "Wat je gezin ziet",
+    "about_hint_lang_phone": "Van je telefoon",
+    "about_hint_lang_browser": "Van je browser",
+    "about_hint_colours": "Verandert terwijl je kiest",
+    "about_languages_one": ":count taal",
+    "about_languages_other": ":count talen",
+    "badge_new": "NIEUW",
+    "about_later": "Je kunt alles later aanpassen in Instellingen.",
+    "about_preview_you": "Jij",
+    "about_preview_note": "Kies een andere taal en deze kaart spreekt die. Kies Donker of een ander thema en hij verandert mee, nog voor Verder.",
+    "about_item_1": "Melk",
+    "about_item_2": "Eieren",
+    "about_item_3": "Opvang betalen",
+    "about_today_one": ":count ding vandaag",
+    "about_today_other": ":count dingen vandaag",
+    "about_add": "Toevoegen"
 }

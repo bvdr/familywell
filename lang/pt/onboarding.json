@@ -1,6 +1,6 @@
 {
     "about_title": "Sobre você",
-    "about_desc": "Como sua família vê você e como o FamilyWell aparece para você. Você pode mudar tudo isso depois em Configurações.",
+    "about_desc": "Como sua família vê você, e como o FamilyWell aparece para você.",
     "about_headline": "Deixe do seu jeito.",
     "about_sub": "Um nome para sua família ver, seu idioma e as cores de que você gosta.",
     "your_name": "Seu nome",
@@ -288,5 +288,23 @@
     "plan_selfhost": "Prefere hospedar você mesmo? É código aberto.",
     "plan_selfhost_link": "Guia de auto-hospedagem",
     "plan_paid": "Tudo pronto.",
-    "plan_paid_sub": "Bem-vindo de volta a :name."
+    "plan_paid_sub": "Bem-vindo de volta a :name.",
+    "about_eyebrow": "Antes de começar",
+    "about_heading": "Sobre você.",
+    "about_hint_name": "O que sua família vê",
+    "about_hint_lang_phone": "Do seu celular",
+    "about_hint_lang_browser": "Do seu navegador",
+    "about_hint_colours": "Muda enquanto você escolhe",
+    "about_languages_one": ":count idioma",
+    "about_languages_other": ":count idiomas",
+    "badge_new": "NOVO",
+    "about_later": "Você pode mudar tudo depois em Configurações.",
+    "about_preview_you": "Você",
+    "about_preview_note": "Escolha outro idioma e este cartão fala nele. Escolha Escuro ou outro tema e ele muda também, antes de tocar em Continuar.",
+    "about_item_1": "Leite",
+    "about_item_2": "Ovos",
+    "about_item_3": "Pagar a creche",
+    "about_today_one": ":count coisa hoje",
+    "about_today_other": ":count coisas hoje",
+    "about_add": "Adicionar"
 }

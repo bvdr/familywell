@@ -1,6 +1,6 @@
 {
     "about_title": "À propos de toi",
-    "about_desc": "Comment ta famille te voit, et à quoi ressemble FamilyWell pour toi. Tu pourras tout changer plus tard dans les Réglages.",
+    "about_desc": "Comment votre famille vous voit, et à quoi ressemble FamilyWell pour vous.",
     "about_headline": "Fais-en ton espace.",
     "about_sub": "Un nom que ta famille verra, ta langue et les couleurs que tu aimes.",
     "your_name": "Ton prénom",
@@ -288,5 +288,23 @@
     "plan_selfhost": "Vous préférez l'héberger vous-même ? C'est open source.",
     "plan_selfhost_link": "Guide d'auto-hébergement",
     "plan_paid": "Tout est prêt.",
-    "plan_paid_sub": "Bienvenue chez vous, chez :name."
+    "plan_paid_sub": "Bienvenue chez vous, chez :name.",
+    "about_eyebrow": "Avant de commencer",
+    "about_heading": "À propos de vous.",
+    "about_hint_name": "Ce que voit votre famille",
+    "about_hint_lang_phone": "De votre téléphone",
+    "about_hint_lang_browser": "De votre navigateur",
+    "about_hint_colours": "Change à chaque choix",
+    "about_languages_one": ":count langue",
+    "about_languages_other": ":count langues",
+    "badge_new": "NOUVEAU",
+    "about_later": "Vous pourrez tout changer plus tard dans les Réglages.",
+    "about_preview_you": "Vous",
+    "about_preview_note": "Choisissez une autre langue et cette carte la parle. Choisissez Sombre ou un autre thème et elle change aussi, avant même Continuer.",
+    "about_item_1": "Lait",
+    "about_item_2": "Œufs",
+    "about_item_3": "Payer la crèche",
+    "about_today_one": ":count chose aujourd'hui",
+    "about_today_other": ":count choses aujourd'hui",
+    "about_add": "Ajouter"
 }

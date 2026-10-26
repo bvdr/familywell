@@ -1,6 +1,6 @@
 {
     "about_title": "About you",
-    "about_desc": "How your family sees you, and how FamilyWell looks for you. You can change all of it later in Settings.",
+    "about_desc": "How your family sees you, and how FamilyWell looks for you.",
     "about_headline": "Make it yours.",
     "about_sub": "A name for your family to see, your language, and the colours you like.",
     "your_name": "Your name",
@@ -288,5 +288,23 @@
     "plan_selfhost": "Rather run it yourself? It's open source.",
     "plan_selfhost_link": "Self-hosting guide",
     "plan_paid": "You're all set.",
-    "plan_paid_sub": "Welcome home to :name."
+    "plan_paid_sub": "Welcome home to :name.",
+    "about_eyebrow": "Before we start",
+    "about_heading": "About you.",
+    "about_hint_name": "What your family sees",
+    "about_hint_lang_phone": "From your phone",
+    "about_hint_lang_browser": "From your browser",
+    "about_hint_colours": "Changes as you pick",
+    "about_languages_one": ":count language",
+    "about_languages_other": ":count languages",
+    "badge_new": "NEW",
+    "about_later": "You can change all of it later in Settings.",
+    "about_preview_you": "You",
+    "about_preview_note": "Pick another language and this card speaks it. Pick Dark or another skin and it changes too, before you've clicked Continue.",
+    "about_item_1": "Milk",
+    "about_item_2": "Eggs",
+    "about_item_3": "Pay daycare",
+    "about_today_one": ":count thing today",
+    "about_today_other": ":count things today",
+    "about_add": "Add"
 }

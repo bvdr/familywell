@@ -1,6 +1,6 @@
 {
     "about_title": "Über dich",
-    "about_desc": "Wie deine Familie dich sieht und wie FamilyWell für dich aussieht. Du kannst alles später in den Einstellungen ändern.",
+    "about_desc": "Wie deine Familie dich sieht und wie FamilyWell für dich aussieht.",
     "about_headline": "Mach es zu deinem.",
     "about_sub": "Ein Name für deine Familie, deine Sprache und die Farben, die du magst.",
     "your_name": "Dein Name",
@@ -288,5 +288,23 @@
     "plan_selfhost": "Lieber selbst betreiben? Es ist Open Source.",
     "plan_selfhost_link": "Self-Hosting-Anleitung",
     "plan_paid": "Alles bereit.",
-    "plan_paid_sub": "Willkommen zu Hause bei :name."
+    "plan_paid_sub": "Willkommen zu Hause bei :name.",
+    "about_eyebrow": "Bevor es losgeht",
+    "about_heading": "Über dich.",
+    "about_hint_name": "Was deine Familie sieht",
+    "about_hint_lang_phone": "Von deinem Handy",
+    "about_hint_lang_browser": "Von deinem Browser",
+    "about_hint_colours": "Ändert sich beim Auswählen",
+    "about_languages_one": ":count Sprache",
+    "about_languages_other": ":count Sprachen",
+    "badge_new": "NEU",
+    "about_later": "Du kannst alles später in den Einstellungen ändern.",
+    "about_preview_you": "Du",
+    "about_preview_note": "Wähl eine andere Sprache, und die Karte spricht sie. Wähl Dunkel oder ein anderes Design, und sie ändert sich mit, noch vor Weiter.",
+    "about_item_1": "Milch",
+    "about_item_2": "Eier",
+    "about_item_3": "Kita bezahlen",
+    "about_today_one": ":count Sache heute",
+    "about_today_other": ":count Sachen heute",
+    "about_add": "Hinzufügen"
 }
