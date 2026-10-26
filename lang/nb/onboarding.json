@@ -84,8 +84,8 @@
     "invite_remove": "Fjern",
     "role_adult": "Voksen",
     "role_teen": "Tenåring",
-    "role_adult_desc": "Ser og endrer alt, styrer familien",
-    "role_teen_desc": "Ser og endrer alt, administrerer ikke folk",
+    "role_adult_desc": "Ser og endrer alt",
+    "role_teen_desc": "Egne lister, oppgaver og kalender",
     "invite_link": "Eller del en lenke",
     "copy": "Kopier",
     "modules_title": "Velg 4 til å begynne med.",
@@ -308,5 +308,8 @@
     "about_today_other": ":count ting i dag",
     "about_add": "Legg til",
     "notify_calendar": "Endringer i kalenderen",
-    "notify_example_calendar": "Svømmetreningen til :b er flyttet til 17.30 i dag."
+    "notify_example_calendar": "Svømmetreningen til :b er flyttet til 17.30 i dag.",
+    "role_kid": "Barn",
+    "role_kid_desc": "En profil du styrer, uten e-post",
+    "invite_kids": "Små uten e-post? Legg dem til som profiler senere, uten konto."
 }

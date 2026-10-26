@@ -25,7 +25,7 @@ class FamilyInviteController extends Controller
 
         $data = $request->validate([
             'email' => ['required', 'email', 'max:255'],
-            'role' => ['required', 'in:admin,member'],
+            'role' => ['required', 'in:'.implode(',', Family::ROLES)],
         ]);
 
         if ($family->members()->where('email', $data['email'])->exists()) {

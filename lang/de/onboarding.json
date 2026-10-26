@@ -84,8 +84,8 @@
     "invite_remove": "Entfernen",
     "role_adult": "Erwachsen",
     "role_teen": "Teenager",
-    "role_adult_desc": "Sieht und bearbeitet alles, verwaltet die Familie",
-    "role_teen_desc": "Sieht und bearbeitet alles, verwaltet keine Personen",
+    "role_adult_desc": "Sieht und bearbeitet alles",
+    "role_teen_desc": "Eigene Listen, Aufgaben und Kalender",
     "invite_link": "Oder einen Link teilen",
     "copy": "Kopieren",
     "modules_title": "Wähl 4 für den Anfang.",
@@ -308,5 +308,8 @@
     "about_today_other": ":count Sachen heute",
     "about_add": "Hinzufügen",
     "notify_calendar": "Kalenderänderungen",
-    "notify_example_calendar": ":bs Schwimmtraining ist heute auf 17:30 verschoben."
+    "notify_example_calendar": ":bs Schwimmtraining ist heute auf 17:30 verschoben.",
+    "role_kid": "Kind",
+    "role_kid_desc": "Ein Profil, das du verwaltest, ohne E-Mail",
+    "invite_kids": "Kleine ohne E-Mail? Füg sie später als Profile hinzu, ganz ohne Konto."
 }

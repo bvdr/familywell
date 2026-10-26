@@ -178,7 +178,7 @@ class OnboardingController extends Controller
         return Inertia::render('onboarding/invite', [
             'link' => FamilyInviteController::link($family, $request->user()),
             'invited' => $family->invitations()->whereNotNull('email')->get()
-                ->map(fn ($i) => ['email' => $i->email, 'role' => $i->role === 'admin' ? 'adult' : 'teen'])->values(),
+                ->map(fn ($i) => ['email' => $i->email, 'role' => $i->role === 'teen' ? 'teen' : 'adult'])->values(),
         ]);
     }
 
@@ -188,8 +188,8 @@ class OnboardingController extends Controller
             return $this->leave($request);
         }
 
-        // Adult = admin (can manage the family, like the person inviting), Teen = member. The design speaks in
-        // household terms; the app's two roles stay the source of truth. Empty list = "I'll invite them later".
+        // Adult = admin (sees and edits everything, like the person inviting), Teen = teen (their lists, tasks and
+        // calendar, see Family::ROLES). Empty list = "I'll invite them later".
         $data = $request->validate([
             'invites' => ['array', 'max:20'],
             'invites.*.email' => ['required', 'email', 'max:255', 'distinct'],
@@ -199,7 +199,7 @@ class OnboardingController extends Controller
             ->reject(fn ($i) => $family->members()->where('email', $i['email'])->exists());
 
         foreach ($invites as $i) {
-            FamilyInviteController::send($family, $i['email'], $i['role'] === 'adult' ? 'admin' : 'member', $request->user());
+            FamilyInviteController::send($family, $i['email'], $i['role'] === 'adult' ? 'admin' : 'teen', $request->user());
         }
         Analytics::queue('onboarding_invites', ['count' => $invites->count()]);
 

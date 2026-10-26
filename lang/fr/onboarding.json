@@ -84,8 +84,8 @@
     "invite_remove": "Retirer",
     "role_adult": "Adulte",
     "role_teen": "Ado",
-    "role_adult_desc": "Voit et modifie tout, gère la famille",
-    "role_teen_desc": "Voit et modifie tout, ne gère pas les personnes",
+    "role_adult_desc": "Voit et modifie tout",
+    "role_teen_desc": "Ses listes, tâches et agenda",
     "invite_link": "Ou partagez un lien",
     "copy": "Copier",
     "modules_title": "Choisissez-en 4 pour commencer.",
@@ -308,5 +308,8 @@
     "about_today_other": ":count choses aujourd'hui",
     "about_add": "Ajouter",
     "notify_calendar": "Changements d'agenda",
-    "notify_example_calendar": "La natation de :b est déplacée à 17 h 30 aujourd'hui."
+    "notify_example_calendar": "La natation de :b est déplacée à 17 h 30 aujourd'hui.",
+    "role_kid": "Enfant",
+    "role_kid_desc": "Un profil que vous gérez, sans e-mail",
+    "invite_kids": "Les petits sans e-mail ? Ajoutez-les plus tard en profils, sans compte."
 }

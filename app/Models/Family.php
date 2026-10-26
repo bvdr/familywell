@@ -16,6 +16,14 @@ class Family extends Model
 
     public const EMOJIS = ['🌿', '🏡', '☀️', '🐻', '🌸', '⭐'];
 
+    // Membership roles. admin: runs the family (members, modules, billing). member: everything else. teen: their
+    // lists, tasks and calendar only (TEEN_MODULES, enforced by ModuleRegistry::enabledIds), never manages anything.
+    // The onboarding calls admin "Adult" (it's who you'd invite as a co-parent) and teen "Teen".
+    public const ROLES = ['admin', 'member', 'teen'];
+
+    // What a teen sees: the three core modules plus the add-ons that only extend them (and notifications).
+    public const TEEN_MODULES = ['shopping', 'tasks', 'calendar', 'notifications', 'important_todos', 'recurring_todos'];
+
     // The onboarding palette (design-app.pen "Onboarding · Flow"): sun, coral, green, blue, lilac, ink.
     public const ONBOARDING_COLORS = ['#FFDF00', '#FF5A3C', '#5BD38A', '#7FA8FF', '#C8A6FF', '#121100'];
 

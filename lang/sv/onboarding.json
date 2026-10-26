@@ -84,8 +84,8 @@
     "invite_remove": "Ta bort",
     "role_adult": "Vuxen",
     "role_teen": "Tonåring",
-    "role_adult_desc": "Ser och ändrar allt, styr familjen",
-    "role_teen_desc": "Ser och ändrar allt, hanterar inte personer",
+    "role_adult_desc": "Ser och ändrar allt",
+    "role_teen_desc": "Egna listor, uppgifter och kalender",
     "invite_link": "Eller dela en länk",
     "copy": "Kopiera",
     "modules_title": "Välj 4 att börja med.",
@@ -308,5 +308,8 @@
     "about_today_other": ":count saker i dag",
     "about_add": "Lägg till",
     "notify_calendar": "Kalenderändringar",
-    "notify_example_calendar": ":bs simträning är flyttad till 17.30 i dag."
+    "notify_example_calendar": ":bs simträning är flyttad till 17.30 i dag.",
+    "role_kid": "Barn",
+    "role_kid_desc": "En profil du hanterar, utan e-post",
+    "invite_kids": "Små utan e-post? Lägg till dem som profiler senare, inget konto behövs."
 }

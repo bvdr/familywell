@@ -84,8 +84,8 @@
     "invite_remove": "Verwijderen",
     "role_adult": "Volwassene",
     "role_teen": "Tiener",
-    "role_adult_desc": "Ziet en bewerkt alles, beheert het gezin",
-    "role_teen_desc": "Ziet en bewerkt alles, beheert geen mensen",
+    "role_adult_desc": "Ziet en bewerkt alles",
+    "role_teen_desc": "Eigen lijstjes, taken en agenda",
     "invite_link": "Of deel een link",
     "copy": "Kopiëren",
     "modules_title": "Kies er 4 om te beginnen.",
@@ -308,5 +308,8 @@
     "about_today_other": ":count dingen vandaag",
     "about_add": "Toevoegen",
     "notify_calendar": "Agendawijzigingen",
-    "notify_example_calendar": "De zwemles van :b is vandaag verplaatst naar 17.30."
+    "notify_example_calendar": "De zwemles van :b is vandaag verplaatst naar 17.30.",
+    "role_kid": "Kind",
+    "role_kid_desc": "Een profiel dat jij beheert, zonder e-mail",
+    "invite_kids": "Kleintjes zonder e-mail? Voeg ze later toe als profiel, geen account nodig."
 }
