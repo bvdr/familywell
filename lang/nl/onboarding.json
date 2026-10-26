@@ -72,5 +72,22 @@
     "distance": "Afstanden",
     "units_metric": "Metrisch",
     "units_imperial": "Imperiaal",
-    "done": "Klaar"
+    "done": "Klaar",
+    "invite_title": "Met wie woon je samen?",
+    "invite_sub": "Ze krijgen een korte mail en doen met één tik mee. FamilyWell is beter als iedereen meedoet.",
+    "invite_bad_email": "Dat lijkt geen e-mailadres.",
+    "invite_send_one": ":count uitnodiging versturen",
+    "invite_send_other": ":count uitnodigingen versturen",
+    "invite_send_none": "Uitnodigingen versturen",
+    "invite_later": "Ik nodig ze later uit",
+    "invite_one_price": "Iedereen doet mee. Eén prijs per gezin, niet per persoon.",
+    "invite_placeholder": "Hun e-mail",
+    "invite_add": "Toevoegen",
+    "invite_remove": "Verwijderen",
+    "role_adult": "Volwassene",
+    "role_teen": "Tiener",
+    "role_adult_desc": "Kan het gezin beheren, net als jij",
+    "role_teen_desc": "Gebruikt alles, beheert geen leden",
+    "invite_link": "Of deel een link",
+    "copy": "Kopiëren"
 }

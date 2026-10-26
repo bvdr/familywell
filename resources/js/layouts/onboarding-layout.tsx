@@ -173,7 +173,7 @@ export default function OnboardingLayout({ step, back, title, sub, cta, hint, ch
                             <span className="hidden lg:block" />
                         )}
                         <div className="flex w-full flex-col items-center gap-3 lg:w-auto lg:flex-row lg:gap-[18px]">
-                            <div className="w-full lg:order-2 lg:w-auto [&>*]:w-full lg:[&>*]:w-auto lg:[&>*]:min-w-[260px]">{cta}</div>
+                            <div className="flex w-full lg:order-2 lg:w-auto">{cta}</div>
                             {hint && <div className="text-stone text-center text-xs lg:order-1 lg:text-[13px]">{hint}</div>}
                         </div>
                     </footer>

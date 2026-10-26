@@ -72,5 +72,22 @@
     "distance": "Avstånd",
     "units_metric": "Metriskt",
     "units_imperial": "Brittiskt",
-    "done": "Klar"
+    "done": "Klar",
+    "invite_title": "Vilka bor med dig?",
+    "invite_sub": "De får ett kort mejl och går med med ett tryck. FamilyWell blir bättre när alla är med.",
+    "invite_bad_email": "Det ser inte ut som en e-postadress.",
+    "invite_send_one": "Skicka :count inbjudan",
+    "invite_send_other": "Skicka :count inbjudningar",
+    "invite_send_none": "Skicka inbjudningar",
+    "invite_later": "Jag bjuder in dem senare",
+    "invite_one_price": "Alla ingår. Ett pris per familj, inte per person.",
+    "invite_placeholder": "Deras e-post",
+    "invite_add": "Lägg till",
+    "invite_remove": "Ta bort",
+    "role_adult": "Vuxen",
+    "role_teen": "Tonåring",
+    "role_adult_desc": "Kan hantera familjen, som du",
+    "role_teen_desc": "Använder allt, hanterar inte medlemmar",
+    "invite_link": "Eller dela en länk",
+    "copy": "Kopiera"
 }

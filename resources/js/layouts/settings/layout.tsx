@@ -1,10 +1,23 @@
-import { MODULE_ITEMS } from '@/components/mobile-tab-bar';
 import Heading from '@/components/heading';
+import { MODULE_ITEMS } from '@/components/mobile-tab-bar';
 import { Button } from '@/components/ui/button';
 import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Link, usePage } from '@inertiajs/react';
-import { Bell, ChevronLeft, ChevronRight, CreditCard, Image, KeyRound, Languages, type LucideIcon, Palette, PlugZap, Trash2, User } from 'lucide-react';
+import {
+    Bell,
+    ChevronLeft,
+    ChevronRight,
+    CreditCard,
+    Image,
+    KeyRound,
+    Languages,
+    type LucideIcon,
+    Palette,
+    PlugZap,
+    Trash2,
+    User,
+} from 'lucide-react';
 
 // key/hintKey are translation keys resolved at render (so the nav is localized). hintKey is the short grey
 // line under the title in the phone menu (Slack-style); the desktop sidebar shows the title only.
@@ -116,7 +129,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
     return (
         <div className="px-4 py-6">
             {/* Phones drill down: the menu lives at /settings, a section page only links back to it. */}
-            <Link href="/settings" className="text-primary -ml-1 mb-4 inline-flex min-h-11 items-center gap-1 text-sm font-semibold lg:hidden">
+            <Link href="/settings" className="text-primary mb-4 -ml-1 inline-flex min-h-11 items-center gap-1 text-sm font-semibold lg:hidden">
                 <ChevronLeft className="size-5" />
                 {t('settings.title')}
             </Link>
@@ -130,7 +143,9 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                         {groups.map((g, i) => (
                             <div key={g.id} className="flex flex-col space-y-1">
                                 {i > 0 && (
-                                    <h3 className="text-muted-foreground px-3 pt-4 pb-1 text-xs font-semibold tracking-widest uppercase">{g.label}</h3>
+                                    <h3 className="text-muted-foreground px-3 pt-4 pb-1 text-xs font-semibold tracking-widest uppercase">
+                                        {g.label}
+                                    </h3>
                                 )}
                                 {g.items.map(navLink)}
                             </div>

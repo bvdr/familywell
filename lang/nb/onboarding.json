@@ -72,5 +72,22 @@
     "distance": "Avstander",
     "units_metric": "Metrisk",
     "units_imperial": "Imperisk",
-    "done": "Ferdig"
+    "done": "Ferdig",
+    "invite_title": "Hvem bor sammen med deg?",
+    "invite_sub": "De får en kort e-post og blir med med ett trykk. FamilyWell er bedre med alle med.",
+    "invite_bad_email": "Det ser ikke ut som en e-postadresse.",
+    "invite_send_one": "Send :count invitasjon",
+    "invite_send_other": "Send :count invitasjoner",
+    "invite_send_none": "Send invitasjoner",
+    "invite_later": "Jeg inviterer dem senere",
+    "invite_one_price": "Alle er med. Én pris per familie, ikke per person.",
+    "invite_placeholder": "E-posten deres",
+    "invite_add": "Legg til",
+    "invite_remove": "Fjern",
+    "role_adult": "Voksen",
+    "role_teen": "Tenåring",
+    "role_adult_desc": "Kan administrere familien, som deg",
+    "role_teen_desc": "Bruker alt, administrerer ikke medlemmer",
+    "invite_link": "Eller del en lenke",
+    "copy": "Kopier"
 }

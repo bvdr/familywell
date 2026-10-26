@@ -71,6 +71,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('onboarding', [OnboardingController::class, 'index'])->name('onboarding.index');
     Route::get('onboarding/create', [OnboardingController::class, 'create'])->name('onboarding.create');
     Route::post('onboarding', [OnboardingController::class, 'store'])->name('onboarding.store');
+    Route::get('onboarding/invite', [OnboardingController::class, 'invite'])->name('onboarding.invite');
+    // Throttled: each invite sends an email.
+    Route::post('onboarding/invite', [OnboardingController::class, 'sendInvites'])->middleware('throttle:10,1')->name('onboarding.invite.store');
 
     // Accepting requires a logged-in user, but NOT a family (a new/joining user has none yet).
     Route::post('invite/{token}', [FamilyInviteController::class, 'accept'])->name('invite.accept');

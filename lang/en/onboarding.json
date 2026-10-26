@@ -72,5 +72,22 @@
     "distance": "Distances",
     "units_metric": "Metric",
     "units_imperial": "Imperial",
-    "done": "Done"
+    "done": "Done",
+    "invite_title": "Who shares your home?",
+    "invite_sub": "They'll get a short email and join with one tap. FamilyWell is better with everyone in it.",
+    "invite_bad_email": "That doesn't look like an email address.",
+    "invite_send_one": "Send :count invite",
+    "invite_send_other": "Send :count invites",
+    "invite_send_none": "Send invites",
+    "invite_later": "I'll invite them later",
+    "invite_one_price": "Everyone's included. One price per family, not per person.",
+    "invite_placeholder": "Their email",
+    "invite_add": "Add",
+    "invite_remove": "Remove",
+    "role_adult": "Adult",
+    "role_teen": "Teen",
+    "role_adult_desc": "Can manage the family, like you",
+    "role_teen_desc": "Uses everything, can't manage members",
+    "invite_link": "Or share a link instead",
+    "copy": "Copy"
 }

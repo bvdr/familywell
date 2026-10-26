@@ -1,9 +1,11 @@
 <?php
 
+use App\Mail\FamilyInvitationMail;
 use App\Models\Family;
 use App\Models\User;
 use App\Support\Modules\ModuleRegistry;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Modules\Spending\SpendSetting;
 use Modules\Vehicles\VehicleSetting;
 
@@ -55,7 +57,7 @@ it('shows onboarding to a family-less user and the create form', function () {
     actingAs($user)->get('/onboarding/create')->assertOk();
 });
 
-it('creates a family from onboarding with the user as admin and lands on the dashboard', function () {
+it('creates a family from onboarding with the user as admin and goes on to inviting people', function () {
     $user = User::factory()->create();
 
     actingAs($user)->post('/onboarding', [
@@ -63,7 +65,7 @@ it('creates a family from onboarding with the user as admin and lands on the das
         'description' => 'Home base',
         'color' => '#2D5E3A',
         'emoji' => '🏡',
-    ])->assertRedirect(route('dashboard', absolute: false));
+    ])->assertRedirect(route('onboarding.invite', absolute: false));
 
     $family = $user->fresh()->families()->first();
     expect($family->name)->toBe('The Rivera Family')
@@ -71,8 +73,9 @@ it('creates a family from onboarding with the user as admin and lands on the das
         ->and($family->owner_id)->toBe($user->id)
         ->and($family->pivot->role)->toBe('admin');
 
-    // With a family now, the app is reachable.
-    actingAs($user)->get('/dashboard')->assertOk();
+    // Mid-onboarding, the app sends them back to the step they're on.
+    expect($user->fresh()->onboarding_step)->toBe('invite');
+    actingAs($user->fresh())->get('/dashboard')->assertRedirect(route('onboarding.invite'));
 });
 
 it('rejects a color outside the offered palette', function () {
@@ -153,4 +156,72 @@ it('lets ?preview=1 show a step to someone already onboarded, but never create t
     actingAs($user)->get('/onboarding/create?preview=1')->assertOk();
     actingAs($user)->post('/onboarding?preview=1', ['name' => 'Second', 'color' => '#FFDF00', 'preview' => 1])->assertRedirect(route('dashboard'));
     expect($user->fresh()->families)->toHaveCount(1);
+});
+
+function onboardingOwner(string $step = 'invite'): array
+{
+    $user = User::factory()->create(['name' => 'Ana Rivera']);
+    $family = Family::create(['name' => 'The Riveras', 'owner_id' => $user->id, 'color' => '#FFDF00']);
+    $family->members()->attach($user, ['role' => 'admin']);
+    $user->forceFill(['onboarding_step' => $step])->save();
+
+    return [$user, $family];
+}
+
+it('edits the family when someone goes back to step 1, instead of making a second one', function () {
+    [$user, $family] = onboardingOwner();
+
+    actingAs($user)->get('/onboarding/create')->assertOk()
+        ->assertInertia(fn ($page) => $page->where('family.name', 'The Riveras'));
+    actingAs($user)->post('/onboarding', ['name' => 'Casa Rivera', 'color' => '#5BD38A', 'symbol' => 'dog'])
+        ->assertRedirect(route('onboarding.invite'));
+
+    expect($user->fresh()->families)->toHaveCount(1)
+        ->and($family->fresh()->only(['name', 'color', 'symbol']))->toBe(['name' => 'Casa Rivera', 'color' => '#5BD38A', 'symbol' => 'dog']);
+});
+
+it('sends the onboarding invites with a role each and moves on', function () {
+    Mail::fake();
+    [$user, $family] = onboardingOwner();
+
+    actingAs($user)->get('/onboarding/invite')->assertOk()->assertInertia(fn ($page) => $page->component('onboarding/invite'));
+    actingAs($user)->post('/onboarding/invite', ['invites' => [
+        ['email' => 'marco@rivera.family', 'role' => 'adult'],
+        ['email' => 'lucia@rivera.family', 'role' => 'teen'],
+    ]])->assertRedirect();
+
+    expect($family->invitations()->whereNotNull('email')->pluck('role', 'email')->all())
+        ->toEqual(['lucia@rivera.family' => 'member', 'marco@rivera.family' => 'admin']);
+    Mail::assertSent(FamilyInvitationMail::class, 2);
+});
+
+it('lets the invite step be skipped', function () {
+    [$user, $family] = onboardingOwner();
+
+    actingAs($user)->post('/onboarding/invite', ['invites' => []])->assertRedirect();
+    expect($family->invitations()->whereNotNull('email')->count())->toBe(0);
+});
+
+it('shares one family link that stays usable after someone joins with it', function () {
+    [$user, $family] = onboardingOwner();
+
+    $link = actingAs($user)->get('/onboarding/invite')->viewData('page')['props']['link'];
+    actingAs($user)->get('/onboarding/invite');
+    expect($family->invitations()->whereNull('email')->count())->toBe(1);
+
+    $token = basename($link);
+    $joiner = User::factory()->create();
+    actingAs($joiner)->post("/invite/{$token}")->assertRedirect(route('dashboard'));
+    expect($family->members()->where('users.id', $joiner->id)->exists())->toBeTrue()
+        ->and($family->invitations()->whereNull('email')->count())->toBe(1);
+});
+
+it('keeps the onboarding steps to the person running it', function () {
+    [, $family] = onboardingOwner();
+    $member = User::factory()->create();
+    $family->members()->attach($member, ['role' => 'member']);
+    $member->forceFill(['onboarding_step' => 'invite'])->save();
+
+    actingAs($member)->get('/onboarding/invite')->assertRedirect(route('dashboard'));
+    expect($member->fresh()->onboarding_step)->toBeNull();
 });

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Middleware\TrackLastSeen;
 use App\Models\Family;
+use App\Models\User;
 use App\Support\Analytics;
 use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
@@ -12,6 +13,7 @@ use App\Support\Theming\ThemeTokens;
 use App\Support\Translations;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -75,14 +77,20 @@ class OnboardingController extends Controller
     }
 
     // Step 1, "What should we call your family?": name (with suggestions), colour + symbol, region & units.
+    // Back from step 2 lands here again with the family already made: the form then edits it (`family` set).
     public function create(Request $request): RedirectResponse|Response
     {
-        return $this->redirectIfOnboarded($request)
-            ?? Inertia::render('onboarding/create-family', [
-                'userName' => (string) $request->user()->name,
-                'colors' => Family::ONBOARDING_COLORS,
-                'region' => $this->region($request),
-            ]);
+        $family = $this->onboardingFamily($request);
+        if (! $family && ($redirect = $this->redirectIfOnboarded($request))) {
+            return $redirect;
+        }
+
+        return Inertia::render('onboarding/create-family', [
+            'userName' => (string) $request->user()->name,
+            'colors' => Family::ONBOARDING_COLORS,
+            'region' => $this->region($request),
+            'family' => $family?->only(['name', 'color', 'symbol']),
+        ]);
     }
 
     /**
@@ -103,7 +111,8 @@ class OnboardingController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        if ($redirect = $this->redirectIfOnboarded($request)) {
+        $editing = $this->onboardingFamily($request);
+        if (! $editing && ($redirect = $this->redirectIfOnboarded($request))) {
             return $redirect;
         }
 
@@ -120,6 +129,13 @@ class OnboardingController extends Controller
         ]);
 
         $user = $request->user();
+
+        // Came back to step 1 from step 2: rename / restyle the family made a moment ago, then carry on.
+        if ($editing) {
+            $editing->update(['name' => $data['name'], 'color' => $data['color'], 'symbol' => $data['symbol'] ?? null]);
+
+            return $this->advance($user, 'invite');
+        }
 
         $family = Family::create([
             'name' => $data['name'],
@@ -142,6 +158,85 @@ class OnboardingController extends Controller
         // Make it the active tenant immediately (SetActiveFamily reads this on the next request).
         $request->session()->put('active_family_id', $family->id);
 
+        return $this->advance($user, 'invite');
+    }
+
+    // Step 2, "Who shares your home?": email invites with a role each, or the family's share link.
+    public function invite(Request $request): RedirectResponse|Response
+    {
+        if (! $family = $this->onboardingFamily($request)) {
+            return $this->leave($request);
+        }
+
+        return Inertia::render('onboarding/invite', [
+            'link' => FamilyInviteController::link($family, $request->user()),
+            'invited' => $family->invitations()->whereNotNull('email')->get()
+                ->map(fn ($i) => ['email' => $i->email, 'role' => $i->role === 'admin' ? 'adult' : 'teen'])->values(),
+        ]);
+    }
+
+    public function sendInvites(Request $request): RedirectResponse
+    {
+        if (! $family = $this->onboardingFamily($request)) {
+            return $this->leave($request);
+        }
+
+        // Adult = admin (can manage the family, like the person inviting), Teen = member. The design speaks in
+        // household terms; the app's two roles stay the source of truth. Empty list = "I'll invite them later".
+        $data = $request->validate([
+            'invites' => ['array', 'max:20'],
+            'invites.*.email' => ['required', 'email', 'max:255', 'distinct'],
+            'invites.*.role' => ['required', 'in:adult,teen'],
+        ]);
+        $invites = collect($data['invites'] ?? [])
+            ->reject(fn ($i) => $family->members()->where('email', $i['email'])->exists());
+
+        foreach ($invites as $i) {
+            FamilyInviteController::send($family, $i['email'], $i['role'] === 'adult' ? 'admin' : 'member', $request->user());
+        }
+        Analytics::queue('onboarding_invites', ['count' => $invites->count()]);
+
+        return $this->advance($request->user(), self::FLOW['invite']);
+    }
+
+    /**
+     * The steps after the family exists, each pointing at the next (null = done, into the app). A step's GET
+     * route is `onboarding.<step>`; `users.onboarding_step` remembers where someone is, so RequireFamily can
+     * bring them back to it.
+     */
+    private const FLOW = ['invite' => null];
+
+    // Not (or no longer) in an onboarding they can do, e.g. they switched to a family they don't run: stop
+    // remembering a step, or RequireFamily would send them straight back here in a loop.
+    private function leave(Request $request): RedirectResponse
+    {
+        if (! $request->boolean('preview')) {
+            $request->user()->forceFill(['onboarding_step' => null])->save();
+        }
+
         return to_route('dashboard');
+    }
+
+    private function advance(User $user, ?string $step): RedirectResponse
+    {
+        $user->forceFill(['onboarding_step' => $step])->save();
+
+        return $step ? to_route("onboarding.{$step}") : to_route('dashboard');
+    }
+
+    /**
+     * The family whose onboarding this person is in the middle of: the active one, when they're mid-onboarding
+     * and an admin of it (an invited member never set it up, so never gets these steps). `?preview=1` on a GET
+     * shows the steps for the active family without changing anything.
+     */
+    private function onboardingFamily(Request $request): ?Family
+    {
+        $user = $request->user();
+        if ($user->onboarding_step === null && ! ($request->isMethod('GET') && $request->boolean('preview'))) {
+            return null;
+        }
+        $family = Family::find(CurrentFamily::id());
+
+        return $family && Gate::forUser($user)->allows('manageMembers', $family) ? $family : null;
     }
 }

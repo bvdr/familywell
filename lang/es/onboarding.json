@@ -72,5 +72,22 @@
     "distance": "Distancias",
     "units_metric": "Métrico",
     "units_imperial": "Imperial",
-    "done": "Listo"
+    "done": "Listo",
+    "invite_title": "¿Quién vive contigo?",
+    "invite_sub": "Recibirán un correo corto y entrarán con un toque. FamilyWell es mejor con todos dentro.",
+    "invite_bad_email": "Eso no parece una dirección de correo.",
+    "invite_send_one": "Enviar :count invitación",
+    "invite_send_other": "Enviar :count invitaciones",
+    "invite_send_none": "Enviar invitaciones",
+    "invite_later": "Los invitaré más tarde",
+    "invite_one_price": "Todos incluidos. Un precio por familia, no por persona.",
+    "invite_placeholder": "Su correo",
+    "invite_add": "Añadir",
+    "invite_remove": "Quitar",
+    "role_adult": "Adulto",
+    "role_teen": "Adolescente",
+    "role_adult_desc": "Puede gestionar la familia, como tú",
+    "role_teen_desc": "Usa todo, no gestiona miembros",
+    "invite_link": "O comparte un enlace",
+    "copy": "Copiar"
 }

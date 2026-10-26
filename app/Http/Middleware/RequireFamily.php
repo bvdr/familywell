@@ -19,6 +19,12 @@ class RequireFamily
             return to_route('onboarding.index');
         }
 
+        // Mid-onboarding (step 1 done, the rest not): back to the step they're on. GET only, so nothing a page
+        // posts in the meantime is lost. This is also how opening the app from the Home Screen resumes it.
+        if (($step = $request->user()->onboarding_step) && $request->isMethod('GET')) {
+            return to_route("onboarding.{$step}");
+        }
+
         // Paywall (hosted plan only): this gate already wraps every app + module route, so it is the one
         // place an unpaid family is held. Billing itself is under it too, so it must be let through.
         // Billing::enabled() first: self-hosted installs pay no extra query.
