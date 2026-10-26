@@ -225,3 +225,26 @@ it('keeps the onboarding steps to the person running it', function () {
     actingAs($member)->get('/onboarding/invite')->assertRedirect(route('dashboard'));
     expect($member->fresh()->onboarding_step)->toBeNull();
 });
+
+it('turns on only the picked modules and leaves the add-ons alone', function () {
+    test()->artisan('modules:migrate')->assertExitCode(0);
+    [$user, $family] = onboardingOwner('modules');
+    $registry = app(ModuleRegistry::class);
+    $registry->enableAll($family->id);
+
+    actingAs($user)->get('/onboarding/modules')->assertOk()
+        ->assertInertia(fn ($page) => $page->component('onboarding/modules')->where('picked', ['shopping', 'tasks', 'calendar', 'spending']));
+    actingAs($user)->post('/onboarding/modules', ['modules' => ['shopping', 'recipes', 'vehicles']])->assertRedirect();
+
+    $enabled = DB::table('family_modules')->where(['family_id' => $family->id, 'enabled' => true])->pluck('module_id')->all();
+    expect($enabled)->toContain('shopping', 'recipes', 'vehicles', 'notifications', 'recurring_todos')
+        ->not->toContain('tasks', 'calendar', 'spending');
+});
+
+it('caps the picks at four', function () {
+    test()->artisan('modules:migrate')->assertExitCode(0);
+    [$user] = onboardingOwner('modules');
+
+    actingAs($user)->post('/onboarding/modules', ['modules' => ['shopping', 'tasks', 'calendar', 'spending', 'notes']])->assertSessionHasErrors('modules');
+    actingAs($user)->post('/onboarding/modules', ['modules' => []])->assertSessionHasErrors('modules');
+});

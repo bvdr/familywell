@@ -25,4 +25,8 @@ return [
         'intro' => ['monthly' => (int) env('PRICING_INTRO_MONTHLY', 5), 'yearly' => (int) env('PRICING_INTRO_YEARLY', 45)],
         'standard' => ['monthly' => (int) env('PRICING_MONTHLY', 6), 'yearly' => (int) env('PRICING_YEARLY', 54)],
     ],
+
+    // The module-requests board ("Can't find yours?" in the onboarding's module picker). Empty hides the card,
+    // e.g. on a self-hosted install that doesn't want to send people to familywell.org.
+    'requests_url' => env('REQUESTS_URL', 'https://familywell.org/requests/'),
 ];

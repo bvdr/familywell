@@ -199,12 +199,58 @@ class OnboardingController extends Controller
         return $this->advance($request->user(), self::FLOW['invite']);
     }
 
+    // The modules a family picks from in step 3 (design order). Add-ons that extend one of these (important /
+    // recurring to-dos, expense import) and Notifications aren't choices: they stay on.
+    private const PICKABLE = ['shopping', 'tasks', 'calendar', 'spending', 'notes', 'recipes', 'inventory', 'vehicles', 'projects', 'contacts', 'birthdays'];
+
+    // Suggested when nothing's been picked yet: the four the design starts ticked.
+    private const SUGGESTED = ['shopping', 'tasks', 'calendar', 'spending'];
+
+    // Step 3, "Pick 4 to start": a small start sticks. Nothing is locked, the rest turn on in Settings > Modules.
+    public function modules(Request $request): RedirectResponse|Response
+    {
+        if (! $family = $this->onboardingFamily($request)) {
+            return $this->leave($request);
+        }
+        $registry = app(ModuleRegistry::class);
+        $available = array_values(array_filter(self::PICKABLE, fn ($id) => $registry->isInstalled($id)));
+        $enabled = array_values(array_intersect($available, $registry->enabledIds($family->id)));
+
+        return Inertia::render('onboarding/modules', [
+            'available' => $available,
+            // A new family has every module on (enableAll), which isn't a pick: start from the suggestion then.
+            // Back from a later step, it's what they picked.
+            'picked' => count($enabled) <= 4 ? $enabled : array_values(array_intersect(self::SUGGESTED, $available)),
+            'requestsUrl' => config('familywell.requests_url') ?: null,
+        ]);
+    }
+
+    public function saveModules(Request $request): RedirectResponse
+    {
+        if (! $family = $this->onboardingFamily($request)) {
+            return $this->leave($request);
+        }
+        $registry = app(ModuleRegistry::class);
+        $available = array_values(array_filter(self::PICKABLE, fn ($id) => $registry->isInstalled($id)));
+        $data = $request->validate([
+            'modules' => ['required', 'array', 'min:1', 'max:4'],
+            'modules.*' => ['string', 'distinct', 'in:'.implode(',', $available)],
+        ]);
+
+        foreach ($available as $id) {
+            in_array($id, $data['modules'], true) ? $registry->enable($id, $family->id) : $registry->disable($id, $family->id);
+        }
+        Analytics::queue('onboarding_modules', ['modules' => implode(',', $data['modules'])]);
+
+        return $this->advance($request->user(), self::FLOW['modules']);
+    }
+
     /**
      * The steps after the family exists, each pointing at the next (null = done, into the app). A step's GET
      * route is `onboarding.<step>`; `users.onboarding_step` remembers where someone is, so RequireFamily can
      * bring them back to it.
      */
-    private const FLOW = ['invite' => null];
+    private const FLOW = ['invite' => 'modules', 'modules' => null];
 
     // Not (or no longer) in an onboarding they can do, e.g. they switched to a family they don't run: stop
     // remembering a step, or RequireFamily would send them straight back here in a loop.
