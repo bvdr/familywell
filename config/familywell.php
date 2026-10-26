@@ -29,4 +29,7 @@ return [
     // The module-requests board ("Can't find yours?" in the onboarding's module picker). Empty hides the card,
     // e.g. on a self-hosted install that doesn't want to send people to familywell.org.
     'requests_url' => env('REQUESTS_URL', 'https://familywell.org/requests/'),
+
+    // "Rather run it yourself?" on the onboarding's plan step. Empty hides the line.
+    'self_hosting_url' => env('SELF_HOSTING_URL', 'https://github.com/bvdr/familywell#self-hosting'),
 ];
