@@ -32,8 +32,15 @@ class SpendingServiceProvider extends ServiceProvider
         // A new family's default currency is where its creator signs up from: Cloudflare's country on the
         // onboarding request -> that country's currency (RO -> RON). Unknown country (local, Tor, no
         // Cloudflare) leaves it unset, which falls back to Currencies::FALLBACK. Changeable in Settings.
+        // The onboarding "Region & units" row shows that guess (onboarding.region) and can change it, in which
+        // case the create request carries `currency`, validated against the list here.
+        app(Hooks::class)->listen('onboarding.region', fn (array $region, ?string $country) => [
+            ...$region, 'currency' => Currencies::forCountry($country) ?? Currencies::FALLBACK, 'currencies' => Currencies::ALL,
+        ]);
         app(Hooks::class)->listen('family.created', function (Family $family, Request $request) {
-            if ($currency = Currencies::forCountry(TrackLastSeen::country($request))) {
+            $picked = $request->input('currency');
+            $currency = in_array($picked, Currencies::ALL, true) ? $picked : Currencies::forCountry(TrackLastSeen::country($request));
+            if ($currency) {
                 SpendSetting::current($family->id)->update(['default_currency' => $currency]);
             }
         });
