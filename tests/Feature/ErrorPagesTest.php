@@ -12,7 +12,7 @@ it('renders a branded 404 with a way home instead of the default page', function
 
     // Brand + friendly copy + escape hatch, and the theme tokens so it matches the app.
     $res->assertSee('Familywell')
-        ->assertSee('--primary:hsl(135.9, 35.3%, 27.3%)', false)
+        ->assertSee('--primary:#121100', false) // the default skin (Sun)
         ->assertSee('href="'.url('/').'"', false)
         ->assertDontSee('NOT FOUND'); // the default Symfony page we are replacing
 });
