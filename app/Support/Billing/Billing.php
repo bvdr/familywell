@@ -201,7 +201,7 @@ class Billing
      *
      * @return array{subscription: string, clientSecret: string}
      */
-    public static function startSubscription(Family $family, string $email, string $plan, string $tier = 'basic', ?string $ip = null): array
+    public static function startSubscription(Family $family, string $email, string $plan, string $tier = 'basic', ?string $ip = null, ?string $promo = null): array
     {
         abort_if($tier === 'pro' && ! self::proAvailable(), 422, 'Pro is not on offer.');
         $price = self::priceId($tier, $plan);
@@ -226,9 +226,39 @@ class Billing
             // Same as Checkout: the webhook maps every customer.subscription.* event back to the family.
             'metadata' => ['family_id' => $family->id],
             'expand' => ['latest_invoice.confirmation_secret'],
-        ] + ($taxed ? ['automatic_tax' => ['enabled' => 'true']] : []))->throw()->json();
+        ] + ($promo ? ['discounts' => [['promotion_code' => $promo]]] : []) + ($taxed ? ['automatic_tax' => ['enabled' => 'true']] : []))->throw()->json();
 
         return ['subscription' => $sub['id'], 'clientSecret' => $sub['latest_invoice']['confirmation_secret']['client_secret']];
+    }
+
+    /**
+     * A promo code someone typed on Plan & pay, looked up in Stripe's promotion codes (the same ones hosted
+     * Checkout accepts). Null when there's no such active code or its coupon can't be redeemed any more. The
+     * discount is read from the coupon: `percent` off, or `amount` off in dollars (USD coupons only, our prices'
+     * currency). Stripe checks the rest (redemption limits, first-time only) again when the subscription is made.
+     *
+     * @return array{id: string, code: string, percent: ?float, amount: ?float, duration: string}|null
+     */
+    public static function promoCode(string $code): ?array
+    {
+        $found = self::request()->get('promotion_codes', ['code' => $code, 'active' => 'true', 'limit' => 1,
+            'expand' => ['data.promotion.coupon', 'data.coupon']])->throw()->json('data.0');
+        // Newer API versions put the coupon under `promotion`; older ones on the promotion code itself.
+        $coupon = $found['promotion']['coupon'] ?? $found['coupon'] ?? null;
+        if (! $found || ! is_array($coupon) || ! ($coupon['valid'] ?? false)) {
+            return null;
+        }
+        if ($coupon['amount_off'] && strtolower((string) $coupon['currency']) !== 'usd') {
+            return null;
+        }
+
+        return [
+            'id' => $found['id'],
+            'code' => $found['code'],
+            'percent' => $coupon['percent_off'] !== null ? (float) $coupon['percent_off'] : null,
+            'amount' => $coupon['amount_off'] !== null ? $coupon['amount_off'] / 100 : null,
+            'duration' => $coupon['duration'],
+        ];
     }
 
     /**

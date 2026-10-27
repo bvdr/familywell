@@ -447,12 +447,36 @@ class OnboardingController extends Controller
             'stripeKey' => config('services.stripe.key'),
             // VAT / sales tax where they are (null = none to add): {country, percent}, added on top of the price.
             'tax' => Billing::taxRate(self::buyerIp($request)),
+            // The promo code they applied (kept in the session until they pay or remove it), or null.
+            'promo' => $request->session()->get('onboarding.promo'),
             'email' => $request->user()->email,
             'failed' => $request->boolean('failed'),
             'paid' => false,
             'next' => null,
             'selfHostingUrl' => config('familywell.self_hosting_url') ?: null,
         ]);
+    }
+
+    // Apply a promo code (design 06a): checked against Stripe's promotion codes now, so a bad one is a line under
+    // the field instead of a failed payment. Stored in the session; subscribe() puts it on the subscription.
+    public function applyPromo(Request $request): JsonResponse
+    {
+        abort_unless(Billing::enabled() && $this->payingFamily($request), 403);
+        $code = strtoupper(trim((string) $request->validate(['code' => ['required', 'string', 'max:64']])['code']));
+        $promo = Billing::promoCode($code);
+        if (! $promo) {
+            return response()->json(['message' => Translations::get('onboarding.promo_invalid', $request->user()->locale ?? 'en')], 422);
+        }
+        $request->session()->put('onboarding.promo', $promo);
+
+        return response()->json($promo);
+    }
+
+    public function removePromo(Request $request): \Illuminate\Http\Response
+    {
+        $request->session()->forget('onboarding.promo');
+
+        return response()->noContent();
     }
 
     // The visitor's own IP for Stripe Tax: Cloudflare's header (dev and prod sit behind it), else the proxied IP.
@@ -484,7 +508,8 @@ class OnboardingController extends Controller
         if ($stale = $request->session()->pull('onboarding.pending_subscription')) {
             Billing::cancelIncomplete($stale);
         }
-        $started = Billing::startSubscription($family, $request->user()->email, $data['plan'], $data['tier'] ?? 'basic', self::buyerIp($request));
+        $promo = $request->session()->get('onboarding.promo');
+        $started = Billing::startSubscription($family, $request->user()->email, $data['plan'], $data['tier'] ?? 'basic', self::buyerIp($request), $promo['id'] ?? null);
         $request->session()->put('onboarding.pending_subscription', $started['subscription']);
         Analytics::queue('checkout_started', ['plan' => $data['plan'], 'tier' => $data['tier'] ?? 'basic']);
 
@@ -506,14 +531,14 @@ class OnboardingController extends Controller
         if (! Billing::isPaid($family)) {
             return to_route('onboarding.plan', ['failed' => 1]);
         }
-        $request->session()->forget('onboarding.pending_subscription');
+        $request->session()->forget(['onboarding.pending_subscription', 'onboarding.promo']);
         Analytics::queue('checkout_completed');
         $user = $request->user();
         $onboarding = $user->onboarding_step === 'plan';
         $user->forceFill(['onboarding_step' => $onboarding ? 'ready' : null])->save();
 
         // The page celebrates for a beat, then moves on.
-        return Inertia::render('onboarding/plan', ['family' => $family->only(['name']), 'invited' => [], 'pricing' => Billing::pricing(), 'standard' => null, 'tiers' => null, 'stripeKey' => null, 'tax' => null, 'email' => '', 'failed' => false, 'paid' => true, 'next' => route($onboarding ? 'onboarding.ready' : 'dashboard'), 'selfHostingUrl' => null]);
+        return Inertia::render('onboarding/plan', ['family' => $family->only(['name']), 'invited' => [], 'pricing' => Billing::pricing(), 'standard' => null, 'tiers' => null, 'stripeKey' => null, 'tax' => null, 'promo' => null, 'email' => '', 'failed' => false, 'paid' => true, 'next' => route($onboarding ? 'onboarding.ready' : 'dashboard'), 'selfHostingUrl' => null]);
     }
 
     /**

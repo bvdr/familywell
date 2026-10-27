@@ -358,5 +358,12 @@
     "plan_tax_line": "TVA · :country (:rate %)",
     "plan_tax_incl": "Dont :amount de TVA (:rate %)",
     "plan_plus_tax": ":amount + TVA",
-    "plan_powered_by": "Propulsé par"
+    "plan_powered_by": "Propulsé par",
+    "promo_title": "Code promo",
+    "promo_add": "Ajouter un code promo",
+    "promo_apply": "Appliquer",
+    "promo_hint": "Reçu d'un ami ou par la newsletter ? Un code par famille.",
+    "promo_invalid": "Ce code n'est pas valide ou a expiré.",
+    "promo_remove": "Retirer le code promo",
+    "promo_line": "Promo :code"
 }

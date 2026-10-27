@@ -358,5 +358,12 @@
     "plan_tax_line": "MVA · :country (:rate %)",
     "plan_tax_incl": "Inkl. :amount MVA (:rate %)",
     "plan_plus_tax": ":amount + MVA",
-    "plan_powered_by": "Levert av"
+    "plan_powered_by": "Levert av",
+    "promo_title": "Rabattkode",
+    "promo_add": "Legg til rabattkode",
+    "promo_apply": "Bruk",
+    "promo_hint": "Fått en fra en venn eller nyhetsbrevet? Én kode per familie.",
+    "promo_invalid": "Koden er ugyldig eller utløpt.",
+    "promo_remove": "Fjern rabattkode",
+    "promo_line": "Kode :code"
 }

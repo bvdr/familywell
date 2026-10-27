@@ -358,5 +358,12 @@
     "plan_tax_line": "VAT · :country (:rate%)",
     "plan_tax_incl": "Incl. :amount VAT (:rate%)",
     "plan_plus_tax": ":amount + VAT",
-    "plan_powered_by": "Powered by"
+    "plan_powered_by": "Powered by",
+    "promo_title": "Promo code",
+    "promo_add": "Add promo code",
+    "promo_apply": "Apply",
+    "promo_hint": "Got one from a friend or a newsletter? One code per family.",
+    "promo_invalid": "That code isn't valid or has expired.",
+    "promo_remove": "Remove promo code",
+    "promo_line": "Promo :code"
 }

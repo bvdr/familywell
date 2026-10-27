@@ -358,5 +358,12 @@
     "plan_tax_line": "Moms · :country (:rate %)",
     "plan_tax_incl": "Inkl. :amount moms (:rate %)",
     "plan_plus_tax": ":amount + moms",
-    "plan_powered_by": "Drivs av"
+    "plan_powered_by": "Drivs av",
+    "promo_title": "Rabattkod",
+    "promo_add": "Lägg till rabattkod",
+    "promo_apply": "Använd",
+    "promo_hint": "Fått en av en vän eller i nyhetsbrevet? En kod per familj.",
+    "promo_invalid": "Koden är ogiltig eller har gått ut.",
+    "promo_remove": "Ta bort rabattkod",
+    "promo_line": "Kod :code"
 }
