@@ -64,7 +64,7 @@ type Props = {
     face?: HomerFace;
     view?: string;
     loop?: HomerAction;
-    /** Eyes follow the cursor. */
+    /** Eyes follow the cursor. On by default: a Homer that stares past you while you move reads as broken. */
     follow?: boolean;
     /** Waves the first time he scrolls into view. */
     greet?: boolean;
@@ -74,7 +74,10 @@ type Props = {
     className?: string;
 };
 
-export const Homer = forwardRef<HomerElement, Props>(function Homer({ face = 'neutral', view, loop, follow, greet, idle, onDark, className }, ref) {
+export const Homer = forwardRef<HomerElement, Props>(function Homer(
+    { face = 'neutral', view, loop, follow = true, greet, idle, onDark, className },
+    ref,
+) {
     useEffect(() => {
         void load();
     }, []);
