@@ -108,10 +108,10 @@ it('paints widgets in the person\'s Familywell skin', function () {
         return mcpCall($token, 'resources/read', ['uri' => Widget::uriFor('tasks')])->json('result.contents.0.text');
     };
     $warm = json_decode(file_get_contents(resource_path('themes/default/theme.json')), true)['tokens']['background'];
-    $mono = json_decode(file_get_contents(resource_path('themes/minimal-mono/theme.json')), true)['tokens']['background'];
+    $builtIn = json_decode(file_get_contents(resource_path('themes/sun/theme.json')), true)['tokens']['background'];
 
     expect($html($users[1]))->toContain("--background:{$warm}")
-        ->and($html($users[0]))->toContain("--background:{$mono}"); // no personal or family skin -> built-in default
+        ->and($html($users[0]))->toContain("--background:{$builtIn}"); // no personal or family skin -> built-in default
 
     $family->update(['theme' => 'default']); // family default applies to members without their own
     expect($html($users[0]))->toContain("--background:{$warm}");

@@ -32,7 +32,7 @@ interface Props {
 }
 
 // The skin people get when they haven't picked one (ThemeTokens::resolve's default).
-const DEFAULT_THEME = 'minimal-mono';
+const DEFAULT_THEME = 'sun'; // ThemeTokens::DEFAULT
 
 // "About you" (design QJb8p desktop / P61NK phone): the first step after sign-up (OnboardingController::about).
 // Language and colours save the moment they're picked, through the same endpoints as Settings, so the page comes

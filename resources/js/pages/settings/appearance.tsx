@@ -14,7 +14,7 @@ import SettingsLayout from '@/layouts/settings/layout';
 export default function Appearance({
     themes = [],
     currentTheme = null,
-    familyDefault = 'minimal-mono',
+    familyDefault = 'sun',
     themeCss,
 }: {
     themes?: Skin[];

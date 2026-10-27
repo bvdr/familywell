@@ -3,7 +3,7 @@
     // *why* you are seeing one). We reuse the exact theme tokens so it matches the app, with a hardcoded
     // fallback in case the theme file itself is what failed.
     try {
-        $themeCss = $themeCss ?? \App\Support\Theming\ThemeTokens::css('default');
+        $themeCss = $themeCss ?? \App\Support\Theming\ThemeTokens::css();
     } catch (\Throwable $e) {
         $themeCss = ':root{--bg:#F5F3EE;--surface-card:#FFFFFF;--text-primary:#1B3A28;--text-secondary:#4A6B52;--text-muted:#7A9A80;--primary:#2D5E3A;--text-inverse:#FFFFFF;--border:#D4D0C8;}';
     }
