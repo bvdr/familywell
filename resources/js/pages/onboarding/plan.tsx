@@ -56,7 +56,8 @@ const APPEARANCE: Appearance = {
         fontFamily: 'Inter, system-ui, sans-serif',
         fontSizeBase: '14px',
     },
-    rules: { '.Input': { border: '1px solid #E2DED1' }, '.Input:focus': { border: '1.5px solid #121100', boxShadow: 'none' } },
+    // Inputs at 16px: iOS Safari zooms the page into any field under 16px when it's focused.
+    rules: { '.Input': { border: '1px solid #E2DED1', fontSize: '16px' }, '.Input:focus': { border: '1.5px solid #121100', boxShadow: 'none' } },
 };
 
 // Phone layout (< md): Apple / Google Pay + "Pay with card" in a sheet. Tablet / desktop: the checkout card inline.
