@@ -8,5 +8,8 @@
     "empty": "Noch nichts. Familienaktivität, die du sehen kannst, erscheint hier.",
     "today": "Heute",
     "yesterday": "Gestern",
-    "now": "jetzt"
+    "now": "jetzt",
+    "welcome_push_title": "Willkommen, :name 👋",
+    "welcome_push_title_anon": "Willkommen bei FamilyWell 👋",
+    "welcome_push_body": "Hier ist Homer 🏡 So tippt dir FamilyWell auf die Schulter."
 }
