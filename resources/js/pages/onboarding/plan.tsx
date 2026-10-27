@@ -259,7 +259,11 @@ export default function PlanStep({ family, invited, pricing, standard, tiers, st
                                                 </span>
                                             )}
                                         </span>
-                                        {struck > price && <span className="text-stone text-[13px] line-through">{usd(struck)}</span>}
+                                        {struck > price && (
+                                            <span className="text-stone text-[13px] line-through decoration-[#FF5A3C] decoration-2">
+                                                {usd(struck)}
+                                            </span>
+                                        )}
                                         <span className="flex items-baseline gap-1.5">
                                             <span className="font-display text-[30px] leading-none font-bold tracking-[-1px] md:text-[36px]">
                                                 {usd(price)}
@@ -331,7 +335,7 @@ export default function PlanStep({ family, invited, pricing, standard, tiers, st
                             </span>
                             <span className="text-right">
                                 {list > due && (
-                                    <span className="text-stone block text-xs line-through">
+                                    <span className="text-stone block text-xs line-through decoration-[#FF5A3C] decoration-2">
                                         {usd(tax ? Math.round(list * (100 + tax.percent)) / 100 : list, true)}
                                     </span>
                                 )}
