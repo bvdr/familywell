@@ -8,5 +8,8 @@
     "empty": "Nimic încă. Activitatea familiei pe care o poți vedea va apărea aici.",
     "today": "Astăzi",
     "yesterday": "Ieri",
-    "now": "acum"
+    "now": "acum",
+    "welcome_push_title": "Bun venit, :name 👋",
+    "welcome_push_title_anon": "Bun venit în FamilyWell 👋",
+    "welcome_push_body": "Homer aici 🏡 Așa te bate FamilyWell pe umăr când e ceva important."
 }

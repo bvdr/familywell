@@ -8,5 +8,8 @@
     "empty": "Nog niets. Gezinsactiviteit die je kunt zien, verschijnt hier.",
     "today": "Vandaag",
     "yesterday": "Gisteren",
-    "now": "nu"
+    "now": "nu",
+    "welcome_push_title": "Welkom, :name 👋",
+    "welcome_push_title_anon": "Welkom bij FamilyWell 👋",
+    "welcome_push_body": "Homer hier 🏡 Zo tikt FamilyWell je op de schouder."
 }

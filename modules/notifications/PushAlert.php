@@ -17,6 +17,8 @@ class PushAlert extends Notification
         public string $body,
         public string $url = '/dashboard',
         public ?string $category = null,
+        // The picture next to the text (Android, desktop). iOS always shows the app icon instead.
+        public string $icon = '/icons/icon-192.png',
     ) {}
 
     /**
@@ -40,7 +42,7 @@ class PushAlert extends Notification
         $message = (new WebPushMessage)
             ->title($this->title)
             ->body($this->body)
-            ->icon('/icons/icon-192.png')
+            ->icon($this->icon)
             ->badge('/icons/icon-192.png')
             ->data([
                 'url' => $this->url,
