@@ -3,7 +3,8 @@ import { useT } from '@/lib/i18n';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 
-export function NavMain({ items = [] }: { items: NavItem[] }) {
+// `label` defaults to the family group's; `null` drops the heading (a list that continues the group above it).
+export function NavMain({ items = [], label }: { items: NavItem[]; label?: string | null }) {
     const page = usePage();
     const t = useT();
     return (
@@ -12,7 +13,9 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                 touch-sized, 17px text, 22px icons, 48px rows. md: = the desktop sidebar: a step up from the stock
                 compact shadcn size (14px/16px/32px) to 15px text, 20px icons, 40px rows. The collapsed icon rail
                 keeps its 32px buttons, so its icons stay 16px (group-data-[collapsible=icon]). */}
-            <SidebarGroupLabel className="max-md:h-9 max-md:text-sm md:text-[13px]">{t('family.nav_label')}</SidebarGroupLabel>
+            {label !== null && (
+                <SidebarGroupLabel className="max-md:h-9 max-md:text-sm md:text-[13px]">{label ?? t('family.nav_label')}</SidebarGroupLabel>
+            )}
             <SidebarMenu className="max-md:gap-0.5">
                 {items.map((item) => (
                     <SidebarMenuItem key={item.title}>

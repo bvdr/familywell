@@ -2,6 +2,9 @@ import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
 import { Head, router } from '@inertiajs/react';
+import { useState } from 'react';
+
+import { PinModulesModal } from '@/components/pin-modules';
 import { Bell, Blocks, Contact, FolderKanban, Import, ListChecks, type LucideIcon, Package, ShoppingCart, StickyNote, Wallet } from 'lucide-react';
 
 type Module = { id: string; name: string; description: string; version: string; enabled: boolean };
@@ -22,6 +25,7 @@ const MODULE_ICON: Record<string, LucideIcon> = {
 
 export default function Modules({ catalog, canManage }: Props) {
     const t = useT();
+    const [pinning, setPinning] = useState(false);
     // Optimistic flip: the tile/button switch state on tap; the reload (nav links, sidebar) catches up.
     const enabled = useOptimistic<boolean>();
     const isEnabled = (m: Module) => enabled.get(m.id, m.enabled);
@@ -43,6 +47,15 @@ export default function Modules({ catalog, canManage }: Props) {
                 <div>
                     <h1 className="font-heading text-primary text-2xl">{t('nav.modules')}</h1>
                     <p className="text-muted-foreground text-sm">{t('dashboard.modules_sub')}</p>
+                    {/* "Change your pins anytime in Settings → Modules" (the onboarding's Pin your top 4). */}
+                    <button
+                        type="button"
+                        onClick={() => setPinning(true)}
+                        className="text-primary mt-2 text-sm font-semibold underline underline-offset-2"
+                    >
+                        {t('dashboard.pins_title')}
+                    </button>
+                    <PinModulesModal open={pinning} onOpenChange={setPinning} />
                 </div>
 
                 <ul className="flex flex-col gap-3" data-testid="modules-list">

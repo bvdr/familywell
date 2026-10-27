@@ -240,19 +240,38 @@ it('keeps the onboarding steps to the person running it', function () {
     expect($member->fresh()->onboarding_step)->toBeNull();
 });
 
-it('turns on only the picked modules and leaves the add-ons alone', function () {
+it('pins the picked modules and leaves every module on', function () {
     test()->artisan('modules:migrate')->assertExitCode(0);
     [$user, $family] = onboardingOwner('modules');
     $registry = app(ModuleRegistry::class);
     $registry->enableAll($family->id);
+    $before = DB::table('family_modules')->where(['family_id' => $family->id, 'enabled' => true])->pluck('module_id')->sort()->values()->all();
 
     actingAs($user)->get('/onboarding/modules')->assertOk()
         ->assertInertia(fn ($page) => $page->component('onboarding/modules')->where('picked', ['shopping', 'tasks', 'calendar', 'spending']));
     actingAs($user)->post('/onboarding/modules', ['modules' => ['shopping', 'recipes', 'vehicles']])->assertRedirect();
 
-    $enabled = DB::table('family_modules')->where(['family_id' => $family->id, 'enabled' => true])->pluck('module_id')->all();
-    expect($enabled)->toContain('shopping', 'recipes', 'vehicles', 'notifications', 'recurring_todos')
-        ->not->toContain('tasks', 'calendar', 'spending');
+    // Pinning is only what sits on top of their dashboard: nothing is turned off.
+    $after = DB::table('family_modules')->where(['family_id' => $family->id, 'enabled' => true])->pluck('module_id')->sort()->values()->all();
+    expect($after)->toBe($before)->and($user->fresh()->pinned_modules)->toBe(['shopping', 'recipes', 'vehicles']);
+
+    // Back from a later step: the page shows what they pinned.
+    actingAs($user->fresh())->get('/onboarding/modules')
+        ->assertInertia(fn ($page) => $page->where('picked', ['shopping', 'recipes', 'vehicles']));
+});
+
+it('lets someone change their pins later, to modules that are on, four at most', function () {
+    test()->artisan('modules:migrate')->assertExitCode(0);
+    [$user, $family] = onboardingOwner('modules');
+    app(ModuleRegistry::class)->enableAll($family->id);
+    $user->forceFill(['onboarding_step' => null])->save();
+
+    actingAs($user)->put('/settings/pins', ['modules' => ['notes', 'tasks']])->assertRedirect();
+    expect($user->fresh()->pinned_modules)->toBe(['notes', 'tasks']);
+
+    actingAs($user)->put('/settings/pins', ['modules' => ['shopping', 'tasks', 'calendar', 'spending', 'notes']])->assertSessionHasErrors('modules');
+    actingAs($user)->put('/settings/pins', ['modules' => ['not_a_module']])->assertSessionHasErrors('modules.0');
+    actingAs($user)->get('/dashboard')->assertInertia(fn ($page) => $page->where('pins', ['notes', 'tasks']));
 });
 
 it('caps the picks at four', function () {

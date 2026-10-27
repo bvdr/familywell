@@ -8,7 +8,7 @@ import { Logo } from '@/layouts/onboarding-layout';
 import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
-// Welcome (design 00 / T00 / D00): the promise, the road (four steps, then the plan after the tour) and that it's
+// Welcome (design 00 / T00 / D00): the promise, the road (four steps, then the plan) and that it's
 // one price for everyone. Phone: the sun peeks in from the corner. Tablet: a sun panel on top with Homer.
 // Desktop: the road on the left, Homer on the sun panel on the right.
 export default function Welcome({ firstName }: { firstName: string }) {
@@ -16,7 +16,7 @@ export default function Welcome({ firstName }: { firstName: string }) {
     // The phone keeps four rows (its own words for step 4); tablet and desktop add the plan, greyed.
     const road: [string, string, string?][] = [
         ['onboarding.rail_family', 'onboarding.plan_30s'],
-        ['onboarding.rail_people', 'onboarding.plan_later'],
+        ['onboarding.rail_people', 'onboarding.rail_people_meta'],
         ['onboarding.rail_modules', 'onboarding.plan_30s'],
         ['onboarding.rail_install', 'onboarding.plan_reminders', 'onboarding.plan_install'],
         ['onboarding.rail_plan', 'onboarding.plan_after_tour'],

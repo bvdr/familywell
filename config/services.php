@@ -73,6 +73,13 @@ return [
         // intro prices above stay in use for good, as before.
         'price_monthly_standard' => env('STRIPE_PRICE_MONTHLY_STANDARD'),
         'price_yearly_standard' => env('STRIPE_PRICE_YEARLY_STANDARD'),
+        // The Pro tier (5 GB, 150 AI points; design "Plan & pay · Pro"): the same four prices again. Pro is only
+        // offered on Plan & pay when all of them that apply are set (Billing::proAvailable), so an install without
+        // Pro prices simply shows Basic.
+        'price_monthly_pro' => env('STRIPE_PRICE_MONTHLY_PRO'),
+        'price_yearly_pro' => env('STRIPE_PRICE_YEARLY_PRO'),
+        'price_monthly_pro_standard' => env('STRIPE_PRICE_MONTHLY_PRO_STANDARD'),
+        'price_yearly_pro_standard' => env('STRIPE_PRICE_YEARLY_PRO_STANDARD'),
     ],
 
     // Umami analytics (hosted familywell.co only). Empty = no tracker at all, so self-hosted installs never

@@ -6,8 +6,8 @@ use App\Support\Modules\ModuleRegistry;
 
 use function Pest\Laravel\actingAs;
 
-// Steps 5-6 and the tour: notifications, "your home is ready", the tour on the dashboard, then into the app
-// (or the plan, where billing is on).
+// Steps 5-7 and the tour: notifications, the plan (where billing is on), "your home is ready", the tour on the
+// dashboard, then into the app.
 
 function finishingOwner(string $step): array
 {
@@ -25,8 +25,9 @@ function finishingOwner(string $step): array
     return [$user, $family];
 }
 
-it('offers a toggle for each picked module (all four have push categories), with the invitees in the examples', function () {
+it('offers a toggle for each pinned module (all four have push categories), with the invitees in the examples', function () {
     [$user] = finishingOwner('notifications');
+    $user->forceFill(['pinned_modules' => ['shopping', 'tasks', 'calendar', 'spending']])->save();
 
     actingAs($user)->get('/onboarding/notifications')->assertOk()->assertInertia(fn ($page) => $page
         ->component('onboarding/notifications')
@@ -42,8 +43,8 @@ it('recaps the family and starts the tour on the dashboard', function () {
     actingAs($user)->get('/onboarding/ready')->assertOk()->assertInertia(fn ($page) => $page
         ->component('onboarding/ready')
         ->where('invited', ['Marco'])
-        ->where('modules', ['shopping', 'tasks', 'calendar', 'spending'])
-        ->where('planNext', false));
+        ->where('pinned', ['shopping', 'tasks', 'calendar', 'spending'])
+        ->where('plan', null)); // no billing here, so no plan row
 
     actingAs($user)->post('/onboarding/ready', ['tour' => true])->assertRedirect(route('dashboard'));
     expect($user->fresh()->onboarding_step)->toBe('tour');

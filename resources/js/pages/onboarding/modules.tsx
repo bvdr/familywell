@@ -45,8 +45,9 @@ const META: Record<string, { icon: LucideIcon; popular?: boolean; desktopOnly?: 
 
 type Props = { available: string[]; picked: string[]; requestsUrl: string | null };
 
-// Step 3 (design 03 / D1): choosing makes it theirs and keeps the first week simple; the counter turns it into a
-// tiny game. Up to four; fewer is fine ("One more? Or go with 3.").
+// Step 3 (design 03 / D03, "Pin your top 4"): every module is already on, so nothing is turned on or off here. The
+// picks are what's pinned to their dashboard and sidebar; the counter turns it into a tiny game. Up to four; fewer
+// is fine ("One more? Or go with 3.").
 export default function Modules({ available, picked: initial, requestsUrl }: Props) {
     const t = useT();
     const [picked, setPicked] = useState<string[]>(initial);
@@ -87,7 +88,7 @@ export default function Modules({ available, picked: initial, requestsUrl }: Pro
                 wide
                 back={route('onboarding.invite')}
                 title={t('onboarding.modules_title')}
-                sub={t('onboarding.modules_sub')}
+                sub={t('onboarding.modules_sub', { n: available.length })}
                 aside={counter}
                 cta={
                     <Button

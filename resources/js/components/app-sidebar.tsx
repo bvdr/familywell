@@ -1,6 +1,16 @@
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
-import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+    Sidebar,
+    SidebarContent,
+    SidebarFooter,
+    SidebarGroup,
+    SidebarHeader,
+    SidebarMenu,
+    SidebarMenuButton,
+    SidebarMenuItem,
+} from '@/components/ui/sidebar';
 import { useT } from '@/lib/i18n';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
@@ -10,10 +20,12 @@ import {
     CalendarDays,
     Car,
     ChefHat,
+    ChevronDown,
     Contact,
     FolderKanban,
     Import,
     LayoutGrid,
+    LayoutList,
     ListChecks,
     type LucideIcon,
     Package,
@@ -74,12 +86,16 @@ function useMoreBelow() {
 export function AppSidebar() {
     const [navRef, moreBelow] = useMoreBelow();
     const t = useT();
-    const enabled = (usePage().props as { modules?: { enabled?: string[] } }).modules?.enabled ?? [];
-    const mainNavItems: NavItem[] = [...baseNavItems, ...enabled.map((id) => moduleNavItems[id]).filter(Boolean)].map((i) => ({
-        title: t(i.titleKey),
-        url: i.url,
-        icon: i.icon,
-    }));
+    const props = usePage().props as { modules?: { enabled?: string[] }; pins?: string[] | null };
+    const enabled = props.modules?.enabled ?? [];
+    const toItem = (i: { titleKey: string; url: string; icon: LucideIcon }): NavItem => ({ title: t(i.titleKey), url: i.url, icon: i.icon });
+    const mainNavItems: NavItem[] = [...baseNavItems, ...enabled.map((id) => moduleNavItems[id]).filter(Boolean)].map(toItem);
+
+    // "Pin your top 4": someone who pinned modules (the onboarding, or Edit on the dashboard) gets Home, their pins on
+    // top, and everything else folded under "All modules +N". Someone who never pinned keeps the flat list as before.
+    const pinned = (props.pins ?? []).filter((id) => moduleNavItems[id] && enabled.includes(id));
+    const rest = enabled.filter((id) => moduleNavItems[id] && !pinned.includes(id));
+    const [allOpen, setAllOpen] = useState(false);
 
     return (
         <Sidebar collapsible="icon" variant="inset">
@@ -99,11 +115,46 @@ export function AppSidebar() {
             <SidebarContent
                 ref={navRef}
                 // What the onboarding tour spotlights on a computer (design D07): where their modules live.
-                data-tour="modules-sidebar"
+                data-tour={pinned.length ? undefined : 'modules-sidebar'}
                 data-more={moreBelow || undefined}
                 className="data-[more]:[mask-image:linear-gradient(to_bottom,black_calc(100%-64px),transparent)]"
             >
-                <NavMain items={mainNavItems} />
+                {pinned.length ? (
+                    <>
+                        <NavMain items={[toItem(baseNavItems[0])]} />
+                        {/* The tour's first stop (design D07) spotlights the pins and the way to the rest. */}
+                        <div data-tour="modules-sidebar">
+                            <NavMain label={t('nav.pinned')} items={pinned.map((id) => toItem(moduleNavItems[id]))} />
+                            {rest.length > 0 && (
+                                <Collapsible open={allOpen} onOpenChange={setAllOpen}>
+                                    <SidebarGroup className="px-2 py-0">
+                                        <SidebarMenu>
+                                            <SidebarMenuItem>
+                                                <CollapsibleTrigger asChild>
+                                                    <SidebarMenuButton className="max-md:h-12 max-md:gap-3 max-md:px-3 max-md:text-[17px] md:h-10 md:gap-2.5 md:text-[15px] max-md:[&>svg]:size-[22px] md:[&>svg]:size-5">
+                                                        <LayoutList />
+                                                        <span className="flex-1 text-left">{t('nav.all_modules')}</span>
+                                                        {/* The count is of the modules people pick between (the onboarding's "11"); the Expense import add-on is listed but not counted. */}
+                                                        <span className="text-muted-foreground text-xs">
+                                                            +{rest.filter((id) => id !== 'expense_import').length}
+                                                        </span>
+                                                        <ChevronDown className={`size-4! transition-transform ${allOpen ? 'rotate-180' : ''}`} />
+                                                    </SidebarMenuButton>
+                                                </CollapsibleTrigger>
+                                            </SidebarMenuItem>
+                                        </SidebarMenu>
+                                        <CollapsibleContent>
+                                            <NavMain label={null} items={rest.map((id) => toItem(moduleNavItems[id]))} />
+                                        </CollapsibleContent>
+                                    </SidebarGroup>
+                                </Collapsible>
+                            )}
+                        </div>
+                        <NavMain label={null} items={baseNavItems.slice(1).map(toItem)} />
+                    </>
+                ) : (
+                    <NavMain items={mainNavItems} />
+                )}
             </SidebarContent>
 
             <SidebarFooter>

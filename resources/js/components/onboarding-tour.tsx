@@ -3,6 +3,8 @@ import { ArrowRight, LoaderCircle } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 
 import { Homer, reactHomer } from '@/components/homer';
+import { usePinned } from '@/components/pin-modules';
+import { MODULES } from '@/components/your-modules';
 import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
@@ -51,6 +53,10 @@ function Tour() {
     const [rect, setRect] = useState<DOMRect | null>(null);
     const [busy, setBusy] = useState(false);
     const stop = STOPS[i];
+    // "The other 7": every module that's on minus the pinned ones, counted from the real pins (up to four).
+    const { modules } = usePage().props as { modules?: { enabled?: string[] } };
+    const pinned = usePinned();
+    const others = Math.max(0, Object.keys(MODULES).filter((id) => (modules?.enabled ?? []).includes(id)).length - (pinned?.length ?? 4));
 
     const measure = useCallback(() => setRect(findTarget(stop.target)), [stop.target]);
     useLayoutEffect(measure, [measure]);
@@ -76,10 +82,10 @@ function Tour() {
     let style: React.CSSProperties = { width: w, left: (vw - w) / 2, top: vh / 2, transform: 'translateY(-50%)' };
     if (rect) {
         const below = rect.top + rect.height / 2 < vh / 2;
-        const sideways = rect.height > vh * 0.5; // a tall sidebar: open the card beside it instead
+        const sideways = vw >= 1024 && rect.right < 420; // the computer's sidebar: open the card beside it instead
         const left = Math.min(Math.max(20, rect.left + rect.width / 2 - w / 2), vw - w - 20);
         style = sideways
-            ? { width: w, left: rect.right + PAD + 16, top: Math.max(20, rect.top + 80) }
+            ? { width: w, left: rect.right + PAD + 16, top: Math.max(20, rect.top - 10) }
             : below
               ? { width: w, left, top: rect.bottom + PAD + 14 }
               : { width: w, left, bottom: vh - rect.top + PAD + 14 };
@@ -111,7 +117,13 @@ function Tour() {
                     </span>
                 </div>
                 <p className="font-display text-ink text-[22px] leading-tight font-bold tracking-[-0.5px]">{t(stop.title)}</p>
-                <p className="text-ink-2 pt-2 text-sm leading-normal">{t(stop.body)}</p>
+                <p className="text-ink-2 pt-2 text-sm leading-normal">
+                    {i === 0
+                        ? t(typeof window !== 'undefined' && window.innerWidth >= 1024 ? 'onboarding.tour_1_body_wide' : 'onboarding.tour_1_body', {
+                              n: others,
+                          })
+                        : t(stop.body)}
+                </p>
                 <div className="flex items-center justify-between pt-4">
                     <button type="button" disabled={busy} onClick={finish} className="text-stone text-sm font-semibold">
                         {t('onboarding.tour_skip')}

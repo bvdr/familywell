@@ -7,6 +7,7 @@ use App\Http\Controllers\FamilyModuleController;
 use App\Http\Controllers\GuestLinkController;
 use App\Http\Controllers\ModuleAssetController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\PinnedModulesController;
 use App\Http\Controllers\PublicGuestController;
 use App\Http\Controllers\PublicShareController;
 use App\Http\Controllers\ShareController;
@@ -144,6 +145,7 @@ Route::middleware(['auth', 'family'])->group(function () {
 
     Route::get('/m/{module}/frontend.js', [ModuleAssetController::class, 'frontend'])->name('module.frontend');
 
+    Route::put('/settings/pins', [PinnedModulesController::class, 'update'])->middleware('not-demo')->name('pins.update');
     Route::get('/family/modules', [FamilyModuleController::class, 'index'])->name('family.modules.index');
     Route::post('/family/modules/{module}/enable', [FamilyModuleController::class, 'enable'])->name('family.modules.enable');
     Route::delete('/family/modules/{module}', [FamilyModuleController::class, 'disable'])->name('family.modules.disable');

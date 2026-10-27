@@ -114,12 +114,16 @@ class Billing
      * What a new subscriber pays right now, for the billing page and familywell.org's pricing card
      * (GET /pricing.json): whole-dollar amounts + the counter.
      *
-     * @return array{intro: bool, spotsLeft: int, spotsTotal: int, monthly: int, yearly: int}
+     * `monthly` / `yearly` are Basic's (what familywell.org shows); `pro` is the same pair for the Pro tier, only
+     * present when Pro is on offer (proAvailable).
+     *
+     * @return array{intro: bool, spotsLeft: int, spotsTotal: int, monthly: int, yearly: int, pro?: array{monthly: int, yearly: int}}
      */
     public static function pricing(): array
     {
         $intro = self::isIntro();
         $amounts = config('familywell.pricing.'.($intro ? 'intro' : 'standard'));
+        $pro = config('familywell.pricing.pro.'.($intro ? 'intro' : 'standard'));
 
         return [
             'intro' => $intro,
@@ -127,7 +131,29 @@ class Billing
             'spotsTotal' => (int) config('familywell.pricing.intro_spots'),
             'monthly' => (int) $amounts['monthly'],
             'yearly' => (int) $amounts['yearly'],
-        ];
+        ] + (self::proAvailable() ? ['pro' => ['monthly' => (int) $pro['monthly'], 'yearly' => (int) $pro['yearly']]] : []);
+    }
+
+    /**
+     * Is the Pro tier on offer? Only when its Stripe prices exist (both cycles, and the standard pair too once
+     * the intro spots are gone): the amounts alone are display copy, so without prices there is nothing to charge.
+     */
+    public static function proAvailable(): bool
+    {
+        $keys = ['price_monthly_pro', 'price_yearly_pro'];
+        if (config('services.stripe.price_monthly_standard') && config('services.stripe.price_yearly_standard')) {
+            array_push($keys, 'price_monthly_pro_standard', 'price_yearly_pro_standard');
+        }
+
+        return collect($keys)->every(fn ($k) => filled(config("services.stripe.{$k}")));
+    }
+
+    /** The Stripe price id for a tier + billing cycle at today's price (intro while spots last). */
+    private static function priceId(string $tier, string $plan): string
+    {
+        $key = 'price_'.$plan.($tier === 'pro' ? '_pro' : '').(self::isIntro() ? '' : '_standard');
+
+        return config("services.stripe.{$key}") ?: throw new RuntimeException('STRIPE_'.strtoupper($key).' is not set.');
     }
 
     /** Stripe-hosted Checkout for one of the two plans, at today's price. Returns the URL to redirect to. */
@@ -168,10 +194,10 @@ class Billing
      *
      * @return array{subscription: string, clientSecret: string}
      */
-    public static function startSubscription(Family $family, string $email, string $plan): array
+    public static function startSubscription(Family $family, string $email, string $plan, string $tier = 'basic'): array
     {
-        $key = self::isIntro() ? "price_{$plan}" : "price_{$plan}_standard";
-        $price = config("services.stripe.{$key}") ?: throw new RuntimeException('STRIPE_'.strtoupper($key).' is not set.');
+        abort_if($tier === 'pro' && ! self::proAvailable(), 422, 'Pro is not on offer.');
+        $price = self::priceId($tier, $plan);
 
         if (! $family->stripe_customer_id) {
             $customer = self::post('customers', ['email' => $email, 'name' => $family->name, 'metadata' => ['family_id' => $family->id]]);
@@ -290,6 +316,7 @@ class Billing
             'stripe_customer_id' => $customer,
             'subscription_status' => $subscription['status'],
             'subscription_plan' => self::plan($subscription),
+            'subscription_tier' => self::tier($subscription),
             'subscription_period_end' => $periodEnd ? Carbon::createFromTimestamp($periodEnd) : null,
             'subscription_canceling' => (bool) ($subscription['cancel_at_period_end'] ?? false),
         ])->save();
@@ -313,17 +340,27 @@ class Billing
         }
     }
 
-    /** 'monthly' | 'yearly' from the subscription's price (intro or standard), 'unknown' for any other price. */
+    /** 'monthly' | 'yearly' from the subscription's price (either tier, intro or standard), 'unknown' for any other price. */
     private static function plan(array $subscription): string
     {
         $price = $subscription['items']['data'][0]['price']['id'] ?? null;
         foreach (['monthly', 'yearly'] as $plan) {
-            if ($price !== null && in_array($price, [config("services.stripe.price_{$plan}"), config("services.stripe.price_{$plan}_standard")], true)) {
+            $ids = [config("services.stripe.price_{$plan}"), config("services.stripe.price_{$plan}_standard"), config("services.stripe.price_{$plan}_pro"), config("services.stripe.price_{$plan}_pro_standard")];
+            if ($price !== null && in_array($price, array_filter($ids), true)) {
                 return $plan;
             }
         }
 
         return 'unknown';
+    }
+
+    /** 'pro' when the subscription is on one of the Pro prices, else 'basic' (the only tier before Pro existed). */
+    private static function tier(array $subscription): string
+    {
+        $price = $subscription['items']['data'][0]['price']['id'] ?? null;
+        $pro = array_filter([config('services.stripe.price_monthly_pro'), config('services.stripe.price_yearly_pro'), config('services.stripe.price_monthly_pro_standard'), config('services.stripe.price_yearly_pro_standard')]);
+
+        return $price !== null && in_array($price, $pro, true) ? 'pro' : 'basic';
     }
 
     /**

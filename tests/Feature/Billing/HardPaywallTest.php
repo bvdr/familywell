@@ -3,6 +3,7 @@
 use App\Models\Family;
 use App\Models\User;
 use App\Support\Billing\Billing;
+use Illuminate\Support\Facades\Http;
 
 use function Pest\Laravel\actingAs;
 
@@ -26,8 +27,30 @@ it('sends an unpaid new family back to the plan step from the dashboard and ever
     foreach (['/dashboard', '/m/shopping', '/m/tasks', '/m/notes'] as $url) {
         actingAs($user->fresh())->get($url)->assertRedirect(route('onboarding.plan'));
     }
-    // The redirect is what lets the plan step open (it needs the onboarding step to be 'plan').
+    // The plan step opens for a locked family on its own, with no onboarding step to open it.
+    expect($user->fresh()->onboarding_step)->toBeNull();
     actingAs($user->fresh())->get('/onboarding/plan')->assertOk()->assertInertia(fn ($page) => $page->component('onboarding/plan'));
+});
+
+it('does not let the tour or the recap be a way in for a family that has not paid', function () {
+    [$user] = hardFamily();
+
+    // Forging the later steps (a POST to the recap starts the tour) still lands on the plan.
+    $user->forceFill(['onboarding_step' => 'ready'])->save();
+    actingAs($user)->post('/onboarding/ready', ['tour' => true])->assertRedirect(route('dashboard'));
+    expect($user->fresh()->onboarding_step)->toBe('tour');
+    actingAs($user->fresh())->get('/dashboard')->assertRedirect(route('onboarding.plan'));
+    actingAs($user->fresh())->get('/m/tasks')->assertRedirect(route('onboarding.plan'));
+});
+
+it('takes a lapsed family that pays again straight back into the app, with no second onboarding', function () {
+    [$user, $family] = hardFamily(['subscription_status' => 'canceled']);
+    Http::fake(['api.stripe.com/v1/subscriptions/sub_9' => Http::response(['id' => 'sub_9', 'customer' => 'cus_1', 'status' => 'active', 'metadata' => ['family_id' => $family->id],
+        'items' => ['data' => [['price' => ['id' => 'price_y'], 'current_period_end' => now()->addYear()->timestamp]]]])]);
+
+    actingAs($user)->get('/onboarding/plan/paid?subscription=sub_9')->assertOk()
+        ->assertInertia(fn ($page) => $page->where('paid', true)->where('next', route('dashboard')));
+    actingAs($user->fresh())->get('/dashboard')->assertOk();
 });
 
 it('blocks writes too, not just pages', function () {

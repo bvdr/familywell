@@ -127,6 +127,8 @@ class User extends Authenticatable implements OAuthenticatable
             'first_touch' => 'array',
             // Module previews (App\Support\Modules\Preview); set only by module:preview, deliberately not fillable.
             'preview_modules' => 'array',
+            // The modules pinned to the dashboard / sidebar (PinnedModulesController); null = never chose. Not fillable.
+            'pinned_modules' => 'array',
             // Set only by admin:grant / admin:revoke; deliberately not fillable.
             'is_platform_admin' => 'boolean',
         ];
