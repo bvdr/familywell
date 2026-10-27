@@ -99,8 +99,9 @@ export default function Invite({ link, invited }: { link: string; invited: Invit
                     </div>
                 }
             >
-                {/* Tablet: the side notes go under the list, side by side; desktop: a column on the right. */}
-                <div className="grid gap-7 px-5 md:px-0 lg:grid-cols-[minmax(0,474px)_290px] lg:items-start lg:gap-12">
+                {/* Tablet: the side notes go under the list, side by side; desktop: a column on the right. grid-cols-1 (=
+                    minmax(0,1fr)) caps the phone column at the screen width, so the long invite link truncates. */}
+                <div className="grid grid-cols-1 gap-7 px-5 md:px-0 lg:grid-cols-[minmax(0,474px)_290px] lg:items-start lg:gap-12">
                     <div className="flex flex-col gap-3">
                         <form onSubmit={onAdd} className="flex gap-2">
                             <div className="relative flex-1">

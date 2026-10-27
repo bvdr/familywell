@@ -183,7 +183,7 @@ export default function PlanStep({ family, invited, pricing, standard, tiers, st
                 title={t('onboarding.plan_title', { name: family.name })}
                 sub={t(pricing.pro ? 'onboarding.plan_sub' : 'onboarding.plan_sub_one')}
             >
-                <div className="grid gap-6 px-5 pb-6 md:grid-cols-2 md:gap-x-5 md:px-0 lg:grid-cols-[minmax(0,430px)_372px] lg:grid-rows-[auto_1fr] lg:gap-x-10">
+                <div className="grid grid-cols-1 gap-6 px-5 pb-6 md:grid-cols-2 md:gap-x-5 md:px-0 lg:grid-cols-[minmax(0,430px)_372px] lg:grid-rows-[auto_1fr] lg:gap-x-10">
                     {/* Tier, plans and what's included (left); checkout (right on tablet / desktop). */}
                     <div className="flex flex-col gap-5 md:col-span-2 lg:col-span-1">
                         {failed && <p className="bg-ok-soft text-ink rounded-xl px-3.5 py-2.5 text-[13px]">{t('onboarding.plan_canceled')}</p>}
