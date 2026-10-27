@@ -36,10 +36,18 @@ class Billing
         return filled(config('services.stripe.key'));
     }
 
-    /** May this family use the app? Paid (or comped, demo, self-hosted), or not yet due for the paywall. */
+    /**
+     * May this family use the app? Paid (or comped, demo, self-hosted), or still in its free period.
+     *
+     * Hard paywall: a family made by the onboarding (families.hard_paywall = true, set only there) has NO free
+     * period: it needs a paying subscription from the first minute, so the plan step can't be skipped. This is the
+     * one shared check (RequireFamily for the web app, McpFamilyContext for connectors), so no route can sneak past.
+     * Families that existed before the flag keep the soft rule above, so nobody who has access today is locked out.
+     * isPaid() already exempts self-hosted installs, the demo and lifetime (comped) families from both rules.
+     */
     public static function hasAccess(Family $family): bool
     {
-        return self::isPaid($family) || ! self::paywallDue($family);
+        return self::isPaid($family) || (! $family->hard_paywall && ! self::paywallDue($family));
     }
 
     /**

@@ -23,7 +23,8 @@ class RequireFamily
         // posts in the meantime is lost. This is also how opening the app from the Home Screen resumes it.
         // The tour is the exception: it runs on the dashboard itself (the shared `tour` prop), so only other pages
         // send them back there.
-        if (($step = $request->user()->onboarding_step) && $request->isMethod('GET')) {
+        // Billing stays reachable from the plan step (pay or look at the plans), the same as for a locked family.
+        if (($step = $request->user()->onboarding_step) && $request->isMethod('GET') && ! ($step === 'plan' && $request->routeIs('billing.*'))) {
             if ($step === 'tour') {
                 return $request->routeIs('dashboard') ? $next($request) : to_route('dashboard');
             }
@@ -36,6 +37,14 @@ class RequireFamily
         // Billing::enabled() first: self-hosted installs pay no extra query.
         if (Billing::enabled() && ! $request->routeIs('billing.*')
             && ($family = Family::find(CurrentFamily::id())) && ! Billing::hasAccess($family)) {
+            // A hard-paywall family goes back to the plan step of the onboarding (an admin can pay there; step 'plan'
+            // is what lets that step open). A member who can't pay, or a soft family, gets the Billing page.
+            if ($family->hard_paywall && $request->user()->can('manageBilling', $family)) {
+                $request->user()->forceFill(['onboarding_step' => 'plan'])->save();
+
+                return to_route('onboarding.plan');
+            }
+
             return to_route('billing.show');
         }
 

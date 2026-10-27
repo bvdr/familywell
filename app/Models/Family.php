@@ -35,7 +35,9 @@ class Family extends Model
     // nightly demo reset, so a request must never be able to flag a family as the demo.
     protected $fillable = ['name', 'description', 'color', 'emoji', 'symbol', 'owner_id', 'theme'];
 
-    protected $casts = ['is_demo' => 'boolean', 'subscription_period_end' => 'datetime', 'subscription_canceling' => 'boolean', 'engaged_at' => 'datetime'];
+    protected $casts = ['is_demo' => 'boolean', 'subscription_period_end' => 'datetime', 'subscription_canceling' => 'boolean', 'engaged_at' => 'datetime', 'hard_paywall' => 'boolean'];
+
+    // `hard_paywall`, like is_demo, is NOT fillable: only the onboarding sets it (forceFill), see Billing::hasAccess.
 
     // Comped access ("Lifetime (VIP)"): `access_override`, like is_demo, is NOT fillable. Only the platform
     // admin paths set it, through Billing::setLifetime().

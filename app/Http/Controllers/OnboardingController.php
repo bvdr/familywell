@@ -152,6 +152,8 @@ class OnboardingController extends Controller
             'symbol' => $data['symbol'] ?? null,
             'owner_id' => $user->id,
         ]);
+        // Hard paywall: no free period for a family made here (Billing::hasAccess). Not fillable, so forceFill.
+        $family->forceFill(['hard_paywall' => true])->save();
         $family->members()->attach($user, ['role' => 'admin']);
         app(ModuleRegistry::class)->enableAll($family->id);
         // Modules set up their per-family defaults here (e.g. Spending's currency, Vehicles' units: from where the
@@ -425,8 +427,6 @@ class OnboardingController extends Controller
             // Publishable key only (it's meant for the browser); the secret never leaves the server.
             'stripeKey' => config('services.stripe.key'),
             'email' => $request->user()->email,
-            // Still inside the free period: they may look around first ("Not yet"), as before onboarding v2.
-            'canWait' => ! Billing::paywallDue($family),
             'failed' => $request->boolean('failed'),
             'paid' => false,
             'selfHostingUrl' => config('familywell.self_hosting_url') ?: null,
@@ -474,19 +474,7 @@ class OnboardingController extends Controller
         $request->user()->forceFill(['onboarding_step' => null])->save();
 
         // The page celebrates for a beat, then goes into the app.
-        return Inertia::render('onboarding/plan', ['family' => $family->only(['name']), 'invited' => [], 'pricing' => Billing::pricing(), 'standard' => null, 'stripeKey' => null, 'email' => '', 'canWait' => false, 'failed' => false, 'paid' => true, 'selfHostingUrl' => null]);
-    }
-
-    // "Not yet": only while the family is still in its free period; the paywall takes over when that ends.
-    public function later(Request $request): RedirectResponse
-    {
-        $family = $this->onboardingFamily($request);
-        if ($family && Billing::enabled() && Billing::paywallDue($family)) {
-            return to_route('onboarding.plan');
-        }
-        Analytics::queue('onboarding_plan_later');
-
-        return $this->advance($request->user(), null);
+        return Inertia::render('onboarding/plan', ['family' => $family->only(['name']), 'invited' => [], 'pricing' => Billing::pricing(), 'standard' => null, 'stripeKey' => null, 'email' => '', 'failed' => false, 'paid' => true, 'selfHostingUrl' => null]);
     }
 
     /** First names from the pending invites ("marco.rivera@..." -> "Marco"), for the examples and the recap. */

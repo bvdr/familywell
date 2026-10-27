@@ -45,7 +45,7 @@ it('goes from the tour to the plan where billing is on', function () {
     actingAs($user->fresh())->get('/onboarding/plan')->assertOk()->assertInertia(fn ($page) => $page
         ->component('onboarding/plan')
         ->where('pricing.monthly', config('familywell.pricing.intro.monthly'))
-        ->where('canWait', true));
+        ->missing('canWait')); // hard paywall: nothing on the page lets them wait
 });
 
 it('starts an incomplete subscription on the intro price and hands back only the client secret', function () {
@@ -81,10 +81,10 @@ it('finishes the onboarding once the paid subscription syncs, and only for this 
     expect($user->fresh()->onboarding_step)->toBeNull()->and($family->fresh()->subscription_status)->toBe('active');
 });
 
-it('lets a family in its free period look around first', function () {
+it('has no way to skip the plan: the "not yet" route is gone', function () {
     planBilling();
     [$user] = planOwner();
 
-    actingAs($user)->post('/onboarding/plan/later')->assertRedirect(route('dashboard'));
-    expect($user->fresh()->onboarding_step)->toBeNull();
+    actingAs($user)->post('/onboarding/plan/later')->assertNotFound();
+    expect($user->fresh()->onboarding_step)->toBe('plan');
 });
