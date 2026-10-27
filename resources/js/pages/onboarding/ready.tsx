@@ -99,7 +99,8 @@ export default function Ready({ family, me, invited, modules, installedVia, push
             {/* Sun panel: on top on phone / tablet, the left half on desktop with Homer dancing at the bottom. */}
             <section className="bg-sun flex flex-col items-center px-5 pt-14 pb-8 md:pt-16 lg:w-[520px] lg:shrink-0 lg:justify-between lg:pt-20 lg:pb-14">
                 {hero}
-                <Homer face="happy" className="hidden size-[220px] lg:block" />
+                {/* Left panel: mirror view so he faces the content on the right. */}
+                <Homer face="happy" view="mirror" className="hidden size-[220px] lg:block" />
             </section>
 
             <main className="flex flex-1 flex-col lg:px-[72px] lg:pt-20">

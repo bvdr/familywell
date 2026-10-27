@@ -136,9 +136,10 @@ export default function PlanStep({ family, invited, pricing, standard, stripeKey
         <Elements
             stripe={stripePromise}
             options={{
-                // No Link (its sign-in and "save with Link" prompt aren't in the design); cards, Apple Pay and Google
-                // Pay stay.
-                excludedPaymentMethodTypes: ['link'],
+                // Card only (Apple Pay / Google Pay ride on card in the Express Checkout Element). Not
+                // excludedPaymentMethodTypes: ['link']: 'link' isn't a valid value there, Stripe throws and the card form
+                // never loads. Link's own prompt is switched off on the Payment Element (wallets.link).
+                allowedPaymentMethodTypes: ['card'],
                 mode: 'subscription',
                 amount: due * 100,
                 currency: 'usd',
@@ -391,7 +392,7 @@ function Pay({
                     footer={payButton}
                 >
                     <div className="flex flex-col gap-3">
-                        <PaymentElement options={{ layout: 'tabs', wallets: { applePay: 'never', googlePay: 'never' } }} />
+                        <PaymentElement options={{ layout: 'tabs', wallets: { applePay: 'never', googlePay: 'never', link: 'never' } }} />
                         {errorLine}
                     </div>
                 </ResponsiveModal>
@@ -409,7 +410,7 @@ function Pay({
                     <span className="bg-line h-px flex-1" />
                 </p>
             )}
-            <PaymentElement options={{ layout: 'tabs', wallets: { applePay: 'never', googlePay: 'never' } }} />
+            <PaymentElement options={{ layout: 'tabs', wallets: { applePay: 'never', googlePay: 'never', link: 'never' } }} />
             {errorLine}
             {payButton}
         </div>

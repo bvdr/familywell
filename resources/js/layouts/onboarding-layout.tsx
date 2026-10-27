@@ -118,7 +118,8 @@ export function Rail({ step, homer }: { step?: number; homer?: RailHomer }) {
                 </ol>
             </div>
             <div className="mt-auto flex flex-col items-center gap-6">
-                {homer && <Homer {...homer} onDark className="size-[150px]" />}
+                {/* The rail is on the left, so Homer turns right (mirror view) to face the form. */}
+                {homer && <Homer view="mirror" {...homer} onDark className="size-[150px]" />}
                 <div className="border-garage-line flex w-full flex-col gap-1.5 rounded-2xl border p-4">
                     <span className="flex items-center gap-2 text-sm font-bold text-white">
                         <UsersRound className="text-sun size-4" />
