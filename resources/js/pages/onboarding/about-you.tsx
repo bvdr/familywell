@@ -1,19 +1,21 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { ArrowRight, Bell, Check, ChevronDown, Globe, LoaderCircle, Monitor, Moon, Plus, Sun, type LucideIcon } from 'lucide-react';
+import { ArrowRight, Bell, Check, ChevronDown, Globe, LoaderCircle, MapPin, Monitor, Moon, Plus, Sun, type LucideIcon } from 'lucide-react';
 import { FormEventHandler, useEffect, useState } from 'react';
 
 import InputError from '@/components/input-error';
 import { type Skin } from '@/components/skin-picker';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useAppearance, useSkinCss, type Appearance } from '@/hooks/use-appearance';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import { Logo } from '@/layouts/onboarding-layout';
 import { useLocale, useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
-type Locale = { code: string; label: string };
+type Locale = { code: string; label: string; english: string };
 type Theme = Skin & { swatchDark: Skin['swatch']; badge: string | null };
 
 interface Props {
@@ -23,6 +25,10 @@ interface Props {
     themes: Theme[];
     currentTheme: string | null;
     themeCss?: string;
+    // The browser's language (and its own tag, "en-GB"), what's spoken where they are, and the preview note's example.
+    browser: { code: string; tag: string };
+    near: string[];
+    example: { code: string; greeting: string };
 }
 
 // The skin people get when they haven't picked one (ThemeTokens::resolve's default).
@@ -31,7 +37,7 @@ const DEFAULT_THEME = 'minimal-mono';
 // "About you" (design QJb8p desktop / P61NK phone): the first step after sign-up (OnboardingController::about).
 // Language and colours save the moment they're picked, through the same endpoints as Settings, so the page comes
 // back in that language and the live preview shows that skin; only the name waits for Continue.
-export default function AboutYou({ name, locales, currentLocale, themes, currentTheme, themeCss }: Props) {
+export default function AboutYou({ name, locales, currentLocale, themes, currentTheme, themeCss, browser, near, example }: Props) {
     const t = useT();
     const locale = useLocale();
     useSkinCss(themeCss);
@@ -39,6 +45,8 @@ export default function AboutYou({ name, locales, currentLocale, themes, current
     const picked = useOptimistic<string | null>();
     const { appearance, updateAppearance } = useAppearance();
     const [langOpen, setLangOpen] = useState(false);
+    // Phones get the list in a sheet; tablet and desktop get a dropdown under the field (design D00a').
+    const isMobile = useIsMobile();
 
     const pick = (key: 'locale' | 'theme', value: string | null, url: string) => {
         picked.set(key, value);
@@ -79,6 +87,99 @@ export default function AboutYou({ name, locales, currentLocale, themes, current
         </Button>
     );
 
+    // One row that opens the list, the same on every size: the picked language, how many there are, a chevron.
+    const langRow = (
+        <button
+            type="button"
+            aria-haspopup="listbox"
+            aria-expanded={langOpen}
+            onClick={isMobile ? () => setLangOpen(true) : undefined}
+            className={cn(
+                'flex h-[52px] items-center gap-3 rounded-[14px] border bg-white px-4 text-left',
+                langOpen && !isMobile ? 'border-ink border-[1.5px]' : 'border-line',
+            )}
+        >
+            <Globe className="size-[18px]" />
+            <span className="flex-1 text-base font-medium">{langLabel}</span>
+            <span className="text-stone text-[13px]">{t('onboarding.about_languages', { count: locales.length })}</span>
+            <ChevronDown className={cn('size-4 transition-transform', langOpen && !isMobile && 'rotate-180')} />
+        </button>
+    );
+
+    // The list: the browser's language first (ticked at the start), then what's spoken where they are (from their IP),
+    // then every other one, each in its own name with the English one beside it.
+    const byCode = (c: string) => locales.find((l) => l.code === c);
+    const top: { l: Locale; sub: string; badge: string; Icon: LucideIcon }[] = [
+        ...(byCode(browser.code)
+            ? [
+                  {
+                      l: byCode(browser.code)!,
+                      sub: t('onboarding.about_lang_browser_sub', { tag: browser.tag }),
+                      badge: t('onboarding.about_lang_browser_badge'),
+                      Icon: Globe,
+                  },
+              ]
+            : []),
+        ...near
+            .filter((c) => byCode(c))
+            .map((c) => ({
+                l: byCode(c)!,
+                sub: t('onboarding.about_lang_near_sub', { name: byCode(c)!.english }),
+                badge: t('onboarding.about_lang_near_badge'),
+                Icon: MapPin,
+            })),
+    ];
+    // Alphabetical by their own name, like the design (the picker's own order is the app's, not a reading order).
+    const rest = locales.filter((l) => !top.some((x) => x.l.code === l.code)).sort((a, b) => a.label.localeCompare(b.label, locale));
+    const langList = (
+        <div role="listbox" aria-label={t('onboarding.language')} className="flex flex-col">
+            {top.map(({ l, sub, badge, Icon }) => (
+                <button
+                    key={l.code}
+                    type="button"
+                    role="option"
+                    aria-selected={l.code === lang}
+                    onClick={() => pickLang(l.code)}
+                    className={cn('flex items-center gap-3 rounded-[10px] px-2.5 py-2 text-left', l.code === lang && 'bg-sun-soft')}
+                >
+                    <span className="bg-paper-2 flex size-8 shrink-0 items-center justify-center rounded-full">
+                        <Icon className="size-4" />
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col">
+                        <span className={cn('text-[15px]', l.code === lang ? 'font-bold' : 'font-semibold')}>{l.label}</span>
+                        <span className="text-stone truncate text-xs">{sub}</span>
+                    </span>
+                    <span className="bg-paper-2 text-ink-2 rounded-full px-2 py-0.5 font-mono text-[9.5px] font-bold tracking-[0.5px] uppercase">
+                        {badge}
+                    </span>
+                    {l.code === lang && <Check className="size-4 shrink-0" />}
+                </button>
+            ))}
+            <p className="text-stone px-2.5 pt-3 pb-1 font-mono text-[10.5px] font-semibold tracking-[0.8px] uppercase">
+                {t('onboarding.about_lang_all')}
+            </p>
+            {rest.map((l) => (
+                <button
+                    key={l.code}
+                    type="button"
+                    role="option"
+                    aria-selected={l.code === lang}
+                    onClick={() => pickLang(l.code)}
+                    className={cn(
+                        'flex items-center justify-between gap-3 rounded-[10px] px-2.5 py-2.5 text-left text-[15px]',
+                        l.code === lang && 'bg-sun-soft font-bold',
+                    )}
+                >
+                    <span>{l.label}</span>
+                    <span className="text-stone flex items-center gap-2 text-[13px] font-normal">
+                        {l.english}
+                        {l.code === lang && <Check className="text-ink size-4" />}
+                    </span>
+                </button>
+            ))}
+        </div>
+    );
+
     return (
         <form onSubmit={submit} className="bg-paper text-ink flex min-h-dvh font-sans">
             <Head title={t('onboarding.about_title')} />
@@ -117,39 +218,23 @@ export default function AboutYou({ name, locales, currentLocale, themes, current
                         t('onboarding.language'),
                         // Where the starting language came from: the phone / browser it was set to.
                         <>
-                            <span className="lg:hidden">{t('onboarding.about_hint_lang_phone')}</span>
-                            <span className="hidden lg:inline">{t('onboarding.about_hint_lang_browser')}</span>
+                            <span className="md:hidden">{t('onboarding.about_hint_lang_phone')}</span>
+                            <span className="hidden md:inline">{t('onboarding.about_hint_lang_browser')}</span>
                         </>,
-                        <>
-                            {/* Phone / tablet: one row that opens the list. */}
-                            <button
-                                type="button"
-                                onClick={() => setLangOpen(true)}
-                                className="border-line flex h-[52px] items-center gap-3 rounded-[14px] border bg-white px-4 text-left lg:hidden"
-                            >
-                                <Globe className="size-[18px]" />
-                                <span className="flex-1 text-base font-medium">{langLabel}</span>
-                                <span className="text-stone text-[13px]">{t('onboarding.about_languages', { count: locales.length })}</span>
-                                <ChevronDown className="size-4" />
-                            </button>
-                            {/* Desktop: every language at once. */}
-                            <div className="hidden grid-cols-3 gap-2 lg:grid">
-                                {locales.map((l) => (
-                                    <button
-                                        key={l.code}
-                                        type="button"
-                                        onClick={() => pickLang(l.code)}
-                                        className={cn(
-                                            'flex h-10 items-center justify-between rounded-xl border px-3.5 text-left text-sm',
-                                            l.code === lang ? 'border-ink bg-sun-soft border-[1.5px] font-bold' : 'border-line bg-white font-medium',
-                                        )}
-                                    >
-                                        {l.label}
-                                        {l.code === lang && <Check className="size-4" />}
-                                    </button>
-                                ))}
-                            </div>
-                        </>,
+                        isMobile ? (
+                            langRow
+                        ) : (
+                            <DropdownMenu open={langOpen} onOpenChange={setLangOpen}>
+                                <DropdownMenuTrigger asChild>{langRow}</DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                    align="start"
+                                    sideOffset={6}
+                                    className="border-ink max-h-[var(--radix-dropdown-menu-content-available-height)] w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto rounded-[14px] border-[1.5px] bg-white p-1.5"
+                                >
+                                    {langList}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        ),
                     )}
 
                     {field(
@@ -201,7 +286,8 @@ export default function AboutYou({ name, locales, currentLocale, themes, current
                     )}
                 </div>
 
-                <div className="bg-paper sticky bottom-0 mt-auto flex flex-col items-center gap-3 px-5 pt-6 pb-[calc(24px+env(safe-area-inset-bottom))] md:flex-row md:gap-6 md:px-14 lg:static lg:px-16 lg:pb-9">
+                {/* Tablet: a bar with the hint left and Continue right (design T00a); desktop: Continue, then the hint (D00a). */}
+                <div className="bg-paper md:border-line sticky bottom-0 mt-auto flex flex-col items-center gap-3 px-5 pt-6 pb-[calc(24px+env(safe-area-inset-bottom))] md:flex-row-reverse md:justify-between md:gap-6 md:border-t md:px-14 md:py-[18px] lg:static lg:flex-row lg:justify-start lg:border-0 lg:px-16 lg:pt-6 lg:pb-9">
                     {continueButton}
                     <span className="text-stone text-xs md:text-[13px]">{t('onboarding.about_later')}</span>
                 </div>
@@ -219,24 +305,21 @@ export default function AboutYou({ name, locales, currentLocale, themes, current
                         locale={locale}
                     />
                 )}
-                <p className="text-ink-2 text-[13px] leading-normal">{t('onboarding.about_preview_note')}</p>
+                {/* Names a real language and what the card would say in it, so the first pick is an invitation. */}
+                <p className="text-ink-2 text-[13px] leading-normal">
+                    {t('onboarding.about_preview_note', {
+                        language: byCode(example.code)?.label ?? example.code,
+                        greeting: example.greeting.replace(':name', form.data.name.trim().split(/\s+/)[0] || t('onboarding.about_preview_you')),
+                    })}
+                </p>
             </aside>
 
-            <ResponsiveModal open={langOpen} onOpenChange={setLangOpen} title={t('onboarding.language')} className="bg-paper text-ink">
-                <div className="flex flex-col">
-                    {locales.map((l) => (
-                        <button
-                            key={l.code}
-                            type="button"
-                            onClick={() => pickLang(l.code)}
-                            className="border-line flex items-center justify-between border-b py-3.5 text-left text-base last:border-0"
-                        >
-                            <span className={cn(l.code === lang && 'font-bold')}>{l.label}</span>
-                            {l.code === lang && <Check className="size-4" />}
-                        </button>
-                    ))}
-                </div>
-            </ResponsiveModal>
+            {/* Phones: the same list in a sheet. */}
+            {isMobile && (
+                <ResponsiveModal open={langOpen} onOpenChange={setLangOpen} title={t('onboarding.language')} className="bg-paper text-ink">
+                    {langList}
+                </ResponsiveModal>
+            )}
         </form>
     );
 }
@@ -250,7 +333,11 @@ function ModeSwitch({ value, onChange }: { value: Appearance; onChange: (a: Appe
         ['system', Monitor],
     ];
     return (
-        <div className="bg-paper-2 grid grid-cols-3 rounded-full p-1" role="radiogroup" aria-label={t('onboarding.colours')}>
+        <div
+            className="bg-paper-2 grid grid-cols-3 rounded-full p-1 md:max-w-[300px] lg:max-w-none"
+            role="radiogroup"
+            aria-label={t('onboarding.colours')}
+        >
             {modes.map(([m, Icon]) => (
                 <button
                     key={m}

@@ -37,6 +37,20 @@ it('lets About you switch language and colours before the name is in', function 
     expect($user->fresh()->locale)->toBe('nl')->and($user->fresh()->theme)->toBe('minimal-mono');
 });
 
+it('opens the language list on the browser\'s language, then what is spoken where they are', function () {
+    $user = User::factory()->create(['name' => null]);
+    $about = fn (array $headers) => actingAs($user)->get('/onboarding/about', $headers)->assertOk();
+
+    $about(['Accept-Language' => 'en-GB,en;q=0.9', 'CF-IPCountry' => 'RO'])->assertInertia(fn ($page) => $page
+        ->where('browser', ['code' => 'en', 'tag' => 'en-GB'])->where('near', ['ro'])->where('example.code', 'ro')
+        ->where('example.greeting', 'Bună dimineața, :name.'));
+    // Belgium speaks three of ours; the browser's own language isn't repeated under "near you".
+    $about(['Accept-Language' => 'fr-BE', 'CF-IPCountry' => 'BE'])->assertInertia(fn ($page) => $page
+        ->where('browser', ['code' => 'fr', 'tag' => 'fr-BE'])->where('near', ['nl', 'de']));
+    // No country (no Cloudflare), no preference: English, nothing near, and an example from the list.
+    $about([])->assertInertia(fn ($page) => $page->where('browser.code', 'en')->where('near', []));
+});
+
 it('goes on to an invitation after About you', function () {
     $user = User::factory()->create(['name' => null]);
 

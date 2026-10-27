@@ -47,11 +47,21 @@ class OnboardingController extends Controller
     public function about(Request $request): Response
     {
         $user = $request->user();
+        $browser = Translations::fromBrowser($request);
+        // Prefer a language spoken near them; else the first of ours that isn't the one on screen.
+        $near = array_diff(Translations::spokenIn(TrackLastSeen::country($request)), [app()->getLocale()]);
+        $example = collect($near)->first() ?? collect(array_keys(Translations::LOCALES))->first(fn ($c) => $c !== app()->getLocale());
 
         return Inertia::render('onboarding/about-you', [
             'name' => $user->name,
             'locales' => Translations::options(),
             'currentLocale' => app()->getLocale(),
+            // The language list: the browser's own on top (ticked at the start), then what's spoken where they are
+            // (from their IP, Cloudflare's country), then the rest.
+            'browser' => ['code' => $browser, 'tag' => Translations::browserTag($request, $browser)],
+            'near' => array_values(array_diff(Translations::spokenIn(TrackLastSeen::country($request)), [$browser])),
+            // The preview note's example: another language, "Pick Română and this card says “Bună dimineața, Ana.”".
+            'example' => ['code' => $example, 'greeting' => Translations::get('onboarding.preview_greeting', $example)],
             'themes' => ThemeTokens::available(),
             'currentTheme' => $user->theme,
             'themeCss' => ThemeTokens::css(ThemeTokens::resolve($user, CurrentFamily::id())),
@@ -215,7 +225,9 @@ class OnboardingController extends Controller
     // Suggested when nothing's been picked yet: the four the design starts ticked.
     private const SUGGESTED = ['shopping', 'tasks', 'calendar', 'spending'];
 
-    // Step 3, "Pick 4 to start": a small start sticks. Nothing is locked, the rest turn on in Settings > Modules.
+    // Step 3, "Pin your top 4": every module is already on (enableAll when the family was made), so nothing is turned
+    // on or off here. The four picks are only what sits on top of this person's dashboard and sidebar
+    // (users.pinned_modules), changeable anytime.
     public function modules(Request $request): RedirectResponse|Response
     {
         if (! $family = $this->onboardingFamily($request)) {
