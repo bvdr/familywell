@@ -363,5 +363,6 @@
     "rail_cancel_body": "Două clicuri în Setări → Facturare. Listele, pozele și istoricul rămân ale tale, de exportat.",
     "plan_tax_line": "TVA · :country (:rate%)",
     "plan_tax_incl": "Include :amount TVA (:rate%)",
-    "plan_plus_tax": ":amount + TVA"
+    "plan_plus_tax": ":amount + TVA",
+    "plan_powered_by": "Oferit de"
 }

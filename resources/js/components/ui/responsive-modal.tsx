@@ -68,7 +68,7 @@ export function ResponsiveModal({
 }: {
     open: boolean;
     onOpenChange: (v: boolean) => void;
-    title: string;
+    title: React.ReactNode; // usually text; a node when the header needs more (e.g. a "Powered by" mark)
     description?: string;
     children: React.ReactNode;
     footer?: React.ReactNode; // pinned to the bottom (stays above the keyboard); e.g. a Save button

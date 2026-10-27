@@ -357,5 +357,6 @@
     "rail_cancel_body": "To klikk under Innstillinger → Fakturering. Listene, bildene og historikken din er fortsatt dine å eksportere.",
     "plan_tax_line": "MVA · :country (:rate %)",
     "plan_tax_incl": "Inkl. :amount MVA (:rate %)",
-    "plan_plus_tax": ":amount + MVA"
+    "plan_plus_tax": ":amount + MVA",
+    "plan_powered_by": "Levert av"
 }

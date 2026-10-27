@@ -357,5 +357,6 @@
     "rail_cancel_body": "Dos clics en Ajustes → Facturación. Tus listas, fotos e historial siguen siendo tuyos para exportar.",
     "plan_tax_line": "IVA · :country (:rate %)",
     "plan_tax_incl": "Incl. :amount de IVA (:rate %)",
-    "plan_plus_tax": ":amount + IVA"
+    "plan_plus_tax": ":amount + IVA",
+    "plan_powered_by": "Con la tecnología de"
 }

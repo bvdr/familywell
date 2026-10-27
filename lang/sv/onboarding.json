@@ -357,5 +357,6 @@
     "rail_cancel_body": "Två klick under Inställningar → Fakturering. Dina listor, foton och din historik är fortfarande dina att exportera.",
     "plan_tax_line": "Moms · :country (:rate %)",
     "plan_tax_incl": "Inkl. :amount moms (:rate %)",
-    "plan_plus_tax": ":amount + moms"
+    "plan_plus_tax": ":amount + moms",
+    "plan_powered_by": "Drivs av"
 }

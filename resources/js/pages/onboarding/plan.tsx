@@ -52,12 +52,17 @@ const APPEARANCE: Appearance = {
         colorPrimary: '#121100',
         colorText: '#121100',
         colorBackground: '#F7F5EE',
-        borderRadius: '12px',
+        // Pill: the Apple Pay / Google Pay button (Express Checkout) takes its corners from here, and it sits on top
+        // of our pill "Pay with card". The card fields keep their 12px through the .Input rule below.
+        borderRadius: '999px',
         fontFamily: 'Inter, system-ui, sans-serif',
         fontSizeBase: '14px',
     },
     // Inputs at 16px: iOS Safari zooms the page into any field under 16px when it's focused.
-    rules: { '.Input': { border: '1px solid #E2DED1', fontSize: '16px' }, '.Input:focus': { border: '1.5px solid #121100', boxShadow: 'none' } },
+    rules: {
+        '.Input': { border: '1px solid #E2DED1', fontSize: '16px', borderRadius: '12px' },
+        '.Input:focus': { border: '1.5px solid #121100', boxShadow: 'none' },
+    },
 };
 
 // Phone layout (< md): Apple / Google Pay + "Pay with card" in a sheet. Tablet / desktop: the checkout card inline.
@@ -441,7 +446,7 @@ function Pay({
             onReady={({ availablePaymentMethods }) => setExpress(!!availablePaymentMethods)}
             onConfirm={() => void pay()}
             options={{
-                buttonHeight: 48,
+                buttonHeight: 49, // the height of our cta buttons (size="cta"), so the two stack evenly
                 buttonTheme: { applePay: 'black', googlePay: 'black' },
                 buttonType: { applePay: 'plain', googlePay: 'plain' },
                 paymentMethods: { link: 'never' },
@@ -472,7 +477,15 @@ function Pay({
                 <ResponsiveModal
                     open={sheet}
                     onOpenChange={setSheet}
-                    title={t('onboarding.plan_card')}
+                    title={
+                        <span className="flex items-center justify-between gap-3 pr-2">
+                            {t('onboarding.plan_card')}
+                            <span className="text-stone flex items-center gap-1.5 font-sans text-xs font-normal">
+                                {t('onboarding.plan_powered_by')}
+                                <StripeMark />
+                            </span>
+                        </span>
+                    }
                     className="bg-paper text-ink"
                     footer={payButton}
                 >

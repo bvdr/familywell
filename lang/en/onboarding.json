@@ -357,5 +357,6 @@
     "rail_cancel_body": "Two clicks in Settings → Billing. Your lists, photos and history stay yours to export.",
     "plan_tax_line": "VAT · :country (:rate%)",
     "plan_tax_incl": "Incl. :amount VAT (:rate%)",
-    "plan_plus_tax": ":amount + VAT"
+    "plan_plus_tax": ":amount + VAT",
+    "plan_powered_by": "Powered by"
 }

@@ -357,5 +357,6 @@
     "rail_cancel_body": "Dois cliques em Ajustes → Cobrança. Suas listas, fotos e histórico continuam seus, para exportar.",
     "plan_tax_line": "IVA · :country (:rate%)",
     "plan_tax_incl": "Inclui :amount de IVA (:rate%)",
-    "plan_plus_tax": ":amount + IVA"
+    "plan_plus_tax": ":amount + IVA",
+    "plan_powered_by": "Com tecnologia"
 }
