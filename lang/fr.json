@@ -41,7 +41,9 @@
         "more_desc": "Touche une épingle pour choisir tes quatre raccourcis de la barre du bas",
         "birthdays": "Anniversaires",
         "calendar": "Calendrier",
-        "expense_import": "Import de dépenses"
+        "expense_import": "Import de dépenses",
+        "pinned": "Épinglés",
+        "all_modules": "Tous les modules"
     },
     "dashboard": {
         "good_morning": "Bonjour",
@@ -80,7 +82,11 @@
         "sum_contacts_one": ":count contact",
         "sum_contacts_other": ":count contacts",
         "sum_birthdays_one": ":count ce mois-ci",
-        "sum_birthdays_other": ":count ce mois-ci"
+        "sum_birthdays_other": ":count ce mois-ci",
+        "pinned": "Épinglés",
+        "edit_pins": "Modifier",
+        "pins_title": "Vos modules épinglés",
+        "pins_desc": "Choisissez-en jusqu'à :max. Les autres restent à un geste sous Plus."
     },
     "settings": {
         "title": "Réglages",

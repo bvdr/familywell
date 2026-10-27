@@ -41,7 +41,9 @@
         "more_desc": "Toque em um alfinete para escolher seus quatro atalhos da barra inferior",
         "birthdays": "Aniversários",
         "calendar": "Agenda",
-        "expense_import": "Importar gastos"
+        "expense_import": "Importar gastos",
+        "pinned": "Fixados",
+        "all_modules": "Todos os módulos"
     },
     "dashboard": {
         "good_morning": "Bom dia",
@@ -80,7 +82,11 @@
         "sum_contacts_one": ":count contato",
         "sum_contacts_other": ":count contatos",
         "sum_birthdays_one": ":count este mês",
-        "sum_birthdays_other": ":count este mês"
+        "sum_birthdays_other": ":count este mês",
+        "pinned": "Fixados",
+        "edit_pins": "Editar",
+        "pins_title": "Seus módulos fixados",
+        "pins_desc": "Escolha até :max. O resto fica a um toque em Mais."
     },
     "settings": {
         "title": "Configurações",

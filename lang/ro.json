@@ -41,7 +41,9 @@
         "more_desc": "Apasă un ac pentru a-ți alege cele patru scurtături din bară",
         "birthdays": "Zile de naștere",
         "calendar": "Calendar",
-        "expense_import": "Import cheltuieli"
+        "expense_import": "Import cheltuieli",
+        "pinned": "Fixate",
+        "all_modules": "Toate modulele"
     },
     "dashboard": {
         "good_morning": "Bună dimineața",
@@ -90,7 +92,11 @@
         "sum_contacts_other": ":count de contacte",
         "sum_birthdays_one": ":count luna asta",
         "sum_birthdays_few": ":count luna asta",
-        "sum_birthdays_other": ":count luna asta"
+        "sum_birthdays_other": ":count luna asta",
+        "pinned": "Fixate",
+        "edit_pins": "Editează",
+        "pins_title": "Modulele tale fixate",
+        "pins_desc": "Alege până la :max. Restul rămân la o atingere distanță, la Mai mult."
     },
     "settings": {
         "title": "Setări",

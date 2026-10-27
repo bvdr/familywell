@@ -41,7 +41,9 @@
         "more_desc": "Tik op een speld om je vier snelkoppelingen onderin te kiezen",
         "birthdays": "Verjaardagen",
         "calendar": "Agenda",
-        "expense_import": "Uitgaven importeren"
+        "expense_import": "Uitgaven importeren",
+        "pinned": "Gepind",
+        "all_modules": "Alle modules"
     },
     "dashboard": {
         "good_morning": "Goedemorgen",
@@ -80,7 +82,11 @@
         "sum_contacts_one": ":count contact",
         "sum_contacts_other": ":count contacten",
         "sum_birthdays_one": ":count deze maand",
-        "sum_birthdays_other": ":count deze maand"
+        "sum_birthdays_other": ":count deze maand",
+        "pinned": "Gepind",
+        "edit_pins": "Wijzigen",
+        "pins_title": "Je gepinde modules",
+        "pins_desc": "Kies er maximaal :max. De rest blijft één tik weg onder Meer."
     },
     "settings": {
         "title": "Instellingen",

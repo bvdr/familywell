@@ -41,7 +41,9 @@
         "more_desc": "Trykk på en nål for å velge de fire snarveiene nederst",
         "birthdays": "Bursdager",
         "calendar": "Kalender",
-        "expense_import": "Utgiftsimport"
+        "expense_import": "Utgiftsimport",
+        "pinned": "Festet",
+        "all_modules": "Alle moduler"
     },
     "dashboard": {
         "good_morning": "God morgen",
@@ -80,7 +82,11 @@
         "sum_contacts_one": ":count kontakt",
         "sum_contacts_other": ":count kontakter",
         "sum_birthdays_one": ":count denne måneden",
-        "sum_birthdays_other": ":count denne måneden"
+        "sum_birthdays_other": ":count denne måneden",
+        "pinned": "Festet",
+        "edit_pins": "Rediger",
+        "pins_title": "Dine festede moduler",
+        "pins_desc": "Velg opptil :max. Resten er ett trykk unna under Mer."
     },
     "settings": {
         "title": "Innstillinger",
