@@ -41,7 +41,9 @@
         "more_desc": "Tryck på en nål för att välja dina fyra genvägar i nedre fältet",
         "birthdays": "Födelsedagar",
         "calendar": "Kalender",
-        "expense_import": "Importera utgifter"
+        "expense_import": "Importera utgifter",
+        "pinned": "Fästa",
+        "all_modules": "Alla moduler"
     },
     "dashboard": {
         "good_morning": "God morgon",
@@ -80,7 +82,11 @@
         "sum_contacts_one": ":count kontakt",
         "sum_contacts_other": ":count kontakter",
         "sum_birthdays_one": ":count den här månaden",
-        "sum_birthdays_other": ":count den här månaden"
+        "sum_birthdays_other": ":count den här månaden",
+        "pinned": "Fästa",
+        "edit_pins": "Redigera",
+        "pins_title": "Dina fästa moduler",
+        "pins_desc": "Välj upp till :max. Resten är en knapptryckning bort under Mer."
     },
     "settings": {
         "title": "Inställningar",

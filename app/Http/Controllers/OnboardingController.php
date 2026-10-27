@@ -47,11 +47,21 @@ class OnboardingController extends Controller
     public function about(Request $request): Response
     {
         $user = $request->user();
+        $browser = Translations::fromBrowser($request);
+        // Prefer a language spoken near them; else the first of ours that isn't the one on screen.
+        $near = array_diff(Translations::spokenIn(TrackLastSeen::country($request)), [app()->getLocale()]);
+        $example = collect($near)->first() ?? collect(array_keys(Translations::LOCALES))->first(fn ($c) => $c !== app()->getLocale());
 
         return Inertia::render('onboarding/about-you', [
             'name' => $user->name,
             'locales' => Translations::options(),
             'currentLocale' => app()->getLocale(),
+            // The language list: the browser's own on top (ticked at the start), then what's spoken where they are
+            // (from their IP, Cloudflare's country), then the rest.
+            'browser' => ['code' => $browser, 'tag' => Translations::browserTag($request, $browser)],
+            'near' => array_values(array_diff(Translations::spokenIn(TrackLastSeen::country($request)), [$browser])),
+            // The preview note's example: another language, "Pick Română and this card says “Bună dimineața, Ana.”".
+            'example' => ['code' => $example, 'greeting' => Translations::get('onboarding.preview_greeting', $example)],
             'themes' => ThemeTokens::available(),
             'currentTheme' => $user->theme,
             'themeCss' => ThemeTokens::css(ThemeTokens::resolve($user, CurrentFamily::id())),
@@ -152,6 +162,8 @@ class OnboardingController extends Controller
             'symbol' => $data['symbol'] ?? null,
             'owner_id' => $user->id,
         ]);
+        // Hard paywall: no free period for a family made here (Billing::hasAccess). Not fillable, so forceFill.
+        $family->forceFill(['hard_paywall' => true])->save();
         $family->members()->attach($user, ['role' => 'admin']);
         app(ModuleRegistry::class)->enableAll($family->id);
         // Modules set up their per-family defaults here (e.g. Spending's currency, Vehicles' units: from where the
@@ -213,7 +225,9 @@ class OnboardingController extends Controller
     // Suggested when nothing's been picked yet: the four the design starts ticked.
     private const SUGGESTED = ['shopping', 'tasks', 'calendar', 'spending'];
 
-    // Step 3, "Pick 4 to start": a small start sticks. Nothing is locked, the rest turn on in Settings > Modules.
+    // Step 3, "Pin your top 4": every module is already on (enableAll when the family was made), so nothing is turned
+    // on or off here. The four picks are only what sits on top of this person's dashboard and sidebar
+    // (users.pinned_modules), changeable anytime.
     public function modules(Request $request): RedirectResponse|Response
     {
         if (! $family = $this->onboardingFamily($request)) {
@@ -221,13 +235,12 @@ class OnboardingController extends Controller
         }
         $registry = app(ModuleRegistry::class);
         $available = array_values(array_filter(self::PICKABLE, fn ($id) => $registry->isInstalled($id)));
-        $enabled = array_values(array_intersect($available, $registry->enabledIds($family->id)));
+        $pinned = array_values(array_intersect($request->user()->pinned_modules ?? [], $available));
 
         return Inertia::render('onboarding/modules', [
             'available' => $available,
-            // A new family has every module on (enableAll), which isn't a pick: start from the suggestion then.
-            // Back from a later step, it's what they picked.
-            'picked' => count($enabled) <= 4 ? $enabled : array_values(array_intersect(self::SUGGESTED, $available)),
+            // Back from a later step: what they pinned. First time: the suggestion the design starts with.
+            'picked' => $pinned ?: array_values(array_intersect(self::SUGGESTED, $available)),
             'requestsUrl' => config('familywell.requests_url') ?: null,
         ]);
     }
@@ -244,9 +257,7 @@ class OnboardingController extends Controller
             'modules.*' => ['string', 'distinct', 'in:'.implode(',', $available)],
         ]);
 
-        foreach ($available as $id) {
-            in_array($id, $data['modules'], true) ? $registry->enable($id, $family->id) : $registry->disable($id, $family->id);
-        }
+        $request->user()->forceFill(['pinned_modules' => array_values($data['modules'])])->save();
         Analytics::queue('onboarding_modules', ['modules' => implode(',', $data['modules'])]);
 
         return $this->advance($request->user(), $this->next('modules'));
@@ -323,7 +334,7 @@ class OnboardingController extends Controller
 
     /**
      * Step 5 (design 05 / D05): what FamilyWell may notify about, with real-looking examples from the modules they
-     * picked. The toggles save through Settings' own endpoint (push.prefs) and the browser asks for permission;
+     * pinned. The toggles save through Settings' own endpoint (push.prefs) and the browser asks for permission;
      * this only records the answer and moves on.
      */
     public function notifications(Request $request): RedirectResponse|Response
@@ -331,9 +342,8 @@ class OnboardingController extends Controller
         if (! $family = $this->onboardingFamily($request)) {
             return $this->leave($request);
         }
-        $picked = app(ModuleRegistry::class)->enabledIds($family->id);
-        // A toggle per picked module that has a push category (Calendar has none yet, so it isn't offered).
-        $categories = array_values(array_intersect(self::PICKABLE, $picked, NotificationCategories::ids()));
+        // A toggle per PINNED module that has a push category (Calendar has none yet, so it isn't offered).
+        $categories = array_values(array_intersect(self::PICKABLE, $this->pinned($request->user(), $family), NotificationCategories::ids()));
 
         return Inertia::render('onboarding/notifications', [
             'categories' => $categories,
@@ -360,20 +370,24 @@ class OnboardingController extends Controller
             return $this->leave($request);
         }
         $user = $request->user();
-        $picked = array_values(array_intersect(self::PICKABLE, app(ModuleRegistry::class)->enabledIds($family->id)));
+        $pinned = $this->pinned($user, $family);
         $pushOn = $user->pushSubscriptions()->exists()
-            ? count(array_filter(array_intersect_key($user->notification_prefs ?? [], array_flip($picked)), fn ($on) => $on))
+            ? count(array_filter(array_intersect_key($user->notification_prefs ?? [], array_flip($pinned)), fn ($on) => $on))
             : 0;
 
         return Inertia::render('onboarding/ready', [
             'family' => $family->only(['name', 'color', 'symbol', 'emoji']),
             'me' => str($user->name)->before(' ')->toString(),
             'invited' => $this->invitedNames($family),
-            'modules' => $picked,
+            // "All 11 modules on", "Pinned: Shopping, Tasks, ...": every module is on, four are pinned.
+            'moduleCount' => count(array_intersect(self::PICKABLE, app(ModuleRegistry::class)->enabledIds($family->id))),
+            'pinned' => $pinned,
             'installedVia' => $request->session()->get('onboarding.installed_via'),
             'pushOn' => $pushOn,
-            // The plan comes after the tour only where there's billing; self-hosted (and dev) goes straight in.
-            'planNext' => Billing::enabled(),
+            // The plan row of the recap: only where there's billing, and only once it's paid (the plan step comes first).
+            'plan' => Billing::enabled() && Billing::isPaid($family) && $family->subscription_plan
+                ? ['tier' => $family->subscription_tier ?? 'basic', 'cycle' => $family->subscription_plan, 'renews' => $family->subscription_period_end?->toIso8601String()]
+                : null,
         ]);
     }
 
@@ -406,13 +420,15 @@ class OnboardingController extends Controller
     }
 
     /**
-     * The last stop (design 09 / T09 / D09), after the tour and only where billing is on: one plan, yearly
+     * Plan & pay (design 06 / T09 / D09): right after the notifications, before the "home is ready" recap and the
+     * tour, and only where billing is on. Hard paywall: this is also where RequireFamily sends any locked family, so
+     * there is no way into the app without paying here. One page, Basic or Pro (when Pro is on offer), yearly
      * preselected, the total in plain sight, paid right here with Stripe Elements (Apple Pay / Google Pay through the
      * Express Checkout Element, cards through the Payment Element). See subscribe() and paid().
      */
     public function plan(Request $request): RedirectResponse|Response
     {
-        if (! Billing::enabled() || ! $family = $this->onboardingFamily($request)) {
+        if (! Billing::enabled() || ! $family = $this->payingFamily($request)) {
             return $this->leave($request);
         }
 
@@ -420,17 +436,29 @@ class OnboardingController extends Controller
             'family' => $family->only(['name']),
             'invited' => $this->invitedNames($family),
             'pricing' => Billing::pricing(),
-            // The list price, for the "Intro price -$9" line while the intro offer lasts.
-            'standard' => ['monthly' => (int) config('familywell.pricing.standard.monthly'), 'yearly' => (int) config('familywell.pricing.standard.yearly')],
+            // The list prices, for the "Discount" line while the intro offer lasts; per tier.
+            'standard' => [
+                'basic' => $this->amounts('standard'),
+                'pro' => config('familywell.pricing.pro.standard'),
+            ],
+            // What each tier says it includes ("1 GB · 30 AI points"): display copy, see config familywell.tiers.
+            'tiers' => config('familywell.tiers'),
             // Publishable key only (it's meant for the browser); the secret never leaves the server.
             'stripeKey' => config('services.stripe.key'),
             'email' => $request->user()->email,
-            // Still inside the free period: they may look around first ("Not yet"), as before onboarding v2.
-            'canWait' => ! Billing::paywallDue($family),
             'failed' => $request->boolean('failed'),
             'paid' => false,
+            'next' => null,
             'selfHostingUrl' => config('familywell.self_hosting_url') ?: null,
         ]);
+    }
+
+    /** @return array{monthly: int, yearly: int} */
+    private function amounts(string $kind): array
+    {
+        $a = config("familywell.pricing.{$kind}");
+
+        return ['monthly' => (int) $a['monthly'], 'yearly' => (int) $a['yearly']];
     }
 
     /**
@@ -440,26 +468,27 @@ class OnboardingController extends Controller
      */
     public function subscribe(Request $request): JsonResponse
     {
-        abort_unless(Billing::enabled() && ($family = $this->onboardingFamily($request)), 403);
+        abort_unless(Billing::enabled() && ($family = $this->payingFamily($request)), 403);
         $this->authorize('manageBilling', $family);
         abort_if(Billing::isPaid($family), 409, 'Already subscribed.');
-        $plan = $request->validate(['plan' => ['required', 'in:monthly,yearly']])['plan'];
+        $data = $request->validate(['plan' => ['required', 'in:monthly,yearly'], 'tier' => ['sometimes', 'in:basic,pro']]);
 
         if ($stale = $request->session()->pull('onboarding.pending_subscription')) {
             Billing::cancelIncomplete($stale);
         }
-        $started = Billing::startSubscription($family, $request->user()->email, $plan);
+        $started = Billing::startSubscription($family, $request->user()->email, $data['plan'], $data['tier'] ?? 'basic');
         $request->session()->put('onboarding.pending_subscription', $started['subscription']);
-        Analytics::queue('checkout_started', ['plan' => $plan]);
+        Analytics::queue('checkout_started', ['plan' => $data['plan'], 'tier' => $data['tier'] ?? 'basic']);
 
         return response()->json($started);
     }
 
-    // Paid: sync the subscription now (the webhook stays the source of truth), then the win and into the app. Also
+    // Paid: sync the subscription now (the webhook stays the source of truth), then the win and on: into the "home is
+    // ready" recap when this is the onboarding, straight into the app for a family paying again after a lapse. Also
     // Stripe's return_url when a card needs a 3-D Secure redirect.
     public function paid(Request $request): RedirectResponse|Response
     {
-        if (! Billing::enabled() || ! $family = $this->onboardingFamily($request)) {
+        if (! Billing::enabled() || ! $family = $this->payingFamily($request)) {
             return $this->leave($request);
         }
         $subscription = (string) $request->query('subscription', $request->session()->get('onboarding.pending_subscription', ''));
@@ -471,22 +500,40 @@ class OnboardingController extends Controller
         }
         $request->session()->forget('onboarding.pending_subscription');
         Analytics::queue('checkout_completed');
-        $request->user()->forceFill(['onboarding_step' => null])->save();
+        $user = $request->user();
+        $onboarding = $user->onboarding_step === 'plan';
+        $user->forceFill(['onboarding_step' => $onboarding ? 'ready' : null])->save();
 
-        // The page celebrates for a beat, then goes into the app.
-        return Inertia::render('onboarding/plan', ['family' => $family->only(['name']), 'invited' => [], 'pricing' => Billing::pricing(), 'standard' => null, 'stripeKey' => null, 'email' => '', 'canWait' => false, 'failed' => false, 'paid' => true, 'selfHostingUrl' => null]);
+        // The page celebrates for a beat, then moves on.
+        return Inertia::render('onboarding/plan', ['family' => $family->only(['name']), 'invited' => [], 'pricing' => Billing::pricing(), 'standard' => null, 'tiers' => null, 'stripeKey' => null, 'email' => '', 'failed' => false, 'paid' => true, 'next' => route($onboarding ? 'onboarding.ready' : 'dashboard'), 'selfHostingUrl' => null]);
     }
 
-    // "Not yet": only while the family is still in its free period; the paywall takes over when that ends.
-    public function later(Request $request): RedirectResponse
+    /**
+     * The family that is paying here: the one this person is onboarding, or (hard paywall) their locked family when
+     * they are sent back to pay, without any onboarding step to open it.
+     */
+    private function payingFamily(Request $request): ?Family
     {
-        $family = $this->onboardingFamily($request);
-        if ($family && Billing::enabled() && Billing::paywallDue($family)) {
-            return to_route('onboarding.plan');
+        if ($family = $this->onboardingFamily($request)) {
+            return $family;
         }
-        Analytics::queue('onboarding_plan_later');
+        $family = Family::find(CurrentFamily::id());
 
-        return $this->advance($request->user(), null);
+        return $family && $family->hard_paywall && ! Billing::hasAccess($family) && Gate::forUser($request->user())->allows('manageBilling', $family) ? $family : null;
+    }
+
+    /**
+     * The modules this person pinned (in the order they chose), or every module on while they haven't chosen: what
+     * the notification examples and the recap talk about.
+     *
+     * @return list<string>
+     */
+    private function pinned(User $user, Family $family): array
+    {
+        $on = array_intersect(self::PICKABLE, app(ModuleRegistry::class)->enabledIds($family->id));
+        $pinned = array_values(array_intersect($user->pinned_modules ?? [], $on));
+
+        return $pinned ?: array_values($on);
     }
 
     /** First names from the pending invites ("marco.rivera@..." -> "Marco"), for the examples and the recap. */
@@ -502,12 +549,17 @@ class OnboardingController extends Controller
      * route is `onboarding.<step>` (the tour runs on the dashboard instead); `users.onboarding_step` remembers
      * where someone is, so RequireFamily can bring them back to it.
      */
-    private const FLOW = ['invite' => 'modules', 'modules' => 'install', 'install' => 'notifications', 'notifications' => 'ready'];
+    private const FLOW = ['invite' => 'modules', 'modules' => 'install', 'install' => 'notifications'];
 
     private function next(string $step): ?string
     {
-        // After the tour comes the plan, only where billing is on (hosted); self-hosted / dev go straight in.
-        return $step === 'tour' ? (Billing::enabled() ? 'plan' : null) : self::FLOW[$step];
+        // Right after the notifications comes the plan, only where billing is on (hosted); self-hosted / dev go
+        // straight to the recap. The tour is the last stop, then the app.
+        return match ($step) {
+            'notifications' => Billing::enabled() ? 'plan' : 'ready',
+            'tour' => null,
+            default => self::FLOW[$step],
+        };
     }
 
     // Not (or no longer) in an onboarding they can do, e.g. they switched to a family they don't run: stop

@@ -79,7 +79,7 @@ const MAX_PINS = 4;
 const DEFAULT_ORDER = ['dashboard', 'projects', 'shopping', 'spending', 'members', 'modules', 'settings'];
 
 export function MobileTabBar() {
-    const page = usePage<{ modules?: { enabled?: string[] } }>();
+    const page = usePage<{ modules?: { enabled?: string[] }; pins?: string[] | null }>();
     const t = useT();
     const enabled = page.props.modules?.enabled ?? [];
 
@@ -107,9 +107,13 @@ export function MobileTabBar() {
         }
     };
 
-    // Resolve the pinned bar items: saved pins (that still exist), else the default set.
+    // Resolve the pinned bar items: this device's saved pins (that still exist), else Home plus the first modules the
+    // person pinned in the onboarding ("Pin your top 4", saved on their account so every device starts the same), else
+    // the default set.
     const savedPinned = pins.map((k) => byKey.get(k)).filter((i): i is Item => !!i);
-    const pinned = (savedPinned.length ? savedPinned : DEFAULT_ORDER.map((k) => byKey.get(k)).filter((i): i is Item => !!i)).slice(0, MAX_PINS);
+    const accountPinned = ['dashboard', ...(page.props.pins ?? [])].map((k) => byKey.get(k)).filter((i): i is Item => !!i);
+    const fallback = accountPinned.length > 1 ? accountPinned : DEFAULT_ORDER.map((k) => byKey.get(k)).filter((i): i is Item => !!i);
+    const pinned = (savedPinned.length ? savedPinned : fallback).slice(0, MAX_PINS);
     const pinnedKeys = new Set(pinned.map((i) => i.key));
 
     const [moreOpen, setMoreOpen] = useState(false);

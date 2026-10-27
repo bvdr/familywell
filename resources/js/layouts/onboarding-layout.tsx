@@ -1,5 +1,5 @@
 import { Link, router } from '@inertiajs/react';
-import { ArrowLeft, Check, ChevronLeft, CreditCard, UsersRound } from 'lucide-react';
+import { ArrowLeft, Check, ChevronLeft, CreditCard, ShieldCheck, UsersRound } from 'lucide-react';
 import { useEffect, type ReactNode } from 'react';
 
 import { AppWordmark } from '@/components/app-logo';
@@ -10,7 +10,7 @@ import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 // The four setup steps, in order (design-app.pen "Onboarding · Flow"). `label` is the short header word
-// ("STEP 2 OF 4 · PEOPLE"), `rail` the desktop rail line. The plan is a fifth stop, after the tour: it shows on
+// ("STEP 2 OF 4 · PEOPLE"), `rail` the desktop rail line. The plan is a fifth stop, right after setup: it shows on
 // the rail and as the fifth progress segment, but it isn't "step 5 of 4".
 const STEPS = [
     { label: 'onboarding.step_family', rail: 'onboarding.rail_family' },
@@ -79,8 +79,8 @@ function Badge({ state, children }: { state: 'done' | 'current' | 'todo'; childr
     );
 }
 
-// Desktop: the dark rail. The four steps (done ones ticked in sun, the current one ringed), the plan after the
-// tour, Homer, and the one-price note the whole way.
+// Desktop: the dark rail. The four steps (done ones ticked in sun, the current one ringed), the plan after them,
+// Homer, and the one-price note the whole way (on the plan step itself, the cancel-anytime note instead).
 export function Rail({ step, homer }: { step?: number; homer?: RailHomer }) {
     const t = useT();
     const state = (n: number) => (step === undefined || n > step ? 'todo' : n === step ? 'current' : 'done');
@@ -122,22 +122,33 @@ export function Rail({ step, homer }: { step?: number; homer?: RailHomer }) {
                 {homer && <Homer view="mirror" {...homer} onDark className="size-[150px]" />}
                 <div className="border-garage-line flex w-full flex-col gap-1.5 rounded-2xl border p-4">
                     <span className="flex items-center gap-2 text-sm font-bold text-white">
-                        <UsersRound className="text-sun size-4" />
-                        {t('onboarding.one_price_short')}
+                        {step === 5 ? <ShieldCheck className="text-sun size-4" /> : <UsersRound className="text-sun size-4" />}
+                        {t(step === 5 ? 'onboarding.rail_cancel_title' : 'onboarding.one_price_short')}
                     </span>
-                    <p className="text-garage-text text-[12.5px] leading-normal">{t('onboarding.one_price_rail')}</p>
+                    <p className="text-garage-text text-[12.5px] leading-normal">
+                        {t(step === 5 ? 'onboarding.rail_cancel_body' : 'onboarding.one_price_rail')}
+                    </p>
                 </div>
             </div>
         </aside>
     );
 }
 
-/** The five progress segments (four steps + the plan). Phone: done ink, current sun; tablet: done and current sun. */
+/**
+ * The five progress segments (four steps + the plan). Phone: done ink, current sun; tablet: done and current sun,
+ * except on the plan, the last stop, where the tablet design inks the current one. The phone's plan screen has no bar.
+ */
 export function Progress({ step }: { step: number }) {
     return (
-        <div className="flex gap-1.5" aria-hidden>
+        <div className={cn('flex gap-1.5', step === 5 && 'max-md:hidden')} aria-hidden>
             {Array.from({ length: 5 }, (_, i) => (
-                <span key={i} className={cn('h-1 flex-1 rounded-full', i + 1 < step ? 'bg-ink md:bg-sun' : i + 1 === step ? 'bg-sun' : 'bg-line')} />
+                <span
+                    key={i}
+                    className={cn(
+                        'h-1 flex-1 rounded-full',
+                        i + 1 < step ? 'bg-ink md:bg-sun' : i + 1 === step ? (step === 5 ? 'bg-ink' : 'bg-sun') : 'bg-line',
+                    )}
+                />
             ))}
         </div>
     );
@@ -186,7 +197,11 @@ export default function OnboardingLayout({
                                 <Link
                                     href={back}
                                     aria-label={t('onboarding.back')}
-                                    className="bg-paper-2 md:border-line flex size-9 items-center justify-center rounded-full md:size-10 md:border md:bg-white"
+                                    className={cn(
+                                        'bg-paper-2 md:border-line flex size-9 items-center justify-center rounded-full md:size-10 md:border md:bg-white',
+                                        // The phone's plan screen has no back button (design 06): it is the last stop.
+                                        step === 5 && 'max-md:hidden',
+                                    )}
                                 >
                                     <ChevronLeft className="size-[18px]" />
                                 </Link>

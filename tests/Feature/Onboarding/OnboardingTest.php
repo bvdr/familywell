@@ -37,6 +37,20 @@ it('lets About you switch language and colours before the name is in', function 
     expect($user->fresh()->locale)->toBe('nl')->and($user->fresh()->theme)->toBe('minimal-mono');
 });
 
+it('opens the language list on the browser\'s language, then what is spoken where they are', function () {
+    $user = User::factory()->create(['name' => null]);
+    $about = fn (array $headers) => actingAs($user)->get('/onboarding/about', $headers)->assertOk();
+
+    $about(['Accept-Language' => 'en-GB,en;q=0.9', 'CF-IPCountry' => 'RO'])->assertInertia(fn ($page) => $page
+        ->where('browser', ['code' => 'en', 'tag' => 'en-GB'])->where('near', ['ro'])->where('example.code', 'ro')
+        ->where('example.greeting', 'Bună dimineața, :name.'));
+    // Belgium speaks three of ours; the browser's own language isn't repeated under "near you".
+    $about(['Accept-Language' => 'fr-BE', 'CF-IPCountry' => 'BE'])->assertInertia(fn ($page) => $page
+        ->where('browser', ['code' => 'fr', 'tag' => 'fr-BE'])->where('near', ['nl', 'de']));
+    // No country (no Cloudflare), no preference: English, nothing near, and an example from the list.
+    $about([])->assertInertia(fn ($page) => $page->where('browser.code', 'en')->where('near', []));
+});
+
 it('goes on to an invitation after About you', function () {
     $user = User::factory()->create(['name' => null]);
 
@@ -226,19 +240,38 @@ it('keeps the onboarding steps to the person running it', function () {
     expect($member->fresh()->onboarding_step)->toBeNull();
 });
 
-it('turns on only the picked modules and leaves the add-ons alone', function () {
+it('pins the picked modules and leaves every module on', function () {
     test()->artisan('modules:migrate')->assertExitCode(0);
     [$user, $family] = onboardingOwner('modules');
     $registry = app(ModuleRegistry::class);
     $registry->enableAll($family->id);
+    $before = DB::table('family_modules')->where(['family_id' => $family->id, 'enabled' => true])->pluck('module_id')->sort()->values()->all();
 
     actingAs($user)->get('/onboarding/modules')->assertOk()
         ->assertInertia(fn ($page) => $page->component('onboarding/modules')->where('picked', ['shopping', 'tasks', 'calendar', 'spending']));
     actingAs($user)->post('/onboarding/modules', ['modules' => ['shopping', 'recipes', 'vehicles']])->assertRedirect();
 
-    $enabled = DB::table('family_modules')->where(['family_id' => $family->id, 'enabled' => true])->pluck('module_id')->all();
-    expect($enabled)->toContain('shopping', 'recipes', 'vehicles', 'notifications', 'recurring_todos')
-        ->not->toContain('tasks', 'calendar', 'spending');
+    // Pinning is only what sits on top of their dashboard: nothing is turned off.
+    $after = DB::table('family_modules')->where(['family_id' => $family->id, 'enabled' => true])->pluck('module_id')->sort()->values()->all();
+    expect($after)->toBe($before)->and($user->fresh()->pinned_modules)->toBe(['shopping', 'recipes', 'vehicles']);
+
+    // Back from a later step: the page shows what they pinned.
+    actingAs($user->fresh())->get('/onboarding/modules')
+        ->assertInertia(fn ($page) => $page->where('picked', ['shopping', 'recipes', 'vehicles']));
+});
+
+it('lets someone change their pins later, to modules that are on, four at most', function () {
+    test()->artisan('modules:migrate')->assertExitCode(0);
+    [$user, $family] = onboardingOwner('modules');
+    app(ModuleRegistry::class)->enableAll($family->id);
+    $user->forceFill(['onboarding_step' => null])->save();
+
+    actingAs($user)->put('/settings/pins', ['modules' => ['notes', 'tasks']])->assertRedirect();
+    expect($user->fresh()->pinned_modules)->toBe(['notes', 'tasks']);
+
+    actingAs($user)->put('/settings/pins', ['modules' => ['shopping', 'tasks', 'calendar', 'spending', 'notes']])->assertSessionHasErrors('modules');
+    actingAs($user)->put('/settings/pins', ['modules' => ['not_a_module']])->assertSessionHasErrors('modules.0');
+    actingAs($user)->get('/dashboard')->assertInertia(fn ($page) => $page->where('pins', ['notes', 'tasks']));
 });
 
 it('caps the picks at four', function () {

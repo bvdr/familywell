@@ -7,6 +7,7 @@ use App\Http\Controllers\FamilyModuleController;
 use App\Http\Controllers\GuestLinkController;
 use App\Http\Controllers\ModuleAssetController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\PinnedModulesController;
 use App\Http\Controllers\PublicGuestController;
 use App\Http\Controllers\PublicShareController;
 use App\Http\Controllers\ShareController;
@@ -87,7 +88,6 @@ Route::middleware(['auth'])->group(function () {
     // Starts the incomplete subscription the browser then pays (throttled: each call is a Stripe API write).
     Route::post('onboarding/plan', [OnboardingController::class, 'subscribe'])->middleware(['not-demo', 'throttle:10,1'])->name('onboarding.plan.subscribe');
     Route::get('onboarding/plan/paid', [OnboardingController::class, 'paid'])->name('onboarding.plan.paid');
-    Route::post('onboarding/plan/later', [OnboardingController::class, 'later'])->name('onboarding.plan.later');
     // Sign-in links for the phone (App\Support\Auth\Handoff): throttled, the email one harder since it sends mail.
     Route::post('onboarding/handoff', [OnboardingController::class, 'handoff'])->middleware('throttle:10,1')->name('onboarding.handoff');
     Route::post('onboarding/handoff/email', [OnboardingController::class, 'emailHandoff'])->middleware('throttle:3,10')->name('onboarding.handoff.email');
@@ -145,6 +145,7 @@ Route::middleware(['auth', 'family'])->group(function () {
 
     Route::get('/m/{module}/frontend.js', [ModuleAssetController::class, 'frontend'])->name('module.frontend');
 
+    Route::put('/settings/pins', [PinnedModulesController::class, 'update'])->middleware('not-demo')->name('pins.update');
     Route::get('/family/modules', [FamilyModuleController::class, 'index'])->name('family.modules.index');
     Route::post('/family/modules/{module}/enable', [FamilyModuleController::class, 'enable'])->name('family.modules.enable');
     Route::delete('/family/modules/{module}', [FamilyModuleController::class, 'disable'])->name('family.modules.disable');

@@ -41,7 +41,9 @@
         "more_desc": "Tap a pin to choose your four bottom-bar shortcuts",
         "birthdays": "Birthdays",
         "calendar": "Calendar",
-        "expense_import": "Expense import"
+        "expense_import": "Expense import",
+        "pinned": "Pinned",
+        "all_modules": "All modules"
     },
     "dashboard": {
         "good_morning": "Good morning",
@@ -80,7 +82,11 @@
         "sum_contacts_one": ":count contact",
         "sum_contacts_other": ":count contacts",
         "sum_birthdays_one": ":count this month",
-        "sum_birthdays_other": ":count this month"
+        "sum_birthdays_other": ":count this month",
+        "pinned": "Pinned",
+        "edit_pins": "Edit",
+        "pins_title": "Your pinned modules",
+        "pins_desc": "Pick up to :max. The rest stay one tap away under More."
     },
     "settings": {
         "title": "Settings",

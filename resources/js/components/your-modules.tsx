@@ -14,13 +14,15 @@ import {
     Wallet,
     type LucideIcon,
 } from 'lucide-react';
+import { useState } from 'react';
 
+import { PinModulesModal, usePinned } from '@/components/pin-modules';
 import { useT } from '@/lib/i18n';
 
 // The dashboard's "Your modules" grid (design JGdKu / g588Mw): one tile per enabled module with its live one-line
 // status from DashboardSummaries ("6 to buy", "2 due today"). Two across on phones, four on tablet and up. The
 // onboarding tour spotlights it (data-tour="modules"); "+ Add" goes to the modules settings.
-const MODULES: Record<string, { icon: LucideIcon; href: string }> = {
+export const MODULES: Record<string, { icon: LucideIcon; href: string }> = {
     shopping: { icon: ShoppingCart, href: '/m/shopping' },
     tasks: { icon: ListChecks, href: '/m/tasks' },
     calendar: { icon: CalendarDays, href: '/m/calendar' },
@@ -38,17 +40,31 @@ export type ModuleSummary = { key: string; params?: Record<string, string | numb
 
 export function YourModules({ enabled, summaries }: { enabled: string[]; summaries: Record<string, ModuleSummary> }) {
     const t = useT();
-    const ids = Object.keys(MODULES).filter((id) => enabled.includes(id));
+    // "Pin your top 4": once someone has pinned modules the grid is just those (the rest are under More / All modules);
+    // before that it is every module that's on, as it always was.
+    const pinned = usePinned();
+    const [editing, setEditing] = useState(false);
+    const ids = pinned ?? Object.keys(MODULES).filter((id) => enabled.includes(id));
     if (ids.length === 0) return null;
 
     return (
         <section className="flex flex-col gap-3">
             <div className="flex items-baseline justify-between px-1">
-                <h2 className="font-heading text-primary text-lg">{t('dashboard.your_modules')}</h2>
-                <Link href="/family/modules" className="text-muted-foreground inline-flex items-center gap-1 text-sm font-medium">
-                    <Plus className="size-3.5" />
-                    {t('dashboard.add_module')}
-                </Link>
+                <h2 className="font-heading text-primary text-lg">{pinned ? t('dashboard.pinned') : t('dashboard.your_modules')}</h2>
+                {pinned ? (
+                    <button
+                        type="button"
+                        onClick={() => setEditing(true)}
+                        className="text-muted-foreground inline-flex items-center gap-1 text-sm font-medium"
+                    >
+                        {t('dashboard.edit_pins')}
+                    </button>
+                ) : (
+                    <Link href="/family/modules" className="text-muted-foreground inline-flex items-center gap-1 text-sm font-medium">
+                        <Plus className="size-3.5" />
+                        {t('dashboard.add_module')}
+                    </Link>
+                )}
             </div>
             <div data-tour="modules" className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
                 {ids.map((id, i) => {
@@ -74,6 +90,7 @@ export function YourModules({ enabled, summaries }: { enabled: string[]; summari
                     );
                 })}
             </div>
+            <PinModulesModal open={editing} onOpenChange={setEditing} />
         </section>
     );
 }

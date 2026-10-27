@@ -5,7 +5,9 @@ import {
     Camera,
     Check,
     Download,
+    Ellipsis,
     EllipsisVertical,
+    Link2,
     LoaderCircle,
     Maximize,
     Pointer,
@@ -38,6 +40,23 @@ const isDesktop = () => typeof window !== 'undefined' && window.matchMedia(DESK)
 const isIpad = () =>
     typeof navigator !== 'undefined' &&
     (/ipad/i.test(navigator.userAgent) || (/macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1));
+// Which iPhone / iPad browser this is, since each keeps "Add to Home Screen" somewhere else (design 04 / 04' / 04"):
+// - safari: iPhone Safari (iOS 26) hides Share behind the ⋯ at the right end of its floating bar; iPad Safari has it
+//   top right in its bar;
+// - chrome ("CriOS"): Share sits in its address bar, top right, and "Add to Home Screen" hides behind "View More";
+// - other: Firefox, Edge, DuckDuckGo and the in-app browsers (Instagram, Gmail, Facebook...). Share is somewhere
+//   else in each, and in-app ones can't add to the Home Screen at all, so the steps say where it usually is.
+// Safari is the only one whose user agent has both "Version/" and "Safari/"; a bare WebView (in-app) has neither.
+type Browser = 'safari' | 'chrome' | 'other';
+const OTHER_IOS =
+    /fxios|edgios|opios|duckduckgo|ddg\/|gsa\/|brave|yabrowser|ucbrowser|instagram|fban|fbav|fb_iab|snapchat|twitter|linkedin|pinterest|whatsapp|tiktok|musical_ly|line\//i;
+function iosBrowser(): Browser {
+    if (typeof navigator === 'undefined') return 'safari';
+    const ua = navigator.userAgent;
+    if (/crios/i.test(ua)) return 'chrome';
+    if (OTHER_IOS.test(ua)) return 'other';
+    return /version\//i.test(ua) && /safari\//i.test(ua) ? 'safari' : 'other';
+}
 
 // After this long on the phone screen, offer a quiet way on for browsers that can't install (in-app browsers).
 const ESCAPE_AFTER_MS = 30_000;
@@ -89,18 +108,47 @@ function PhoneInstall() {
     const canPrompt = useCanPrompt();
     // iPad: Share lives in Safari's top bar, so the steps say so and the bubble points up (design T04).
     const [ipad, setIpad] = useState(false);
-    useEffect(() => setIpad(isIpad()), []);
+    const [browser, setBrowser] = useState<Browser>('safari');
+    useEffect(() => {
+        setIpad(isIpad());
+        setBrowser(iosBrowser());
+    }, []);
+    const chrome = browser === 'chrome';
+    const other = browser === 'other';
+    // Only iPhone Safari has its menu in a toolbar below the page; iPad Safari and Chrome (iPhone or iPad) have Share on top.
+    const shareOnTop = ipad || chrome;
+    const [copied, setCopied] = useState(false);
+    const copyLink = () =>
+        void navigator.clipboard
+            ?.writeText(window.location.href)
+            .then(() => setCopied(true))
+            .catch(() => undefined);
     const [escape, setEscape] = useState(false);
     useEffect(() => {
         const id = window.setTimeout(() => setEscape(true), ESCAPE_AFTER_MS);
         return () => window.clearTimeout(id);
     }, []);
 
-    const ios: [ReactNode, string, string, boolean?][] = [
-        [<Share key="s" className="size-6" />, 'onboarding.ios_1', ipad ? 'onboarding.ios_1_sub_ipad' : 'onboarding.ios_1_sub', true],
-        [<SquarePlus key="p" className="size-6" />, 'onboarding.ios_2', 'onboarding.ios_2_sub'],
-        [<AppIcon key="a" />, 'onboarding.install_3', 'onboarding.install_3_sub'],
-    ];
+    // Step 1 differs the most: iPhone Safari goes ⋯ then Share (design 04), the others have Share (or a menu) in sight.
+    const ios: [ReactNode, string, string, boolean?][] = other
+        ? [
+              [<Ellipsis key="s" className="size-6" />, 'onboarding.other_1', 'onboarding.other_1_sub', true],
+              [<SquarePlus key="p" className="size-6" />, 'onboarding.other_2', 'onboarding.other_2_sub'],
+              [<AppIcon key="a" />, 'onboarding.install_3', 'onboarding.install_3_sub'],
+          ]
+        : [
+              chrome || ipad
+                  ? [
+                        <Share key="s" className="size-6" />,
+                        'onboarding.ios_1_top',
+                        chrome ? 'onboarding.ios_1_sub_chrome' : 'onboarding.ios_1_sub_ipad',
+                        true,
+                    ]
+                  : [<Ellipsis key="s" className="size-6" />, 'onboarding.ios_1', 'onboarding.ios_1_sub', true],
+              // Chrome's share sheet hides "Add to Home Screen" until "View More" is tapped.
+              [<SquarePlus key="p" className="size-6" />, 'onboarding.ios_2', chrome ? 'onboarding.ios_2_sub_chrome' : 'onboarding.ios_2_sub'],
+              [<AppIcon key="a" />, 'onboarding.install_3', 'onboarding.install_3_sub'],
+          ];
     const android: [ReactNode, string, string, boolean?][] = [
         [<EllipsisVertical key="m" className="size-6" />, 'onboarding.android_1', 'onboarding.android_1_sub', true],
         [<Download key="d" className="size-6" />, 'onboarding.android_2', 'onboarding.android_2_sub'],
@@ -126,7 +174,7 @@ function PhoneInstall() {
                             onClick={() => setDevice(d)}
                             className={cn('rounded-full py-2 text-[13px]', device === d ? 'bg-white font-bold' : 'text-stone font-medium')}
                         >
-                            {t(`onboarding.device_${d === 'ios' && ipad ? 'ipad' : d}`)}
+                            {t(`onboarding.device_${d === 'ios' ? (other ? 'other' : `${ipad ? 'ipad' : 'ios'}${chrome ? '_chrome' : ''}`) : d}`)}
                         </button>
                     ))}
                 </div>
@@ -151,12 +199,34 @@ function PhoneInstall() {
                                 {icon}
                             </span>
                             <span className="flex min-w-0 flex-col gap-0.5">
-                                <span className="text-[14.5px] font-bold">{t(title)}</span>
+                                <span className="flex items-center gap-1.5 text-[14.5px] font-bold">
+                                    {t(title)}
+                                    {/* iPhone Safari: "Tap ⋯, then Share", with the Share glyph so they know what to look for. */}
+                                    {title === 'onboarding.ios_1' && device === 'ios' && <Share className="size-4" aria-hidden />}
+                                </span>
                                 <span className="text-stone text-[12.5px] leading-[1.4]">{t(sub)}</span>
                             </span>
                         </li>
                     ))}
                 </ol>
+
+                {/* Other browsers: in-app ones can't add it at all, so the way out is Safari, one Copy link away (design 04"). */}
+                {device === 'ios' && other && (
+                    <div className="bg-paper-2 mt-2 flex items-center gap-3 rounded-2xl px-3.5 py-3">
+                        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            <span className="text-[13px] font-bold">{t('onboarding.other_help_title')}</span>
+                            <span className="text-stone text-xs leading-[1.4]">{t('onboarding.other_help_body')}</span>
+                        </span>
+                        <button
+                            type="button"
+                            onClick={copyLink}
+                            className="bg-ink inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-bold text-white"
+                        >
+                            {copied ? <Check className="text-sun size-3.5" /> : <Link2 className="text-sun size-3.5" />}
+                            {copied ? t('onboarding.other_copied') : t('onboarding.other_copy')}
+                        </button>
+                    </div>
+                )}
 
                 <ul className="grid grid-cols-3 gap-2 pt-4">
                     {[
@@ -197,26 +267,28 @@ function PhoneInstall() {
                 )}
             </div>
 
-            {/* iPhone: a bubble pointing down at Safari's real Share button, in the toolbar right under the page. */}
-            {/* iPad: Share is top right in Safari's own bar, just above the page, so the bubble points up there. */}
-            {device === 'ios' && ipad && (
+            {/* iPhone Safari: a bubble pointing down at the ⋯ at the right end of its floating bar, right under the page. */}
+            {/* iPad Safari and Chrome: Share is top right in the browser's bar, just above the page, so the bubble points up. */}
+            {/* iPhone Chrome's Share sits at the right end of the address bar, ~38px from the edge: the arrow moves in to it. */}
+            {/* Other browsers get no bubble: Share is somewhere else in each, so pointing at one spot would be a guess. */}
+            {device === 'ios' && shareOnTop && !other && (
                 <div className="pointer-events-none fixed top-2 right-4 z-20 flex flex-col items-end">
-                    <svg width="16" height="9" viewBox="0 0 16 9" className="fill-ink mr-6" aria-hidden>
+                    <svg width="16" height="9" viewBox="0 0 16 9" className={cn('fill-ink', chrome && !ipad ? 'mr-3.5' : 'mr-6')} aria-hidden>
                         <path d="M0 9h16L8 0z" />
                     </svg>
                     <span className="bg-ink flex items-center gap-2 rounded-[14px] px-3.5 py-2.5 text-[13px] font-bold text-white">
                         <Pointer className="text-sun size-4" />
-                        {t('onboarding.ios_bubble')}
+                        {t('onboarding.ios_bubble_share')}
                     </span>
                 </div>
             )}
-            {device === 'ios' && !ipad && (
-                <div className="pointer-events-none sticky bottom-[calc(12px+env(safe-area-inset-bottom))] mt-auto flex flex-col items-center">
+            {device === 'ios' && !shareOnTop && !other && (
+                <div className="pointer-events-none sticky bottom-[calc(12px+env(safe-area-inset-bottom))] mt-auto flex flex-col items-end pr-4">
                     <span className="bg-ink flex items-center gap-2 rounded-[14px] px-3.5 py-2.5 text-[13px] font-bold text-white">
                         <Pointer className="text-sun size-4" />
                         {t('onboarding.ios_bubble')}
                     </span>
-                    <svg width="16" height="9" viewBox="0 0 16 9" className="fill-ink" aria-hidden>
+                    <svg width="16" height="9" viewBox="0 0 16 9" className="fill-ink mr-8" aria-hidden>
                         <path d="M0 0h16L8 9z" />
                     </svg>
                 </div>

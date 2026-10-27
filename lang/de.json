@@ -41,7 +41,9 @@
         "more_desc": "Tippe auf eine Pinnadel, um deine vier Verknüpfungen in der unteren Leiste zu wählen",
         "birthdays": "Geburtstage",
         "calendar": "Kalender",
-        "expense_import": "Ausgabenimport"
+        "expense_import": "Ausgabenimport",
+        "pinned": "Angepinnt",
+        "all_modules": "Alle Module"
     },
     "dashboard": {
         "good_morning": "Guten Morgen",
@@ -80,7 +82,11 @@
         "sum_contacts_one": ":count Kontakt",
         "sum_contacts_other": ":count Kontakte",
         "sum_birthdays_one": ":count diesen Monat",
-        "sum_birthdays_other": ":count diesen Monat"
+        "sum_birthdays_other": ":count diesen Monat",
+        "pinned": "Angepinnt",
+        "edit_pins": "Bearbeiten",
+        "pins_title": "Deine gepinnten Module",
+        "pins_desc": "Wähle bis zu :max. Der Rest bleibt unter Mehr einen Tipp entfernt."
     },
     "settings": {
         "title": "Einstellungen",

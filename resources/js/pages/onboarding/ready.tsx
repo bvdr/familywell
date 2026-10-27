@@ -1,21 +1,24 @@
 import { Head, router } from '@inertiajs/react';
-import { ArrowRight, Check, HeartHandshake, LoaderCircle } from 'lucide-react';
+import { ArrowRight, Check, LoaderCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { FamilyMark } from '@/components/family-mark';
 import { Homer, reactHomer } from '@/components/homer';
 import { Button } from '@/components/ui/button';
-import { useT } from '@/lib/i18n';
+import { useLocale, useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 type Props = {
     family: { name: string; color: string; symbol: string | null; emoji: string };
     me: string;
     invited: string[];
-    modules: string[];
+    // Every module is on; four are pinned (the onboarding's "Pin your top 4").
+    moduleCount: number;
+    pinned: string[];
     installedVia: 'standalone' | 'desktop' | 'browser' | null;
     pushOn: number;
-    planNext: boolean;
+    // The paid plan for the last recap row; null where there's no billing (self-hosted, dev).
+    plan: { tier: string; cycle: string; renews: string | null } | null;
 };
 
 // Avatar colours for the member dots: ink for the person setting it up, then the invite-row colours.
@@ -30,10 +33,11 @@ const COLOR_KEY: Record<string, string> = {
     '#121100': 'ink',
 };
 
-// Step 6 (design 06 / T06 / D06): the win. A recap of everything they built so it feels worth keeping, and a plain
-// line about what's left (the tour, then the plan where there is one).
-export default function Ready({ family, me, invited, modules, installedVia, pushOn, planNext }: Props) {
+// Step 7 (design 07 / T06 / D06): the win, right after paying. A recap of everything they built (the plan
+// included, where there is one) so it feels worth keeping, then the short tour or straight in.
+export default function Ready({ family, me, invited, moduleCount, pinned, installedVia, pushOn, plan }: Props) {
     const t = useT();
+    const locale = useLocale();
     const [busy, setBusy] = useState<'tour' | 'skip' | null>(null);
     useEffect(() => {
         const id = window.setTimeout(() => reactHomer('celebrate'), 400);
@@ -53,7 +57,10 @@ export default function Ready({ family, me, invited, modules, installedVia, push
         invited.length
             ? [t('onboarding.ready_invites', { count: invited.length }), t('onboarding.ready_invites_sub')]
             : [t('onboarding.ready_no_invites'), t('onboarding.ready_no_invites_sub')],
-        [t('onboarding.ready_modules', { count: modules.length }), modules.map((m) => t(`onboarding.module_${m}`)).join(', ')],
+        [
+            t('onboarding.ready_modules', { count: moduleCount }),
+            t('onboarding.ready_pinned', { names: pinned.map((m) => t(`onboarding.module_${m}`)).join(', ') }),
+        ],
         [
             installedVia === 'desktop'
                 ? t('onboarding.ready_installed_computer')
@@ -63,6 +70,16 @@ export default function Ready({ family, me, invited, modules, installedVia, push
             pushOn ? t('onboarding.ready_push', { count: pushOn }) : t('onboarding.ready_push_off'),
         ],
     ];
+    if (plan) {
+        recap.push([
+            t('onboarding.ready_plan_name', { tier: t(`onboarding.tier_${plan.tier}`), cycle: t(`onboarding.ready_cycle_${plan.cycle}`) }),
+            plan.renews
+                ? t('onboarding.ready_plan_renews', {
+                      date: new Date(plan.renews).toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' }),
+                  })
+                : t('onboarding.ready_plan_anytime'),
+        ]);
+    }
     const invitedLine = invited.length
         ? t('onboarding.ready_invited', { me, names: listOf(invited, t('onboarding.and')) })
         : t('onboarding.just_you', { name: me });
@@ -122,18 +139,6 @@ export default function Ready({ family, me, invited, modules, installedVia, push
                         </li>
                     ))}
                 </ul>
-
-                {planNext && (
-                    <div className="bg-ink mx-5 mt-5 flex gap-3 rounded-[20px] p-[18px] md:mx-14 lg:mx-0 lg:max-w-[616px]">
-                        <span className="bg-sun flex size-[30px] shrink-0 items-center justify-center rounded-[9px]">
-                            <HeartHandshake className="size-4" />
-                        </span>
-                        <span className="flex flex-col gap-1">
-                            <span className="font-display text-[17px] font-bold text-white">{t('onboarding.ready_plan_title')}</span>
-                            <span className="text-garage-text text-[13px] leading-normal">{t('onboarding.ready_plan_body')}</span>
-                        </span>
-                    </div>
-                )}
 
                 <div className="flex justify-center pt-4 lg:hidden">
                     <Homer face="happy" className="size-[100px] md:size-[120px]" />

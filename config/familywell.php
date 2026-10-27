@@ -24,6 +24,19 @@ return [
         'intro_spots' => (int) env('PRICING_INTRO_SPOTS', 100),
         'intro' => ['monthly' => (int) env('PRICING_INTRO_MONTHLY', 5), 'yearly' => (int) env('PRICING_INTRO_YEARLY', 45)],
         'standard' => ['monthly' => (int) env('PRICING_MONTHLY', 6), 'yearly' => (int) env('PRICING_YEARLY', 54)],
+        // Pro tier, same shape (design 'Plan & pay · Pro': $12 -> $9 a month, $108 -> $81 a year). Display copy like
+        // the above; it must match the STRIPE_PRICE_*_PRO prices, which are what is actually charged.
+        'pro' => [
+            'intro' => ['monthly' => (int) env('PRICING_PRO_INTRO_MONTHLY', 9), 'yearly' => (int) env('PRICING_PRO_INTRO_YEARLY', 81)],
+            'standard' => ['monthly' => (int) env('PRICING_PRO_MONTHLY', 12), 'yearly' => (int) env('PRICING_PRO_YEARLY', 108)],
+        ],
+    ],
+
+    // What each tier says it includes on Plan & pay ("1 GB · 30 AI points"). Display copy only: nothing in the app
+    // meters storage or AI points yet, so the tiers differ in price and promise until that exists.
+    'tiers' => [
+        'basic' => ['storage_gb' => 1, 'ai_points' => 30],
+        'pro' => ['storage_gb' => 5, 'ai_points' => 150],
     ],
 
     // The module-requests board ("Can't find yours?" in the onboarding's module picker). Empty hides the card,
