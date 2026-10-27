@@ -259,8 +259,10 @@ class Billing
 
                 return null;
             }
-            $rate = $calc['tax_breakdown'][0]['tax_rate_details']['percentage_decimal'] ?? null;
-            $country = $calc['customer_details']['address']['country'] ?? null;
+            // Located from the IP, Stripe leaves customer_details.address empty: the country is on the rate itself.
+            $details = $calc['tax_breakdown'][0]['tax_rate_details'] ?? [];
+            $rate = $details['percentage_decimal'] ?? null;
+            $country = $details['country'] ?? null;
 
             return $rate && (float) $rate > 0 && $country ? ['country' => $country, 'percent' => (float) $rate] : null;
         });

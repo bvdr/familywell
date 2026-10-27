@@ -25,8 +25,9 @@ function taxFamily(): User
 function fakeStripeTax(): void
 {
     Http::fake([
-        'api.stripe.com/v1/tax/calculations' => Http::response(['customer_details' => ['address' => ['country' => 'RO']],
-            'tax_breakdown' => [['tax_rate_details' => ['percentage_decimal' => '21.0']]]]),
+        // Stripe's real shape for an IP lookup: no customer address, the country sits on the rate.
+        'api.stripe.com/v1/tax/calculations' => Http::response(['customer_details' => ['address' => null, 'ip_address' => '5.2.128.1'],
+            'tax_breakdown' => [['tax_rate_details' => ['country' => 'RO', 'percentage_decimal' => '21.0']]]]),
         'api.stripe.com/v1/customers' => Http::response(['id' => 'cus_1']),
         'api.stripe.com/v1/customers/cus_1' => Http::response(['id' => 'cus_1']),
         'api.stripe.com/v1/subscriptions' => Http::response(['id' => 'sub_1', 'latest_invoice' => ['confirmation_secret' => ['client_secret' => 'pi_secret']]]),
