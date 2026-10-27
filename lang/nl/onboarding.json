@@ -357,5 +357,6 @@
     "rail_cancel_body": "Twee klikken in Instellingen → Facturering. Je lijsten, foto’s en geschiedenis blijven van jou, om te exporteren.",
     "plan_tax_line": "Btw · :country (:rate%)",
     "plan_tax_incl": "Incl. :amount btw (:rate%)",
-    "plan_plus_tax": ":amount + btw"
+    "plan_plus_tax": ":amount + btw",
+    "plan_powered_by": "Mogelijk gemaakt door"
 }
