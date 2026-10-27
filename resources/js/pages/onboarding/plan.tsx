@@ -25,6 +25,9 @@ type Props = {
     tiers: Record<Tier, { storage_gb: number; ai_points: number }> | null;
     // The publishable key (STRIPE_KEY); the secret stays on the server.
     stripeKey: string | null;
+    // VAT / sales tax where the visitor is (Billing::taxRate, from their IP like Stripe Checkout), added on top of
+    // the price; null = nothing to add.
+    tax: { country: string; percent: number } | null;
     email: string;
     failed: boolean;
     paid: boolean;
@@ -74,7 +77,7 @@ function usePhone(): boolean {
 // the only way into the app (hard paywall). A Basic / Pro switch (Pro only where it's on offer), yearly preselected,
 // the total in plain sight, paid right here with Stripe Elements (Apple Pay / Google Pay first, card second).
 // Prices come from Billing::pricing() (config/familywell.php), never from here.
-export default function PlanStep({ family, invited, pricing, standard, tiers, stripeKey, email, failed, paid, next, selfHostingUrl }: Props) {
+export default function PlanStep({ family, invited, pricing, standard, tiers, stripeKey, tax, email, failed, paid, next, selfHostingUrl }: Props) {
     const t = useT();
     const locale = useLocale();
     const [plan, setPlan] = useState<Plan>('yearly');
@@ -99,6 +102,12 @@ export default function PlanStep({ family, invited, pricing, standard, tiers, st
     const listPrices: Amounts = pricing.intro && standard ? standard[tier] : prices;
     const save = Math.round((1 - prices.yearly / (prices.monthly * 12)) * 100);
     const due = plan === 'yearly' ? prices.yearly : prices.monthly;
+    // Tax on top, rounded to the cent like Stripe's exclusive tax; `total` is what the card is charged today.
+    const taxAmount = tax ? Math.round(due * tax.percent) / 100 : 0;
+    const total = Math.round((due + taxAmount) * 100) / 100;
+    const taxCountry = tax ? (new Intl.DisplayNames([locale], { type: 'region' }).of(tax.country) ?? tax.country) : '';
+    // "$45" or "$45 + VAT" for the renewal lines (renewals are taxed the same way).
+    const renewAmount = tax ? t('onboarding.plan_plus_tax', { amount: usd(due) }) : usd(due);
     const list = plan === 'yearly' ? listPrices.yearly : listPrices.monthly;
     const perMonth = (p: Plan, a: Amounts) => (p === 'yearly' ? a.yearly / 12 : a.monthly);
     const renews = new Date();
@@ -148,15 +157,21 @@ export default function PlanStep({ family, invited, pricing, standard, tiers, st
                     <span className="text-ok-ink font-mono">-{usd(list - due, true)}</span>
                 </div>
             )}
+            {tax && (
+                <div className="flex justify-between">
+                    <span>{t('onboarding.plan_tax_line', { country: taxCountry, rate: tax.percent })}</span>
+                    <span className="font-mono">{usd(taxAmount, true)}</span>
+                </div>
+            )}
             <div className="border-line flex items-baseline justify-between border-t pt-2">
                 <span className="text-[15px] font-bold">{t('onboarding.plan_due')}</span>
-                <span className="text-[17px] font-bold">{usd(due, true)}</span>
+                <span className="text-[17px] font-bold">{usd(total, true)}</span>
             </div>
-            <span className="text-stone text-xs">{t('onboarding.plan_renews', { date: renewsText, amount: usd(due) })}</span>
+            <span className="text-stone text-xs">{t('onboarding.plan_renews', { date: renewsText, amount: renewAmount })}</span>
         </div>
     );
 
-    const payLabel = t('onboarding.plan_pay', { amount: usd(due) });
+    const payLabel = t('onboarding.plan_pay', { amount: usd(total, total % 1 !== 0) });
 
     return (
         // Deferred intent: Elements knows the amount up front and the subscription is only created on Pay (subscribe).
@@ -168,7 +183,8 @@ export default function PlanStep({ family, invited, pricing, standard, tiers, st
                 // never loads. Link's own prompt is switched off on the Payment Element (wallets.link).
                 allowedPaymentMethodTypes: ['card'],
                 mode: 'subscription',
-                amount: due * 100,
+                // Today's charge with tax, so Apple Pay / Google Pay show the same total as the page.
+                amount: Math.round(total * 100),
                 currency: 'usd',
                 appearance: APPEARANCE,
                 fonts: [{ cssSrc: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap' }],
@@ -305,12 +321,21 @@ export default function PlanStep({ family, invited, pricing, standard, tiers, st
                             <span className="flex-1">
                                 <span className="block text-sm font-semibold">{t('onboarding.plan_due')}</span>
                                 <span className="text-stone block text-xs">
-                                    {t('onboarding.plan_renews_short', { date: renewsText, amount: usd(due) })}
+                                    {t('onboarding.plan_renews_short', { date: renewsText, amount: renewAmount })}
                                 </span>
+                                {tax && (
+                                    <span className="text-stone block text-xs">
+                                        {t('onboarding.plan_tax_incl', { amount: usd(taxAmount, true), rate: tax.percent })}
+                                    </span>
+                                )}
                             </span>
                             <span className="text-right">
-                                {list > due && <span className="text-stone block text-xs line-through">{usd(list, true)}</span>}
-                                <span className="font-display block text-2xl font-bold">{usd(due, true)}</span>
+                                {list > due && (
+                                    <span className="text-stone block text-xs line-through">
+                                        {usd(tax ? Math.round(list * (100 + tax.percent)) / 100 : list, true)}
+                                    </span>
+                                )}
+                                <span className="font-display block text-2xl font-bold">{usd(total, true)}</span>
                             </span>
                         </div>
                         {phone && <Pay variant="phone" plan={plan} tier={tier} email={email} label={payLabel} busy={busy} setBusy={setBusy} />}

@@ -30,7 +30,7 @@ import * as React from 'react';
 import { createRoot } from 'react-dom/client';
 import { route as routeFn } from 'ziggy-js';
 import { armCrashRecovery, ErrorBoundary } from './components/error-boundary';
-import { initializeTheme } from './hooks/use-appearance';
+import { initializeTheme, syncThemeColor } from './hooks/use-appearance';
 import { identify, trackQueued } from './lib/analytics';
 import { setAppLocale } from './lib/i18n';
 import { listenForInstallPrompt } from './lib/install';
@@ -89,6 +89,11 @@ createInertiaApp({
 });
 
 router.on('navigate', (event) => {
+    // The onboarding is drawn in fixed brand colours, light only. In dark mode the page behind it (body) was dark,
+    // and iOS Safari / Android paint their bars and the overscroll with that colour: a black band above a light
+    // screen. data-brand makes the page itself paper (app.css), then the bar colour is re-read from it.
+    document.documentElement.toggleAttribute('data-brand', event.detail.page.component.startsWith('onboarding/'));
+    syncThemeColor();
     setAppLocale(event.detail.page.props.locale as string | undefined);
     identify(event.detail.page.props.analyticsId);
     trackQueued(event.detail.page.props.analyticsEvents);

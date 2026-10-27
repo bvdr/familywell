@@ -445,12 +445,20 @@ class OnboardingController extends Controller
             'tiers' => config('familywell.tiers'),
             // Publishable key only (it's meant for the browser); the secret never leaves the server.
             'stripeKey' => config('services.stripe.key'),
+            // VAT / sales tax where they are (null = none to add): {country, percent}, added on top of the price.
+            'tax' => Billing::taxRate(self::buyerIp($request)),
             'email' => $request->user()->email,
             'failed' => $request->boolean('failed'),
             'paid' => false,
             'next' => null,
             'selfHostingUrl' => config('familywell.self_hosting_url') ?: null,
         ]);
+    }
+
+    // The visitor's own IP for Stripe Tax: Cloudflare's header (dev and prod sit behind it), else the proxied IP.
+    private static function buyerIp(Request $request): string
+    {
+        return (string) ($request->header('CF-Connecting-IP') ?: $request->ip());
     }
 
     /** @return array{monthly: int, yearly: int} */
@@ -476,7 +484,7 @@ class OnboardingController extends Controller
         if ($stale = $request->session()->pull('onboarding.pending_subscription')) {
             Billing::cancelIncomplete($stale);
         }
-        $started = Billing::startSubscription($family, $request->user()->email, $data['plan'], $data['tier'] ?? 'basic');
+        $started = Billing::startSubscription($family, $request->user()->email, $data['plan'], $data['tier'] ?? 'basic', self::buyerIp($request));
         $request->session()->put('onboarding.pending_subscription', $started['subscription']);
         Analytics::queue('checkout_started', ['plan' => $data['plan'], 'tier' => $data['tier'] ?? 'basic']);
 
@@ -505,7 +513,7 @@ class OnboardingController extends Controller
         $user->forceFill(['onboarding_step' => $onboarding ? 'ready' : null])->save();
 
         // The page celebrates for a beat, then moves on.
-        return Inertia::render('onboarding/plan', ['family' => $family->only(['name']), 'invited' => [], 'pricing' => Billing::pricing(), 'standard' => null, 'tiers' => null, 'stripeKey' => null, 'email' => '', 'failed' => false, 'paid' => true, 'next' => route($onboarding ? 'onboarding.ready' : 'dashboard'), 'selfHostingUrl' => null]);
+        return Inertia::render('onboarding/plan', ['family' => $family->only(['name']), 'invited' => [], 'pricing' => Billing::pricing(), 'standard' => null, 'tiers' => null, 'stripeKey' => null, 'tax' => null, 'email' => '', 'failed' => false, 'paid' => true, 'next' => route($onboarding ? 'onboarding.ready' : 'dashboard'), 'selfHostingUrl' => null]);
     }
 
     /**

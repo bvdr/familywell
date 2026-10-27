@@ -354,5 +354,8 @@
     "plan_payer_short_solo": "Ein Preis für alle, die du hinzufügst.",
     "plan_secure_by": "Sichere Zahlung über",
     "rail_cancel_title": "Jederzeit kündbar",
-    "rail_cancel_body": "Zwei Klicks unter Einstellungen → Abrechnung. Deine Listen, Fotos und dein Verlauf bleiben dein, zum Exportieren."
+    "rail_cancel_body": "Zwei Klicks unter Einstellungen → Abrechnung. Deine Listen, Fotos und dein Verlauf bleiben dein, zum Exportieren.",
+    "plan_tax_line": "MwSt. · :country (:rate %)",
+    "plan_tax_incl": "Inkl. :amount MwSt. (:rate %)",
+    "plan_plus_tax": ":amount + MwSt."
 }

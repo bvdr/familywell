@@ -354,5 +354,8 @@
     "plan_payer_short_solo": "Ett pris för alla du lägger till.",
     "plan_secure_by": "Säker betalning via",
     "rail_cancel_title": "Avsluta när som helst",
-    "rail_cancel_body": "Två klick under Inställningar → Fakturering. Dina listor, foton och din historik är fortfarande dina att exportera."
+    "rail_cancel_body": "Två klick under Inställningar → Fakturering. Dina listor, foton och din historik är fortfarande dina att exportera.",
+    "plan_tax_line": "Moms · :country (:rate %)",
+    "plan_tax_incl": "Inkl. :amount moms (:rate %)",
+    "plan_plus_tax": ":amount + moms"
 }

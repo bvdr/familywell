@@ -33,7 +33,6 @@
     --color-ok-soft: #dcf4e5;
     --color-ok-ink: #1f7a45;
 
-
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);
     --radius-sm: calc(var(--radius) - 4px);
@@ -138,6 +137,11 @@
 
     body {
         @apply bg-background text-foreground;
+    }
+
+    /* Onboarding pages (data-brand, set in app.tsx): the brand's light paper behind everything, dark mode or not. */
+    html[data-brand] body {
+        background-color: var(--color-paper);
     }
 
     h1,

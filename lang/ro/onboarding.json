@@ -360,5 +360,8 @@
     "plan_payer_short_solo": "Un singur preț pentru toți cei pe care îi adaugi.",
     "plan_secure_by": "Plată securizată prin",
     "rail_cancel_title": "Anulezi oricând",
-    "rail_cancel_body": "Două clicuri în Setări → Facturare. Listele, pozele și istoricul rămân ale tale, de exportat."
+    "rail_cancel_body": "Două clicuri în Setări → Facturare. Listele, pozele și istoricul rămân ale tale, de exportat.",
+    "plan_tax_line": "TVA · :country (:rate%)",
+    "plan_tax_incl": "Include :amount TVA (:rate%)",
+    "plan_plus_tax": ":amount + TVA"
 }

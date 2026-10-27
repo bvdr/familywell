@@ -354,5 +354,8 @@
     "plan_payer_short_solo": "Um preço só para todos que você adicionar.",
     "plan_secure_by": "Pagamento seguro por",
     "rail_cancel_title": "Cancele quando quiser",
-    "rail_cancel_body": "Dois cliques em Ajustes → Cobrança. Suas listas, fotos e histórico continuam seus, para exportar."
+    "rail_cancel_body": "Dois cliques em Ajustes → Cobrança. Suas listas, fotos e histórico continuam seus, para exportar.",
+    "plan_tax_line": "IVA · :country (:rate%)",
+    "plan_tax_incl": "Inclui :amount de IVA (:rate%)",
+    "plan_plus_tax": ":amount + IVA"
 }
