@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Support\AdminPush;
 use App\Support\Analytics;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -173,6 +174,8 @@ class Billing
             // straight back to the family, with no lookup table and no ordering race vs. checkout events.
             'subscription_data' => ['metadata' => ['family_id' => $family->id]],
             'allow_promotion_codes' => 'true',
+            // Checkout locates the buyer itself (IP first, then the billing address it asks for).
+            ...(config('services.stripe.tax') ? ['automatic_tax' => ['enabled' => 'true'], 'billing_address_collection' => 'required'] : []),
             'success_url' => route('billing.show').'?session_id={CHECKOUT_SESSION_ID}',
             'cancel_url' => route('billing.show'),
         ];
@@ -180,6 +183,10 @@ class Billing
         $family->stripe_customer_id
             ? $params['customer'] = $family->stripe_customer_id
             : $params['customer_email'] = $email;
+        if (config('services.stripe.tax') && $family->stripe_customer_id) {
+            // An existing customer: Checkout may only use the address it collects if it can save it back.
+            $params['customer_update'] = ['address' => 'auto'];
+        }
 
         return self::post('checkout/sessions', $params)['url'];
     }
@@ -194,14 +201,21 @@ class Billing
      *
      * @return array{subscription: string, clientSecret: string}
      */
-    public static function startSubscription(Family $family, string $email, string $plan, string $tier = 'basic'): array
+    public static function startSubscription(Family $family, string $email, string $plan, string $tier = 'basic', ?string $ip = null): array
     {
         abort_if($tier === 'pro' && ! self::proAvailable(), 422, 'Pro is not on offer.');
         $price = self::priceId($tier, $plan);
+        // Tax only when Plan & pay could show it (taxRate resolved a location for this IP): then the amount the
+        // page showed is the amount charged. No rate = no tax line on the page and none on the invoice.
+        $taxed = $ip !== null && self::taxRate($ip) !== null;
 
         if (! $family->stripe_customer_id) {
             $customer = self::post('customers', ['email' => $email, 'name' => $family->name, 'metadata' => ['family_id' => $family->id]]);
             $family->forceFill(['stripe_customer_id' => $customer['id']])->save();
+        }
+        if ($taxed) {
+            // Where the buyer is, like Stripe Checkout: Stripe Tax locates the customer from their IP.
+            self::post('customers/'.$family->stripe_customer_id, ['tax' => ['ip_address' => $ip]]);
         }
 
         $sub = self::request()->withHeaders(['Stripe-Version' => self::INLINE_API_VERSION])->asForm()->post('subscriptions', [
@@ -212,9 +226,44 @@ class Billing
             // Same as Checkout: the webhook maps every customer.subscription.* event back to the family.
             'metadata' => ['family_id' => $family->id],
             'expand' => ['latest_invoice.confirmation_secret'],
-        ])->throw()->json();
+        ] + ($taxed ? ['automatic_tax' => ['enabled' => 'true']] : []))->throw()->json();
 
         return ['subscription' => $sub['id'], 'clientSecret' => $sub['latest_invoice']['confirmation_secret']['client_secret']];
+    }
+
+    /**
+     * The tax rate for a buyer at this IP, the way Stripe Checkout estimates it before an address is typed: Stripe
+     * Tax works out the location from the IP. Null when tax is off, Stripe has nothing to charge there (no
+     * registration covers it, e.g. the US today) or the lookup fails, and then the page shows no tax line.
+     * Cached a day per IP: the rate for a place doesn't change mid-checkout, and Plan & pay re-renders on every
+     * plan / tier switch.
+     *
+     * @return array{country: string, percent: float}|null
+     */
+    public static function taxRate(string $ip): ?array
+    {
+        if (! config('services.stripe.tax')) {
+            return null;
+        }
+
+        return Cache::remember('stripe-tax:'.$ip, now()->addDay(), function () use ($ip) {
+            try {
+                // A $100 line: the rate is all we need; the page applies it to whichever price is picked.
+                $calc = self::post('tax/calculations', [
+                    'currency' => 'usd',
+                    'line_items' => [['amount' => 10000, 'reference' => 'rate']],
+                    'customer_details' => ['ip_address' => $ip],
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('Stripe tax rate lookup failed', ['error' => $e->getMessage()]);
+
+                return null;
+            }
+            $rate = $calc['tax_breakdown'][0]['tax_rate_details']['percentage_decimal'] ?? null;
+            $country = $calc['customer_details']['address']['country'] ?? null;
+
+            return $rate && (float) $rate > 0 && $country ? ['country' => $country, 'percent' => (float) $rate] : null;
+        });
     }
 
     /** After the browser confirmed the payment: read the subscription now and store it (only if it's this family's). */

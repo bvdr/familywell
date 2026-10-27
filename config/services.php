@@ -80,6 +80,10 @@ return [
         'price_yearly_pro' => env('STRIPE_PRICE_YEARLY_PRO'),
         'price_monthly_pro_standard' => env('STRIPE_PRICE_MONTHLY_PRO_STANDARD'),
         'price_yearly_pro_standard' => env('STRIPE_PRICE_YEARLY_PRO_STANDARD'),
+        // Stripe Tax: VAT / sales tax added on top of the price, by where the buyer is (Billing::taxRate). Off
+        // until the Stripe account has Tax set up with a registration (live: only after the accountant's OK);
+        // with it off, checkout charges the bare price as before.
+        'tax' => (bool) env('STRIPE_TAX', false),
     ],
 
     // Umami analytics (hosted familywell.co only). Empty = no tracker at all, so self-hosted installs never

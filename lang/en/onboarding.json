@@ -354,5 +354,8 @@
     "plan_payer_short_solo": "One price for everyone you add.",
     "plan_secure_by": "Secure checkout by",
     "rail_cancel_title": "Cancel anytime",
-    "rail_cancel_body": "Two clicks in Settings → Billing. Your lists, photos and history stay yours to export."
+    "rail_cancel_body": "Two clicks in Settings → Billing. Your lists, photos and history stay yours to export.",
+    "plan_tax_line": "VAT · :country (:rate%)",
+    "plan_tax_incl": "Incl. :amount VAT (:rate%)",
+    "plan_plus_tax": ":amount + VAT"
 }

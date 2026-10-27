@@ -354,5 +354,8 @@
     "plan_payer_short_solo": "Un seul prix pour toutes les personnes que vous ajoutez.",
     "plan_secure_by": "Paiement sécurisé par",
     "rail_cancel_title": "Résiliable à tout moment",
-    "rail_cancel_body": "Deux clics dans Réglages → Facturation. Vos listes, photos et votre historique restent à vous, exportables."
+    "rail_cancel_body": "Deux clics dans Réglages → Facturation. Vos listes, photos et votre historique restent à vous, exportables.",
+    "plan_tax_line": "TVA · :country (:rate %)",
+    "plan_tax_incl": "Dont :amount de TVA (:rate %)",
+    "plan_plus_tax": ":amount + TVA"
 }

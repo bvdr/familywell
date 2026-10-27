@@ -354,5 +354,8 @@
     "plan_payer_short_solo": "Eén prijs voor iedereen die je toevoegt.",
     "plan_secure_by": "Veilig afrekenen via",
     "rail_cancel_title": "Altijd opzegbaar",
-    "rail_cancel_body": "Twee klikken in Instellingen → Facturering. Je lijsten, foto’s en geschiedenis blijven van jou, om te exporteren."
+    "rail_cancel_body": "Twee klikken in Instellingen → Facturering. Je lijsten, foto’s en geschiedenis blijven van jou, om te exporteren.",
+    "plan_tax_line": "Btw · :country (:rate%)",
+    "plan_tax_incl": "Incl. :amount btw (:rate%)",
+    "plan_plus_tax": ":amount + btw"
 }
