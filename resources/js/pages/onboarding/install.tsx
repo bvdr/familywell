@@ -38,6 +38,9 @@ const isDesktop = () => typeof window !== 'undefined' && window.matchMedia(DESK)
 const isIpad = () =>
     typeof navigator !== 'undefined' &&
     (/ipad/i.test(navigator.userAgent) || (/macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1));
+// Chrome on iOS says "CriOS" in its user agent. It keeps Share inside its address bar, top right, not in a bottom
+// toolbar like iPhone Safari, so the bubble has to point up there (a bottom bubble landed on Chrome's "+" button).
+const isChromeIos = () => typeof navigator !== 'undefined' && /crios/i.test(navigator.userAgent);
 
 // After this long on the phone screen, offer a quiet way on for browsers that can't install (in-app browsers).
 const ESCAPE_AFTER_MS = 30_000;
@@ -89,7 +92,13 @@ function PhoneInstall() {
     const canPrompt = useCanPrompt();
     // iPad: Share lives in Safari's top bar, so the steps say so and the bubble points up (design T04).
     const [ipad, setIpad] = useState(false);
-    useEffect(() => setIpad(isIpad()), []);
+    const [chrome, setChrome] = useState(false);
+    useEffect(() => {
+        setIpad(isIpad());
+        setChrome(isChromeIos());
+    }, []);
+    // Only iPhone Safari has Share in a toolbar below the page; iPad Safari and Chrome (iPhone or iPad) have it on top.
+    const shareOnTop = ipad || chrome;
     const [escape, setEscape] = useState(false);
     useEffect(() => {
         const id = window.setTimeout(() => setEscape(true), ESCAPE_AFTER_MS);
@@ -97,8 +106,14 @@ function PhoneInstall() {
     }, []);
 
     const ios: [ReactNode, string, string, boolean?][] = [
-        [<Share key="s" className="size-6" />, 'onboarding.ios_1', ipad ? 'onboarding.ios_1_sub_ipad' : 'onboarding.ios_1_sub', true],
-        [<SquarePlus key="p" className="size-6" />, 'onboarding.ios_2', 'onboarding.ios_2_sub'],
+        [
+            <Share key="s" className="size-6" />,
+            'onboarding.ios_1',
+            chrome ? 'onboarding.ios_1_sub_chrome' : ipad ? 'onboarding.ios_1_sub_ipad' : 'onboarding.ios_1_sub',
+            true,
+        ],
+        // Chrome's share sheet hides "Add to Home Screen" until "View More" is tapped.
+        [<SquarePlus key="p" className="size-6" />, 'onboarding.ios_2', chrome ? 'onboarding.ios_2_sub_chrome' : 'onboarding.ios_2_sub'],
         [<AppIcon key="a" />, 'onboarding.install_3', 'onboarding.install_3_sub'],
     ];
     const android: [ReactNode, string, string, boolean?][] = [
@@ -126,7 +141,7 @@ function PhoneInstall() {
                             onClick={() => setDevice(d)}
                             className={cn('rounded-full py-2 text-[13px]', device === d ? 'bg-white font-bold' : 'text-stone font-medium')}
                         >
-                            {t(`onboarding.device_${d === 'ios' && ipad ? 'ipad' : d}`)}
+                            {t(`onboarding.device_${d === 'ios' ? `${ipad ? 'ipad' : 'ios'}${chrome ? '_chrome' : ''}` : d}`)}
                         </button>
                     ))}
                 </div>
@@ -198,10 +213,11 @@ function PhoneInstall() {
             </div>
 
             {/* iPhone: a bubble pointing down at Safari's real Share button, in the toolbar right under the page. */}
-            {/* iPad: Share is top right in Safari's own bar, just above the page, so the bubble points up there. */}
-            {device === 'ios' && ipad && (
+            {/* iPad Safari and Chrome: Share is top right in the browser's bar, just above the page, so the bubble points up. */}
+            {/* iPhone Chrome's Share sits at the right end of the address bar, ~38px from the edge: the arrow moves in to it. */}
+            {device === 'ios' && shareOnTop && (
                 <div className="pointer-events-none fixed top-2 right-4 z-20 flex flex-col items-end">
-                    <svg width="16" height="9" viewBox="0 0 16 9" className="fill-ink mr-6" aria-hidden>
+                    <svg width="16" height="9" viewBox="0 0 16 9" className={cn('fill-ink', chrome && !ipad ? 'mr-3.5' : 'mr-6')} aria-hidden>
                         <path d="M0 9h16L8 0z" />
                     </svg>
                     <span className="bg-ink flex items-center gap-2 rounded-[14px] px-3.5 py-2.5 text-[13px] font-bold text-white">
@@ -210,7 +226,7 @@ function PhoneInstall() {
                     </span>
                 </div>
             )}
-            {device === 'ios' && !ipad && (
+            {device === 'ios' && !shareOnTop && (
                 <div className="pointer-events-none sticky bottom-[calc(12px+env(safe-area-inset-bottom))] mt-auto flex flex-col items-center">
                     <span className="bg-ink flex items-center gap-2 rounded-[14px] px-3.5 py-2.5 text-[13px] font-bold text-white">
                         <Pointer className="text-sun size-4" />
