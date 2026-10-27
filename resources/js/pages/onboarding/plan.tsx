@@ -220,7 +220,7 @@ export default function PlanStep({ family, invited, pricing, standard, tiers, st
                                         )}
                                     >
                                         {t(`onboarding.tier_${x}`)}
-                                        <span className="text-stone hidden font-mono text-[10.5px] font-medium min-[420px]:inline">{tierSub(x)}</span>
+                                        <span className="text-stone hidden font-mono text-[10.5px] font-medium md:inline">{tierSub(x)}</span>
                                     </button>
                                 ))}
                             </div>
