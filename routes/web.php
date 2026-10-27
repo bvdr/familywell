@@ -87,6 +87,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('onboarding/plan', [OnboardingController::class, 'plan'])->name('onboarding.plan');
     // Starts the incomplete subscription the browser then pays (throttled: each call is a Stripe API write).
     Route::post('onboarding/plan', [OnboardingController::class, 'subscribe'])->middleware(['not-demo', 'throttle:10,1'])->name('onboarding.plan.subscribe');
+    // Promo codes (throttled: each check is a Stripe API read, and it stops someone guessing codes).
+    Route::post('onboarding/plan/promo', [OnboardingController::class, 'applyPromo'])->middleware('throttle:10,1')->name('onboarding.plan.promo');
+    Route::delete('onboarding/plan/promo', [OnboardingController::class, 'removePromo'])->name('onboarding.plan.promo.remove');
     Route::get('onboarding/plan/paid', [OnboardingController::class, 'paid'])->name('onboarding.plan.paid');
     // Sign-in links for the phone (App\Support\Auth\Handoff): throttled, the email one harder since it sends mail.
     Route::post('onboarding/handoff', [OnboardingController::class, 'handoff'])->middleware('throttle:10,1')->name('onboarding.handoff');

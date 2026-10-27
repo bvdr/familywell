@@ -358,5 +358,12 @@
     "plan_tax_line": "Btw · :country (:rate%)",
     "plan_tax_incl": "Incl. :amount btw (:rate%)",
     "plan_plus_tax": ":amount + btw",
-    "plan_powered_by": "Mogelijk gemaakt door"
+    "plan_powered_by": "Mogelijk gemaakt door",
+    "promo_title": "Kortingscode",
+    "promo_add": "Kortingscode toevoegen",
+    "promo_apply": "Toepassen",
+    "promo_hint": "Gekregen van een vriend of uit de nieuwsbrief? Eén code per gezin.",
+    "promo_invalid": "Die code is ongeldig of verlopen.",
+    "promo_remove": "Kortingscode verwijderen",
+    "promo_line": "Code :code"
 }

@@ -358,5 +358,12 @@
     "plan_tax_line": "IVA · :country (:rate %)",
     "plan_tax_incl": "Incl. :amount de IVA (:rate %)",
     "plan_plus_tax": ":amount + IVA",
-    "plan_powered_by": "Con la tecnología de"
+    "plan_powered_by": "Con la tecnología de",
+    "promo_title": "Código promocional",
+    "promo_add": "Añadir código promocional",
+    "promo_apply": "Aplicar",
+    "promo_hint": "¿Te lo dio un amigo o llegó en la newsletter? Un código por familia.",
+    "promo_invalid": "Ese código no es válido o ha caducado.",
+    "promo_remove": "Quitar código promocional",
+    "promo_line": "Promo :code"
 }

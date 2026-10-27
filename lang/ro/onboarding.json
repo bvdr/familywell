@@ -364,5 +364,12 @@
     "plan_tax_line": "TVA · :country (:rate%)",
     "plan_tax_incl": "Include :amount TVA (:rate%)",
     "plan_plus_tax": ":amount + TVA",
-    "plan_powered_by": "Oferit de"
+    "plan_powered_by": "Oferit de",
+    "promo_title": "Cod promoțional",
+    "promo_add": "Adaugă cod promoțional",
+    "promo_apply": "Aplică",
+    "promo_hint": "Ai primit unul de la un prieten sau din newsletter? Un cod per familie.",
+    "promo_invalid": "Codul nu e valid sau a expirat.",
+    "promo_remove": "Șterge codul promoțional",
+    "promo_line": "Promo :code"
 }

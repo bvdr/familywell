@@ -358,5 +358,12 @@
     "plan_tax_line": "MwSt. · :country (:rate %)",
     "plan_tax_incl": "Inkl. :amount MwSt. (:rate %)",
     "plan_plus_tax": ":amount + MwSt.",
-    "plan_powered_by": "Bereitgestellt von"
+    "plan_powered_by": "Bereitgestellt von",
+    "promo_title": "Gutscheincode",
+    "promo_add": "Gutscheincode hinzufügen",
+    "promo_apply": "Einlösen",
+    "promo_hint": "Von Freunden oder aus dem Newsletter? Ein Code pro Familie.",
+    "promo_invalid": "Dieser Code ist ungültig oder abgelaufen.",
+    "promo_remove": "Gutscheincode entfernen",
+    "promo_line": "Code :code"
 }

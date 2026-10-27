@@ -1,11 +1,12 @@
 import { Head, router } from '@inertiajs/react';
 import { Elements, ExpressCheckoutElement, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { loadStripe, type Appearance, type Stripe } from '@stripe/stripe-js';
-import { ArrowRight, Check, CreditCard, Github, LoaderCircle, Lock } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { ArrowRight, Check, CreditCard, Github, LoaderCircle, Lock, Tag, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Homer, reactHomer } from '@/components/homer';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import OnboardingLayout from '@/layouts/onboarding-layout';
 import { useLocale, useT } from '@/lib/i18n';
@@ -14,6 +15,7 @@ import { cn } from '@/lib/utils';
 type Plan = 'yearly' | 'monthly';
 type Tier = 'basic' | 'pro';
 type Amounts = { monthly: number; yearly: number };
+type Promo = { id: string; code: string; percent: number | null; amount: number | null; duration: string };
 type Props = {
     family: { name: string };
     invited: string[];
@@ -28,6 +30,8 @@ type Props = {
     // VAT / sales tax where the visitor is (Billing::taxRate, from their IP like Stripe Checkout), added on top of
     // the price; null = nothing to add.
     tax: { country: string; percent: number } | null;
+    // The promo code applied in this session (Billing::promoCode): percent off or dollars off, and for how long.
+    promo: Promo | null;
     email: string;
     failed: boolean;
     paid: boolean;
@@ -83,7 +87,21 @@ function usePhone(): boolean {
 // the only way into the app (hard paywall). A Basic / Pro switch (Pro only where it's on offer), yearly preselected,
 // the total in plain sight, paid right here with Stripe Elements (Apple Pay / Google Pay first, card second).
 // Prices come from Billing::pricing() (config/familywell.php), never from here.
-export default function PlanStep({ family, invited, pricing, standard, tiers, stripeKey, tax, email, failed, paid, next, selfHostingUrl }: Props) {
+export default function PlanStep({
+    family,
+    invited,
+    pricing,
+    standard,
+    tiers,
+    stripeKey,
+    tax,
+    promo: appliedPromo,
+    email,
+    failed,
+    paid,
+    next,
+    selfHostingUrl,
+}: Props) {
     const t = useT();
     const locale = useLocale();
     const [plan, setPlan] = useState<Plan>('yearly');
@@ -108,12 +126,42 @@ export default function PlanStep({ family, invited, pricing, standard, tiers, st
     const listPrices: Amounts = pricing.intro && standard ? standard[tier] : prices;
     const save = Math.round((1 - prices.yearly / (prices.monthly * 12)) * 100);
     const due = plan === 'yearly' ? prices.yearly : prices.monthly;
+    const [promo, setPromo] = useState<Promo | null>(appliedPromo);
+    const [promoOpen, setPromoOpen] = useState(false);
+    // The promo comes off first and tax is worked out on what's left, the order Stripe's invoice uses.
+    const promoOff = promo ? Math.min(due, promo.percent ? Math.round(due * promo.percent) / 100 : (promo.amount ?? 0)) : 0;
+    const subtotal = Math.round((due - promoOff) * 100) / 100;
     // Tax on top, rounded to the cent like Stripe's exclusive tax; `total` is what the card is charged today.
-    const taxAmount = tax ? Math.round(due * tax.percent) / 100 : 0;
-    const total = Math.round((due + taxAmount) * 100) / 100;
+    const taxAmount = tax ? Math.round(subtotal * tax.percent) / 100 : 0;
+    const total = Math.round((subtotal + taxAmount) * 100) / 100;
     const taxCountry = tax ? (new Intl.DisplayNames([locale], { type: 'region' }).of(tax.country) ?? tax.country) : '';
     // "$45" or "$45 + VAT" for the renewal lines (renewals are taxed the same way).
-    const renewAmount = tax ? t('onboarding.plan_plus_tax', { amount: usd(due) }) : usd(due);
+    // A "forever" code keeps the discount on every renewal; a one-off (or months-long) one renews at the plan price.
+    const renewBase = promo?.duration === 'forever' ? subtotal : due;
+    const renewAmount = tax ? t('onboarding.plan_plus_tax', { amount: usd(renewBase) }) : usd(renewBase);
+    const removePromo = () => {
+        setPromo(null);
+        void fetch(route('onboarding.plan.promo.remove'), { method: 'DELETE', headers: { 'X-XSRF-TOKEN': xsrf() }, credentials: 'same-origin' });
+    };
+    // "Add promo code", or the applied code as a green chip with its remove button (design 06 / D09).
+    const promoControl = promo ? (
+        <span className="bg-ok-soft text-ok-ink inline-flex h-6 items-center gap-[5px] self-start rounded-full pr-1.5 pl-2 font-mono text-[11px] font-semibold">
+            <Tag className="size-3" />
+            {promo.code} · −{promo.percent ? `${promo.percent}%` : usd(promo.amount ?? 0)}
+            <button type="button" onClick={removePromo} aria-label={t('onboarding.promo_remove')}>
+                <X className="size-3.5" />
+            </button>
+        </span>
+    ) : (
+        <button
+            type="button"
+            onClick={() => setPromoOpen(true)}
+            className="text-ink-2 inline-flex items-center gap-[5px] self-start text-[12.5px] font-semibold"
+        >
+            <Tag className="size-[13px]" />
+            {t('onboarding.promo_add')}
+        </button>
+    );
     const list = plan === 'yearly' ? listPrices.yearly : listPrices.monthly;
     const perMonth = (p: Plan, a: Amounts) => (p === 'yearly' ? a.yearly / 12 : a.monthly);
     const renews = new Date();
@@ -163,6 +211,10 @@ export default function PlanStep({ family, invited, pricing, standard, tiers, st
                     <span className="text-ok-ink font-mono">-{usd(list - due, true)}</span>
                 </div>
             )}
+            <div className="flex items-center justify-between">
+                {promoControl}
+                {promo && <span className="text-ok-ink font-mono">-{usd(promoOff, true)}</span>}
+            </div>
             {tax && (
                 <div className="flex justify-between">
                     <span>{t('onboarding.plan_tax_line', { country: taxCountry, rate: tax.percent })}</span>
@@ -338,6 +390,7 @@ export default function PlanStep({ family, invited, pricing, standard, tiers, st
                                         {t('onboarding.plan_tax_incl', { amount: usd(taxAmount, true), rate: tax.percent })}
                                     </span>
                                 )}
+                                <span className="mt-1.5 flex">{promoControl}</span>
                             </span>
                             <span className="text-right">
                                 {list > due && (
@@ -374,6 +427,15 @@ export default function PlanStep({ family, invited, pricing, standard, tiers, st
                     </div>
                 </div>
             </OnboardingLayout>
+            <PromoSheet
+                open={promoOpen}
+                onOpenChange={setPromoOpen}
+                onApplied={(p) => {
+                    setPromo(p);
+                    setPromoOpen(false);
+                    reactHomer('success');
+                }}
+            />
         </Elements>
     );
 }
@@ -570,6 +632,77 @@ function StripeMark() {
             </span>
             Stripe
         </span>
+    );
+}
+
+// Design 06a: a small sheet (keyboard up on phones) to type a code. Checked against Stripe right away; a bad or
+// expired code is one line under the field and the sheet stays open.
+function PromoSheet({ open, onOpenChange, onApplied }: { open: boolean; onOpenChange: (v: boolean) => void; onApplied: (p: Promo) => void }) {
+    const t = useT();
+    const [code, setCode] = useState('');
+    const [error, setError] = useState<string | null>(null);
+    const [busy, setBusy] = useState(false);
+    const field = useRef<HTMLInputElement>(null);
+
+    const apply = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!code.trim() || busy) return;
+        setBusy(true);
+        setError(null);
+        const res = await fetch(route('onboarding.plan.promo'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-XSRF-TOKEN': xsrf() },
+            credentials: 'same-origin',
+            body: JSON.stringify({ code }),
+        }).catch(() => null);
+        setBusy(false);
+        if (res?.ok) {
+            setCode('');
+            onApplied((await res.json()) as Promo);
+            return;
+        }
+        setError(t('onboarding.promo_invalid'));
+        reactHomer('no');
+    };
+
+    return (
+        <ResponsiveModal
+            open={open}
+            onOpenChange={onOpenChange}
+            title={t('onboarding.promo_title')}
+            className="text-ink bg-white"
+            autoFocusRef={field}
+        >
+            <form onSubmit={apply} className="flex flex-col gap-2.5 pb-2">
+                <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                        <Tag className="text-stone pointer-events-none absolute top-1/2 left-3.5 size-[18px] -translate-y-1/2" />
+                        <Input
+                            ref={field}
+                            value={code}
+                            onChange={(e) => setCode(e.target.value.toUpperCase())}
+                            autoCapitalize="characters"
+                            autoComplete="off"
+                            spellCheck={false}
+                            aria-label={t('onboarding.promo_title')}
+                            aria-invalid={!!error}
+                            // 16px: iOS zooms into smaller fields.
+                            className="border-ink focus-visible:border-ink h-[52px] rounded-[14px] border-2 bg-white pl-11 font-mono text-base font-semibold tracking-[1px] focus-visible:ring-0 focus-visible:ring-offset-0"
+                        />
+                    </div>
+                    <Button type="submit" variant="ink" disabled={busy || !code.trim()} className="h-[52px] px-5 text-[15px]">
+                        {busy ? <LoaderCircle className="animate-spin" /> : t('onboarding.promo_apply')}
+                    </Button>
+                </div>
+                {error ? (
+                    <p className="text-[12.5px] text-[#C2381E]" role="alert">
+                        {error}
+                    </p>
+                ) : (
+                    <p className="text-stone text-[12.5px] leading-[1.4]">{t('onboarding.promo_hint')}</p>
+                )}
+            </form>
+        </ResponsiveModal>
     );
 }
 
