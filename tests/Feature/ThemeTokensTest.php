@@ -25,16 +25,16 @@ it('emits the default theme tokens as CSS custom properties', function () {
         ->toContain('--text-secondary:#A6BFAE');
 });
 
-it('falls back to the built-in default (minimal-mono) for an unknown name', function () {
-    expect(ThemeTokens::css('does-not-exist'))->toBe(ThemeTokens::css('minimal-mono'));
+it('falls back to the built-in default (Sun) for an unknown name', function () {
+    expect(ThemeTokens::css('does-not-exist'))->toBe(ThemeTokens::css('sun'));
 });
 
 it('injects the theme variables into the served document', function () {
-    // Unauthenticated /login has no user/family skin, so it serves the built-in default (minimal-mono).
+    // Unauthenticated /login has no user/family skin, so it serves the built-in default (Sun).
     get('/login')
         ->assertOk()
         ->assertSee('id="theme"', false)
-        ->assertSee('--primary:#1C1917', false);
+        ->assertSee('--primary:#121100', false);
 });
 
 it('resolves the skin as user override, then family default, then built-in', function () {
