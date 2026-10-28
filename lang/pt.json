@@ -165,7 +165,6 @@
         "reading": "A ler…",
         "add_n_one": "Adicionar :count coisa",
         "add_n_other": "Adicionar :count coisas",
-        "add_as": "Adicionar como novo :kind?",
         "yes": "Sim",
         "no": "Não",
         "which": "Para quem é?",
@@ -200,6 +199,17 @@
         "f_year": "Ano",
         "f_plate": "Matrícula",
         "f_color": "Cor",
-        "on_this_page": "Adicionar nesta página"
+        "on_this_page": "Adicionar nesta página",
+        "kind_task_list": "lista de tarefas",
+        "kind_shopping_list": "lista de compras",
+        "new_kind": "Novo: :kind",
+        "ask_event": "Pôr no calendário?",
+        "ask_todo": "Adicionar como tarefa?",
+        "ask_expense": "Registar como despesa?",
+        "ask_shopping_item": "Adicionar a uma lista de compras?",
+        "ask_vehicle": "Adicionar como novo veículo?",
+        "ask_task_list": "Criar esta lista de tarefas?",
+        "ask_shopping_list": "Criar esta lista de compras?",
+        "f_name": "Nome"
     }
 }

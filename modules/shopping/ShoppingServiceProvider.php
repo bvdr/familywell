@@ -18,6 +18,7 @@ use App\Support\Tenancy\CurrentFamily;
 use App\Support\Translations;
 use App\Support\Trash\Trash;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\ValidationException;
 use Modules\Notifications\NotificationCategories;
@@ -27,21 +28,26 @@ class ShoppingServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
-        // "Just say it" in the Add sheet: things to buy (AddKinds), into the list on screen, else the list this person
-        // added to last, else their first list. Already on the list (not bought) = merged, not added twice (design H2c).
+        // "Just say it" in the Add sheet (AddKinds): things to buy, or a whole new shopping list. Items go to the list
+        // on screen, else the list this person added to last, else their first list (else a new one); the card names
+        // that list up front (target). Already on the list (not bought) = merged, not added twice (design H2c).
+        $pickList = function (User $user, AddContext $ctx): ?ShoppingList {
+            $lastList = ShoppingItem::where('created_by', $user->id)->latest('id')->value('shopping_list_id');
+
+            return ($ctx->module === 'shopping' && $ctx->entityId ? ShoppingData::list($user, $ctx->entityId) : null)
+                ?? ($lastList ? ShoppingData::list($user, $lastList) : null)
+                ?? ShoppingList::visibleTo($user->id)->whereNull('archived_at')->orderBy('position')->first();
+        };
         AddKinds::register('shopping_item', 'shopping', [
-            'question' => 'Are there things to buy at a shop (groceries, supplies)?',
+            'question' => 'Does the person name specific things to buy at a shop (groceries, supplies)?',
             'fields' => [
                 'items' => ['type' => 'list', 'items' => 'text', 'instructions' => 'each thing to buy, one per entry', 'required' => true],
             ],
-            'save' => function (User $user, array $v, AddContext $ctx) {
+            'target' => fn (User $user, AddContext $ctx) => $pickList($user, $ctx)?->name ?? Translations::get('nav.shopping'),
+            'save' => function (User $user, array $v, AddContext $ctx) use ($pickList) {
                 $names = array_values(array_filter(array_map(fn ($n) => mb_substr(trim((string) $n), 0, 255), (array) ($v['items'] ?? []))));
                 throw_if($names === [], ValidationException::withMessages(['items' => 'Nothing to buy was read.']));
-                $lastList = ShoppingItem::where('created_by', $user->id)->latest('id')->value('shopping_list_id');
-                $list = ($ctx->module === 'shopping' && $ctx->entityId ? ShoppingData::list($user, $ctx->entityId) : null)
-                    ?? ($lastList ? ShoppingData::list($user, $lastList) : null)
-                    ?? ShoppingList::visibleTo($user->id)->whereNull('archived_at')->orderBy('position')->first()
-                    ?? ShoppingList::createFor($user, ['name' => Translations::get('nav.shopping')]);
+                $list = $pickList($user, $ctx) ?? ShoppingList::createFor($user, ['name' => Translations::get('nav.shopping')]);
                 foreach ($names as $name) {
                     if (! ShoppingItem::activeDuplicate($list, $name)) {
                         ShoppingData::addItem($user, $list, ['name' => $name]);
@@ -49,6 +55,19 @@ class ShoppingServiceProvider extends ServiceProvider
                 }
 
                 return ['title' => implode(', ', $names), 'url' => "/m/shopping/lists/{$list->id}"];
+            },
+        ]);
+        AddKinds::register('shopping_list', 'shopping', [
+            'question' => 'Does the person ask to create a new shopping list (a whole list, not items to buy)?',
+            'fields' => [
+                'name' => ['type' => 'text', 'instructions' => 'the name for the new list, if given', 'required' => true],
+            ],
+            'save' => function (User $user, array $v) {
+                $data = Validator::validate(['name' => $v['name'] ?? null], ['name' => ['required', 'string', 'max:255']]);
+                $list = ShoppingList::createFor($user, $data);
+                ShoppingData::changed();
+
+                return ['title' => $list->name, 'url' => "/m/shopping/lists/{$list->id}"];
             },
         ]);
         AddKinds::screen('shopping', fn (?int $id, User $user) => $id && ($l = ShoppingData::list($user, $id)) ? "the shopping list {$l->name}" : null);

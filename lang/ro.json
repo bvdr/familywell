@@ -185,7 +185,6 @@
         "reading": "Se citește…",
         "add_n_one": "Adaugă :count lucru",
         "add_n_other": "Adaugă :count de lucruri",
-        "add_as": "Adaugi ca :kind nou?",
         "yes": "Da",
         "no": "Nu",
         "which": "Pentru cine e?",
@@ -222,6 +221,17 @@
         "f_color": "Culoare",
         "add_n_few": "Adaugă :count lucruri",
         "points_left_few": "Îți mai rămân :count puncte AI luna asta.",
-        "on_this_page": "Adaugă pe pagina asta"
+        "on_this_page": "Adaugă pe pagina asta",
+        "kind_task_list": "listă de sarcini",
+        "kind_shopping_list": "listă de cumpărături",
+        "new_kind": "Nou: :kind",
+        "ask_event": "Pui asta în calendar?",
+        "ask_todo": "Adaugi ca sarcină?",
+        "ask_expense": "Notezi ca cheltuială?",
+        "ask_shopping_item": "Le pui pe o listă de cumpărături?",
+        "ask_vehicle": "Adaugi ca vehicul nou?",
+        "ask_task_list": "Creezi lista asta de sarcini?",
+        "ask_shopping_list": "Creezi lista asta de cumpărături?",
+        "f_name": "Nume"
     }
 }

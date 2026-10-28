@@ -29,27 +29,45 @@ class TasksServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
-        // "Just say it" in the Add sheet: a to-do (AddKinds). It goes to the list on screen, else the list this person
-        // added to last, else their first list, else a new one named like the module.
+        // "Just say it" in the Add sheet (AddKinds): a to-do, or a whole new to-do list. A to-do goes to the list on
+        // screen, else the list this person added to last, else their first list (else a new one named like the
+        // module); the card names that list up front (target) so it's clear where it lands.
+        $pickList = function (User $user, AddContext $ctx): ?TaskList {
+            $lastList = Task::where('created_by', $user->id)->whereNotNull('task_list_id')->latest('id')->value('task_list_id');
+
+            return ($ctx->module === 'tasks' && $ctx->entityId ? TaskData::list($user, $ctx->entityId) : null)
+                ?? ($lastList ? TaskData::list($user, $lastList) : null)
+                ?? TaskList::visibleTo($user->id)->whereNull('archived_at')->orderBy('position')->first();
+        };
         AddKinds::register('todo', 'tasks', [
-            'question' => 'Is there a task someone in the family has to do (and not just an event to attend)?',
+            'question' => 'Is there one task someone in the family has to do (not a request to make a new list, and not just an event to attend)?',
             'fields' => [
                 'title' => ['type' => 'text', 'instructions' => 'the action someone has to do, as a short instruction starting with a verb (e.g. "Sign the permission slip"), not the event itself', 'required' => true],
                 'due' => ['type' => 'date', 'instructions' => 'the date that action must be done by, if said'],
                 'who' => ['type' => 'text', 'instructions' => 'the family member who should do it, by first name', 'ask' => 'member'],
             ],
-            'save' => function (User $user, array $v, AddContext $ctx) {
+            'target' => fn (User $user, AddContext $ctx) => $pickList($user, $ctx)?->name ?? Translations::get('nav.tasks'),
+            'save' => function (User $user, array $v, AddContext $ctx) use ($pickList) {
                 $data = Validator::validate(['title' => $v['title'] ?? null, 'due_date' => $v['due'] ?? null], [
                     'title' => ['required', 'string', 'max:255'], 'due_date' => ['nullable', 'date'],
                 ]);
-                $lastList = Task::where('created_by', $user->id)->whereNotNull('task_list_id')->latest('id')->value('task_list_id');
-                $list = ($ctx->module === 'tasks' && $ctx->entityId ? TaskData::list($user, $ctx->entityId) : null)
-                    ?? ($lastList ? TaskData::list($user, $lastList) : null)
-                    ?? TaskList::visibleTo($user->id)->whereNull('archived_at')->orderBy('position')->first()
-                    ?? TaskList::createFor($user, ['name' => Translations::get('nav.tasks')]);
+                $list = $pickList($user, $ctx) ?? TaskList::createFor($user, ['name' => Translations::get('nav.tasks')]);
                 $task = TaskData::addTask($user, $list, $data + ['assigned_to' => $ctx->memberId($v['who'] ?? null)]);
 
                 return ['title' => $task->title, 'url' => "/m/tasks/lists/{$list->id}"];
+            },
+        ]);
+        AddKinds::register('task_list', 'tasks', [
+            'question' => 'Does the person ask to create a new to-do list (a whole list, not one task)?',
+            'fields' => [
+                'name' => ['type' => 'text', 'instructions' => 'the name for the new list, if given', 'required' => true],
+            ],
+            'save' => function (User $user, array $v) {
+                $data = Validator::validate(['name' => $v['name'] ?? null], ['name' => ['required', 'string', 'max:255']]);
+                $list = TaskList::createFor($user, $data);
+                TaskData::changed();
+
+                return ['title' => $list->name, 'url' => "/m/tasks/lists/{$list->id}"];
             },
         ]);
         AddKinds::screen('tasks', fn (?int $id, User $user) => $id && ($l = TaskData::list($user, $id)) ? "the to-do list {$l->name}" : null);

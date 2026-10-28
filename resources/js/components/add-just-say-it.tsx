@@ -1,6 +1,20 @@
 import { useT } from '@/lib/i18n';
 import { router } from '@inertiajs/react';
-import { CalendarDays, Camera, Car, Check, ImagePlus, ListChecks, Loader2, ShoppingCart, Sparkles, Wallet, X, type LucideIcon } from 'lucide-react';
+import {
+    CalendarDays,
+    Camera,
+    Car,
+    Check,
+    ImagePlus,
+    ListChecks,
+    ListPlus,
+    Loader2,
+    ShoppingCart,
+    Sparkles,
+    Wallet,
+    X,
+    type LucideIcon,
+} from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 // "Just say it" (design XMkKm H2 / H2a / H2b): one box that reads whatever you type, paste or photograph. Each pause
@@ -12,6 +26,8 @@ type Field = { value: unknown; confidence: number };
 type Item = {
     kind: string;
     module: string;
+    // Where it will land, e.g. the to-do list "Household" (null: the module itself, e.g. the calendar).
+    target: string | null;
     p: number;
     sure: boolean;
     fields: Record<string, Field>;
@@ -28,6 +44,8 @@ const KIND_ICON: Record<string, LucideIcon> = {
     expense: Wallet,
     shopping_item: ShoppingCart,
     vehicle: Car,
+    task_list: ListPlus,
+    shopping_list: ListPlus,
 };
 const DEBOUNCE_MS = 700;
 const MAX_IMAGES = 4;
@@ -166,13 +184,9 @@ export function JustSayIt({
     };
 
     const fieldLabel = (name: string) => t(`add.f_${name}`);
-    // The card's headline: its first filled text field (an event's title, what an expense was for), else whatever
-    // came first (an amount, the shopping items).
-    const headline = (it: Item) => {
-        const names = Object.keys(it.types);
-        const text = names.find((n) => it.types[n] === 'text' && !it.ask[n] && valueOf(it, n).trim());
-        return valueOf(it, text ?? names[0]);
-    };
+    // The card's headline is its first field (an event's title, what an expense was for, the list's name), else
+    // "New to-do" while that's still empty: never some other field (it once showed the person, "Bogdan").
+    const headline = (it: Item) => valueOf(it, Object.keys(it.types)[0]).trim() || t('add.new_kind', { kind: t(`add.kind_${it.kind}`) });
     const inputType = (type: string) => (type === 'datetime' ? 'datetime-local' : type === 'date' ? 'date' : type === 'number' ? 'number' : 'text');
 
     if (state === 'out') {
@@ -273,11 +287,9 @@ export function JustSayIt({
                             </span>
                             <span className="min-w-0 flex-1">
                                 <span className="text-muted-foreground block font-mono text-[11px] font-semibold tracking-[0.14em] uppercase">
-                                    {t(`add.kind_${it.kind}`)} → {t(`nav.${it.module}`)}
+                                    {t(`add.kind_${it.kind}`)} → {it.target ?? t(`nav.${it.module}`)}
                                 </span>
-                                <span className="text-primary block truncate font-semibold first-letter:uppercase">
-                                    {headline(it) || t(`add.kind_${it.kind}`)}
-                                </span>
+                                <span className="text-primary block truncate font-semibold first-letter:uppercase">{headline(it)}</span>
                             </span>
                             {!asking && (
                                 <button
@@ -296,9 +308,7 @@ export function JustSayIt({
                         {/* Not sure what it is: ask, don't assume. */}
                         {asking && (
                             <div className="bg-accent-subtle mt-3 flex flex-wrap items-center gap-2 rounded-xl p-2.5">
-                                <span className="text-primary min-w-0 flex-1 text-sm font-medium">
-                                    {t('add.add_as', { kind: t(`add.kind_${it.kind}`) })}
-                                </span>
+                                <span className="text-primary min-w-0 flex-1 text-sm font-medium">{t(`add.ask_${it.kind}`)}</span>
                                 <button
                                     type="button"
                                     onClick={() => setOn(it.kind, true)}

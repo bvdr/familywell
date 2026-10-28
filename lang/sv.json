@@ -165,7 +165,6 @@
         "reading": "Läser…",
         "add_n_one": "Lägg till :count sak",
         "add_n_other": "Lägg till :count saker",
-        "add_as": "Lägga till som ny :kind?",
         "yes": "Ja",
         "no": "Nej",
         "which": "Vem är det för?",
@@ -200,6 +199,17 @@
         "f_year": "Årsmodell",
         "f_plate": "Regnummer",
         "f_color": "Färg",
-        "on_this_page": "Lägg till på den här sidan"
+        "on_this_page": "Lägg till på den här sidan",
+        "kind_task_list": "att göra-lista",
+        "kind_shopping_list": "inköpslista",
+        "new_kind": "Ny: :kind",
+        "ask_event": "Lägga in i kalendern?",
+        "ask_todo": "Lägga till som uppgift?",
+        "ask_expense": "Bokföra som utgift?",
+        "ask_shopping_item": "Lägga till på en inköpslista?",
+        "ask_vehicle": "Lägga till som nytt fordon?",
+        "ask_task_list": "Skapa den här att göra-listan?",
+        "ask_shopping_list": "Skapa den här inköpslistan?",
+        "f_name": "Namn"
     }
 }
