@@ -50,6 +50,7 @@ return [
         'llama-4-scout-17b-16e-instruct' => ['in' => 0.27, 'out' => 0.85],
         'jev-latest' => ['in' => 0.042],
         'gemini-3-flash-preview' => ['in' => 0.50, 'out' => 3.00],
+        'gemini-3.1-flash-lite' => ['in' => 0.25, 'out' => 1.50], // the reader worker's model since 2026-10-28
     ],
 
     // The module-requests board ("Can't find yours?" in the onboarding's module picker). Empty hides the card,
