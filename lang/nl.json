@@ -165,7 +165,6 @@
         "reading": "Bezig met lezen…",
         "add_n_one": ":count ding toevoegen",
         "add_n_other": ":count dingen toevoegen",
-        "add_as": "Toevoegen als nieuwe :kind?",
         "yes": "Ja",
         "no": "Nee",
         "which": "Voor wie is dit?",
@@ -200,6 +199,17 @@
         "f_year": "Bouwjaar",
         "f_plate": "Kenteken",
         "f_color": "Kleur",
-        "on_this_page": "Toevoegen op deze pagina"
+        "on_this_page": "Toevoegen op deze pagina",
+        "kind_task_list": "takenlijst",
+        "kind_shopping_list": "boodschappenlijst",
+        "new_kind": "Nieuw: :kind",
+        "ask_event": "In de agenda zetten?",
+        "ask_todo": "Toevoegen als taak?",
+        "ask_expense": "Vastleggen als uitgave?",
+        "ask_shopping_item": "Op een boodschappenlijst zetten?",
+        "ask_vehicle": "Toevoegen als nieuw voertuig?",
+        "ask_task_list": "Deze takenlijst maken?",
+        "ask_shopping_list": "Deze boodschappenlijst maken?",
+        "f_name": "Naam"
     }
 }

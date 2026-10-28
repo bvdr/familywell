@@ -165,7 +165,6 @@
         "reading": "Lecture…",
         "add_n_one": "Ajouter :count élément",
         "add_n_other": "Ajouter :count éléments",
-        "add_as": "Ajouter comme nouveau :kind ?",
         "yes": "Oui",
         "no": "Non",
         "which": "C’est pour qui ?",
@@ -200,6 +199,17 @@
         "f_year": "Année",
         "f_plate": "Plaque",
         "f_color": "Couleur",
-        "on_this_page": "Ajouter sur cette page"
+        "on_this_page": "Ajouter sur cette page",
+        "kind_task_list": "liste de tâches",
+        "kind_shopping_list": "liste de courses",
+        "new_kind": "Nouveau : :kind",
+        "ask_event": "Ajouter au calendrier ?",
+        "ask_todo": "Ajouter comme tâche ?",
+        "ask_expense": "Enregistrer comme dépense ?",
+        "ask_shopping_item": "Ajouter à une liste de courses ?",
+        "ask_vehicle": "Ajouter comme nouveau véhicule ?",
+        "ask_task_list": "Créer cette liste de tâches ?",
+        "ask_shopping_list": "Créer cette liste de courses ?",
+        "f_name": "Nom"
     }
 }

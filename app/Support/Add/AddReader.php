@@ -31,10 +31,12 @@ final class AddReader
     // …and below this one it isn't shown at all.
     public const FIELD_MIN = 0.25;
 
-    // Workers AI's vision model, for photos (see cloudflare()).
+    // Workers AI's multilingual vision model: reads every input next to Clairic (see cloudflare()).
     private const VISION = 'meta/llama-4-scout-17b-16e-instruct';
 
-    private const PROMPT = 'Read what this person wants to add to their family organiser. Fill only what the input or the photo shows; leave the rest empty.';
+    // Tested 2026-10-28: with this wording and every key required, Scout split "cumpără lapte și pâine, și sună la
+    // instalator mâine" into lapte / pâine + "sună la instalator" (a vaguer prompt gave back the whole sentence).
+    private const PROMPT = 'You read what a person wants to add to their family organiser and split it into the fields. Keep their language and their words. Fill only what the input or the photo says; use null (or an empty list) when it is not there.';
 
     public static function available(): bool
     {
@@ -79,21 +81,32 @@ final class AddReader
                     $ask[$name] = $ctx->memberNames();
                 }
             }
+            // Unsure AND nothing read into it (a shopping card for "new list of todouri"): just noise, so it's dropped.
+            if ($p < self::SURE && $values === []) {
+                continue;
+            }
             // Required fields the reader didn't find: the card shows them to fill in and starts unticked.
             $missing = array_keys(array_filter($def['fields'], fn ($f, $name) => ! empty($f['required']) && ! isset($values[$name]), ARRAY_FILTER_USE_BOTH));
             $types = array_map(fn ($f) => $f['type'], $def['fields']);
-            $items[] = ['kind' => $kind, 'module' => $def['module'], 'p' => round($p, 3), 'sure' => $p >= self::SURE, 'fields' => $values, 'ask' => $ask, 'missing' => $missing, 'types' => $types];
+            $target = isset($def['target']) ? rescue(fn () => ($def['target'])($ctx->user, $ctx), null) : null;
+            $items[] = ['kind' => $kind, 'module' => $def['module'], 'target' => $target, 'p' => round($p, 3), 'sure' => $p >= self::SURE, 'fields' => $values, 'ask' => $ask, 'missing' => $missing, 'types' => $types];
         }
         usort($items, fn ($a, $b) => $b['p'] <=> $a['p']);
+
+        // An unsure card that only repeats a sure card's words is the same reading twice ("new list of todouri" as a
+        // to-do list AND a shopping list): keep the sure one.
+        $said = fn (array $it) => array_map(fn ($f) => mb_strtolower(trim(is_array($f['value']) ? implode(',', $f['value']) : (string) $f['value'])), $it['fields']);
+        $sure = array_merge([], ...array_map(fn ($it) => array_values($said($it)), array_filter($items, fn ($it) => $it['sure'])));
+        $items = array_values(array_filter($items, fn ($it) => $it['sure'] || array_diff(array_values($said($it)), $sure) !== []));
 
         return $items;
     }
 
     /**
-     * Clef decides what is in the input, Clairic reads the details; for a photo, Llama 4 Scout (Workers AI's vision
-     * model) reads them too, because Clairic's text fields copy text out of what they're given: from a picture it only
-     * gets visible lettering (a car came back as make "ŠK", model "Sunday" from the date line; Scout said Skoda Octavia,
-     * live test 2026-10-28). All in one parallel round; Clairic's values stay as the fallback if Scout fails.
+     * Clef decides what is in the input, Clairic reads the details with a calibrated confidence each, and Llama 4 Scout
+     * (Workers AI's multilingual vision model) reads them too: Clairic is English-first and copies text out of what it is
+     * given, so from a picture it only gets lettering (a car came back as make "ŠK", model "Sunday"; Scout said Skoda
+     * Octavia, live test 2026-10-28). All in one parallel round; either one failing leaves the other's values.
      *
      * @return array{0: array<string, float>, 1: array<string, array{value: mixed, confidence: float}>}
      */
@@ -113,15 +126,16 @@ final class AddReader
             // Only a photo: no date / member lines for the extractor to copy into a field.
             'fields' => ['cloudflare/clairic', ['state' => $imageOnly ? trim(strstr($facts, "\nWhat they gave:")) : $facts, 'fields' => $fields, 'reference_date' => now()->toDateString()] + $media],
         ];
-        if ($images) {
-            $calls['vision'] = [self::VISION, [
-                'messages' => [['role' => 'user', 'content' => [
-                    ['type' => 'text', 'text' => self::PROMPT."\n\n".$state],
-                    ...array_map(fn ($uri) => ['type' => 'image_url', 'image_url' => ['url' => $uri]], $images),
-                ]]],
-                'response_format' => ['type' => 'json_schema', 'json_schema' => ['type' => 'object', 'properties' => self::schema($kinds, 'json')]],
-            ]];
-        }
+        // Scout reads every input too: Clairic is English-first (Romanian items came back at 0.15, "cump" as an item)
+        // and only copies text out of a photo. Its values fill whatever Clairic isn't sure of (merged below).
+        $properties = self::schema($kinds, 'json');
+        $calls['llm'] = [self::VISION, [
+            'messages' => [['role' => 'user', 'content' => [
+                ['type' => 'text', 'text' => self::PROMPT."\n\n".$facts],
+                ...array_map(fn ($uri) => ['type' => 'image_url', 'image_url' => ['url' => $uri]], $images),
+            ]]],
+            'response_format' => ['type' => 'json_schema', 'json_schema' => ['type' => 'object', 'properties' => $properties, 'required' => array_keys($properties)]],
+        ]];
         $out = WorkersAi::run('add_read', $calls);
         if ($out['kinds'] === null) {
             throw new RuntimeException('The reader is not available right now.');
@@ -133,11 +147,13 @@ final class AddReader
             // A value the model thinks is absent (high p_null) is dropped rather than shown as a guess.
             $values[$key] = ($a['p_null'] ?? 0) > 0.5 ? null : ['value' => $a['value'] ?? null, 'confidence' => (float) ($a['confidence'] ?? 0)];
         }
-        if ($vision = $out['vision'] ?? null) {
-            $read = $vision['response'] ?? json_decode((string) data_get($vision, 'choices.0.message.content'), true);
-            // An LLM has no calibrated confidence: a value it gives counts as fairly sure, "who" as sure only if it said so.
+        if ($llm = $out['llm'] ?? null) {
+            $read = $llm['response'] ?? json_decode((string) data_get($llm, 'choices.0.message.content'), true);
+            // An LLM has no calibrated confidence: a value it gives counts as fairly sure, "who" as sure only if it said
+            // so. It wins where Clairic is unsure or empty, and always for a photo (Clairic only sees its lettering).
             foreach (self::llmValues(is_array($read) ? $read : [], $kinds) as $key => $v) {
-                if ($v['value'] !== null && $v['value'] !== '' && $v['value'] !== []) {
+                $mine = $values[$key] ?? null;
+                if ($v['value'] !== null && $v['value'] !== '' && $v['value'] !== [] && ($images || $mine === null || $mine['confidence'] < self::FIELD_SURE)) {
                     $values[$key] = $v;
                 }
             }

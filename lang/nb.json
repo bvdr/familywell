@@ -165,7 +165,6 @@
         "reading": "Leser…",
         "add_n_one": "Legg til :count ting",
         "add_n_other": "Legg til :count ting",
-        "add_as": "Legge til som ny :kind?",
         "yes": "Ja",
         "no": "Nei",
         "which": "Hvem er det for?",
@@ -200,6 +199,17 @@
         "f_year": "År",
         "f_plate": "Skilt",
         "f_color": "Farge",
-        "on_this_page": "Legg til på denne siden"
+        "on_this_page": "Legg til på denne siden",
+        "kind_task_list": "gjøremålsliste",
+        "kind_shopping_list": "handleliste",
+        "new_kind": "Ny: :kind",
+        "ask_event": "Legge dette i kalenderen?",
+        "ask_todo": "Legge til som gjøremål?",
+        "ask_expense": "Føre dette som utgift?",
+        "ask_shopping_item": "Legge disse på en handleliste?",
+        "ask_vehicle": "Legge til som nytt kjøretøy?",
+        "ask_task_list": "Lage denne gjøremålslisten?",
+        "ask_shopping_list": "Lage denne handlelisten?",
+        "f_name": "Navn"
     }
 }

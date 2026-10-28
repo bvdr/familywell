@@ -165,7 +165,6 @@
         "reading": "Reading…",
         "add_n_one": "Add :count thing",
         "add_n_other": "Add :count things",
-        "add_as": "Add this as a new :kind?",
         "yes": "Yes",
         "no": "No",
         "which": "Who is this for?",
@@ -200,6 +199,17 @@
         "f_year": "Year",
         "f_plate": "Plate",
         "f_color": "Colour",
-        "on_this_page": "Add on this page"
+        "on_this_page": "Add on this page",
+        "kind_task_list": "to-do list",
+        "kind_shopping_list": "shopping list",
+        "new_kind": "New :kind",
+        "ask_event": "Put this on the calendar?",
+        "ask_todo": "Add this as a to-do?",
+        "ask_expense": "Record this as an expense?",
+        "ask_shopping_item": "Add these to a shopping list?",
+        "ask_vehicle": "Add this as a new vehicle?",
+        "ask_task_list": "Create this to-do list?",
+        "ask_shopping_list": "Create this shopping list?",
+        "f_name": "Name"
     }
 }

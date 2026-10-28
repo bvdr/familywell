@@ -38,12 +38,15 @@ class SpendingServiceProvider extends ServiceProvider
         AddKinds::register('expense', 'spending', [
             'question' => 'Did the family spend money, or is there an amount they paid or must pay?',
             'fields' => [
+                'note' => ['type' => 'text', 'instructions' => 'what the money was for, in a few words'],
                 'amount' => ['type' => 'number', 'decimals' => 2, 'instructions' => 'how much money', 'required' => true],
                 'currency' => ['type' => 'text', 'instructions' => 'the ISO 4217 code of the amount, only if it is written'],
-                'note' => ['type' => 'text', 'instructions' => 'what the money was for, in a few words'],
                 'shop' => ['type' => 'text', 'instructions' => 'the shop or business that was paid'],
                 'date' => ['type' => 'date', 'instructions' => 'when it was paid, if said'],
             ],
+            // Named only, never created here (others() makes the list when it's missing): reading has no side effects.
+            'target' => fn (User $user, AddContext $ctx) => ($ctx->module === 'spending' && $ctx->entityId ? SpendData::event($user, $ctx->entityId, edit: true)?->name : null)
+                ?? Translations::get('spending.others_list'),
             'save' => function (User $user, array $v, AddContext $ctx) {
                 $event = ($ctx->module === 'spending' && $ctx->entityId ? SpendData::event($user, $ctx->entityId, edit: true) : null) ?? SpendEvent::others($user);
                 $currency = strtoupper((string) ($v['currency'] ?? ''));

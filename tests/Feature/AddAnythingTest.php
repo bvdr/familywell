@@ -35,7 +35,7 @@ function anythingFamily(): array
 }
 
 // The school email of design H2b (amounts are stored in cents): an event, a to-do and an expense; unsure which kid the trip is for.
-function fakeCloudflare(array $kinds = ['event' => 0.98, 'todo' => 0.93, 'expense' => 0.95, 'shopping_item' => 0.02, 'vehicle' => 0.02], ?array $fields = null): void
+function fakeCloudflare(array $kinds = ['event' => 0.98, 'todo' => 0.93, 'expense' => 0.95, 'shopping_item' => 0.02, 'vehicle' => 0.02], ?array $fields = null, ?array $llm = null): void
 {
     $fields ??= [
         'event_title' => ['value' => 'Field trip', 'confidence' => 0.84, 'p_null' => 0.01],
@@ -55,9 +55,9 @@ function fakeCloudflare(array $kinds = ['event' => 0.98, 'todo' => 0.93, 'expens
         '*/ai/run/@cf/cloudflare/clairic' => Http::response(['success' => true, 'result' => [
             'answers' => $fields, 'usage' => ['input_tokens' => 900],
         ]]),
-        // Workers AI's vision model, asked only when there's a photo.
+        // Workers AI's Llama 4 Scout, which reads every input next to Clairic (here: a car photo's details).
         '*/ai/run/@cf/meta/*' => Http::response(['success' => true, 'result' => [
-            'response' => ['vehicle_make' => 'Skoda', 'vehicle_model' => 'Octavia', 'vehicle_color' => 'blue'],
+            'response' => $llm ?? ['vehicle_make' => 'Skoda', 'vehicle_model' => 'Octavia', 'vehicle_color' => 'blue'],
             'usage' => ['prompt_tokens' => 1200, 'completion_tokens' => 20],
         ]]),
     ]);
@@ -76,7 +76,7 @@ it('reads one message into an event, a to-do and an expense, asking who the even
         ->and($items[0]['fields']['start']['value'])->toBe('2026-10-30T08:15:00')
         ->and($items[0]['ask']['who'])->toBe(['Ana', 'Lucia']) // 0.28 sure: a question, not a guess
         ->and($items[1]['fields'])->not->toHaveKey('currency') // the reader said it isn't there
-        ->and(DB::table('ai_usage')->where('feature', 'add_read')->pluck('model')->sort()->values()->all())->toBe(['clairic', 'clef'])
+        ->and(DB::table('ai_usage')->where('feature', 'add_read')->pluck('model')->sort()->values()->all())->toBe(['clairic', 'clef', 'llama-4-scout-17b-16e-instruct'])
         ->and((int) DB::table('ai_usage')->sum('points'))->toBe(0); // reading is free
 });
 
@@ -93,6 +93,22 @@ it('tells the reader where the + was pressed and what the person usually adds', 
     expect($items[0])->toMatchArray(['kind' => 'vehicle', 'sure' => false]) // 0.6: "Add this as a new vehicle?"
         ->and($items[0]['fields']['model']['value'])->toBe('Octavia') // the vision model read the photo
         ->and(DB::table('ai_usage')->where('model', 'llama-4-scout-17b-16e-instruct')->value('cost_micros'))->toBe(341); // 1200 × 0.27 + 20 × 0.85
+});
+
+it('fills what Clairic is unsure of from Scout, but keeps a value Clairic is confident about', function () {
+    [, $users] = anythingFamily();
+    // Romanian: Clairic is English-first ("cump" as an item, 0.15; the todo title is the whole sentence at 0.5).
+    fakeCloudflare(['shopping_item' => 0.95, 'todo' => 0.9], [
+        'shopping_item_items' => ['value' => ['cump', 'lapte'], 'confidence' => 0.15, 'p_null' => 0],
+        'todo_title' => ['value' => 'cumpără lapte și pâine, și sună la instalator mâine', 'confidence' => 0.45, 'p_null' => 0],
+        'todo_due' => ['value' => '2026-10-29', 'confidence' => 0.99, 'p_null' => 0],
+    ], ['shopping_item_items' => ['lapte', 'pâine'], 'todo_title' => 'sună la instalator', 'todo_due' => '2026-10-30']);
+
+    $items = collect(actingAs($users[0])->postJson('/add/read', ['text' => 'cumpără lapte și pâine, și sună la instalator mâine'])->json('items'))->keyBy('kind');
+
+    expect($items['shopping_item']['fields']['items']['value'])->toBe(['lapte', 'pâine'])
+        ->and($items['todo']['fields']['title']['value'])->toBe('sună la instalator')
+        ->and($items['todo']['fields']['due']['value'])->toBe('2026-10-29'); // Clairic was sure of the date: kept
 });
 
 it('saves the confirmed cards through each module and charges one point for the lot', function () {
@@ -178,4 +194,23 @@ it('is off without any reader configured', function () {
     config(['services.workers_ai.token' => null, 'services.gemini.key' => null]);
     actingAs($users[0])->postJson('/add/read', ['text' => 'milk'])->assertNotFound();
     actingAs($users[0])->getJson('/add/usage')->assertJsonPath('ai.available', false);
+});
+
+it('names where a card will land, creates whole lists on request, and drops an unsure card with nothing in it', function () {
+    [, $users] = anythingFamily();
+    actingAs($users[0])->post('/m/tasks/lists', ['name' => 'Household']);
+    // "Lista nouă pentru Bogdan de todouri": a new to-do list; shopping only half-likely and nothing to buy read.
+    fakeCloudflare(['task_list' => 0.9, 'todo' => 0.4, 'shopping_item' => 0.5], [
+        'task_list_name' => ['value' => 'Bogdan', 'confidence' => 0.7, 'p_null' => 0],
+        'todo_title' => ['value' => 'Clean the gutters', 'confidence' => 0.8, 'p_null' => 0],
+        'shopping_item_items' => ['value' => [], 'confidence' => 0.5, 'p_null' => 0.9],
+    ]);
+
+    $items = actingAs($users[0])->postJson('/add/read', ['text' => 'Lista nouă pentru Bogdan de todouri'])->json('items');
+
+    expect(collect($items)->pluck('kind')->all())->toBe(['task_list', 'todo']) // no empty shopping card
+        ->and($items[1]['target'])->toBe('Household'); // the to-do says which list it goes into
+
+    actingAs($users[0])->postJson('/add/save', ['items' => [['kind' => 'task_list', 'values' => ['name' => 'Bogdan']]]])->assertOk();
+    expect(Modules\Tasks\TaskList::withoutGlobalScopes()->pluck('name')->all())->toBe(['Household', 'Bogdan']);
 });

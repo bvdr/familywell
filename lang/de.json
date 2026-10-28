@@ -165,7 +165,6 @@
         "reading": "Wird gelesen…",
         "add_n_one": ":count Eintrag hinzufügen",
         "add_n_other": ":count Einträge hinzufügen",
-        "add_as": "Als neue(n) :kind hinzufügen?",
         "yes": "Ja",
         "no": "Nein",
         "which": "Für wen ist das?",
@@ -200,6 +199,17 @@
         "f_year": "Baujahr",
         "f_plate": "Kennzeichen",
         "f_color": "Farbe",
-        "on_this_page": "Auf dieser Seite hinzufügen"
+        "on_this_page": "Auf dieser Seite hinzufügen",
+        "kind_task_list": "Aufgabenliste",
+        "kind_shopping_list": "Einkaufsliste",
+        "new_kind": "Neu: :kind",
+        "ask_event": "In den Kalender eintragen?",
+        "ask_todo": "Als Aufgabe hinzufügen?",
+        "ask_expense": "Als Ausgabe erfassen?",
+        "ask_shopping_item": "Auf eine Einkaufsliste setzen?",
+        "ask_vehicle": "Als neues Fahrzeug hinzufügen?",
+        "ask_task_list": "Diese Aufgabenliste anlegen?",
+        "ask_shopping_list": "Diese Einkaufsliste anlegen?",
+        "f_name": "Name"
     }
 }
