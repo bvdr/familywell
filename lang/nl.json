@@ -212,6 +212,15 @@
         "ask_shopping_list": "Deze boodschappenlijst maken?",
         "f_name": "Naam",
         "f_quantity": "Hoeveelheid",
-        "remove_item": "Artikel verwijderen"
+        "remove_item": "Artikel verwijderen",
+        "mic": "Praten",
+        "listening": "Luistert",
+        "listening_hint": "Begin met praten…",
+        "filing": "Wordt ingedeeld terwijl je praat",
+        "type_instead": "Liever typen",
+        "add_all": "Alles toevoegen",
+        "discard": "Weggooien",
+        "voice_hint": "Tik ✓ om toe te voegen · blijf praten om meer toe te voegen",
+        "mic_denied": "De microfoon staat uit voor deze site. Sta hem toe in je browserinstellingen, of typ."
     }
 }

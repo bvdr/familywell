@@ -134,6 +134,8 @@ Route::middleware(['auth', 'family'])->group(function () {
     // "Just say it": read while typing (no points, needs some left), save the confirmed cards (one point).
     Route::post('add/read', [AddController::class, 'read'])->middleware('throttle:40,1')->name('add.read');
     Route::post('add/save', [AddController::class, 'save'])->middleware('throttle:20,1')->name('add.save');
+    // Voice: the growing recording is re-sent every few seconds while the person talks.
+    Route::post('add/transcribe', [AddController::class, 'transcribe'])->middleware('throttle:60,1')->name('add.transcribe');
     // The More sheet: each module's live status line (the same DashboardSummaries Home's tiles use) + the family's
     // name for its own group, fetched when the sheet opens so other pages don't pay for it.
     Route::get('nav/more', fn () => response()->json([

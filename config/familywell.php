@@ -51,6 +51,8 @@ return [
         'jev-latest' => ['in' => 0.042],
         'gemini-3-flash-preview' => ['in' => 0.50, 'out' => 3.00],
         'gemini-3.1-flash-lite' => ['in' => 0.25, 'out' => 1.50], // the reader worker's model since 2026-10-28
+        // Whisper is billed per audio minute ($0.000513); its "tokens" in the ledger are seconds: $8.55 per million s.
+        'whisper-large-v3-turbo' => ['in' => 8.55],
     ],
 
     // The module-requests board ("Can't find yours?" in the onboarding's module picker). Empty hides the card,

@@ -212,6 +212,15 @@
         "ask_shopping_list": "Skapa den här inköpslistan?",
         "f_name": "Namn",
         "f_quantity": "Mängd",
-        "remove_item": "Ta bort varan"
+        "remove_item": "Ta bort varan",
+        "mic": "Prata",
+        "listening": "Lyssnar",
+        "listening_hint": "Börja prata…",
+        "filing": "Sorteras medan du pratar",
+        "type_instead": "Skriv i stället",
+        "add_all": "Lägg till allt",
+        "discard": "Släng",
+        "voice_hint": "Tryck ✓ för att lägga till · fortsätt prata för att lägga till mer",
+        "mic_denied": "Mikrofonen är av för den här webbplatsen. Tillåt den i webbläsarens inställningar, eller skriv."
     }
 }

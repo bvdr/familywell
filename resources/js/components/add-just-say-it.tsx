@@ -1,3 +1,4 @@
+import { useVoice, voiceSupported } from '@/hooks/use-voice';
 import { useT } from '@/lib/i18n';
 import { router } from '@inertiajs/react';
 import {
@@ -6,18 +7,21 @@ import {
     Car,
     Check,
     ImagePlus,
+    Keyboard,
     ListChecks,
     ListPlus,
     Loader2,
+    Mic,
     ShoppingCart,
     Sparkles,
+    Trash2,
     Wallet,
     X,
     type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-// "Just say it" (design XMkKm H2 / H2a / H2b): one box that reads whatever you type, paste or photograph. Each pause
+// "Just say it" (design XMkKm H2 / H2a / H2b / H2c): one box that reads whatever you type, paste, photograph or say. Each pause
 // sends it to /add/read (AddReader: the reader worker, with where you are and what you usually add as context), and
 // the cards update. Nothing is saved until "Add". A card the reader isn't sure
 // about asks first ("Add this as a new vehicle?", "Who is this for?"); every value stays editable.
@@ -124,6 +128,18 @@ export function JustSayIt({
     const [points, setPoints] = useState(initialPoints);
     const camera = useRef<HTMLInputElement>(null);
     const gallery = useRef<HTMLInputElement>(null);
+    const box = useRef<HTMLTextAreaElement>(null);
+
+    // Voice (H2c): the words fill the box as the person talks (after anything they had typed), and the cards follow
+    // through the same reading as typing. ✓ stops, waits for the last words and their cards, then adds everything.
+    const typed = useRef('');
+    const voice = useVoice((words) => setText(typed.current ? `${typed.current} ${words}` : words));
+    const [addWhenReady, setAddWhenReady] = useState(false);
+    const readFor = useRef<string | null>(null); // the text the cards on screen were read from
+    const startVoice = () => {
+        typed.current = text.trim();
+        void voice.start();
+    };
 
     // Read on every pause. The newest read wins: an older one still in flight is aborted.
     useEffect(() => {
@@ -139,6 +155,7 @@ export function JustSayIt({
                 if (res.status === 409) return setState('out');
                 if (!res.ok) throw new Error(String(res.status));
                 const data = await res.json();
+                readFor.current = text;
                 setItems(data.items);
                 setPoints(data.pointsLeft);
                 setState('idle');
@@ -210,6 +227,18 @@ export function JustSayIt({
         router.reload(); // the page behind shows the new things
     };
 
+    // After ✓: once the final words are read (no recording, no transcription, the cards are for this text), add.
+    useEffect(() => {
+        if (!addWhenReady || voice.listening || voice.transcribing || state !== 'idle' || readFor.current !== text) return;
+        setAddWhenReady(false);
+        if (chosen.length && !blocked) void save();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [addWhenReady, voice.listening, voice.transcribing, state, text]);
+    useEffect(() => {
+        if (voice.error === 'out') setState('out');
+        if (voice.error) setAddWhenReady(false); // a failed transcription must not leave ✓ spinning
+    }, [voice.error]);
+
     const fieldLabel = (name: string) => t(`add.f_${name}`);
     // The card's headline is its first field (an event's title, what an expense was for, the list's name), else
     // "New to-do" while that's still empty: never some other field (it once showed the person, "Bogdan").
@@ -237,22 +266,42 @@ export function JustSayIt({
         <div className="flex flex-col gap-4">
             {/* The box: text, then any photos, then the photo buttons. Paste works for text and images. */}
             <div className="border-primary bg-surface-card flex flex-col gap-3 rounded-2xl border-2 p-3">
-                <textarea
-                    autoFocus
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                    onPaste={(e) => {
-                        if (e.clipboardData.files.length) {
-                            e.preventDefault();
-                            void addFiles(e.clipboardData.files);
-                        }
-                    }}
-                    rows={2}
-                    placeholder={t('add.placeholder')}
-                    aria-label={t('add.say_it')}
-                    // text-base = 16px: smaller zooms the page on iOS when the field is focused.
-                    className="text-primary placeholder:text-muted-foreground min-h-14 w-full resize-none bg-transparent text-base font-semibold outline-none"
-                />
+                {voice.listening ? (
+                    <div className="flex flex-col gap-3" aria-live="polite">
+                        <span className="text-muted-foreground flex items-center gap-2 font-mono text-[11px] font-semibold tracking-[0.14em] uppercase">
+                            <span className="bg-destructive size-2 animate-pulse rounded-full" aria-hidden />
+                            {t('add.listening')} · {Math.floor(voice.seconds / 60)}:{String(voice.seconds % 60).padStart(2, '0')}
+                        </span>
+                        <p className="text-primary min-h-14 text-lg leading-snug font-semibold">{text ? `“${text}”` : t('add.listening_hint')}</p>
+                        <div className="flex h-8 items-center gap-[3px]" aria-hidden>
+                            {voice.levels.map((l, i) => (
+                                <span
+                                    key={i}
+                                    className="bg-primary w-1.5 rounded-full transition-[height]"
+                                    style={{ height: `${Math.max(12, l * 100)}%`, opacity: l > 0.02 ? 1 : 0.25 }}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                ) : (
+                    <textarea
+                        ref={box}
+                        autoFocus
+                        value={text}
+                        onChange={(e) => setText(e.target.value)}
+                        onPaste={(e) => {
+                            if (e.clipboardData.files.length) {
+                                e.preventDefault();
+                                void addFiles(e.clipboardData.files);
+                            }
+                        }}
+                        rows={2}
+                        placeholder={t('add.placeholder')}
+                        aria-label={t('add.say_it')}
+                        // text-base = 16px: smaller zooms the page on iOS when the field is focused.
+                        className="text-primary placeholder:text-muted-foreground min-h-14 w-full resize-none bg-transparent text-base font-semibold outline-none"
+                    />
+                )}
                 {images.length > 0 && (
                     <div className="flex flex-wrap gap-2">
                         {images.map((src, i) => (
@@ -270,39 +319,65 @@ export function JustSayIt({
                         ))}
                     </div>
                 )}
-                <div className="flex items-center gap-2 border-t pt-3">
-                    <button
-                        type="button"
-                        onClick={() => camera.current?.click()}
-                        aria-label={t('add.camera')}
-                        disabled={images.length >= MAX_IMAGES}
-                        className="bg-surface text-primary flex size-11 items-center justify-center rounded-full disabled:opacity-40"
-                    >
-                        <Camera className="size-5" />
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => gallery.current?.click()}
-                        aria-label={t('add.gallery')}
-                        disabled={images.length >= MAX_IMAGES}
-                        className="bg-surface text-primary flex size-11 items-center justify-center rounded-full disabled:opacity-40"
-                    >
-                        <ImagePlus className="size-5" />
-                    </button>
-                    <input ref={camera} type="file" accept="image/*" capture="environment" hidden onChange={(e) => void addFiles(e.target.files)} />
-                    <input ref={gallery} type="file" accept="image/*" multiple hidden onChange={(e) => void addFiles(e.target.files)} />
-                    <span className="text-muted-foreground ml-auto flex items-center gap-1.5 text-sm" aria-live="polite">
-                        {state === 'reading' && (
-                            <>
-                                <Loader2 className="size-4 animate-spin" />
-                                {t('add.reading')}
-                            </>
+                {!voice.listening && (
+                    <div className="flex items-center gap-2 border-t pt-3">
+                        <button
+                            type="button"
+                            onClick={() => camera.current?.click()}
+                            aria-label={t('add.camera')}
+                            disabled={images.length >= MAX_IMAGES}
+                            className="bg-surface text-primary flex size-11 items-center justify-center rounded-full disabled:opacity-40"
+                        >
+                            <Camera className="size-5" />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => gallery.current?.click()}
+                            aria-label={t('add.gallery')}
+                            disabled={images.length >= MAX_IMAGES}
+                            className="bg-surface text-primary flex size-11 items-center justify-center rounded-full disabled:opacity-40"
+                        >
+                            <ImagePlus className="size-5" />
+                        </button>
+                        <input
+                            ref={camera}
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            hidden
+                            onChange={(e) => void addFiles(e.target.files)}
+                        />
+                        <input ref={gallery} type="file" accept="image/*" multiple hidden onChange={(e) => void addFiles(e.target.files)} />
+                        <span className="text-muted-foreground ml-auto flex items-center gap-1.5 text-sm" aria-live="polite">
+                            {(state === 'reading' || voice.transcribing) && (
+                                <>
+                                    <Loader2 className="size-4 animate-spin" />
+                                    {t('add.reading')}
+                                </>
+                            )}
+                        </span>
+                        {voiceSupported() && (
+                            <button
+                                type="button"
+                                onClick={startVoice}
+                                aria-label={t('add.mic')}
+                                className="bg-primary text-accent-strong flex size-11 items-center justify-center rounded-full"
+                            >
+                                <Mic className="size-5" />
+                            </button>
                         )}
-                    </span>
-                </div>
+                    </div>
+                )}
             </div>
 
-            {state === 'error' && <p className="text-destructive text-sm">{t('add.unavailable')}</p>}
+            {(state === 'error' || voice.error === 'unavailable') && <p className="text-destructive text-sm">{t('add.unavailable')}</p>}
+            {voice.error === 'denied' && <p className="text-destructive text-sm">{t('add.mic_denied')}</p>}
+            {voice.listening && items.length > 0 && (
+                <h3 className="text-muted-foreground px-1 font-mono text-xs font-semibold tracking-[0.14em] uppercase">
+                    {t('add.filing')}
+                    <span className="text-primary ml-2">{chosen.length}</span>
+                </h3>
+            )}
             {state === 'idle' && items.length === 0 && (text.trim().length >= 3 || images.length > 0) && (
                 <p className="text-muted-foreground text-sm">{t('add.nothing')}</p>
             )}
@@ -455,22 +530,68 @@ export function JustSayIt({
 
             {error && <p className="text-destructive text-sm">{error}</p>}
 
-            {items.length > 0 && (
-                <button
-                    type="button"
-                    onClick={() => void save()}
-                    disabled={chosen.length === 0 || blocked || state === 'saving'}
-                    className="bg-accent-strong text-accent-strong-foreground border-primary flex items-center justify-center gap-2 rounded-full border-2 py-3.5 text-lg font-bold disabled:opacity-50"
-                >
-                    {state === 'saving' && <Loader2 className="size-5 animate-spin" />}
-                    {t('add.add_n', { count: chosen.length })}
-                </button>
+            {voice.listening || addWhenReady ? (
+                // While talking (design H2c): type instead (keeps the words), add everything, or throw it away.
+                <div className="flex flex-col items-center gap-2">
+                    <div className="flex items-center justify-center gap-6">
+                        <button
+                            type="button"
+                            onClick={async () => {
+                                await voice.stop();
+                                box.current?.focus();
+                            }}
+                            aria-label={t('add.type_instead')}
+                            className="bg-surface text-primary flex size-12 items-center justify-center rounded-full"
+                        >
+                            <Keyboard className="size-5" />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setAddWhenReady(true);
+                                void voice.stop();
+                            }}
+                            disabled={addWhenReady}
+                            aria-label={t('add.add_all')}
+                            className="bg-primary text-accent-strong ring-accent-strong flex size-20 items-center justify-center rounded-full ring-4 disabled:opacity-60"
+                        >
+                            {addWhenReady ? <Loader2 className="size-7 animate-spin" /> : <Check className="size-8" />}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                voice.cancel();
+                                setAddWhenReady(false);
+                                setText(typed.current);
+                            }}
+                            aria-label={t('add.discard')}
+                            className="bg-surface text-primary flex size-12 items-center justify-center rounded-full"
+                        >
+                            <Trash2 className="size-5" />
+                        </button>
+                    </div>
+                    <p className="text-muted-foreground text-center text-xs">{t('add.voice_hint')}</p>
+                </div>
+            ) : (
+                items.length > 0 && (
+                    <button
+                        type="button"
+                        onClick={() => void save()}
+                        disabled={chosen.length === 0 || blocked || state === 'saving'}
+                        className="bg-accent-strong text-accent-strong-foreground border-primary flex items-center justify-center gap-2 rounded-full border-2 py-3.5 text-lg font-bold disabled:opacity-50"
+                    >
+                        {state === 'saving' && <Loader2 className="size-5 animate-spin" />}
+                        {t('add.add_n', { count: chosen.length })}
+                    </button>
+                )
             )}
 
-            <p className="text-muted-foreground text-center text-xs">
-                {t('add.hint')}
-                {points !== null && <> {t('add.points_left', { count: points })}</>}
-            </p>
+            {!voice.listening && (
+                <p className="text-muted-foreground text-center text-xs">
+                    {t('add.hint')}
+                    {points !== null && <> {t('add.points_left', { count: points })}</>}
+                </p>
+            )}
         </div>
     );
 }

@@ -212,6 +212,15 @@
         "ask_shopping_list": "Diese Einkaufsliste anlegen?",
         "f_name": "Name",
         "f_quantity": "Menge",
-        "remove_item": "Artikel entfernen"
+        "remove_item": "Artikel entfernen",
+        "mic": "Sprechen",
+        "listening": "Hört zu",
+        "listening_hint": "Leg los…",
+        "filing": "Wird beim Sprechen einsortiert",
+        "type_instead": "Lieber tippen",
+        "add_all": "Alles hinzufügen",
+        "discard": "Verwerfen",
+        "voice_hint": "Tippe ✓ zum Hinzufügen · sprich weiter, um mehr hinzuzufügen",
+        "mic_denied": "Das Mikrofon ist für diese Seite aus. Erlaube es in den Browser-Einstellungen oder tippe stattdessen."
     }
 }

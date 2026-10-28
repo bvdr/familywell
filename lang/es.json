@@ -212,6 +212,15 @@
         "ask_shopping_list": "¿Crear esta lista de la compra?",
         "f_name": "Nombre",
         "f_quantity": "Cantidad",
-        "remove_item": "Quitar artículo"
+        "remove_item": "Quitar artículo",
+        "mic": "Hablar",
+        "listening": "Escuchando",
+        "listening_hint": "Empieza a hablar…",
+        "filing": "Se va ordenando mientras hablas",
+        "type_instead": "Escribir",
+        "add_all": "Añadir todo",
+        "discard": "Descartar",
+        "voice_hint": "Toca ✓ para añadir · sigue hablando para añadir más",
+        "mic_denied": "El micrófono está desactivado para este sitio. Actívalo en los ajustes del navegador o escribe."
     }
 }

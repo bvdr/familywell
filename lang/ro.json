@@ -234,6 +234,15 @@
         "ask_shopping_list": "Creezi lista asta de cumpărături?",
         "f_name": "Nume",
         "f_quantity": "Cantitate",
-        "remove_item": "Scoate produsul"
+        "remove_item": "Scoate produsul",
+        "mic": "Vorbește",
+        "listening": "Ascult",
+        "listening_hint": "Începe să vorbești…",
+        "filing": "Se sortează în timp ce vorbești",
+        "type_instead": "Scrie",
+        "add_all": "Adaugă tot",
+        "discard": "Renunță",
+        "voice_hint": "Apasă ✓ ca să adaugi · vorbește mai departe ca să adaugi",
+        "mic_denied": "Microfonul e oprit pentru acest site. Permite-l din setările browserului sau scrie."
     }
 }
