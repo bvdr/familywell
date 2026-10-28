@@ -74,7 +74,7 @@ class AisleGuesser
                 ];
             }
 
-            $answers = TypeSafe::ask($state, $questions);
+            $answers = TypeSafe::ask($state, $questions, 'aisle_guess');
             foreach ($group as $item) {
                 $choice = $answers['item_'.$item->id]['choice'] ?? 'other';
                 if ($choice === 'other' || ! isset($criteria[$choice])) {

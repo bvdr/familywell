@@ -2,6 +2,7 @@
 
 namespace Modules\Spending;
 
+use App\Support\Ai\AiUsage;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
@@ -91,6 +92,9 @@ class ReceiptScanner
             report(new RuntimeException('Gemini receipt scan failed ('.$response->status().'): '.$response->body()));
             throw new RuntimeException('Could not read the receipt. Try a clearer, well-lit photo.');
         }
+
+        // Into the ai_usage ledger (the controller charges the point once the scan worked).
+        AiUsage::record('receipt_scan', 'gemini', (string) $model, (int) $response->json('usageMetadata.promptTokenCount', 0), (int) $response->json('usageMetadata.candidatesTokenCount', 0));
 
         $data = json_decode((string) data_get($response->json(), 'candidates.0.content.parts.0.text'), true);
         if (! is_array($data)) {
