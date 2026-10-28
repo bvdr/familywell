@@ -105,13 +105,14 @@ class ProjectsServiceProvider extends ServiceProvider
                 return [];
             }
 
-            $weekEnd = now()->endOfWeek()->toDateString();
+            $weekEnd = DashboardAgenda::until();
 
             return Task::query()
                 ->whereIn('id', $taskToProject->keys())
                 ->whereNotNull('due_date')
                 ->where('done', false)
                 ->whereDate('due_date', '<=', $weekEnd)
+                ->with('assignee')
                 ->get()
                 ->map(function (Task $t) use ($taskToProject, $projects) {
                     $project = $projects[$taskToProject[$t->id]];
@@ -125,6 +126,7 @@ class ProjectsServiceProvider extends ServiceProvider
                         'toggleUrl' => "/m/projects/tasks/{$t->id}", 'toggleBody' => ['done' => true], // the dashboard tick sends this: set done, never flip
                         'kind' => 'project_task', // kind + id: get_today's widget ticks it off via the MCP tool
                         'id' => $t->id,
+                        'assignee' => $t->assignee?->only(['id', 'name']), // Home's avatar chip on the row
                     ];
                 })->values()->all();
         });

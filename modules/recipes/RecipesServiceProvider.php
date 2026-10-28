@@ -9,8 +9,10 @@ use App\Support\Engagement;
 use App\Support\Guests\GuestableRegistry;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\ModuleRegistry;
+use App\Support\Search\SearchSources;
 use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Translations;
 use App\Support\Trash\Trash;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -58,6 +60,19 @@ class RecipesServiceProvider extends ServiceProvider
                     'icon' => 'chef-hat',
                     'visitedAt' => $visits[$r->id]->toIso8601String(),
                 ])->values()->all();
+        });
+
+        // H5 search: title or description match, visible recipes only. Meta is the description (a
+        // snippet if the match is there, else a plain preview) so the row reads like a recipe card.
+        SearchSources::register('recipes', function (string $q, int $userId) {
+            $recipes = SearchSources::ilike(Recipe::query()->visibleTo($userId), ['title', 'description'], $q)
+                ->orderByDesc('id')->limit(20)->get();
+
+            return $recipes->map(fn (Recipe $r) => [
+                'module' => 'recipes', 'title' => $r->title,
+                'meta' => $r->description ? SearchSources::snippet($r->description, $q) : Translations::get('nav.recipes'),
+                'href' => "/m/recipes/{$r->id}", 'icon' => 'chef-hat',
+            ])->values()->all();
         });
 
         // The photo behind a signed URL, for viewers with no Familywell session: the guest page and the

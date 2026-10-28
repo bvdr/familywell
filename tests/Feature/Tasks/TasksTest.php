@@ -161,7 +161,36 @@ it('hides a private list from a member who was not shared', function () {
         ->and($access->canView($bob, $list))->toBeFalse();
 });
 
-it('buckets dated tasks into the dashboard Today and This Week sections', function () {
+it('fills Tomorrow on a Sunday, when tomorrow is already next week', function () {
+    $this->travelTo(Carbon::parse('2026-08-09 09:00:00')); // Sunday
+    [, $users] = tasksFamily();
+    actingAs($users[0])->post('/m/tasks/lists', ['name' => 'Chores']);
+    $list = TaskList::withoutGlobalScopes()->first();
+    actingAs($users[0])->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Monday', 'due_date' => '2026-08-10']);
+
+    actingAs($users[0])->get('/dashboard')->assertInertia(fn ($p) => $p->where('tomorrow.0.title', 'Monday')->has('later', 0));
+    $this->travelBack();
+});
+
+it('counts open undated to-dos for Home\'s Anytime row, skipping done, dated and private ones', function () {
+    [$family, $users] = tasksFamily();
+    actingAs($users[0])->post('/m/tasks/lists', ['name' => 'Chores']);
+    $list = TaskList::withoutGlobalScopes()->first();
+    foreach (['Clean gutters', 'Fix bike light'] as $title) {
+        actingAs($users[0])->post("/m/tasks/lists/{$list->id}/tasks", ['title' => $title]);
+    }
+    actingAs($users[0])->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Dated', 'due_date' => now()->toDateString()]);
+    Task::withoutGlobalScopes()->where('title', 'Fix bike light')->first()->update(['done' => true]);
+    actingAs($users[1])->post('/m/tasks/lists', ['name' => 'Mine']);
+    $mine = TaskList::withoutGlobalScopes()->where('name', 'Mine')->first();
+    $mine->setVisibility('private');
+    actingAs($users[1])->post("/m/tasks/lists/{$mine->id}/tasks", ['title' => 'Secret']);
+
+    actingAs($users[0])->get('/dashboard')->assertInertia(fn ($p) => $p
+        ->where('widgets.tasks', ['undated' => 1, 'titles' => ['Clean gutters']]));
+});
+
+it('buckets dated tasks into the dashboard Today, Tomorrow and rest-of-week sections', function () {
     // Freeze mid-week (a Wednesday) so "this week" is unambiguous regardless of when the suite runs.
     $this->travelTo(Carbon::parse('2026-08-05 09:00:00'));
 
@@ -169,16 +198,19 @@ it('buckets dated tasks into the dashboard Today and This Week sections', functi
     actingAs($users[0])->post('/m/tasks/lists', ['name' => 'Chores']);
     $list = TaskList::withoutGlobalScopes()->first();
 
-    // Overdue + due-today land in Today; later-this-week lands in This Week; next week is excluded.
+    // Overdue + due-today land in Today; Thursday in Tomorrow; later this week in Later; next week is excluded.
     actingAs($users[0])->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Overdue', 'due_date' => '2026-08-03']);
     actingAs($users[0])->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Due today', 'due_date' => '2026-08-05']);
+    actingAs($users[0])->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Thursday', 'due_date' => '2026-08-06']);
     actingAs($users[0])->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Friday', 'due_date' => '2026-08-07']);
     actingAs($users[0])->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Next week', 'due_date' => '2026-08-12']);
 
     actingAs($users[0])->get('/dashboard')->assertInertia(fn ($p) => $p
         ->has('today', 2)
-        ->has('thisWeek', 1)
-        ->where('thisWeek.0.title', 'Friday'));
+        ->has('tomorrow', 1)
+        ->where('tomorrow.0.title', 'Thursday')
+        ->has('later', 1)
+        ->where('later.0.title', 'Friday'));
 
     $this->travelBack();
 });

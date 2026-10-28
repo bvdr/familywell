@@ -7,6 +7,7 @@ const PAGES: [string, string][] = [
     ['family-members', '/family/members'],
     ['family-modules', '/family/modules'],
     ['notifications', '/notifications'],
+    ['search', '/search?q=banana'],
     ['birthdays', '/m/birthdays'],
     ['calendar', '/m/calendar'],
     ['contacts', '/m/contacts'],
@@ -118,7 +119,8 @@ test.describe('phone navigation', () => {
         page.locator(selector).evaluateAll((els) => els.map((e) => [e.textContent?.trim(), Math.round(e.getBoundingClientRect().height)] as const));
 
     test('nav-drawer', async ({ page }, info) => {
-        await page.goto('/dashboard');
+        // Not Home: its phone top bar (family, search, alerts, avatar) replaces the header with the sidebar toggle.
+        await page.goto('/m/shopping');
         await page.getByRole('button', { name: 'Toggle Sidebar' }).click();
         const drawer = page.locator('[data-mobile="true"]');
         await expect(drawer).toBeVisible();
@@ -142,7 +144,7 @@ test.describe('phone navigation', () => {
         await page.locator('nav').getByRole('button', { name: 'More' }).click();
         await expect(page.getByRole('dialog')).toBeVisible();
         await expectCleanLayout(page, () => shoot(page, 'nav-more', info.project.name));
-        for (const [label, h] of await minHeights(page, '[role="dialog"] .grid > div')) {
+        for (const [label, h] of await minHeights(page, '[role="dialog"] .grid > a')) {
             expect(h, `More card "${label}"`).toBeGreaterThanOrEqual(48);
         }
         for (const [label, h] of await minHeights(page, 'nav a, nav button')) {

@@ -8,8 +8,10 @@ use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\ModuleRegistry;
+use App\Support\Search\SearchSources;
 use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Translations;
 use App\Support\Trash\Trash;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -69,6 +71,19 @@ class NotesServiceProvider extends ServiceProvider
                     'icon' => 'sticky-note',
                     'visitedAt' => $visits[$n->id]->toIso8601String(),
                 ])->values()->all();
+        });
+
+        // H5 search: title or body match, visible notes only. Meta is a snippet around the match (title
+        // match shows the start of the body instead, same as "no match found" in snippet()).
+        SearchSources::register('notes', function (string $q, int $userId) {
+            $notes = SearchSources::ilike(Note::query()->visibleTo($userId), ['title', 'body'], $q)
+                ->orderByDesc('updated_at')->orderByDesc('id')->limit(20)->get();
+
+            return $notes->map(fn (Note $n) => [
+                'module' => 'notes', 'title' => $n->title !== '' ? $n->title : Translations::get('notes.untitled'),
+                'meta' => SearchSources::snippet($n->body, $q),
+                'href' => "/m/notes/{$n->id}", 'icon' => 'sticky-note',
+            ])->values()->all();
         });
 
         // Full Inertia pages, gated by `module:notes` so they are only reachable when the family

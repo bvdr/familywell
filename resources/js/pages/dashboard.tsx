@@ -1,145 +1,84 @@
 import { Confetti } from '@/components/confetti';
+import { FamilyMark } from '@/components/family-mark';
 import { LucideIcon as DynamicLucideIcon } from '@/components/lucide-icon';
+import { MemberAvatar } from '@/components/member-avatar';
+import { NotificationsBell } from '@/components/notifications-bell';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { UserMenuContent } from '@/components/user-menu-content';
+import { MODULES, YourModules, type ModuleSummary } from '@/components/your-modules';
 import AppLayout from '@/layouts/app-layout';
 import { useLocale, useT, type TFn } from '@/lib/i18n';
-import { Slot } from '@/lib/modules';
 import { money } from '@/lib/money';
 import { save } from '@/lib/save';
-import { listColor as shoppingListColor, listIcon as shoppingListIcon } from '@/lib/shopping';
-import { listColor as taskListColor, listIcon as taskListIcon } from '@/lib/tasks';
 import { type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-
-import { YourModules, type ModuleSummary } from '@/components/your-modules';
-import {
-    Blocks,
-    CalendarDays,
-    Check,
-    ChefHat,
-    FolderKanban,
-    ListChecks,
-    Plus,
-    Settings,
-    ShoppingCart,
-    StickyNote,
-    Users,
-    Wallet,
-    type LucideIcon,
-} from 'lucide-react';
+import { Blocks, Cake, Check, ChevronDown, ChevronRight, Heart, Inbox, Phone, Plus, Search } from 'lucide-react';
 import { useState } from 'react';
 
-// A recently-opened entity ("Pick up where you left off"). visitedAt drives the order server-side.
-// `category` is the module id (groups the cards); `icon`/`color` are the entity's own (a spend event's
-// lucide key, a list's icon slug + colour swatch), so the card shows what the user picked.
+// Home (design node XMkKm, "H1 · Today"): Today first. One agenda of to-dos and events for today and tomorrow,
+// the rest of the week folded into a day strip, then money and modules. Members and Settings moved into the
+// avatar menu. Everything here comes from DashboardData (module providers); a module that is off simply
+// contributes nothing, and an empty section hides itself.
+
+// A recently-opened entity (Jump back in). visitedAt drives the order server-side.
 type DashItem = { title: string; subtitle: string; href: string; icon: string; category?: string; color?: string | null };
-// A dated leaf item (a task / shopping item due on a day) for the Today / This Week sections.
-// toggleUrl + toggleBody: PATCH toggleBody (e.g. { done: true }) marks it done/bought, and it drops off on the reload.
-// Each source names its own field (shopping says `bought`), so the dashboard never guesses and never sends a "flip".
-// Both are absent for display-only rows (e.g. calendar events: they aren't "done").
-type AgendaItem = DashItem & { dueDate: string; toggleUrl?: string; toggleBody?: Record<string, boolean> };
-// Unique per row: a repeating event recurs under one href+title, and two to-dos of one event share href and
-// maybe title, so the date and the per-task toggle URL go into the key too.
-const agendaKey = (it: AgendaItem) => `${it.toggleUrl ?? it.href}-${it.title}-${it.dueDate}`;
-
-// Map a provider's icon key to a lucide icon; fall back to a neutral one.
-const ICONS: Record<string, LucideIcon> = {
-    wallet: Wallet,
-    'shopping-cart': ShoppingCart,
-    'folder-kanban': FolderKanban,
-    'list-checks': ListChecks,
-    'sticky-note': StickyNote,
-    'chef-hat': ChefHat,
-    calendar: CalendarDays,
+type Person = { id: number; name: string };
+// A dated row from DashboardAgenda. toggleUrl + toggleBody: PATCH toggleBody marks it done/bought (it drops off on
+// the reload); absent for events (they aren't "done"). Events carry time/people/colour; an event's prep to-dos
+// carry the same eventId, which is how they nest under it.
+type AgendaItem = DashItem & {
+    dueDate: string;
+    kind?: string;
+    id?: number;
+    toggleUrl?: string;
+    toggleBody?: Record<string, boolean>;
+    assignee?: Person | null;
+    time?: string | null;
+    endTime?: string | null;
+    people?: string[];
+    eventId?: number;
 };
-const iconFor = (key: string) => ICONS[key] ?? Blocks;
+type Birthday = { personId: number; name: string; turning: number | null; date: string; inDays: number; born: string | null; phone: string | null };
+type Family = { name: string; color: string; symbol?: string | null; emoji?: string | null };
 
-// The recent items are grouped by module on the dashboard: module id -> nav translation key for the
-// group header. Older providers that only send an icon key still group by that key.
-const CATEGORY: Record<string, string> = {
-    tasks: 'nav.tasks',
-    shopping: 'nav.shopping',
-    spending: 'nav.spending',
-    projects: 'nav.projects',
-    notes: 'nav.notes',
-    recipes: 'nav.recipes',
-    'list-checks': 'nav.tasks',
-    'shopping-cart': 'nav.shopping',
-    wallet: 'nav.spending',
-    'folder-kanban': 'nav.projects',
-    'sticky-note': 'nav.notes',
-};
-const categoryOf = (it: DashItem) => CATEGORY[it.category ?? ''] ?? CATEGORY[it.icon] ?? 'Other';
-
-// The card's icon tile: the entity's own icon + colour, resolved with the same helpers the module's
-// own list page uses (so a shopping list looks the same here as on /m/shopping). Spend events store a
-// lucide key; task/shopping lists store a slug + swatch. Everything else gets the neutral tile.
-function ItemTile({ it }: { it: DashItem }) {
-    const base = 'mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-lg';
-    if (it.category === 'shopping') {
-        const Icon = shoppingListIcon(it.icon);
-        return (
-            <span className={`${base} ${shoppingListColor(it.color ?? '')}`}>
-                <Icon className="size-5" />
-            </span>
-        );
-    }
-    if (it.category === 'tasks') {
-        const Icon = taskListIcon(it.icon);
-        return (
-            <span className={`${base} ${taskListColor(it.color ?? '')}`}>
-                <Icon className="size-5" />
-            </span>
-        );
-    }
-    if (it.category === 'spending') {
-        return (
-            <span className={`${base} bg-tile text-tile-foreground`}>
-                <DynamicLucideIcon name={it.icon} className="size-5" />
-            </span>
-        );
-    }
-    const Icon = iconFor(it.icon);
-    return (
-        <span className={`${base} bg-tile text-tile-foreground`}>
-            <Icon className="size-5" />
-        </span>
-    );
-}
-
-// Group recent items by category, preserving the order the categories first appear. Since `recent`
-// arrives most-recent-first, the category you opened most recently leads.
-function groupRecent(recent: DashItem[]): { category: string; items: DashItem[] }[] {
-    const groups: { category: string; items: DashItem[] }[] = [];
-    const byCat = new Map<string, { category: string; items: DashItem[] }>();
-    for (const it of recent) {
-        const cat = categoryOf(it);
-        let g = byCat.get(cat);
-        if (!g) {
-            g = { category: cat, items: [] };
-            byCat.set(cat, g);
-            groups.push(g);
-        }
-        g.items.push(it);
-    }
-    return groups;
-}
+// Unique per row: a repeating event recurs under one href+title, and two to-dos of one event share href and maybe
+// title, so the date and the per-task toggle URL go into the key too.
+const agendaKey = (it: AgendaItem) => `${it.kind}-${it.toggleUrl ?? it.href}-${it.title}-${it.dueDate}`;
+const isEvent = (it: AgendaItem) => it.kind === 'event';
 
 // Local midnight for a Y-m-d string (avoids the UTC day-shift of new Date('2026-08-03')).
 function parseDay(ymd: string) {
     const [y, m, d] = ymd.split('-').map(Number);
     return new Date(y, m - 1, d);
 }
+const ymdOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const todayYmd = () => ymdOf(new Date());
 
-// A short due badge relative to today: Overdue / Today / weekday.
-function dueBadge(ymd: string, t: TFn, locale: string): { label: string; tone: string } {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const due = parseDay(ymd);
-    const days = Math.round((due.getTime() - today.getTime()) / 86400000);
-    if (days < 0) return { label: t('dashboard.overdue'), tone: 'bg-destructive/10 text-destructive' };
-    if (days === 0) return { label: t('dashboard.today'), tone: 'bg-accent-subtle text-primary' };
-    return { label: due.toLocaleDateString(locale, { weekday: 'short' }), tone: 'bg-surface text-muted-foreground' };
+// "16:30" on today's date, for "in 2 h" and the clock formatting below.
+function atTime(ymd: string, hm: string) {
+    const d = parseDay(ymd);
+    const [h, m] = hm.split(':').map(Number);
+    d.setHours(h, m);
+    return d;
 }
+
+// A clock time split into the number and the day period the locale uses ("4:30" + "PM" in English, "16:30" + ""
+// in German), so the rail can stack them like the design without hard-coding a 12-hour clock.
+function clock(hm: string, locale: string): { time: string; period: string } {
+    const parts = new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' }).formatToParts(atTime('2000-01-01', hm));
+    return {
+        time: parts
+            .filter((p) => p.type !== 'dayPeriod')
+            .map((p) => p.value)
+            .join('')
+            .trim(),
+        period: parts.find((p) => p.type === 'dayPeriod')?.value ?? '',
+    };
+}
+const clockText = (hm: string, locale: string) => {
+    const c = clock(hm, locale);
+    return c.period ? `${c.time} ${c.period.toLowerCase()}` : c.time;
+};
 
 // Time-of-day greeting key, resolved on the client so it matches the viewer's clock.
 function greetingKey() {
@@ -149,277 +88,561 @@ function greetingKey() {
     return 'dashboard.good_evening';
 }
 
-// Side-rail shortcut into a family area. Solid-green icon well, DS card treatment.
-function Shortcut({ href, icon: Icon, title, sub }: { href: string; icon: typeof Wallet; title: string; sub: string }) {
+// The small mono uppercase section label with an optional count and a right-hand link ("TODAY 5 ........ Tue 20").
+function SectionLabel({ label, count, right, href }: { label: string; count?: number; right?: string; href?: string }) {
     return (
-        <Link href={href} prefetch className="bg-surface-card hover:border-accent flex items-center gap-3 rounded-xl border p-3 transition-colors">
-            <span className="bg-tile text-tile-foreground flex size-9 items-center justify-center rounded-lg">
-                <Icon className="size-4.5" />
-            </span>
-            <span className="min-w-0">
-                <span className="text-primary block truncate font-medium">{title}</span>
-                <span className="text-muted-foreground block truncate text-sm">{sub}</span>
-            </span>
-        </Link>
+        <div className="flex items-baseline justify-between gap-3 px-1">
+            <h2 className="text-muted-foreground font-mono text-xs font-semibold tracking-[0.14em] uppercase">
+                {label}
+                {count !== undefined && <span className="text-primary ml-2">{count}</span>}
+            </h2>
+            {right &&
+                (href ? (
+                    <Link href={href} prefetch className="text-primary shrink-0 text-sm font-medium">
+                        {right}
+                    </Link>
+                ) : (
+                    <span className="text-muted-foreground shrink-0 text-sm">{right}</span>
+                ))}
+        </div>
     );
 }
 
-// One dated row inside Today / This Week: it IS the task / shopping item, so it renders as a real
-// check-off row. Tapping the circle marks it done/bought (it drops off on the next dashboard load);
-// the rest of the row opens the list it lives in. Due badge on the right.
-function AgendaRow({ item }: { item: AgendaItem }) {
+const card = 'bg-surface-card overflow-hidden rounded-2xl border';
+
+// Home's own top bar on phones (the design's Top Bar): the family, then search, alerts and the avatar menu
+// (Members, Settings, Log out live there now). Desktop keeps the sidebar + breadcrumb header.
+function HomeTopBar({ family }: { family: Family | null }) {
+    const { auth } = usePage<SharedData>().props;
+    const t = useT();
+    return (
+        <div className="flex w-full items-center gap-2">
+            <Link href="/family/members" className="flex min-w-0 flex-1 items-center gap-2.5">
+                {family && <FamilyMark {...family} className="size-9 rounded-xl text-lg" />}
+                <span className="text-primary truncate text-lg font-bold">{family?.name}</span>
+                <ChevronDown className="text-muted-foreground size-4 shrink-0" />
+            </Link>
+            <Link
+                href="/search"
+                aria-label={t('common.search')}
+                className="bg-surface text-primary flex size-10 shrink-0 items-center justify-center rounded-full"
+            >
+                <Search className="size-5" />
+            </Link>
+            <NotificationsBell />
+            <DropdownMenu>
+                <DropdownMenuTrigger
+                    aria-label={auth.user.name}
+                    className="bg-primary text-primary-foreground flex size-10 shrink-0 items-center justify-center rounded-full text-base font-bold"
+                >
+                    {auth.user.name.charAt(0).toUpperCase()}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-56">
+                    <UserMenuContent user={auth.user} />
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
+    );
+}
+
+// Birthdays in the next 14 days: today's in a sun card with Call / Send a wish (when the contact has a phone),
+// the coming ones listed below. Nobody today: only the list.
+function Birthdays({ people }: { people: Birthday[] }) {
     const t = useT();
     const locale = useLocale();
-    const badge = dueBadge(item.dueDate, t, locale);
+    const today = people.filter((b) => b.inDays === 0);
+    // A big family (or the demo's 366 contacts) can have a dozen in two weeks: list the next three, the header
+    // links to the full list.
+    const coming = people.filter((b) => b.inDays > 0).slice(0, 3);
+    return (
+        <section className="flex flex-col gap-2.5">
+            <SectionLabel label={t('dashboard.birthdays')} count={people.length} right={t('dashboard.next_two_weeks')} href="/m/birthdays" />
+            <div className={card}>
+                {today.map((b) => (
+                    <div key={b.personId} className="bg-accent-strong text-accent-strong-foreground flex flex-col gap-4 p-4">
+                        <div className="flex items-center gap-3">
+                            <MemberAvatar name={b.name} className="ring-surface-card size-14 text-xl ring-2" />
+                            <div className="min-w-0 flex-1">
+                                <span className="flex items-center gap-1.5 font-mono text-[11px] font-semibold tracking-[0.14em] uppercase">
+                                    <Cake className="size-3.5" />
+                                    {t('dashboard.birthday_today')}
+                                </span>
+                                <span className="font-heading block truncate text-2xl leading-tight font-bold">{b.name}</span>
+                                {b.born && (
+                                    <span className="block text-sm">
+                                        {t('dashboard.born', { date: parseDay(b.born).toLocaleDateString(locale, { dateStyle: 'medium' }) })}
+                                    </span>
+                                )}
+                            </div>
+                            {b.turning !== null && (
+                                <span className="flex shrink-0 flex-col items-end gap-1.5">
+                                    <span className="font-heading text-5xl leading-none font-extrabold tabular-nums">{b.turning}</span>
+                                    <span className="font-mono text-[10px] font-semibold tracking-[0.14em] uppercase">{t('dashboard.years')}</span>
+                                </span>
+                            )}
+                        </div>
+                        {b.phone && (
+                            <div className="grid grid-cols-2 gap-2.5">
+                                <a
+                                    href={`tel:${b.phone}`}
+                                    className="bg-primary text-primary-foreground flex items-center justify-center gap-2 rounded-full py-2.5 text-[15px] font-semibold"
+                                >
+                                    <Phone className="size-4" />
+                                    {t('dashboard.call')}
+                                </a>
+                                <a
+                                    href={`sms:${b.phone}`}
+                                    className="bg-accent-subtle text-primary flex items-center justify-center gap-2 rounded-full py-2.5 text-[15px] font-semibold"
+                                >
+                                    <Heart className="size-4" />
+                                    {t('dashboard.send_wish')}
+                                </a>
+                            </div>
+                        )}
+                    </div>
+                ))}
+                {coming.map((b) => {
+                    const day = parseDay(b.date);
+                    return (
+                        <Link key={b.personId} href="/m/birthdays" prefetch className="flex items-center gap-3 border-t px-4 py-3 first:border-t-0">
+                            <MemberAvatar name={b.name} className="size-10 text-sm" />
+                            <span className="min-w-0 flex-1">
+                                <span className="text-primary block truncate font-semibold">{b.name}</span>
+                                {b.turning !== null && (
+                                    <span className="text-muted-foreground block text-sm">{t('dashboard.turns', { age: b.turning })}</span>
+                                )}
+                            </span>
+                            <span className="flex shrink-0 flex-col items-end">
+                                <span className="text-primary font-mono text-xs font-semibold uppercase">
+                                    {day.toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: b.inDays > 6 ? 'short' : undefined })}
+                                </span>
+                                <span className="text-muted-foreground text-sm">
+                                    {b.inDays === 1 ? t('dashboard.tomorrow') : t('dashboard.in_days', { count: b.inDays })}
+                                </span>
+                            </span>
+                        </Link>
+                    );
+                })}
+            </div>
+            {today.length > 0 && <Confetti onceKey={`${todayYmd()}:${today.map((b) => b.personId).join(',')}`} />}
+        </section>
+    );
+}
+
+// The tick circle shared by to-dos and prep to-dos. One-way: tapping marks it done (optimistically) and the row
+// drops off on the next dashboard load; if the save fails the circle unticks again (lib/save).
+function useToggle(item: AgendaItem) {
     const [done, setDone] = useState(false);
     const toggle = () => {
-        if (!item.toggleUrl || done) return; // one-way: a second tap before it drops off does nothing
-        setDone(true); // optimistic check; the reload after the save removes the row
-        // lib/save: never cancelled by the next tap; if it didn't save, the circle unticks again.
+        if (!item.toggleUrl || done) return;
+        setDone(true);
         void save('patch', item.toggleUrl, item.toggleBody ?? { done: true }).then((result) => result !== 'ok' && setDone(false));
     };
+    return [done, toggle] as const;
+}
+
+function Tick({ done, overdue, onClick, label }: { done: boolean; overdue?: boolean; onClick: () => void; label: string }) {
     return (
-        <div className="bg-surface-card flex items-center gap-2.5 rounded-xl border px-3 py-2.5">
-            {item.toggleUrl ? (
-                <button
-                    type="button"
-                    onClick={toggle}
-                    aria-label={done ? t('dashboard.is_done') : t('dashboard.mark_done')}
-                    className={`flex size-6 shrink-0 items-center justify-center rounded-full border transition-colors ${
-                        done ? 'border-primary bg-accent-strong text-accent-strong-foreground' : 'border-border'
-                    }`}
-                >
-                    {done && <Check className="size-3.5" />}
-                </button>
-            ) : (
-                // Display-only row (e.g. a calendar event): a dot instead of a tick, nothing to toggle.
-                <span className="bg-accent-strong mx-2 size-2 shrink-0 rounded-full" aria-hidden />
-            )}
-            <Link href={item.href} prefetch className="flex min-w-0 flex-1 items-center gap-2.5">
+        <button
+            type="button"
+            onClick={onClick}
+            aria-label={label}
+            className={`flex size-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                done ? 'border-primary bg-accent-strong text-accent-strong-foreground' : overdue ? 'border-destructive' : 'border-primary'
+            }`}
+        >
+            {done && <Check className="size-4" />}
+        </button>
+    );
+}
+
+// A to-do / shopping item row: tick, title, meta ("Overdue since Mon · Household"), who it's assigned to.
+function TodoRow({ item, overdueFrom }: { item: AgendaItem; overdueFrom?: string }) {
+    const t = useT();
+    const [done, toggle] = useToggle(item);
+    return (
+        <div className="flex items-center gap-3 px-4 py-3">
+            <span className="flex w-11 shrink-0 justify-center">
+                <Tick done={done} overdue={!!overdueFrom} onClick={toggle} label={done ? t('dashboard.is_done') : t('dashboard.mark_done')} />
+            </span>
+            <Link href={item.href} prefetch className="flex min-w-0 flex-1 items-center gap-3">
                 <span className="min-w-0 flex-1">
-                    <span className={`block truncate text-[15px] ${done ? 'text-muted-foreground line-through' : 'text-primary'}`}>{item.title}</span>
-                    <span className="text-muted-foreground block truncate text-sm">{item.subtitle}</span>
+                    <span className={`block truncate text-[15px] font-semibold ${done ? 'text-muted-foreground line-through' : 'text-primary'}`}>
+                        {item.title}
+                    </span>
+                    <span className={`block truncate text-sm ${overdueFrom ? 'text-destructive' : 'text-muted-foreground'}`}>
+                        {overdueFrom ? `${t('dashboard.overdue_since', { day: overdueFrom })} · ${item.subtitle}` : item.subtitle}
+                    </span>
                 </span>
-                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${badge.tone}`}>{badge.label}</span>
+                {item.assignee && <MemberAvatar userId={item.assignee.id} name={item.assignee.name} className="size-7 text-xs" />}
             </Link>
         </div>
     );
 }
 
+// An event's prep to-do, nested under it on a pale inset ("Pack Lucia's swim bag · Before 4 pm · PREP").
+function PrepRow({ item, before }: { item: AgendaItem; before?: string }) {
+    const t = useT();
+    const [done, toggle] = useToggle(item);
+    return (
+        <div className="bg-surface mx-4 mb-3 ml-[4.25rem] flex items-center gap-3 rounded-xl px-3 py-2.5">
+            <Tick done={done} onClick={toggle} label={done ? t('dashboard.is_done') : t('dashboard.mark_done')} />
+            <Link href={item.href} prefetch className="flex min-w-0 flex-1 items-center gap-2">
+                <span className="min-w-0 flex-1">
+                    <span className={`block truncate text-[15px] font-semibold ${done ? 'text-muted-foreground line-through' : 'text-primary'}`}>
+                        {item.title}
+                    </span>
+                    {before && <span className="text-muted-foreground block truncate text-sm">{t('dashboard.before', { time: before })}</span>}
+                </span>
+                <span className="text-muted-foreground shrink-0 font-mono text-[10px] font-semibold tracking-[0.14em] uppercase">
+                    {t('dashboard.prep')}
+                </span>
+            </Link>
+        </div>
+    );
+}
+
+// "in 2 h" / "in 40 min" for an event later today, so the next thing reads at a glance. null once it has started.
+function startsIn(item: AgendaItem, t: TFn): string | null {
+    if (!item.time || item.dueDate !== todayYmd()) return null;
+    const mins = Math.round((atTime(item.dueDate, item.time).getTime() - Date.now()) / 60000);
+    if (mins <= 0) return null;
+    return mins < 60 ? t('dashboard.in_minutes', { count: mins }) : t('dashboard.in_hours', { count: Math.round(mins / 60) });
+}
+
+// An event row: its start time in the rail (or nothing for all-day), its colour as the bar, "Until 5:30 · Lucia".
+function EventRow({ item }: { item: AgendaItem }) {
+    const t = useT();
+    const locale = useLocale();
+    const c = item.time ? clock(item.time, locale) : null;
+    const soon = startsIn(item, t);
+    const meta = [item.endTime ? t('dashboard.until', { time: clockText(item.endTime, locale) }) : item.subtitle, ...(item.people ?? [])]
+        .filter(Boolean)
+        .join(' · ');
+    return (
+        <Link href={item.href} prefetch className="flex items-center gap-3 px-4 py-3">
+            <span className="flex w-11 shrink-0 flex-col items-center">
+                {c ? (
+                    <>
+                        <span className="text-primary font-mono text-sm font-semibold tabular-nums">{c.time}</span>
+                        {c.period && <span className="text-muted-foreground font-mono text-[10px] uppercase">{c.period}</span>}
+                    </>
+                ) : (
+                    <DynamicLucideIcon name={item.icon} className="text-primary size-5" />
+                )}
+            </span>
+            <span className="h-10 w-1 shrink-0 rounded-full" style={{ background: item.color || 'var(--accent-strong)' }} aria-hidden />
+            <span className="min-w-0 flex-1">
+                <span className="text-primary block truncate text-[15px] font-semibold">{item.title}</span>
+                <span className="text-muted-foreground block truncate text-sm">{meta}</span>
+            </span>
+            {soon ? (
+                <span className="bg-accent-strong text-accent-strong-foreground shrink-0 rounded-full px-2.5 py-1 text-xs font-bold">{soon}</span>
+            ) : (
+                <ChevronRight className="text-muted-foreground size-5 shrink-0" />
+            )}
+        </Link>
+    );
+}
+
+// One day's agenda as a list card: events with their prep to-dos tucked underneath, then the other to-dos, in
+// server order (by due date). A prep to-do whose event isn't on this day stands alone as a normal to-do.
+function AgendaList({ items }: { items: AgendaItem[] }) {
+    const locale = useLocale();
+    const today = todayYmd();
+    const eventIds = new Set(items.filter(isEvent).map((e) => e.eventId));
+    const nested = (it: AgendaItem) => !isEvent(it) && it.eventId !== undefined && eventIds.has(it.eventId);
+    return (
+        <div className={`${card} divide-y`}>
+            {items
+                .filter((it) => !nested(it))
+                .map((it) =>
+                    isEvent(it) ? (
+                        <div key={agendaKey(it)}>
+                            <EventRow item={it} />
+                            {items
+                                .filter((p) => nested(p) && p.eventId === it.eventId)
+                                .map((p) => (
+                                    <PrepRow key={agendaKey(p)} item={p} before={it.time ? clockText(it.time, locale) : undefined} />
+                                ))}
+                        </div>
+                    ) : (
+                        <TodoRow
+                            key={agendaKey(it)}
+                            item={it}
+                            overdueFrom={it.dueDate < today ? parseDay(it.dueDate).toLocaleDateString(locale, { weekday: 'short' }) : undefined}
+                        />
+                    ),
+                )}
+        </div>
+    );
+}
+
+// The strip's days: from the day after tomorrow up to Sunday (the providers' window), stretched if an item ever
+// falls later. Empty on Saturday and Sunday, when Tomorrow already covers what's left.
+function stripDays(items: AgendaItem[]): string[] {
+    const last = items.reduce((max, it) => (it.dueDate > max ? it.dueDate : max), '');
+    const days: string[] = [];
+    const d = new Date();
+    d.setDate(d.getDate() + 2);
+    for (let ymd = ymdOf(d); d.getDay() !== 1 || ymd <= last; d.setDate(d.getDate() + 1), ymd = ymdOf(d)) days.push(ymd);
+    return days;
+}
+
+// The rest of the week folded into a strip: one column per day with a mark per to-do (ring) and event (bar, in its
+// colour) and the first thing on it; "Show Thu – Sun" unfolds the full rows. Days run to the end of the week.
+function RestOfWeek({ items }: { items: AgendaItem[] }) {
+    const t = useT();
+    const locale = useLocale();
+    const [open, setOpen] = useState(false);
+    const days = stripDays(items);
+    if (days.length === 0) return null;
+    const byDay = (ymd: string) => items.filter((it) => it.dueDate === ymd);
+    const todos = items.filter((it) => !isEvent(it)).length;
+    const events = items.length - todos;
+    const fmt = (ymd: string) => parseDay(ymd).toLocaleDateString(locale, { weekday: 'short' });
+
+    return (
+        <section className="flex flex-col gap-2.5">
+            <SectionLabel label={t('dashboard.rest_of_week')} count={items.length} right={t('nav.calendar')} href="/m/calendar" />
+            <div className={card}>
+                <div className="grid px-2 pt-4 pb-3" style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}>
+                    {days.map((ymd) => {
+                        const list = byDay(ymd);
+                        const day = parseDay(ymd);
+                        return (
+                            <div key={ymd} className="flex min-w-0 flex-col items-center gap-1 px-1">
+                                <span className="text-muted-foreground font-mono text-[11px] uppercase">
+                                    {day.toLocaleDateString(locale, { weekday: 'short' })}
+                                </span>
+                                <span className="text-primary text-2xl font-bold tabular-nums">{day.getDate()}</span>
+                                <span className="flex h-2.5 items-center gap-1">
+                                    {list.length === 0 ? (
+                                        <span className="bg-border h-0.5 w-4 rounded-full" />
+                                    ) : (
+                                        list
+                                            .slice(0, 3)
+                                            .map((it) =>
+                                                isEvent(it) ? (
+                                                    <span
+                                                        key={agendaKey(it)}
+                                                        className="h-1 w-3.5 rounded-full"
+                                                        style={{ background: it.color || 'var(--accent-strong)' }}
+                                                    />
+                                                ) : (
+                                                    <span key={agendaKey(it)} className="border-primary size-2 rounded-full border-[1.5px]" />
+                                                ),
+                                            )
+                                    )}
+                                </span>
+                                <span className="text-muted-foreground w-full truncate text-center text-xs">
+                                    {list.length === 0 ? t('dashboard.free') : list[0].title}
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
+                {items.length > 0 && (
+                    <>
+                        <button
+                            type="button"
+                            onClick={() => setOpen((o) => !o)}
+                            aria-expanded={open}
+                            className="text-primary flex w-full items-center justify-center gap-2 border-t px-4 py-3 text-sm font-medium"
+                        >
+                            {open
+                                ? t('dashboard.show_less')
+                                : t('dashboard.show_days', {
+                                      from: fmt(days[0]),
+                                      to: fmt(days[days.length - 1]),
+                                      what: [
+                                          todos ? t('dashboard.todos_count', { count: todos }) : '',
+                                          events ? t('dashboard.events_count', { count: events }) : '',
+                                      ]
+                                          .filter(Boolean)
+                                          .join(', '),
+                                  })}
+                            <ChevronDown className={`size-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+                        </button>
+                        {open && (
+                            <div className="flex flex-col gap-3 border-t p-3">
+                                {days
+                                    .filter((ymd) => byDay(ymd).length)
+                                    .map((ymd) => (
+                                        <div key={ymd} className="flex flex-col gap-2">
+                                            <span className="text-muted-foreground px-1 font-mono text-xs uppercase">
+                                                {parseDay(ymd).toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'short' })}
+                                            </span>
+                                            <AgendaList items={byDay(ymd)} />
+                                        </div>
+                                    ))}
+                            </div>
+                        )}
+                    </>
+                )}
+            </div>
+        </section>
+    );
+}
+
+// The money card: month-to-date total, how many expenses, a bar per week of the month (this week in sun), and a
+// "+" straight into the add-expense form (?new=1). Same figure as the Spending overview (shared MonthToDate).
+function MoneyCard({ spending }: { spending: { total: number; currency: string; count: number; weeks: number[] } }) {
+    const t = useT();
+    const locale = useLocale();
+    const max = Math.max(1, ...spending.weeks);
+    const month = new Date().toLocaleDateString(locale, { month: 'long' });
+    return (
+        <section className="flex flex-col gap-2.5">
+            <SectionLabel label={month} right={t('nav.spending')} href="/m/spending" />
+            <div className="bg-surface-dark text-text-inverse flex flex-col gap-4 rounded-2xl p-5">
+                <div className="flex items-start gap-3">
+                    <Link href="/m/spending" prefetch className="min-w-0 flex-1">
+                        <span className="block font-mono text-3xl font-semibold tabular-nums">{money(spending.total, spending.currency)}</span>
+                        <span className="block text-sm opacity-75">{t('dashboard.spent_month', { count: spending.count })}</span>
+                    </Link>
+                    <Link
+                        href="/m/spending?new=1"
+                        aria-label={t('spending.add_expense')}
+                        className="bg-accent-strong text-accent-strong-foreground flex size-12 shrink-0 items-center justify-center rounded-full"
+                    >
+                        <Plus className="size-6" />
+                    </Link>
+                </div>
+                <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${spending.weeks.length - 1}, minmax(0, 1fr)) minmax(0, 1.8fr)` }}>
+                    {spending.weeks.map((cents, i) => {
+                        const current = i === spending.weeks.length - 1;
+                        return (
+                            <div key={i} className="flex min-w-0 flex-col gap-1.5">
+                                <span className="flex h-12 items-end">
+                                    <span
+                                        className={`w-full rounded-md ${current ? 'bg-accent-strong' : 'bg-text-inverse/15'}`}
+                                        style={{ height: `${Math.max(6, (cents / max) * 100)}%` }}
+                                    />
+                                </span>
+                                <span className={`truncate font-mono text-[11px] ${current ? 'text-accent-strong' : 'opacity-60'}`}>
+                                    {current ? t('dashboard.this_week') : t('dashboard.week_n', { n: i + 1 })}
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </section>
+    );
+}
+
 export default function Dashboard({
+    family = null,
     recent = [],
     today = [],
-    thisWeek = [],
+    tomorrow = [],
+    later = [],
     widgets = {},
     summaries = {},
 }: {
+    family?: Family | null;
     // One live line per enabled module for the "Your modules" grid (DashboardSummaries).
     summaries?: Record<string, ModuleSummary>;
     recent?: DashItem[];
     today?: AgendaItem[];
-    thisWeek?: AgendaItem[];
-    // Per-module headline data (DashboardWidgets): only present when that module is enabled.
+    tomorrow?: AgendaItem[];
+    later?: AgendaItem[];
+    // Per-module data (DashboardWidgets): only present when that module is on and has something to show.
     widgets?: {
-        spending?: { total: number; currency: string };
-        birthdays?: { personId: number; name: string; turning: number | null }[];
-        calendar?: {
-            id: number;
-            title: string;
-            icon: string;
-            color: string | null;
-            href: string;
-            start: string;
-            end: string;
-            now: boolean;
-            dayOf: number | null;
-            days: number;
-            inDays: number | null;
-        }[];
+        spending?: { total: number; currency: string; count: number; weeks: number[] };
+        birthdays?: Birthday[];
+        tasks?: { undated: number; titles: string[] };
     };
 }) {
     const { auth, modules } = usePage<SharedData & { modules?: { enabled?: string[] } }>().props;
     const t = useT();
     const locale = useLocale();
     const firstName = auth.user.name.split(' ')[0];
-    const spendingOn = (modules?.enabled ?? []).includes('spending');
-    const todayLabel = new Date().toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric' });
-    // Month name in the viewer's locale for the Spending card ("September" / "Septembrie").
-    const monthName = new Date().toLocaleDateString(locale, { month: 'long' });
+    const now = new Date();
+    const tomorrowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const dayLine = [
+        now.toLocaleDateString(locale, { weekday: 'long', month: 'short', day: 'numeric' }),
+        today.length ? t('dashboard.count_today', { count: today.length }) : '',
+        tomorrow.length ? t('dashboard.count_tomorrow', { count: tomorrow.length }) : '',
+    ]
+        .filter(Boolean)
+        .join(' · ');
+    const shortDay = (d: Date) => d.toLocaleDateString(locale, { weekday: 'short', day: 'numeric' });
 
     return (
-        <AppLayout breadcrumbs={[{ title: t('nav.dashboard'), href: '/dashboard' }]}>
-            <Head title={t('nav.dashboard')} />
-            <div className="mx-auto flex w-full max-w-6xl flex-col gap-7 p-4 md:p-8">
-                <div className="flex flex-wrap items-end justify-between gap-4">
+        <AppLayout breadcrumbs={[{ title: t('nav.home'), href: '/dashboard' }]} mobileHeader={<HomeTopBar family={family} />}>
+            <Head title={t('nav.home')} />
+            <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-7 p-4 md:p-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)] lg:gap-10">
+                {/* Left: the day. Right (below on phones): money, modules, recents. */}
+                <div className="flex min-w-0 flex-col gap-7">
                     <div>
-                        <h1 className="font-heading text-primary text-3xl">
-                            {t(greetingKey())}, {firstName}
+                        <h1 className="font-heading text-primary text-[28px] leading-tight font-bold tracking-tight sm:text-4xl">
+                            {t(greetingKey())}, {firstName}.
                         </h1>
-                        <p className="text-muted-foreground mt-1 text-sm">{todayLabel}</p>
+                        <p className="text-muted-foreground mt-1">{dayLine}</p>
                     </div>
-                    <div className="flex gap-2">
-                        <Link
-                            href="/family/members"
-                            className="bg-surface-card text-primary hover:border-accent inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-colors"
-                        >
-                            <Users className="size-4" />
-                            {t('nav.members')}
+
+                    {widgets.birthdays && <Birthdays people={widgets.birthdays} />}
+
+                    {today.length > 0 && (
+                        <section className="flex flex-col gap-2.5">
+                            <SectionLabel label={t('dashboard.today')} count={today.length} right={shortDay(now)} />
+                            <AgendaList items={today} />
+                        </section>
+                    )}
+
+                    {tomorrow.length > 0 && (
+                        <section className="flex flex-col gap-2.5">
+                            <SectionLabel label={t('dashboard.tomorrow')} count={tomorrow.length} right={shortDay(tomorrowDate)} />
+                            <AgendaList items={tomorrow} />
+                        </section>
+                    )}
+
+                    <RestOfWeek items={later} />
+
+                    {widgets.tasks && (
+                        <Link href="/m/tasks" prefetch className={`${card} flex items-center gap-3 px-4 py-3.5`}>
+                            <Inbox className="text-primary size-5 shrink-0" />
+                            <span className="min-w-0 flex-1">
+                                <span className="text-primary block truncate font-semibold">
+                                    {t('dashboard.anytime', { count: widgets.tasks.undated })}
+                                </span>
+                                <span className="text-muted-foreground block truncate text-sm">{widgets.tasks.titles.join(', ')}</span>
+                            </span>
+                            <ChevronRight className="text-muted-foreground size-5 shrink-0" />
                         </Link>
-                        <Link
-                            href="/settings"
-                            className="bg-surface-card text-primary hover:border-accent inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-colors"
-                        >
-                            <Settings className="size-4" />
-                            {t('nav.settings')}
-                        </Link>
-                    </div>
+                    )}
                 </div>
 
-                <YourModules enabled={modules?.enabled ?? []} summaries={summaries} />
+                <div className="flex min-w-0 flex-col gap-7">
+                    {widgets.spending && <MoneyCard spending={widgets.spending} />}
 
-                {/* Spending headline: this month's total (same figure + currency as the Spending overview
-                    widget). The card opens Spending on its default Expenses tab; the "+" opens it with the
-                    ?new=1 create-intent so the add-expense form is already open on arrival. Two sibling
-                    links (not a button inside a link) so both stay valid, focusable targets. */}
-                {widgets.spending && (
-                    <div className="bg-surface-card hover:border-accent flex items-center rounded-xl border transition-colors">
-                        <Link href="/m/spending" prefetch className="flex min-w-0 flex-1 items-center gap-3 p-4">
-                            <span className="bg-tile text-tile-foreground flex size-10 shrink-0 items-center justify-center rounded-lg">
-                                <Wallet className="size-5" />
-                            </span>
-                            <span className="flex min-w-0 flex-col">
-                                <span className="font-heading text-primary text-lg capitalize">{monthName}</span>
-                                <span className="text-primary font-mono text-2xl font-semibold tabular-nums">
-                                    {money(widgets.spending.total, widgets.spending.currency)}
-                                </span>
-                                <span className="text-muted-foreground text-xs">{t('spending.total_spent')}</span>
-                            </span>
-                        </Link>
-                        <Link
-                            href="/m/spending?new=1"
-                            aria-label={t('spending.add_expense')}
-                            className="bg-accent-strong text-accent-strong-foreground mr-4 flex size-11 shrink-0 items-center justify-center rounded-full transition-opacity hover:opacity-90"
-                        >
-                            <Plus className="size-5" />
-                        </Link>
-                    </div>
-                )}
+                    <YourModules enabled={modules?.enabled ?? []} summaries={summaries} />
 
-                {/* Now & next: multi-day events happening now or starting within 30 days (calendar module). */}
-                {widgets.calendar && (
-                    <div className="bg-surface-card flex flex-col gap-1 rounded-xl border p-4">
-                        <span className="text-muted-foreground text-xs">{t('calendar.now_next')}</span>
-                        {widgets.calendar.map((e) => (
-                            <Link key={`${e.id}-${e.href}-${e.start}`} href={e.href} prefetch className="flex items-center gap-3 py-1.5">
-                                <span className="bg-tile text-tile-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
-                                    <DynamicLucideIcon name={e.icon} className="size-4" />
-                                </span>
-                                <span className="text-primary min-w-0 flex-1 truncate">{e.title}</span>
-                                <span
-                                    className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${e.now ? 'bg-accent-subtle text-primary' : 'bg-surface text-muted-foreground'}`}
-                                >
-                                    {e.now
-                                        ? t('calendar.day_of', { n: e.dayOf ?? 1, total: e.days })
-                                        : t('calendar.starts_in', { count: e.inDays ?? 0 })}
-                                </span>
-                            </Link>
-                        ))}
-                    </div>
-                )}
-
-                {/* Birthday today: one card per person celebrating, plus a single confetti fall on the first
-                    open of the day (keyed by date + who, so a second birthday still gets its moment). */}
-                {widgets.birthdays?.map((b) => (
-                    <Link
-                        key={b.personId}
-                        href="/m/birthdays"
-                        prefetch
-                        className="bg-surface-card hover:border-accent flex items-center gap-4 rounded-xl border p-4 transition-colors"
-                    >
-                        <span className="bg-tile flex size-14 shrink-0 items-center justify-center rounded-xl text-3xl" aria-hidden="true">
-                            🎂
-                        </span>
-                        <span className="flex min-w-0 flex-col">
-                            <span className="font-heading text-primary text-xl leading-tight">
-                                {b.turning !== null
-                                    ? t('birthdays.today_turns', { name: b.name, age: b.turning })
-                                    : t('birthdays.today_noage', { name: b.name })}
-                            </span>
-                            <span className="text-muted-foreground mt-1 text-sm">{t('birthdays.card_sub')}</span>
-                        </span>
-                    </Link>
-                ))}
-                {widgets.birthdays && widgets.birthdays.length > 0 && (
-                    <Confetti onceKey={`${new Date().toISOString().slice(0, 10)}:${widgets.birthdays.map((b) => b.personId).join(',')}`} />
-                )}
-
-                {today.length > 0 && (
-                    <section className="flex flex-col gap-3">
-                        <h2 className="font-heading text-primary px-1 text-lg">{t('dashboard.today')}</h2>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                            {today.map((it) => (
-                                <AgendaRow key={agendaKey(it)} item={it} />
-                            ))}
-                        </div>
-                    </section>
-                )}
-
-                {thisWeek.length > 0 && (
-                    <section className="flex flex-col gap-3">
-                        <h2 className="font-heading text-primary px-1 text-lg">{t('dashboard.this_week')}</h2>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                            {thisWeek.map((it) => (
-                                <AgendaRow key={agendaKey(it)} item={it} />
-                            ))}
-                        </div>
-                    </section>
-                )}
-
-                {recent.length > 0 && (
-                    <section className="flex flex-col gap-4">
-                        <h2 className="font-heading text-primary px-1 text-lg">{t('dashboard.pick_up')}</h2>
-                        {/* Group the recently-opened entities by category, preserving recency order
-                            (the category of the most-recent open comes first). */}
-                        {groupRecent(recent).map((group) => (
-                            <div key={group.category} className="flex flex-col gap-2">
-                                <h3 className="text-muted-foreground px-1 text-xs font-semibold tracking-widest uppercase">{t(group.category)}</h3>
-                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                                    {group.items.map((it) => {
-                                        return (
-                                            <Link
-                                                key={it.href}
-                                                href={it.href}
-                                                prefetch
-                                                className="bg-surface-card hover:border-accent flex items-start gap-3 rounded-xl border p-3 transition-colors"
-                                            >
-                                                <ItemTile it={it} />
-                                                {/* min-w-0 + wrapping so a long title/subtitle wraps to a couple of lines
-                                                    instead of forcing the card super wide. */}
-                                                <span className="min-w-0 flex-1">
-                                                    <span className="text-primary line-clamp-2 font-medium break-words">{it.title}</span>
-                                                    <span className="text-muted-foreground line-clamp-2 text-sm break-words">{it.subtitle}</span>
-                                                </span>
-                                            </Link>
-                                        );
-                                    })}
-                                </div>
+                    {recent.length > 0 && (
+                        <section className="flex flex-col gap-2.5">
+                            <SectionLabel label={t('dashboard.jump_back_in')} />
+                            {/* Swipes sideways on phones (data-scroll-x tells the viewport check it's meant to). */}
+                            <div data-scroll-x className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-wrap lg:px-0">
+                                {recent.map((it) => {
+                                    const Icon = MODULES[it.category ?? '']?.icon ?? Blocks;
+                                    return (
+                                        <Link
+                                            key={it.href}
+                                            href={it.href}
+                                            prefetch
+                                            className="bg-surface-card text-primary flex max-w-[16rem] shrink-0 items-center gap-2 rounded-full border px-4 py-2.5 font-semibold"
+                                        >
+                                            <Icon className="size-4 shrink-0" />
+                                            <span className="truncate">{it.title}</span>
+                                        </Link>
+                                    );
+                                })}
                             </div>
-                        ))}
-                    </section>
-                )}
-
-                {/* Home-screen widgets contributed by modules (e.g. Birthdays → Upcoming birthdays).
-                    Renders nothing when no enabled module registers a dashboard.widgets component. */}
-                <Slot name="dashboard.widgets" />
-
-                <section className="flex flex-col gap-3">
-                    <h2 className="font-heading text-primary px-1 text-lg">{t('dashboard.jump_back_in')}</h2>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                        <Shortcut href="/family/members" icon={Users} title={t('nav.members')} sub={t('dashboard.members_sub')} />
-                        <Shortcut href="/family/modules" icon={Blocks} title={t('nav.modules')} sub={t('dashboard.modules_sub')} />
-                        {spendingOn && <Shortcut href="/m/spending" icon={Wallet} title={t('nav.spending')} sub={t('dashboard.spending_sub')} />}
-                    </div>
-                </section>
+                        </section>
+                    )}
+                </div>
             </div>
         </AppLayout>
     );

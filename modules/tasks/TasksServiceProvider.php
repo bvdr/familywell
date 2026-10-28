@@ -7,11 +7,14 @@ use App\Support\Calendar\CalendarSources;
 use App\Support\Dashboard\DashboardAgenda;
 use App\Support\Dashboard\DashboardItems;
 use App\Support\Dashboard\DashboardSummaries;
+use App\Support\Dashboard\DashboardWidgets;
 use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\ModuleRegistry;
+use App\Support\Search\SearchSources;
 use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Translations;
 use App\Support\Trash\Trash;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -89,14 +92,14 @@ class TasksServiceProvider extends ServiceProvider
                 return [];
             }
 
-            $weekEnd = now()->endOfWeek()->toDateString();
+            $weekEnd = DashboardAgenda::until();
 
             return Task::query()
                 ->whereNotNull('task_list_id')
                 ->whereNotNull('due_date')
                 ->where('done', false)
                 ->whereDate('due_date', '<=', $weekEnd)
-                ->with(['list.shareSetting', 'list.shares'])
+                ->with(['list.shareSetting', 'list.shares', 'assignee'])
                 ->get()
                 ->filter(fn (Task $t) => $t->list && ($t->list->visibility() === 'family' || $t->list->shares->contains('user_id', $userId)))
                 ->map(fn (Task $t) => [
@@ -108,7 +111,23 @@ class TasksServiceProvider extends ServiceProvider
                     'toggleUrl' => "/m/tasks/tasks/{$t->id}", 'toggleBody' => ['done' => true], // the dashboard tick sends this: set done, never flip
                     'kind' => 'task', // kind + id: get_today's widget ticks it off via the MCP tool
                     'id' => $t->id,
+                    'assignee' => $t->assignee?->only(['id', 'name']), // Home's avatar chip on the row
                 ])->values()->all();
+        });
+
+        // Home's "Anytime" row: open to-dos with no date (top-level only, in a live list the viewer can see), so
+        // they still get a glance without crowding Today. Newest first; the row names the first three.
+        DashboardWidgets::register('tasks', function () {
+            $userId = auth()->id();
+            $familyId = CurrentFamily::id();
+            if (! $userId || ! $familyId || ! app(ModuleRegistry::class)->isEnabled('tasks', $familyId)) {
+                return null;
+            }
+            $open = Task::query()->whereNull('due_date')->whereNull('parent_id')->where('done', false)
+                ->whereHas('list', fn ($q) => $q->visibleTo($userId)->whereNull('archived_at'));
+            $count = (clone $open)->count();
+
+            return $count === 0 ? null : ['undated' => $count, 'titles' => $open->latest('id')->limit(3)->pluck('title')->all()];
         });
 
         // Calendar: list tasks with a due date in the range, done ones too (struck through on the calendar).
@@ -126,6 +145,33 @@ class TasksServiceProvider extends ServiceProvider
                     href: "/m/tasks/lists/{$t->task_list_id}", icon: 'list-checks', color: $t->list->color,
                     people: $t->assignee ? [['type' => 'user', 'id' => $t->assignee->id, 'name' => $t->assignee->name]] : [], done: $t->done))
                 ->values()->all();
+        });
+
+        // H5 search: to-dos (title/note) AND the lists themselves (name), only ones this user can see.
+        SearchSources::register('tasks', function (string $q, int $userId) {
+            $rows = [];
+            $tasks = SearchSources::ilike(
+                Task::query()->with('list')->whereHas('list', fn ($l) => $l->visibleTo($userId)),
+                ['title', 'note'], $q
+            )->orderByDesc('id')->limit(20)->get();
+            foreach ($tasks as $task) {
+                $rows[] = [
+                    'module' => 'tasks', 'title' => $task->title,
+                    'meta' => trim(implode(' · ', array_filter([
+                        $task->list?->name,
+                        $task->done ? Translations::get('common.done') : ($task->due_date ? SearchSources::formatDate($task->due_date) : null),
+                    ]))),
+                    'href' => "/m/tasks/lists/{$task->task_list_id}", 'icon' => 'list-checks',
+                ];
+            }
+            $lists = SearchSources::ilike(TaskList::query()->visibleTo($userId)->whereNull('archived_at'), ['name'], $q)
+                ->orderByDesc('id')->limit(20)->get();
+            foreach ($lists as $list) {
+                $rows[] = ['module' => 'tasks', 'title' => $list->name, 'meta' => Translations::get('nav.tasks'),
+                    'href' => "/m/tasks/lists/{$list->id}", 'icon' => 'list-checks'];
+            }
+
+            return array_slice($rows, 0, 20);
         });
 
         // Full Inertia pages, gated by `module:tasks` so they are only reachable when the family

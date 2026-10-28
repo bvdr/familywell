@@ -58,17 +58,26 @@ class BirthdaysServiceProvider extends ServiceProvider
             $schedule->command('birthdays:notify')->dailyAt('06:00')->withoutOverlapping();
         });
 
-        // Dashboard headline card(s): whoever celebrates today, above Today. null = nobody / module off.
+        // Home's birthday card: the next 14 days. Today's people get the big card (with Call / Send a wish when
+        // the contact has a phone), the rest are listed below it. null = nobody in the window / module off.
         DashboardWidgets::register('birthdays', function () {
             if (! $this->enabledHere()) {
                 return null;
             }
-            $today = BirthdayDate::with('person')->on()->get()->filter(fn (BirthdayDate $b) => $b->person);
+            $soon = BirthdayDate::soonestFirst()->filter(fn (BirthdayDate $b) => $b->daysUntil() <= 14);
+            if ($soon->isEmpty()) {
+                return null;
+            }
+            $soon->load('person.contactMethods');
 
-            return $today->isEmpty() ? null : $today->map(fn (BirthdayDate $b) => [
+            return $soon->map(fn (BirthdayDate $b) => [
                 'personId' => $b->person_id,
                 'name' => $b->person->name,
                 'turning' => $b->turning(),
+                'date' => $b->nextBirthday()->toDateString(),
+                'inDays' => $b->daysUntil(),
+                'born' => $b->birthdate?->toDateString(),
+                'phone' => $b->person->contactMethods->firstWhere('type', 'phone')?->value,
             ])->values()->all();
         });
 

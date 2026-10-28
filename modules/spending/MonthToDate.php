@@ -91,4 +91,36 @@ class MonthToDate
 
         return $totals;
     }
+
+    /**
+     * Home's spending card: how many expenses this month and the month-to-date split by week (Monday-start
+     * weeks touching this month, up to the current one; display cents, same lists/bounds/rounding as total()).
+     * The last entry is "this week".
+     *
+     * ponytail: fetches the month's rows instead of a SQL GROUP BY week, because week truncation differs between
+     * sqlite (tests) and pgsql; a family's month is a few hundred rows at most. Move to SQL if that ever grows.
+     *
+     * @param  Collection<int, string>  $eventCcy  id => base currency
+     * @return array{count: int, weeks: list<int>}
+     */
+    public static function weeks(Collection $eventCcy, string $currency): array
+    {
+        $first = now()->startOfMonth()->startOfWeek();
+        $weeks = array_fill(0, (int) $first->diffInWeeks(now()->startOfWeek()) + 1, 0);
+        if ($eventCcy->isEmpty()) {
+            return ['count' => 0, 'weeks' => $weeks];
+        }
+        $rows = Spend::query()
+            ->whereIn('spend_event_id', $eventCcy->keys())
+            ->countsInMonthly()
+            ->whereBetween('spent_at', [now()->startOfMonth()->toDateString(), now()->endOfDay()->toDateTimeString()])
+            ->get(['spend_event_id', 'spent_at', 'base_amount']);
+
+        foreach ($rows as $r) {
+            $i = (int) $first->diffInWeeks($r->spent_at->copy()->startOfWeek());
+            $weeks[$i] += (int) round($r->base_amount * Fx::rate($eventCcy[$r->spend_event_id], $currency));
+        }
+
+        return ['count' => $rows->count(), 'weeks' => $weeks];
+    }
 }

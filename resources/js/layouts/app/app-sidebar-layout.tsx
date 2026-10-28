@@ -11,10 +11,12 @@ export default function AppSidebarLayout({
     children,
     breadcrumbs = [],
     actions,
+    mobileHeader,
 }: {
     children: React.ReactNode;
     breadcrumbs?: BreadcrumbItem[];
     actions?: React.ReactNode;
+    mobileHeader?: React.ReactNode;
 }) {
     return (
         <AppShell variant="sidebar">
@@ -35,7 +37,7 @@ export default function AppSidebarLayout({
                 scroll-region=""
                 className="[@media(display-mode:standalone)_and_(pointer:coarse)]:h-dvh [@media(display-mode:standalone)_and_(pointer:coarse)]:overflow-y-auto"
             >
-                <AppSidebarHeader breadcrumbs={breadcrumbs} actions={actions} />
+                <AppSidebarHeader breadcrumbs={breadcrumbs} actions={actions} mobileHeader={mobileHeader} />
                 {/* Clear the floating tab bar: its pill height plus the same safe-area inset the bar
                     itself uses, so the last row never hides under it on notched phones. */}
                 <div className="pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0">{children}</div>

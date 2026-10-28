@@ -10,6 +10,7 @@ use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
+use App\Support\Search\SearchSources;
 use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Translations;
@@ -63,6 +64,19 @@ class CalendarServiceProvider extends ServiceProvider
             Mcp\UpdateTodo::class, Mcp\DeleteTodo::class, Mcp\ListDeleted::class, Mcp\Restore::class,
         ]);
 
+        // H5 search: title or notes match, visible events only (events already use the core sharing
+        // system, so the same visibleTo() every other provider uses applies here too).
+        SearchSources::register('calendar', function (string $q, int $userId) {
+            $events = SearchSources::ilike(CalendarEvent::query()->visibleTo($userId), ['title', 'notes'], $q)
+                ->orderByDesc('start_date')->limit(20)->get();
+
+            return $events->map(fn (CalendarEvent $e) => [
+                'module' => 'calendar', 'title' => $e->title,
+                'meta' => SearchSources::formatDate($e->start_date).' · '.($e->start_time ? "{$e->start_time}–{$e->end_time}" : Translations::get('calendar.all_day')),
+                'href' => "/m/calendar/events/{$e->id}", 'icon' => 'calendar-days',
+            ])->values()->all();
+        });
+
         // The calendar's own events, through the same registry other modules use.
         CalendarSources::register('calendar', function (string $from, string $to, int $userId) {
             if (! self::on()) {
@@ -89,8 +103,9 @@ class CalendarServiceProvider extends ServiceProvider
                 return [];
             }
             $today = now()->toDateString();
+            $until = DashboardAgenda::until();
 
-            return collect(CalendarEvent::itemsFor($userId, $today, now()->endOfWeek()->toDateString()))
+            return collect(CalendarEvent::itemsFor($userId, $today, $until))
                 ->map(function (array $i) use ($today) {
                     $days = (int) now()->parse($i['start'])->diffInDays(now()->parse($i['end'])) + 1;
                     $subtitle = $i['startTime']
@@ -100,7 +115,11 @@ class CalendarServiceProvider extends ServiceProvider
                             : Translations::get('calendar.all_day'));
 
                     return ['title' => $i['title'], 'subtitle' => $subtitle, 'href' => $i['href'], 'icon' => $i['icon'],
-                        'dueDate' => max($i['start'], $today), 'kind' => 'event', 'id' => $i['id']];
+                        'dueDate' => max($i['start'], $today), 'kind' => 'event', 'id' => $i['id'],
+                        // Home draws an event with its start time in the rail, its colour as the bar and who
+                        // it's for in the meta line; eventId lets its prep to-dos (below) nest under it.
+                        'time' => $i['startTime'], 'endTime' => $i['endTime'], 'color' => $i['color'],
+                        'people' => array_column($i['people'], 'name'), 'eventId' => $i['id']];
                 })
                 // Open, dated event to-dos due by the end of the week (overdue included), like project tasks:
                 // the tasks provider skips listless tasks, so they'd never surface otherwise.
@@ -109,7 +128,8 @@ class CalendarServiceProvider extends ServiceProvider
                     'dueDate' => $p[0]->due_date->toDateString(),
                     'toggleUrl' => "/m/calendar/tasks/{$p[0]->id}", 'toggleBody' => ['done' => true], // the dashboard tick sends this: set done, never flip
                     'kind' => 'calendar_todo', 'id' => $p[0]->id, // get_today's widget ticks it via calendar_update_todo
-                ], CalendarEvent::datedTodos($userId, fn ($q) => $q->where('done', false)->whereDate('due_date', '<=', now()->endOfWeek()->toDateString()))))
+                    'eventId' => $p[1]->id, 'assignee' => $p[0]->assignee?->only(['id', 'name']), // Home nests it under its event as PREP
+                ], CalendarEvent::datedTodos($userId, fn ($q) => $q->where('done', false)->whereDate('due_date', '<=', $until))))
                 ->values()->all();
         });
 
