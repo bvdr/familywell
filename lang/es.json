@@ -38,13 +38,19 @@
         "settings": "Configuración",
         "more": "Más",
         "home": "Inicio",
-        "more_desc": "Toca un pin para elegir tus cuatro accesos de la barra inferior",
+        "more_desc": "Todos los módulos y los espacios de tu familia",
         "birthdays": "Cumpleaños",
         "calendar": "Calendario",
         "expense_import": "Importar gastos",
         "pinned": "Fijados",
         "all_modules": "Todos los módulos",
-        "log_out": "Cerrar sesión"
+        "log_out": "Cerrar sesión",
+        "alerts": "Avisos",
+        "deleted": "Eliminados",
+        "family": "Tu familia",
+        "modules_on_one": ":count activo",
+        "modules_on_other": ":count activos",
+        "pin_hint": "Mantén pulsado un módulo para fijarlo en la barra (hasta 3)."
     },
     "dashboard": {
         "good_morning": "Buenos días",
@@ -146,6 +152,10 @@
         "notes": "Nueva nota",
         "recipes": "Nueva receta",
         "vehicles": "Añadir un vehículo",
-        "calendar": "Nuevo evento"
+        "calendar": "Nuevo evento",
+        "most_used": "Lo más usado · últimos 30 días",
+        "everything_else": "Todo lo demás",
+        "times": ":n×",
+        "inventory": "Añadir al inventario"
     }
 }

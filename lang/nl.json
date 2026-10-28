@@ -38,13 +38,19 @@
         "settings": "Instellingen",
         "more": "Meer",
         "home": "Home",
-        "more_desc": "Tik op een speld om je vier snelkoppelingen onderin te kiezen",
+        "more_desc": "Alle modules en de plekken van je gezin",
         "birthdays": "Verjaardagen",
         "calendar": "Agenda",
         "expense_import": "Uitgaven importeren",
         "pinned": "Gepind",
         "all_modules": "Alle modules",
-        "log_out": "Uitloggen"
+        "log_out": "Uitloggen",
+        "alerts": "Meldingen",
+        "deleted": "Verwijderd",
+        "family": "Je gezin",
+        "modules_on_one": ":count aan",
+        "modules_on_other": ":count aan",
+        "pin_hint": "Houd een module ingedrukt om hem aan je balk vast te zetten (max. 3)."
     },
     "dashboard": {
         "good_morning": "Goedemorgen",
@@ -146,6 +152,10 @@
         "notes": "Nieuwe notitie",
         "recipes": "Nieuw recept",
         "vehicles": "Voertuig toevoegen",
-        "calendar": "Nieuwe afspraak"
+        "calendar": "Nieuwe afspraak",
+        "most_used": "Meest gebruikt · laatste 30 dagen",
+        "everything_else": "Al het andere",
+        "times": ":n×",
+        "inventory": "Toevoegen aan voorraad"
     }
 }

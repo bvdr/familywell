@@ -28,6 +28,16 @@ final class Engagement
     /** @var array<string, class-string<Model>> module id => the model whose creation counts */
     private static array $tracked = [];
 
+    /**
+     * module id => the model whose creation counts. Also what the Add sheet ranks by ("most used, last 30 days").
+     *
+     * @return array<string, class-string<Model>>
+     */
+    public static function tracked(): array
+    {
+        return self::$tracked;
+    }
+
     /** @param class-string<Model> $model a family-scoped model (has family_id) */
     public static function track(string $module, string $model): void
     {

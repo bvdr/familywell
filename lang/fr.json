@@ -38,13 +38,19 @@
         "settings": "Réglages",
         "more": "Plus",
         "home": "Accueil",
-        "more_desc": "Touche une épingle pour choisir tes quatre raccourcis de la barre du bas",
+        "more_desc": "Tous les modules et les espaces de votre famille",
         "birthdays": "Anniversaires",
         "calendar": "Calendrier",
         "expense_import": "Import de dépenses",
         "pinned": "Épinglés",
         "all_modules": "Tous les modules",
-        "log_out": "Se déconnecter"
+        "log_out": "Se déconnecter",
+        "alerts": "Alertes",
+        "deleted": "Supprimés",
+        "family": "Votre famille",
+        "modules_on_one": ":count actif",
+        "modules_on_other": ":count actifs",
+        "pin_hint": "Appuyez longuement sur un module pour l’épingler à la barre (3 max)."
     },
     "dashboard": {
         "good_morning": "Bonjour",
@@ -146,6 +152,10 @@
         "notes": "Nouvelle note",
         "recipes": "Nouvelle recette",
         "vehicles": "Ajouter un véhicule",
-        "calendar": "Nouvel événement"
+        "calendar": "Nouvel événement",
+        "most_used": "Les plus utilisés · 30 derniers jours",
+        "everything_else": "Tout le reste",
+        "times": ":n×",
+        "inventory": "Ajouter à l’inventaire"
     }
 }

@@ -3,11 +3,12 @@ import { runAddAction } from '@/lib/add-action';
 import { useT } from '@/lib/i18n';
 import { Link, router, usePage } from '@inertiajs/react';
 import {
-    Blocks,
+    Bell,
     Cake,
     CalendarDays,
     Car,
     ChefHat,
+    ChevronRight,
     Contact,
     FolderKanban,
     Import,
@@ -22,72 +23,95 @@ import {
     Settings,
     ShoppingCart,
     StickyNote,
+    Trash2,
     Users,
     Wallet,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-// The DS floating mobile navigation: a translucent, blurred pill above the content. It shows up to
-// four PINNED destinations plus a "More" button that opens a drawer with everything else; the pinned
-// set is user-selectable (pin/unpin in the More drawer, saved per device). Desktop uses the sidebar.
-// `method: 'post'` marks a quick-add that creates server-side on click (e.g. a new note is made
-// immediately and you land in its editor) rather than deep-linking to an index that opens a sheet.
-// labelKey is a translation key resolved at render (localized nav labels).
+// The DS floating mobile navigation (design XMkKm): a translucent pill with Home, the three modules this device
+// pinned, and More; the sun "+" sits apart on the right. More opens a sheet with every module and its live status
+// (sun pins mark the three in the bar; long-press a tile to pin or unpin it) plus the family's own places. "+"
+// runs the current page's add action, else opens the Add sheet. Desktop uses the sidebar.
+// `method: 'post'` marks a quick-add that creates server-side on click (a new note is made immediately and you land
+// in its editor) rather than deep-linking to an index that opens a sheet. labelKey is a translation key.
 type Item = { key: string; labelKey: string; url: string; icon: LucideIcon; method?: 'post' };
 
 const HOME: Item = { key: 'dashboard', labelKey: 'nav.home', url: '/dashboard', icon: LayoutGrid };
 // Page-modules earn a nav entry when the family has enabled them (order = preferred display order).
 export const MODULE_ITEMS: Item[] = [
-    { key: 'projects', labelKey: 'nav.projects', url: '/m/projects', icon: FolderKanban },
-    { key: 'calendar', labelKey: 'nav.calendar', url: '/m/calendar', icon: CalendarDays },
-    { key: 'tasks', labelKey: 'nav.tasks', url: '/m/tasks', icon: ListChecks },
     { key: 'shopping', labelKey: 'nav.shopping', url: '/m/shopping', icon: ShoppingCart },
+    { key: 'tasks', labelKey: 'nav.tasks', url: '/m/tasks', icon: ListChecks },
+    { key: 'calendar', labelKey: 'nav.calendar', url: '/m/calendar', icon: CalendarDays },
     { key: 'spending', labelKey: 'nav.spending', url: '/m/spending', icon: Wallet },
-    { key: 'notes', labelKey: 'nav.notes', url: '/m/notes', icon: StickyNote },
+    { key: 'projects', labelKey: 'nav.projects', url: '/m/projects', icon: FolderKanban },
     { key: 'recipes', labelKey: 'nav.recipes', url: '/m/recipes', icon: ChefHat },
-    { key: 'contacts', labelKey: 'nav.contacts', url: '/m/contacts', icon: Contact },
-    { key: 'birthdays', labelKey: 'nav.birthdays', url: '/m/birthdays', icon: Cake },
     { key: 'inventory', labelKey: 'nav.inventory', url: '/m/inventory', icon: Package },
     { key: 'vehicles', labelKey: 'nav.vehicles', url: '/m/vehicles', icon: Car },
+    { key: 'notes', labelKey: 'nav.notes', url: '/m/notes', icon: StickyNote },
+    { key: 'contacts', labelKey: 'nav.contacts', url: '/m/contacts', icon: Contact },
+    { key: 'birthdays', labelKey: 'nav.birthdays', url: '/m/birthdays', icon: Cake },
     { key: 'expense_import', labelKey: 'nav.expense_import', url: '/m/expense-import', icon: Import },
 ];
-const SECONDARY: Item[] = [
+// The family's own places, under the modules in More.
+const FAMILY_ITEMS: Item[] = [
     { key: 'members', labelKey: 'nav.members', url: '/family/members', icon: Users },
-    { key: 'modules', labelKey: 'nav.modules', url: '/family/modules', icon: Blocks },
+    { key: 'alerts', labelKey: 'nav.alerts', url: '/notifications', icon: Bell },
+    { key: 'deleted', labelKey: 'nav.deleted', url: '/settings/recently-deleted', icon: Trash2 },
     { key: 'settings', labelKey: 'nav.settings', url: '/settings', icon: Settings },
 ];
 
-// The green "+" quick-add: each enabled module's top-level create, deep-linked with ?new=1 so the
-// target index opens its create sheet on arrival. Order mirrors the nav.
+// The "+" quick-add (Classic add): each enabled module's top-level create, deep-linked with ?new=1 so the target
+// index opens its create sheet on arrival. Ranked by what the family added most in 30 days (/add/usage).
 const CREATE: Item[] = [
     { key: 'shopping', labelKey: 'create.shopping', url: '/m/shopping?new=1', icon: ShoppingCart },
-    { key: 'tasks', labelKey: 'create.tasks', url: '/m/tasks?new=1', icon: ListChecks },
     { key: 'calendar', labelKey: 'create.calendar', url: '/m/calendar?new=1', icon: CalendarDays },
-    { key: 'projects', labelKey: 'create.projects', url: '/m/projects?new=1', icon: FolderKanban },
+    { key: 'tasks', labelKey: 'create.tasks', url: '/m/tasks?new=1', icon: ListChecks },
     { key: 'spending', labelKey: 'create.spending', url: '/m/spending?new=1', icon: Wallet },
+    { key: 'projects', labelKey: 'create.projects', url: '/m/projects?new=1', icon: FolderKanban },
     // A note has no create sheet: POST straight to notes.store, which redirects into the new editor.
     { key: 'notes', labelKey: 'create.notes', url: '/m/notes', method: 'post', icon: StickyNote },
     // A recipe has a full editor (no sheet): deep-link straight to it.
     { key: 'recipes', labelKey: 'create.recipes', url: '/m/recipes/new', icon: ChefHat },
     // A vehicle has a full add form (no sheet): deep-link straight to it.
     { key: 'vehicles', labelKey: 'create.vehicles', url: '/m/vehicles/new', icon: Car },
+    { key: 'inventory', labelKey: 'create.inventory', url: '/m/inventory?new=1', icon: Package },
 ];
+// Classic add shows this many as rows (with their 30-day count); the rest are chips under "Everything else".
+const TOP = 4;
 
 const PINS_KEY = 'familywell:navPins';
-const MAX_PINS = 4;
-// Default pins: this preferred order, intersected with what's actually available, first four.
-const DEFAULT_ORDER = ['dashboard', 'projects', 'shopping', 'spending', 'members', 'modules', 'settings'];
+// Home is always first; the bar holds up to three modules after it (design: Home · 3 pins · More).
+const MAX_PINS = 3;
+const DEFAULT_PINS = ['shopping', 'tasks', 'calendar', 'spending', 'projects'];
+const LONG_PRESS_MS = 500;
+
+// A JSON GET for the sheets' live data, fetched when a sheet opens (not shared on every page).
+function useOnOpen<T>(open: boolean, url: string): T | null {
+    const [data, setData] = useState<T | null>(null);
+    useEffect(() => {
+        if (!open) return;
+        const ctrl = new AbortController();
+        fetch(url, { headers: { Accept: 'application/json' }, signal: ctrl.signal })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((d) => d && setData(d))
+            .catch(() => {}); // offline / aborted: the sheet still works without counts
+        return () => ctrl.abort();
+    }, [open, url]);
+    return data;
+}
+
+const sectionLabel = 'text-muted-foreground px-1 font-mono text-xs font-semibold tracking-[0.14em] uppercase';
+const iconBox = 'bg-surface-card text-primary flex size-11 items-center justify-center rounded-xl border';
 
 export function MobileTabBar() {
     const page = usePage<{ modules?: { enabled?: string[] }; pins?: string[] | null }>();
     const t = useT();
     const enabled = page.props.modules?.enabled ?? [];
+    const modules = MODULE_ITEMS.filter((m) => enabled.includes(m.key));
+    const byKey = new Map(modules.map((i) => [i.key, i]));
 
-    // Everything reachable from the mobile nav, in display order.
-    const allItems: Item[] = [HOME, ...MODULE_ITEMS.filter((m) => enabled.includes(m.key)), ...SECONDARY];
-    const byKey = new Map(allItems.map((i) => [i.key, i]));
-
-    const [pins, setPins] = useState<string[]>(() => {
+    const [pins, setPins] = useState<string[] | null>(() => {
         if (typeof window !== 'undefined') {
             try {
                 const saved = JSON.parse(localStorage.getItem(PINS_KEY) || 'null');
@@ -96,7 +120,7 @@ export function MobileTabBar() {
                 /* fall through to default */
             }
         }
-        return [];
+        return null;
     });
     const savePins = (next: string[]) => {
         setPins(next);
@@ -107,18 +131,24 @@ export function MobileTabBar() {
         }
     };
 
-    // Resolve the pinned bar items: this device's saved pins (that still exist), else Home plus the first modules the
-    // person pinned in the onboarding ("Pin your top 4", saved on their account so every device starts the same), else
-    // the default set.
-    const savedPinned = pins.map((k) => byKey.get(k)).filter((i): i is Item => !!i);
-    const accountPinned = ['dashboard', ...(page.props.pins ?? [])].map((k) => byKey.get(k)).filter((i): i is Item => !!i);
-    const fallback = accountPinned.length > 1 ? accountPinned : DEFAULT_ORDER.map((k) => byKey.get(k)).filter((i): i is Item => !!i);
-    const pinned = (savedPinned.length ? savedPinned : fallback).slice(0, MAX_PINS);
+    // The pinned modules: this device's saved pins (older saves may hold 'dashboard' or a settings page; only modules
+    // still on count), else the modules the person pinned in the onboarding (saved on their account so every device
+    // starts the same), else the default order.
+    const pick = (keys: string[] | null | undefined) =>
+        (keys ?? [])
+            .map((k) => byKey.get(k))
+            .filter((i): i is Item => !!i)
+            .slice(0, MAX_PINS);
+    const pinned = pins !== null ? pick(pins) : pick(page.props.pins).length ? pick(page.props.pins) : pick(DEFAULT_PINS);
     const pinnedKeys = new Set(pinned.map((i) => i.key));
+    const togglePin = (key: string) => {
+        const keys = pinned.map((i) => i.key);
+        if (pinnedKeys.has(key)) savePins(keys.filter((k) => k !== key));
+        else if (keys.length < MAX_PINS) savePins([...keys, key]);
+    };
 
     const [moreOpen, setMoreOpen] = useState(false);
     const [addOpen, setAddOpen] = useState(false);
-    const createItems = CREATE.filter((c) => enabled.includes(c.key));
     const [pending, setPending] = useState<string | null>(null);
     useEffect(() => {
         const offFinish = router.on('finish', (e) => {
@@ -128,18 +158,9 @@ export function MobileTabBar() {
     }, []);
 
     const currentPath = pending ?? page.url;
-    const isActive = (url: string) => currentPath === url || currentPath.startsWith(url + '/');
-    // "More" lights up when the current page is a destination that isn't pinned to the bar.
-    const moreActive = allItems.some((i) => !pinnedKeys.has(i.key) && isActive(i.url));
-
-    const togglePin = (key: string) => {
-        if (pins.length === 0) savePins([...pinned.map((i) => i.key)]); // materialize defaults before first edit
-        if (pinnedKeys.has(key)) {
-            savePins((pins.length ? pins : pinned.map((i) => i.key)).filter((k) => k !== key));
-        } else if (pinned.length < MAX_PINS) {
-            savePins([...(pins.length ? pins : pinned.map((i) => i.key)), key]);
-        }
-    };
+    const isActive = (url: string) => currentPath === url || currentPath.startsWith(url + '/') || currentPath.startsWith(url + '?');
+    // "More" lights up when the current page is a module or family place that isn't in the bar.
+    const moreActive = [...modules, ...FAMILY_ITEMS].some((i) => !pinnedKeys.has(i.key) && isActive(i.url));
 
     // Cells share the pill width evenly (flex-1) so the bar looks the same regardless of item count.
     // py-2 + 22px icon + 11px label = a ~50px tap target; 11px (not 10) is the smallest label that reads on a phone
@@ -153,7 +174,7 @@ export function MobileTabBar() {
             <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex [transform:translateZ(0)] items-center gap-2.5 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden [@media(display-mode:standalone)]:pb-[max(0.5rem,calc(env(safe-area-inset-bottom)/2))]">
                 {/* Pill fills the width; the + stays a fixed circle on the right. */}
                 <div className="border-border/60 bg-surface-card/75 pointer-events-auto flex flex-1 items-center justify-around gap-0.5 rounded-full border p-1.5 shadow-[var(--shadow-fw-md)] backdrop-blur-xl">
-                    {pinned.map((item) => {
+                    {[HOME, ...pinned].map((item) => {
                         const active = isActive(item.url);
                         const loading = pending === item.url;
                         return (
@@ -182,14 +203,14 @@ export function MobileTabBar() {
                     </button>
                 </div>
 
-                {/* Detached green add button on the right (Slack-style separate action). Context-aware:
-                    if the current page claimed it (useAddAction) run that; else open the quick-add sheet. */}
+                {/* Detached sun add button on the right (Slack-style separate action). Context-aware:
+                    if the current page claimed it (useAddAction) run that; else open the Add sheet. */}
                 <button
                     type="button"
                     onClick={() => {
                         if (!runAddAction()) setAddOpen(true);
                     }}
-                    aria-label="Add"
+                    aria-label={t('create.title')}
                     data-tour="add"
                     className="bg-accent-strong text-accent-strong-foreground pointer-events-auto flex size-14 shrink-0 items-center justify-center rounded-full shadow-[var(--shadow-fw-md)] transition-transform active:scale-95"
                 >
@@ -197,80 +218,224 @@ export function MobileTabBar() {
                 </button>
             </nav>
 
-            <ResponsiveModal open={addOpen} onOpenChange={setAddOpen} title={t('create.title')} description={t('create.desc')}>
-                <div className="flex flex-col gap-1">
-                    {createItems.length === 0 ? (
+            <AddSheet open={addOpen} onOpenChange={setAddOpen} enabled={enabled} />
+            <MoreSheet
+                open={moreOpen}
+                onOpenChange={setMoreOpen}
+                modules={modules}
+                pinnedKeys={pinnedKeys}
+                canPin={pinned.length < MAX_PINS}
+                togglePin={togglePin}
+                isActive={isActive}
+                onGo={(url) => {
+                    setMoreOpen(false);
+                    setPending(url);
+                }}
+            />
+        </>
+    );
+}
+
+// H2d · Classic add: the family's most-added kinds as rows with their 30-day count, everything else as chips.
+// "Just say it" (one box that reads text, screenshots and voice) is the other half of this design; it waits on how
+// we wire the extraction model, so Classic is the whole sheet for now.
+function AddSheet({ open, onOpenChange, enabled }: { open: boolean; onOpenChange: (open: boolean) => void; enabled: string[] }) {
+    const t = useT();
+    const usage = useOnOpen<Record<string, number>>(open, '/add/usage');
+    const items = CREATE.filter((c) => enabled.includes(c.key));
+    // Most added first; ties (and the moment before the counts arrive) keep the CREATE order.
+    const ranked = usage ? [...items].sort((a, b) => (usage[b.key] ?? 0) - (usage[a.key] ?? 0)) : items;
+    const top = ranked.slice(0, TOP);
+    const rest = ranked.slice(TOP);
+    const close = () => onOpenChange(false);
+    const linkProps = (item: Item) => ({
+        href: item.url,
+        method: item.method ?? ('get' as const),
+        as: item.method === 'post' ? ('button' as const) : undefined,
+        onClick: close,
+    });
+
+    return (
+        <ResponsiveModal open={open} onOpenChange={onOpenChange} title={t('create.title')} description={t('create.desc')}>
+            {items.length === 0 ? (
+                <Link href="/family/modules" onClick={close} className="text-primary hover:bg-surface flex items-center gap-3 rounded-xl p-3">
+                    <LayoutGrid className="size-5.5" />
+                    <span className="text-base font-medium">{t('create.turn_on')}</span>
+                </Link>
+            ) : (
+                <div className="flex flex-col gap-5">
+                    <section className="flex flex-col gap-2">
+                        <h3 className={sectionLabel}>{t('create.most_used')}</h3>
+                        <div className="bg-surface divide-border overflow-hidden rounded-2xl border">
+                            {top.map((item) => (
+                                <Link
+                                    key={item.key}
+                                    {...linkProps(item)}
+                                    className="hover:bg-accent-subtle flex w-full items-center gap-3 border-b px-3 py-3 text-left last:border-b-0"
+                                >
+                                    <span className={iconBox}>
+                                        <item.icon className="size-5.5" />
+                                    </span>
+                                    <span className="text-primary min-w-0 flex-1 truncate text-base font-semibold">{t(item.labelKey)}</span>
+                                    {usage && (usage[item.key] ?? 0) > 0 && (
+                                        <span className="text-muted-foreground shrink-0 font-mono text-sm tabular-nums">
+                                            {t('create.times', { n: usage[item.key] })}
+                                        </span>
+                                    )}
+                                    <ChevronRight className="text-muted-foreground size-5 shrink-0" />
+                                </Link>
+                            ))}
+                        </div>
+                    </section>
+                    {rest.length > 0 && (
+                        <section className="flex flex-col gap-2">
+                            <h3 className={sectionLabel}>
+                                {t('create.everything_else')}
+                                <span className="text-primary ml-2">{rest.length}</span>
+                            </h3>
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                                {rest.map((item) => (
+                                    <Link
+                                        key={item.key}
+                                        {...linkProps(item)}
+                                        className="bg-surface-card text-primary hover:border-primary/40 flex w-full min-w-0 items-center gap-2 rounded-xl border px-3 py-3 text-left text-sm font-semibold"
+                                    >
+                                        <item.icon className="size-4.5 shrink-0" />
+                                        <span className="truncate">{t(item.labelKey)}</span>
+                                    </Link>
+                                ))}
+                            </div>
+                        </section>
+                    )}
+                </div>
+            )}
+        </ResponsiveModal>
+    );
+}
+
+type ModuleStatus = { key: string; params?: Record<string, string | number> };
+
+// H3 · More: every module that's on with its live status line, sun pins on the three in the tab bar (long-press any
+// tile to pin or unpin it), an "All modules" tile, then the family's own places.
+function MoreSheet({
+    open,
+    onOpenChange,
+    modules,
+    pinnedKeys,
+    canPin,
+    togglePin,
+    isActive,
+    onGo,
+}: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    modules: Item[];
+    pinnedKeys: Set<string>;
+    canPin: boolean;
+    togglePin: (key: string) => void;
+    isActive: (url: string) => boolean;
+    onGo: (url: string) => void;
+}) {
+    const t = useT();
+    const data = useOnOpen<{ family: string | null; summaries: Record<string, ModuleStatus> }>(open, '/nav/more');
+
+    // Long-press = pin/unpin. The timer fires the toggle; the click that follows the release is swallowed so a
+    // long-press doesn't also open the module. A short tap navigates as normal.
+    const timer = useRef<number | null>(null);
+    const longPressed = useRef(false);
+    const pressStart = (key: string) => {
+        longPressed.current = false;
+        timer.current = window.setTimeout(() => {
+            longPressed.current = true;
+            if (pinnedKeys.has(key) || canPin) {
+                togglePin(key);
+                navigator.vibrate?.(10);
+            }
+        }, LONG_PRESS_MS);
+    };
+    const pressEnd = () => {
+        if (timer.current) window.clearTimeout(timer.current);
+        timer.current = null;
+    };
+
+    const tile = 'relative flex min-h-28 flex-col justify-between gap-3 rounded-2xl p-3 transition-colors select-none';
+
+    return (
+        <ResponsiveModal open={open} onOpenChange={onOpenChange} title={t('nav.more')} description={t('nav.more_desc')}>
+            <div className="flex flex-col gap-5">
+                <section className="flex flex-col gap-2">
+                    <h3 className={sectionLabel}>{t('nav.modules')}</h3>
+                    <div className="grid grid-cols-3 gap-2">
+                        {modules.map((item) => {
+                            const isPinned = pinnedKeys.has(item.key);
+                            const line = data?.summaries[item.key];
+                            return (
+                                <Link
+                                    key={item.key}
+                                    href={item.url}
+                                    onClick={(e) => {
+                                        if (longPressed.current) e.preventDefault();
+                                        else onGo(item.url);
+                                    }}
+                                    onPointerDown={() => pressStart(item.key)}
+                                    onPointerUp={pressEnd}
+                                    onPointerLeave={pressEnd}
+                                    onPointerCancel={pressEnd}
+                                    onContextMenu={(e) => e.preventDefault()}
+                                    aria-label={isPinned ? `${t(item.labelKey)} · ${t('nav.pinned')}` : undefined}
+                                    className={`${tile} ${isActive(item.url) ? 'bg-accent-subtle ring-primary ring-1' : 'bg-surface'} [-webkit-touch-callout:none]`}
+                                >
+                                    <span className={iconBox}>
+                                        <item.icon className="size-5.5" />
+                                    </span>
+                                    <span className="min-w-0">
+                                        <span className="text-primary block text-sm leading-tight font-semibold break-words">{t(item.labelKey)}</span>
+                                        <span className="text-muted-foreground block truncate text-xs">{line ? t(line.key, line.params) : ' '}</span>
+                                    </span>
+                                    {isPinned && (
+                                        <span className="bg-accent-strong text-accent-strong-foreground absolute top-2.5 right-2.5 flex size-6 items-center justify-center rounded-full">
+                                            <Pin className="size-3.5 fill-current" />
+                                        </span>
+                                    )}
+                                </Link>
+                            );
+                        })}
                         <Link
                             href="/family/modules"
-                            onClick={() => setAddOpen(false)}
-                            className="text-primary hover:bg-surface flex items-center gap-3 rounded-xl p-3 transition-colors"
+                            onClick={() => onGo('/family/modules')}
+                            className={`${tile} bg-surface-card border-border border`}
                         >
-                            <Blocks className="size-5.5" />
-                            <span className="text-base font-medium">{t('create.turn_on')}</span>
+                            <span className="bg-surface text-primary flex size-11 items-center justify-center rounded-xl">
+                                <LayoutGrid className="size-5.5" />
+                            </span>
+                            <span className="min-w-0">
+                                <span className="text-primary block text-sm leading-tight font-semibold break-words">{t('nav.all_modules')}</span>
+                                <span className="text-muted-foreground block truncate text-xs">{t('nav.modules_on', { count: modules.length })}</span>
+                            </span>
                         </Link>
-                    ) : (
-                        createItems.map((item) => (
+                    </div>
+                    <p className="text-muted-foreground px-1 text-xs">{t('nav.pin_hint')}</p>
+                </section>
+
+                <section className="flex flex-col gap-2">
+                    <h3 className={`${sectionLabel} truncate`}>{data?.family ?? t('nav.family')}</h3>
+                    <div className="grid grid-cols-4 gap-2">
+                        {FAMILY_ITEMS.map((item) => (
                             <Link
                                 key={item.key}
                                 href={item.url}
-                                method={item.method ?? 'get'}
-                                as={item.method === 'post' ? 'button' : undefined}
-                                onClick={() => setAddOpen(false)}
-                                className="text-primary hover:bg-surface flex w-full items-center gap-3 rounded-xl p-3 text-left transition-colors"
+                                onClick={() => onGo(item.url)}
+                                className={`flex min-w-0 flex-col items-center gap-2 rounded-2xl px-1 py-3 ${isActive(item.url) ? 'bg-accent-subtle' : 'bg-surface'}`}
                             >
-                                <span className="bg-tile text-tile-foreground flex size-10 items-center justify-center rounded-lg">
-                                    <item.icon className="size-5.5" />
+                                <span className={iconBox}>
+                                    <item.icon className="size-5" />
                                 </span>
-                                <span className="text-base font-medium">{t(item.labelKey)}</span>
+                                <span className="text-primary max-w-full truncate text-xs font-semibold">{t(item.labelKey)}</span>
                             </Link>
-                        ))
-                    )}
-                </div>
-            </ResponsiveModal>
-
-            <ResponsiveModal open={moreOpen} onOpenChange={setMoreOpen} title={t('nav.more')} description={t('nav.more_desc')}>
-                {/* Three columns of square cards: the card is the link, the pin sits in its corner as a sibling
-                    button (a button inside a link is invalid HTML and would steal the tap). */}
-                <div className="grid grid-cols-3 gap-2">
-                    {allItems.map((item) => {
-                        const isPinned = pinnedKeys.has(item.key);
-                        const atMax = !isPinned && pinned.length >= MAX_PINS;
-                        return (
-                            <div key={item.key} className="relative aspect-square">
-                                <Link
-                                    href={item.url}
-                                    onClick={() => {
-                                        setMoreOpen(false);
-                                        setPending(item.url);
-                                    }}
-                                    className={`flex size-full flex-col items-center justify-center gap-2 rounded-2xl border p-2 transition-colors ${
-                                        isActive(item.url)
-                                            ? 'border-primary bg-accent-subtle text-primary'
-                                            : 'bg-surface-card text-primary hover:border-accent'
-                                    }`}
-                                >
-                                    <span className="bg-tile text-tile-foreground flex size-11 items-center justify-center rounded-xl">
-                                        <item.icon className="size-5.5" />
-                                    </span>
-                                    <span className="text-center text-sm leading-tight font-medium">{t(item.labelKey)}</span>
-                                </Link>
-                                <button
-                                    type="button"
-                                    onClick={() => togglePin(item.key)}
-                                    disabled={atMax}
-                                    aria-label={isPinned ? `Unpin ${t(item.labelKey)}` : `Pin ${t(item.labelKey)}`}
-                                    aria-pressed={isPinned}
-                                    className={`absolute top-0 right-0 flex size-10 items-center justify-center rounded-lg transition-colors ${
-                                        isPinned ? 'text-primary' : atMax ? 'text-text-muted/40' : 'text-muted-foreground hover:bg-surface'
-                                    }`}
-                                >
-                                    <Pin className={`size-4.5 ${isPinned ? 'fill-current' : ''}`} />
-                                </button>
-                            </div>
-                        );
-                    })}
-                </div>
-            </ResponsiveModal>
-        </>
+                        ))}
+                    </div>
+                </section>
+            </div>
+        </ResponsiveModal>
     );
 }

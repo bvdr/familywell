@@ -38,13 +38,19 @@
         "settings": "Einstellungen",
         "more": "Mehr",
         "home": "Start",
-        "more_desc": "Tippe auf eine Pinnadel, um deine vier Verknüpfungen in der unteren Leiste zu wählen",
+        "more_desc": "Alle Module und die Bereiche deiner Familie",
         "birthdays": "Geburtstage",
         "calendar": "Kalender",
         "expense_import": "Ausgabenimport",
         "pinned": "Angepinnt",
         "all_modules": "Alle Module",
-        "log_out": "Abmelden"
+        "log_out": "Abmelden",
+        "alerts": "Mitteilungen",
+        "deleted": "Gelöscht",
+        "family": "Deine Familie",
+        "modules_on_one": ":count aktiv",
+        "modules_on_other": ":count aktiv",
+        "pin_hint": "Halte ein Modul gedrückt, um es an deine Leiste zu heften (bis zu 3)."
     },
     "dashboard": {
         "good_morning": "Guten Morgen",
@@ -146,6 +152,10 @@
         "notes": "Neue Notiz",
         "recipes": "Neues Rezept",
         "vehicles": "Fahrzeug hinzufügen",
-        "calendar": "Neuer Termin"
+        "calendar": "Neuer Termin",
+        "most_used": "Am häufigsten · letzte 30 Tage",
+        "everything_else": "Alles andere",
+        "times": ":n×",
+        "inventory": "Zum Vorrat hinzufügen"
     }
 }

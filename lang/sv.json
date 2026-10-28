@@ -38,13 +38,19 @@
         "settings": "Inställningar",
         "more": "Mer",
         "home": "Hem",
-        "more_desc": "Tryck på en nål för att välja dina fyra genvägar i nedre fältet",
+        "more_desc": "Alla moduler och familjens platser",
         "birthdays": "Födelsedagar",
         "calendar": "Kalender",
         "expense_import": "Importera utgifter",
         "pinned": "Fästa",
         "all_modules": "Alla moduler",
-        "log_out": "Logga ut"
+        "log_out": "Logga ut",
+        "alerts": "Aviseringar",
+        "deleted": "Raderade",
+        "family": "Din familj",
+        "modules_on_one": ":count på",
+        "modules_on_other": ":count på",
+        "pin_hint": "Håll in en modul för att fästa den i flikfältet (upp till 3)."
     },
     "dashboard": {
         "good_morning": "God morgon",
@@ -146,6 +152,10 @@
         "notes": "Ny anteckning",
         "recipes": "Nytt recept",
         "vehicles": "Lägg till fordon",
-        "calendar": "Ny händelse"
+        "calendar": "Ny händelse",
+        "most_used": "Mest använt · senaste 30 dagarna",
+        "everything_else": "Allt annat",
+        "times": ":n×",
+        "inventory": "Lägg till i förrådet"
     }
 }

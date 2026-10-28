@@ -38,13 +38,19 @@
         "settings": "Settings",
         "more": "More",
         "home": "Home",
-        "more_desc": "Tap a pin to choose your four bottom-bar shortcuts",
+        "more_desc": "Every module and your family’s places",
         "birthdays": "Birthdays",
         "calendar": "Calendar",
         "expense_import": "Expense import",
         "pinned": "Pinned",
         "all_modules": "All modules",
-        "log_out": "Log out"
+        "log_out": "Log out",
+        "alerts": "Alerts",
+        "deleted": "Deleted",
+        "family": "Your family",
+        "modules_on_one": ":count on",
+        "modules_on_other": ":count on",
+        "pin_hint": "Long-press a module to pin it to your tab bar (up to 3)."
     },
     "dashboard": {
         "good_morning": "Good morning",
@@ -146,6 +152,10 @@
         "notes": "New note",
         "recipes": "New recipe",
         "vehicles": "Add a vehicle",
-        "calendar": "New event"
+        "calendar": "New event",
+        "most_used": "Most used · last 30 days",
+        "everything_else": "Everything else",
+        "times": ":n×",
+        "inventory": "Add to inventory"
     }
 }

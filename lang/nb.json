@@ -38,13 +38,19 @@
         "settings": "Innstillinger",
         "more": "Mer",
         "home": "Hjem",
-        "more_desc": "Trykk på en nål for å velge de fire snarveiene nederst",
+        "more_desc": "Alle moduler og familiens steder",
         "birthdays": "Bursdager",
         "calendar": "Kalender",
         "expense_import": "Utgiftsimport",
         "pinned": "Festet",
         "all_modules": "Alle moduler",
-        "log_out": "Logg ut"
+        "log_out": "Logg ut",
+        "alerts": "Varsler",
+        "deleted": "Slettet",
+        "family": "Familien din",
+        "modules_on_one": ":count på",
+        "modules_on_other": ":count på",
+        "pin_hint": "Hold inne en modul for å feste den til fanelinjen (opptil 3)."
     },
     "dashboard": {
         "good_morning": "God morgen",
@@ -146,6 +152,10 @@
         "notes": "Nytt notat",
         "recipes": "Ny oppskrift",
         "vehicles": "Legg til kjøretøy",
-        "calendar": "Ny hendelse"
+        "calendar": "Ny hendelse",
+        "most_used": "Mest brukt · siste 30 dager",
+        "everything_else": "Alt annet",
+        "times": ":n×",
+        "inventory": "Legg til i lageret"
     }
 }

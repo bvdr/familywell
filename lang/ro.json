@@ -38,13 +38,20 @@
         "settings": "Setări",
         "more": "Mai mult",
         "home": "Acasă",
-        "more_desc": "Apasă un ac pentru a-ți alege cele patru scurtături din bară",
+        "more_desc": "Toate modulele și locurile familiei tale",
         "birthdays": "Zile de naștere",
         "calendar": "Calendar",
         "expense_import": "Import cheltuieli",
         "pinned": "Fixate",
         "all_modules": "Toate modulele",
-        "log_out": "Deconectare"
+        "log_out": "Deconectare",
+        "alerts": "Notificări",
+        "deleted": "Șterse",
+        "family": "Familia ta",
+        "modules_on_one": ":count activ",
+        "modules_on_few": ":count active",
+        "modules_on_other": ":count de active",
+        "pin_hint": "Ține apăsat pe un modul ca să-l fixezi în bara de jos (maxim 3)."
     },
     "dashboard": {
         "good_morning": "Bună dimineața",
@@ -165,6 +172,10 @@
         "notes": "Notiță nouă",
         "recipes": "Rețetă nouă",
         "vehicles": "Adaugă un vehicul",
-        "calendar": "Eveniment nou"
+        "calendar": "Eveniment nou",
+        "most_used": "Cele mai folosite · ultimele 30 de zile",
+        "everything_else": "Restul",
+        "times": ":n×",
+        "inventory": "Adaugă în inventar"
     }
 }

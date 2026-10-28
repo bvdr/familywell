@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AddUsageController;
 use App\Http\Controllers\FamilyController;
 use App\Http\Controllers\FamilyInviteController;
 use App\Http\Controllers\FamilyMemberController;
@@ -11,10 +12,13 @@ use App\Http\Controllers\PinnedModulesController;
 use App\Http\Controllers\PublicGuestController;
 use App\Http\Controllers\PublicShareController;
 use App\Http\Controllers\ShareController;
+use App\Models\Family;
 use App\Models\User;
 use App\Support\Analytics;
 use App\Support\Dashboard\DashboardData;
+use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Demo\DemoFamily;
+use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -123,6 +127,14 @@ Route::middleware(['auth', 'family'])->group(function () {
         // Recent (Pick up where you left off) + Today + This Week, assembled from module providers.
         return Inertia::render('dashboard', DashboardData::build());
     })->name('dashboard');
+    // The Add sheet's "most used" ranking, fetched when it opens (AddUsageController).
+    Route::get('add/usage', AddUsageController::class)->middleware('throttle:60,1')->name('add.usage');
+    // The More sheet: each module's live status line (the same DashboardSummaries Home's tiles use) + the family's
+    // name for its own group, fetched when the sheet opens so other pages don't pay for it.
+    Route::get('nav/more', fn () => response()->json([
+        'family' => Family::find(CurrentFamily::id())?->name,
+        'summaries' => DashboardSummaries::collect(),
+    ]))->middleware('throttle:60,1')->name('nav.more');
 
     // Generic sharing management for any registered shareable entity ({type}/{id}). Owner-only,
     // enforced in the controller.
