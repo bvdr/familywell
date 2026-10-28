@@ -51,7 +51,9 @@ const KIND_ICON: Record<string, LucideIcon> = {
     task_list: ListPlus,
     shopping_list: ListPlus,
 };
-const DEBOUNCE_MS = 700;
+// How long a pause in typing before reading. 450ms (was 700): the cards show sooner, and a read still in flight is
+// aborted when the person keeps typing, so the shorter pause doesn't pile up calls.
+const DEBOUNCE_MS = 450;
 const MAX_IMAGES = 4;
 // Photos are shrunk in the browser before upload: a phone photo is 3-8 MB, the reader caps an image at 4 MiB and
 // reads ~1600px as well as the original.
