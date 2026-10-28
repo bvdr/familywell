@@ -23,7 +23,7 @@ type Props = {
     pricing: { intro: boolean; spotsLeft: number; spotsTotal: number; monthly: number; yearly: number; pro?: Amounts };
     // The list prices per tier, for the strike-through and the "Discount" line while the intro offer lasts.
     standard: { basic: Amounts; pro: Amounts } | null;
-    // What each tier says it includes ("1 GB · 30 AI points"); display copy, see config familywell.tiers.
+    // What each tier says it includes ("1 GB · 50 AI points"); display copy, see config familywell.tiers.
     tiers: Record<Tier, { storage_gb: number; ai_points: number }> | null;
     // The publishable key (STRIPE_KEY); the secret stays on the server.
     stripeKey: string | null;
