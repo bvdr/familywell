@@ -2,17 +2,17 @@
 
 namespace App\Support\Add;
 
-use App\Support\Ai\AiUsage;
-use App\Support\Ai\WorkersAi;
-use Illuminate\Support\Facades\Http;
+use App\Support\Ai\AiGateway;
 use RuntimeException;
 
 /**
  * Reads "Just say it" input (text and/or up to 4 images) into the things to add. Two backends, same result:
- *  - Cloudflare (hosted, WorkersAi configured): Clef answers one yes/no per kind with a probability ("is there an
- *    event?"), Clairic reads every kind's fields with a confidence each. Both run in parallel (~0.5s).
- *  - Gemini (fallback, e.g. self-hosted with only GEMINI_API_KEY): one structured-output call returning the same
- *    shape; its likelihoods are self-reported, so less calibrated than Clef's.
+ *  - Cloudflare (hosted, Workers AI configured): Clef answers one yes/no per kind with a probability ("is there an
+ *    event?"), Clairic reads every kind's fields with a confidence each, and an LLM (Gemini Flash when there's a key,
+ *    else Llama 4 Scout on Workers AI) reads them too, all in parallel (see cloudflare()).
+ *  - Gemini only (e.g. self-hosted with just GEMINI_API_KEY): one structured-output call returning the same shape;
+ *    its likelihoods are self-reported, so less calibrated than Clef's.
+ * Every call goes through AiGateway (Cloudflare AI Gateway when configured: usage logged per family / user).
  * Neither configured: available() is false and the sheet is Classic only.
  *
  * An item is only offered when its kind is likely enough (MIN); below SURE the card asks "Add this as …?" instead of
@@ -31,8 +31,8 @@ final class AddReader
     // …and below this one it isn't shown at all.
     public const FIELD_MIN = 0.25;
 
-    // Workers AI's multilingual vision model: reads every input next to Clairic (see cloudflare()).
-    private const VISION = 'meta/llama-4-scout-17b-16e-instruct';
+    // Workers AI's multilingual vision model: the LLM reader when there's no Gemini key, and the fallback when Gemini fails.
+    private const SCOUT = 'meta/llama-4-scout-17b-16e-instruct';
 
     // Tested 2026-10-28: with this wording and every key required, Scout split "cumpără lapte și pâine, și sună la
     // instalator mâine" into lapte / pâine + "sună la instalator" (a vaguer prompt gave back the whole sentence).
@@ -40,7 +40,7 @@ final class AddReader
 
     public static function available(): bool
     {
-        return WorkersAi::configured() || filled(config('services.gemini.key'));
+        return AiGateway::workersAi() || AiGateway::gemini();
     }
 
     /**
@@ -55,7 +55,7 @@ final class AddReader
         }
         $given = "\nWhat they gave:".(trim($text) !== '' ? ' '.trim($text) : ' (only the image)');
 
-        [$likely, $fields] = WorkersAi::configured()
+        [$likely, $fields] = AiGateway::workersAi()
             ? self::cloudflare($ctx->text.$given, $ctx->facts.$given, trim($text) === '', $images, $kinds)
             : self::gemini($ctx->text.$given, $images, $kinds);
 
@@ -122,21 +122,19 @@ final class AddReader
         }
         $media = $images ? ['images' => $images] : [];
         $calls = [
-            'kinds' => ['cloudflare/clef', ['state' => $state, 'questions' => $questions] + $media],
+            'kinds' => ['workers-ai', 'cloudflare/clef', ['state' => $state, 'questions' => $questions] + $media],
             // Only a photo: no date / member lines for the extractor to copy into a field.
-            'fields' => ['cloudflare/clairic', ['state' => $imageOnly ? trim(strstr($facts, "\nWhat they gave:")) : $facts, 'fields' => $fields, 'reference_date' => now()->toDateString()] + $media],
+            'fields' => ['workers-ai', 'cloudflare/clairic', ['state' => $imageOnly ? trim(strstr($facts, "\nWhat they gave:")) : $facts, 'fields' => $fields, 'reference_date' => now()->toDateString()] + $media],
         ];
-        // Scout reads every input too: Clairic is English-first (Romanian items came back at 0.15, "cump" as an item)
-        // and only copies text out of a photo. Its values fill whatever Clairic isn't sure of (merged below).
-        $properties = self::schema($kinds, 'json');
-        $calls['llm'] = [self::VISION, [
-            'messages' => [['role' => 'user', 'content' => [
-                ['type' => 'text', 'text' => self::PROMPT."\n\n".$facts],
-                ...array_map(fn ($uri) => ['type' => 'image_url', 'image_url' => ['url' => $uri]], $images),
-            ]]],
-            'response_format' => ['type' => 'json_schema', 'json_schema' => ['type' => 'object', 'properties' => $properties, 'required' => array_keys($properties)]],
-        ]];
-        $out = WorkersAi::run('add_read', $calls);
+        // An LLM reads too: Clairic is English-first (Romanian items came back at 0.15, "cump" as an item) and only
+        // copies text out of a photo. Gemini Flash (when there's a key) runs in this same round: it's quick. Scout is
+        // slow to write a full answer (22 fields took 4.3s, measured 2026-10-28), so it only runs when needed, after
+        // the first round and only for the kinds Clef found: a photo, or a likely card Clairic is unsure of or missing
+        // something on. Gemini failing (an outage, spent credits) falls back to that same Scout call.
+        if (AiGateway::gemini()) {
+            $calls['llm'] = self::llmCall('gemini', $facts, $images, $kinds);
+        }
+        $out = AiGateway::run('add_read', $calls);
         if ($out['kinds'] === null) {
             throw new RuntimeException('The reader is not available right now.');
         }
@@ -147,13 +145,31 @@ final class AddReader
             // A value the model thinks is absent (high p_null) is dropped rather than shown as a guess.
             $values[$key] = ($a['p_null'] ?? 0) > 0.5 ? null : ['value' => $a['value'] ?? null, 'confidence' => (float) ($a['confidence'] ?? 0)];
         }
-        if ($llm = $out['llm'] ?? null) {
-            $read = $llm['response'] ?? json_decode((string) data_get($llm, 'choices.0.message.content'), true);
+
+        $engine = 'gemini';
+        $llm = $out['llm'] ?? null;
+        if ($llm === null) {
+            $found = array_filter($kinds, fn ($def, $kind) => ($likely[$kind] ?? 0) >= self::MIN, ARRAY_FILTER_USE_BOTH);
+            // "Who" doesn't count: an unsure one becomes a question to the person anyway.
+            $unsure = fn ($def, $kind) => collect($def['fields'])->contains(fn ($f, $name) => ! isset($f['ask']) && (($v = $values["{$kind}_{$name}"] ?? null) === null
+                ? ! empty($f['required'])
+                : $v['confidence'] < self::FIELD_SURE));
+            if ($found && ($images || array_filter($found, $unsure, ARRAY_FILTER_USE_BOTH))) {
+                $engine = 'scout';
+                $llm = AiGateway::run('add_read', ['llm' => self::llmCall('scout', $facts, $images, $found)])['llm'];
+            }
+        }
+        if ($llm !== null) {
             // An LLM has no calibrated confidence: a value it gives counts as fairly sure, "who" as sure only if it said
-            // so. It wins where Clairic is unsure or empty, and always for a photo (Clairic only sees its lettering).
-            foreach (self::llmValues(is_array($read) ? $read : [], $kinds) as $key => $v) {
+            // so. It wins for words (text, lists: Clairic is English-first, it kept "cumpără lapte și pâine" as a to-do at
+            // 0.5+), for a photo (Clairic only sees its lettering), and wherever Clairic is unsure or empty. Clairic
+            // keeps the dates, times and amounts it is sure of: that's what it reads best.
+            $types = array_merge(...array_map(fn ($kind, $def) => array_combine(
+                array_map(fn ($n) => "{$kind}_{$n}", array_keys($def['fields'])), array_column($def['fields'], 'type')), array_keys($kinds), $kinds));
+            foreach (self::llmValues(self::llmData($engine, $llm), $kinds) as $key => $v) {
                 $mine = $values[$key] ?? null;
-                if ($v['value'] !== null && $v['value'] !== '' && $v['value'] !== [] && ($images || $mine === null || $mine['confidence'] < self::FIELD_SURE)) {
+                $words = in_array($types[$key] ?? 'text', ['text', 'list'], true);
+                if ($v['value'] !== null && $v['value'] !== '' && $v['value'] !== [] && ($images || $words || $mine === null || $mine['confidence'] < self::FIELD_SURE)) {
                     $values[$key] = $v;
                 }
             }
@@ -162,39 +178,65 @@ final class AddReader
         return [$likely, $values];
     }
 
-    /** @return array{0: array<string, float>, 1: array<string, array{value: mixed, confidence: float}>} */
+    /** Gemini alone (no Workers AI): one call that also says how likely each kind is. */
     private static function gemini(string $state, array $images, array $kinds): array
     {
-        $properties = self::schema($kinds, 'gemini');
-        foreach ($kinds as $kind => $def) {
-            $properties["{$kind}_likelihood"] = ['type' => 'number', 'description' => 'How likely (0 to 1) the answer is yes to: '.$def['question']];
+        $out = AiGateway::run('add_read', ['llm' => self::llmCall('gemini', $state, $images, $kinds, likelihoods: true)]);
+        if ($out['llm'] === null) {
+            throw new RuntimeException('The reader is not available right now.');
         }
-        $model = (string) config('services.gemini.model');
+        $data = self::llmData('gemini', $out['llm']);
+        $likely = array_map(fn ($kind) => (float) ($data["{$kind}_likelihood"] ?? 0), array_combine(array_keys($kinds), array_keys($kinds)));
+
+        return [$likely, self::llmValues($data, $kinds)];
+    }
+
+    /** One LLM reading call (an AiGateway call), Gemini Flash or Llama 4 Scout, with the fields as a JSON schema. */
+    private static function llmCall(string $engine, string $state, array $images, array $kinds, bool $likelihoods = false): array
+    {
+        if ($engine === 'scout') {
+            $properties = self::schema($kinds, 'json');
+
+            return ['workers-ai', self::SCOUT, [
+                'messages' => [['role' => 'user', 'content' => [
+                    ['type' => 'text', 'text' => self::PROMPT."\n\n".$state],
+                    ...array_map(fn ($uri) => ['type' => 'image_url', 'image_url' => ['url' => $uri]], $images),
+                ]]],
+                'response_format' => ['type' => 'json_schema', 'json_schema' => ['type' => 'object', 'properties' => $properties, 'required' => array_keys($properties)]],
+            ]];
+        }
+
+        $properties = self::schema($kinds, 'gemini');
+        if ($likelihoods) {
+            foreach ($kinds as $kind => $def) {
+                $properties["{$kind}_likelihood"] = ['type' => 'number', 'description' => 'How likely (0 to 1) the answer is yes to: '.$def['question']];
+            }
+        }
         $parts = [['text' => self::PROMPT."\n\n".$state]];
         foreach ($images as $uri) {
             // Gemini wants the bare base64 and its type apart.
             preg_match('#^data:([^;]+);base64,(.*)$#s', $uri, $m);
             $parts[] = ['inline_data' => ['mime_type' => $m[1] ?? 'image/jpeg', 'data' => $m[2] ?? '']];
         }
-        $response = Http::timeout(30)->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=".config('services.gemini.key'), [
+
+        return ['google-ai-studio', (string) config('services.gemini.model'), [
             'contents' => [['parts' => $parts]],
             'generationConfig' => [
                 'responseMimeType' => 'application/json',
                 'responseSchema' => ['type' => 'object', 'properties' => $properties],
                 'thinkingConfig' => ['thinkingBudget' => 0], // plain extraction, no billable thinking
             ],
-        ]);
-        if ($response->failed()) {
-            report(new RuntimeException('Gemini add read failed ('.$response->status().'): '.$response->body()));
-            throw new RuntimeException('The reader is not available right now.');
-        }
-        AiUsage::record('add_read', 'gemini', $model, (int) $response->json('usageMetadata.promptTokenCount', 0), (int) $response->json('usageMetadata.candidatesTokenCount', 0));
-        $data = json_decode((string) $response->json('candidates.0.content.parts.0.text'), true) ?: [];
+        ]];
+    }
 
-        $likely = array_map(fn ($kind) => (float) ($data["{$kind}_likelihood"] ?? 0), array_combine(array_keys($kinds), array_keys($kinds)));
-        $values = self::llmValues($data, $kinds);
+    /** The JSON object an LLM answered with: Gemini's text part, Scout's `response` (or chat content). */
+    private static function llmData(string $engine, array $answer): array
+    {
+        $data = $engine === 'gemini'
+            ? json_decode((string) data_get($answer, 'candidates.0.content.parts.0.text'), true)
+            : ($answer['response'] ?? json_decode((string) data_get($answer, 'choices.0.message.content'), true));
 
-        return [$likely, $values];
+        return is_array($data) ? $data : [];
     }
 
     /**

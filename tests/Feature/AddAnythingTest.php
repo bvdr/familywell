@@ -29,7 +29,11 @@ function anythingFamily(): array
     foreach (['calendar', 'tasks', 'spending', 'shopping', 'vehicles'] as $m) {
         app(ModuleRegistry::class)->enable($m, $family->id);
     }
-    config(['services.workers_ai.account' => 'acc', 'services.workers_ai.token' => 'tok', 'services.stripe.key' => null]);
+    // Known config whatever the local .env says (a developer's real gateway / Gemini keys must not leak in), and no
+    // request may reach the network: every AI call here is faked.
+    config(['services.workers_ai.account' => 'acc', 'services.workers_ai.token' => 'tok', 'services.stripe.key' => null,
+        'services.workers_ai.gateway' => null, 'services.workers_ai.gateway_token' => null, 'services.gemini.key' => null]);
+    Http::preventStrayRequests();
 
     return [$family, $users];
 }
@@ -76,7 +80,7 @@ it('reads one message into an event, a to-do and an expense, asking who the even
         ->and($items[0]['fields']['start']['value'])->toBe('2026-10-30T08:15:00')
         ->and($items[0]['ask']['who'])->toBe(['Ana', 'Lucia']) // 0.28 sure: a question, not a guess
         ->and($items[1]['fields'])->not->toHaveKey('currency') // the reader said it isn't there
-        ->and(DB::table('ai_usage')->where('feature', 'add_read')->pluck('model')->sort()->values()->all())->toBe(['clairic', 'clef', 'llama-4-scout-17b-16e-instruct'])
+        ->and(DB::table('ai_usage')->where('feature', 'add_read')->pluck('model')->sort()->values()->all())->toBe(['clairic', 'clef']) // Clairic was sure of all but "who" (a question anyway): no LLM round
         ->and((int) DB::table('ai_usage')->sum('points'))->toBe(0); // reading is free
 });
 
@@ -213,4 +217,40 @@ it('names where a card will land, creates whole lists on request, and drops an u
 
     actingAs($users[0])->postJson('/add/save', ['items' => [['kind' => 'task_list', 'values' => ['name' => 'Bogdan']]]])->assertOk();
     expect(Modules\Tasks\TaskList::withoutGlobalScopes()->pluck('name')->all())->toBe(['Household', 'Bogdan']);
+});
+
+it('sends every AI call through Cloudflare AI Gateway, tagged with family, user and feature, with Gemini reading the details', function () {
+    [$family, $users] = anythingFamily();
+    config(['services.workers_ai.gateway' => 'familywell', 'services.workers_ai.gateway_token' => 'gw', 'services.gemini.key' => 'g']);
+    Http::fake([
+        'gateway.ai.cloudflare.com/v1/acc/familywell/workers-ai/@cf/cloudflare/clef' => Http::response(['success' => true, 'result' => ['answers' => ['shopping_item' => ['noul' => 0.97]], 'usage' => ['input_tokens' => 200]]]),
+        'gateway.ai.cloudflare.com/v1/acc/familywell/workers-ai/@cf/cloudflare/clairic' => Http::response(['success' => true, 'result' => ['answers' => [], 'usage' => ['input_tokens' => 500]]]),
+        'gateway.ai.cloudflare.com/v1/acc/familywell/google-ai-studio/*' => Http::response([
+            'candidates' => [['content' => ['parts' => [['text' => json_encode(['shopping_item_items' => ['lapte', 'pâine']])]]]]],
+            'usageMetadata' => ['promptTokenCount' => 300, 'candidatesTokenCount' => 20],
+        ]),
+    ]);
+
+    $items = actingAs($users[0])->postJson('/add/read', ['text' => 'cumpără lapte și pâine'])->assertOk()->json('items');
+
+    expect($items[0]['fields']['items']['value'])->toBe(['lapte', 'pâine']);
+    Http::assertSentCount(3);
+    Http::assertSent(fn ($r) => str_contains($r->url(), 'google-ai-studio/v1beta/models/gemini-3-flash-preview:generateContent')
+        && $r->header('x-goog-api-key') === ['g']
+        && $r->header('cf-aig-authorization') === ['Bearer gw']
+        && json_decode($r->header('cf-aig-metadata')[0], true) === ['family' => $family->id, 'user' => $users[0]->id, 'feature' => 'add_read', 'env' => 'testing']);
+    Http::assertSent(fn ($r) => str_ends_with($r->url(), '/clef') && $r->header('Authorization') === ['Bearer tok']);
+    expect(DB::table('ai_usage')->where('provider', 'gemini')->value('model'))->toBe('gemini-3-flash-preview');
+});
+
+it('asks Scout when Gemini fails, so the read still works', function () {
+    [, $users] = anythingFamily();
+    config(['services.gemini.key' => 'g']);
+    fakeCloudflare(['shopping_item' => 0.97], [], ['shopping_item_items' => ['lapte']]);
+    Http::fake(['generativelanguage.googleapis.com/*' => Http::response(['error' => ['message' => 'Your prepayment credits are depleted.']], 402)]);
+
+    $items = actingAs($users[0])->postJson('/add/read', ['text' => 'cumpără lapte'])->assertOk()->json('items');
+
+    expect($items[0]['fields']['items']['value'])->toBe(['lapte']);
+    Http::assertSent(fn ($r) => str_contains($r->url(), '@cf/meta/llama-4-scout'));
 });
