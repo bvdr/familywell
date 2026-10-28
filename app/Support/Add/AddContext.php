@@ -28,8 +28,10 @@ final class AddContext
 
     public static function for(User $user, string $path): self
     {
-        // /m/{module}/... and the first number after it: /m/shopping/lists/12, /m/vehicles/3, /m/spending/events/7.
-        preg_match('#^/m/([a-z_-]+)(?:/[a-z-]+)?/(\d+)#', $path, $withId);
+        // /m/{module}/... and the thing the screen is about: /m/shopping/lists/12, /m/vehicles/3, /m/spending/events/7,
+        // /m/calendar/events/5. Only right after the module or a `lists` / `events` segment: a shop's page
+        // (/m/shopping/shops/3) is not shopping list 3, and the modules read entityId as their list / event / car.
+        preg_match('#^/m/([a-z_-]+)(?:/(?:lists|events))?/(\d+)#', $path, $withId);
         preg_match('#^/m/([a-z_-]+)#', $path, $m);
         $module = isset($m[1]) ? str_replace('-', '_', $m[1]) : null;
         $entityId = isset($withId[2]) ? (int) $withId[2] : null;

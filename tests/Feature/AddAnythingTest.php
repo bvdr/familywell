@@ -233,3 +233,76 @@ it('turns a recording into words through the reader, priced per second of audio'
     config(['services.add_reader.url' => null]); // self-hosted: no voice either
     actingAs($users[0])->post('/add/transcribe', ['audio' => Illuminate\Http\UploadedFile::fake()->create('voice.webm', 40, 'audio/webm')], ['Accept' => 'application/json'])->assertNotFound();
 });
+
+it('starts a project with its first tasks, and files a task into the project it named', function () {
+    [$family, $users] = anythingFamily();
+    app(ModuleRegistry::class)->enable('projects', $family->id);
+
+    actingAs($users[0])->postJson('/add/save', ['items' => [
+        ['kind' => 'project', 'values' => ['name' => 'Gard Pietroșani', 'tasks' => [['name' => 'cumpără stâlpi', 'quantity' => null], ['name' => 'sună la constructor']]]],
+    ]])->assertOk();
+    $gard = Modules\Projects\Project::withoutGlobalScopes()->where('name', 'Gard Pietroșani')->firstOrFail();
+    $titles = fn () => Task::withoutGlobalScopes()->whereIn('id', $gard->taskIds())->orderBy('id');
+    expect($titles()->pluck('title')->all())->toBe(['cumpără stâlpi', 'sună la constructor']);
+
+    actingAs($users[0])->postJson('/add/save', ['items' => [
+        ['kind' => 'project_task', 'values' => ['title' => 'comandă plasă', 'project' => 'gard pietroșani', 'who' => 'Lucia']],
+    ]])->assertOk();
+    expect($titles()->where('title', 'comandă plasă')->value('assigned_to'))->toBe($users[1]->id);
+
+    // Neither named nor on a project's page: no guess, the card asks for the project.
+    actingAs($users[0])->postJson('/add/save', ['items' => [['kind' => 'project_task', 'values' => ['title' => 'ceva']]]])->assertUnprocessable();
+});
+
+it('tells the reader which project is on screen and the shopping lists attached to it', function () {
+    [$family, $users] = anythingFamily();
+    app(ModuleRegistry::class)->enable('projects', $family->id);
+    actingAs($users[0])->post('/m/shopping/lists', ['name' => 'Gard materials']);
+    $project = Modules\Projects\Project::createFor($users[0], ['name' => 'Gard']);
+    $project->links()->create(['linkable_type' => 'shopping_list', 'linkable_id' => ShoppingList::withoutGlobalScopes()->value('id')]);
+    fakeReader([['kind' => 'project_task', 'module' => 'projects', 'p' => 0.9, 'sure' => true, 'fields' => ['title' => ['value' => 'Call the builder', 'confidence' => 0.9]], 'ask' => [], 'missing' => [], 'types' => ['title' => 'text']]]);
+
+    $items = actingAs($users[0])->postJson('/add/read', ['text' => 'call the builder', 'path' => "/m/projects/{$project->id}"])->assertOk()->json('items');
+
+    expect($items[0]['target'])->toBe('Gard'); // the project on screen
+    Http::assertSent(fn ($r) => $r['context']['screen']['about'] === 'the project Gard, its shopping lists: Gard materials'
+        && $r['kinds']['project_task']['fields']['project'] === ['type' => 'text', 'options' => ['Gard']]);
+});
+
+it('buys things at the shop it read (keeping a known shop\'s spelling) and adds a shop on its own', function () {
+    [, $users] = anythingFamily();
+    actingAs($users[0])->post('/m/shopping/shops', ['name' => 'Lidl']);
+
+    actingAs($users[0])->postJson('/add/save', ['items' => [
+        ['kind' => 'shopping_item', 'values' => ['items' => [['name' => 'milk']], 'shop' => 'lidl']],
+        ['kind' => 'shopping_shop', 'values' => ['name' => 'Kaufland']],
+    ]])->assertOk();
+
+    expect(ShoppingItem::withoutGlobalScopes()->firstOrFail()->store)->toBe('Lidl')
+        ->and(Modules\Shopping\ShoppingShop::withoutGlobalScopes()->orderBy('name')->pluck('name')->all())->toBe(['Kaufland', 'Lidl']);
+});
+
+it('reads a shop\'s page as the Shopping screen, not as the shopping list with the same id', function () {
+    [, $users] = anythingFamily();
+    actingAs($users[0])->post('/m/shopping/lists', ['name' => 'Groceries']);
+    $list = ShoppingList::withoutGlobalScopes()->firstOrFail();
+
+    expect(App\Support\Add\AddContext::for($users[0], "/m/shopping/shops/{$list->id}")->entityId)->toBeNull()
+        ->and(App\Support\Add\AddContext::for($users[0], "/m/shopping/lists/{$list->id}")->entityId)->toBe($list->id);
+});
+
+it('puts an event\'s to-dos on the event, and files a to-do into the event it named or the one on screen', function () {
+    [, $users] = anythingFamily();
+    actingAs($users[0])->postJson('/add/save', ['items' => [
+        ['kind' => 'event', 'values' => ['title' => 'School trip', 'start' => '2026-10-30T00:00:00', 'tasks' => [['name' => 'pack lunch'], ['name' => 'sign the form']]]],
+    ]])->assertOk();
+    $trip = CalendarEvent::withoutGlobalScopes()->firstOrFail();
+    $todos = fn () => Task::withoutGlobalScopes()->whereIn('id', $trip->taskIds())->orderBy('id')->pluck('title')->all();
+    expect($todos())->toBe(['pack lunch', 'sign the form']);
+
+    actingAs($users[0])->postJson('/add/save', ['items' => [['kind' => 'event_task', 'values' => ['title' => 'charge the camera', 'event' => 'school trip']]]])->assertOk();
+    actingAs($users[0])->postJson('/add/save', ['path' => "/m/calendar/events/{$trip->id}", 'items' => [['kind' => 'event_task', 'values' => ['title' => 'pack a raincoat']]]])->assertOk();
+    expect($todos())->toBe(['pack lunch', 'sign the form', 'charge the camera', 'pack a raincoat']);
+
+    actingAs($users[0])->postJson('/add/save', ['items' => [['kind' => 'event_task', 'values' => ['title' => 'ceva']]]])->assertUnprocessable();
+});

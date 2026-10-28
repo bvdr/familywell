@@ -49,6 +49,8 @@ class ShoppingServiceProvider extends ServiceProvider
                 'items' => ['type' => 'list', 'required' => true, 'of' => ['name' => 'text', 'quantity' => 'text']],
                 // Which existing list, when the input names one. Shown as the card's destination, not as a field.
                 'list' => ['type' => 'text', 'options' => fn (User $user) => $lists($user)->pluck('name')->all(), 'hidden' => true],
+                // Where to buy them ("milk from Lidl"). Free text: a new shop is fine (addItem adds it to Shops).
+                'shop' => ['type' => 'text'],
             ],
             'target' => fn (User $user, AddContext $ctx, array $v) => $pickList($user, $ctx, $v)?->name ?? Translations::get('nav.shopping'),
             'save' => function (User $user, array $v, AddContext $ctx) use ($pickList) {
@@ -59,9 +61,12 @@ class ShoppingServiceProvider extends ServiceProvider
                 ], (array) ($v['items'] ?? [])), fn ($i) => $i['name'] !== ''));
                 throw_if($items === [], ValidationException::withMessages(['items' => 'Nothing to buy was read.']));
                 $list = $pickList($user, $ctx, $v) ?? ShoppingList::createFor($user, ['name' => Translations::get('nav.shopping')]);
+                // An existing shop keeps its spelling ("lidl" -> "Lidl"), so it doesn't split into two shops.
+                $shop = mb_substr(trim((string) ($v['shop'] ?? '')), 0, 120);
+                $store = $shop === '' ? null : (ShoppingShop::whereRaw('lower(name) = ?', [mb_strtolower($shop)])->value('name') ?? $shop);
                 foreach ($items as $item) {
                     if (! ShoppingItem::activeDuplicate($list, $item['name'])) {
-                        ShoppingData::addItem($user, $list, $item);
+                        ShoppingData::addItem($user, $list, $item + ['store' => $store]);
                     }
                 }
 
@@ -78,6 +83,19 @@ class ShoppingServiceProvider extends ServiceProvider
                 ShoppingData::changed();
 
                 return ['title' => $list->name, 'url' => "/m/shopping/lists/{$list->id}"];
+            },
+        ]);
+        // A shop the family buys from (the Shops tab), on its own: "add Kaufland to my shops".
+        AddKinds::register('shopping_shop', 'shopping', [
+            'fields' => [
+                'name' => ['type' => 'text', 'required' => true],
+            ],
+            'save' => function (User $user, array $v) {
+                $data = Validator::validate(['name' => trim((string) ($v['name'] ?? ''))], ['name' => ['required', 'string', 'max:120']]);
+                $shop = ShoppingShop::whereRaw('lower(name) = ?', [mb_strtolower($data['name'])])->first() ?? ShoppingShop::create($data);
+                ShoppingData::changed();
+
+                return ['title' => $shop->name, 'url' => "/m/shopping/shops/{$shop->id}"];
             },
         ]);
         AddKinds::screen('shopping', fn (?int $id, User $user) => $id && ($l = ShoppingData::list($user, $id)) ? "the shopping list {$l->name}" : null);

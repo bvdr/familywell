@@ -7,6 +7,7 @@ import {
     Car,
     Check,
     ClipboardPaste,
+    FolderKanban,
     ImagePlus,
     Keyboard,
     ListChecks,
@@ -15,6 +16,7 @@ import {
     Mic,
     ShoppingCart,
     Sparkles,
+    Store,
     Trash2,
     Wallet,
     X,
@@ -43,6 +45,7 @@ type Item = {
     types: Record<string, string>;
     // Read but not shown as a field (the list it goes into: that's the destination in the header).
     hidden?: string[];
+    quantity?: string[]; // list fields whose rows have an amount (shopping items)
 };
 // What the person changed on a card, kept across re-reads while they keep typing: keyed by kind.
 type Edit = { on?: boolean; values: Record<string, string>; lists?: Record<string, Entry[]> };
@@ -55,6 +58,10 @@ const KIND_ICON: Record<string, LucideIcon> = {
     vehicle: Car,
     task_list: ListPlus,
     shopping_list: ListPlus,
+    project: FolderKanban,
+    project_task: ListChecks,
+    event_task: ListChecks,
+    shopping_shop: Store,
 };
 // How long a pause in typing before reading. 450ms (was 700): the cards show sooner, and a read still in flight is
 // aborted when the person keeps typing, so the shorter pause doesn't pile up calls.
@@ -479,8 +486,9 @@ export function JustSayIt({
                                         const unsure = (it.fields[name]?.confidence ?? 1) < 0.5;
                                         const empty = it.missing.includes(name) && !valueOf(it, name).trim();
                                         if (it.types[name] === 'list') {
-                                            // One row per thing: its name and how much ("Schweppes" × "six pack").
+                                            // One row per thing: its name and, for shopping, how much ("Schweppes" × "six pack").
                                             const rows = entriesOf(it, name);
+                                            const qty = it.quantity?.includes(name);
                                             const put = (i: number, patch: Partial<Entry>) =>
                                                 setEntries(
                                                     it.id,
@@ -491,20 +499,25 @@ export function JustSayIt({
                                                 <div key={name} className="flex flex-col gap-1.5">
                                                     <span className="text-muted-foreground font-mono text-[11px] uppercase">{fieldLabel(name)}</span>
                                                     {rows.map((r, i) => (
-                                                        <div key={i} className="grid grid-cols-[minmax(0,1fr)_6.5rem_auto] items-center gap-1.5">
+                                                        <div
+                                                            key={i}
+                                                            className={`grid ${qty ? 'grid-cols-[minmax(0,1fr)_6.5rem_auto]' : 'grid-cols-[minmax(0,1fr)_auto]'} items-center gap-1.5`}
+                                                        >
                                                             <input
                                                                 value={r.name}
                                                                 onChange={(e) => put(i, { name: e.target.value })}
-                                                                aria-label={t('add.f_items')}
+                                                                aria-label={fieldLabel(name)}
                                                                 className="text-primary bg-surface-card min-w-0 rounded-lg border px-2.5 py-1.5 text-base"
                                                             />
-                                                            <input
-                                                                value={r.quantity}
-                                                                onChange={(e) => put(i, { quantity: e.target.value })}
-                                                                placeholder={t('add.f_quantity')}
-                                                                aria-label={t('add.f_quantity')}
-                                                                className="text-primary bg-surface-card min-w-0 rounded-lg border px-2.5 py-1.5 text-base"
-                                                            />
+                                                            {qty && (
+                                                                <input
+                                                                    value={r.quantity}
+                                                                    onChange={(e) => put(i, { quantity: e.target.value })}
+                                                                    placeholder={t('add.f_quantity')}
+                                                                    aria-label={t('add.f_quantity')}
+                                                                    className="text-primary bg-surface-card min-w-0 rounded-lg border px-2.5 py-1.5 text-base"
+                                                                />
+                                                            )}
                                                             <button
                                                                 type="button"
                                                                 onClick={() =>
