@@ -10,11 +10,9 @@ use Closure;
 /**
  * What "Just say it" (the Add sheet's AI box, design XMkKm H2) can add, contributed by the modules that own each thing:
  * a module registers a kind from its service provider, so the core never knows about events or expenses. A kind is:
- *  - question: a yes/no the decision model answers about the input ("is there an event to put on the calendar?");
- *  - fields:   what to read out of it, as typed fields (text | number | date | datetime | list), each with plain
- *              instructions; 'ask' => 'member' turns an unsure value into a "which of you?" question;
- *  - rivals:   optional kinds that can't come out of the same input (a new to-do list vs a new shopping list); when
- *              both are read, only the more likely one is offered;
+ *  - fields:   what the reader should fill, by type (text | number | date | datetime | list, a list may be of objects
+ *              via 'of'); 'required' => true (the card can't be added without it); 'ask' => 'member' (an unsure "who"
+ *              becomes a question). How to recognise and read each field is the reader's job (AddReader: the worker);
  *  - target:   optional Closure(User, AddContext): ?string naming where it will land ("Household"), shown on the card
  *              so it's clear what gets created where; read-only (never create anything here);
  *  - save:     Closure(User, array $values, AddContext): array{title: string, url: string} creating the thing through
@@ -24,13 +22,13 @@ use Closure;
  */
 final class AddKinds
 {
-    /** @var array<string, array{module: string, question: string, fields: array<string, array<string, mixed>>, save: Closure}> */
+    /** @var array<string, array{module: string, fields: array<string, array<string, mixed>>, target?: Closure, save: Closure}> */
     private static array $kinds = [];
 
     /** @var array<string, Closure(?int, User): ?string> */
     private static array $screens = [];
 
-    /** @param array{question: string, fields: array<string, array<string, mixed>>, save: Closure} $def */
+    /** @param array{fields: array<string, array<string, mixed>>, target?: Closure, save: Closure} $def */
     public static function register(string $kind, string $module, array $def): void
     {
         self::$kinds[$kind] = ['module' => $module] + $def;

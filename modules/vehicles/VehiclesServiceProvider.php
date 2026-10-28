@@ -36,13 +36,12 @@ class VehiclesServiceProvider extends ServiceProvider
         // "Just say it" in the Add sheet: a car (AddKinds), e.g. from a photo. In Vehicles with no cars yet the screen
         // line says so, which is what tips a car photo towards "add a vehicle" (the user's example).
         AddKinds::register('vehicle', 'vehicles', [
-            'question' => 'Is the person adding a car or other vehicle the family owns (a photo of a car, or its make and model)?',
             'fields' => [
-                'make' => ['type' => 'text', 'instructions' => 'the vehicle make (brand), e.g. Toyota', 'required' => true],
-                'model' => ['type' => 'text', 'instructions' => 'the model name only, without the make (e.g. Corolla, not Toyota Corolla)', 'required' => true],
-                'year' => ['type' => 'number', 'decimals' => 0, 'instructions' => 'the model year, if known'],
-                'plate' => ['type' => 'text', 'instructions' => 'the licence plate number, if visible'],
-                'color' => ['type' => 'text', 'instructions' => 'the colour'],
+                'make' => ['type' => 'text', 'required' => true],
+                'model' => ['type' => 'text', 'required' => true],
+                'year' => ['type' => 'number', 'decimals' => 0],
+                'plate' => ['type' => 'text'],
+                'color' => ['type' => 'text'],
             ],
             'save' => function (User $user, array $v) {
                 $data = Validator::validate(['make' => $v['make'] ?? null, 'model' => $v['model'] ?? null, 'year' => $v['year'] ?? null, 'license_plate' => $v['plate'] ?? null, 'color' => $v['color'] ?? null], [

@@ -39,29 +39,31 @@ class ShoppingServiceProvider extends ServiceProvider
                 ?? ShoppingList::visibleTo($user->id)->whereNull('archived_at')->orderBy('position')->first();
         };
         AddKinds::register('shopping_item', 'shopping', [
-            'question' => 'Does the person name specific things to buy at a shop (groceries, supplies)?',
             'fields' => [
-                'items' => ['type' => 'list', 'items' => 'text', 'instructions' => 'each thing to buy, one per entry', 'required' => true],
+                // Each thing with its amount ("six pack" of "Schweppes Lămâie și Zmeură"): the reader splits them.
+                'items' => ['type' => 'list', 'required' => true, 'of' => ['name' => 'text', 'quantity' => 'text']],
             ],
             'target' => fn (User $user, AddContext $ctx) => $pickList($user, $ctx)?->name ?? Translations::get('nav.shopping'),
             'save' => function (User $user, array $v, AddContext $ctx) use ($pickList) {
-                $names = array_values(array_filter(array_map(fn ($n) => mb_substr(trim((string) $n), 0, 255), (array) ($v['items'] ?? []))));
-                throw_if($names === [], ValidationException::withMessages(['items' => 'Nothing to buy was read.']));
+                // {name, quantity} per thing (a bare string still works: just the name).
+                $items = array_values(array_filter(array_map(fn ($i) => [
+                    'name' => mb_substr(trim((string) (is_array($i) ? ($i['name'] ?? '') : $i)), 0, 255),
+                    'quantity' => is_array($i) && filled($i['quantity'] ?? null) ? mb_substr(trim((string) $i['quantity']), 0, 60) : null,
+                ], (array) ($v['items'] ?? [])), fn ($i) => $i['name'] !== ''));
+                throw_if($items === [], ValidationException::withMessages(['items' => 'Nothing to buy was read.']));
                 $list = $pickList($user, $ctx) ?? ShoppingList::createFor($user, ['name' => Translations::get('nav.shopping')]);
-                foreach ($names as $name) {
-                    if (! ShoppingItem::activeDuplicate($list, $name)) {
-                        ShoppingData::addItem($user, $list, ['name' => $name]);
+                foreach ($items as $item) {
+                    if (! ShoppingItem::activeDuplicate($list, $item['name'])) {
+                        ShoppingData::addItem($user, $list, $item);
                     }
                 }
 
-                return ['title' => implode(', ', $names), 'url' => "/m/shopping/lists/{$list->id}"];
+                return ['title' => implode(', ', array_column($items, 'name')), 'url' => "/m/shopping/lists/{$list->id}"];
             },
         ]);
         AddKinds::register('shopping_list', 'shopping', [
-            'rivals' => ['task_list'],
-            'question' => 'Does the person ask to create a new shopping list (a whole list, not items to buy)?',
             'fields' => [
-                'name' => ['type' => 'text', 'instructions' => 'the name for the new list, if given', 'required' => true],
+                'name' => ['type' => 'text', 'required' => true],
             ],
             'save' => function (User $user, array $v) {
                 $data = Validator::validate(['name' => $v['name'] ?? null], ['name' => ['required', 'string', 'max:255']]);

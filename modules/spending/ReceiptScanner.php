@@ -24,7 +24,7 @@ class ReceiptScanner
     // The whole feature is gated on this: no API key, no scanning (and the UI hides the entry).
     public static function configured(): bool
     {
-        return filled(config('services.gemini.key'));
+        return AiGateway::gemini();
     }
 
     /**
@@ -68,7 +68,7 @@ class ReceiptScanner
 
         // thinkingBudget 0: this is plain extraction, not reasoning, so we skip (billable) thinking tokens.
         // Through AiGateway: logged in Cloudflare AI Gateway per family / user when configured, and in our ledger.
-        $out = AiGateway::run('receipt_scan', ['scan' => ['google-ai-studio', (string) $model, [
+        $out = AiGateway::run('receipt_scan', ['scan' => [(string) $model, [
             'contents' => [[
                 'parts' => [
                     ['text' => $prompt],

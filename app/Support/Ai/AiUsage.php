@@ -6,8 +6,8 @@ use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Support\Facades\DB;
 
 /**
- * The ai_usage ledger: every AI call we pay for, recorded by the provider client that made it (WorkersAi, TypeSafe,
- * the Gemini callers), so no feature can call a model without it being counted. Who (family + user) comes from the
+ * The ai_usage ledger: every AI call we pay for, recorded by the client that made it (AiGateway for Gemini, TypeSafe,
+ * AddReader for what the reader worker reports), so no feature can call a model without it being counted. Who (family + user) comes from the
  * request; background work after the response (defer) still has both. Cost is priced from config familywell.ai_rates.
  * Points are charged separately, per finished AI action (AiPoints::charge), not per call: typing in "Just say it"
  * reads several times per add.
