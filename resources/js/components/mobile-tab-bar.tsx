@@ -318,7 +318,8 @@ function AddSheet({ open, onOpenChange, enabled }: { open: boolean; onOpenChange
         );
 
     return (
-        <ResponsiveModal open={open} onOpenChange={onOpenChange} title={t('create.title')} description={t('create.desc')}>
+        // No subtitle under "Add": "Create something new" said the same thing twice (the user, 2026-10-28; the design has none).
+        <ResponsiveModal open={open} onOpenChange={onOpenChange} title={t('create.title')}>
             <div className="flex flex-col gap-4">
                 {ai && (
                     <Segmented

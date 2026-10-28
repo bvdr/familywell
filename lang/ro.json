@@ -163,7 +163,6 @@
     },
     "create": {
         "title": "Adaugă",
-        "desc": "Creează ceva nou",
         "turn_on": "Activează un modul pentru a adăuga lucruri",
         "shopping": "Listă de cumpărături nouă",
         "tasks": "Listă de sarcini nouă",

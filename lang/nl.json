@@ -143,7 +143,6 @@
     },
     "create": {
         "title": "Toevoegen",
-        "desc": "Maak iets nieuws",
         "turn_on": "Zet een module aan om iets toe te voegen",
         "shopping": "Nieuwe boodschappenlijst",
         "tasks": "Nieuwe takenlijst",
