@@ -174,3 +174,28 @@ it('never adds into someone else\'s private list, even from its URL', function (
 
     expect(ShoppingItem::withoutGlobalScopes()->firstOrFail()->shopping_list_id)->not->toBe($secret->id);
 });
+
+it('offers the reader the person\'s lists, and files several to-dos into the list it named', function () {
+    [, $users] = anythingFamily();
+    foreach (['Household', 'Oana'] as $name) {
+        actingAs($users[0])->post('/m/tasks/lists', ['name' => $name]);
+    }
+    // A photographed note headed "Oana" with jotted tasks: four to-do cards, each naming the existing list.
+    $card = fn (int $n, string $title) => ['id' => "todo-{$n}", 'kind' => 'todo', 'module' => 'tasks', 'p' => 0.84, 'sure' => true,
+        'fields' => ['title' => ['value' => $title, 'confidence' => 0.8], 'list' => ['value' => 'Oana', 'confidence' => 0.8]],
+        'ask' => [], 'missing' => [], 'types' => ['title' => 'text', 'due' => 'date', 'who' => 'text', 'list' => 'text']];
+    fakeReader([$card(0, 'reactualizat CV-ul model nou'), $card(1, 'site făcut')]);
+
+    $items = actingAs($users[0])->postJson('/add/read', ['text' => '', 'images' => ['data:image/jpeg;base64,/9j/AAAA']])->assertOk()->json('items');
+
+    expect(collect($items)->pluck('target')->all())->toBe(['Oana', 'Oana'])
+        ->and($items[0]['hidden'])->toBe(['list']);
+    Http::assertSent(fn ($r) => $r['kinds']['todo']['fields']['list'] === ['type' => 'text', 'options' => ['Household', 'Oana']]);
+
+    actingAs($users[0])->postJson('/add/save', ['items' => [
+        ['kind' => 'todo', 'values' => ['title' => 'reactualizat CV-ul model nou', 'list' => 'Oana']],
+        ['kind' => 'todo', 'values' => ['title' => 'site făcut', 'list' => 'oana']], // any case
+    ]])->assertOk();
+    $oana = Modules\Tasks\TaskList::withoutGlobalScopes()->where('name', 'Oana')->firstOrFail();
+    expect(Task::withoutGlobalScopes()->where('task_list_id', $oana->id)->pluck('title')->all())->toBe(['reactualizat CV-ul model nou', 'site făcut']);
+});

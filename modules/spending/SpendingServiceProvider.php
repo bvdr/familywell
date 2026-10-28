@@ -44,7 +44,7 @@ class SpendingServiceProvider extends ServiceProvider
                 'date' => ['type' => 'date'],
             ],
             // Named only, never created here (others() makes the list when it's missing): reading has no side effects.
-            'target' => fn (User $user, AddContext $ctx) => ($ctx->module === 'spending' && $ctx->entityId ? SpendData::event($user, $ctx->entityId, edit: true)?->name : null)
+            'target' => fn (User $user, AddContext $ctx, array $v) => ($ctx->module === 'spending' && $ctx->entityId ? SpendData::event($user, $ctx->entityId, edit: true)?->name : null)
                 ?? Translations::get('spending.others_list'),
             'save' => function (User $user, array $v, AddContext $ctx) {
                 $event = ($ctx->module === 'spending' && $ctx->entityId ? SpendData::event($user, $ctx->entityId, edit: true) : null) ?? SpendEvent::others($user);

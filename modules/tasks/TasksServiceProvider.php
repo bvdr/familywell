@@ -32,25 +32,32 @@ class TasksServiceProvider extends ServiceProvider
         // "Just say it" in the Add sheet (AddKinds): a to-do, or a whole new to-do list. A to-do goes to the list on
         // screen, else the list this person added to last, else their first list (else a new one named like the
         // module); the card names that list up front (target) so it's clear where it lands.
-        $pickList = function (User $user, AddContext $ctx): ?TaskList {
+        // The lists this person can add to, in their order: what the reader may pick for `list`.
+        $lists = fn (User $user) => TaskList::visibleTo($user->id)->whereNull('archived_at')->orderBy('position');
+        $pickList = function (User $user, AddContext $ctx, array $v = []) use ($lists): ?TaskList {
+            // A list the person named, or the heading of a photographed list ("Oana"): that existing list first.
+            $named = filled($v['list'] ?? null) ? $lists($user)->whereRaw('lower(name) = ?', [mb_strtolower(trim((string) $v['list']))])->first() : null;
             $lastList = Task::where('created_by', $user->id)->whereNotNull('task_list_id')->latest('id')->value('task_list_id');
 
-            return ($ctx->module === 'tasks' && $ctx->entityId ? TaskData::list($user, $ctx->entityId) : null)
+            return $named
+                ?? ($ctx->module === 'tasks' && $ctx->entityId ? TaskData::list($user, $ctx->entityId) : null)
                 ?? ($lastList ? TaskData::list($user, $lastList) : null)
-                ?? TaskList::visibleTo($user->id)->whereNull('archived_at')->orderBy('position')->first();
+                ?? $lists($user)->first();
         };
         AddKinds::register('todo', 'tasks', [
             'fields' => [
                 'title' => ['type' => 'text', 'required' => true],
                 'due' => ['type' => 'date'],
                 'who' => ['type' => 'text', 'ask' => 'member'],
+                // Which existing list, when the input names one. Shown as the card's destination, not as a field.
+                'list' => ['type' => 'text', 'options' => fn (User $user) => $lists($user)->pluck('name')->all(), 'hidden' => true],
             ],
-            'target' => fn (User $user, AddContext $ctx) => $pickList($user, $ctx)?->name ?? Translations::get('nav.tasks'),
+            'target' => fn (User $user, AddContext $ctx, array $v) => $pickList($user, $ctx, $v)?->name ?? Translations::get('nav.tasks'),
             'save' => function (User $user, array $v, AddContext $ctx) use ($pickList) {
                 $data = Validator::validate(['title' => $v['title'] ?? null, 'due_date' => $v['due'] ?? null], [
                     'title' => ['required', 'string', 'max:255'], 'due_date' => ['nullable', 'date'],
                 ]);
-                $list = $pickList($user, $ctx) ?? TaskList::createFor($user, ['name' => Translations::get('nav.tasks')]);
+                $list = $pickList($user, $ctx, $v) ?? TaskList::createFor($user, ['name' => Translations::get('nav.tasks')]);
                 $task = TaskData::addTask($user, $list, $data + ['assigned_to' => $ctx->memberId($v['who'] ?? null)]);
 
                 return ['title' => $task->title, 'url' => "/m/tasks/lists/{$list->id}"];
