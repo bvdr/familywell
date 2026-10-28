@@ -232,6 +232,8 @@
         "ask_vehicle": "Adaugi ca vehicul nou?",
         "ask_task_list": "Creezi lista asta de sarcini?",
         "ask_shopping_list": "Creezi lista asta de cumpărături?",
-        "f_name": "Nume"
+        "f_name": "Nume",
+        "f_quantity": "Cantitate",
+        "remove_item": "Scoate produsul"
     }
 }

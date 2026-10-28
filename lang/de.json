@@ -210,6 +210,8 @@
         "ask_vehicle": "Als neues Fahrzeug hinzufügen?",
         "ask_task_list": "Diese Aufgabenliste anlegen?",
         "ask_shopping_list": "Diese Einkaufsliste anlegen?",
-        "f_name": "Name"
+        "f_name": "Name",
+        "f_quantity": "Menge",
+        "remove_item": "Artikel entfernen"
     }
 }

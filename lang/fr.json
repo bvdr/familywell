@@ -210,6 +210,8 @@
         "ask_vehicle": "Ajouter comme nouveau véhicule ?",
         "ask_task_list": "Créer cette liste de tâches ?",
         "ask_shopping_list": "Créer cette liste de courses ?",
-        "f_name": "Nom"
+        "f_name": "Nom",
+        "f_quantity": "Quantité",
+        "remove_item": "Retirer l’article"
     }
 }
