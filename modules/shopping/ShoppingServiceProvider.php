@@ -58,6 +58,7 @@ class ShoppingServiceProvider extends ServiceProvider
             },
         ]);
         AddKinds::register('shopping_list', 'shopping', [
+            'rivals' => ['task_list'],
             'question' => 'Does the person ask to create a new shopping list (a whole list, not items to buy)?',
             'fields' => [
                 'name' => ['type' => 'text', 'instructions' => 'the name for the new list, if given', 'required' => true],

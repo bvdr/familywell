@@ -13,6 +13,8 @@ use Closure;
  *  - question: a yes/no the decision model answers about the input ("is there an event to put on the calendar?");
  *  - fields:   what to read out of it, as typed fields (text | number | date | datetime | list), each with plain
  *              instructions; 'ask' => 'member' turns an unsure value into a "which of you?" question;
+ *  - rivals:   optional kinds that can't come out of the same input (a new to-do list vs a new shopping list); when
+ *              both are read, only the more likely one is offered;
  *  - target:   optional Closure(User, AddContext): ?string naming where it will land ("Household"), shown on the card
  *              so it's clear what gets created where; read-only (never create anything here);
  *  - save:     Closure(User, array $values, AddContext): array{title: string, url: string} creating the thing through

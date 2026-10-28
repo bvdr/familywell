@@ -93,6 +93,18 @@ final class AddReader
         }
         usort($items, fn ($a, $b) => $b['p'] <=> $a['p']);
 
+        // Rival kinds (a new to-do list vs a new shopping list): one reading can't be both, so only the more likely one
+        // stays. "Lista nouă pentru Bogdan de todouri" came back as both, each sure enough to start ticked (Gemini, live).
+        $kept = [];
+        $items = array_values(array_filter($items, function ($it) use ($kinds, &$kept) {
+            if (array_intersect($kinds[$it['kind']]['rivals'] ?? [], $kept)) {
+                return false;
+            }
+            $kept[] = $it['kind'];
+
+            return true;
+        }));
+
         // An unsure card that only repeats a sure card's words is the same reading twice ("new list of todouri" as a
         // to-do list AND a shopping list): keep the sure one.
         $said = fn (array $it) => array_map(fn ($f) => mb_strtolower(trim(is_array($f['value']) ? implode(',', $f['value']) : (string) $f['value'])), $it['fields']);

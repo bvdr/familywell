@@ -254,3 +254,15 @@ it('asks Scout when Gemini fails, so the read still works', function () {
     expect($items[0]['fields']['items']['value'])->toBe(['lapte']);
     Http::assertSent(fn ($r) => str_contains($r->url(), '@cf/meta/llama-4-scout'));
 });
+
+it('offers only the more likely of two rival kinds', function () {
+    [, $users] = anythingFamily();
+    fakeCloudflare(['task_list' => 0.88, 'shopping_list' => 0.74], [
+        'task_list_name' => ['value' => 'Bogdan', 'confidence' => 0.8, 'p_null' => 0],
+        'shopping_list_name' => ['value' => 'Lista nouă', 'confidence' => 0.8, 'p_null' => 0],
+    ]);
+
+    $items = actingAs($users[0])->postJson('/add/read', ['text' => 'Lista nouă pentru Bogdan de todouri'])->json('items');
+
+    expect(collect($items)->pluck('kind')->all())->toBe(['task_list']);
+});
