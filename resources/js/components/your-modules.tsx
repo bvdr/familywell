@@ -19,8 +19,8 @@ import { useState } from 'react';
 import { PinModulesModal, usePinned } from '@/components/pin-modules';
 import { useT } from '@/lib/i18n';
 
-// The dashboard's "Your modules" grid (design JGdKu / g588Mw): one tile per enabled module with its live one-line
-// status from DashboardSummaries ("6 to buy", "2 due today"). Two across on phones, four on tablet and up. The
+// The dashboard's "Your modules" grid (design XMkKm, Home H1): one tile per enabled module with its live one-line
+// status from DashboardSummaries ("6 to buy", "2 due today"). Two across: on desktop it sits in Home's narrow right column. The
 // onboarding tour spotlights it (data-tour="modules"); "+ Add" goes to the modules settings.
 export const MODULES: Record<string, { icon: LucideIcon; href: string }> = {
     shopping: { icon: ShoppingCart, href: '/m/shopping' },
@@ -48,43 +48,42 @@ export function YourModules({ enabled, summaries }: { enabled: string[]; summari
     if (ids.length === 0) return null;
 
     return (
-        <section className="flex flex-col gap-3">
+        <section className="flex flex-col gap-2.5">
+            {/* Same mono label row as the rest of Home ("YOUR MODULES 8 ...... Edit"). */}
             <div className="flex items-baseline justify-between px-1">
-                <h2 className="font-heading text-primary text-lg">{pinned ? t('dashboard.pinned') : t('dashboard.your_modules')}</h2>
+                <h2 className="text-muted-foreground font-mono text-xs font-semibold tracking-[0.14em] uppercase">
+                    {pinned ? t('dashboard.pinned') : t('dashboard.your_modules')}
+                    <span className="text-primary ml-2">{ids.length}</span>
+                </h2>
                 {pinned ? (
-                    <button
-                        type="button"
-                        onClick={() => setEditing(true)}
-                        className="text-muted-foreground inline-flex items-center gap-1 text-sm font-medium"
-                    >
+                    <button type="button" onClick={() => setEditing(true)} className="text-primary text-sm font-medium">
                         {t('dashboard.edit_pins')}
                     </button>
                 ) : (
-                    <Link href="/family/modules" className="text-muted-foreground inline-flex items-center gap-1 text-sm font-medium">
+                    <Link href="/family/modules" className="text-primary inline-flex items-center gap-1 text-sm font-medium">
                         <Plus className="size-3.5" />
                         {t('dashboard.add_module')}
                     </Link>
                 )}
             </div>
-            <div data-tour="modules" className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
-                {ids.map((id, i) => {
+            <div data-tour="modules" className="grid grid-cols-2 gap-2.5">
+                {ids.map((id) => {
                     const { icon: Icon, href } = MODULES[id];
                     const line = summaries[id];
                     return (
                         <Link
                             key={id}
                             href={href}
-                            className="bg-surface-card hover:border-accent flex flex-col gap-3 rounded-2xl border p-4 transition-colors"
+                            className="bg-surface-card hover:border-primary/40 flex min-h-32 flex-col justify-between gap-4 rounded-2xl border p-4 transition-colors"
                         >
-                            {/* The first tile's icon in the accent, like the design's Shopping tile. */}
-                            <span
-                                className={`flex size-9 items-center justify-center rounded-[10px] ${i === 0 ? 'bg-accent-strong text-accent-strong-foreground' : 'bg-surface text-primary'}`}
-                            >
-                                <Icon className="size-[18px]" />
+                            <span className="bg-surface-card text-primary flex size-10 items-center justify-center rounded-xl border">
+                                <Icon className="size-5" />
                             </span>
                             <span className="min-w-0">
-                                <span className="text-primary block text-[15px] font-bold">{t(`onboarding.module_${id}`)}</span>
-                                {line && <span className="text-muted-foreground block truncate text-[12.5px]">{t(line.key, line.params)}</span>}
+                                <span className="font-heading text-primary block text-lg leading-tight font-bold">
+                                    {t(`onboarding.module_${id}`)}
+                                </span>
+                                {line && <span className="text-muted-foreground block truncate text-sm">{t(line.key, line.params)}</span>}
                             </span>
                         </Link>
                     );

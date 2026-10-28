@@ -2,6 +2,9 @@
 
 namespace App\Support\Dashboard;
 
+use App\Models\Family;
+use App\Support\Tenancy\CurrentFamily;
+
 // Assembles Home from the module providers:
 //  - recent:   entities opened in the last few days, most-recent first ("Jump back in")
 //  - today:    dated items due today or overdue ("Today")
@@ -27,6 +30,8 @@ class DashboardData
 
         // Overdue rolls into Today (it still needs doing now).
         return [
+            // Home's top bar shows the family's mark + name.
+            'family' => Family::find(CurrentFamily::id())?->only(['name', 'color', 'symbol', 'emoji']),
             'recent' => $recent,
             'today' => $agenda->filter(fn ($i) => $i['dueDate'] <= $today)->values()->all(),
             'tomorrow' => $agenda->where('dueDate', $tomorrow)->values()->all(),
