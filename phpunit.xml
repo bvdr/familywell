@@ -36,5 +36,14 @@
              billing tests switch it on themselves via config(). -->
         <env name="STRIPE_KEY" value="" force="true"/>
         <server name="STRIPE_KEY" value="" force="true"/>
+        <!-- No real AI provider in tests, whatever a developer's .env holds: tests fake every AI call (AiGateway). -->
+        <env name="CLOUDFLARE_AI_TOKEN" value="" force="true"/>
+        <server name="CLOUDFLARE_AI_TOKEN" value="" force="true"/>
+        <env name="CLOUDFLARE_AI_GATEWAY" value="" force="true"/>
+        <server name="CLOUDFLARE_AI_GATEWAY" value="" force="true"/>
+        <env name="GEMINI_API_KEY" value="" force="true"/>
+        <server name="GEMINI_API_KEY" value="" force="true"/>
+        <env name="TYPESAFE_API_KEY" value="" force="true"/>
+        <server name="TYPESAFE_API_KEY" value="" force="true"/>
     </php>
 </phpunit>

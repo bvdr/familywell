@@ -47,9 +47,14 @@ return [
     // Cloudflare Workers AI: Clef (decisions) + Clairic (typed extraction) read "Just say it" in the Add sheet.
     // A token scoped to Workers AI only (1Password folio-dev "Cloudflare Workers AI token (familywell)"), never an
     // account-wide one. Without it the reader falls back to Gemini (above), and without that the sheet is Classic only.
+    // gateway + gateway_token (optional): route every AI call (these and Gemini) through Cloudflare AI Gateway, which logs
+    // usage per family / user / feature (App\Support\Ai\AiGateway). The gateway token has AI Gateway Run only (1Password
+    // folio-dev "Cloudflare AI Gateway token (familywell)"); it must differ from `token`, the gateway refuses one in both.
     'workers_ai' => [
         'account' => env('CLOUDFLARE_AI_ACCOUNT_ID'),
         'token' => env('CLOUDFLARE_AI_TOKEN'),
+        'gateway' => env('CLOUDFLARE_AI_GATEWAY'),
+        'gateway_token' => env('CLOUDFLARE_AI_GATEWAY_TOKEN'),
     ],
 
     // TypeSafe (Jev), used only to guess a shopping item's aisle when it was added into the
