@@ -221,6 +221,9 @@
         "add_all": "Legg til alt",
         "discard": "Forkast",
         "voice_hint": "Trykk ✓ for å legge til · fortsett å snakke for å legge til mer",
-        "mic_denied": "Mikrofonen er av for dette nettstedet. Tillat den i nettleserinnstillingene, eller skriv."
+        "mic_denied": "Mikrofonen er av for dette nettstedet. Tillat den i nettleserinnstillingene, eller skriv.",
+        "paste": "Lim inn fra utklippstavlen",
+        "clipboard_empty": "Utklippstavlen er tom.",
+        "clipboard_denied": "Kunne ikke lese utklippstavlen. Hold inne i feltet og velg Lim inn."
     }
 }

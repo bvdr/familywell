@@ -221,6 +221,9 @@
         "add_all": "Lägg till allt",
         "discard": "Släng",
         "voice_hint": "Tryck ✓ för att lägga till · fortsätt prata för att lägga till mer",
-        "mic_denied": "Mikrofonen är av för den här webbplatsen. Tillåt den i webbläsarens inställningar, eller skriv."
+        "mic_denied": "Mikrofonen är av för den här webbplatsen. Tillåt den i webbläsarens inställningar, eller skriv.",
+        "paste": "Klistra in från urklipp",
+        "clipboard_empty": "Urklipp är tomt.",
+        "clipboard_denied": "Kunde inte läsa urklipp. Håll in i rutan och välj Klistra in."
     }
 }

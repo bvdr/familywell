@@ -221,6 +221,9 @@
         "add_all": "Añadir todo",
         "discard": "Descartar",
         "voice_hint": "Toca ✓ para añadir · sigue hablando para añadir más",
-        "mic_denied": "El micrófono está desactivado para este sitio. Actívalo en los ajustes del navegador o escribe."
+        "mic_denied": "El micrófono está desactivado para este sitio. Actívalo en los ajustes del navegador o escribe.",
+        "paste": "Pegar del portapapeles",
+        "clipboard_empty": "El portapapeles está vacío.",
+        "clipboard_denied": "No se pudo leer el portapapeles. Mantén pulsado en el cuadro y elige Pegar."
     }
 }
