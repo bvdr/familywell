@@ -32,11 +32,11 @@ return [
         ],
     ],
 
-    // What each tier says it includes on Plan & pay ("1 GB · 30 AI points"). Display copy only: nothing in the app
+    // What each tier says it includes on Plan & pay ("1 GB · 50 AI points"). Display copy only: nothing in the app
     // meters storage or AI points yet, so the tiers differ in price and promise until that exists.
     'tiers' => [
-        'basic' => ['storage_gb' => 1, 'ai_points' => 30],
-        'pro' => ['storage_gb' => 5, 'ai_points' => 150],
+        'basic' => ['storage_gb' => 1, 'ai_points' => 50],
+        'pro' => ['storage_gb' => 5, 'ai_points' => 200],
     ],
 
     // The module-requests board ("Can't find yours?" in the onboarding's module picker). Empty hides the card,
