@@ -17,6 +17,11 @@ export function runAddAction(): boolean {
     return false;
 }
 
+// Whether the current page claimed the "+" (the Add sheet then offers it as "Add on this page").
+export function hasAddAction(): boolean {
+    return !!current?.current;
+}
+
 // Register `fn` as the "+" action for as long as this component is mounted. The nav always calls the
 // latest `fn` (via a ref), so passing an inline closure each render is fine. Pass null while the page
 // has nothing to add (e.g. an archived spending list) to hand "+" back to the global quick-add sheet.

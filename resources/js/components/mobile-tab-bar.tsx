@@ -1,6 +1,8 @@
+import { JustSayIt } from '@/components/add-just-say-it';
+import { Segmented } from '@/components/segmented';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useNavPins } from '@/hooks/use-nav-pins';
-import { runAddAction } from '@/lib/add-action';
+import { hasAddAction, runAddAction } from '@/lib/add-action';
 import { useT } from '@/lib/i18n';
 import { Link, router, usePage } from '@inertiajs/react';
 import {
@@ -102,7 +104,8 @@ const sectionLabel = 'text-muted-foreground px-1 font-mono text-xs font-semibold
 const iconBox = 'bg-surface-card text-primary flex size-11 items-center justify-center rounded-xl border';
 
 export function MobileTabBar() {
-    const page = usePage<{ modules?: { enabled?: string[] } }>();
+    const page = usePage<{ modules?: { enabled?: string[] }; aiAdd?: boolean }>();
+    const aiAdd = !!page.props.aiAdd;
     const t = useT();
     const enabled = page.props.modules?.enabled ?? [];
     const modules = MODULE_ITEMS.filter((m) => enabled.includes(m.key));
@@ -173,7 +176,9 @@ export function MobileTabBar() {
                 <button
                     type="button"
                     onClick={() => {
-                        if (!runAddAction()) setAddOpen(true);
+                        // With "Just say it" on, + always opens the sheet (the page is its context); the page's own
+                        // add is the first row of Classic. Without it, the page's add runs as before.
+                        if (aiAdd || !runAddAction()) setAddOpen(true);
                     }}
                     aria-label={t('create.title')}
                     data-tour="add"
@@ -201,12 +206,34 @@ export function MobileTabBar() {
     );
 }
 
-// H2d · Classic add: the family's most-added kinds as rows with their 30-day count, everything else as chips.
-// "Just say it" (one box that reads text, screenshots and voice) is the other half of this design; it waits on how
-// we wire the extraction model, so Classic is the whole sheet for now.
+// The Add sheet (design XMkKm H2 / H2d): "Just say it" (the AI box, add-just-say-it.tsx) when a reader is configured
+// and the family has points, else / or by choice Classic: the family's most-added kinds as rows with their 30-day
+// count, everything else as chips. The last mode used is remembered on this device.
+const MODE_KEY = 'familywell:addMode';
+type Usage = { usage: Record<string, number>; ai: { available: boolean; pointsLeft: number | null; limit: number | null } };
+
 function AddSheet({ open, onOpenChange, enabled }: { open: boolean; onOpenChange: (open: boolean) => void; enabled: string[] }) {
     const t = useT();
-    const usage = useOnOpen<Record<string, number>>(open, '/add/usage');
+    const data = useOnOpen<Usage>(open, '/add/usage');
+    const [mode, setModeState] = useState<'say' | 'classic'>(() => {
+        try {
+            return localStorage.getItem(MODE_KEY) === 'classic' ? 'classic' : 'say';
+        } catch {
+            return 'say';
+        }
+    });
+    const setMode = (m: 'say' | 'classic') => {
+        setModeState(m);
+        try {
+            localStorage.setItem(MODE_KEY, m);
+        } catch {
+            /* private mode: this session only */
+        }
+    };
+    const ai = data?.ai.available ?? false;
+    // Read when the sheet renders: the page that claimed the + (only reachable here when "Just say it" is on).
+    const pageAction = open && hasAddAction();
+    const usage = data?.usage ?? null;
     const items = CREATE.filter((c) => enabled.includes(c.key));
     // Most added first; ties (and the moment before the counts arrive) keep the CREATE order.
     const ranked = usage ? [...items].sort((a, b) => (usage[b.key] ?? 0) - (usage[a.key] ?? 0)) : items;
@@ -220,60 +247,96 @@ function AddSheet({ open, onOpenChange, enabled }: { open: boolean; onOpenChange
         onClick: close,
     });
 
-    return (
-        <ResponsiveModal open={open} onOpenChange={onOpenChange} title={t('create.title')} description={t('create.desc')}>
-            {items.length === 0 ? (
-                <Link href="/family/modules" onClick={close} className="text-primary hover:bg-surface flex items-center gap-3 rounded-xl p-3">
-                    <LayoutGrid className="size-5.5" />
-                    <span className="text-base font-medium">{t('create.turn_on')}</span>
-                </Link>
-            ) : (
-                <div className="flex flex-col gap-5">
+    const classic =
+        items.length === 0 ? (
+            <Link href="/family/modules" onClick={close} className="text-primary hover:bg-surface flex items-center gap-3 rounded-xl p-3">
+                <LayoutGrid className="size-5.5" />
+                <span className="text-base font-medium">{t('create.turn_on')}</span>
+            </Link>
+        ) : (
+            <div className="flex flex-col gap-5">
+                {pageAction && (
+                    <button
+                        type="button"
+                        onClick={() => {
+                            close();
+                            runAddAction();
+                        }}
+                        className="bg-accent-subtle text-primary flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left"
+                    >
+                        <span className={iconBox}>
+                            <Plus className="size-5.5" />
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-base font-semibold">{t('add.on_this_page')}</span>
+                        <ChevronRight className="text-muted-foreground size-5 shrink-0" />
+                    </button>
+                )}
+                <section className="flex flex-col gap-2">
+                    <h3 className={sectionLabel}>{t('create.most_used')}</h3>
+                    <div className="bg-surface divide-border overflow-hidden rounded-2xl border">
+                        {top.map((item) => (
+                            <Link
+                                key={item.key}
+                                {...linkProps(item)}
+                                className="hover:bg-accent-subtle flex w-full items-center gap-3 border-b px-3 py-3 text-left last:border-b-0"
+                            >
+                                <span className={iconBox}>
+                                    <item.icon className="size-5.5" />
+                                </span>
+                                <span className="text-primary min-w-0 flex-1 truncate text-base font-semibold">{t(item.labelKey)}</span>
+                                {usage && (usage[item.key] ?? 0) > 0 && (
+                                    <span className="text-muted-foreground shrink-0 font-mono text-sm tabular-nums">
+                                        {t('create.times', { n: usage[item.key] })}
+                                    </span>
+                                )}
+                                <ChevronRight className="text-muted-foreground size-5 shrink-0" />
+                            </Link>
+                        ))}
+                    </div>
+                </section>
+                {rest.length > 0 && (
                     <section className="flex flex-col gap-2">
-                        <h3 className={sectionLabel}>{t('create.most_used')}</h3>
-                        <div className="bg-surface divide-border overflow-hidden rounded-2xl border">
-                            {top.map((item) => (
+                        <h3 className={sectionLabel}>
+                            {t('create.everything_else')}
+                            <span className="text-primary ml-2">{rest.length}</span>
+                        </h3>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                            {rest.map((item) => (
                                 <Link
                                     key={item.key}
                                     {...linkProps(item)}
-                                    className="hover:bg-accent-subtle flex w-full items-center gap-3 border-b px-3 py-3 text-left last:border-b-0"
+                                    className="bg-surface-card text-primary hover:border-primary/40 flex w-full min-w-0 items-center gap-2 rounded-xl border px-3 py-3 text-left text-sm font-semibold"
                                 >
-                                    <span className={iconBox}>
-                                        <item.icon className="size-5.5" />
-                                    </span>
-                                    <span className="text-primary min-w-0 flex-1 truncate text-base font-semibold">{t(item.labelKey)}</span>
-                                    {usage && (usage[item.key] ?? 0) > 0 && (
-                                        <span className="text-muted-foreground shrink-0 font-mono text-sm tabular-nums">
-                                            {t('create.times', { n: usage[item.key] })}
-                                        </span>
-                                    )}
-                                    <ChevronRight className="text-muted-foreground size-5 shrink-0" />
+                                    <item.icon className="size-4.5 shrink-0" />
+                                    <span className="truncate">{t(item.labelKey)}</span>
                                 </Link>
                             ))}
                         </div>
                     </section>
-                    {rest.length > 0 && (
-                        <section className="flex flex-col gap-2">
-                            <h3 className={sectionLabel}>
-                                {t('create.everything_else')}
-                                <span className="text-primary ml-2">{rest.length}</span>
-                            </h3>
-                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                                {rest.map((item) => (
-                                    <Link
-                                        key={item.key}
-                                        {...linkProps(item)}
-                                        className="bg-surface-card text-primary hover:border-primary/40 flex w-full min-w-0 items-center gap-2 rounded-xl border px-3 py-3 text-left text-sm font-semibold"
-                                    >
-                                        <item.icon className="size-4.5 shrink-0" />
-                                        <span className="truncate">{t(item.labelKey)}</span>
-                                    </Link>
-                                ))}
-                            </div>
-                        </section>
-                    )}
-                </div>
-            )}
+                )}
+            </div>
+        );
+
+    return (
+        <ResponsiveModal open={open} onOpenChange={onOpenChange} title={t('create.title')} description={t('create.desc')}>
+            <div className="flex flex-col gap-4">
+                {ai && (
+                    <Segmented
+                        ariaLabel={t('create.title')}
+                        value={mode}
+                        onChange={setMode}
+                        options={[
+                            { value: 'say', label: t('add.say_it') },
+                            { value: 'classic', label: t('add.classic') },
+                        ]}
+                    />
+                )}
+                {ai && mode === 'say' ? (
+                    <JustSayIt onClose={close} onClassic={() => setMode('classic')} pointsLeft={data?.ai.pointsLeft ?? null} />
+                ) : (
+                    classic
+                )}
+            </div>
         </ResponsiveModal>
     );
 }
