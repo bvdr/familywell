@@ -31,19 +31,26 @@ class ShoppingServiceProvider extends ServiceProvider
         // "Just say it" in the Add sheet (AddKinds): things to buy, or a whole new shopping list. Items go to the list
         // on screen, else the list this person added to last, else their first list (else a new one); the card names
         // that list up front (target). Already on the list (not bought) = merged, not added twice (design H2c).
-        $pickList = function (User $user, AddContext $ctx): ?ShoppingList {
+        // The lists this person can add to, in their order: what the reader may pick for `list`.
+        $lists = fn (User $user) => ShoppingList::visibleTo($user->id)->whereNull('archived_at')->orderBy('position');
+        $pickList = function (User $user, AddContext $ctx, array $v = []) use ($lists): ?ShoppingList {
+            // A list the person named, or the heading of a photographed list ("Oana"): that existing list first.
+            $named = filled($v['list'] ?? null) ? $lists($user)->whereRaw('lower(name) = ?', [mb_strtolower(trim((string) $v['list']))])->first() : null;
             $lastList = ShoppingItem::where('created_by', $user->id)->latest('id')->value('shopping_list_id');
 
-            return ($ctx->module === 'shopping' && $ctx->entityId ? ShoppingData::list($user, $ctx->entityId) : null)
+            return $named
+                ?? ($ctx->module === 'shopping' && $ctx->entityId ? ShoppingData::list($user, $ctx->entityId) : null)
                 ?? ($lastList ? ShoppingData::list($user, $lastList) : null)
-                ?? ShoppingList::visibleTo($user->id)->whereNull('archived_at')->orderBy('position')->first();
+                ?? $lists($user)->first();
         };
         AddKinds::register('shopping_item', 'shopping', [
             'fields' => [
                 // Each thing with its amount ("six pack" of "Schweppes Lămâie și Zmeură"): the reader splits them.
                 'items' => ['type' => 'list', 'required' => true, 'of' => ['name' => 'text', 'quantity' => 'text']],
+                // Which existing list, when the input names one. Shown as the card's destination, not as a field.
+                'list' => ['type' => 'text', 'options' => fn (User $user) => $lists($user)->pluck('name')->all(), 'hidden' => true],
             ],
-            'target' => fn (User $user, AddContext $ctx) => $pickList($user, $ctx)?->name ?? Translations::get('nav.shopping'),
+            'target' => fn (User $user, AddContext $ctx, array $v) => $pickList($user, $ctx, $v)?->name ?? Translations::get('nav.shopping'),
             'save' => function (User $user, array $v, AddContext $ctx) use ($pickList) {
                 // {name, quantity} per thing (a bare string still works: just the name).
                 $items = array_values(array_filter(array_map(fn ($i) => [
@@ -51,7 +58,7 @@ class ShoppingServiceProvider extends ServiceProvider
                     'quantity' => is_array($i) && filled($i['quantity'] ?? null) ? mb_substr(trim((string) $i['quantity']), 0, 60) : null,
                 ], (array) ($v['items'] ?? [])), fn ($i) => $i['name'] !== ''));
                 throw_if($items === [], ValidationException::withMessages(['items' => 'Nothing to buy was read.']));
-                $list = $pickList($user, $ctx) ?? ShoppingList::createFor($user, ['name' => Translations::get('nav.shopping')]);
+                $list = $pickList($user, $ctx, $v) ?? ShoppingList::createFor($user, ['name' => Translations::get('nav.shopping')]);
                 foreach ($items as $item) {
                     if (! ShoppingItem::activeDuplicate($list, $item['name'])) {
                         ShoppingData::addItem($user, $list, $item);

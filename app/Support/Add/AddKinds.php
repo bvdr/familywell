@@ -12,8 +12,10 @@ use Closure;
  * a module registers a kind from its service provider, so the core never knows about events or expenses. A kind is:
  *  - fields:   what the reader should fill, by type (text | number | date | datetime | list, a list may be of objects
  *              via 'of'); 'required' => true (the card can't be added without it); 'ask' => 'member' (an unsure "who"
- *              becomes a question). How to recognise and read each field is the reader's job (AddReader: the worker);
- *  - target:   optional Closure(User, AddContext): ?string naming where it will land ("Household"), shown on the card
+ *              becomes a question); 'options' => Closure(User): list<string> (the only values that make sense, e.g. the
+ *              person's list names); 'hidden' => true (read, but not shown as a field on the card). How to recognise
+ *              and read each field is the reader's job (AddReader: the worker);
+ *  - target:   optional Closure(User, AddContext, array $values): ?string naming where it will land ("Oana"), shown on the card
  *              so it's clear what gets created where; read-only (never create anything here);
  *  - save:     Closure(User, array $values, AddContext): array{title: string, url: string} creating the thing through
  *              the module's own rules (it throws a ValidationException when the values don't hold up).
