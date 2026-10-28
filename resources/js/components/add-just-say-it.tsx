@@ -213,6 +213,12 @@ export function JustSayIt({
     // "New to-do" while that's still empty: never some other field (it once showed the person, "Bogdan").
     const headline = (it: Item) => valueOf(it, Object.keys(it.types)[0]).trim() || t('add.new_kind', { kind: t(`add.kind_${it.kind}`) });
     const inputType = (type: string) => (type === 'datetime' ? 'datetime-local' : type === 'date' ? 'date' : type === 'number' ? 'number' : 'text');
+    // A date-time at midnight is a whole day (a holiday, "this week"): the card shows just the date, not "at 00:00".
+    // The server reads a bare date as all-day too (CalendarServiceProvider: midnight = no time).
+    const wholeDay = (it: Item, name: string) => {
+        const v = valueOf(it, name);
+        return it.types[name] === 'datetime' && v !== '' && (!v.includes('T') || v.endsWith('T00:00'));
+    };
 
     if (state === 'out') {
         return (
@@ -414,8 +420,8 @@ export function JustSayIt({
                                             <label key={name} className="grid grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-2">
                                                 <span className="text-muted-foreground font-mono text-[11px] uppercase">{fieldLabel(name)}</span>
                                                 <input
-                                                    type={inputType(it.types[name])}
-                                                    value={valueOf(it, name)}
+                                                    type={wholeDay(it, name) ? 'date' : inputType(it.types[name])}
+                                                    value={wholeDay(it, name) ? valueOf(it, name).slice(0, 10) : valueOf(it, name)}
                                                     onChange={(e) => setValue(it.id, name, e.target.value)}
                                                     placeholder={empty ? t('add.needed') : ''}
                                                     className={`text-primary min-w-0 rounded-lg border px-2.5 py-1.5 text-base ${empty ? 'border-destructive' : unsure ? 'bg-accent-subtle' : 'bg-surface-card'}`}
