@@ -87,7 +87,7 @@ class ShoppingServiceProvider extends ServiceProvider
                 return [];
             }
 
-            $weekEnd = now()->endOfWeek()->toDateString();
+            $weekEnd = DashboardAgenda::until();
 
             return ShoppingItem::query()
                 ->whereNotNull('due_date')

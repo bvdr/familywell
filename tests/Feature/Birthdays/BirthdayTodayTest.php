@@ -75,19 +75,24 @@ it('celebrates a Feb 29 birthday on Mar 1 in a non-leap year and skips disabled 
     Notification::assertSentTimes(PushAlert::class, 2); // still just the two members from Mar 1
 });
 
-it('shows a dashboard card for whoever celebrates today', function () {
+it('shows a dashboard card for the next 14 days, today first', function () {
     [, $admin] = todayFamily();
     Carbon::setTestNow('2026-09-19');
     todayBirthday($admin->id, 'Veronica', 2004, 9, 19);
-    todayBirthday($admin->id, 'Buni', null, 10, 22);
+    todayBirthday($admin->id, 'Mateo', 2017, 9, 23); // in 4 days
+    todayBirthday($admin->id, 'Buni', null, 10, 22); // 33 days out: not on the card
 
     actingAs($admin)->get('/dashboard')->assertOk()
         ->assertInertia(fn ($page) => $page->component('dashboard')
             ->where('widgets.birthdays.0.name', 'Veronica')
             ->where('widgets.birthdays.0.turning', 22)
-            ->count('widgets.birthdays', 1));
+            ->where('widgets.birthdays.0.inDays', 0)
+            ->where('widgets.birthdays.1.name', 'Mateo')
+            ->where('widgets.birthdays.1.inDays', 4)
+            ->where('widgets.birthdays.1.date', '2026-09-23')
+            ->count('widgets.birthdays', 2));
 
-    Carbon::setTestNow('2026-09-20');
+    Carbon::setTestNow('2026-09-24');
     actingAs($admin)->get('/dashboard')->assertOk()
         ->assertInertia(fn ($page) => $page->missing('widgets.birthdays'));
 });

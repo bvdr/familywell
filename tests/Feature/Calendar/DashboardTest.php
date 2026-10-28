@@ -17,11 +17,12 @@ it('puts an ongoing trip on Today once with day N of M, and a later one in This 
 
     $d = DashboardData::build();
     $today = collect($d['today'])->where('kind', 'event')->values();
-    $week = collect($d['thisWeek'])->where('kind', 'event')->values();
+    $week = collect($d['later'])->where('kind', 'event')->values();
     expect($today->pluck('title')->all())->toBe(['Grecia'])
         ->and($today[0]['subtitle'])->toBe('day 4 of 9')
         ->and($today[0])->not->toHaveKey('toggleUrl')
-        ->and($week->pluck('title')->all())->toBe(['Dentist'])->and($week[0]['subtitle'])->toBe('09:00–10:00');
+        ->and($week->pluck('title')->all())->toBe(['Dentist'])->and($week[0]['subtitle'])->toBe('09:00–10:00')
+        ->and($week[0])->toMatchArray(['time' => '09:00', 'endTime' => '10:00', 'eventId' => $week[0]['id']]);
 });
 
 it('shows multi-day events now and in the next 30 days in the Now & next card', function () {
@@ -61,9 +62,10 @@ it('surfaces open dated event to-dos (and sub-tasks) on Today/This Week with a t
 
     $d = DashboardData::build();
     $today = collect($d['today'])->where('kind', 'calendar_todo')->values();
-    $week = collect($d['thisWeek'])->where('kind', 'calendar_todo')->values();
+    $week = collect($d['later'])->where('kind', 'calendar_todo')->values();
     expect($today->pluck('title')->all())->toBe(['Book hotel'])
-        ->and($today[0])->toMatchArray(['subtitle' => 'Grecia', 'href' => "/m/calendar/events/{$e->id}", 'toggleUrl' => "/m/calendar/tasks/{$hotel->id}"])
+        ->and($today[0])->toMatchArray(['subtitle' => 'Grecia', 'href' => "/m/calendar/events/{$e->id}", 'toggleUrl' => "/m/calendar/tasks/{$hotel->id}", 'eventId' => $e->id])
+        ->and($today[0]['assignee'])->toBe(['id' => $users[1]->id, 'name' => $users[1]->name])
         ->and($week->pluck('title')->all())->toBe(['Passports']);
 
     // The toggle URL ticks it off (empty-body PATCH), after which it leaves the dashboard.

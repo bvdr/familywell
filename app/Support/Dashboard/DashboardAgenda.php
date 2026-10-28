@@ -20,6 +20,16 @@ class DashboardAgenda
     }
 
     /**
+     * The last day providers return items for: the end of this week, but never before tomorrow. Home shows
+     * Today, Tomorrow and the rest of the week; on a Sunday "tomorrow" is already next week, and without the
+     * floor the Tomorrow group would always be empty that day.
+     */
+    public static function until(): string
+    {
+        return max(now()->endOfWeek()->toDateString(), now()->addDay()->toDateString());
+    }
+
+    /**
      * Every provider's items, flattened. A failing provider is logged and skipped so one module
      * can't take down the dashboard.
      *

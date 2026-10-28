@@ -2,10 +2,11 @@
 
 namespace App\Support\Dashboard;
 
-// Assembles the three dashboard lists from the module providers:
-//  - recent:   entities opened in the last few days, most-recent first ("Pick up where you left off")
+// Assembles Home from the module providers:
+//  - recent:   entities opened in the last few days, most-recent first ("Jump back in")
 //  - today:    dated items due today or overdue ("Today")
-//  - thisWeek: dated items due later this week ("This Week")
+//  - tomorrow: dated items due tomorrow ("Tomorrow")
+//  - later:    dated items after tomorrow through DashboardAgenda::until() (the "Rest of week" day strip)
 //  - widgets:  keyed headline data per module (e.g. widgets.spending = this month's total)
 //  - summaries: the one-line status per enabled module for the "Your modules" grid
 class DashboardData
@@ -20,19 +21,18 @@ class DashboardData
             ->values()
             ->all();
 
-        $agenda = collect(DashboardAgenda::collect());
+        $agenda = collect(DashboardAgenda::collect())->sortBy('dueDate');
         $today = now()->toDateString();
-        $weekEnd = now()->endOfWeek()->toDateString();
+        $tomorrow = now()->addDay()->toDateString();
 
-        // Overdue rolls into Today (it still needs doing now). This Week is everything due after
-        // today through the end of the week.
-        $todayItems = $agenda
-            ->filter(fn ($i) => $i['dueDate'] <= $today)
-            ->sortBy('dueDate')->values()->all();
-        $weekItems = $agenda
-            ->filter(fn ($i) => $i['dueDate'] > $today && $i['dueDate'] <= $weekEnd)
-            ->sortBy('dueDate')->values()->all();
-
-        return ['recent' => $recent, 'today' => $todayItems, 'thisWeek' => $weekItems, 'widgets' => DashboardWidgets::collect(), 'summaries' => DashboardSummaries::collect()];
+        // Overdue rolls into Today (it still needs doing now).
+        return [
+            'recent' => $recent,
+            'today' => $agenda->filter(fn ($i) => $i['dueDate'] <= $today)->values()->all(),
+            'tomorrow' => $agenda->where('dueDate', $tomorrow)->values()->all(),
+            'later' => $agenda->filter(fn ($i) => $i['dueDate'] > $tomorrow)->values()->all(),
+            'widgets' => DashboardWidgets::collect(),
+            'summaries' => DashboardSummaries::collect(),
+        ];
     }
 }

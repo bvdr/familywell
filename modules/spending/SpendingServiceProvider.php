@@ -126,7 +126,7 @@ class SpendingServiceProvider extends ServiceProvider
             $eventCcy = MonthToDate::visibleEventCurrencies($userId);
             $currency = MonthToDate::displayCurrencyFor($eventCcy);
 
-            return ['total' => MonthToDate::total($eventCcy, $currency), 'currency' => $currency];
+            return ['total' => MonthToDate::total($eventCcy, $currency), 'currency' => $currency, ...MonthToDate::weeks($eventCcy, $currency)];
         });
 
         // Full Inertia pages (not a dashboard widget): Spending is a whole app section. Gated by
