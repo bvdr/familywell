@@ -7,6 +7,7 @@ const PAGES: [string, string][] = [
     ['family-members', '/family/members'],
     ['family-modules', '/family/modules'],
     ['notifications', '/notifications'],
+    ['search', '/search?q=banana'],
     ['birthdays', '/m/birthdays'],
     ['calendar', '/m/calendar'],
     ['contacts', '/m/contacts'],
