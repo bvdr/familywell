@@ -301,7 +301,8 @@ export function JustSayIt({
                             {t('add.listening')} · {Math.floor(voice.seconds / 60)}:{String(voice.seconds % 60).padStart(2, '0')}
                         </span>
                         <p className="text-primary min-h-14 text-lg leading-snug font-semibold">{text ? `“${text}”` : t('add.listening_hint')}</p>
-                        <div className="flex h-8 items-center gap-[3px]" aria-hidden>
+                        {/* The bars run the full width of the box (edge to edge), however wide the sheet is. */}
+                        <div className="flex h-8 items-center justify-between gap-[3px]" aria-hidden>
                             {voice.levels.map((l, i) => (
                                 <span
                                     key={i}
