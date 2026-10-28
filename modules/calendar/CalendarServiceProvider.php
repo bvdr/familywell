@@ -42,12 +42,11 @@ class CalendarServiceProvider extends ServiceProvider
         // "Just say it" in the Add sheet: an event read out of what the person typed / photographed (AddKinds).
         // A datetime at midnight reads as all-day; no end = an hour for a timed event, the same day otherwise.
         AddKinds::register('event', 'calendar', [
-            'question' => 'Is there something with a date or time the family should put on the calendar (an appointment, a trip, a practice, a party)?',
             'fields' => [
-                'title' => ['type' => 'text', 'instructions' => 'short name for the calendar event', 'required' => true],
-                'start' => ['type' => 'datetime', 'instructions' => 'when it starts', 'required' => true],
-                'end' => ['type' => 'datetime', 'instructions' => 'when it ends, if said'],
-                'who' => ['type' => 'text', 'instructions' => 'the family member it is for, by first name', 'ask' => 'member'],
+                'title' => ['type' => 'text', 'required' => true],
+                'start' => ['type' => 'datetime', 'required' => true],
+                'end' => ['type' => 'datetime'],
+                'who' => ['type' => 'text', 'ask' => 'member'],
             ],
             'save' => function (User $user, array $v, AddContext $ctx) {
                 Validator::validate($v, ['start' => ['required', 'date']]); // no silent "today" for an event the reader couldn't date

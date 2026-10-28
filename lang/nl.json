@@ -210,6 +210,8 @@
         "ask_vehicle": "Toevoegen als nieuw voertuig?",
         "ask_task_list": "Deze takenlijst maken?",
         "ask_shopping_list": "Deze boodschappenlijst maken?",
-        "f_name": "Naam"
+        "f_name": "Naam",
+        "f_quantity": "Hoeveelheid",
+        "remove_item": "Artikel verwijderen"
     }
 }

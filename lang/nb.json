@@ -210,6 +210,8 @@
         "ask_vehicle": "Legge til som nytt kjøretøy?",
         "ask_task_list": "Lage denne gjøremålslisten?",
         "ask_shopping_list": "Lage denne handlelisten?",
-        "f_name": "Navn"
+        "f_name": "Navn",
+        "f_quantity": "Antall",
+        "remove_item": "Fjern varen"
     }
 }

@@ -18,8 +18,8 @@ import {
 import { useEffect, useRef, useState } from 'react';
 
 // "Just say it" (design XMkKm H2 / H2a / H2b): one box that reads whatever you type, paste or photograph. Each pause
-// sends it to /add/read (AddReader: Clef decides what's in it, Clairic reads the details, with where you are and what
-// you usually add as context), and the cards update. Nothing is saved until "Add". A card the reader isn't sure
+// sends it to /add/read (AddReader: the reader worker, with where you are and what you usually add as context), and
+// the cards update. Nothing is saved until "Add". A card the reader isn't sure
 // about asks first ("Add this as a new vehicle?", "Who is this for?"); every value stays editable.
 
 type Field = { value: unknown; confidence: number };
@@ -36,7 +36,7 @@ type Item = {
     types: Record<string, string>;
 };
 // What the person changed on a card, kept across re-reads while they keep typing: keyed by kind.
-type Edit = { on?: boolean; values: Record<string, string> };
+type Edit = { on?: boolean; values: Record<string, string>; lists?: Record<string, Entry[]> };
 
 const KIND_ICON: Record<string, LucideIcon> = {
     event: CalendarDays,
@@ -79,10 +79,22 @@ function downscale(file: File): Promise<string> {
     });
 }
 
+// One thing in a list field: shopping items come as { name, quantity } ("six pack" of "Schweppes"), plain strings too.
+type Entry = { name: string; quantity: string };
+const asEntries = (v: unknown): Entry[] =>
+    (Array.isArray(v) ? v : []).map((x) =>
+        typeof x === 'object' && x
+            ? { name: String((x as Entry).name ?? ''), quantity: String((x as Entry).quantity ?? '') }
+            : { name: String(x), quantity: '' },
+    );
+
 // The reader's value as the text an input shows: lists as "a, b", datetimes as the datetime-local format.
 function asText(v: unknown, type: string): string {
     if (v === null || v === undefined) return '';
-    if (Array.isArray(v)) return v.join(', ');
+    if (Array.isArray(v))
+        return asEntries(v)
+            .map((e) => e.name)
+            .join(', ');
     if (type === 'datetime') return String(v).slice(0, 16);
     return String(v);
 }
@@ -141,8 +153,18 @@ export function JustSayIt({
     };
 
     const edit = (kind: string) => edits[kind] ?? { values: {} };
+    // A list field's rows: the person's edits, else what the reader found.
+    const entriesOf = (it: Item, name: string): Entry[] => edit(it.kind).lists?.[name] ?? asEntries(it.fields[name]?.value);
+    const setEntries = (kind: string, name: string, rows: Entry[]) =>
+        setEdits((cur) => ({ ...cur, [kind]: { ...(cur[kind] ?? { values: {} }), lists: { ...(cur[kind]?.lists ?? {}), [name]: rows } } }));
     // A field the reader asks about ("who is this for?") starts empty: its guess is exactly what it wasn't sure of.
-    const valueOf = (it: Item, name: string) => edit(it.kind).values[name] ?? (it.ask[name] ? '' : asText(it.fields[name]?.value, it.types[name]));
+    const valueOf = (it: Item, name: string) =>
+        it.types[name] === 'list'
+            ? entriesOf(it, name)
+                  .map((e) => e.name.trim())
+                  .filter(Boolean)
+                  .join(', ')
+            : (edit(it.kind).values[name] ?? (it.ask[name] ? '' : asText(it.fields[name]?.value, it.types[name])));
     const setValue = (kind: string, name: string, v: string) =>
         setEdits((cur) => ({ ...cur, [kind]: { ...(cur[kind] ?? { values: {} }), values: { ...(cur[kind]?.values ?? {}), [name]: v } } }));
     const setOn = (kind: string, on: boolean) => setEdits((cur) => ({ ...cur, [kind]: { ...(cur[kind] ?? { values: {} }), on } }));
@@ -164,10 +186,9 @@ export function JustSayIt({
                     .map(([name, v]) => [
                         name,
                         it.types[name] === 'list'
-                            ? v
-                                  .split(',')
-                                  .map((s) => s.trim())
-                                  .filter(Boolean)
+                            ? entriesOf(it, name)
+                                  .filter((e) => e.name.trim())
+                                  .map((e) => ({ name: e.name.trim(), quantity: e.quantity.trim() || null }))
                             : v,
                     ]),
             ),
@@ -337,6 +358,53 @@ export function JustSayIt({
                                     .map((name) => {
                                         const unsure = (it.fields[name]?.confidence ?? 1) < 0.5;
                                         const empty = it.missing.includes(name) && !valueOf(it, name).trim();
+                                        if (it.types[name] === 'list') {
+                                            // One row per thing: its name and how much ("Schweppes" × "six pack").
+                                            const rows = entriesOf(it, name);
+                                            const put = (i: number, patch: Partial<Entry>) =>
+                                                setEntries(
+                                                    it.kind,
+                                                    name,
+                                                    rows.map((r, j) => (j === i ? { ...r, ...patch } : r)),
+                                                );
+                                            return (
+                                                <div key={name} className="flex flex-col gap-1.5">
+                                                    <span className="text-muted-foreground font-mono text-[11px] uppercase">{fieldLabel(name)}</span>
+                                                    {rows.map((r, i) => (
+                                                        <div key={i} className="grid grid-cols-[minmax(0,1fr)_6.5rem_auto] items-center gap-1.5">
+                                                            <input
+                                                                value={r.name}
+                                                                onChange={(e) => put(i, { name: e.target.value })}
+                                                                aria-label={t('add.f_items')}
+                                                                className="text-primary bg-surface-card min-w-0 rounded-lg border px-2.5 py-1.5 text-base"
+                                                            />
+                                                            <input
+                                                                value={r.quantity}
+                                                                onChange={(e) => put(i, { quantity: e.target.value })}
+                                                                placeholder={t('add.f_quantity')}
+                                                                aria-label={t('add.f_quantity')}
+                                                                className="text-primary bg-surface-card min-w-0 rounded-lg border px-2.5 py-1.5 text-base"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    setEntries(
+                                                                        it.kind,
+                                                                        name,
+                                                                        rows.filter((_, j) => j !== i),
+                                                                    )
+                                                                }
+                                                                aria-label={t('add.remove_item')}
+                                                                className="text-muted-foreground flex size-9 items-center justify-center rounded-full"
+                                                            >
+                                                                <X className="size-4" />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                    {empty && <span className="text-destructive text-sm">{t('add.needed')}</span>}
+                                                </div>
+                                            );
+                                        }
                                         return (
                                             <label key={name} className="grid grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-2">
                                                 <span className="text-muted-foreground font-mono text-[11px] uppercase">{fieldLabel(name)}</span>

@@ -40,11 +40,10 @@ class TasksServiceProvider extends ServiceProvider
                 ?? TaskList::visibleTo($user->id)->whereNull('archived_at')->orderBy('position')->first();
         };
         AddKinds::register('todo', 'tasks', [
-            'question' => 'Is there one task someone in the family has to do (not a request to make a new list, and not just an event to attend)?',
             'fields' => [
-                'title' => ['type' => 'text', 'instructions' => 'the action someone has to do, as a short instruction starting with a verb (e.g. "Sign the permission slip"), not the event itself', 'required' => true],
-                'due' => ['type' => 'date', 'instructions' => 'the date that action must be done by, if said'],
-                'who' => ['type' => 'text', 'instructions' => 'the family member who should do it, by first name', 'ask' => 'member'],
+                'title' => ['type' => 'text', 'required' => true],
+                'due' => ['type' => 'date'],
+                'who' => ['type' => 'text', 'ask' => 'member'],
             ],
             'target' => fn (User $user, AddContext $ctx) => $pickList($user, $ctx)?->name ?? Translations::get('nav.tasks'),
             'save' => function (User $user, array $v, AddContext $ctx) use ($pickList) {
@@ -58,10 +57,8 @@ class TasksServiceProvider extends ServiceProvider
             },
         ]);
         AddKinds::register('task_list', 'tasks', [
-            'rivals' => ['shopping_list'],
-            'question' => 'Does the person ask to create a new to-do list (a whole list, not one task)?',
             'fields' => [
-                'name' => ['type' => 'text', 'instructions' => 'the name for the new list, if given', 'required' => true],
+                'name' => ['type' => 'text', 'required' => true],
             ],
             'save' => function (User $user, array $v) {
                 $data = Validator::validate(['name' => $v['name'] ?? null], ['name' => ['required', 'string', 'max:255']]);

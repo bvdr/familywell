@@ -2,7 +2,7 @@
 
 namespace Modules\Shopping;
 
-use Illuminate\Support\Facades\Http;
+use App\Support\Ai\AiGateway;
 use RuntimeException;
 
 // Turns a free-form spoken/typed grocery brain-dump ("milk, eggs, a few bananas for the kids, some
@@ -15,10 +15,10 @@ class GroceryParser
     /** @param list<string> $departments allowed aisle slugs the model must choose from */
     public function __construct(private array $departments) {}
 
-    // No API key, no AI parse (the caller falls back to a naive split, and the UI still works).
+    // No Gemini (no key, no gateway key), no AI parse (the caller falls back to a naive split, and the UI still works).
     public static function configured(): bool
     {
-        return filled(config('services.gemini.key'));
+        return AiGateway::gemini();
     }
 
     /**
@@ -28,8 +28,7 @@ class GroceryParser
      */
     public function parse(string $transcript): array
     {
-        $key = config('services.gemini.key');
-        $model = config('services.gemini.model');
+        $model = (string) config('services.gemini.model');
 
         $schema = [
             'type' => 'object',
@@ -56,22 +55,20 @@ class GroceryParser
             .'aisle from the allowed list, and any short aside as a note. Do not invent items. Transcript: '
             .'"'.trim($transcript).'"';
 
-        $response = Http::timeout(30)
-            ->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$key}", [
-                'contents' => [['parts' => [['text' => $prompt]]]],
-                'generationConfig' => [
-                    'responseMimeType' => 'application/json',
-                    'responseSchema' => $schema,
-                    'thinkingConfig' => ['thinkingBudget' => 0], // plain extraction, skip billable thinking tokens
-                ],
-            ]);
-
-        if ($response->failed()) {
-            report(new RuntimeException('Gemini grocery parse failed ('.$response->status().'): '.$response->body()));
+        // Through AiGateway: the hosted app's AI Gateway (logged per family / user) or Google directly (self-hosted).
+        $out = AiGateway::run('grocery_parse', ['parse' => [$model, [
+            'contents' => [['parts' => [['text' => $prompt]]]],
+            'generationConfig' => [
+                'responseMimeType' => 'application/json',
+                'responseSchema' => $schema,
+                'thinkingConfig' => ['thinkingBudget' => 0], // plain extraction, skip billable thinking tokens
+            ],
+        ]]])['parse'];
+        if ($out === null) {
             throw new RuntimeException('Could not understand that. Try again.');
         }
 
-        $data = json_decode((string) data_get($response->json(), 'candidates.0.content.parts.0.text'), true);
+        $data = json_decode((string) data_get($out, 'candidates.0.content.parts.0.text'), true);
 
         return $this->normalise($data['items'] ?? []);
     }

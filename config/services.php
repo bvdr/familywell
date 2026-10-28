@@ -42,19 +42,24 @@ return [
     'gemini' => [
         'key' => env('GEMINI_API_KEY'),
         'model' => env('GEMINI_MODEL', 'gemini-3-flash-preview'),
+        // Hosted: the key is stored in the AI Gateway (BYOK), so GEMINI_API_KEY stays empty here.
+        'via_gateway' => (bool) env('GEMINI_VIA_GATEWAY', false),
     ],
 
-    // Cloudflare Workers AI: Clef (decisions) + Clairic (typed extraction) read "Just say it" in the Add sheet.
-    // A token scoped to Workers AI only (1Password folio-dev "Cloudflare Workers AI token (familywell)"), never an
-    // account-wide one. Without it the reader falls back to Gemini (above), and without that the sheet is Classic only.
-    // gateway + gateway_token (optional): route every AI call (these and Gemini) through Cloudflare AI Gateway, which logs
-    // usage per family / user / feature (App\Support\Ai\AiGateway). The gateway token has AI Gateway Run only (1Password
-    // folio-dev "Cloudflare AI Gateway token (familywell)"); it must differ from `token`, the gateway refuses one in both.
-    'workers_ai' => [
+    // "Just say it" in the Add sheet reads through the FamilyWell reader, a separate private Cloudflare Worker
+    // (App\Support\Add\AddReader). Hosted only: without url + secret the Add sheet is Classic only (self-hosted).
+    'add_reader' => [
+        'url' => env('ADD_READER_URL'),
+        'secret' => env('ADD_READER_SECRET'),
+    ],
+
+    // Cloudflare AI Gateway for the app's own AI calls (receipt scans): usage logged per family / user / feature
+    // (App\Support\Ai\AiGateway). token = an AI Gateway Run token (1Password folio-dev "Cloudflare AI Gateway token
+    // (familywell)"). Self-hosted installs leave it empty and call Gemini directly with their own key.
+    'ai_gateway' => [
         'account' => env('CLOUDFLARE_AI_ACCOUNT_ID'),
-        'token' => env('CLOUDFLARE_AI_TOKEN'),
-        'gateway' => env('CLOUDFLARE_AI_GATEWAY'),
-        'gateway_token' => env('CLOUDFLARE_AI_GATEWAY_TOKEN'),
+        'id' => env('CLOUDFLARE_AI_GATEWAY'),
+        'token' => env('CLOUDFLARE_AI_GATEWAY_TOKEN'),
     ],
 
     // TypeSafe (Jev), used only to guess a shopping item's aisle when it was added into the

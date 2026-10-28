@@ -36,13 +36,12 @@ class SpendingServiceProvider extends ServiceProvider
         // "Just say it" in the Add sheet: an expense (AddKinds), paid by the person adding it, into the list on screen
         // or the family's "Others" list like the quick-add. Category 'other' => the auto-categorizer guesses it.
         AddKinds::register('expense', 'spending', [
-            'question' => 'Did the family spend money, or is there an amount they paid or must pay?',
             'fields' => [
-                'note' => ['type' => 'text', 'instructions' => 'what the money was for, in a few words'],
-                'amount' => ['type' => 'number', 'decimals' => 2, 'instructions' => 'how much money', 'required' => true],
-                'currency' => ['type' => 'text', 'instructions' => 'the ISO 4217 code of the amount, only if it is written'],
-                'shop' => ['type' => 'text', 'instructions' => 'the shop or business that was paid'],
-                'date' => ['type' => 'date', 'instructions' => 'when it was paid, if said'],
+                'note' => ['type' => 'text'],
+                'amount' => ['type' => 'number', 'decimals' => 2, 'required' => true],
+                'currency' => ['type' => 'text'],
+                'shop' => ['type' => 'text'],
+                'date' => ['type' => 'date'],
             ],
             // Named only, never created here (others() makes the list when it's missing): reading has no side effects.
             'target' => fn (User $user, AddContext $ctx) => ($ctx->module === 'spending' && $ctx->entityId ? SpendData::event($user, $ctx->entityId, edit: true)?->name : null)

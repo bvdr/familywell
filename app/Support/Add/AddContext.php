@@ -9,22 +9,21 @@ use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
 
 /**
- * What the reader knows besides the input (the user asked for this, see memory "add anything"): where the + was
- * pressed (the module and entity in the page's path, plus the module's own one-line description of that screen), who
- * is in the family, today's date, and this person's habits: how much the family added per module in 30 days and the
- * person's own last adds. All of it is plain text in the decision model's state, so the model weighs it, not our code.
+ * What the reader gets besides the input (the user asked for this, see memory "add anything"): where the + was
+ * pressed (the module and entity in the page's path, plus the module's own one-line description of that screen), who is
+ * in the family, today's date, and this person's habits: how much the family added per module in 30 days and the
+ * person's own last adds. Plain data: how it's worded for the models is the reader's business (the worker).
  */
 final class AddContext
 {
     /** @param array<int, string> $members user id => name */
-    /** $text: everything the decision model weighs; $facts: the date + who's who, all the extractor gets. */
     public function __construct(
         public readonly User $user,
         public readonly ?string $module,
         public readonly ?int $entityId,
         public readonly array $members,
-        public readonly string $text,
-        public readonly string $facts,
+        public readonly string $screenLabel,
+        public readonly ?string $screenAbout,
     ) {}
 
     public static function for(User $user, string $path): self
@@ -37,29 +36,29 @@ final class AddContext
 
         $family = Family::find(CurrentFamily::id());
         $members = $family ? $family->members()->pluck('users.name', 'users.id')->all() : [];
-        $registry = app(ModuleRegistry::class);
-        $screen = $module ? ($registry->manifest($module)?->name ?? $module) : 'Home';
-        $about = AddKinds::describeScreen($module, $entityId, $user);
+        $label = $module ? (app(ModuleRegistry::class)->manifest($module)?->name ?? $module) : 'Home';
 
-        // $facts is all the extraction model sees besides the input: it copies text out of whatever it is given, so the
-        // screen line and the habits (other cars, past adds) would leak into fields. Those go to the decision model only.
-        // The coming week spelled out: without it "thursday 4:30" came back as Friday (live test, 2026-10-28).
-        $week = collect(range(1, 7))->map(fn ($d) => now()->addDays($d)->format('l').' = '.now()->addDays($d)->toDateString())->implode(', ');
-        $facts = 'Today is '.now()->format('l, Y-m-d').'. Coming days: '.$week.".\n".'The person adding: '.$user->name.'. Family members: '.implode(', ', $members).'.';
-        $lines = [$facts, 'They pressed + on the '.$screen.' screen'.($about ? ': '.$about : '').'.'];
-        if ($habits = self::habits($user)) {
-            $lines[] = $habits;
-        }
+        return new self($user, $module, $entityId, $members, $label, AddKinds::describeScreen($module, $entityId, $user));
+    }
 
-        return new self($user, $module, $entityId, $members, implode("\n", $lines), $facts);
+    /** The reader's `context`. */
+    public function payload(): array
+    {
+        return [
+            'today' => now()->toDateString(),
+            'person' => $this->user->name,
+            'members' => collect($this->members)->map(fn ($name, $id) => ['id' => (int) $id, 'name' => $name])->values()->all(),
+            'screen' => ['module' => $this->module, 'label' => $this->screenLabel, 'about' => $this->screenAbout],
+            'habits' => $this->habits(),
+        ];
     }
 
     /**
-     * "Added in the last 30 days: shopping 36, spending 46 … Their last adds: Bananas (shopping), …". Counts are the
-     * family's (a number reveals nothing); titles only the person's own, so nothing from a private list leaks in.
+     * Family-wide counts per module in 30 days (a number reveals nothing), and only the person's OWN last titles, so
+     * nothing from someone's private list leaks in.
      * ponytail: two small queries per tracked module; cache per user if the read ever needs to be faster.
      */
-    private static function habits(User $user): ?string
+    private function habits(): array
     {
         $on = app(ModuleRegistry::class)->enabledIds((int) CurrentFamily::id());
         $counts = [];
@@ -71,16 +70,12 @@ final class AddContext
             $model = new $class;
             $counts[$module] = $class::query()->where($model->getCreatedAtColumn(), '>=', now()->subDays(30))->count();
             if ($model->isFillable('created_by')) {
-                $class::query()->where('created_by', $user->id)->latest('id')->limit(3)->get()
-                    ->each(fn ($r) => $mine->push(['at' => $r->created_at, 'text' => ($r->name ?? $r->title ?? $r->note ?? $r->store ?? '?')." ({$module})"]));
+                $class::query()->where('created_by', $this->user->id)->latest('id')->limit(3)->get()
+                    ->each(fn ($r) => $mine->push(['at' => $r->created_at, 'module' => $module, 'title' => (string) ($r->name ?? $r->title ?? $r->note ?? $r->store ?? '?')]));
             }
         }
-        arsort($counts);
-        $counts = array_filter($counts);
-        $out = $counts ? 'Added by the family in the last 30 days: '.collect($counts)->map(fn ($n, $m) => "{$m} {$n}")->implode(', ').'.' : '';
-        $last = $mine->sortByDesc('at')->take(8)->pluck('text');
 
-        return trim($out.($last->isNotEmpty() ? ' Their last adds: '.$last->implode(', ').'.' : '')) ?: null;
+        return ['counts' => $counts, 'recent' => $mine->sortByDesc('at')->take(8)->map(fn ($r) => ['module' => $r['module'], 'title' => $r['title']])->values()->all()];
     }
 
     /** A member's user id from a first name or full name the reader returned ("Lucia"), or null. */
@@ -98,11 +93,5 @@ final class AddContext
         }
 
         return null;
-    }
-
-    /** First names, for the "which of you?" chips. */
-    public function memberNames(): array
-    {
-        return array_values(array_map(fn ($n) => explode(' ', $n)[0], $this->members));
     }
 }
