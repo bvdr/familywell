@@ -221,6 +221,9 @@
         "add_all": "Alles toevoegen",
         "discard": "Weggooien",
         "voice_hint": "Tik ✓ om toe te voegen · blijf praten om meer toe te voegen",
-        "mic_denied": "De microfoon staat uit voor deze site. Sta hem toe in je browserinstellingen, of typ."
+        "mic_denied": "De microfoon staat uit voor deze site. Sta hem toe in je browserinstellingen, of typ.",
+        "paste": "Plakken van klembord",
+        "clipboard_empty": "Het klembord is leeg.",
+        "clipboard_denied": "Het klembord kon niet worden gelezen. Houd het veld ingedrukt en kies Plakken."
     }
 }

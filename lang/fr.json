@@ -221,6 +221,9 @@
         "add_all": "Tout ajouter",
         "discard": "Annuler",
         "voice_hint": "Touchez ✓ pour ajouter · continuez à parler pour en ajouter",
-        "mic_denied": "Le micro est désactivé pour ce site. Autorisez-le dans les réglages du navigateur, ou tapez."
+        "mic_denied": "Le micro est désactivé pour ce site. Autorisez-le dans les réglages du navigateur, ou tapez.",
+        "paste": "Coller depuis le presse-papiers",
+        "clipboard_empty": "Le presse-papiers est vide.",
+        "clipboard_denied": "Impossible de lire le presse-papiers. Appuyez longuement dans le champ et choisissez Coller."
     }
 }

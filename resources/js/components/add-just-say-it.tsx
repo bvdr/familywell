@@ -6,6 +6,7 @@ import {
     Camera,
     Car,
     Check,
+    ClipboardPaste,
     ImagePlus,
     Keyboard,
     ListChecks,
@@ -168,6 +169,34 @@ export function JustSayIt({
             ctrl.abort();
         };
     }, [text, images]);
+
+    // The clipboard button (design H2 shows the clipboard offered in the box). A web app can only read the clipboard
+    // when the person taps something, so there's no "copied 2 min ago" preview: the tap reads it (iOS shows its own
+    // "Paste" confirmation, Chrome asks once). Images become photos (a copied screenshot), text joins the box.
+    const [pasteNote, setPasteNote] = useState<string | null>(null);
+    const canPaste = typeof navigator !== 'undefined' && !!(navigator.clipboard?.read || navigator.clipboard?.readText);
+    const pasteFromClipboard = async () => {
+        setPasteNote(null);
+        const join = (pasted: string) => setText((cur) => (cur.trim() ? `${cur.trim()}\n${pasted.trim()}` : pasted.trim()));
+        try {
+            let pasted = '';
+            const files: File[] = [];
+            if (navigator.clipboard.read) {
+                for (const clip of await navigator.clipboard.read()) {
+                    const image = clip.types.find((type) => type.startsWith('image/'));
+                    if (image) files.push(new File([await clip.getType(image)], 'pasted', { type: image }));
+                    else if (clip.types.includes('text/plain')) pasted += await (await clip.getType('text/plain')).text();
+                }
+            } else {
+                pasted = await navigator.clipboard.readText();
+            }
+            if (files.length) await addFiles(files);
+            if (pasted.trim()) join(pasted);
+            if (!files.length && !pasted.trim()) setPasteNote(t('add.clipboard_empty'));
+        } catch {
+            setPasteNote(t('add.clipboard_denied'));
+        }
+    };
 
     const addFiles = async (files: FileList | File[] | null) => {
         const list = Array.from(files ?? []).filter((f) => f.type.startsWith('image/'));
@@ -339,6 +368,16 @@ export function JustSayIt({
                         >
                             <ImagePlus className="size-5" />
                         </button>
+                        {canPaste && (
+                            <button
+                                type="button"
+                                onClick={() => void pasteFromClipboard()}
+                                aria-label={t('add.paste')}
+                                className="bg-surface text-primary flex size-11 items-center justify-center rounded-full"
+                            >
+                                <ClipboardPaste className="size-5" />
+                            </button>
+                        )}
                         <input
                             ref={camera}
                             type="file"
@@ -372,6 +411,7 @@ export function JustSayIt({
 
             {(state === 'error' || voice.error === 'unavailable') && <p className="text-destructive text-sm">{t('add.unavailable')}</p>}
             {voice.error === 'denied' && <p className="text-destructive text-sm">{t('add.mic_denied')}</p>}
+            {pasteNote && <p className="text-muted-foreground text-sm">{pasteNote}</p>}
             {voice.listening && items.length > 0 && (
                 <h3 className="text-muted-foreground px-1 font-mono text-xs font-semibold tracking-[0.14em] uppercase">
                     {t('add.filing')}

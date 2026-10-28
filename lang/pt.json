@@ -221,6 +221,9 @@
         "add_all": "Adicionar tudo",
         "discard": "Descartar",
         "voice_hint": "Toque em ✓ para adicionar · continue a falar para adicionar mais",
-        "mic_denied": "O microfone está desligado para este site. Permita-o nas definições do navegador ou escreva."
+        "mic_denied": "O microfone está desligado para este site. Permita-o nas definições do navegador ou escreva.",
+        "paste": "Colar da área de transferência",
+        "clipboard_empty": "A área de transferência está vazia.",
+        "clipboard_denied": "Não foi possível ler a área de transferência. Mantenha premido na caixa e escolha Colar."
     }
 }

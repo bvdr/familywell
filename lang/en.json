@@ -221,6 +221,9 @@
         "add_all": "Add everything",
         "discard": "Discard",
         "voice_hint": "Tap ✓ to add · keep talking to add more",
-        "mic_denied": "The microphone is off for this site. Allow it in your browser settings, or type instead."
+        "mic_denied": "The microphone is off for this site. Allow it in your browser settings, or type instead.",
+        "paste": "Paste from clipboard",
+        "clipboard_empty": "The clipboard is empty.",
+        "clipboard_denied": "Couldn’t read the clipboard. Long-press in the box and choose Paste instead."
     }
 }

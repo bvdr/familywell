@@ -243,6 +243,9 @@
         "add_all": "Adaugă tot",
         "discard": "Renunță",
         "voice_hint": "Apasă ✓ ca să adaugi · vorbește mai departe ca să adaugi",
-        "mic_denied": "Microfonul e oprit pentru acest site. Permite-l din setările browserului sau scrie."
+        "mic_denied": "Microfonul e oprit pentru acest site. Permite-l din setările browserului sau scrie.",
+        "paste": "Lipește din clipboard",
+        "clipboard_empty": "Clipboardul e gol.",
+        "clipboard_denied": "Nu am putut citi clipboardul. Ține apăsat în casetă și alege Lipire."
     }
 }
