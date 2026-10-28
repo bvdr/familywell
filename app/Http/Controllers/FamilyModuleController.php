@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Family;
+use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Translations;
@@ -35,6 +36,9 @@ class FamilyModuleController extends Controller
         return Inertia::render('family/modules', [
             'catalog' => $modules,
             'canManage' => Gate::allows('manageModules', $family),
+            // Same one-line live status the dashboard's "Your modules" grid shows (DashboardSummaries), reused so
+            // "Shopping · 12 to buy across 2 lists" reads the same everywhere a module tile appears.
+            'summaries' => DashboardSummaries::collect(),
         ]);
     }
 

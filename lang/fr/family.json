@@ -37,5 +37,22 @@
     "disable": "Désactiver",
     "demo_blocked": "Pas disponible dans la démo. Inscris-toi pour gérer ton propre compte et ta famille.",
     "nav_label": "Famille",
-    "role_teen": "Ado"
+    "role_teen": "Ado",
+    "modules_all_title": "Tous les modules",
+    "modules_on_count_one": ":count activé",
+    "modules_on_count_other": ":count activés",
+    "modules_pinned_count_one": ":count épinglé dans ta barre",
+    "modules_pinned_count_other": ":count épinglés dans ta barre",
+    "modules_search": "Rechercher un module…",
+    "modules_chip_all": "Tous",
+    "modules_chip_on": "Activés",
+    "modules_chip_pinned": "Épinglés",
+    "modules_chip_off": "Désactivés",
+    "modules_on_header": "Activés",
+    "modules_off_header": "Désactivés",
+    "modules_pin_hint": "Épingle jusqu'à :max",
+    "modules_turn_on": "Activer",
+    "modules_pin_aria": "Épingler :name dans ta barre",
+    "modules_unpin_aria": "Détacher :name de ta barre",
+    "modules_no_matches": "Aucun module ne correspond à ta recherche."
 }

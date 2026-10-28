@@ -67,6 +67,20 @@ it('serves the feed and marks read', function () {
     expect($u->fresh()->unreadNotifications()->count())->toBe(0);
 });
 
+it('lets the owner dismiss one notification, scoped to themselves', function () {
+    [, $users] = notifFamily();
+    [$owner, $other] = $users;
+    $owner->notify(new PushAlert('Hello', 'world', '/dashboard', 'tasks'));
+    $id = $owner->fresh()->notifications()->first()->id;
+
+    // Another user can't delete someone else's notification by id (silent no-op, row survives).
+    actingAs($other)->delete("/notifications/{$id}")->assertNoContent();
+    expect($owner->fresh()->notifications()->count())->toBe(1);
+
+    actingAs($owner)->delete("/notifications/{$id}")->assertNoContent();
+    expect($owner->fresh()->notifications()->count())->toBe(0);
+});
+
 it('registers a category per feature module', function () {
     notifFamily(); // boot() runs the module providers
     expect(NotificationCategories::ids())->toContain('tasks')->toContain('sharing');

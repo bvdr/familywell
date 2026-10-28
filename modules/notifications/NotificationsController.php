@@ -56,4 +56,14 @@ class NotificationsController extends Controller
 
         return response()->noContent();
     }
+
+    // Swipe-to-clear on the feed: deletes ONE of the owner's own rows. Scoped via $request->user()->notifications()
+    // so no one can delete another person's notification by guessing an id; a foreign/unknown id is a silent no-op
+    // (same shape as read()) rather than a 404, since the row is already gone from the swiper's point of view either way.
+    public function destroy(Request $request, string $notification): HttpResponse
+    {
+        $request->user()->notifications()->whereKey($notification)->delete();
+
+        return response()->noContent();
+    }
 }
