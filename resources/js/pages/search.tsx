@@ -109,8 +109,9 @@ export default function SearchPage({ q = '', results = [] }: { q?: string; resul
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
                             placeholder={t('search.placeholder')}
-                            // text-base = 16px: smaller zooms the page on iOS when the field is focused.
-                            className="border-foreground bg-surface-card text-primary placeholder:text-muted-foreground focus-visible:ring-ring h-12 w-full rounded-full border-2 pr-10 pl-11 text-base focus-visible:ring-2 focus-visible:outline-hidden"
+                            // text-base = 16px: smaller zooms the page on iOS when the field is focused. The native search
+                            // clear (×) is hidden: our own clear button sits in the same spot.
+                            className="border-foreground bg-surface-card text-primary placeholder:text-muted-foreground focus-visible:ring-ring h-12 w-full rounded-full border-2 pr-10 pl-11 text-base focus-visible:ring-2 focus-visible:outline-hidden [&::-webkit-search-cancel-button]:appearance-none"
                         />
                         {query && (
                             <button
