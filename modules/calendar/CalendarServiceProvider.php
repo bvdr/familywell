@@ -10,6 +10,7 @@ use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
+use App\Support\Search\SearchSources;
 use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Translations;
@@ -62,6 +63,19 @@ class CalendarServiceProvider extends ServiceProvider
             Mcp\UpdateEvent::class, Mcp\DeleteEvent::class, Mcp\AddTodo::class,
             Mcp\UpdateTodo::class, Mcp\DeleteTodo::class, Mcp\ListDeleted::class, Mcp\Restore::class,
         ]);
+
+        // H5 search: title or notes match, visible events only (events already use the core sharing
+        // system, so the same visibleTo() every other provider uses applies here too).
+        SearchSources::register('calendar', function (string $q, int $userId) {
+            $events = SearchSources::ilike(CalendarEvent::query()->visibleTo($userId), ['title', 'notes'], $q)
+                ->orderByDesc('start_date')->limit(20)->get();
+
+            return $events->map(fn (CalendarEvent $e) => [
+                'module' => 'calendar', 'title' => $e->title,
+                'meta' => SearchSources::formatDate($e->start_date).' · '.($e->start_time ? "{$e->start_time}–{$e->end_time}" : Translations::get('calendar.all_day')),
+                'href' => "/m/calendar/events/{$e->id}", 'icon' => 'calendar-days',
+            ])->values()->all();
+        });
 
         // The calendar's own events, through the same registry other modules use.
         CalendarSources::register('calendar', function (string $from, string $to, int $userId) {

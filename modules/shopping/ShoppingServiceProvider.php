@@ -9,8 +9,10 @@ use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\ModuleRegistry;
+use App\Support\Search\SearchSources;
 use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Translations;
 use App\Support\Trash\Trash;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -107,6 +109,40 @@ class ShoppingServiceProvider extends ServiceProvider
                     'kind' => 'shopping_item', // kind + id: get_today's widget ticks it off via the MCP tool
                     'id' => $i->id,
                 ])->values()->all();
+        });
+
+        // H5 search: grocery items (name/note) AND the lists themselves (name/store), each a hit of its
+        // own, capped at 20 total so one module can't crowd out the others. Only lists/items this user
+        // can see (visibleTo), same rule as shopping_search above.
+        SearchSources::register('shopping', function (string $q, int $userId) {
+            $rows = [];
+            $items = SearchSources::ilike(
+                ShoppingItem::query()->with('list')->whereHas('list', fn ($l) => $l->visibleTo($userId)),
+                ['name', 'note'], $q
+            )->orderByDesc('id')->limit(20)->get();
+            foreach ($items as $item) {
+                $rows[] = [
+                    'module' => 'shopping', 'title' => $item->name,
+                    'meta' => trim(implode(' · ', array_filter([
+                        $item->list?->name, $item->quantity,
+                        Translations::get($item->bought ? 'search.bought' : 'search.to_buy'),
+                    ]))),
+                    'href' => "/m/shopping/lists/{$item->shopping_list_id}", 'icon' => 'shopping-cart',
+                ];
+            }
+            $lists = SearchSources::ilike(
+                ShoppingList::query()->visibleTo($userId)->whereNull('archived_at'),
+                ['name', 'store'], $q
+            )->orderByDesc('id')->limit(20)->get();
+            foreach ($lists as $list) {
+                $rows[] = [
+                    'module' => 'shopping', 'title' => $list->name,
+                    'meta' => $list->store ?: Translations::get('nav.shopping'),
+                    'href' => "/m/shopping/lists/{$list->id}", 'icon' => 'shopping-cart',
+                ];
+            }
+
+            return array_slice($rows, 0, 20);
         });
 
         // Full Inertia pages (a whole app section, not a dashboard widget). Gated by `module:shopping`

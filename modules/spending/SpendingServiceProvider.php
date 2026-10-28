@@ -13,8 +13,10 @@ use App\Support\Guests\GuestableRegistry;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
+use App\Support\Search\SearchSources;
 use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Translations;
 use App\Support\Trash\Trash;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -127,6 +129,26 @@ class SpendingServiceProvider extends ServiceProvider
             $currency = MonthToDate::displayCurrencyFor($eventCcy);
 
             return ['total' => MonthToDate::total($eventCcy, $currency), 'currency' => $currency];
+        });
+
+        // H5 search: expense note/store/category match, only events this user can see. Meta is
+        // "amount · date · snippet" — the snippet comes from whichever of note/store matched.
+        SearchSources::register('spending', function (string $q, int $userId) {
+            $spends = SearchSources::ilike(
+                Spend::query()->with('event')->whereHas('event', fn ($e) => $e->visibleTo($userId)),
+                ['note', 'store', 'category'], $q
+            )->orderByDesc('spent_at')->orderByDesc('id')->limit(20)->get();
+
+            return $spends->map(function (Spend $s) use ($q) {
+                $amount = (new \NumberFormatter(app()->getLocale(), \NumberFormatter::CURRENCY))->formatCurrency($s->amount / 100, $s->currency);
+                $snippet = SearchSources::snippet(trim(($s->note ?? '').' '.($s->store ?? '')), $q);
+
+                return [
+                    'module' => 'spending', 'title' => $s->store ?: ($s->event?->name ?? Translations::get('nav.spending')),
+                    'meta' => "{$amount} · ".SearchSources::formatDate($s->spent_at)." · {$snippet}",
+                    'href' => "/m/spending/events/{$s->spend_event_id}", 'icon' => 'wallet',
+                ];
+            })->values()->all();
         });
 
         // Full Inertia pages (not a dashboard widget): Spending is a whole app section. Gated by
