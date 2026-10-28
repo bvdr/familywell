@@ -199,3 +199,15 @@ it('offers the reader the person\'s lists, and files several to-dos into the lis
     $oana = Modules\Tasks\TaskList::withoutGlobalScopes()->where('name', 'Oana')->firstOrFail();
     expect(Task::withoutGlobalScopes()->where('task_list_id', $oana->id)->pluck('title')->all())->toBe(['reactualizat CV-ul model nou', 'site făcut']);
 });
+
+it('saves a period read as whole days as an all-day event across those days', function () {
+    [, $users] = anythingFamily();
+    // "Vacanța copiilor săptămâna asta": the card shows dates only and sends them as such.
+    actingAs($users[0])->postJson('/add/save', ['items' => [
+        ['kind' => 'event', 'values' => ['title' => 'Vacanța copiilor', 'start' => '2026-10-26', 'end' => '2026-11-01']],
+    ]])->assertOk();
+
+    $e = CalendarEvent::withoutGlobalScopes()->firstOrFail();
+    expect($e->start_date->toDateString())->toBe('2026-10-26')->and($e->end_date->toDateString())->toBe('2026-11-01')
+        ->and($e->start_time)->toBeNull()->and($e->end_time)->toBeNull();
+});
