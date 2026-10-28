@@ -58,6 +58,7 @@ class TasksServiceProvider extends ServiceProvider
             },
         ]);
         AddKinds::register('task_list', 'tasks', [
+            'rivals' => ['shopping_list'],
             'question' => 'Does the person ask to create a new to-do list (a whole list, not one task)?',
             'fields' => [
                 'name' => ['type' => 'text', 'instructions' => 'the name for the new list, if given', 'required' => true],
