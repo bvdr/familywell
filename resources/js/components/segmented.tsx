@@ -1,6 +1,6 @@
 // Segmented control for tiny fixed choices (2-3 options: a role, the unit system, a tire season...).
-// Anything bigger uses <Picker> (searchable dropdown). Same look as the app's existing inline segmented
-// rows (project status, split mode). A11y: a radiogroup of radios with aria-checked; arrow keys move
+// Anything bigger uses <Picker> (searchable dropdown). The rounded pill look of Shopping's Lists / Shops tabs
+// (the user preferred it over the old square-ish one, 2026-10-28), now everywhere a Segmented is used. A11y: a radiogroup of radios with aria-checked; arrow keys move
 // between options like a native radio group.
 import { type KeyboardEvent } from 'react';
 
@@ -32,7 +32,7 @@ export function Segmented<T extends string>({
             role="radiogroup"
             aria-label={ariaLabel}
             onKeyDown={move}
-            className={`bg-surface grid gap-1 rounded-lg border p-1 ${disabled ? 'opacity-60' : ''}`}
+            className={`bg-surface border-border grid gap-1 rounded-full border p-1 ${disabled ? 'opacity-60' : ''}`}
             style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
         >
             {options.map((o, i) => {
@@ -48,7 +48,7 @@ export function Segmented<T extends string>({
                         tabIndex={tabStop ? 0 : -1}
                         disabled={disabled}
                         onClick={() => onChange(o.value)}
-                        className={`rounded-md px-2 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed ${on ? 'bg-accent-strong text-accent-strong-foreground' : 'text-muted-foreground'}`}
+                        className={`min-w-0 truncate rounded-full px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed ${on ? 'bg-accent-strong text-accent-strong-foreground' : 'text-primary'}`}
                     >
                         {o.label}
                     </button>
