@@ -3,6 +3,9 @@
 namespace Modules\Projects;
 
 use App\Models\EntityVisit;
+use App\Models\User;
+use App\Support\Add\AddContext;
+use App\Support\Add\AddKinds;
 use App\Support\Calendar\CalendarSources;
 use App\Support\Dashboard\DashboardAgenda;
 use App\Support\Dashboard\DashboardItems;
@@ -14,14 +17,83 @@ use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Trash\Trash;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\ValidationException;
 use Modules\Notifications\NotificationCategories;
+use Modules\Projects\Mcp\ProjectData;
+use Modules\Shopping\ShoppingList;
 use Modules\Tasks\Task;
 
 class ProjectsServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        // "Just say it" in the Add sheet (AddKinds): a new project (with its first tasks, "a project Gard with: buy
+        // posts, call the builder"), or a task in an existing project. A project task goes to the project the input
+        // names, else the project on screen; with neither there's no guess (the card says so on Add), since a stray
+        // project task is worse than the person picking Classic.
+        $projects = fn (User $user) => Project::visibleTo($user->id)->whereNull('archived_at')->orderBy('position');
+        $pickProject = function (User $user, AddContext $ctx, array $v) use ($projects): ?Project {
+            $named = filled($v['project'] ?? null) ? $projects($user)->whereRaw('lower(name) = ?', [mb_strtolower(trim((string) $v['project']))])->first() : null;
+
+            return $named ?? ($ctx->module === 'projects' && $ctx->entityId ? ProjectData::project($user, $ctx->entityId) : null);
+        };
+        AddKinds::register('project', 'projects', [
+            'fields' => [
+                'name' => ['type' => 'text', 'required' => true],
+                'start' => ['type' => 'date'],
+                'tasks' => ['type' => 'list', 'of' => ['name' => 'text']],
+            ],
+            'save' => function (User $user, array $v) {
+                $data = Validator::validate(['name' => $v['name'] ?? null, 'target_start' => $v['start'] ?? null], [
+                    'name' => ['required', 'string', 'max:255'], 'target_start' => ['nullable', 'date'],
+                ]);
+                $project = Project::createFor($user, $data);
+                foreach ((array) ($v['tasks'] ?? []) as $t) {
+                    $title = mb_substr(trim((string) (is_array($t) ? ($t['name'] ?? '') : $t)), 0, 255);
+                    if ($title !== '') {
+                        $project->addTask($user, ['title' => $title]);
+                    }
+                }
+                ProjectData::changed();
+
+                return ['title' => $project->name, 'url' => $project->path()];
+            },
+        ]);
+        AddKinds::register('project_task', 'projects', [
+            'fields' => [
+                'title' => ['type' => 'text', 'required' => true],
+                'due' => ['type' => 'date'],
+                'who' => ['type' => 'text', 'ask' => 'member'],
+                'project' => ['type' => 'text', 'options' => fn (User $user) => $projects($user)->pluck('name')->all(), 'hidden' => true],
+            ],
+            'target' => fn (User $user, AddContext $ctx, array $v) => $pickProject($user, $ctx, $v)?->name,
+            'save' => function (User $user, array $v, AddContext $ctx) use ($pickProject) {
+                $data = Validator::validate(['title' => $v['title'] ?? null, 'due_date' => $v['due'] ?? null], [
+                    'title' => ['required', 'string', 'max:255'], 'due_date' => ['nullable', 'date'],
+                ]);
+                $project = $pickProject($user, $ctx, $v) ?? throw ValidationException::withMessages(['project' => 'Which project? Name it, or add from the project.']);
+                $task = $project->addTask($user, $data + ['assigned_to' => $ctx->memberId($v['who'] ?? null)]);
+                ProjectData::changed();
+
+                return ['title' => $task->title, 'url' => $project->path()];
+            },
+        ]);
+        // On a project's page: its name and its linked shopping lists, so "buy screws" goes to the project's list and
+        // "call the builder" becomes a task in this project (the reader fills `list` / `project` from it).
+        AddKinds::screen('projects', function (?int $id, User $user) {
+            $project = $id ? ProjectData::project($user, $id) : null;
+            if (! $project) {
+                return null;
+            }
+            // ponytail: only shopping lists, the one attached thing an Add kind can file into; add notes/spending
+            // here when they get a kind with a `list` field.
+            $lists = ShoppingList::visibleTo($user->id)->whereIn('id', $project->links()->where('linkable_type', 'shopping_list')->pluck('linkable_id'))->pluck('name');
+
+            return "the project {$project->name}".($lists->isNotEmpty() ? ', its shopping lists: '.$lists->implode(', ') : '');
+        });
+
         // "Your modules" tile: projects still going (not archived) that this person can see.
         DashboardSummaries::register('projects', fn (int $userId) => ['key' => 'dashboard.sum_projects', 'params' => ['count' => Project::visibleTo($userId)->whereNull('archived_at')->count()]]);
         // Adding a Project counts as using this module (paywall timing + the admin's progress bar).

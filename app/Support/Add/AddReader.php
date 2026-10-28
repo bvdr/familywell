@@ -67,6 +67,8 @@ final class AddReader
             return $item + [
                 'target' => $target ? rescue(fn () => $target($ctx->user, $ctx, $values), null) : null,
                 'hidden' => array_keys(array_filter($kind['fields'], fn ($f) => ! empty($f['hidden']))),
+                // List fields whose rows have an amount (shopping items); a project's tasks are names only.
+                'quantity' => array_keys(array_filter($kind['fields'], fn ($f) => isset($f['of']['quantity']))),
             ];
         }, array_values(array_filter($response->json('items') ?? [], fn ($i) => isset($kinds[$i['kind'] ?? '']))));
     }

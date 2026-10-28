@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\ValidationException;
 use Modules\Contacts\Person;
 use Modules\Notifications\NotificationCategories;
 use Modules\Tasks\Task;
@@ -39,7 +40,8 @@ class CalendarServiceProvider extends ServiceProvider
 
     public function boot(Hooks $hooks): void
     {
-        // "Just say it" in the Add sheet: an event read out of what the person typed / photographed (AddKinds).
+        // "Just say it" in the Add sheet: an event read out of what the person typed / photographed (AddKinds), with
+        // its to-dos when listed ("school trip Friday: pack lunch, sign the form" -> the event's own checklist).
         // A datetime at midnight reads as all-day; no end = an hour for a timed event, the same day otherwise.
         AddKinds::register('event', 'calendar', [
             'fields' => [
@@ -47,6 +49,7 @@ class CalendarServiceProvider extends ServiceProvider
                 'start' => ['type' => 'datetime', 'required' => true],
                 'end' => ['type' => 'datetime'],
                 'who' => ['type' => 'text', 'ask' => 'member'],
+                'tasks' => ['type' => 'list', 'of' => ['name' => 'text']],
             ],
             'save' => function (User $user, array $v, AddContext $ctx) {
                 Validator::validate($v, ['start' => ['required', 'date']]); // no silent "today" for an event the reader couldn't date
@@ -65,10 +68,46 @@ class CalendarServiceProvider extends ServiceProvider
                     'end_time' => $timed ? $end->format('H:i') : null,
                     'people' => $who ? [['type' => 'user', 'id' => $who]] : [],
                 ]));
+                foreach ((array) ($v['tasks'] ?? []) as $t) {
+                    $title = mb_substr(trim((string) (is_array($t) ? ($t['name'] ?? '') : $t)), 0, 255);
+                    if ($title !== '') {
+                        $event->addTask($user, ['title' => $title]);
+                    }
+                }
 
                 return ['title' => $event->title, 'url' => $event->url()];
             },
         ]);
+        // A to-do for an event that's already on the calendar ("for the trip: book the hotel"): the event the input
+        // names (the next one with that title), else the event on screen. Neither: no guess, the card asks on Add.
+        $upcoming = fn (User $user) => CalendarEvent::visibleTo($user->id)->whereDate('end_date', '>=', today())->orderBy('start_date');
+        $pickEvent = function (User $user, AddContext $ctx, array $v) use ($upcoming): ?CalendarEvent {
+            $named = filled($v['event'] ?? null) ? $upcoming($user)->whereRaw('lower(title) = ?', [mb_strtolower(trim((string) $v['event']))])->first() : null;
+
+            return $named ?? ($ctx->module === 'calendar' && $ctx->entityId ? CalendarEvent::visibleTo($user->id)->find($ctx->entityId) : null);
+        };
+        AddKinds::register('event_task', 'calendar', [
+            'fields' => [
+                'title' => ['type' => 'text', 'required' => true],
+                'due' => ['type' => 'date'],
+                'who' => ['type' => 'text', 'ask' => 'member'],
+                // ponytail: the next 30 events' titles (a repeating event whose first date passed isn't among them); a
+                // far-off or repeating event is reached from its own page (the event on screen).
+                'event' => ['type' => 'text', 'options' => fn (User $user) => $upcoming($user)->limit(30)->pluck('title')->unique()->values()->all(), 'hidden' => true],
+            ],
+            'target' => fn (User $user, AddContext $ctx, array $v) => $pickEvent($user, $ctx, $v)?->title,
+            'save' => function (User $user, array $v, AddContext $ctx) use ($pickEvent) {
+                $data = Validator::validate(['title' => $v['title'] ?? null, 'due_date' => $v['due'] ?? null], [
+                    'title' => ['required', 'string', 'max:255'], 'due_date' => ['nullable', 'date'],
+                ]);
+                $event = $pickEvent($user, $ctx, $v) ?? throw ValidationException::withMessages(['event' => 'Which event? Name it, or add from the event.']);
+                $task = $event->addTask($user, $data + ['assigned_to' => $ctx->memberId($v['who'] ?? null)]);
+
+                return ['title' => $task->title, 'url' => $event->url()];
+            },
+        ]);
+        AddKinds::screen('calendar', fn (?int $id, User $user) => $id && ($e = CalendarEvent::visibleTo($user->id)->find($id))
+            ? "the event {$e->title} on {$e->start_date->toDateString()}" : null);
 
         // "Your modules" tile: events from today to the end of the week (their own calendar view, recurrences included).
         DashboardSummaries::register('calendar', fn (int $userId) => ['key' => 'dashboard.sum_calendar', 'params' => [
