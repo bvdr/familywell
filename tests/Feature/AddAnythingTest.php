@@ -211,3 +211,25 @@ it('saves a period read as whole days as an all-day event across those days', fu
     expect($e->start_date->toDateString())->toBe('2026-10-26')->and($e->end_date->toDateString())->toBe('2026-11-01')
         ->and($e->start_time)->toBeNull()->and($e->end_time)->toBeNull();
 });
+
+it('turns a recording into words through the reader, priced per second of audio', function () {
+    [$family, $users] = anythingFamily();
+    Http::fake(['reader.test/transcribe' => Http::response(['text' => 'Cumpără lapte și pâine', 'language' => 'ro', 'usage' => [
+        ['provider' => 'workers-ai', 'model' => 'whisper-large-v3-turbo', 'input_tokens' => 6, 'output_tokens' => 0, 'ms' => 2000, 'ok' => true],
+    ]])]);
+
+    actingAs($users[0])->post('/add/transcribe', ['audio' => Illuminate\Http\UploadedFile::fake()->create('voice.webm', 40, 'audio/webm'), 'path' => '/dashboard'], ['Accept' => 'application/json'])
+        ->assertOk()->assertExactJson(['text' => 'Cumpără lapte și pâine']);
+
+    Http::assertSent(fn ($r) => $r->url() === 'https://reader.test/transcribe' && $r->header('Authorization') === ['Bearer sec']
+        && is_string($r['audio']) && $r['meta'] === ['family' => $family->id, 'user' => $users[0]->id]);
+    expect(DB::table('ai_usage')->where('feature', 'add_voice')->first())
+        ->model->toBe('whisper-large-v3-turbo')->cost_micros->toBe(51) // 6 s × $8.55 per million seconds
+        ->points->toBe(0); // listening is free; the save is the AI action
+
+    // Not audio: refused before it reaches the reader.
+    actingAs($users[0])->post('/add/transcribe', ['audio' => Illuminate\Http\UploadedFile::fake()->create('x.pdf', 10, 'application/pdf')], ['Accept' => 'application/json'])->assertUnprocessable();
+
+    config(['services.add_reader.url' => null]); // self-hosted: no voice either
+    actingAs($users[0])->post('/add/transcribe', ['audio' => Illuminate\Http\UploadedFile::fake()->create('voice.webm', 40, 'audio/webm')], ['Accept' => 'application/json'])->assertNotFound();
+});

@@ -4,6 +4,7 @@ namespace App\Support\Add;
 
 use App\Support\Ai\AiUsage;
 use App\Support\Tenancy\CurrentFamily;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
@@ -68,5 +69,28 @@ final class AddReader
                 'hidden' => array_keys(array_filter($kind['fields'], fn ($f) => ! empty($f['hidden']))),
             ];
         }, array_values(array_filter($response->json('items') ?? [], fn ($i) => isset($kinds[$i['kind'] ?? '']))));
+    }
+
+    /**
+     * Voice (design H2c, "talk it out"): what was recorded so far, as words. The sheet re-sends the growing recording
+     * every few seconds while the person talks, and the words go through read() like typing. The worker runs Whisper;
+     * the seconds it heard go into the ledger (priced per second, config familywell.ai_rates).
+     */
+    public static function transcribe(UploadedFile $audio, AddContext $ctx): string
+    {
+        $response = Http::timeout(30)->withToken((string) config('services.add_reader.secret'))
+            ->post(rtrim((string) config('services.add_reader.url'), '/').'/transcribe', [
+                'audio' => base64_encode((string) file_get_contents($audio->getRealPath())),
+                'meta' => ['family' => CurrentFamily::id(), 'user' => $ctx->user->id],
+            ]);
+        if ($response->failed()) {
+            report(new RuntimeException('Add transcribe failed ('.$response->status().'): '.mb_substr($response->body(), 0, 300)));
+            throw new RuntimeException('The reader is not available right now.');
+        }
+        foreach ($response->json('usage') ?? [] as $u) {
+            AiUsage::record('add_voice', 'cloudflare', (string) $u['model'], (int) $u['input_tokens']);
+        }
+
+        return (string) $response->json('text', '');
     }
 }
