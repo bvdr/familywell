@@ -232,6 +232,7 @@ class DemoSeeder extends Seeder
                 ['Sourdough loaf', '1', 'bakery', false], ['Chicken thighs', '2 lb', 'meat', false],
                 ['Frozen mango', '1 bag', 'frozen', true], ['Sparkling water', '12-pack', 'beverages', false],
                 ['Olive oil', '1', 'pantry', false], ['Peanut butter', '1 jar', 'pantry', false],
+                ['Banana chips', '1 bag', 'snacks', false],
             ]],
             ['Costco run', 'Costco', 'amber', 'store', 'David', [
                 ['Paper towels', '12-pack', 'household', false], ['Rotisserie chicken', '1', 'meat', false],
@@ -285,6 +286,7 @@ class DemoSeeder extends Seeder
         // current month, so the month-to-date widget and analytics never read zero.
         $spends = [
             [0, 'groceries', 142.37, 'food', "Trader Joe's", 'Weekly groceries', 'Sarah'],
+            [3, 'groceries', 18.40, 'food', 'Farmers market', 'Bananas, local honey', 'Sarah'],
             [0, 'others', 6.45, 'food', 'Starbucks', 'Coffee on the way to work', 'David'],
             [1, 'kids', 38.00, 'education', 'Target', 'Composition notebooks + pencils', 'Sarah'],
             [1, 'others', 62.10, 'transport', 'Shell', 'Gas, Camry', 'David'],
@@ -535,6 +537,7 @@ class DemoSeeder extends Seeder
             [$recipes, 'Sunday pancakes', "2 cups flour, 2 tbsp sugar, 2 tsp baking powder, 1/2 tsp salt, 2 eggs, 1 3/4 cups milk, 4 tbsp melted butter.\n\nKids like blueberries in Noah's, chocolate chips in Lily's.", 'yellow', false, $david],
             [$trips, 'Spring break ideas', "- Outer Banks (again?)\n- Great Smoky Mountains: cabin near Gatlinburg\n- Washington DC museums day trips\n- Check Southwest points balance before booking", 'blue', false, $david],
             [$home, 'Gift ideas', "**Emma:** drawing tablet, concert tickets\n**Noah:** telescope, Lego Technic\n**Lily:** scooter, the big dollhouse\n**David:** smoker (the pellet one)", 'green', false, $sarah],
+            [$home, 'Lunchbox ideas', "- Frozen banana bites\n- Yogurt tubes\n- Pretzels + hummus\n- Apple slices\n- Cheese + crackers", 'default', false, $sarah],
         ];
         foreach ($notes as $i => [$folder, $title, $body, $color, $pinned, $by]) {
             Note::create(['folder_id' => $folder->id, 'title' => $this->t($title), 'body' => $this->t($body), 'color' => $color, 'pinned' => $pinned, 'position' => $i, 'created_by' => $by->id]);
@@ -670,6 +673,16 @@ class DemoSeeder extends Seeder
                 ['name' => 'cream', 'qty' => 100, 'unit' => 'ml', 'note' => 'optional'],
             ],
             'steps' => ['Soften the onion and garlic in olive oil.', 'Add tomatoes and stock, simmer 15 minutes.', 'Blend smooth and stir in the cream.'],
+        ]);
+        $recipe([
+            'title' => 'Banana bread', 'description' => "Grandma's recipe, the one that never lasts a day.",
+            'servings' => 8, 'prep_minutes' => 10, 'cook_minutes' => 60, 'tags' => ['baking', 'kids'],
+            'ingredients' => [
+                ['name' => 'ripe bananas', 'qty' => 3, 'unit' => 'pcs'], ['name' => 'flour', 'qty' => 250, 'unit' => 'g'],
+                ['name' => 'sugar', 'qty' => 150, 'unit' => 'g'], ['name' => 'butter', 'qty' => 100, 'unit' => 'g'],
+                ['name' => 'eggs', 'qty' => 2, 'unit' => 'pcs'], ['name' => 'baking soda', 'qty' => 1, 'unit' => 'tsp'],
+            ],
+            'steps' => ['Mash the bananas and mix with the melted butter.', 'Beat in the sugar and eggs.', 'Fold in the flour and baking soda, pour into a loaf tin and bake 60 min at 180°C.'],
         ]);
     }
 

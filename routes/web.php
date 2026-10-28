@@ -18,6 +18,7 @@ use App\Support\Analytics;
 use App\Support\Dashboard\DashboardData;
 use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Demo\DemoFamily;
+use App\Support\Search\SearchSources;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -135,6 +136,19 @@ Route::middleware(['auth', 'family'])->group(function () {
         'family' => Family::find(CurrentFamily::id())?->name,
         'summaries' => DashboardSummaries::collect(),
     ]))->middleware('throttle:60,1')->name('nav.more');
+
+    // H5 · Search: one search across every module the family has enabled, grouped client-side by
+    // module. Under 2 characters returns no results (the frontend debounces + skips the request, but
+    // an empty/short q is still handled here so a direct/retried request never queries anything).
+    // Throttled since every keystroke (after the debounce) is a request.
+    Route::get('search', function (Request $request) {
+        $q = trim((string) $request->query('q', ''));
+
+        return Inertia::render('search', [
+            'q' => $q,
+            'results' => mb_strlen($q) >= 2 ? SearchSources::collect($q) : [],
+        ]);
+    })->middleware('throttle:60,1')->name('search');
 
     // Generic sharing management for any registered shareable entity ({type}/{id}). Owner-only,
     // enforced in the controller.

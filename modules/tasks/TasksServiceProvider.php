@@ -11,8 +11,10 @@ use App\Support\Dashboard\DashboardWidgets;
 use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\ModuleRegistry;
+use App\Support\Search\SearchSources;
 use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Translations;
 use App\Support\Trash\Trash;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -143,6 +145,33 @@ class TasksServiceProvider extends ServiceProvider
                     href: "/m/tasks/lists/{$t->task_list_id}", icon: 'list-checks', color: $t->list->color,
                     people: $t->assignee ? [['type' => 'user', 'id' => $t->assignee->id, 'name' => $t->assignee->name]] : [], done: $t->done))
                 ->values()->all();
+        });
+
+        // H5 search: to-dos (title/note) AND the lists themselves (name), only ones this user can see.
+        SearchSources::register('tasks', function (string $q, int $userId) {
+            $rows = [];
+            $tasks = SearchSources::ilike(
+                Task::query()->with('list')->whereHas('list', fn ($l) => $l->visibleTo($userId)),
+                ['title', 'note'], $q
+            )->orderByDesc('id')->limit(20)->get();
+            foreach ($tasks as $task) {
+                $rows[] = [
+                    'module' => 'tasks', 'title' => $task->title,
+                    'meta' => trim(implode(' · ', array_filter([
+                        $task->list?->name,
+                        $task->done ? Translations::get('common.done') : ($task->due_date ? SearchSources::formatDate($task->due_date) : null),
+                    ]))),
+                    'href' => "/m/tasks/lists/{$task->task_list_id}", 'icon' => 'list-checks',
+                ];
+            }
+            $lists = SearchSources::ilike(TaskList::query()->visibleTo($userId)->whereNull('archived_at'), ['name'], $q)
+                ->orderByDesc('id')->limit(20)->get();
+            foreach ($lists as $list) {
+                $rows[] = ['module' => 'tasks', 'title' => $list->name, 'meta' => Translations::get('nav.tasks'),
+                    'href' => "/m/tasks/lists/{$list->id}", 'icon' => 'list-checks'];
+            }
+
+            return array_slice($rows, 0, 20);
         });
 
         // Full Inertia pages, gated by `module:tasks` so they are only reachable when the family

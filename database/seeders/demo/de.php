@@ -98,6 +98,7 @@ return [
         'Light bulbs (60W LED)' => 'Glühbirnen (LED, E27)',
         'Trash bags' => 'Müllbeutel',
         'Furnace filter 16x25' => 'Filter für die Lüftung',
+        'Banana chips' => 'Bananenchips',
         '1 bunch' => '1 Bund',
         '1 bag' => '1 Beutel',
         '1 gal' => '2 l',
@@ -150,6 +151,8 @@ return [
         'Tickets' => 'Tickets',
         'Breakfast' => 'Frühstück',
         'Gas heading home' => 'Tanken auf dem Heimweg',
+        'Farmers market' => 'Wochenmarkt',
+        'Bananas, local honey' => 'Bananen, Honig vom Imker',
 
         // Inventory
         'Toilet paper' => 'Toilettenpapier',
@@ -234,6 +237,8 @@ return [
         "- Outer Banks (again?)\n- Great Smoky Mountains: cabin near Gatlinburg\n- Washington DC museums day trips\n- Check Southwest points balance before booking" => "- Ostsee (schon wieder?)\n- Harz: Hütte bei Wernigerode\n- Tagesausflüge in die Museen in Dresden\n- Vor dem Buchen die BahnBonus-Punkte checken",
         'Gift ideas' => 'Geschenkideen',
         "**Emma:** drawing tablet, concert tickets\n**Noah:** telescope, Lego Technic\n**Lily:** scooter, the big dollhouse\n**David:** smoker (the pellet one)" => "**Emma:** Zeichentablett, Konzertkarten\n**Noah:** Teleskop, Lego Technic\n**Lily:** Roller, das große Puppenhaus\n**David:** Smoker (der mit Pellets)",
+        'Lunchbox ideas' => 'Ideen für die Brotdose',
+        "- Frozen banana bites\n- Yogurt tubes\n- Pretzels + hummus\n- Apple slices\n- Cheese + crackers" => "- Tiefgekühlte Bananenstücke\n- Joghurt zum Trinken\n- Brezeln + Hummus\n- Apfelscheiben\n- Käse + Cracker",
 
         // Projects
         'Kitchen refresh' => 'Küche auffrischen',
@@ -291,6 +296,15 @@ return [
         'Soften the onion and garlic in olive oil.' => 'Zwiebel und Knoblauch in Olivenöl glasig dünsten.',
         'Add tomatoes and stock, simmer 15 minutes.' => 'Tomaten und Brühe dazu, 15 Minuten köcheln lassen.',
         'Blend smooth and stir in the cream.' => 'Fein pürieren und die Sahne unterrühren.',
+        'Banana bread' => 'Bananenbrot',
+        "Grandma's recipe, the one that never lasts a day." => 'Omas Rezept, das keinen Tag überlebt.',
+        'baking' => 'Backen',
+        'ripe bananas' => 'reife Bananen',
+        'butter' => 'Butter',
+        'baking soda' => 'Natron',
+        'Mash the bananas and mix with the melted butter.' => 'Die Bananen zerdrücken und mit der geschmolzenen Butter vermischen.',
+        'Beat in the sugar and eggs.' => 'Zucker und Eier einrühren.',
+        'Fold in the flour and baking soda, pour into a loaf tin and bake 60 min at 180°C.' => 'Mehl und Natron unterheben, in eine Kastenform füllen und 60 Min. bei 180°C backen.',
 
         // Contacts
         'Grandma Jo (Josephine Miller)' => 'Oma Jo (Josephine Weber)',
