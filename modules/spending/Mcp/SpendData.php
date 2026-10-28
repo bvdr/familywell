@@ -9,6 +9,8 @@ use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Trash\Trash;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Validator;
+use Modules\Notifications\Notify;
 use Modules\Spending\Spend;
 use Modules\Spending\SpendEvent;
 
@@ -39,6 +41,27 @@ class SpendData
     }
 
     /** Money as a decimal string (minor units in the DB). */
+    /**
+     * Add an expense the way every path does (MCP spending_add_expense, the Add sheet's "Just say it"): the web
+     * form's rules (SpendEvent::spendRules: known currency, the family's categories, a payer in this list), a soft
+     * duplicate check (warn, never block: the same purchase twice is real), a push to the list's people, the
+     * realtime refresh. Throws a ValidationException when $input doesn't hold up.
+     *
+     * @return array{0: Spend, 1: bool} the spend and whether it looks like a duplicate
+     */
+    public static function addExpense(User $user, SpendEvent $event, array $input): array
+    {
+        $data = Validator::validate($input, $event->spendRules(), ['payer_key.in' => 'paid_by / payer must be one of this list\'s participants: '.implode(', ', array_keys($event->participantNames())).'.']);
+        $duplicate = Spend::looksDuplicate($data, self::visibleEvents($user)->pluck('id'));
+        $spend = $event->spends()->create([...$event->spendColumns($data), 'created_by' => $user->id]);
+
+        $amount = $data['currency'].' '.number_format((float) $data['amount'], 2);
+        Notify::toAccessOf($event, 'spending', $user->id, $event->name, "{$user->name} added {$amount}".(! empty($data['note']) ? " · {$data['note']}" : ''), "/m/spending/events/{$event->id}");
+        self::changed();
+
+        return [$spend, $duplicate];
+    }
+
     public static function money(int $cents): string
     {
         return number_format($cents / 100, 2, '.', '');

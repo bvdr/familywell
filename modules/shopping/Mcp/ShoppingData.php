@@ -9,8 +9,10 @@ use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Trash\Trash;
 use Illuminate\Database\Eloquent\Model;
+use Modules\Notifications\Notify;
 use Modules\Shopping\ShoppingItem;
 use Modules\Shopping\ShoppingList;
+use Modules\Shopping\ShoppingShop;
 
 // Shared lookups + payload shapes for the Shopping MCP tools. Access follows the web UI: anyone with a
 // role on a list may read and edit it (ShareAccess::roleFor, as ShoppingController does), only its
@@ -22,6 +24,34 @@ class ShoppingData
         $list = ShoppingList::find((int) $id);
 
         return $list && app(ShareAccess::class)->roleFor($user, $list) !== null ? $list : null;
+    }
+
+    /**
+     * Add an item the way every path does (MCP shopping_add_item, the Add sheet's "Just say it"): a soft duplicate
+     * check (warn, never block: returned as the second value), new store names promoted to shops so the Shops view
+     * stays complete, a push to the list's people, the realtime refresh. $data is already validated.
+     *
+     * @return array{0: ShoppingItem, 1: ?ShoppingItem}
+     */
+    public static function addItem(User $user, ShoppingList $list, array $data): array
+    {
+        $dup = ShoppingItem::activeDuplicate($list, $data['name']);
+        $item = $list->items()->create([
+            'name' => $data['name'],
+            'quantity' => $data['quantity'] ?? null,
+            'note' => $data['note'] ?? null,
+            'store' => $data['store'] ?? null,
+            'alt_stores' => $data['alt_stores'] ?? null,
+            'created_by' => $user->id,
+        ]);
+        ShoppingShop::ensure($data['store'] ?? null);
+        foreach ($data['alt_stores'] ?? [] as $alt) {
+            ShoppingShop::ensure($alt);
+        }
+        Notify::toAccessOf($list, 'shopping', $user->id, $list->name, "{$user->name} added: {$item->name}", "/m/shopping/lists/{$list->id}");
+        self::changed();
+
+        return [$item, $dup];
     }
 
     public static function item(User $user, mixed $id): ?ShoppingItem
