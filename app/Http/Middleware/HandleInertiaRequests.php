@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\Add\AddReader;
 use App\Support\Analytics;
 use App\Support\Auth\SocialLogin;
 use App\Support\Billing\Billing;
@@ -62,6 +63,9 @@ class HandleInertiaRequests extends Middleware
             'modules' => fn () => ['enabled' => $this->enabledModuleIds()],
             // The modules this person pinned (users.pinned_modules, "Pin your top 4"); null = never chose.
             'pins' => fn () => $request->user()?->pinned_modules,
+            // "Just say it" is on (a reader is configured): the + then always opens the Add sheet, with the page as
+            // context, instead of the page's own add (which moves into the sheet's Classic tab). Config-only, no query.
+            'aiAdd' => AddReader::available(),
             // Module previews this person is opted in to (App\Support\Modules\Preview), for usePreview() in React.
             'preview' => fn () => $request->user()?->preview_modules ?? [],
             // Web Push public (VAPID) key, so the client can subscribe the browser to push. Public by design.

@@ -6,6 +6,7 @@ use App\Events\SpendingChanged;
 use App\Http\Controllers\Controller;
 use App\Models\EntityVisit;
 use App\Models\Family;
+use App\Support\Ai\AiPoints;
 use App\Support\Media\StoredImage;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
@@ -599,12 +600,18 @@ class SpendingController extends Controller
     {
         abort_unless(ReceiptScanner::configured(), 404);
         $request->validate(['photo' => ['required', 'image', 'max:10240']]);
+        // A scan is an AI action: one point from the family's monthly allowance (AiPoints), charged once it worked.
+        $family = Family::findOrFail(CurrentFamily::id());
+        if (! AiPoints::canSpend($family)) {
+            return response()->json(['message' => Translations::get('ai.out_of_points')], 422);
+        }
 
         try {
             $data = (new ReceiptScanner(SpendCategory::keysFor(), self::CURRENCIES))->scan($request->file('photo'));
         } catch (\RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
+        AiPoints::charge('receipt_scan');
 
         return response()->json($data);
     }

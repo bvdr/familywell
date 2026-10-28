@@ -44,6 +44,14 @@ return [
         'model' => env('GEMINI_MODEL', 'gemini-3-flash-preview'),
     ],
 
+    // Cloudflare Workers AI: Clef (decisions) + Clairic (typed extraction) read "Just say it" in the Add sheet.
+    // A token scoped to Workers AI only (1Password folio-dev "Cloudflare Workers AI token (familywell)"), never an
+    // account-wide one. Without it the reader falls back to Gemini (above), and without that the sheet is Classic only.
+    'workers_ai' => [
+        'account' => env('CLOUDFLARE_AI_ACCOUNT_ID'),
+        'token' => env('CLOUDFLARE_AI_TOKEN'),
+    ],
+
     // TypeSafe (Jev), used only to guess a shopping item's aisle when it was added into the
     // catch-all "Other". Gated on `key`: no key, no guess (see AisleGuesser::configured()).
     'typesafe' => [

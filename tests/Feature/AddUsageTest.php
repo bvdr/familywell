@@ -39,14 +39,14 @@ it('counts what the family added in the last 30 days, private lists included', f
     actingAs($users[1])->post("/m/tasks/lists/{$mine->id}/tasks", ['title' => 'Secret gift']);
 
     actingAs($users[0])->getJson('/add/usage')->assertOk()
-        ->assertExactJson(['tasks' => 2]);
+        ->assertJsonPath('usage', ['tasks' => 2]);
 });
 
 it('leaves out modules the family has turned off, and needs a signed-in member', function () {
     [$family, $users] = addUsageFamily();
     app(ModuleRegistry::class)->disable('tasks', $family->id);
 
-    actingAs($users[0])->getJson('/add/usage')->assertOk()->assertExactJson([]);
+    actingAs($users[0])->getJson('/add/usage')->assertOk()->assertJsonPath('usage', []);
     auth()->logout();
     $this->getJson('/add/usage')->assertUnauthorized();
 });

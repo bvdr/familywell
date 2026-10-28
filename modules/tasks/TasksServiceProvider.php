@@ -3,6 +3,9 @@
 namespace Modules\Tasks;
 
 use App\Models\EntityVisit;
+use App\Models\User;
+use App\Support\Add\AddContext;
+use App\Support\Add\AddKinds;
 use App\Support\Calendar\CalendarSources;
 use App\Support\Dashboard\DashboardAgenda;
 use App\Support\Dashboard\DashboardItems;
@@ -17,13 +20,40 @@ use App\Support\Tenancy\CurrentFamily;
 use App\Support\Translations;
 use App\Support\Trash\Trash;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ServiceProvider;
 use Modules\Notifications\NotificationCategories;
+use Modules\Tasks\Mcp\TaskData;
 
 class TasksServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        // "Just say it" in the Add sheet: a to-do (AddKinds). It goes to the list on screen, else the list this person
+        // added to last, else their first list, else a new one named like the module.
+        AddKinds::register('todo', 'tasks', [
+            'question' => 'Is there a task someone in the family has to do (and not just an event to attend)?',
+            'fields' => [
+                'title' => ['type' => 'text', 'instructions' => 'the action someone has to do, as a short instruction starting with a verb (e.g. "Sign the permission slip"), not the event itself', 'required' => true],
+                'due' => ['type' => 'date', 'instructions' => 'the date that action must be done by, if said'],
+                'who' => ['type' => 'text', 'instructions' => 'the family member who should do it, by first name', 'ask' => 'member'],
+            ],
+            'save' => function (User $user, array $v, AddContext $ctx) {
+                $data = Validator::validate(['title' => $v['title'] ?? null, 'due_date' => $v['due'] ?? null], [
+                    'title' => ['required', 'string', 'max:255'], 'due_date' => ['nullable', 'date'],
+                ]);
+                $lastList = Task::where('created_by', $user->id)->whereNotNull('task_list_id')->latest('id')->value('task_list_id');
+                $list = ($ctx->module === 'tasks' && $ctx->entityId ? TaskData::list($user, $ctx->entityId) : null)
+                    ?? ($lastList ? TaskData::list($user, $lastList) : null)
+                    ?? TaskList::visibleTo($user->id)->whereNull('archived_at')->orderBy('position')->first()
+                    ?? TaskList::createFor($user, ['name' => Translations::get('nav.tasks')]);
+                $task = TaskData::addTask($user, $list, $data + ['assigned_to' => $ctx->memberId($v['who'] ?? null)]);
+
+                return ['title' => $task->title, 'url' => "/m/tasks/lists/{$list->id}"];
+            },
+        ]);
+        AddKinds::screen('tasks', fn (?int $id, User $user) => $id && ($l = TaskData::list($user, $id)) ? "the to-do list {$l->name}" : null);
+
         // "Your modules" tile: open tasks due today (or overdue) on the lists this person can see.
         DashboardSummaries::register('tasks', fn (int $userId) => ['key' => 'dashboard.sum_tasks', 'params' => [
             'count' => Task::where('done', false)->whereDate('due_date', '<=', today())->whereHas('list', fn ($q) => $q->visibleTo($userId))->count(),

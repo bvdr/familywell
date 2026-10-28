@@ -8,7 +8,6 @@ use Illuminate\Validation\Rule;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
-use Modules\Notifications\Notify;
 
 class CreateTask extends Tool
 {
@@ -55,10 +54,7 @@ class CreateTask extends Tool
             }
         }
 
-        $task = $list->addTask($user, $data);
-        TaskData::fireSaved($task, $user, $request->all()); // extension fields (important, recurrence...)
-        Notify::toAccessOf($list, 'tasks', $user->id, 'New task', "{$user->name} added: {$task->title}", "/m/tasks/lists/{$list->id}");
-        TaskData::changed();
+        $task = TaskData::addTask($user, $list, $data, $request->all());
 
         return Response::structured(TaskData::taskPayload($task->load('assignee')));
     }

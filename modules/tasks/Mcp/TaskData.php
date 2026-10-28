@@ -13,6 +13,7 @@ use App\Support\Trash\Trash;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Modules\Notifications\Notify;
 use Modules\Tasks\Task;
 use Modules\Tasks\TaskList;
 
@@ -38,6 +39,21 @@ class TaskData
     }
 
     /** Family member ids, for validating an assignee. */
+    /**
+     * Add a task to a list the way every path does (MCP tasks_create_task, the Add sheet's "Just say it"): the task,
+     * its extension fields from $args (important, recurrence...), a push to the list's people, the realtime refresh.
+     * $data is already validated.
+     */
+    public static function addTask(User $user, TaskList $list, array $data, array $args = []): Task
+    {
+        $task = $list->addTask($user, $data);
+        self::fireSaved($task, $user, $args);
+        Notify::toAccessOf($list, 'tasks', $user->id, 'New task', "{$user->name} added: {$task->title}", "/m/tasks/lists/{$list->id}");
+        self::changed();
+
+        return $task;
+    }
+
     public static function memberIds(): array
     {
         return Family::findOrFail(CurrentFamily::id())->members()->pluck('users.id')->all();

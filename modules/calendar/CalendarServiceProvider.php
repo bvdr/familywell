@@ -2,6 +2,9 @@
 
 namespace Modules\Calendar;
 
+use App\Models\User;
+use App\Support\Add\AddContext;
+use App\Support\Add\AddKinds;
 use App\Support\Calendar\CalendarSources;
 use App\Support\Dashboard\DashboardAgenda;
 use App\Support\Dashboard\DashboardSummaries;
@@ -18,8 +21,10 @@ use App\Support\Trash\Trash;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ServiceProvider;
 use Modules\Contacts\Person;
 use Modules\Notifications\NotificationCategories;
@@ -34,6 +39,38 @@ class CalendarServiceProvider extends ServiceProvider
 
     public function boot(Hooks $hooks): void
     {
+        // "Just say it" in the Add sheet: an event read out of what the person typed / photographed (AddKinds).
+        // A datetime at midnight reads as all-day; no end = an hour for a timed event, the same day otherwise.
+        AddKinds::register('event', 'calendar', [
+            'question' => 'Is there something with a date or time the family should put on the calendar (an appointment, a trip, a practice, a party)?',
+            'fields' => [
+                'title' => ['type' => 'text', 'instructions' => 'short name for the calendar event', 'required' => true],
+                'start' => ['type' => 'datetime', 'instructions' => 'when it starts', 'required' => true],
+                'end' => ['type' => 'datetime', 'instructions' => 'when it ends, if said'],
+                'who' => ['type' => 'text', 'instructions' => 'the family member it is for, by first name', 'ask' => 'member'],
+            ],
+            'save' => function (User $user, array $v, AddContext $ctx) {
+                Validator::validate($v, ['start' => ['required', 'date']]); // no silent "today" for an event the reader couldn't date
+                $start = Carbon::parse($v['start']);
+                $timed = $start->format('H:i') !== '00:00';
+                $end = ! empty($v['end']) ? Carbon::parse($v['end']) : null;
+                if (! $end || $end->lt($start)) {
+                    $end = $timed ? $start->copy()->addHour() : $start->copy();
+                }
+                $who = $ctx->memberId($v['who'] ?? null);
+                $event = CalendarEvent::createFor($user, CalendarEvent::validated([
+                    'title' => $v['title'] ?? '',
+                    'start_date' => $start->toDateString(),
+                    'end_date' => $end->toDateString(),
+                    'start_time' => $timed ? $start->format('H:i') : null,
+                    'end_time' => $timed ? $end->format('H:i') : null,
+                    'people' => $who ? [['type' => 'user', 'id' => $who]] : [],
+                ]));
+
+                return ['title' => $event->title, 'url' => $event->url()];
+            },
+        ]);
+
         // "Your modules" tile: events from today to the end of the week (their own calendar view, recurrences included).
         DashboardSummaries::register('calendar', fn (int $userId) => ['key' => 'dashboard.sum_calendar', 'params' => [
             'count' => count(CalendarEvent::itemsFor($userId, now()->toDateString(), now()->endOfWeek()->toDateString())),

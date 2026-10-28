@@ -32,11 +32,24 @@ return [
         ],
     ],
 
-    // What each tier says it includes on Plan & pay ("1 GB · 50 AI points"). Display copy only: nothing in the app
-    // meters storage or AI points yet, so the tiers differ in price and promise until that exists.
+    // What each tier includes ("1 GB · 50 AI points"). AI points are metered per family per calendar month
+    // (App\Support\Ai\AiPoints): one point per finished AI action (an add read by "Just say it", a receipt scan).
+    // Storage is still display copy only.
     'tiers' => [
         'basic' => ['storage_gb' => 1, 'ai_points' => 50],
         'pro' => ['storage_gb' => 5, 'ai_points' => 200],
+    ],
+
+    // What one AI call costs us, in USD per million tokens, so every call in the ai_usage ledger carries its price
+    // (App\Support\Ai\AiUsage). Keyed by model id. Cloudflare's Workers AI models bill input only. Unknown models
+    // record 0 cost (the tokens are still logged). Check these against the providers' price pages when they change.
+    'ai_rates' => [
+        'clef' => ['in' => 0.24],
+        'clef-flash' => ['in' => 0.038],
+        'clairic' => ['in' => 0.10],
+        'llama-4-scout-17b-16e-instruct' => ['in' => 0.27, 'out' => 0.85],
+        'jev-latest' => ['in' => 0.042],
+        'gemini-3-flash-preview' => ['in' => 0.50, 'out' => 3.00],
     ],
 
     // The module-requests board ("Can't find yours?" in the onboarding's module picker). Empty hides the card,

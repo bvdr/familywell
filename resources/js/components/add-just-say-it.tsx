@@ -1,0 +1,385 @@
+import { useT } from '@/lib/i18n';
+import { router } from '@inertiajs/react';
+import { CalendarDays, Camera, Car, Check, ImagePlus, ListChecks, Loader2, ShoppingCart, Sparkles, Wallet, X, type LucideIcon } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+
+// "Just say it" (design XMkKm H2 / H2a / H2b): one box that reads whatever you type, paste or photograph. Each pause
+// sends it to /add/read (AddReader: Clef decides what's in it, Clairic reads the details, with where you are and what
+// you usually add as context), and the cards update. Nothing is saved until "Add". A card the reader isn't sure
+// about asks first ("Add this as a new vehicle?", "Who is this for?"); every value stays editable.
+
+type Field = { value: unknown; confidence: number };
+type Item = {
+    kind: string;
+    module: string;
+    p: number;
+    sure: boolean;
+    fields: Record<string, Field>;
+    ask: Record<string, string[]>;
+    missing: string[];
+    types: Record<string, string>;
+};
+// What the person changed on a card, kept across re-reads while they keep typing: keyed by kind.
+type Edit = { on?: boolean; values: Record<string, string> };
+
+const KIND_ICON: Record<string, LucideIcon> = {
+    event: CalendarDays,
+    todo: ListChecks,
+    expense: Wallet,
+    shopping_item: ShoppingCart,
+    vehicle: Car,
+};
+const DEBOUNCE_MS = 700;
+const MAX_IMAGES = 4;
+// Photos are shrunk in the browser before upload: a phone photo is 3-8 MB, the reader caps an image at 4 MiB and
+// reads ~1600px as well as the original.
+const MAX_SIDE = 1600;
+
+const xsrf = () => decodeURIComponent(document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]+)/)?.[1] ?? '');
+const postJson = (url: string, body: unknown, signal?: AbortSignal) =>
+    fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-XSRF-TOKEN': xsrf() },
+        body: JSON.stringify(body),
+        signal,
+    });
+
+function downscale(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            const k = Math.min(1, MAX_SIDE / Math.max(img.width, img.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(img.width * k);
+            canvas.height = Math.round(img.height * k);
+            canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+            URL.revokeObjectURL(img.src);
+            resolve(canvas.toDataURL('image/jpeg', 0.82));
+        };
+        img.onerror = reject;
+        img.src = URL.createObjectURL(file);
+    });
+}
+
+// The reader's value as the text an input shows: lists as "a, b", datetimes as the datetime-local format.
+function asText(v: unknown, type: string): string {
+    if (v === null || v === undefined) return '';
+    if (Array.isArray(v)) return v.join(', ');
+    if (type === 'datetime') return String(v).slice(0, 16);
+    return String(v);
+}
+
+export function JustSayIt({
+    onClose,
+    onClassic,
+    pointsLeft: initialPoints,
+}: {
+    onClose: () => void;
+    onClassic: () => void;
+    pointsLeft: number | null;
+}) {
+    const t = useT();
+    const [text, setText] = useState('');
+    const [images, setImages] = useState<string[]>([]);
+    const [items, setItems] = useState<Item[]>([]);
+    const [edits, setEdits] = useState<Record<string, Edit>>({});
+    const [state, setState] = useState<'idle' | 'reading' | 'saving' | 'out' | 'error'>('idle');
+    const [error, setError] = useState<string | null>(null);
+    const [points, setPoints] = useState(initialPoints);
+    const camera = useRef<HTMLInputElement>(null);
+    const gallery = useRef<HTMLInputElement>(null);
+
+    // Read on every pause. The newest read wins: an older one still in flight is aborted.
+    useEffect(() => {
+        if (text.trim().length < 3 && images.length === 0) {
+            setItems([]);
+            return;
+        }
+        const ctrl = new AbortController();
+        const timer = window.setTimeout(async () => {
+            setState('reading');
+            try {
+                const res = await postJson('/add/read', { text, images, path: window.location.pathname }, ctrl.signal);
+                if (res.status === 409) return setState('out');
+                if (!res.ok) throw new Error(String(res.status));
+                const data = await res.json();
+                setItems(data.items);
+                setPoints(data.pointsLeft);
+                setState('idle');
+            } catch (e) {
+                if ((e as Error).name !== 'AbortError') setState('error');
+            }
+        }, DEBOUNCE_MS);
+        return () => {
+            window.clearTimeout(timer);
+            ctrl.abort();
+        };
+    }, [text, images]);
+
+    const addFiles = async (files: FileList | File[] | null) => {
+        const list = Array.from(files ?? []).filter((f) => f.type.startsWith('image/'));
+        const urls = await Promise.all(list.slice(0, MAX_IMAGES - images.length).map(downscale));
+        setImages((cur) => [...cur, ...urls].slice(0, MAX_IMAGES));
+    };
+
+    const edit = (kind: string) => edits[kind] ?? { values: {} };
+    // A field the reader asks about ("who is this for?") starts empty: its guess is exactly what it wasn't sure of.
+    const valueOf = (it: Item, name: string) => edit(it.kind).values[name] ?? (it.ask[name] ? '' : asText(it.fields[name]?.value, it.types[name]));
+    const setValue = (kind: string, name: string, v: string) =>
+        setEdits((cur) => ({ ...cur, [kind]: { ...(cur[kind] ?? { values: {} }), values: { ...(cur[kind]?.values ?? {}), [name]: v } } }));
+    const setOn = (kind: string, on: boolean) => setEdits((cur) => ({ ...cur, [kind]: { ...(cur[kind] ?? { values: {} }), on } }));
+    // A card starts ticked only when the reader is sure and nothing it needs is missing; unsure ones ask first.
+    const needs = (it: Item) => it.missing.filter((n) => !valueOf(it, n).trim());
+    const isOn = (it: Item) => edit(it.kind).on ?? (it.sure && needs(it).length === 0);
+    const chosen = items.filter(isOn);
+    const blocked = chosen.some((it) => needs(it).length > 0);
+
+    const save = async () => {
+        setState('saving');
+        setError(null);
+        const payload = chosen.map((it) => ({
+            kind: it.kind,
+            values: Object.fromEntries(
+                Object.keys(it.types)
+                    .map((name) => [name, valueOf(it, name).trim()] as const)
+                    .filter(([, v]) => v !== '')
+                    .map(([name, v]) => [
+                        name,
+                        it.types[name] === 'list'
+                            ? v
+                                  .split(',')
+                                  .map((s) => s.trim())
+                                  .filter(Boolean)
+                            : v,
+                    ]),
+            ),
+        }));
+        const res = await postJson('/add/save', { items: payload, path: window.location.pathname }).catch(() => null);
+        if (res?.status === 409) return setState('out');
+        if (!res?.ok) {
+            const body = res ? await res.json().catch(() => null) : null;
+            setError((body?.message as string) ?? t('add.unavailable'));
+            return setState('idle');
+        }
+        onClose();
+        router.reload(); // the page behind shows the new things
+    };
+
+    const fieldLabel = (name: string) => t(`add.f_${name}`);
+    // The card's headline: its first filled text field (an event's title, what an expense was for), else whatever
+    // came first (an amount, the shopping items).
+    const headline = (it: Item) => {
+        const names = Object.keys(it.types);
+        const text = names.find((n) => it.types[n] === 'text' && !it.ask[n] && valueOf(it, n).trim());
+        return valueOf(it, text ?? names[0]);
+    };
+    const inputType = (type: string) => (type === 'datetime' ? 'datetime-local' : type === 'date' ? 'date' : type === 'number' ? 'number' : 'text');
+
+    if (state === 'out') {
+        return (
+            <div className="flex flex-col gap-4">
+                <p className="bg-accent-subtle text-primary rounded-2xl p-4 text-sm">{t('add.out_of_points')}</p>
+                <button type="button" onClick={onClassic} className="bg-primary text-primary-foreground rounded-full py-3 font-semibold">
+                    {t('add.classic')}
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex flex-col gap-4">
+            {/* The box: text, then any photos, then the photo buttons. Paste works for text and images. */}
+            <div className="border-primary bg-surface-card flex flex-col gap-3 rounded-2xl border-2 p-3">
+                <textarea
+                    autoFocus
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    onPaste={(e) => {
+                        if (e.clipboardData.files.length) {
+                            e.preventDefault();
+                            void addFiles(e.clipboardData.files);
+                        }
+                    }}
+                    rows={2}
+                    placeholder={t('add.placeholder')}
+                    aria-label={t('add.say_it')}
+                    // text-base = 16px: smaller zooms the page on iOS when the field is focused.
+                    className="text-primary placeholder:text-muted-foreground min-h-14 w-full resize-none bg-transparent text-base font-semibold outline-none"
+                />
+                {images.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                        {images.map((src, i) => (
+                            <span key={i} className="relative">
+                                <img src={src} alt="" className="size-16 rounded-lg border object-cover" />
+                                <button
+                                    type="button"
+                                    onClick={() => setImages((cur) => cur.filter((_, j) => j !== i))}
+                                    aria-label={t('add.remove_image')}
+                                    className="bg-primary text-primary-foreground absolute -top-2 -right-2 flex size-6 items-center justify-center rounded-full"
+                                >
+                                    <X className="size-3.5" />
+                                </button>
+                            </span>
+                        ))}
+                    </div>
+                )}
+                <div className="flex items-center gap-2 border-t pt-3">
+                    <button
+                        type="button"
+                        onClick={() => camera.current?.click()}
+                        aria-label={t('add.camera')}
+                        disabled={images.length >= MAX_IMAGES}
+                        className="bg-surface text-primary flex size-11 items-center justify-center rounded-full disabled:opacity-40"
+                    >
+                        <Camera className="size-5" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => gallery.current?.click()}
+                        aria-label={t('add.gallery')}
+                        disabled={images.length >= MAX_IMAGES}
+                        className="bg-surface text-primary flex size-11 items-center justify-center rounded-full disabled:opacity-40"
+                    >
+                        <ImagePlus className="size-5" />
+                    </button>
+                    <input ref={camera} type="file" accept="image/*" capture="environment" hidden onChange={(e) => void addFiles(e.target.files)} />
+                    <input ref={gallery} type="file" accept="image/*" multiple hidden onChange={(e) => void addFiles(e.target.files)} />
+                    <span className="text-muted-foreground ml-auto flex items-center gap-1.5 text-sm" aria-live="polite">
+                        {state === 'reading' && (
+                            <>
+                                <Loader2 className="size-4 animate-spin" />
+                                {t('add.reading')}
+                            </>
+                        )}
+                    </span>
+                </div>
+            </div>
+
+            {state === 'error' && <p className="text-destructive text-sm">{t('add.unavailable')}</p>}
+            {state === 'idle' && items.length === 0 && (text.trim().length >= 3 || images.length > 0) && (
+                <p className="text-muted-foreground text-sm">{t('add.nothing')}</p>
+            )}
+
+            {/* One card per thing found, most likely first. */}
+            {items.map((it) => {
+                const Icon = KIND_ICON[it.kind] ?? Sparkles;
+                const on = isOn(it);
+                const asking = !it.sure && edit(it.kind).on === undefined;
+                return (
+                    <section key={it.kind} className={`rounded-2xl border p-3 ${on ? 'bg-surface-card' : 'bg-surface'}`}>
+                        <div className="flex items-center gap-3">
+                            <span className="bg-accent-strong text-accent-strong-foreground flex size-10 shrink-0 items-center justify-center rounded-xl">
+                                <Icon className="size-5" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                                <span className="text-muted-foreground block font-mono text-[11px] font-semibold tracking-[0.14em] uppercase">
+                                    {t(`add.kind_${it.kind}`)} → {t(`nav.${it.module}`)}
+                                </span>
+                                <span className="text-primary block truncate font-semibold first-letter:uppercase">
+                                    {headline(it) || t(`add.kind_${it.kind}`)}
+                                </span>
+                            </span>
+                            {!asking && (
+                                <button
+                                    type="button"
+                                    role="checkbox"
+                                    aria-checked={on}
+                                    aria-label={t(`add.kind_${it.kind}`)}
+                                    onClick={() => setOn(it.kind, !on)}
+                                    className={`flex size-8 shrink-0 items-center justify-center rounded-full border-2 ${on ? 'bg-primary border-primary text-primary-foreground' : 'border-primary'}`}
+                                >
+                                    {on && <Check className="size-4" />}
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Not sure what it is: ask, don't assume. */}
+                        {asking && (
+                            <div className="bg-accent-subtle mt-3 flex flex-wrap items-center gap-2 rounded-xl p-2.5">
+                                <span className="text-primary min-w-0 flex-1 text-sm font-medium">
+                                    {t('add.add_as', { kind: t(`add.kind_${it.kind}`) })}
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => setOn(it.kind, true)}
+                                    className="bg-primary text-primary-foreground rounded-full px-4 py-1.5 text-sm font-semibold"
+                                >
+                                    {t('add.yes')}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setOn(it.kind, false)}
+                                    className="bg-surface-card text-primary rounded-full px-4 py-1.5 text-sm font-semibold"
+                                >
+                                    {t('add.no')}
+                                </button>
+                            </div>
+                        )}
+
+                        {on && (
+                            <div className="mt-3 flex flex-col gap-2 border-t pt-3">
+                                {Object.keys(it.types)
+                                    .filter(
+                                        (name) =>
+                                            !it.ask[name] &&
+                                            (it.fields[name] || it.missing.includes(name) || edit(it.kind).values[name] !== undefined),
+                                    )
+                                    .map((name) => {
+                                        const unsure = (it.fields[name]?.confidence ?? 1) < 0.5;
+                                        const empty = it.missing.includes(name) && !valueOf(it, name).trim();
+                                        return (
+                                            <label key={name} className="grid grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-2">
+                                                <span className="text-muted-foreground font-mono text-[11px] uppercase">{fieldLabel(name)}</span>
+                                                <input
+                                                    type={inputType(it.types[name])}
+                                                    value={valueOf(it, name)}
+                                                    onChange={(e) => setValue(it.kind, name, e.target.value)}
+                                                    placeholder={empty ? t('add.needed') : ''}
+                                                    className={`text-primary min-w-0 rounded-lg border px-2.5 py-1.5 text-base ${empty ? 'border-destructive' : unsure ? 'bg-accent-subtle' : 'bg-surface-card'}`}
+                                                />
+                                            </label>
+                                        );
+                                    })}
+                                {/* "Which kid is this for?": the reader wasn't sure, so it asks. */}
+                                {Object.entries(it.ask).map(([name, options]) => (
+                                    <div key={name} className="bg-accent-subtle flex flex-wrap items-center gap-2 rounded-xl p-2.5">
+                                        <span className="text-primary w-full text-sm font-medium">{t('add.which')}</span>
+                                        {options.map((o) => (
+                                            <button
+                                                key={o}
+                                                type="button"
+                                                onClick={() => setValue(it.kind, name, o)}
+                                                className={`rounded-full px-3 py-1.5 text-sm font-semibold ${valueOf(it, name) === o ? 'bg-primary text-primary-foreground' : 'bg-surface-card text-primary'}`}
+                                            >
+                                                {o}
+                                            </button>
+                                        ))}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </section>
+                );
+            })}
+
+            {error && <p className="text-destructive text-sm">{error}</p>}
+
+            {items.length > 0 && (
+                <button
+                    type="button"
+                    onClick={() => void save()}
+                    disabled={chosen.length === 0 || blocked || state === 'saving'}
+                    className="bg-accent-strong text-accent-strong-foreground border-primary flex items-center justify-center gap-2 rounded-full border-2 py-3.5 text-lg font-bold disabled:opacity-50"
+                >
+                    {state === 'saving' && <Loader2 className="size-5 animate-spin" />}
+                    {t('add.add_n', { count: chosen.length })}
+                </button>
+            )}
+
+            <p className="text-muted-foreground text-center text-xs">
+                {t('add.hint')}
+                {points !== null && <> {t('add.points_left', { count: points })}</>}
+            </p>
+        </div>
+    );
+}
