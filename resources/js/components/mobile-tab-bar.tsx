@@ -1,4 +1,5 @@
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
+import { useNavPins } from '@/hooks/use-nav-pins';
 import { runAddAction } from '@/lib/add-action';
 import { useT } from '@/lib/i18n';
 import { Link, router, usePage } from '@inertiajs/react';
@@ -80,10 +81,6 @@ const CREATE: Item[] = [
 // Classic add shows this many as rows (with their 30-day count); the rest are chips under "Everything else".
 const TOP = 4;
 
-const PINS_KEY = 'familywell:navPins';
-// Home is always first; the bar holds up to three modules after it (design: Home · 3 pins · More).
-const MAX_PINS = 3;
-const DEFAULT_PINS = ['shopping', 'tasks', 'calendar', 'spending', 'projects'];
 const LONG_PRESS_MS = 500;
 
 // A JSON GET for the sheets' live data, fetched when a sheet opens (not shared on every page).
@@ -105,47 +102,15 @@ const sectionLabel = 'text-muted-foreground px-1 font-mono text-xs font-semibold
 const iconBox = 'bg-surface-card text-primary flex size-11 items-center justify-center rounded-xl border';
 
 export function MobileTabBar() {
-    const page = usePage<{ modules?: { enabled?: string[] }; pins?: string[] | null }>();
+    const page = usePage<{ modules?: { enabled?: string[] } }>();
     const t = useT();
     const enabled = page.props.modules?.enabled ?? [];
     const modules = MODULE_ITEMS.filter((m) => enabled.includes(m.key));
     const byKey = new Map(modules.map((i) => [i.key, i]));
 
-    const [pins, setPins] = useState<string[] | null>(() => {
-        if (typeof window !== 'undefined') {
-            try {
-                const saved = JSON.parse(localStorage.getItem(PINS_KEY) || 'null');
-                if (Array.isArray(saved)) return saved;
-            } catch {
-                /* fall through to default */
-            }
-        }
-        return null;
-    });
-    const savePins = (next: string[]) => {
-        setPins(next);
-        try {
-            localStorage.setItem(PINS_KEY, JSON.stringify(next));
-        } catch {
-            /* private mode: session-only */
-        }
-    };
-
-    // The pinned modules: this device's saved pins (older saves may hold 'dashboard' or a settings page; only modules
-    // still on count), else the modules the person pinned in the onboarding (saved on their account so every device
-    // starts the same), else the default order.
-    const pick = (keys: string[] | null | undefined) =>
-        (keys ?? [])
-            .map((k) => byKey.get(k))
-            .filter((i): i is Item => !!i)
-            .slice(0, MAX_PINS);
-    const pinned = pins !== null ? pick(pins) : pick(page.props.pins).length ? pick(page.props.pins) : pick(DEFAULT_PINS);
-    const pinnedKeys = new Set(pinned.map((i) => i.key));
-    const togglePin = (key: string) => {
-        const keys = pinned.map((i) => i.key);
-        if (pinnedKeys.has(key)) savePins(keys.filter((k) => k !== key));
-        else if (keys.length < MAX_PINS) savePins([...keys, key]);
-    };
+    const { pinned: pinnedKeysList, toggle: togglePin, full } = useNavPins(modules.map((m) => m.key));
+    const pinned = pinnedKeysList.map((k) => byKey.get(k)!).filter(Boolean);
+    const pinnedKeys = new Set(pinnedKeysList);
 
     const [moreOpen, setMoreOpen] = useState(false);
     const [addOpen, setAddOpen] = useState(false);
@@ -224,7 +189,7 @@ export function MobileTabBar() {
                 onOpenChange={setMoreOpen}
                 modules={modules}
                 pinnedKeys={pinnedKeys}
-                canPin={pinned.length < MAX_PINS}
+                canPin={!full}
                 togglePin={togglePin}
                 isActive={isActive}
                 onGo={(url) => {

@@ -1,7 +1,9 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { MAX_NAV_PINS, useNavPins } from '@/hooks/use-nav-pins';
+import { Head, Link, router } from '@inertiajs/react';
 import { Blocks, ChevronLeft, Pin, Search, type LucideIcon } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 
+import { MODULE_ITEMS } from '@/components/mobile-tab-bar';
 import { MODULES, type ModuleSummary } from '@/components/your-modules';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
@@ -21,15 +23,6 @@ const iconFor = (id: string): LucideIcon => MODULES[id]?.icon ?? Blocks;
 const hrefFor = (id: string): string =>
     MODULES[id]?.href ?? (id === 'notifications' ? '/notifications' : id === 'expense_import' ? '/m/expense-import' : `/m/${id}`);
 
-// Same cap PinnedModulesController::MAX enforces server-side (and what the dashboard's "Pin your top 4"
-// modal already uses). The design mock says "Pin up to 3" because the mobile tab bar only has 4 total
-// slots and Home always takes the first one — so a 4th module pin here is accepted by the server but
-// silently won't fit the bar. That's a pre-existing mismatch between pin-modules.tsx (cap 4) and the tab
-// bar's effective 3-module capacity; not fixed here (out of scope — the tab bar is owned elsewhere), and
-// this page follows pin-modules.tsx's real cap rather than the design's smaller number so the limit shown
-// is never a lie.
-const PIN_MAX = 4;
-
 type Filter = 'all' | 'on' | 'pinned' | 'off';
 
 export default function Modules({ catalog, canManage, summaries }: Props) {
@@ -47,16 +40,12 @@ export default function Modules({ catalog, canManage, summaries }: Props) {
         );
     };
 
-    // Pin state is the account's explicit `pins` prop ONLY (not the tab bar's own unpinned-default
-    // fallback, which lives in mobile-tab-bar.tsx and isn't duplicated here to avoid the two drifting
-    // apart). So before anyone has pinned anything this page honestly shows 0 pinned, even though the
-    // tab bar is already showing its own default set on phones.
-    const { pins } = usePage().props as { pins?: string[] | null };
-    const pinned = useMemo(() => pins ?? [], [pins]);
-    const togglePin = (id: string) => {
-        const next = pinned.includes(id) ? pinned.filter((x) => x !== id) : pinned.length >= PIN_MAX ? pinned : [...pinned, id];
-        router.put(route('pins.update'), { modules: next }, { preserveScroll: true, preserveState: true });
-    };
+    // "Pin to your tab bar": the same per-device pins the phone tab bar and More's long-press use (useNavPins),
+    // so a pin made here shows in the bar right away. Up to three; Home is always first.
+    // Only modules with their own page can sit in the bar (extensions like Important Todos have none), so only they
+    // get a pin and only they are passed in: an extension can never take one of the three slots.
+    const pinnable = (id: string) => MODULE_ITEMS.some((i) => i.key === id);
+    const { pinned, toggle: togglePin, full: pinsFull } = useNavPins(catalog.filter((m) => isEnabled(m) && pinnable(m.id)).map((m) => m.id));
 
     const on = catalog.filter(isEnabled);
     const off = catalog.filter((m) => !isEnabled(m));
@@ -125,7 +114,7 @@ export default function Modules({ catalog, canManage, summaries }: Props) {
                             <h2 className="text-muted-foreground font-mono text-[10.5px] font-semibold tracking-[0.8px] uppercase">
                                 {t('family.modules_on_header')} {on.length}
                             </h2>
-                            <span className="text-muted-foreground text-xs font-medium">{t('family.modules_pin_hint', { max: PIN_MAX })}</span>
+                            <span className="text-muted-foreground text-xs font-medium">{t('family.modules_pin_hint', { max: MAX_NAV_PINS })}</span>
                         </div>
                         <ul
                             className="bg-surface-card divide-border/60 flex flex-col divide-y overflow-hidden rounded-2xl border"
@@ -148,19 +137,22 @@ export default function Modules({ catalog, canManage, summaries }: Props) {
                                                 </span>
                                             </span>
                                         </Link>
-                                        <button
-                                            type="button"
-                                            onClick={() => togglePin(m.id)}
-                                            aria-pressed={isPinned}
-                                            aria-label={t(isPinned ? 'family.modules_unpin_aria' : 'family.modules_pin_aria', { name: m.name })}
-                                            data-testid={`pin-${m.id}`}
-                                            className={cn(
-                                                'flex size-9 shrink-0 items-center justify-center rounded-full',
-                                                isPinned ? 'bg-accent-strong text-accent-strong-foreground' : 'bg-surface text-muted-foreground',
-                                            )}
-                                        >
-                                            <Pin className="size-4" fill={isPinned ? 'currentColor' : 'none'} />
-                                        </button>
+                                        {pinnable(m.id) && (
+                                            <button
+                                                type="button"
+                                                onClick={() => togglePin(m.id)}
+                                                disabled={!isPinned && pinsFull} // three in the bar already: unpin one first
+                                                aria-pressed={isPinned}
+                                                aria-label={t(isPinned ? 'family.modules_unpin_aria' : 'family.modules_pin_aria', { name: m.name })}
+                                                data-testid={`pin-${m.id}`}
+                                                className={cn(
+                                                    'flex size-9 shrink-0 items-center justify-center rounded-full disabled:opacity-40',
+                                                    isPinned ? 'bg-accent-strong text-accent-strong-foreground' : 'bg-surface text-muted-foreground',
+                                                )}
+                                            >
+                                                <Pin className="size-4" fill={isPinned ? 'currentColor' : 'none'} />
+                                            </button>
+                                        )}
                                     </li>
                                 );
                             })}
