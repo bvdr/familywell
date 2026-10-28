@@ -3,6 +3,8 @@
 namespace Modules\Vehicles;
 
 use App\Models\Family;
+use App\Models\User;
+use App\Support\Add\AddKinds;
 use App\Support\Calendar\CalendarSources;
 use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Engagement;
@@ -14,6 +16,7 @@ use App\Support\Trash\Trash;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ServiceProvider;
 use Modules\Notifications\NotificationCategories;
 use Modules\Shopping\ShoppingItem;
@@ -30,6 +33,33 @@ class VehiclesServiceProvider extends ServiceProvider
 
     public function boot(Hooks $hooks): void
     {
+        // "Just say it" in the Add sheet: a car (AddKinds), e.g. from a photo. In Vehicles with no cars yet the screen
+        // line says so, which is what tips a car photo towards "add a vehicle" (the user's example).
+        AddKinds::register('vehicle', 'vehicles', [
+            'question' => 'Is the person adding a car or other vehicle the family owns (a photo of a car, or its make and model)?',
+            'fields' => [
+                'make' => ['type' => 'text', 'instructions' => 'the vehicle make (brand), e.g. Toyota', 'required' => true],
+                'model' => ['type' => 'text', 'instructions' => 'the model name only, without the make (e.g. Corolla, not Toyota Corolla)', 'required' => true],
+                'year' => ['type' => 'number', 'decimals' => 0, 'instructions' => 'the model year, if known'],
+                'plate' => ['type' => 'text', 'instructions' => 'the licence plate number, if visible'],
+                'color' => ['type' => 'text', 'instructions' => 'the colour'],
+            ],
+            'save' => function (User $user, array $v) {
+                $data = Validator::validate(['make' => $v['make'] ?? null, 'model' => $v['model'] ?? null, 'year' => $v['year'] ?? null, 'license_plate' => $v['plate'] ?? null, 'color' => $v['color'] ?? null], [
+                    'make' => ['required', 'string', 'max:80'], 'model' => ['required', 'string', 'max:80'],
+                    'year' => ['nullable', 'integer', 'min:1900', 'max:2100'], 'license_plate' => ['nullable', 'string', 'max:40'], 'color' => ['nullable', 'string', 'max:40'],
+                ]);
+                $vehicle = Vehicle::createFor($user, $data);
+
+                return ['title' => "{$vehicle->make} {$vehicle->model}", 'url' => "/m/vehicles/{$vehicle->id}"];
+            },
+        ]);
+        AddKinds::screen('vehicles', function (?int $id) {
+            $cars = Vehicle::query()->get(['make', 'model']);
+
+            return $cars->isEmpty() ? 'the family has no vehicles yet' : 'their vehicles: '.$cars->map(fn ($c) => "{$c->make} {$c->model}")->implode(', ');
+        });
+
         // "Your modules" tile: how many cars the family keeps here.
         DashboardSummaries::register('vehicles', fn () => ['key' => 'dashboard.sum_vehicles', 'params' => ['count' => Vehicle::count()]]);
         // Adding a Vehicle counts as using this module (paywall timing + the admin's progress bar).

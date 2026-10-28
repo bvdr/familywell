@@ -3,6 +3,9 @@
 namespace Modules\Shopping;
 
 use App\Models\EntityVisit;
+use App\Models\User;
+use App\Support\Add\AddContext;
+use App\Support\Add\AddKinds;
 use App\Support\Dashboard\DashboardAgenda;
 use App\Support\Dashboard\DashboardItems;
 use App\Support\Dashboard\DashboardSummaries;
@@ -16,12 +19,40 @@ use App\Support\Translations;
 use App\Support\Trash\Trash;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\ValidationException;
 use Modules\Notifications\NotificationCategories;
+use Modules\Shopping\Mcp\ShoppingData;
 
 class ShoppingServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        // "Just say it" in the Add sheet: things to buy (AddKinds), into the list on screen, else the list this person
+        // added to last, else their first list. Already on the list (not bought) = merged, not added twice (design H2c).
+        AddKinds::register('shopping_item', 'shopping', [
+            'question' => 'Are there things to buy at a shop (groceries, supplies)?',
+            'fields' => [
+                'items' => ['type' => 'list', 'items' => 'text', 'instructions' => 'each thing to buy, one per entry', 'required' => true],
+            ],
+            'save' => function (User $user, array $v, AddContext $ctx) {
+                $names = array_values(array_filter(array_map(fn ($n) => mb_substr(trim((string) $n), 0, 255), (array) ($v['items'] ?? []))));
+                throw_if($names === [], ValidationException::withMessages(['items' => 'Nothing to buy was read.']));
+                $lastList = ShoppingItem::where('created_by', $user->id)->latest('id')->value('shopping_list_id');
+                $list = ($ctx->module === 'shopping' && $ctx->entityId ? ShoppingData::list($user, $ctx->entityId) : null)
+                    ?? ($lastList ? ShoppingData::list($user, $lastList) : null)
+                    ?? ShoppingList::visibleTo($user->id)->whereNull('archived_at')->orderBy('position')->first()
+                    ?? ShoppingList::createFor($user, ['name' => Translations::get('nav.shopping')]);
+                foreach ($names as $name) {
+                    if (! ShoppingItem::activeDuplicate($list, $name)) {
+                        ShoppingData::addItem($user, $list, ['name' => $name]);
+                    }
+                }
+
+                return ['title' => implode(', ', $names), 'url' => "/m/shopping/lists/{$list->id}"];
+            },
+        ]);
+        AddKinds::screen('shopping', fn (?int $id, User $user) => $id && ($l = ShoppingData::list($user, $id)) ? "the shopping list {$l->name}" : null);
+
         // "Your modules" tile: what's still to buy on the lists this person can see.
         DashboardSummaries::register('shopping', fn (int $userId) => ['key' => 'dashboard.sum_shopping', 'params' => [
             'count' => ShoppingItem::where('bought', false)->whereHas('list', fn ($q) => $q->visibleTo($userId))->count(),

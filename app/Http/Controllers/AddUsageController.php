@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Family;
+use App\Support\Add\AddReader;
+use App\Support\Ai\AiPoints;
 use App\Support\Engagement;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
@@ -31,6 +34,13 @@ class AddUsageController extends Controller
             $usage[$module] = $class::query()->where((new $class)->getCreatedAtColumn(), '>=', $since)->count();
         }
 
-        return response()->json($usage);
+        // Whether "Just say it" is on (a reader is configured) and the family's points this month (null = unlimited).
+        $family = Family::findOrFail(CurrentFamily::id());
+
+        return response()->json(['usage' => $usage, 'ai' => [
+            'available' => AddReader::available(),
+            'pointsLeft' => AiPoints::left($family),
+            'limit' => AiPoints::limit($family),
+        ]]);
     }
 }

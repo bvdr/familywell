@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AddController;
 use App\Http\Controllers\AddUsageController;
 use App\Http\Controllers\FamilyController;
 use App\Http\Controllers\FamilyInviteController;
@@ -130,6 +131,9 @@ Route::middleware(['auth', 'family'])->group(function () {
     })->name('dashboard');
     // The Add sheet's "most used" ranking, fetched when it opens (AddUsageController).
     Route::get('add/usage', AddUsageController::class)->middleware('throttle:60,1')->name('add.usage');
+    // "Just say it": read while typing (no points, needs some left), save the confirmed cards (one point).
+    Route::post('add/read', [AddController::class, 'read'])->middleware('throttle:40,1')->name('add.read');
+    Route::post('add/save', [AddController::class, 'save'])->middleware('throttle:20,1')->name('add.save');
     // The More sheet: each module's live status line (the same DashboardSummaries Home's tiles use) + the family's
     // name for its own group, fetched when the sheet opens so other pages don't pay for it.
     Route::get('nav/more', fn () => response()->json([
