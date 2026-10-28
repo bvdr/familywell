@@ -47,6 +47,7 @@ return [
         'clef' => ['in' => 0.24],
         'clef-flash' => ['in' => 0.038],
         'clairic' => ['in' => 0.10],
+        'llama-4-scout-17b-16e-instruct' => ['in' => 0.27, 'out' => 0.85],
         'jev-latest' => ['in' => 0.042],
         'gemini-3-flash-preview' => ['in' => 0.50, 'out' => 3.00],
     ],

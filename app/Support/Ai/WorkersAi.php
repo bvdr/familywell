@@ -20,12 +20,12 @@ final class WorkersAi
     }
 
     /**
-     * @param  array<string, array{0: string, 1: array<string, mixed>}>  $calls  key => [model, payload], e.g. 'kinds' => ['clef', [...]]
+     * @param  array<string, array{0: string, 1: array<string, mixed>}>  $calls  key => [publisher/model, payload], e.g. 'kinds' => ['cloudflare/clef', [...]]
      * @return array<string, array<string, mixed>|null> key => the model's `result`, null when that call failed
      */
     public static function run(string $feature, array $calls): array
     {
-        $base = 'https://api.cloudflare.com/client/v4/accounts/'.config('services.workers_ai.account').'/ai/run/@cf/cloudflare/';
+        $base = 'https://api.cloudflare.com/client/v4/accounts/'.config('services.workers_ai.account').'/ai/run/@cf/';
         $responses = Http::pool(fn (Pool $pool) => collect($calls)->map(fn ($call, $key) => $pool->as($key)
             ->timeout(15)->withToken((string) config('services.workers_ai.token'))
             ->post($base.$call[0], $call[1]))->all());
@@ -39,7 +39,8 @@ final class WorkersAi
 
                 continue;
             }
-            AiUsage::record($feature, 'cloudflare', $model, (int) $r->json('result.usage.input_tokens', 0));
+            // Cloudflare's own models report input_tokens; chat models (Llama) report prompt / completion tokens.
+            AiUsage::record($feature, 'cloudflare', basename($model), (int) $r->json('result.usage.input_tokens', $r->json('result.usage.prompt_tokens', 0)), (int) $r->json('result.usage.completion_tokens', 0));
             $out[$key] = $r->json('result');
         }
 

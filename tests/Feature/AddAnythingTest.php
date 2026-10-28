@@ -55,6 +55,11 @@ function fakeCloudflare(array $kinds = ['event' => 0.98, 'todo' => 0.93, 'expens
         '*/ai/run/@cf/cloudflare/clairic' => Http::response(['success' => true, 'result' => [
             'answers' => $fields, 'usage' => ['input_tokens' => 900],
         ]]),
+        // Workers AI's vision model, asked only when there's a photo.
+        '*/ai/run/@cf/meta/*' => Http::response(['success' => true, 'result' => [
+            'response' => ['vehicle_make' => 'Skoda', 'vehicle_model' => 'Octavia', 'vehicle_color' => 'blue'],
+            'usage' => ['prompt_tokens' => 1200, 'completion_tokens' => 20],
+        ]]),
     ]);
 }
 
@@ -84,8 +89,10 @@ it('tells the reader where the + was pressed and what the person usually adds', 
     Http::assertSent(fn ($r) => str_ends_with($r->url(), '/clef')
         && str_contains($r['state'], 'Vehicles screen: the family has no vehicles yet')
         && str_contains($r['state'], 'Family members: Ana Rivera, Lucia Rivera')
-        && $r['images'] === ['/9j/AAAA']);
-    expect($items[0])->toMatchArray(['kind' => 'vehicle', 'sure' => false]); // 0.6: "Add this as a new vehicle?"
+        && $r['images'] === ['data:image/jpeg;base64,/9j/AAAA']); // Workers AI wants the data: URI itself
+    expect($items[0])->toMatchArray(['kind' => 'vehicle', 'sure' => false]) // 0.6: "Add this as a new vehicle?"
+        ->and($items[0]['fields']['model']['value'])->toBe('Octavia') // the vision model read the photo
+        ->and(DB::table('ai_usage')->where('model', 'llama-4-scout-17b-16e-instruct')->value('cost_micros'))->toBe(341); // 1200 × 0.27 + 20 × 0.85
 });
 
 it('saves the confirmed cards through each module and charges one point for the lot', function () {

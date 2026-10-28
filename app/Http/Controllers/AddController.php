@@ -36,9 +36,8 @@ class AddController extends Controller
             return response()->json(['outOfPoints' => true, 'pointsLeft' => 0], 409);
         }
 
-        $images = array_map(fn ($d) => substr($d, strpos($d, ',') + 1), $data['images'] ?? []);
         try {
-            $items = AddReader::read($data['text'] ?? '', $images, AddContext::for($request->user(), $data['path'] ?? '/dashboard'));
+            $items = AddReader::read($data['text'] ?? '', $data['images'] ?? [], AddContext::for($request->user(), $data['path'] ?? '/dashboard'));
         } catch (RuntimeException) {
             return response()->json(['message' => 'unavailable'], 503);
         }
