@@ -36,15 +36,17 @@ export function relativeTime(iso: string): string {
     return new Date(iso).toLocaleDateString(appLocale(), { month: 'short', day: 'numeric' });
 }
 
-// CSRF-aware fire-and-forget POST (these endpoints return 204, outside Inertia's router).
-async function post(url: string): Promise<void> {
+// CSRF-aware fire-and-forget request (these endpoints return 204, outside Inertia's router).
+async function send(method: 'POST' | 'DELETE', url: string): Promise<void> {
     const xsrf = decodeURIComponent(document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]+)/)?.[1] ?? '');
     await fetch(url, {
-        method: 'POST',
+        method,
         headers: { 'X-XSRF-TOKEN': xsrf, Accept: 'application/json' },
         credentials: 'same-origin',
     }).catch(() => {});
 }
 
-export const markRead = (id: string) => post(route('notifications.read', id));
-export const markAllRead = () => post(route('notifications.readAll'));
+export const markRead = (id: string) => send('POST', route('notifications.read', id));
+export const markAllRead = () => send('POST', route('notifications.readAll'));
+// Swipe-to-clear: deletes the row server-side (scoped to the owner); the caller drops it from local state.
+export const dismissNotification = (id: string) => send('DELETE', route('notifications.destroy', id));

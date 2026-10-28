@@ -8,6 +8,7 @@ use App\Support\Demo\DemoFamily;
 use App\Support\Media\StoredImage;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Translations;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +28,8 @@ use Modules\Inventory\InventoryLocation;
 use Modules\Inventory\InventorySetting;
 use Modules\Notes\Folder;
 use Modules\Notes\Note;
+use Modules\Notifications\NotificationCategories;
+use Modules\Notifications\PushAlert;
 use Modules\Projects\Project;
 use Modules\Projects\ProjectLink;
 use Modules\Recipes\Recipe;
@@ -117,6 +120,7 @@ class DemoSeeder extends Seeder
             $this->calendar();
             $this->recipes();
             $this->people();
+            $this->notifications();
         });
 
         CurrentFamily::forget();
@@ -784,5 +788,51 @@ class DemoSeeder extends Seeder
                 'month' => [8, 11, 4][$i], 'day' => [3, 21, 17][$i], 'created_at' => $now, 'updated_at' => $now,
             ]);
         }
+    }
+
+    // ---- Notifications ---------------------------------------------------------------------------------
+
+    // A populated feed for Sarah (the /demo login), grouped today/yesterday with a read/unread mix, so the
+    // notifications page (and its viewport screenshot) never shows the empty state. Written straight to the
+    // `notifications` table (not Notify::toAccessOf / ->notify()) so each row gets an exact backdated
+    // created_at/read_at instead of "now" for every row, and to avoid firing real web-push sends for demo data.
+    private function notifications(): void
+    {
+        $sarah = $this->u['Sarah'];
+        $groceries = ShoppingList::where('name', $this->t('Weekly groceries'))->first();
+        $weekend = TaskList::where('name', $this->t('Weekend projects'))->first();
+        $deckStep = Task::where('task_list_id', $weekend?->id)->where('title', $this->t('Fix the wobbly deck step'))->first();
+        $others = SpendEvent::where('name', Translations::get('spending.others_list', $this->locale))->first();
+        $trip = SpendEvent::where('name', $this->t('Fall road trip'))->first();
+        $kitchen = Project::where('name', $this->t('Kitchen refresh'))->first();
+        $sinkLight = Task::whereNull('task_list_id')->where('title', $this->t('Swap the sink light'))->first();
+
+        $today = $this->today->copy();
+        $yesterday = $this->today->copy()->subDay();
+        $row = fn (string $category, string $title, string $body, string $url, Carbon $at, bool $read) => [
+            'id' => (string) Str::uuid(), 'type' => PushAlert::class, 'notifiable_type' => User::class, 'notifiable_id' => $sarah->id,
+            'data' => json_encode([
+                'title' => $title, 'body' => $body, 'url' => $url, 'category' => $category, 'categoryLabel' => NotificationCategories::label($category),
+            ]),
+            'read_at' => $read ? $at : null, 'created_at' => $at, 'updated_at' => $at,
+        ];
+
+        $rows = [];
+        if ($groceries) {
+            $rows[] = $row('shopping', $groceries->name, "{$this->u['David']->name} added 3 items to {$groceries->name}", "/m/shopping/lists/{$groceries->id}", $today->copy()->setTime(9, 12), false);
+        }
+        if ($weekend && $deckStep) {
+            $rows[] = $row('tasks', $weekend->name, "{$this->u['Emma']->name} finished \"{$deckStep->title}\"", "/m/tasks/lists/{$weekend->id}", $today->copy()->setTime(8, 40), false);
+        }
+        if ($others) {
+            $rows[] = $row('spending', $others->name, "{$this->u['David']->name} paid \$62.10 for Gas, Camry", "/m/spending/events/{$others->id}", $today->copy()->setTime(7, 55), false);
+        }
+        if ($trip) {
+            $rows[] = $row('spending', $trip->name, "{$this->u['David']->name} settled up \$120 with you", "/m/spending/events/{$trip->id}", $yesterday->copy()->setTime(18, 20), true);
+        }
+        if ($kitchen && $sinkLight) {
+            $rows[] = $row('tasks', $kitchen->name, "{$this->u['David']->name} assigned you: {$sinkLight->title}", $kitchen->path(), $yesterday->copy()->setTime(14, 5), true);
+        }
+        DB::table('notifications')->insert($rows);
     }
 }
