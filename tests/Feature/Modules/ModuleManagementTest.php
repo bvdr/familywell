@@ -28,6 +28,16 @@ it('lists installed modules with enabled state', function () {
             ->has('catalog.0.description'));
 });
 
+it('shares the dashboard live-status line per module, same as DashboardSummaries', function () {
+    [$admin, $family] = moduleAdmin();
+    app(ModuleRegistry::class)->enable('shopping', $family->id);
+
+    // No shopping list needed: the provider returns a (possibly zero) count either way, same as the
+    // dashboard's "Your modules" grid — this just asserts the controller shares the same summaries map.
+    $this->actingAs($admin)->get('/family/modules')
+        ->assertInertia(fn (Assert $p) => $p->has('summaries')->has('summaries.shopping'));
+});
+
 it('lets an admin enable and disable a module', function () {
     [$admin, $family] = moduleAdmin();
     $registry = app(ModuleRegistry::class);

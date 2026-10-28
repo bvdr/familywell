@@ -37,5 +37,22 @@
     "disable": "Disable",
     "demo_blocked": "Not available in the demo. Sign up to manage your own account and family.",
     "nav_label": "Family",
-    "role_teen": "Teen"
+    "role_teen": "Teen",
+    "modules_all_title": "All modules",
+    "modules_on_count_one": ":count on",
+    "modules_on_count_other": ":count on",
+    "modules_pinned_count_one": ":count pinned to your tab bar",
+    "modules_pinned_count_other": ":count pinned to your tab bar",
+    "modules_search": "Find a module…",
+    "modules_chip_all": "All",
+    "modules_chip_on": "On",
+    "modules_chip_pinned": "Pinned",
+    "modules_chip_off": "Off",
+    "modules_on_header": "On",
+    "modules_off_header": "Off",
+    "modules_pin_hint": "Pin up to :max",
+    "modules_turn_on": "Turn on",
+    "modules_pin_aria": "Pin :name to your tab bar",
+    "modules_unpin_aria": "Unpin :name from your tab bar",
+    "modules_no_matches": "No modules match your search."
 }
