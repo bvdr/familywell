@@ -24,6 +24,8 @@ import { useEffect, useRef, useState } from 'react';
 
 type Field = { value: unknown; confidence: number };
 type Item = {
+    // Unique per card: a kind can come back several times (a photographed list of four to-dos is four cards).
+    id: string;
     kind: string;
     module: string;
     // Where it will land, e.g. the to-do list "Household" (null: the module itself, e.g. the calendar).
@@ -34,6 +36,8 @@ type Item = {
     ask: Record<string, string[]>;
     missing: string[];
     types: Record<string, string>;
+    // Read but not shown as a field (the list it goes into: that's the destination in the header).
+    hidden?: string[];
 };
 // What the person changed on a card, kept across re-reads while they keep typing: keyed by kind.
 type Edit = { on?: boolean; values: Record<string, string>; lists?: Record<string, Entry[]> };
@@ -154,7 +158,7 @@ export function JustSayIt({
 
     const edit = (kind: string) => edits[kind] ?? { values: {} };
     // A list field's rows: the person's edits, else what the reader found.
-    const entriesOf = (it: Item, name: string): Entry[] => edit(it.kind).lists?.[name] ?? asEntries(it.fields[name]?.value);
+    const entriesOf = (it: Item, name: string): Entry[] => edit(it.id).lists?.[name] ?? asEntries(it.fields[name]?.value);
     const setEntries = (kind: string, name: string, rows: Entry[]) =>
         setEdits((cur) => ({ ...cur, [kind]: { ...(cur[kind] ?? { values: {} }), lists: { ...(cur[kind]?.lists ?? {}), [name]: rows } } }));
     // A field the reader asks about ("who is this for?") starts empty: its guess is exactly what it wasn't sure of.
@@ -164,13 +168,13 @@ export function JustSayIt({
                   .map((e) => e.name.trim())
                   .filter(Boolean)
                   .join(', ')
-            : (edit(it.kind).values[name] ?? (it.ask[name] ? '' : asText(it.fields[name]?.value, it.types[name])));
+            : (edit(it.id).values[name] ?? (it.ask[name] ? '' : asText(it.fields[name]?.value, it.types[name])));
     const setValue = (kind: string, name: string, v: string) =>
         setEdits((cur) => ({ ...cur, [kind]: { ...(cur[kind] ?? { values: {} }), values: { ...(cur[kind]?.values ?? {}), [name]: v } } }));
     const setOn = (kind: string, on: boolean) => setEdits((cur) => ({ ...cur, [kind]: { ...(cur[kind] ?? { values: {} }), on } }));
     // A card starts ticked only when the reader is sure and nothing it needs is missing; unsure ones ask first.
     const needs = (it: Item) => it.missing.filter((n) => !valueOf(it, n).trim());
-    const isOn = (it: Item) => edit(it.kind).on ?? (it.sure && needs(it).length === 0);
+    const isOn = (it: Item) => edit(it.id).on ?? (it.sure && needs(it).length === 0);
     const chosen = items.filter(isOn);
     const blocked = chosen.some((it) => needs(it).length > 0);
 
@@ -299,9 +303,9 @@ export function JustSayIt({
             {items.map((it) => {
                 const Icon = KIND_ICON[it.kind] ?? Sparkles;
                 const on = isOn(it);
-                const asking = !it.sure && edit(it.kind).on === undefined;
+                const asking = !it.sure && edit(it.id).on === undefined;
                 return (
-                    <section key={it.kind} className={`rounded-2xl border p-3 ${on ? 'bg-surface-card' : 'bg-surface'}`}>
+                    <section key={it.id} className={`rounded-2xl border p-3 ${on ? 'bg-surface-card' : 'bg-surface'}`}>
                         <div className="flex items-center gap-3">
                             <span className="bg-accent-strong text-accent-strong-foreground flex size-10 shrink-0 items-center justify-center rounded-xl">
                                 <Icon className="size-5" />
@@ -318,7 +322,7 @@ export function JustSayIt({
                                     role="checkbox"
                                     aria-checked={on}
                                     aria-label={t(`add.kind_${it.kind}`)}
-                                    onClick={() => setOn(it.kind, !on)}
+                                    onClick={() => setOn(it.id, !on)}
                                     className={`flex size-8 shrink-0 items-center justify-center rounded-full border-2 ${on ? 'bg-primary border-primary text-primary-foreground' : 'border-primary'}`}
                                 >
                                     {on && <Check className="size-4" />}
@@ -332,14 +336,14 @@ export function JustSayIt({
                                 <span className="text-primary min-w-0 flex-1 text-sm font-medium">{t(`add.ask_${it.kind}`)}</span>
                                 <button
                                     type="button"
-                                    onClick={() => setOn(it.kind, true)}
+                                    onClick={() => setOn(it.id, true)}
                                     className="bg-primary text-primary-foreground rounded-full px-4 py-1.5 text-sm font-semibold"
                                 >
                                     {t('add.yes')}
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setOn(it.kind, false)}
+                                    onClick={() => setOn(it.id, false)}
                                     className="bg-surface-card text-primary rounded-full px-4 py-1.5 text-sm font-semibold"
                                 >
                                     {t('add.no')}
@@ -353,7 +357,8 @@ export function JustSayIt({
                                     .filter(
                                         (name) =>
                                             !it.ask[name] &&
-                                            (it.fields[name] || it.missing.includes(name) || edit(it.kind).values[name] !== undefined),
+                                            !it.hidden?.includes(name) &&
+                                            (it.fields[name] || it.missing.includes(name) || edit(it.id).values[name] !== undefined),
                                     )
                                     .map((name) => {
                                         const unsure = (it.fields[name]?.confidence ?? 1) < 0.5;
@@ -363,7 +368,7 @@ export function JustSayIt({
                                             const rows = entriesOf(it, name);
                                             const put = (i: number, patch: Partial<Entry>) =>
                                                 setEntries(
-                                                    it.kind,
+                                                    it.id,
                                                     name,
                                                     rows.map((r, j) => (j === i ? { ...r, ...patch } : r)),
                                                 );
@@ -389,7 +394,7 @@ export function JustSayIt({
                                                                 type="button"
                                                                 onClick={() =>
                                                                     setEntries(
-                                                                        it.kind,
+                                                                        it.id,
                                                                         name,
                                                                         rows.filter((_, j) => j !== i),
                                                                     )
@@ -411,7 +416,7 @@ export function JustSayIt({
                                                 <input
                                                     type={inputType(it.types[name])}
                                                     value={valueOf(it, name)}
-                                                    onChange={(e) => setValue(it.kind, name, e.target.value)}
+                                                    onChange={(e) => setValue(it.id, name, e.target.value)}
                                                     placeholder={empty ? t('add.needed') : ''}
                                                     className={`text-primary min-w-0 rounded-lg border px-2.5 py-1.5 text-base ${empty ? 'border-destructive' : unsure ? 'bg-accent-subtle' : 'bg-surface-card'}`}
                                                 />
@@ -426,7 +431,7 @@ export function JustSayIt({
                                             <button
                                                 key={o}
                                                 type="button"
-                                                onClick={() => setValue(it.kind, name, o)}
+                                                onClick={() => setValue(it.id, name, o)}
                                                 className={`rounded-full px-3 py-1.5 text-sm font-semibold ${valueOf(it, name) === o ? 'bg-primary text-primary-foreground' : 'bg-surface-card text-primary'}`}
                                             >
                                                 {o}
