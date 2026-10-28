@@ -143,7 +143,6 @@
     },
     "create": {
         "title": "Añadir",
-        "desc": "Crea algo nuevo",
         "turn_on": "Activa un módulo para añadir cosas",
         "shopping": "Nueva lista de compras",
         "tasks": "Nueva lista de tareas",

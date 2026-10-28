@@ -143,7 +143,6 @@
     },
     "create": {
         "title": "Legg til",
-        "desc": "Lag noe nytt",
         "turn_on": "Slå på en modul for å legge til ting",
         "shopping": "Ny handleliste",
         "tasks": "Ny gjøremålsliste",

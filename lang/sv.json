@@ -143,7 +143,6 @@
     },
     "create": {
         "title": "Lägg till",
-        "desc": "Skapa något nytt",
         "turn_on": "Slå på en modul för att lägga till saker",
         "shopping": "Ny inköpslista",
         "tasks": "Ny att göra-lista",

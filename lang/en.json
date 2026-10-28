@@ -143,7 +143,6 @@
     },
     "create": {
         "title": "Add",
-        "desc": "Create something new",
         "turn_on": "Turn on a module to add things",
         "shopping": "New shopping list",
         "tasks": "New to-do list",
