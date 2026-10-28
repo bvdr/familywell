@@ -64,7 +64,6 @@ class BirthdaysServiceProvider extends ServiceProvider
             if (! $this->enabledHere()) {
                 return null;
             }
-            // ponytail: soonestFirst() loads every birthday (one query + person); fine at family scale (the demo has 366).
             $soon = BirthdayDate::soonestFirst()->filter(fn (BirthdayDate $b) => $b->daysUntil() <= 14);
             if ($soon->isEmpty()) {
                 return null;
