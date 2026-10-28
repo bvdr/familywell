@@ -212,6 +212,15 @@
         "ask_shopping_list": "Lage denne handlelisten?",
         "f_name": "Navn",
         "f_quantity": "Antall",
-        "remove_item": "Fjern varen"
+        "remove_item": "Fjern varen",
+        "mic": "Snakk",
+        "listening": "Lytter",
+        "listening_hint": "Begynn å snakke…",
+        "filing": "Sorteres mens du snakker",
+        "type_instead": "Skriv i stedet",
+        "add_all": "Legg til alt",
+        "discard": "Forkast",
+        "voice_hint": "Trykk ✓ for å legge til · fortsett å snakke for å legge til mer",
+        "mic_denied": "Mikrofonen er av for dette nettstedet. Tillat den i nettleserinnstillingene, eller skriv."
     }
 }

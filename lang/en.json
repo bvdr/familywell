@@ -212,6 +212,15 @@
         "ask_shopping_list": "Create this shopping list?",
         "f_name": "Name",
         "f_quantity": "Quantity",
-        "remove_item": "Remove item"
+        "remove_item": "Remove item",
+        "mic": "Talk",
+        "listening": "Listening",
+        "listening_hint": "Start talking…",
+        "filing": "Filing as you talk",
+        "type_instead": "Type instead",
+        "add_all": "Add everything",
+        "discard": "Discard",
+        "voice_hint": "Tap ✓ to add · keep talking to add more",
+        "mic_denied": "The microphone is off for this site. Allow it in your browser settings, or type instead."
     }
 }
