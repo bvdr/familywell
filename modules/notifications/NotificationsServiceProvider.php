@@ -30,6 +30,7 @@ class NotificationsServiceProvider extends ServiceProvider
             Route::get('/notifications', [NotificationsController::class, 'index'])->name('notifications.index');
             Route::post('/notifications/read-all', [NotificationsController::class, 'readAll'])->name('notifications.readAll');
             Route::post('/notifications/{notification}/read', [NotificationsController::class, 'read'])->name('notifications.read');
+            Route::delete('/notifications/{notification}', [NotificationsController::class, 'destroy'])->name('notifications.destroy');
         });
     }
 }
