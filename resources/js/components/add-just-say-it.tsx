@@ -132,10 +132,10 @@ export function JustSayIt({
     const box = useRef<HTMLTextAreaElement>(null);
 
     // Voice (H2c): the words fill the box as the person talks (after anything they had typed), and the cards follow
-    // through the same reading as typing. ✓ stops, waits for the last words and their cards, then adds everything.
+    // through the same reading as typing. ✓ only stops listening: the cards stay on screen to be checked and added with
+    // "Add", like typed input. (It used to add everything on ✓, which saved guesses nobody had looked at.)
     const typed = useRef('');
     const voice = useVoice((words) => setText(typed.current ? `${typed.current} ${words}` : words));
-    const [addWhenReady, setAddWhenReady] = useState(false);
     const readFor = useRef<string | null>(null); // the text the cards on screen were read from
     const startVoice = () => {
         typed.current = text.trim();
@@ -256,16 +256,8 @@ export function JustSayIt({
         router.reload(); // the page behind shows the new things
     };
 
-    // After ✓: once the final words are read (no recording, no transcription, the cards are for this text), add.
-    useEffect(() => {
-        if (!addWhenReady || voice.listening || voice.transcribing || state !== 'idle' || readFor.current !== text) return;
-        setAddWhenReady(false);
-        if (chosen.length && !blocked) void save();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [addWhenReady, voice.listening, voice.transcribing, state, text]);
     useEffect(() => {
         if (voice.error === 'out') setState('out');
-        if (voice.error) setAddWhenReady(false); // a failed transcription must not leave ✓ spinning
     }, [voice.error]);
 
     const fieldLabel = (name: string) => t(`add.f_${name}`);
@@ -570,8 +562,8 @@ export function JustSayIt({
 
             {error && <p className="text-destructive text-sm">{error}</p>}
 
-            {voice.listening || addWhenReady ? (
-                // While talking (design H2c): type instead (keeps the words), add everything, or throw it away.
+            {voice.listening || voice.transcribing ? (
+                // While talking (design H2c): type instead (keeps the words), done (review the cards), or throw it away.
                 <div className="flex flex-col items-center gap-2">
                     <div className="flex items-center justify-center gap-6">
                         <button
@@ -587,21 +579,17 @@ export function JustSayIt({
                         </button>
                         <button
                             type="button"
-                            onClick={() => {
-                                setAddWhenReady(true);
-                                void voice.stop();
-                            }}
-                            disabled={addWhenReady}
-                            aria-label={t('add.add_all')}
+                            onClick={() => void voice.stop()}
+                            disabled={!voice.listening}
+                            aria-label={t('common.done')}
                             className="bg-primary text-accent-strong ring-accent-strong flex size-20 items-center justify-center rounded-full ring-4 disabled:opacity-60"
                         >
-                            {addWhenReady ? <Loader2 className="size-7 animate-spin" /> : <Check className="size-8" />}
+                            {!voice.listening ? <Loader2 className="size-7 animate-spin" /> : <Check className="size-8" />}
                         </button>
                         <button
                             type="button"
                             onClick={() => {
                                 voice.cancel();
-                                setAddWhenReady(false);
                                 setText(typed.current);
                             }}
                             aria-label={t('add.discard')}
