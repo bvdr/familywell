@@ -7,10 +7,8 @@ import { FamilyMark, inkOn, monogramOf, SymbolIcon } from '@/components/family-m
 import { FamilySymbolSheet } from '@/components/family-symbol-sheet';
 import { reactHomer } from '@/components/homer';
 import InputError from '@/components/input-error';
-import { Picker } from '@/components/picker';
-import { Segmented } from '@/components/segmented';
+import { RegionSheet, type RegionCountry } from '@/components/region-sheet';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import OnboardingLayout from '@/layouts/onboarding-layout';
@@ -24,6 +22,8 @@ type Region = {
     currency?: string;
     currencies?: string[];
     units?: 'metric' | 'imperial';
+    // For the shared Region & units sheet's country picker: each with what it implies.
+    countries: RegionCountry[];
 };
 
 // `family` is set when they came back from step 2: the family exists and the form edits it.
@@ -71,6 +71,9 @@ export default function CreateFamily({ userName, colors, region, family }: Props
         reactHomer('success');
     };
     const [regionOpen, setRegionOpen] = useState(false);
+    // The country only fills in the rest (it isn't saved), so it lives here, not in the form.
+    const [country, setCountry] = useState(region.country);
+    const countryName = region.countries.find((c) => c.code === country)?.name ?? region.countryName;
 
     const suggestions = surname
         ? [1, 2, 3].map((n) => t(`onboarding.suggest_${n}`, { surname }))
@@ -79,7 +82,7 @@ export default function CreateFamily({ userName, colors, region, family }: Props
         QUICK.includes(data.symbol as IconName) || data.symbol === 'monogram' ? QUICK : [data.symbol as IconName, ...QUICK.slice(0, 3)];
     const displayName = data.name.trim() || t('onboarding.your_family');
 
-    const regionLine = [region.countryName, region.units && t(`onboarding.units_${data.units}`), data.currency].filter(Boolean).join(' · ');
+    const regionLine = [countryName, region.units && t(`onboarding.units_${data.units}`), data.currency].filter(Boolean).join(' · ');
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -247,44 +250,19 @@ export default function CreateFamily({ userName, colors, region, family }: Props
                 color={data.color}
             />
 
-            <Dialog open={regionOpen} onOpenChange={setRegionOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>{t('onboarding.region')}</DialogTitle>
-                        <DialogDescription>{t('onboarding.region_desc')}</DialogDescription>
-                    </DialogHeader>
-                    {region.currencies && (
-                        <div className="flex flex-col gap-2">
-                            <Label>{t('onboarding.currency')}</Label>
-                            <Picker
-                                options={region.currencies.map((c) => ({ value: c, label: c }))}
-                                selected={data.currency ? [data.currency] : []}
-                                onChange={([c]) => c && setData('currency', c)}
-                                ariaLabel={t('onboarding.currency')}
-                            />
-                        </div>
-                    )}
-                    {region.units && (
-                        <div className="flex flex-col gap-2">
-                            <Label>{t('onboarding.distance')}</Label>
-                            <Segmented
-                                options={[
-                                    { value: 'metric', label: t('onboarding.units_metric') },
-                                    { value: 'imperial', label: t('onboarding.units_imperial') },
-                                ]}
-                                value={data.units ?? 'metric'}
-                                onChange={(u) => setData('units', u)}
-                                ariaLabel={t('onboarding.distance')}
-                            />
-                        </div>
-                    )}
-                    <DialogFooter>
-                        <Button type="button" variant="ink" onClick={() => setRegionOpen(false)}>
-                            {t('onboarding.done')}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <RegionSheet
+                open={regionOpen}
+                onOpenChange={setRegionOpen}
+                value={{ country, units: data.units ?? undefined, currency: data.currency ?? undefined }}
+                onDone={(v) => {
+                    setCountry(v.country);
+                    setData((d) => ({ ...d, units: v.units ?? d.units, currency: v.currency ?? d.currency }));
+                    setRegionOpen(false);
+                }}
+                countries={region.countries}
+                currencies={region.currencies}
+                familyName={displayName}
+            />
         </form>
     );
 }

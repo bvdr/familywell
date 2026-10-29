@@ -1,0 +1,13 @@
+{
+    "title": "Región y unidades",
+    "country": "País o región",
+    "country_pick": "Elige uno y rellenamos el resto",
+    "units": "Unidades",
+    "metric": "Métrico",
+    "imperial": "Imperial",
+    "currency": "Moneda",
+    "how_it_looks": "Cómo se ve",
+    "applies": "Se aplica a todos en :family. El idioma es personal, en tus propios ajustes.",
+    "admin_only": "Solo los administradores de la familia pueden cambiar esto. El idioma es personal, en tus propios ajustes.",
+    "done": "Listo"
+}
