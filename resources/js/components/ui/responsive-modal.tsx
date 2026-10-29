@@ -83,6 +83,9 @@ export function ResponsiveModal({
 
     // Snap to full whenever it opens, so the form is immediately usable; dragging down peeks at the page behind.
     const [snap, setSnap] = React.useState<number | string | null>(1);
+    // Content scrolled under the pinned header fades out instead of being cut at a hard line (TopFade).
+    const [scrolled, setScrolled] = React.useState(false);
+    const onBodyScroll = (e: React.UIEvent<HTMLDivElement>) => setScrolled(e.currentTarget.scrollTop > 2);
     React.useEffect(() => {
         if (open) setSnap(1);
     }, [open]);
@@ -164,15 +167,19 @@ export function ResponsiveModal({
                     </div>
                     {/* Only this region scrolls. min-h-0 lets it shrink inside the flex column so it actually
                         scrolls (and lets vaul tell a scroll from a dismiss drag); overflow-x-hidden keeps it vertical. */}
-                    <div
-                        className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-5"
-                        // Big bottom padding while the keyboard is open so ANY field (even the last one) has
-                        // room to scroll up to centre, clear of the keyboard + its accessory bar. It's empty
-                        // scroll space behind the keyboard, so it's invisible; collapses to a hair when closed.
-                        style={{ paddingBottom: keyboardOffset ? '55vh' : '0.5rem' }}
-                        onFocus={onBodyFocus}
-                    >
-                        {children}
+                    <div className="relative flex min-h-0 flex-1 flex-col">
+                        <div
+                            className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-5"
+                            // Big bottom padding while the keyboard is open so ANY field (even the last one) has
+                            // room to scroll up to centre, clear of the keyboard + its accessory bar. It's empty
+                            // scroll space behind the keyboard, so it's invisible; collapses to a hair when closed.
+                            style={{ paddingBottom: keyboardOffset ? '55vh' : '0.5rem' }}
+                            onFocus={onBodyFocus}
+                            onScroll={onBodyScroll}
+                        >
+                            {children}
+                        </div>
+                        <TopFade on={scrolled} />
                     </div>
                     {footer && (
                         <div
@@ -213,9 +220,28 @@ export function ResponsiveModal({
                         </>
                     )}
                 </DialogHeader>
-                <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+                <div className="relative flex min-h-0 flex-1 flex-col">
+                    <div className="min-h-0 flex-1 overflow-y-auto" onScroll={onBodyScroll}>
+                        {children}
+                    </div>
+                    <TopFade on={scrolled} />
+                </div>
                 {footer && <div className="mt-2 shrink-0">{footer}</div>}
             </DialogContent>
         </Dialog>
+    );
+}
+
+// A soft fade at the top of a sheet's scroll body, shown only once it has scrolled (at rest the first field must not
+// look washed out). Over the body, not inside it, so it spans the full width including the side padding.
+function TopFade({ on }: { on: boolean }) {
+    return (
+        <div
+            aria-hidden
+            className={cn(
+                'from-background pointer-events-none absolute inset-x-0 top-0 h-10 bg-gradient-to-b to-transparent transition-opacity duration-150',
+                on ? 'opacity-100' : 'opacity-0',
+            )}
+        />
     );
 }
