@@ -117,7 +117,7 @@
         "in_hours_one": "en :count h",
         "in_hours_other": "en :count h",
         "until": "Hasta las :time",
-        "rest_of_week": "Resto de la semana",
+        "next_days": "Próximos :count días",
         "free": "Libre",
         "show_days": "Ver :from – :to · :what",
         "show_less": "Ver menos",

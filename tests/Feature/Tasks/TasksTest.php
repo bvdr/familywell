@@ -172,6 +172,22 @@ it('fills Tomorrow on a Sunday, when tomorrow is already next week', function ()
     $this->travelBack();
 });
 
+it('shows the next 3 days after Tomorrow on a Friday, into next week', function () {
+    // It used to stop at Sunday, leaving a one-day strip on Fridays (2026-10-30).
+    $this->travelTo(Carbon::parse('2026-10-30 09:00:00')); // Friday
+    [, $users] = tasksFamily();
+    actingAs($users[0])->post('/m/tasks/lists', ['name' => 'Chores']);
+    $list = TaskList::withoutGlobalScopes()->first();
+    actingAs($users[0])->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Monday', 'due_date' => '2026-11-02']);
+    actingAs($users[0])->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Wednesday', 'due_date' => '2026-11-04']);
+
+    actingAs($users[0])->get('/dashboard')->assertInertia(fn ($p) => $p
+        ->where('stripDays', ['2026-11-01', '2026-11-02', '2026-11-03'])
+        ->has('later', 1)
+        ->where('later.0.title', 'Monday'));
+    $this->travelBack();
+});
+
 it('counts open undated to-dos for Home\'s Anytime row, skipping done, dated and private ones', function () {
     [$family, $users] = tasksFamily();
     actingAs($users[0])->post('/m/tasks/lists', ['name' => 'Chores']);
@@ -190,15 +206,15 @@ it('counts open undated to-dos for Home\'s Anytime row, skipping done, dated and
         ->where('widgets.tasks', ['undated' => 1, 'titles' => ['Clean gutters']]));
 });
 
-it('buckets dated tasks into the dashboard Today, Tomorrow and rest-of-week sections', function () {
-    // Freeze mid-week (a Wednesday) so "this week" is unambiguous regardless of when the suite runs.
+it('buckets dated tasks into the dashboard Today, Tomorrow and next-3-days sections', function () {
+    // Freeze on a Wednesday so the window (Today, Tomorrow, then Fri-Sun) is fixed whenever the suite runs.
     $this->travelTo(Carbon::parse('2026-08-05 09:00:00'));
 
     [, $users] = tasksFamily();
     actingAs($users[0])->post('/m/tasks/lists', ['name' => 'Chores']);
     $list = TaskList::withoutGlobalScopes()->first();
 
-    // Overdue + due-today land in Today; Thursday in Tomorrow; later this week in Later; next week is excluded.
+    // Overdue + due-today land in Today; Thursday in Tomorrow; Friday in the strip; next Wednesday is past it.
     actingAs($users[0])->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Overdue', 'due_date' => '2026-08-03']);
     actingAs($users[0])->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Due today', 'due_date' => '2026-08-05']);
     actingAs($users[0])->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Thursday', 'due_date' => '2026-08-06']);

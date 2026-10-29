@@ -15,7 +15,7 @@ class HomeLayout
         'important' => 'important_todos', // Your important to-dos, pinned on top (the important_todos module's card)
         'birthdays' => 'birthdays',
         'today' => null,     // Today + Tomorrow
-        'week' => null,      // Rest of the week strip
+        'week' => null,      // Next 3 days strip
         'anytime' => 'tasks', // To-dos with no date
         'money' => 'spending',
         'modules' => null,   // Your modules / Pinned grid
