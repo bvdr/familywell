@@ -53,6 +53,12 @@ const PAGES: [string, string][] = [
     ['settings-media', '/settings/media'],
     ['settings-billing', '/settings/billing'],
     ['settings-recently-deleted', '/settings/recently-deleted'],
+    // Settings redesign (design boards 11 + 12): the family hub and the pages it and Me opened.
+    ['settings-family', '/settings/family'],
+    ['settings-family-look', '/settings/family/look'],
+    ['settings-family-region', '/settings/family/region'],
+    ['settings-home', '/settings/home'],
+    ['settings-delete-account', '/settings/delete-account'],
 ];
 
 // Detail pages: opened from their index via the first matching link, so they follow the seeded data's ids.
@@ -153,11 +159,11 @@ test.describe('phone navigation', () => {
     });
 });
 
-// Settings home > Modules: one link per enabled module that has a settings page (resources/js/layouts/settings/layout.tsx).
+// Family settings > Module settings: one link per enabled module that has a settings page (pages/settings/family.tsx).
 // Every link must open a real page, so a module that moves or drops its settings URL fails here.
 test('settings-modules', async ({ page }) => {
-    await page.goto('/settings');
-    const group = page.getByRole('group', { name: 'Modules' });
+    await page.goto('/settings/family');
+    const group = page.getByRole('group', { name: 'Module settings' });
     await expect(group).toBeVisible();
     const hrefs = await group.getByRole('link').evaluateAll((as) => as.map((a) => (a as HTMLAnchorElement).getAttribute('href')!));
     expect(hrefs.length).toBeGreaterThan(0);

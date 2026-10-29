@@ -1,0 +1,13 @@
+{
+    "mode_label": "Modus · bare deg",
+    "skin_label": "Familietema · alle",
+    "default_tag": "Standard",
+    "skin_sun": "Papir, blekk og sol",
+    "skin_default": "Papir og skoggrønn",
+    "skin_minimal-mono": "Svart, hvitt og stein",
+    "skin_admin_only": "Temaet er det samme for hele familien. Bare en familieadministrator kan endre det.",
+    "look_admin_only": "Bare en familieadministrator kan endre navn og utseende.",
+    "preview": "Forhåndsvisning",
+    "save": "Lagre endringer",
+    "saved": "Lagret"
+}

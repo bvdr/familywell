@@ -72,7 +72,8 @@ it('shows onboarding to a family-less user and the create form', function () {
 });
 
 it('creates a family from onboarding with the user as admin and goes on to inviting people', function () {
-    $user = User::factory()->create();
+    // The skin picked on About you becomes the family's (skins are per family, ThemeTokens::resolve).
+    $user = User::factory()->create(['theme' => 'minimal-mono']);
 
     actingAs($user)->post('/onboarding', [
         'name' => 'The Rivera Family',
@@ -85,7 +86,8 @@ it('creates a family from onboarding with the user as admin and goes on to invit
     expect($family->name)->toBe('The Rivera Family')
         ->and($family->emoji)->toBe('🏡')
         ->and($family->owner_id)->toBe($user->id)
-        ->and($family->pivot->role)->toBe('admin');
+        ->and($family->pivot->role)->toBe('admin')
+        ->and($family->theme)->toBe('minimal-mono');
 
     // Mid-onboarding, the app sends them back to the step they're on.
     expect($user->fresh()->onboarding_step)->toBe('invite');

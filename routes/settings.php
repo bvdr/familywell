@@ -1,12 +1,15 @@
 <?php
 
 use App\Http\Controllers\BillingController;
+use App\Http\Controllers\FamilyController;
 use App\Http\Controllers\Settings\ConnectedAppsController;
 use App\Http\Controllers\Settings\MediaLibraryController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\RecentlyDeletedController;
+use App\Http\Controllers\Settings\SettingsHubController;
 use App\Http\Controllers\Settings\SignInController;
 use App\Models\Family;
+use App\Support\Dashboard\HomeLayout;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Theming\ThemeTokens;
 use App\Support\Translations;
@@ -20,11 +23,17 @@ use Modules\Notifications\NotificationCategories;
 Route::post('stripe/webhook', [BillingController::class, 'webhook'])->name('billing.webhook');
 
 Route::middleware('auth')->group(function () {
-    // Settings home: the section menu (phones drill down from here; see layouts/settings/layout.tsx).
-    Route::get('settings', fn () => Inertia::render('settings/index'))->name('settings');
+    // The avatar opens Me (design board 12): only the person's own settings, then a row into the family's.
+    Route::get('settings', [SettingsHubController::class, 'me'])->name('settings');
 
     // Media library needs the active family (to list its uploads), so it also runs the family middleware.
     Route::middleware('family')->group(function () {
+        // Family settings (design board 11): the family-wide pages, opened from Me.
+        Route::get('settings/family', [SettingsHubController::class, 'family'])->name('settings.family');
+        Route::get('settings/family/look', [FamilyController::class, 'look'])->name('settings.family.look');
+        // Region & units: the hub with the shared sheet open (any member, read-only unless admin); PATCH saves.
+        Route::get('settings/family/region', [SettingsHubController::class, 'region'])->name('settings.region');
+        Route::patch('settings/family/region', [SettingsHubController::class, 'updateRegion'])->name('settings.region.update');
         Route::get('settings/media', [MediaLibraryController::class, 'index'])->name('media');
         Route::delete('settings/media/{type}/{id}', [MediaLibraryController::class, 'destroy'])->name('media.destroy');
 
@@ -34,6 +43,26 @@ Route::middleware('auth')->group(function () {
         Route::get('settings/billing', [BillingController::class, 'show'])->name('billing.show');
         Route::post('settings/billing/checkout', [BillingController::class, 'checkout'])->middleware('not-demo')->name('billing.checkout');
         Route::post('settings/billing/portal', [BillingController::class, 'portal'])->middleware('not-demo')->name('billing.portal');
+
+        // Home dashboard (design M6b): each person orders and hides their own Home's sections (HomeLayout).
+        Route::get('settings/home', fn (Request $request) => Inertia::render('settings/home', [
+            'sections' => HomeLayout::for($request->user(), CurrentFamily::id()),
+            'family' => Family::find(CurrentFamily::id())?->name,
+        ]))->name('settings.home');
+        Route::patch('settings/home', function (Request $request) {
+            // Any known section id, even one whose module is off right now: it keeps its place for when it's back.
+            // An empty order = the default order ("Reset to default order" keeps what's hidden).
+            $ids = array_keys(HomeLayout::SECTIONS);
+            $data = $request->validate([
+                'order' => ['present', 'array'],
+                'order.*' => ['string', 'distinct', Rule::in($ids)],
+                'hidden' => ['present', 'array'],
+                'hidden.*' => ['string', 'distinct', Rule::in($ids)],
+            ]);
+            $request->user()->forceFill(['home_layout' => ['order' => array_values($data['order']), 'hidden' => array_values($data['hidden'])]])->save();
+
+            return back();
+        })->name('settings.home.update');
 
         Route::get('settings/recently-deleted', [RecentlyDeletedController::class, 'index'])->name('recently-deleted');
         Route::post('settings/recently-deleted/{module}/{type}/{id}', [RecentlyDeletedController::class, 'restore'])
@@ -49,24 +78,31 @@ Route::middleware('auth')->group(function () {
     // Confirming a new email address with the code sent to it (ProfileController::update sends it).
     Route::post('settings/profile/email', [ProfileController::class, 'confirmEmail'])->middleware(['not-demo:code', 'throttle:20,1'])->name('profile.email.confirm');
     Route::delete('settings/profile/email', [ProfileController::class, 'cancelEmail'])->name('profile.email.cancel');
-    Route::delete('settings/profile', [ProfileController::class, 'destroy'])->middleware('not-demo:email')->name('profile.destroy');
+    // Delete account (design M8): its own page; a code emailed to the person confirms it.
+    Route::get('settings/delete-account', [ProfileController::class, 'deleteAccount'])->name('profile.delete');
+    Route::post('settings/delete-account/code', [ProfileController::class, 'sendDeleteCode'])->middleware('not-demo:code')->name('profile.delete.code');
+    Route::delete('settings/profile', [ProfileController::class, 'destroy'])->middleware('not-demo:code')->name('profile.destroy');
 
     Route::get('settings/sign-in', [SignInController::class, 'edit'])->name('sign-in.edit');
     Route::delete('settings/social-accounts/{id}', [SignInController::class, 'disconnectSocial'])->middleware('not-demo')
         ->whereNumber('id')->name('social.disconnect');
 
-    Route::get('settings/appearance', function () {
-        $familyId = CurrentFamily::id();
+    Route::get('settings/appearance', function (Request $request) {
+        $family = Family::find(CurrentFamily::id());
 
+        // Light/dark is personal (client-side, use-appearance); the skin is the family's (boards M4/Y5), shown
+        // here too and editable by its admins. No family yet -> no skin list.
         return Inertia::render('settings/appearance', [
             'themes' => ThemeTokens::available(),
-            'currentTheme' => auth()->user()->theme, // null => inherit the family default
-            'familyDefault' => ($familyId ? Family::find($familyId)?->theme : null) ?: 'minimal-mono',
+            'familySkin' => $family ? ($family->theme ?: ThemeTokens::DEFAULT) : null,
+            'defaultTheme' => ThemeTokens::DEFAULT,
+            'canManage' => $family !== null && $request->user()->can('manageMembers', $family),
             // The skin CSS this person sees right now, so picking a skin applies in place (useSkinCss).
-            'themeCss' => ThemeTokens::css(ThemeTokens::resolve(auth()->user(), $familyId)),
+            'themeCss' => ThemeTokens::css(ThemeTokens::resolve($request->user(), $family?->id)),
         ]);
     })->name('appearance');
-    // Personal skin. null/absent => inherit the family default. Light/dark is separate (client-side).
+    // The person's own skin pick. Settings no longer offers it (the skin is the family's); onboarding's About you
+    // step still does, before a family exists, and the new family takes it over (ThemeTokens::resolve).
     Route::patch('settings/appearance/theme', function (Request $request) {
         $ids = collect(ThemeTokens::available())->pluck('id')->all();
         $data = $request->validate([
@@ -94,10 +130,11 @@ Route::middleware('auth')->group(function () {
     })->name('language.update');
 
     Route::get('settings/notifications', function () {
-        // Categories come from the notifications registry (each module registers its own); merge in
-        // the user's saved on/off, defaulting missing ones to on.
+        // Categories come from the notifications registry (each module registers its own), only those the
+        // family can see (NotificationCategories::forFamily); merge in the user's saved on/off, defaulting
+        // missing ones to on. A hidden one keeps its saved value for when the module comes back.
         $saved = auth()->user()->notification_prefs ?? [];
-        $categories = collect(NotificationCategories::all())
+        $categories = collect(NotificationCategories::forFamily(CurrentFamily::id()))
             ->map(fn ($meta, $id) => [
                 'id' => $id,
                 'label' => $meta['label'],

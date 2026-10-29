@@ -293,7 +293,8 @@ it('blocks the demo owner from account takeover, invites, billing and public lin
     actingAs($owner)->patch('/settings/profile', ['name' => 'Mallory', 'email' => 'attacker@example.com'])
         ->assertSessionHasErrors(['email' => $msg]);
     expect($owner->fresh()->email)->toBe(DemoSeeder::OWNER_EMAIL)->and($owner->fresh()->name)->toBe('Sarah Miller');
-    actingAs($owner)->delete('/settings/profile', ['email' => DemoSeeder::OWNER_EMAIL])->assertSessionHasErrors(['email' => $msg]);
+    actingAs($owner)->post('/settings/delete-account/code')->assertSessionHasErrors(['code' => $msg]);
+    actingAs($owner)->delete('/settings/profile', ['code' => '123456'])->assertSessionHasErrors(['code' => $msg]);
     expect(User::find($owner->id))->not->toBeNull();
 
     // A spam relay to any address, with a visitor-written family name: blocked, nothing sent.

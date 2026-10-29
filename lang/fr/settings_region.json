@@ -1,0 +1,13 @@
+{
+    "title": "Région et unités",
+    "country": "Pays ou région",
+    "country_pick": "Choisissez-en un, on remplit le reste",
+    "units": "Unités",
+    "metric": "Métrique",
+    "imperial": "Impérial",
+    "currency": "Devise",
+    "how_it_looks": "Aperçu",
+    "applies": "S’applique à tout le monde dans :family. La langue reste personnelle, dans vos propres réglages.",
+    "admin_only": "Seuls les admins de la famille peuvent modifier ceci. La langue reste personnelle, dans vos propres réglages.",
+    "done": "OK"
+}

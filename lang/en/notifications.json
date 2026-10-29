@@ -15,5 +15,14 @@
     "now": "now",
     "welcome_push_title": "Welcome, :name 👋",
     "welcome_push_title_anon": "Welcome to FamilyWell 👋",
-    "welcome_push_body": "Homer here 🏡 This is how FamilyWell will tap you on the shoulder."
+    "welcome_push_body": "Homer here 🏡 This is how FamilyWell will tap you on the shoulder.",
+    "shared_with_me": "Shared with me",
+    "push_this_phone": "Push on this phone",
+    "push_unsupported": "This browser can't do push notifications.",
+    "push_install_ios": "On iPhone, add FamilyWell to your Home Screen first (Share, then Add to Home Screen) and open it from there.",
+    "push_test": "Send a test notification",
+    "push_test_sent": "Sent",
+    "push_per_device": "Push is per device: turn it on wherever you want alerts. What you're notified about applies everywhere.",
+    "notify_me_about": "Notify me about",
+    "muted_note": "Turning one off stops the push. It still shows in your in-app notifications."
 }

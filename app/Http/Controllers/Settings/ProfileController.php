@@ -88,6 +88,30 @@ class ProfileController extends Controller
         return to_route('profile.edit');
     }
 
+    /** Settings > Delete account (design M8): what happens, then the code we email to confirm. */
+    public function deleteAccount(): Response
+    {
+        return Inertia::render('settings/delete-account');
+    }
+
+    /**
+     * Email the person a code to confirm deleting their account. A button, not on page load: the Me row
+     * prefetches this page, so sending on GET would mail a code to everyone who just opens Me.
+     */
+    public function sendDeleteCode(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        // Same cap as the email-change codes, so the button can't flood their inbox.
+        $key = 'delete-account:'.$user->id;
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            throw ValidationException::withMessages(['code' => Translations::get('auth.code_too_many')]);
+        }
+        RateLimiter::hit($key, 600);
+        EmailCode::send($user->email);
+
+        return back();
+    }
+
     /**
      * Delete the user's account.
      */
@@ -95,10 +119,11 @@ class ProfileController extends Controller
     {
         $user = $request->user();
 
-        // No password to re-enter any more: typing their own address is the "are you sure" for this.
-        $typed = Str::lower(trim((string) $request->input('email')));
-        if ($typed !== Str::lower($user->email)) {
-            throw ValidationException::withMessages(['email' => Translations::get('settings.delete_type_email_wrong')]);
+        // No password to re-enter: the 6-digit code we emailed (sendDeleteCode) is the "are you sure", and it
+        // proves the person at the keyboard still owns the address, not just an open session on a shared device.
+        $code = preg_replace('/\D/', '', (string) $request->input('code'));
+        if (! EmailCode::check($user->email, $code)) {
+            throw ValidationException::withMessages(['code' => Translations::get('auth.code_wrong')]);
         }
 
         Auth::logout();

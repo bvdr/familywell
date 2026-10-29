@@ -1,0 +1,13 @@
+{
+    "title": "Region och enheter",
+    "country": "Land eller region",
+    "country_pick": "Välj ett så fyller vi i resten",
+    "units": "Enheter",
+    "metric": "Metriskt",
+    "imperial": "Brittiskt",
+    "currency": "Valuta",
+    "how_it_looks": "Så ser det ut",
+    "applies": "Gäller alla i :family. Språket är personligt, i dina egna inställningar.",
+    "admin_only": "Bara familjens administratörer kan ändra detta. Språket är personligt, i dina egna inställningar.",
+    "done": "Klar"
+}

@@ -1,10 +1,7 @@
 {
     "title": "Onlangs verwijderd",
-    "desc": "Verwijderde items blijven hier :days dagen staan en worden daarna definitief gewist.",
     "empty": "Niets verwijderd in de afgelopen :days dagen.",
     "restore": "Terugzetten",
-    "deleted_on": "Verwijderd op :date",
-    "removed_on": "gewist op :date",
     "type_list": "Lijst",
     "type_task": "Taak",
     "type_item": "Item",
@@ -23,5 +20,8 @@
     "type_fuel": "Tankbeurt",
     "type_repair": "Reparatie",
     "type_document": "Document",
-    "type_maintenance_schedule": "Onderhoud"
+    "type_maintenance_schedule": "Onderhoud",
+    "kept": ":days dagen bewaard, daarna definitief gewist.",
+    "days_left_one": "nog :count dag",
+    "days_left_other": "nog :count dagen"
 }

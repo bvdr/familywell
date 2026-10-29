@@ -1,10 +1,7 @@
 {
     "title": "Zuletzt gelöscht",
-    "desc": "Gelöschte Elemente bleiben :days Tage hier, dann werden sie endgültig entfernt.",
     "empty": "In den letzten :days Tagen wurde nichts gelöscht.",
     "restore": "Wiederherstellen",
-    "deleted_on": "Gelöscht am :date",
-    "removed_on": "entfernt am :date",
     "type_list": "Liste",
     "type_task": "Aufgabe",
     "type_item": "Artikel",
@@ -23,5 +20,8 @@
     "type_fuel": "Tankfüllung",
     "type_repair": "Reparatur",
     "type_document": "Dokument",
-    "type_maintenance_schedule": "Wartung"
+    "type_maintenance_schedule": "Wartung",
+    "kept": ":days Tage aufbewahrt, dann endgültig entfernt.",
+    "days_left_one": "noch :count Tag",
+    "days_left_other": "noch :count Tage"
 }

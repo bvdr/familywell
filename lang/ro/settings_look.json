@@ -1,0 +1,13 @@
+{
+    "mode_label": "Mod · doar tu",
+    "skin_label": "Temă de familie · toți",
+    "default_tag": "Implicită",
+    "skin_sun": "Hârtie, cerneală și soare",
+    "skin_default": "Hârtie și verde de pădure",
+    "skin_minimal-mono": "Negru, alb și piatră",
+    "skin_admin_only": "Tema e aceeași pentru toată familia. Doar un administrator al familiei o poate schimba.",
+    "look_admin_only": "Doar un administrator al familiei poate schimba numele și aspectul.",
+    "preview": "Previzualizare",
+    "save": "Salvează modificările",
+    "saved": "Salvat"
+}

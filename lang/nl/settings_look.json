@@ -1,0 +1,13 @@
+{
+    "mode_label": "Modus · alleen jij",
+    "skin_label": "Gezinsthema · iedereen",
+    "default_tag": "Standaard",
+    "skin_sun": "Papier, inkt en zon",
+    "skin_default": "Papier en bosgroen",
+    "skin_minimal-mono": "Zwart, wit en steen",
+    "skin_admin_only": "Het thema is hetzelfde voor het hele gezin. Alleen een gezinsbeheerder kan het wijzigen.",
+    "look_admin_only": "Alleen een gezinsbeheerder kan de naam en het uiterlijk wijzigen.",
+    "preview": "Voorbeeld",
+    "save": "Wijzigingen opslaan",
+    "saved": "Opgeslagen"
+}

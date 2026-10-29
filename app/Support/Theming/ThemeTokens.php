@@ -19,16 +19,16 @@ class ThemeTokens
     public const DEFAULT = 'sun';
 
     /**
-     * The skin a person sees: their personal choice wins, else the family's default, else the built-in
-     * default (DEFAULT; css() also falls back to it for an unknown name). The family is only queried
-     * when the person has no personal skin. Shared by the web app (ShareTheme) and the MCP widgets.
+     * The skin a person sees. The skin is the family's (settings redesign, boards M4/Y5: "skins are the family's
+     * look, same for everyone; light/dark is personal"), so inside a family it is the family's skin, else the
+     * built-in default (DEFAULT; css() also falls back to it for an unknown name). users.theme only counts while
+     * the person has no family yet: onboarding's About you step lets them pick one before the family exists, and
+     * OnboardingController::store hands that pick to the family it creates. The column is kept (old personal
+     * picks stay stored) but no longer overrides the family. Shared by the web app (ShareTheme) and the MCP widgets.
      */
     public static function resolve(?User $user, ?int $familyId): string
     {
-        $theme = $user?->theme;
-        if (! $theme && $familyId) {
-            $theme = Family::find($familyId)?->theme;
-        }
+        $theme = $familyId ? Family::find($familyId)?->theme : $user?->theme;
 
         return $theme ?: self::DEFAULT;
     }

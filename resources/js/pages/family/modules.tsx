@@ -1,206 +1,94 @@
-import { MAX_NAV_PINS, useNavPins } from '@/hooks/use-nav-pins';
-import { Head, Link, router } from '@inertiajs/react';
-import { Blocks, ChevronLeft, Pin, Search, type LucideIcon } from 'lucide-react';
-import { useState } from 'react';
+import { Head, router } from '@inertiajs/react';
+import { Bell, Blocks, Repeat, Star, type LucideIcon } from 'lucide-react';
 
 import { MODULE_ITEMS } from '@/components/mobile-tab-bar';
-import { MODULES, type ModuleSummary } from '@/components/your-modules';
+import { SettingsGroup, SettingsPage, SettingsRow, SettingsSwitch } from '@/components/settings-ui';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
-type Module = { id: string; name: string; description: string; version: string; enabled: boolean };
-type Props = { catalog: Module[]; canManage: boolean; summaries: Record<string, ModuleSummary> };
+type Module = { id: string; name: string; tagline: string; requires: string[]; enabled: boolean };
+type Props = { catalog: Module[]; canManage: boolean; familyName: string };
 
-// Every installed module needs a tile icon even if it isn't one of the dashboard's pinnable MODULES
-// (notifications, expense_import, important_todos aren't — they have no /m/<id> index of their own).
-const iconFor = (id: string): LucideIcon => MODULES[id]?.icon ?? Blocks;
-// "Tap any row to open that module's store page": no module store/catalogue page exists yet (checked
-// routes/web.php + resources/js/pages), so a row opens the module itself instead, same as the dashboard
-// tiles. Modules with no own index (expense_import has one at /m/expense-import; notifications' is
-// /notifications, not under MODULES) get a route built the same way the nav does.
-const hrefFor = (id: string): string =>
-    MODULES[id]?.href ?? (id === 'notifications' ? '/notifications' : id === 'expense_import' ? '/m/expense-import' : `/m/${id}`);
+// Icons come from the nav's MODULE_ITEMS so a module looks the same here as in the tab bar and More. Add-ons and
+// notifications have no nav entry (no page of their own), so they get theirs here.
+const EXTRA_ICONS: Record<string, LucideIcon> = { important_todos: Star, recurring_todos: Repeat, notifications: Bell };
+const iconFor = (id: string): LucideIcon => MODULE_ITEMS.find((i) => i.key === id)?.icon ?? EXTRA_ICONS[id] ?? Blocks;
+// Nav order (Shopping, Tasks, Calendar, ...) rather than the server's alphabetical one; anything not in the nav last.
+const rank = (id: string) => {
+    const i = MODULE_ITEMS.findIndex((m) => m.key === id);
+    return i === -1 ? MODULE_ITEMS.length : i;
+};
 
-type Filter = 'all' | 'on' | 'pinned' | 'off';
-
-export default function Modules({ catalog, canManage, summaries }: Props) {
+// Modules (design Y2): one plain switch per module with a one-line "what it's for". A module that requires exactly
+// one other (module.json `requires`, e.g. Recurring to-dos -> Tasks) is an add-on and sits indented under it, so
+// "needs Tasks" explains itself. Pinning to the tab bar lives in More (long-press), not here.
+export default function Modules({ catalog, canManage, familyName }: Props) {
     const t = useT();
-    const [search, setSearch] = useState('');
-    const [filter, setFilter] = useState<Filter>('all');
     const enabled = useOptimistic<boolean>();
-    const isEnabled = (m: Module) => enabled.get(m.id, m.enabled);
-    const turnOn = (m: Module) => {
-        enabled.set(m.id, true);
-        router.post(
-            `/family/modules/${m.id}/enable`,
-            {},
-            { preserveScroll: true, preserveState: true, onSuccess: () => enabled.clear(m.id), onError: () => enabled.clear(m.id) },
+    const stored = (m: Module) => enabled.get(m.id, m.enabled);
+    const byId = new Map(catalog.map((m) => [m.id, m]));
+    const parentOf = (m: Module) => (m.requires.length === 1 ? byId.get(m.requires[0]) : undefined);
+
+    const toggle = (m: Module) => {
+        const next = !stored(m);
+        enabled.set(m.id, next);
+        const opts = { preserveScroll: true, preserveState: true, onSuccess: () => enabled.clear(m.id), onError: () => enabled.clear(m.id) };
+        if (next) router.post(`/family/modules/${m.id}/enable`, {}, opts);
+        else router.delete(`/family/modules/${m.id}`, opts);
+    };
+
+    const sorted = [...catalog].sort((a, b) => rank(a.id) - rank(b.id) || a.name.localeCompare(b.name));
+    const tops = sorted.filter((m) => !parentOf(m));
+    const addonsOf = (p: Module) => sorted.filter((m) => parentOf(m)?.id === p.id);
+
+    const row = (m: Module, parent?: Module) => {
+        // An add-on whose module is off does nothing (its hooks hang off the parent), so it reads as off and can't be
+        // switched until the parent is on. Its own stored state is kept and comes back with the parent.
+        const blocked = !!parent && !stored(parent);
+        const on = stored(m) && !blocked;
+        const Icon = iconFor(m.id);
+        return (
+            <SettingsRow
+                key={m.id}
+                testId={`module-${m.id}`}
+                className={cn(parent && 'bg-surface/60 pl-12')}
+                lead={
+                    // The tile picks up the sun when on (accent-strong is the skin's sun), stays plain when off.
+                    <span
+                        className={cn(
+                            'flex shrink-0 items-center justify-center rounded-xl',
+                            parent ? 'size-9' : 'size-11',
+                            on ? 'bg-accent-strong/25 text-primary' : 'bg-surface text-muted-foreground',
+                        )}
+                    >
+                        <Icon className={parent ? 'size-4' : 'size-5'} />
+                    </span>
+                }
+                title={m.name}
+                sub={blocked && parent ? t('settings_family.modules_needs', { name: parent.name }) : m.tagline}
+                muted={blocked}
+                right={<SettingsSwitch on={on} onToggle={() => toggle(m)} label={m.name} disabled={!canManage || blocked} />}
+            />
         );
     };
 
-    // "Pin to your tab bar": the same per-device pins the phone tab bar and More's long-press use (useNavPins),
-    // so a pin made here shows in the bar right away. Up to three; Home is always first.
-    // Only modules with their own page can sit in the bar (extensions like Important Todos have none), so only they
-    // get a pin and only they are passed in: an extension can never take one of the three slots.
-    const pinnable = (id: string) => MODULE_ITEMS.some((i) => i.key === id);
-    const { pinned, toggle: togglePin, full: pinsFull } = useNavPins(catalog.filter((m) => isEnabled(m) && pinnable(m.id)).map((m) => m.id));
-
-    const on = catalog.filter(isEnabled);
-    const off = catalog.filter((m) => !isEnabled(m));
-    const onPinnedCount = on.filter((m) => pinned.includes(m.id)).length;
-
-    const q = search.trim().toLowerCase();
-    const matches = (m: Module) => !q || m.name.toLowerCase().includes(q);
-    const chip = (key: Filter, label: string, count: number) => (
-        <button
-            key={key}
-            type="button"
-            onClick={() => setFilter(key)}
-            className={cn(
-                'shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium',
-                filter === key ? 'bg-primary text-primary-foreground' : 'bg-surface-card border',
-            )}
-        >
-            {label} · {count}
-        </button>
-    );
-
-    const visibleOn = filter === 'off' ? [] : on.filter(matches).filter((m) => filter !== 'pinned' || pinned.includes(m.id));
-    const visibleOff = filter === 'on' || filter === 'pinned' ? [] : off.filter(matches);
-
     return (
-        <AppLayout>
-            <Head title={t('family.modules_all_title')} />
-            <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
-                {/* "More" is a drawer on the dashboard, not its own route (mobile-tab-bar.tsx), so the back
-                    pill reads "More" (where this page was opened from) but returns to Home underneath it. */}
-                <Link
-                    href="/dashboard"
-                    className="border-border bg-surface-card text-primary inline-flex w-fit items-center gap-1 rounded-full border py-1.5 pr-3.5 pl-2.5 text-sm font-medium"
-                >
-                    <ChevronLeft className="size-4" /> {t('nav.more')}
-                </Link>
-
-                <div>
-                    <h1 className="font-heading text-primary text-3xl font-black">{t('family.modules_all_title')}</h1>
-                    <p className="text-muted-foreground mt-1 text-sm">
-                        {t('family.modules_on_count', { count: on.length })} · {t('family.modules_pinned_count', { count: onPinnedCount })}
+        <AppLayout breadcrumbs={[{ title: t('settings_hub.modules'), href: '/family/modules' }]}>
+            <Head title={t('settings_hub.modules')} />
+            <SettingsPage
+                back={{ href: '/settings/family', label: familyName }}
+                title={t('settings_hub.modules')}
+                lede={t('settings_family.modules_lede')}
+            >
+                {!canManage && (
+                    <p className="bg-surface text-muted-foreground rounded-2xl px-4 py-3 text-sm" data-testid="modules-admin-note">
+                        {t('settings_family.modules_admin_note')}
                     </p>
-                </div>
-
-                <div className="relative">
-                    <Search className="text-muted-foreground absolute top-1/2 left-3.5 size-4 -translate-y-1/2" />
-                    <input
-                        type="search"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder={t('family.modules_search')}
-                        className="bg-surface-card border-border w-full rounded-full border py-2.5 pr-4 pl-10 text-[16px]"
-                    />
-                </div>
-
-                <div className="-mx-4 flex gap-2 overflow-x-auto px-4" data-scroll-x>
-                    {chip('all', t('family.modules_chip_all'), catalog.length)}
-                    {chip('on', t('family.modules_chip_on'), on.length)}
-                    {chip('pinned', t('family.modules_chip_pinned'), onPinnedCount)}
-                    {chip('off', t('family.modules_chip_off'), off.length)}
-                </div>
-
-                {visibleOn.length > 0 && (
-                    <section className="flex flex-col gap-3">
-                        <div className="flex items-baseline justify-between px-1">
-                            <h2 className="text-muted-foreground font-mono text-[10.5px] font-semibold tracking-[0.8px] uppercase">
-                                {t('family.modules_on_header')} {on.length}
-                            </h2>
-                            <span className="text-muted-foreground text-xs font-medium">{t('family.modules_pin_hint', { max: MAX_NAV_PINS })}</span>
-                        </div>
-                        <ul
-                            className="bg-surface-card divide-border/60 flex flex-col divide-y overflow-hidden rounded-2xl border"
-                            data-testid="modules-on"
-                        >
-                            {visibleOn.map((m) => {
-                                const Icon = iconFor(m.id);
-                                const line = summaries[m.id];
-                                const isPinned = pinned.includes(m.id);
-                                return (
-                                    <li key={m.id} data-testid={`module-${m.id}`} className="flex items-center gap-3 px-4 py-3">
-                                        <Link href={hrefFor(m.id)} className="flex min-w-0 flex-1 items-center gap-3">
-                                            <span className="bg-surface text-primary flex size-10 shrink-0 items-center justify-center rounded-xl">
-                                                <Icon className="size-4.5" />
-                                            </span>
-                                            <span className="min-w-0 flex-1">
-                                                <span className="text-primary block truncate text-[15px] font-bold">{m.name}</span>
-                                                <span className="text-muted-foreground block truncate text-[12.5px]">
-                                                    {line ? t(line.key, line.params) : m.description}
-                                                </span>
-                                            </span>
-                                        </Link>
-                                        {pinnable(m.id) && (
-                                            <button
-                                                type="button"
-                                                onClick={() => togglePin(m.id)}
-                                                disabled={!isPinned && pinsFull} // three in the bar already: unpin one first
-                                                aria-pressed={isPinned}
-                                                aria-label={t(isPinned ? 'family.modules_unpin_aria' : 'family.modules_pin_aria', { name: m.name })}
-                                                data-testid={`pin-${m.id}`}
-                                                className={cn(
-                                                    'flex size-9 shrink-0 items-center justify-center rounded-full disabled:opacity-40',
-                                                    isPinned ? 'bg-accent-strong text-accent-strong-foreground' : 'bg-surface text-muted-foreground',
-                                                )}
-                                            >
-                                                <Pin className="size-4" fill={isPinned ? 'currentColor' : 'none'} />
-                                            </button>
-                                        )}
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    </section>
                 )}
-
-                {visibleOff.length > 0 && (
-                    <section className="flex flex-col gap-3">
-                        <h2 className="text-muted-foreground px-1 font-mono text-[10.5px] font-semibold tracking-[0.8px] uppercase">
-                            {t('family.modules_off_header')} {off.length}
-                        </h2>
-                        <ul
-                            className="bg-surface-card divide-border/60 flex flex-col divide-y overflow-hidden rounded-2xl border"
-                            data-testid="modules-off"
-                        >
-                            {off.filter(matches).map((m) => {
-                                const Icon = iconFor(m.id);
-                                return (
-                                    <li key={m.id} data-testid={`module-${m.id}`} className="flex items-center gap-3 px-4 py-3">
-                                        <span className="bg-surface text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-xl">
-                                            <Icon className="size-4.5" />
-                                        </span>
-                                        <span className="min-w-0 flex-1">
-                                            <span className="text-primary block truncate text-[15px] font-bold">{m.name}</span>
-                                            <span className="text-muted-foreground block truncate text-[12.5px]">{m.description}</span>
-                                        </span>
-                                        {canManage && (
-                                            <button
-                                                type="button"
-                                                onClick={() => turnOn(m)}
-                                                data-testid={`toggle-${m.id}`}
-                                                className="bg-primary text-primary-foreground shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold"
-                                            >
-                                                {t('family.modules_turn_on')}
-                                            </button>
-                                        )}
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    </section>
-                )}
-
-                {visibleOn.length === 0 && visibleOff.length === 0 && (
-                    <p className="text-muted-foreground px-1 text-sm">{t('family.modules_no_matches')}</p>
-                )}
-            </div>
+                <SettingsGroup>{tops.flatMap((m) => [row(m), ...addonsOf(m).map((a) => row(a, m))])}</SettingsGroup>
+            </SettingsPage>
         </AppLayout>
     );
 }

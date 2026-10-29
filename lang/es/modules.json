@@ -1,62 +1,77 @@
 {
     "birthdays": {
         "name": "Cumpleaños",
-        "description": "Una página de Cumpleaños (añade rápido a una persona con día y mes, el año es opcional) y un cumpleaños en cada contacto: la edad cuando se conoce el año, el próximo cumpleaños (se repite cada año), una insignia en el contacto y un widget de 'Próximos cumpleaños' en la pantalla de inicio. Las personas que añadas aquí también son contactos."
+        "description": "Una página de Cumpleaños (añade rápido a una persona con día y mes, el año es opcional) y un cumpleaños en cada contacto: la edad cuando se conoce el año, el próximo cumpleaños (se repite cada año), una insignia en el contacto y un widget de 'Próximos cumpleaños' en la pantalla de inicio. Las personas que añadas aquí también son contactos.",
+        "tagline": "No olvides ninguno"
     },
     "calendar": {
         "name": "Calendario",
-        "description": "El calendario familiar: viajes, congresos, citas y vacaciones, con personas y tareas, junto a las fechas límite de las tareas, los cumpleaños, los vencimientos de los vehículos y el inicio de los proyectos. Vistas de mes y cronología, y un enlace de suscripción para Google/Apple Calendar."
+        "description": "El calendario familiar: viajes, congresos, citas y vacaciones, con personas y tareas, junto a las fechas límite de las tareas, los cumpleaños, los vencimientos de los vehículos y el inicio de los proyectos. Vistas de mes y cronología, y un enlace de suscripción para Google/Apple Calendar.",
+        "tagline": "Eventos, viajes, enlace de suscripción"
     },
     "contacts": {
         "name": "Contactos",
-        "description": "Una libreta de direcciones familiar compartida. Cada entrada es una 'persona', una pieza reutilizable (nombre y formas de contacto) que otros módulos amplían: Cumpleaños añade una fecha de nacimiento y los proyectos pueden vincular personas."
+        "description": "Una libreta de direcciones familiar compartida. Cada entrada es una 'persona', una pieza reutilizable (nombre y formas de contacto) que otros módulos amplían: Cumpleaños añade una fecha de nacimiento y los proyectos pueden vincular personas.",
+        "tagline": "Agenda compartida"
     },
     "expense_import": {
         "name": "Importar gastos",
-        "description": "Lleva los gastos con tarjeta a Gastos: sube un extracto bancario (Wise, Revolut, ING, BT o cualquier CSV/XLSX tras asignar sus columnas una vez) o envía cada pago con Apple Pay desde un Atajo del iPhone. Cada fila se revisa antes de guardarse, se señalan los duplicados, cada importación se puede deshacer y las transacciones importadas se recuerdan para que nunca entren dos veces."
+        "description": "Lleva los gastos con tarjeta a Gastos: sube un extracto bancario (Wise, Revolut, ING, BT o cualquier CSV/XLSX tras asignar sus columnas una vez) o envía cada pago con Apple Pay desde un Atajo del iPhone. Cada fila se revisa antes de guardarse, se señalan los duplicados, cada importación se puede deshacer y las transacciones importadas se recuerdan para que nunca entren dos veces.",
+        "tagline": "Extractos y Apple Pay a Gastos"
     },
     "important_todos": {
         "name": "Tareas importantes",
-        "description": "Añade a las tareas una marca de \"importante\": un interruptor en el editor de tareas, una estrella en la fila y las tareas importantes primero. Un ejemplo práctico de cómo ampliar una pieza base mediante hooks."
+        "description": "Añade a las tareas una marca de \"importante\": un interruptor en el editor de tareas, una estrella en la fila y las tareas importantes primero. Un ejemplo práctico de cómo ampliar una pieza base mediante hooks.",
+        "tagline": "Destaca tareas para tenerlas arriba"
     },
     "inventory": {
         "name": "Inventario",
-        "description": "Sabe qué tienes, qué se está acabando y qué hay que reponer: el inventario tranquilo de casa, no un almacén."
+        "description": "Sabe qué tienes, qué se está acabando y qué hay que reponer: el inventario tranquilo de casa, no un almacén.",
+        "tagline": "Lo que tenéis y lo que se acaba"
     },
     "notes": {
         "name": "Notas",
-        "description": "Notas y listas rápidas de la familia, ordenadas en carpetas."
+        "description": "Notas y listas rápidas de la familia, ordenadas en carpetas.",
+        "tagline": "Notas compartidas en carpetas"
     },
     "notifications": {
         "name": "Notificaciones",
-        "description": "Avisos en la app y notificaciones push para que nadie se pierda la actividad de la familia."
+        "description": "Avisos en la app y notificaciones push para que nadie se pierda la actividad de la familia.",
+        "tagline": "Avisos cuando algo te necesita"
     },
     "projects": {
         "name": "Proyectos",
-        "description": "Planifica lo grande: tareas, avance y listas de compras vinculadas."
+        "description": "Planifica lo grande: tareas, avance y listas de compras vinculadas.",
+        "tagline": "Reúne listas y notas para un objetivo"
     },
     "recipes": {
         "name": "Recetas",
-        "description": "Recetas familiares con fotos y una calculadora: ajusta por raciones, por cuánto quieres preparar o por lo que tienes."
+        "description": "Recetas familiares con fotos y una calculadora: ajusta por raciones, por cuánto quieres preparar o por lo que tienes.",
+        "tagline": "Recetario familiar que se ajusta"
     },
     "recurring_todos": {
         "name": "Tareas recurrentes",
-        "description": "Haz que una tarea se repita según un calendario: elige una fecha y un intervalo, y cuando se complete volverá a 'por hacer' en su siguiente repetición."
+        "description": "Haz que una tarea se repita según un calendario: elige una fecha y un intervalo, y cuando se complete volverá a 'por hacer' en su siguiente repetición.",
+        "tagline": "Tareas que vuelven según un horario"
     },
     "shopping": {
         "name": "Compras",
-        "description": "Listas de compras compartidas que toda la familia puede ir marcando a la vez."
+        "description": "Listas de compras compartidas que toda la familia puede ir marcando a la vez.",
+        "tagline": "Listas, tiendas, añadir por voz"
     },
     "spending": {
         "name": "Gastos",
-        "description": "Controla los gastos compartidos y salda cuentas de quién debe a quién, repartiendo como quieras."
+        "description": "Controla los gastos compartidos y salda cuentas de quién debe a quién, repartiendo como quieras.",
+        "tagline": "Gastos compartidos, dividir, saldar"
     },
     "tasks": {
         "name": "Tareas",
-        "description": "Listas de tareas compartidas con fechas límite, subtareas y responsables."
+        "description": "Listas de tareas compartidas con fechas límite, subtareas y responsables.",
+        "tagline": "Listas de tareas con personas y fechas"
     },
     "vehicles": {
         "name": "Vehículos",
-        "description": "El lugar para todo lo relacionado con los vehículos de la familia: estado, kilometraje, mantenimiento, gastos y documentos. Cuidado tranquilo del vehículo, no un sistema de taller."
+        "description": "El lugar para todo lo relacionado con los vehículos de la familia: estado, kilometraje, mantenimiento, gastos y documentos. Cuidado tranquilo del vehículo, no un sistema de taller.",
+        "tagline": "Mantenimiento, reparaciones, documentos"
     }
 }

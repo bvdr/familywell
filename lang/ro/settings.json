@@ -44,16 +44,5 @@
     "email_change_sent": "Am trimis un cod de 6 cifre la :email. Scrie-l aici ca să schimbi emailul; până atunci îl păstrezi pe cel actual.",
     "email_change_confirm": "Confirmă emailul nou",
     "email_change_cancel": "Păstrez emailul actual",
-    "email_taken": "Emailul este deja folosit de alt cont.",
-    "group_account": "Cont",
-    "group_family": "Familie",
-    "hint_profile": "Numele, emailul și contul tău",
-    "hint_sign_in": "Conectare cu Google și Apple",
-    "hint_appearance": "Temă, luminos sau întunecat",
-    "hint_language": "Limba aplicației",
-    "hint_media": "Pozele încărcate de familia ta",
-    "hint_trash": "Recuperează ce s-a șters în ultimele 30 de zile",
-    "hint_connected_apps": "Asistenți AI conectați la FamilyWell",
-    "hint_billing": "Abonamentul familiei tale",
-    "hint_notifications": "Notificări push pe acest dispozitiv"
+    "email_taken": "Emailul este deja folosit de alt cont."
 }

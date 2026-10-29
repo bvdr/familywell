@@ -1,62 +1,77 @@
 {
     "birthdays": {
         "name": "Verjaardagen",
-        "description": "Voeg verjaardagen toe met dag en maand (jaar optioneel) of stel er een in bij een contact. Toont de leeftijd, de volgende verjaardag, een badge bij het contact en een widget met aankomende verjaardagen op het startscherm."
+        "description": "Voeg verjaardagen toe met dag en maand (jaar optioneel) of stel er een in bij een contact. Toont de leeftijd, de volgende verjaardag, een badge bij het contact en een widget met aankomende verjaardagen op het startscherm.",
+        "tagline": "Mis er nooit meer een"
     },
     "calendar": {
         "name": "Agenda",
-        "description": "De gezinsagenda voor reizen, afspraken en feestdagen, naast deadlines van taken, verjaardagen en voertuigdata. Maand- en tijdlijnweergave, plus een abonneerlink voor Google of Apple Agenda."
+        "description": "De gezinsagenda voor reizen, afspraken en feestdagen, naast deadlines van taken, verjaardagen en voertuigdata. Maand- en tijdlijnweergave, plus een abonneerlink voor Google of Apple Agenda.",
+        "tagline": "Afspraken, reizen, abonneerlink"
     },
     "contacts": {
         "name": "Contacten",
-        "description": "Een gedeeld adresboek voor het gezin. Elk item is een persoon met contactgegevens waar andere modules op voortbouwen: Verjaardagen voegt een geboortedatum toe en projecten kunnen personen koppelen."
+        "description": "Een gedeeld adresboek voor het gezin. Elk item is een persoon met contactgegevens waar andere modules op voortbouwen: Verjaardagen voegt een geboortedatum toe en projecten kunnen personen koppelen.",
+        "tagline": "Gedeeld adresboek"
     },
     "expense_import": {
         "name": "Uitgaven importeren",
-        "description": "Haal kaartuitgaven binnen in Uitgaven: upload een bankafschrift (Wise, Revolut, ING, BT of een CSV/XLSX nadat je de kolommen eenmalig hebt gekoppeld) of stuur elke Apple Pay-betaling via een iPhone-opdracht. Elke rij wordt gecontroleerd voordat ze wordt opgeslagen, dubbele worden gemarkeerd, elke import kan ongedaan worden gemaakt en geïmporteerde transacties komen nooit twee keer binnen."
+        "description": "Haal kaartuitgaven binnen in Uitgaven: upload een bankafschrift (Wise, Revolut, ING, BT of een CSV/XLSX nadat je de kolommen eenmalig hebt gekoppeld) of stuur elke Apple Pay-betaling via een iPhone-opdracht. Elke rij wordt gecontroleerd voordat ze wordt opgeslagen, dubbele worden gemarkeerd, elke import kan ongedaan worden gemaakt en geïmporteerde transacties komen nooit twee keer binnen.",
+        "tagline": "Afschriften en Apple Pay naar Uitgaven"
     },
     "important_todos": {
         "name": "Belangrijke taken",
-        "description": "Voegt een \"belangrijk\"-markering toe aan taken: een schakelaar in de taakeditor, een ster in de rij en belangrijke taken staan bovenaan."
+        "description": "Voegt een \"belangrijk\"-markering toe aan taken: een schakelaar in de taakeditor, een ster in de rij en belangrijke taken staan bovenaan.",
+        "tagline": "Markeer taken zodat ze bovenaan blijven"
     },
     "inventory": {
         "name": "Voorraad",
-        "description": "Weet wat je hebt, wat bijna op is en wat moet worden aangevuld: rustige huisvoorraad, geen magazijn."
+        "description": "Weet wat je hebt, wat bijna op is en wat moet worden aangevuld: rustige huisvoorraad, geen magazijn.",
+        "tagline": "Wat je hebt en wat bijna op is"
     },
     "notes": {
         "name": "Notities",
-        "description": "Snelle gezinsnotities en checklists, netjes in mappen."
+        "description": "Snelle gezinsnotities en checklists, netjes in mappen.",
+        "tagline": "Gedeelde notities in mappen"
     },
     "notifications": {
         "name": "Meldingen",
-        "description": "Meldingen in de app en pushmeldingen, zodat niemand iets van het gezin mist."
+        "description": "Meldingen in de app en pushmeldingen, zodat niemand iets van het gezin mist.",
+        "tagline": "Meldingen als iets jou nodig heeft"
     },
     "projects": {
         "name": "Projecten",
-        "description": "Plan de grotere dingen: taken, voortgang en gekoppelde boodschappenlijsten."
+        "description": "Plan de grotere dingen: taken, voortgang en gekoppelde boodschappenlijsten.",
+        "tagline": "Lijsten en notities voor een doel"
     },
     "recipes": {
         "name": "Recepten",
-        "description": "Gezinsrecepten met foto's en een rekenhulp: schaal op porties, op hoeveel je wilt maken of op wat je hebt."
+        "description": "Gezinsrecepten met foto's en een rekenhulp: schaal op porties, op hoeveel je wilt maken of op wat je hebt.",
+        "tagline": "Familiekookboek dat meeschaalt"
     },
     "recurring_todos": {
         "name": "Terugkerende taken",
-        "description": "Laat een taak volgens schema terugkeren: kies een datum en een interval, en zodra ze klaar is, staat ze bij de volgende keer weer op \"te doen\"."
+        "description": "Laat een taak volgens schema terugkeren: kies een datum en een interval, en zodra ze klaar is, staat ze bij de volgende keer weer op \"te doen\".",
+        "tagline": "Taken die volgens schema terugkomen"
     },
     "shopping": {
         "name": "Winkelen",
-        "description": "Gedeelde boodschappen- en winkellijstjes die het hele gezin samen kan afvinken."
+        "description": "Gedeelde boodschappen- en winkellijstjes die het hele gezin samen kan afvinken.",
+        "tagline": "Lijsten, winkels, toevoegen met je stem"
     },
     "spending": {
         "name": "Uitgaven",
-        "description": "Houd gedeelde kosten bij en reken af wie wie iets schuldig is, verdeeld zoals jij wilt."
+        "description": "Houd gedeelde kosten bij en reken af wie wie iets schuldig is, verdeeld zoals jij wilt.",
+        "tagline": "Gedeelde kosten, verdelen, verrekenen"
     },
     "tasks": {
         "name": "Taken",
-        "description": "Gedeelde takenlijsten met deadlines, subtaken en wie wat doet."
+        "description": "Gedeelde takenlijsten met deadlines, subtaken en wie wat doet.",
+        "tagline": "Takenlijsten met mensen en datums"
     },
     "vehicles": {
         "name": "Voertuigen",
-        "description": "Alles over de gezinsauto's op één plek: staat, kilometerstand, onderhoud, uitgaven en documenten. Rustig autobeheer, geen garagesysteem."
+        "description": "Alles over de gezinsauto's op één plek: staat, kilometerstand, onderhoud, uitgaven en documenten. Rustig autobeheer, geen garagesysteem.",
+        "tagline": "Onderhoud, reparaties, documenten"
     }
 }

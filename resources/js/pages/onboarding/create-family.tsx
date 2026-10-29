@@ -1,21 +1,17 @@
 import { Head, useForm } from '@inertiajs/react';
-import { ArrowRight, Check, Ellipsis, Globe, LoaderCircle } from 'lucide-react';
-import { type IconName } from 'lucide-react/dynamic';
+import { ArrowRight, Globe, LoaderCircle } from 'lucide-react';
 import { FormEventHandler, useRef, useState } from 'react';
 
-import { FamilyMark, inkOn, monogramOf, SymbolIcon } from '@/components/family-mark';
-import { FamilySymbolSheet } from '@/components/family-symbol-sheet';
+import { FamilyLookPicker } from '@/components/family-look-picker';
+import { FamilyMark, inkOn } from '@/components/family-mark';
 import { reactHomer } from '@/components/homer';
 import InputError from '@/components/input-error';
-import { Picker } from '@/components/picker';
-import { Segmented } from '@/components/segmented';
+import { RegionSheet, type RegionCountry } from '@/components/region-sheet';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import OnboardingLayout from '@/layouts/onboarding-layout';
 import { useT } from '@/lib/i18n';
-import { cn } from '@/lib/utils';
 
 type Region = {
     country: string | null;
@@ -24,13 +20,12 @@ type Region = {
     currency?: string;
     currencies?: string[];
     units?: 'metric' | 'imperial';
+    // For the shared Region & units sheet's country picker: each with what it implies.
+    countries: RegionCountry[];
 };
 
 // `family` is set when they came back from step 2: the family exists and the form edits it.
 type Props = { userName: string; colors: string[]; region: Region; family: { name: string; color: string; symbol: string | null } | null };
-
-// The quick row of symbols next to the monogram; the rest live in the library sheet.
-const QUICK: IconName[] = ['house', 'sun', 'sprout', 'mountain'];
 
 // The family name we start with, from the person's surname ("Ana Rivera" -> "The Riveras" in English,
 // "Familia Rivera" in Romanian), so nobody faces an empty box. No surname -> empty, the chips still help.
@@ -56,7 +51,6 @@ export default function CreateFamily({ userName, colors, region, family }: Props
         units: region.units ?? null,
     });
     const { data, setData } = form;
-    const [sheet, setSheet] = useState(false);
     // Homer (on the desktop rail) thinks along while they type: at most once per his 2.5 s "thinking" beat.
     const lastThink = useRef(0);
     const typing = (name: string) => {
@@ -71,15 +65,16 @@ export default function CreateFamily({ userName, colors, region, family }: Props
         reactHomer('success');
     };
     const [regionOpen, setRegionOpen] = useState(false);
+    // The country only fills in the rest (it isn't saved), so it lives here, not in the form.
+    const [country, setCountry] = useState(region.country);
+    const countryName = region.countries.find((c) => c.code === country)?.name ?? region.countryName;
 
     const suggestions = surname
         ? [1, 2, 3].map((n) => t(`onboarding.suggest_${n}`, { surname }))
         : [1, 2, 3].map((n) => t(`onboarding.suggest_plain_${n}`));
-    const quick: IconName[] =
-        QUICK.includes(data.symbol as IconName) || data.symbol === 'monogram' ? QUICK : [data.symbol as IconName, ...QUICK.slice(0, 3)];
     const displayName = data.name.trim() || t('onboarding.your_family');
 
-    const regionLine = [region.countryName, region.units && t(`onboarding.units_${data.units}`), data.currency].filter(Boolean).join(' · ');
+    const regionLine = [countryName, region.units && t(`onboarding.units_${data.units}`), data.currency].filter(Boolean).join(' · ');
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -156,61 +151,7 @@ export default function CreateFamily({ userName, colors, region, family }: Props
 
                             <div className="flex flex-col gap-3">
                                 <span className="text-[13px] font-semibold">{t('onboarding.color_symbol')}</span>
-                                <div className="flex justify-between lg:justify-start lg:gap-3" role="radiogroup" aria-label={t('onboarding.color')}>
-                                    {colors.map((c) => (
-                                        <button
-                                            key={c}
-                                            type="button"
-                                            role="radio"
-                                            aria-checked={data.color === c}
-                                            aria-label={c}
-                                            onClick={() => pick('color', c)}
-                                            className={cn(
-                                                'flex size-11 items-center justify-center rounded-full',
-                                                data.color === c && 'border-ink border-[1.5px]',
-                                            )}
-                                            style={{ backgroundColor: c, color: inkOn(c) }}
-                                        >
-                                            {data.color === c && <Check className="size-5" strokeWidth={2.5} />}
-                                        </button>
-                                    ))}
-                                </div>
-                                <div className="flex justify-between lg:justify-start lg:gap-3" role="radiogroup" aria-label={t('onboarding.symbol')}>
-                                    {(['monogram', ...quick] as string[]).map((s) => {
-                                        const on = data.symbol === s;
-                                        return (
-                                            <button
-                                                key={s}
-                                                type="button"
-                                                role="radio"
-                                                aria-checked={on}
-                                                aria-label={s}
-                                                onClick={() => pick('symbol', s)}
-                                                className={cn(
-                                                    'flex size-11 items-center justify-center rounded-[14px] border',
-                                                    on ? 'border-ink border-[1.5px]' : 'border-line bg-white',
-                                                )}
-                                                style={on ? { backgroundColor: data.color, color: inkOn(data.color) } : undefined}
-                                            >
-                                                {s === 'monogram' ? (
-                                                    <span className="font-display text-[22px] font-extrabold tracking-[-0.5px]">
-                                                        {monogramOf(displayName)}
-                                                    </span>
-                                                ) : (
-                                                    <SymbolIcon name={s as IconName} className="size-[22px]" />
-                                                )}
-                                            </button>
-                                        );
-                                    })}
-                                    <button
-                                        type="button"
-                                        aria-label={t('onboarding.symbol_more')}
-                                        onClick={() => setSheet(true)}
-                                        className="bg-paper-2 flex size-11 items-center justify-center rounded-[14px]"
-                                    >
-                                        <Ellipsis className="size-[22px]" />
-                                    </button>
-                                </div>
+                                <FamilyLookPicker brand colors={colors} color={data.color} symbol={data.symbol} name={displayName} onPick={pick} />
                                 <InputError message={form.errors.color || form.errors.symbol} />
                             </div>
 
@@ -238,53 +179,19 @@ export default function CreateFamily({ userName, colors, region, family }: Props
                 </div>
             </OnboardingLayout>
 
-            <FamilySymbolSheet
-                open={sheet}
-                onOpenChange={setSheet}
-                value={data.symbol}
-                onPick={(s) => pick('symbol', s)}
+            <RegionSheet
+                open={regionOpen}
+                onOpenChange={setRegionOpen}
+                value={{ country, units: data.units ?? undefined, currency: data.currency ?? undefined }}
+                onDone={(v) => {
+                    setCountry(v.country);
+                    setData((d) => ({ ...d, units: v.units ?? d.units, currency: v.currency ?? d.currency }));
+                    setRegionOpen(false);
+                }}
+                countries={region.countries}
+                currencies={region.currencies}
                 familyName={displayName}
-                color={data.color}
             />
-
-            <Dialog open={regionOpen} onOpenChange={setRegionOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>{t('onboarding.region')}</DialogTitle>
-                        <DialogDescription>{t('onboarding.region_desc')}</DialogDescription>
-                    </DialogHeader>
-                    {region.currencies && (
-                        <div className="flex flex-col gap-2">
-                            <Label>{t('onboarding.currency')}</Label>
-                            <Picker
-                                options={region.currencies.map((c) => ({ value: c, label: c }))}
-                                selected={data.currency ? [data.currency] : []}
-                                onChange={([c]) => c && setData('currency', c)}
-                                ariaLabel={t('onboarding.currency')}
-                            />
-                        </div>
-                    )}
-                    {region.units && (
-                        <div className="flex flex-col gap-2">
-                            <Label>{t('onboarding.distance')}</Label>
-                            <Segmented
-                                options={[
-                                    { value: 'metric', label: t('onboarding.units_metric') },
-                                    { value: 'imperial', label: t('onboarding.units_imperial') },
-                                ]}
-                                value={data.units ?? 'metric'}
-                                onChange={(u) => setData('units', u)}
-                                ariaLabel={t('onboarding.distance')}
-                            />
-                        </div>
-                    )}
-                    <DialogFooter>
-                        <Button type="button" variant="ink" onClick={() => setRegionOpen(false)}>
-                            {t('onboarding.done')}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </form>
     );
 }
