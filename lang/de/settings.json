@@ -44,16 +44,5 @@
     "email_change_sent": "Wir haben einen 6-stelligen Code an :email geschickt. Gib ihn hier ein, um deine E-Mail zu ändern; bis dahin bleibt deine bisherige.",
     "email_change_confirm": "Neue E-Mail bestätigen",
     "email_change_cancel": "Bisherige E-Mail behalten",
-    "email_taken": "Diese E-Mail wird schon von einem anderen Konto genutzt.",
-    "group_account": "Konto",
-    "group_family": "Familie",
-    "hint_profile": "Name, E-Mail und Konto",
-    "hint_sign_in": "Anmeldung mit Google und Apple",
-    "hint_appearance": "Skin, hell oder dunkel",
-    "hint_language": "Die Sprache der App",
-    "hint_media": "Fotos, die deine Familie hochgeladen hat",
-    "hint_trash": "Hol zurück, was in den letzten 30 Tagen gelöscht wurde",
-    "hint_connected_apps": "Mit FamilyWell verbundene KI-Assistenten",
-    "hint_billing": "Der Tarif deiner Familie",
-    "hint_notifications": "Push-Benachrichtigungen auf diesem Gerät"
+    "email_taken": "Diese E-Mail wird schon von einem anderen Konto genutzt."
 }

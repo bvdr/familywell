@@ -37,22 +37,5 @@
     "disable": "Uitzetten",
     "demo_blocked": "Niet beschikbaar in de demo. Meld je aan om je eigen account en gezin te beheren.",
     "nav_label": "Gezin",
-    "role_teen": "Tiener",
-    "modules_all_title": "Alle modules",
-    "modules_on_count_one": ":count aan",
-    "modules_on_count_other": ":count aan",
-    "modules_pinned_count_one": ":count vastgezet in je balk",
-    "modules_pinned_count_other": ":count vastgezet in je balk",
-    "modules_search": "Zoek een module…",
-    "modules_chip_all": "Alle",
-    "modules_chip_on": "Aan",
-    "modules_chip_pinned": "Vastgezet",
-    "modules_chip_off": "Uit",
-    "modules_on_header": "Aan",
-    "modules_off_header": "Uit",
-    "modules_pin_hint": "Zet tot :max vast",
-    "modules_turn_on": "Inschakelen",
-    "modules_pin_aria": "Zet :name vast in je balk",
-    "modules_unpin_aria": "Maak :name los van je balk",
-    "modules_no_matches": "Geen modules gevonden."
+    "role_teen": "Tiener"
 }

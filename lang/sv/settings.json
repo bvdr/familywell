@@ -44,16 +44,5 @@
     "email_change_sent": "Vi skickade en 6-siffrig kod till :email. Skriv in den här för att byta e-post; tills dess behåller du din nuvarande.",
     "email_change_confirm": "Bekräfta ny e-post",
     "email_change_cancel": "Behåll min nuvarande e-post",
-    "email_taken": "Den e-postadressen används redan av ett annat konto.",
-    "group_account": "Konto",
-    "group_family": "Familj",
-    "hint_profile": "Ditt namn, e-post och konto",
-    "hint_sign_in": "Inloggning med Google och Apple",
-    "hint_appearance": "Tema, ljust eller mörkt",
-    "hint_language": "Appens språk",
-    "hint_media": "Bilder som familjen laddat upp",
-    "hint_trash": "Ta tillbaka saker som raderats de senaste 30 dagarna",
-    "hint_connected_apps": "AI-assistenter kopplade till FamilyWell",
-    "hint_billing": "Familjens plan",
-    "hint_notifications": "Push-aviseringar på den här enheten"
+    "email_taken": "Den e-postadressen används redan av ett annat konto."
 }

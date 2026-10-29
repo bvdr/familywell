@@ -37,22 +37,5 @@
     "disable": "Slå av",
     "demo_blocked": "Inte tillgängligt i demon. Registrera dig för att hantera ditt eget konto och din familj.",
     "nav_label": "Familj",
-    "role_teen": "Tonåring",
-    "modules_all_title": "Alla moduler",
-    "modules_on_count_one": ":count på",
-    "modules_on_count_other": ":count på",
-    "modules_pinned_count_one": ":count fäst i din flik",
-    "modules_pinned_count_other": ":count fäst i din flik",
-    "modules_search": "Hitta en modul…",
-    "modules_chip_all": "Alla",
-    "modules_chip_on": "På",
-    "modules_chip_pinned": "Fäst",
-    "modules_chip_off": "Av",
-    "modules_on_header": "På",
-    "modules_off_header": "Av",
-    "modules_pin_hint": "Fäst upp till :max",
-    "modules_turn_on": "Slå på",
-    "modules_pin_aria": "Fäst :name i din flikrad",
-    "modules_unpin_aria": "Lossa :name från din flikrad",
-    "modules_no_matches": "Inga moduler matchar din sökning."
+    "role_teen": "Tonåring"
 }

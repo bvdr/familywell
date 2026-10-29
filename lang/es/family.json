@@ -37,22 +37,5 @@
     "disable": "Desactivar",
     "demo_blocked": "No disponible en la demo. Regístrate para gestionar tu propia cuenta y tu familia.",
     "nav_label": "Familia",
-    "role_teen": "Adolescente",
-    "modules_all_title": "Todos los módulos",
-    "modules_on_count_one": ":count activo",
-    "modules_on_count_other": ":count activos",
-    "modules_pinned_count_one": ":count fijado en tu barra",
-    "modules_pinned_count_other": ":count fijados en tu barra",
-    "modules_search": "Buscar un módulo…",
-    "modules_chip_all": "Todos",
-    "modules_chip_on": "Activos",
-    "modules_chip_pinned": "Fijados",
-    "modules_chip_off": "Apagados",
-    "modules_on_header": "Activos",
-    "modules_off_header": "Apagados",
-    "modules_pin_hint": "Fija hasta :max",
-    "modules_turn_on": "Activar",
-    "modules_pin_aria": "Fijar :name en tu barra",
-    "modules_unpin_aria": "Quitar :name de tu barra",
-    "modules_no_matches": "Ningún módulo coincide con tu búsqueda."
+    "role_teen": "Adolescente"
 }
