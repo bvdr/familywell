@@ -2,6 +2,7 @@
 
 namespace Modules\ImportantTodos;
 
+use App\Support\Dashboard\DashboardWidgets;
 use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
@@ -44,10 +45,31 @@ class ImportantTodosServiceProvider extends ServiceProvider
             if (! $this->enabledHere() || ! $request->has('important')) {
                 return;
             }
-            ImportantFlag::updateOrCreate(
-                ['task_id' => $task->id],
-                ['important' => $request->boolean('important')],
-            );
+            $flag = ImportantFlag::firstOrNew(['task_id' => $task->id]);
+            $starring = $request->boolean('important') && ! $flag->important;
+            if ($starring) {
+                // Up to 3 open per person (Home's card): a 4th star is refused before anything is written. The web
+                // editor sends `important` on its own, so nothing else of the task was saved in this request; an MCP
+                // update that also changes core fields keeps those (ponytail: no pre-save hook on the primitive).
+                ImportantCard::assertRoomFor($task, $request->user());
+                // Whoever stars it owns it when nobody is assigned (ImportantCard's ownership rule).
+                $flag->starred_by = $request->user()?->id;
+            }
+            $flag->important = $request->boolean('important');
+            $flag->save();
+        });
+
+        // HOME — the "Your important" card above everything (design H1). Data through the DashboardWidgets registry
+        // (widgets.important_todos, rendered by components/important-card.tsx); null hides the card.
+        DashboardWidgets::register('important_todos', fn () => ImportantCard::forViewer());
+
+        // ...and your own important to-dos are lifted out of Today / Tomorrow / Anytime so nothing shows twice (the
+        // generic `dashboard.lifted` filter: kind => ids another Home section already shows). Only yours, and only the
+        // ones the card shows: others' stay on the agenda too, and a 4th one you were assigned stays where it was.
+        $hooks->listen('dashboard.lifted', function (array $lifted) {
+            $mine = array_column(ImportantCard::forViewer()['mine'] ?? [], 'id');
+
+            return $mine ? array_merge_recursive($lifted, ['task' => $mine]) : $lifted;
         });
 
         // MCP — offer `important` on the Tasks create/update tools (the tools then fire task.saved with it,

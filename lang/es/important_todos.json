@@ -1,0 +1,19 @@
+{
+    "your_important": "Lo importante para ti",
+    "pinned": "Fijadas hasta terminar",
+    "due_today": "Vence hoy",
+    "due_on": "Vence :date",
+    "family_important": "Importantes de la familia",
+    "next_due": "próxima vence :day",
+    "show": "Mostrar",
+    "hide": "Ocultar",
+    "none_title": "Nada importante para ti",
+    "none_sub": "Marca con estrella hasta :limit tareas para fijarlas aquí.",
+    "unstar": "Quitar la estrella de :title",
+    "limit_you": "Ya tienes :limit tareas importantes abiertas. Termina una o quítale la estrella primero.",
+    "limit_them": ":name ya tiene :limit tareas importantes abiertas. Primero hay que terminar una o quitarle la estrella.",
+    "limit_ui": "Hasta :limit tareas importantes abiertas por persona. Termina una o quítale la estrella primero.",
+    "important": "Importante",
+    "on": "Sí",
+    "off": "No"
+}

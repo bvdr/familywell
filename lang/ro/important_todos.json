@@ -1,0 +1,19 @@
+{
+    "your_important": "Importante pentru tine",
+    "pinned": "Fixate până le termini",
+    "due_today": "Scadent azi",
+    "due_on": "Scadent :date",
+    "family_important": "Importante în familie",
+    "next_due": "următorul scadent :day",
+    "show": "Arată",
+    "hide": "Ascunde",
+    "none_title": "Nimic important pe tine",
+    "none_sub": "Marchează cu stea până la :limit sarcini ca să le fixezi aici.",
+    "unstar": "Scoate steaua de la :title",
+    "limit_you": "Ai deja :limit sarcini importante deschise. Termină una sau scoate-i steaua mai întâi.",
+    "limit_them": ":name are deja :limit sarcini importante deschise. Una dintre ele trebuie terminată sau scoasă de la important mai întâi.",
+    "limit_ui": "Cel mult :limit sarcini importante deschise de persoană. Termină una sau scoate-i steaua mai întâi.",
+    "important": "Important",
+    "on": "Pornit",
+    "off": "Oprit"
+}
