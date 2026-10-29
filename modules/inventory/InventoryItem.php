@@ -4,6 +4,7 @@ namespace Modules\Inventory;
 
 use App\Models\User;
 use App\Support\Tenancy\BelongsToFamily;
+use App\Support\Tenancy\FamilyClock;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -120,7 +121,7 @@ class InventoryItem extends Model
             return 'empty';
         }
 
-        if ($this->expires_at !== null && $this->expires_at->lte(now()->addDays(self::EXPIRING_WITHIN_DAYS))) {
+        if ($this->expires_at !== null && $this->expires_at->lte(FamilyClock::date($this->family_id)->addDays(self::EXPIRING_WITHIN_DAYS))) {
             return 'expiring';
         }
 

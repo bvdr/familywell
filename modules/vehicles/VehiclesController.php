@@ -7,6 +7,7 @@ use App\Models\Family;
 use App\Support\Media\StoredImage;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Tenancy\FamilyClock;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -377,7 +378,7 @@ class VehiclesController extends Controller
             $request->user(),
             (float) $data['amount'],
             $data['note'] ?: trim("{$vehicle->make} {$vehicle->model}"),
-            $data['spent_at'] ?? now()->toDateString(),
+            $data['spent_at'] ?? FamilyClock::today(),
         );
 
         return back();

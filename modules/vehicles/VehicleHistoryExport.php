@@ -3,6 +3,7 @@
 namespace Modules\Vehicles;
 
 use App\Support\Media\StoredImage;
+use App\Support\Tenancy\FamilyClock;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Support\Facades\Storage;
@@ -144,7 +145,7 @@ class VehicleHistoryExport
     {
         $name = preg_replace('/[^A-Za-z0-9]+/', '-', trim("{$v->make} {$v->model} ".($v->license_plate ?: '')));
 
-        return trim((string) $name, '-').'-history-'.now()->toDateString().'.pdf';
+        return trim((string) $name, '-').'-history-'.FamilyClock::today().'.pdf';
     }
 
     /**

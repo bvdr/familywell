@@ -5,6 +5,7 @@ namespace Modules\Vehicles;
 use App\Http\Controllers\Controller;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Tenancy\FamilyClock;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -118,7 +119,7 @@ class VehicleTiresController extends Controller
             $vehicle->tireSets()->where('id', '!=', $set->id)->update(['is_mounted' => false]);
             $set->update([
                 'is_mounted' => true,
-                'installed_on' => now()->toDateString(),
+                'installed_on' => FamilyClock::today(),
                 'installed_mileage' => (int) $vehicle->current_mileage,
             ]);
         });

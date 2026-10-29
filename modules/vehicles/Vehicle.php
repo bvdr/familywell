@@ -5,6 +5,7 @@ namespace Modules\Vehicles;
 use App\Models\User;
 use App\Support\Media\StoredImage;
 use App\Support\Tenancy\BelongsToFamily;
+use App\Support\Tenancy\FamilyClock;
 use App\Support\Translations;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -155,7 +156,7 @@ class Vehicle extends Model
      */
     public function maintenanceSummary(?Carbon $today = null): array
     {
-        $today ??= Carbon::today();
+        $today ??= FamilyClock::date($this->family_id);
         $mileage = (int) $this->current_mileage;
 
         $worst = MaintenanceStatus::GOOD;

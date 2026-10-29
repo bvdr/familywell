@@ -3,6 +3,7 @@
 namespace Modules\Spending\Mcp;
 
 use App\Mcp\Tool;
+use App\Support\Tenancy\FamilyClock;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
@@ -55,7 +56,7 @@ class AddExpense extends Tool
             'payer_key' => $request->get('payer') ?: 'u'.($request->get('paid_by') ?: $user->id),
             'note' => $request->get('title'),
             'store' => $request->get('shop'),
-            'spent_at' => $request->get('date', now()->toDateString()),
+            'spent_at' => $request->get('date', FamilyClock::today()),
             // Only when given: absent = follow the list (SpendEvent::buildSpend).
             ...($request->get('count_in_monthly') !== null ? ['count_in_monthly' => $request->get('count_in_monthly')] : []),
         ]);

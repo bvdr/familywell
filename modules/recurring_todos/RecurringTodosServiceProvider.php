@@ -5,6 +5,7 @@ namespace Modules\RecurringTodos;
 use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Tenancy\FamilyClock;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Http\Request;
 use Illuminate\Support\ServiceProvider;
@@ -76,7 +77,7 @@ class RecurringTodosServiceProvider extends ServiceProvider
                 }
                 // A repeat needs a date to anchor to; default to today if the task has none yet.
                 if (! $task->due_date) {
-                    $task->due_date = now();
+                    $task->due_date = FamilyClock::today();
                     $task->saveQuietly();
                 }
                 RecurringRule::updateOrCreate(
