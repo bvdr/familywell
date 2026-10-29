@@ -22,7 +22,7 @@ import {
     X,
     type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 // "Just say it" (design XMkKm H2 / H2a / H2b / H2c): one box that reads whatever you type, paste, photograph or say. Each pause
 // sends it to /add/read (AddReader: the reader worker, with where you are and what you usually add as context), and
@@ -143,6 +143,15 @@ export function JustSayIt({
     // "Add", like typed input. (It used to add everything on ✓, which saved guesses nobody had looked at.)
     const typed = useRef('');
     const voice = useVoice((words) => setText(typed.current ? `${typed.current} ${words}` : words));
+    // The box grows with its text (typed, pasted or spoken) so all of it shows; the sheet body scrolls, not the box.
+    // Layout effect: measured before paint, so there's no one-frame jump. Reset to auto first so it shrinks too.
+    useLayoutEffect(() => {
+        const el = box.current;
+        if (el) {
+            el.style.height = 'auto';
+            el.style.height = `${el.scrollHeight}px`;
+        }
+    }, [text, voice.listening]); // listening hides the box; it comes back unsized
     const readFor = useRef<string | null>(null); // the text the cards on screen were read from
     const startVoice = () => {
         typed.current = text.trim();
