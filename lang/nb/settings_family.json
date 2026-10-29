@@ -1,5 +1,9 @@
 {
     "modules_lede": "Alt er inkludert i planen. Slå på det familien bruker.",
     "modules_admin_note": "Bare en familieadministrator kan slå moduler av eller på.",
-    "modules_needs": "Trenger :name"
+    "modules_needs": "Trenger :name",
+    "members_lede": "Alle som deler dette familierommet.",
+    "members_group": "I familien",
+    "members_role_owner": "Eier",
+    "members_invite_group": "Inviter noen"
 }

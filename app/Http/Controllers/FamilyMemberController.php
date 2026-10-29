@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Family;
 use App\Models\User;
 use App\Support\Tenancy\CurrentFamily;
-use App\Support\Theming\ThemeTokens;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -18,17 +17,10 @@ class FamilyMemberController extends Controller
         $family = Family::with(['members', 'invitations'])->findOrFail(CurrentFamily::id());
         $canManage = Gate::allows('manageMembers', $family);
 
+        // The family's name/colour/symbol editor and skin picker moved to Settings > Family > Name & look
+        // (/settings/family/look), so this page only needs the name for its back pill and the owner for the badge.
         return Inertia::render('family/members', [
-            'family' => [
-                'id' => $family->id,
-                'name' => $family->name,
-                'description' => $family->description,
-                'color' => $family->color,
-                'emoji' => $family->emoji,
-                'symbol' => $family->symbol,
-                'owner_id' => $family->owner_id,
-                'theme' => $family->theme ?: ThemeTokens::DEFAULT,
-            ],
+            'family' => ['name' => $family->name, 'owner_id' => $family->owner_id],
             'members' => $family->members->map(fn ($m) => [
                 'id' => $m->id, 'name' => $m->name, 'email' => $m->email, 'role' => $m->pivot->role,
             ])->values(),
@@ -38,11 +30,11 @@ class FamilyMemberController extends Controller
                 ? $family->invitations->whereNotNull('email')->map(fn ($i) => ['id' => $i->id, 'email' => $i->email, 'role' => $i->role])->values()
                 : [],
             'canManage' => $canManage,
-            'palette' => ['colors' => Family::COLORS, 'emojis' => Family::EMOJIS],
-            'themes' => ThemeTokens::available(),
-            // The skin CSS this person sees right now, so a family-default change applies in place
-            // (useSkinCss) instead of on the next full page load.
-            'themeCss' => ThemeTokens::css(ThemeTokens::resolve(auth()->user(), $family->id)),
+            // The same shareable join link onboarding's invite step shows, so an admin can invite without an email.
+            // Admins only: anyone with it can join. link() renews it for 7 days on each view, as onboarding does.
+            // Never in the demo: the demo family is public (BlockDemo), so a link there would let strangers' real
+            // accounts join it.
+            'link' => $canManage && ! auth()->user()->isDemo() ? FamilyInviteController::link($family, auth()->user()) : null,
         ]);
     }
 

@@ -87,7 +87,6 @@ it('hands the skin pickers the skin CSS in effect, so a pick applies without a r
     session(['active_family_id' => $family->id]);
 
     actingAs($user)->get('/settings/appearance')->assertInertia(fn ($page) => $page->where('themeCss', ThemeTokens::css('warm')));
-    actingAs($user)->get('/family/members')->assertInertia(fn ($page) => $page->where('themeCss', ThemeTokens::css('warm')));
 
     $user->update(['theme' => null]); // back to the family default
     actingAs($user)->get('/settings/appearance')->assertInertia(fn ($page) => $page->where('themeCss', ThemeTokens::css('minimal-mono')));

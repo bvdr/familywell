@@ -1,5 +1,9 @@
 {
     "modules_lede": "Tout est inclus dans votre offre. Activez ce que votre famille utilise.",
     "modules_admin_note": "Seul un administrateur de la famille peut activer ou désactiver les modules.",
-    "modules_needs": "Nécessite :name"
+    "modules_needs": "Nécessite :name",
+    "members_lede": "Tous ceux qui partagent cet espace familial.",
+    "members_group": "Dans la famille",
+    "members_role_owner": "Propriétaire",
+    "members_invite_group": "Inviter quelqu'un"
 }

@@ -1,5 +1,9 @@
 {
     "modules_lede": "All included in your plan. Turn on what your family uses.",
     "modules_admin_note": "Only a family admin can turn modules on or off.",
-    "modules_needs": "Needs :name"
+    "modules_needs": "Needs :name",
+    "members_lede": "Everyone who shares this family space.",
+    "members_group": "In the family",
+    "members_role_owner": "Owner",
+    "members_invite_group": "Invite someone"
 }
