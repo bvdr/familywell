@@ -5,6 +5,8 @@
     "drag_to_reorder": "Glisser pour réordonner",
     "reset": "Revenir à l'ordre par défaut",
     "move": "Déplacer :name (glisser ou flèches du clavier)",
+    "important": "Tes importants",
+    "important_sub": "Tâches étoilées, épinglées jusqu’à fait",
     "birthdays": "Anniversaires",
     "birthdays_sub": "Les 2 prochaines semaines",
     "today": "Aujourd'hui et demain",

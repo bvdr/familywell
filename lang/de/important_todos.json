@@ -1,0 +1,19 @@
+{
+    "your_important": "Deine wichtigen",
+    "pinned": "Angeheftet bis erledigt",
+    "due_today": "Heute fällig",
+    "due_on": "Fällig :date",
+    "family_important": "Wichtig in der Familie",
+    "next_due": "nächste fällig :day",
+    "show": "Zeigen",
+    "hide": "Ausblenden",
+    "none_title": "Nichts Wichtiges für dich",
+    "none_sub": "Markiere bis zu :limit Aufgaben mit einem Stern, um sie hier anzuheften.",
+    "unstar": "Stern von :title entfernen",
+    "limit_you": "Du hast schon :limit offene wichtige Aufgaben. Erledige eine oder nimm einen Stern weg.",
+    "limit_them": ":name hat schon :limit offene wichtige Aufgaben. Erst muss eine erledigt oder ihr Stern entfernt werden.",
+    "limit_ui": "Höchstens :limit offene wichtige Aufgaben pro Person. Erledige eine oder nimm einen Stern weg.",
+    "important": "Wichtig",
+    "on": "An",
+    "off": "Aus"
+}

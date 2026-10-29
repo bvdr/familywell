@@ -5,6 +5,8 @@
     "drag_to_reorder": "Dra för att ändra ordning",
     "reset": "Återställ standardordningen",
     "move": "Flytta :name (dra eller använd piltangenterna)",
+    "important": "Dina viktiga",
+    "important_sub": "Stjärnmärkta att göra, fästa tills de är klara",
     "birthdays": "Födelsedagar",
     "birthdays_sub": "Kommande 2 veckor",
     "today": "I dag och i morgon",

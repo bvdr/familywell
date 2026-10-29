@@ -3,6 +3,7 @@
 namespace App\Support\Dashboard;
 
 use App\Models\Family;
+use App\Support\Modules\Hooks;
 use App\Support\Tenancy\CurrentFamily;
 
 // Assembles Home from the module providers:
@@ -29,7 +30,13 @@ class DashboardData
             ->values()
             ->all();
 
-        $agenda = collect(DashboardAgenda::collect())->sortBy('dueDate');
+        // Rows another Home section already shows, as kind => ids (e.g. your important to-dos, pinned in their own
+        // card on top), so the agenda doesn't list them twice. Modules add to it via the `dashboard.lifted` filter
+        // (inert with no listener). Home-only on purpose: MCP get_today reads DashboardAgenda directly and keeps them.
+        $lifted = app(Hooks::class)->filter('dashboard.lifted', []);
+        $agenda = collect(DashboardAgenda::collect())
+            ->reject(fn ($i) => in_array($i['id'] ?? null, $lifted[$i['kind'] ?? ''] ?? [], true))
+            ->sortBy('dueDate');
         $today = now()->toDateString();
         $tomorrow = now()->addDay()->toDateString();
 

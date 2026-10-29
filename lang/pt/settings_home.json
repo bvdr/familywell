@@ -5,6 +5,8 @@
     "drag_to_reorder": "Arrasta para reordenar",
     "reset": "Repor a ordem predefinida",
     "move": "Mover :name (arrasta ou usa as setas)",
+    "important": "Seus importantes",
+    "important_sub": "Tarefas com estrela, fixadas até concluir",
     "birthdays": "Aniversários",
     "birthdays_sub": "Próximas 2 semanas",
     "today": "Hoje e amanhã",

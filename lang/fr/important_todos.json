@@ -1,0 +1,19 @@
+{
+    "your_important": "Tes importants",
+    "pinned": "Épinglés jusqu’à fait",
+    "due_today": "Pour aujourd’hui",
+    "due_on": "Pour :date",
+    "family_important": "Importants de la famille",
+    "next_due": "prochaine échéance :day",
+    "show": "Afficher",
+    "hide": "Masquer",
+    "none_title": "Rien d’important pour toi",
+    "none_sub": "Mets une étoile à :limit tâches au plus pour les épingler ici.",
+    "unstar": "Retirer l’étoile de :title",
+    "limit_you": "Tu as déjà :limit tâches importantes en cours. Termines-en une ou retire une étoile d’abord.",
+    "limit_them": ":name a déjà :limit tâches importantes en cours. Il faut d’abord en terminer une ou retirer une étoile.",
+    "limit_ui": ":limit tâches importantes en cours par personne au maximum. Termines-en une ou retire une étoile d’abord.",
+    "important": "Important",
+    "on": "Oui",
+    "off": "Non"
+}

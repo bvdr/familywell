@@ -1,0 +1,19 @@
+{
+    "your_important": "Jouw belangrijke",
+    "pinned": "Vastgezet tot klaar",
+    "due_today": "Vandaag",
+    "due_on": "Uiterlijk :date",
+    "family_important": "Belangrijk in de familie",
+    "next_due": "eerstvolgende :day",
+    "show": "Tonen",
+    "hide": "Verbergen",
+    "none_title": "Niets belangrijks voor jou",
+    "none_sub": "Geef tot :limit taken een ster om ze hier vast te zetten.",
+    "unstar": "Ster weghalen bij :title",
+    "limit_you": "Je hebt al :limit open belangrijke taken. Rond er eerst een af of haal een ster weg.",
+    "limit_them": ":name heeft al :limit open belangrijke taken. Eerst moet er een af of zijn ster kwijt.",
+    "limit_ui": "Hoogstens :limit open belangrijke taken per persoon. Rond er eerst een af of haal een ster weg.",
+    "important": "Belangrijk",
+    "on": "Aan",
+    "off": "Uit"
+}
