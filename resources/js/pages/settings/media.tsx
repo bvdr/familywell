@@ -2,10 +2,9 @@ import { Head } from '@inertiajs/react';
 import { ImageOff, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 
-import HeadingSmall from '@/components/heading-small';
+import { SettingsGroup, SettingsPage } from '@/components/settings-ui';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
-import SettingsLayout from '@/layouts/settings/layout';
 import { useT } from '@/lib/i18n';
 import { save } from '@/lib/save';
 import { type BreadcrumbItem } from '@/types';
@@ -18,7 +17,10 @@ type MediaItem = {
     fullUrl: string;
 };
 
-export default function Media({ items }: { items: MediaItem[] }) {
+// Settings > Media: every image the family uploaded (project covers, receipts), in the settings look: back pill, big
+// title, then one mono-labelled rounded group per kind holding a thumbnail grid. Tap to preview, delete from the
+// tile or the preview.
+export default function Media({ items, family }: { items: MediaItem[]; family: { name: string } }) {
     const t = useT();
     const breadcrumbs: BreadcrumbItem[] = [{ title: t('settings.media'), href: '/settings/media' }];
     const [preview, setPreview] = useState<MediaItem | null>(null);
@@ -34,44 +36,46 @@ export default function Media({ items }: { items: MediaItem[] }) {
         removed.set(key(m), true);
         void save('delete', route('media.destroy', { type: m.type, id: m.id })).then(() => removed.clear(key(m)));
     };
+    const groups = (['cover', 'receipt'] as const)
+        .map((type) => ({ type, items: visible.filter((m) => m.type === type) }))
+        .filter((g) => g.items.length);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={t('settings.media')} />
-            <SettingsLayout>
-                <div className="space-y-6">
-                    <HeadingSmall title={t('settings.media')} description={t('settings.media_desc')} />
-
-                    {visible.length === 0 ? (
-                        <div className="text-muted-foreground flex flex-col items-center gap-2 rounded-xl border border-dashed p-10 text-center">
+            <SettingsPage back={{ href: '/settings/family', label: family.name }} title={t('settings.media')} lede={t('settings.media_desc')}>
+                {groups.length === 0 ? (
+                    <SettingsGroup>
+                        <div className="text-muted-foreground flex flex-col items-center gap-2 p-10 text-center">
                             <ImageOff className="size-6" />
                             <p className="text-sm">{t('settings.no_media_empty')}</p>
                         </div>
-                    ) : (
-                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                            {visible.map((m) => (
-                                <div key={`${m.type}-${m.id}`} className="group bg-surface-card relative overflow-hidden rounded-xl border">
-                                    <button type="button" onClick={() => setPreview(m)} className="block aspect-square w-full">
-                                        <img src={m.thumbUrl} alt={m.name} className="h-full w-full object-cover" loading="lazy" />
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => remove(m)}
-                                        aria-label={t('settings.delete_x', { name: m.name })}
-                                        className="bg-background/80 text-muted-foreground hover:text-destructive absolute top-2 right-2 flex size-8 items-center justify-center rounded-full opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-                                    >
-                                        <Trash2 className="size-4" />
-                                    </button>
-                                    <div className="p-2">
-                                        <div className="text-primary truncate text-xs font-medium">{m.name}</div>
-                                        <div className="text-text-muted text-[11px]">{kind(m)}</div>
+                    </SettingsGroup>
+                ) : (
+                    groups.map((g) => (
+                        <SettingsGroup key={g.type} label={t(`settings_data.media_group_${g.type}`)} aside={g.items.length}>
+                            <div className="grid grid-cols-2 gap-3 p-3 sm:grid-cols-3">
+                                {g.items.map((m) => (
+                                    <div key={key(m)} className="group bg-surface relative min-w-0 overflow-hidden rounded-xl">
+                                        <button type="button" onClick={() => setPreview(m)} className="block aspect-square w-full">
+                                            <img src={m.thumbUrl} alt={m.name} className="h-full w-full object-cover" loading="lazy" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => remove(m)}
+                                            aria-label={t('settings.delete_x', { name: m.name })}
+                                            className="bg-background/80 text-muted-foreground hover:text-destructive absolute top-2 right-2 flex size-8 items-center justify-center rounded-full opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                                        >
+                                            <Trash2 className="size-4" />
+                                        </button>
+                                        <div className="text-primary truncate px-2.5 py-2 text-sm font-medium">{m.name}</div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </SettingsLayout>
+                                ))}
+                            </div>
+                        </SettingsGroup>
+                    ))
+                )}
+            </SettingsPage>
 
             {preview && (
                 <div className="fixed inset-0 z-[60] flex flex-col bg-black/90 p-4" role="dialog" aria-modal="true" onClick={() => setPreview(null)}>
