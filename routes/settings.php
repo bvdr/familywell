@@ -8,6 +8,7 @@ use App\Http\Controllers\Settings\RecentlyDeletedController;
 use App\Http\Controllers\Settings\SettingsHubController;
 use App\Http\Controllers\Settings\SignInController;
 use App\Models\Family;
+use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Theming\ThemeTokens;
 use App\Support\Translations;
@@ -96,11 +97,16 @@ Route::middleware('auth')->group(function () {
         return back();
     })->name('language.update');
 
-    Route::get('settings/notifications', function () {
+    Route::get('settings/notifications', function (ModuleRegistry $registry) {
         // Categories come from the notifications registry (each module registers its own); merge in
-        // the user's saved on/off, defaulting missing ones to on.
+        // the user's saved on/off, defaulting missing ones to on. A category named after a module only shows
+        // while the family has that module on (design M6: "only modules your family uses"); the rest
+        // ("Shared with me") always show. A hidden one keeps its saved value for when the module comes back.
         $saved = auth()->user()->notification_prefs ?? [];
+        $modules = array_map(fn ($m) => $m->id, $registry->discover());
+        $enabled = ($familyId = CurrentFamily::id()) ? $registry->enabledIds($familyId) : [];
         $categories = collect(NotificationCategories::all())
+            ->filter(fn ($meta, $id) => ! in_array($id, $modules, true) || in_array($id, $enabled, true))
             ->map(fn ($meta, $id) => [
                 'id' => $id,
                 'label' => $meta['label'],
