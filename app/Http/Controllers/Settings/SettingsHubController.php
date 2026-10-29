@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Controller;
 use App\Models\Family;
 use App\Support\Billing\Billing;
+use App\Support\Dashboard\HomeLayout;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Translations;
@@ -39,6 +40,8 @@ class SettingsHubController extends Controller
                     ->orWhereHas('refreshToken', fn ($r) => $r->where('revoked', false)->where('expires_at', '>', now())))
                 ->with('client:id,name')->get()->pluck('client.name')->filter()->unique()->values(),
             'family' => $family?->only(['name', 'color', 'symbol']),
+            // Home dashboard row: "5 of 7 on" (sections shown / sections this family has).
+            'home' => ['on' => count(HomeLayout::visible($user, $family?->id)), 'total' => count(HomeLayout::for($user, $family?->id))],
         ]);
     }
 

@@ -8,6 +8,7 @@ use App\Http\Controllers\Settings\RecentlyDeletedController;
 use App\Http\Controllers\Settings\SettingsHubController;
 use App\Http\Controllers\Settings\SignInController;
 use App\Models\Family;
+use App\Support\Dashboard\HomeLayout;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Theming\ThemeTokens;
@@ -38,6 +39,26 @@ Route::middleware('auth')->group(function () {
         Route::get('settings/billing', [BillingController::class, 'show'])->name('billing.show');
         Route::post('settings/billing/checkout', [BillingController::class, 'checkout'])->middleware('not-demo')->name('billing.checkout');
         Route::post('settings/billing/portal', [BillingController::class, 'portal'])->middleware('not-demo')->name('billing.portal');
+
+        // Home dashboard (design M6b): each person orders and hides their own Home's sections (HomeLayout).
+        Route::get('settings/home', fn (Request $request) => Inertia::render('settings/home', [
+            'sections' => HomeLayout::for($request->user(), CurrentFamily::id()),
+            'family' => Family::find(CurrentFamily::id())?->name,
+        ]))->name('settings.home');
+        Route::patch('settings/home', function (Request $request) {
+            // Any known section id, even one whose module is off right now: it keeps its place for when it's back.
+            // An empty order = the default order ("Reset to default order" keeps what's hidden).
+            $ids = array_keys(HomeLayout::SECTIONS);
+            $data = $request->validate([
+                'order' => ['present', 'array'],
+                'order.*' => ['string', 'distinct', Rule::in($ids)],
+                'hidden' => ['present', 'array'],
+                'hidden.*' => ['string', 'distinct', Rule::in($ids)],
+            ]);
+            $request->user()->forceFill(['home_layout' => ['order' => array_values($data['order']), 'hidden' => array_values($data['hidden'])]])->save();
+
+            return back();
+        })->name('settings.home.update');
 
         Route::get('settings/recently-deleted', [RecentlyDeletedController::class, 'index'])->name('recently-deleted');
         Route::post('settings/recently-deleted/{module}/{type}/{id}', [RecentlyDeletedController::class, 'restore'])
