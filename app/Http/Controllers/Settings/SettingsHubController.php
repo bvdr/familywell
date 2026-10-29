@@ -56,7 +56,9 @@ class SettingsHubController extends Controller
             'family' => $family->only(['name', 'color', 'symbol']),
             'isAdmin' => $request->user()->can('manageMembers', $family), // admin of this family
             'members' => $family->members()->count(),
-            'modules' => ['on' => count(array_intersect(array_map(fn ($m) => $m->id, $installed), $registry->enabledIds($family->id))), 'total' => count($installed)],
+            // Not `modules`: that's the shared prop ({enabled: [...]}) the page reads too; a page prop of the same name
+            // would shadow it and hide the Module settings group.
+            'moduleCount' => ['on' => count(array_intersect(array_map(fn ($m) => $m->id, $installed), $registry->enabledIds($family->id))), 'total' => count($installed)],
             // lifetime / paid / free; null when billing is off (self-hosted): the row is hidden.
             'plan' => Billing::enabled() ? (Billing::isLifetime($family) ? 'lifetime' : (Billing::isPaid($family) ? 'paid' : 'free')) : null,
             // The "Region & units" row's value ("Metric · RON"): only the keys the installed modules report.

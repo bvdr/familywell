@@ -45,6 +45,6 @@ it('opens the family\'s settings with its members and modules', function () {
         ->where('family.name', 'The Riveras')
         ->where('isAdmin', true)
         ->where('members', 2)
-        ->has('modules.on')
-        ->has('modules.total'));
+        ->has('moduleCount.on')
+        ->has('moduleCount.total'));
 });

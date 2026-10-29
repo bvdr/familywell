@@ -12,7 +12,7 @@ type Props = {
     family: { name: string; color: string; symbol: string | null };
     isAdmin: boolean;
     members: number;
-    modules: { on: number; total: number };
+    moduleCount: { on: number; total: number };
     plan: 'lifetime' | 'paid' | 'free' | null;
     // Keys only for installed modules (App\Support\Region).
     region: { units?: 'metric' | 'imperial'; currency?: string };
@@ -33,7 +33,7 @@ const MODULE_SETTINGS: Record<string, string> = {
 
 // Family settings (design board 11, Y1): opened from Me → the family. Only family-wide things; the person's own
 // settings live on Me.
-export default function FamilySettings({ family, isAdmin, members, modules, plan, region, regionSheet }: Props) {
+export default function FamilySettings({ family, isAdmin, members, moduleCount, plan, region, regionSheet }: Props) {
     const t = useT();
     const [saving, setSaving] = useState(false);
     const regionValue = [region.units && t(`settings_region.${region.units}`), region.currency].filter(Boolean).join(' · ');
@@ -58,7 +58,7 @@ export default function FamilySettings({ family, isAdmin, members, modules, plan
                     <SettingsRow
                         icon={LayoutGrid}
                         title={t('settings_hub.modules')}
-                        value={t('settings_hub.n_of_m_on', { on: modules.on, total: modules.total })}
+                        value={t('settings_hub.n_of_m_on', { on: moduleCount.on, total: moduleCount.total })}
                         href="/family/modules"
                     />
                     <SettingsRow icon={Image} title={t('settings_hub.media')} href="/settings/media" />
