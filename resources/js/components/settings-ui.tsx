@@ -26,14 +26,20 @@ export function SettingsPage({
 }) {
     return (
         <div className={cn('mx-auto flex w-full max-w-xl flex-col gap-6 px-4 pt-4 pb-10', className)}>
-            <Link
-                href={back.href}
-                prefetch
-                className="bg-surface text-primary inline-flex min-h-11 items-center gap-1.5 self-start rounded-full py-2 pr-4 pl-3 text-base font-semibold"
-            >
-                <ChevronLeft className="size-5" />
-                {back.label}
-            </Link>
+            {/* The back pill stays at the top while the page scrolls under it (no app top bar on phones, so this is
+                the way back), in the page's own background, with a fade below so content slides under softly
+                instead of at a hard edge. -mx/-mt pull its background over the page padding. */}
+            <div className="bg-background sticky top-0 z-20 -mx-4 -mt-4 px-4 pt-4 pb-1">
+                <Link
+                    href={back.href}
+                    prefetch
+                    className="bg-surface text-primary inline-flex min-h-11 items-center gap-1.5 rounded-full py-2 pr-4 pl-3 text-base font-semibold"
+                >
+                    <ChevronLeft className="size-5" />
+                    {back.label}
+                </Link>
+                <div aria-hidden className="from-background pointer-events-none absolute inset-x-0 top-full h-6 bg-gradient-to-b to-transparent" />
+            </div>
             {title && (
                 <div className="flex flex-col gap-2">
                     <h1 className="font-display text-primary text-[34px] leading-[1.02] font-bold tracking-[-1.2px] text-balance md:text-[40px]">
