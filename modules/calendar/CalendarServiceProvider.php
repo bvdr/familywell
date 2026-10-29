@@ -16,6 +16,7 @@ use App\Support\Modules\ModuleRegistry;
 use App\Support\Search\SearchSources;
 use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Tenancy\FamilyClock;
 use App\Support\Translations;
 use App\Support\Trash\Trash;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -80,7 +81,7 @@ class CalendarServiceProvider extends ServiceProvider
         ]);
         // A to-do for an event that's already on the calendar ("for the trip: book the hotel"): the event the input
         // names (the next one with that title), else the event on screen. Neither: no guess, the card asks on Add.
-        $upcoming = fn (User $user) => CalendarEvent::visibleTo($user->id)->whereDate('end_date', '>=', today())->orderBy('start_date');
+        $upcoming = fn (User $user) => CalendarEvent::visibleTo($user->id)->whereDate('end_date', '>=', FamilyClock::today())->orderBy('start_date');
         $pickEvent = function (User $user, AddContext $ctx, array $v) use ($upcoming): ?CalendarEvent {
             $named = filled($v['event'] ?? null) ? $upcoming($user)->whereRaw('lower(title) = ?', [mb_strtolower(trim((string) $v['event']))])->first() : null;
 
@@ -111,7 +112,7 @@ class CalendarServiceProvider extends ServiceProvider
 
         // "Your modules" tile: events from today to the end of the week (their own calendar view, recurrences included).
         DashboardSummaries::register('calendar', fn (int $userId) => ['key' => 'dashboard.sum_calendar', 'params' => [
-            'count' => count(CalendarEvent::itemsFor($userId, now()->toDateString(), now()->endOfWeek()->toDateString())),
+            'count' => count(CalendarEvent::itemsFor($userId, FamilyClock::today(), FamilyClock::date()->endOfWeek()->toDateString())),
         ]]);
         // "Calendar changes": its own on/off row in Settings > Notifications and the onboarding's notifications step.
         // Pushed by CalendarEvent::createFor / applyUpdate (events added, moved or renamed).
@@ -177,7 +178,7 @@ class CalendarServiceProvider extends ServiceProvider
             if (! $userId || ! self::on()) {
                 return [];
             }
-            $today = now()->toDateString();
+            $today = FamilyClock::today(); // the family's day: "day N of M" and Today follow it, not UTC
             $until = DashboardAgenda::until();
 
             return collect(CalendarEvent::itemsFor($userId, $today, $until))
@@ -214,8 +215,8 @@ class CalendarServiceProvider extends ServiceProvider
             if (! $userId || ! self::on()) {
                 return null;
             }
-            $today = now()->toDateString();
-            $rows = collect(CalendarEvent::itemsFor($userId, $today, now()->addDays(30)->toDateString()))
+            $today = FamilyClock::today();
+            $rows = collect(CalendarEvent::itemsFor($userId, $today, FamilyClock::date()->addDays(30)->toDateString()))
                 ->filter(fn ($i) => $i['end'] > $i['start'])
                 ->map(function ($i) use ($today) {
                     $now = $i['start'] <= $today;

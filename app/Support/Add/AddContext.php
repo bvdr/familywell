@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Support\Engagement;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Tenancy\FamilyClock;
 
 /**
  * What the reader gets besides the input (the user asked for this, see memory "add anything"): where the + was
@@ -47,7 +48,8 @@ final class AddContext
     public function payload(): array
     {
         return [
-            'today' => now()->toDateString(),
+            // The family's day (FamilyClock): the reader turns "tomorrow" into a date from it.
+            'today' => FamilyClock::today(),
             'person' => $this->user->name,
             'members' => collect($this->members)->map(fn ($name, $id) => ['id' => (int) $id, 'name' => $name])->values()->all(),
             'screen' => ['module' => $this->module, 'label' => $this->screenLabel, 'about' => $this->screenAbout],

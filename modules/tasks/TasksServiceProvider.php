@@ -18,6 +18,7 @@ use App\Support\Modules\ModuleRegistry;
 use App\Support\Search\SearchSources;
 use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Tenancy\FamilyClock;
 use App\Support\Translations;
 use App\Support\Trash\Trash;
 use Illuminate\Support\Facades\Route;
@@ -80,7 +81,7 @@ class TasksServiceProvider extends ServiceProvider
 
         // "Your modules" tile: open tasks due today (or overdue) on the lists this person can see.
         DashboardSummaries::register('tasks', fn (int $userId) => ['key' => 'dashboard.sum_tasks', 'params' => [
-            'count' => Task::where('done', false)->whereDate('due_date', '<=', today())->whereHas('list', fn ($q) => $q->visibleTo($userId))->count(),
+            'count' => Task::where('done', false)->whereDate('due_date', '<=', FamilyClock::today())->whereHas('list', fn ($q) => $q->visibleTo($userId))->count(),
         ]]);
         // Adding a Task counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('tasks', Task::class);

@@ -2,6 +2,7 @@
 
 namespace App\Support\Dashboard;
 
+use App\Support\Tenancy\FamilyClock;
 use Closure;
 use Illuminate\Support\Facades\Log;
 
@@ -22,11 +23,13 @@ class DashboardAgenda
     /**
      * The last day providers return items for: the end of this week, but never before tomorrow. Home shows
      * Today, Tomorrow and the rest of the week; on a Sunday "tomorrow" is already next week, and without the
-     * floor the Tomorrow group would always be empty that day.
+     * floor the Tomorrow group would always be empty that day. The family's week (FamilyClock), like Today.
      */
     public static function until(): string
     {
-        return max(now()->endOfWeek()->toDateString(), now()->addDay()->toDateString());
+        $today = FamilyClock::date();
+
+        return max($today->copy()->endOfWeek()->toDateString(), $today->copy()->addDay()->toDateString());
     }
 
     /**
