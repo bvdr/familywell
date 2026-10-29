@@ -68,7 +68,7 @@ export default function DeleteAccount() {
                                 type="button"
                                 onClick={send}
                                 disabled={processing}
-                                className="text-muted-foreground self-start text-sm underline underline-offset-4"
+                                className="text-muted-foreground justify-self-start text-sm underline underline-offset-4"
                             >
                                 {t('settings_me.send_new_code')}
                             </button>

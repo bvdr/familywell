@@ -64,7 +64,7 @@ export default function ConnectedApps({ apps, serverUrl }: { apps: App[]; server
                                 <span className="min-w-0 flex-1">
                                     <span className="text-primary block truncate text-[17px] leading-snug">{app.name}</span>
                                     {/* The family too: a person in two families may connect one app to each. */}
-                                    <span className="text-muted-foreground block truncate text-sm">
+                                    <span className="text-muted-foreground block text-sm break-words">
                                         {[t('mcp.connected_on', { date: date(app.connectedAt) }), app.family ?? t('mcp.unknown_family')].join(' · ')}
                                     </span>
                                 </span>
