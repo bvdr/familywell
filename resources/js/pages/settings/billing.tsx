@@ -58,7 +58,7 @@ export default function Billing(props: Props) {
 
     if (subscribed) {
         return (
-            <AppLayout breadcrumbs={[{ title: t('billing.title'), href: '/settings/billing' }]}>
+            <AppLayout hideMobileHeader breadcrumbs={[{ title: t('billing.title'), href: '/settings/billing' }]}>
                 <Head title={t('billing.title')} />
                 <SettingsPage back={back} title={t('billing.title')} lede={props.lifetime ? t('billing.lifetime_line') : t('billing.thanks')}>
                     <PlanStatus {...props} />
@@ -103,7 +103,7 @@ export default function Billing(props: Props) {
     }
 
     return (
-        <AppLayout breadcrumbs={[{ title: t('billing.title'), href: '/settings/billing' }]}>
+        <AppLayout hideMobileHeader breadcrumbs={[{ title: t('billing.title'), href: '/settings/billing' }]}>
             <Head title={title} />
             <SettingsPage back={back} title={title} lede={lede}>
                 <Plans {...props} />

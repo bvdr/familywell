@@ -75,7 +75,7 @@ export default function Modules({ catalog, canManage, familyName }: Props) {
     };
 
     return (
-        <AppLayout breadcrumbs={[{ title: t('settings_hub.modules'), href: '/family/modules' }]}>
+        <AppLayout hideMobileHeader breadcrumbs={[{ title: t('settings_hub.modules'), href: '/family/modules' }]}>
             <Head title={t('settings_hub.modules')} />
             <SettingsPage
                 back={{ href: '/settings/family', label: familyName }}

@@ -43,7 +43,7 @@ export default function FamilySettings({ family, isAdmin, members, moduleCount, 
     const moduleRows = Object.entries(MODULE_SETTINGS).filter(([id]) => enabled.has(id));
 
     return (
-        <AppLayout breadcrumbs={[{ title: family.name, href: '/settings/family' }]}>
+        <AppLayout hideMobileHeader breadcrumbs={[{ title: family.name, href: '/settings/family' }]}>
             <Head title={family.name} />
             <SettingsPage back={{ href: '/settings', label: t('settings_hub.me') }} title={family.name}>
                 <SettingsGroup label={t('settings_hub.family')}>

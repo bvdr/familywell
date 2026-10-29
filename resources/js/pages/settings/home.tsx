@@ -66,7 +66,7 @@ export default function HomeDashboard({ sections, family }: { sections: Section[
             : t(`settings_home.${id}_sub`);
 
     return (
-        <AppLayout breadcrumbs={[{ title: t('settings_hub.home_dashboard'), href: '/settings/home' }]}>
+        <AppLayout hideMobileHeader breadcrumbs={[{ title: t('settings_hub.home_dashboard'), href: '/settings/home' }]}>
             <Head title={t('settings_hub.home_dashboard')} />
             <SettingsPage
                 back={{ href: '/settings', label: t('settings_hub.me') }}

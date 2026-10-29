@@ -7,18 +7,21 @@ export function AppSidebarHeader({
     breadcrumbs = [],
     actions,
     mobileHeader,
+    hideMobileHeader,
 }: {
     breadcrumbs?: BreadcrumbItemType[];
     // Right-aligned per-page controls (share, guest link, ...). Global slot so any entity can use it.
     actions?: React.ReactNode;
     // A page's own phone header (Home's top bar). Shown instead of the breadcrumb row below md; desktop is unchanged.
     mobileHeader?: React.ReactNode;
+    // No top bar at all on phones: pages that bring their own way back (the settings pages' back pill).
+    hideMobileHeader?: boolean;
 }) {
     return (
         <>
             {mobileHeader && <header className="flex shrink-0 items-center px-4 pt-3 pb-1 md:hidden">{mobileHeader}</header>}
             <header
-                className={`border-sidebar-border/50 flex h-16 shrink-0 items-center gap-2 border-b px-6 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4 ${mobileHeader ? 'max-md:hidden' : ''}`}
+                className={`border-sidebar-border/50 flex h-16 shrink-0 items-center gap-2 border-b px-6 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4 ${mobileHeader || hideMobileHeader ? 'max-md:hidden' : ''}`}
             >
                 <div className="flex min-w-0 flex-1 items-center gap-2">
                     <SidebarTrigger className="-ml-1 shrink-0" />

@@ -62,7 +62,7 @@ export default function Profile({
     const field = 'bg-surface-card h-14 rounded-2xl px-4 text-base md:text-base';
 
     return (
-        <AppLayout breadcrumbs={[{ title: t('settings_me.profile_title'), href: '/settings/profile' }]}>
+        <AppLayout hideMobileHeader breadcrumbs={[{ title: t('settings_me.profile_title'), href: '/settings/profile' }]}>
             <Head title={t('settings_me.profile_title')} />
             <SettingsPage back={{ href: '/settings', label: t('settings_hub.me') }} title={t('settings_me.profile_title')}>
                 {/* ponytail: no profile photo upload exists, so the initial circle without "Change photo". */}

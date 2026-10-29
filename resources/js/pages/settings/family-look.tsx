@@ -46,7 +46,7 @@ export default function FamilyLook({ family, canManage, members, colors, themes,
     };
 
     return (
-        <AppLayout breadcrumbs={[{ title: t('settings_hub.family_look'), href: '/settings/family/look' }]}>
+        <AppLayout hideMobileHeader breadcrumbs={[{ title: t('settings_hub.family_look'), href: '/settings/family/look' }]}>
             <Head title={t('settings_hub.family_look')} />
             <SettingsPage back={{ href: '/settings/family', label: family.name }} title={t('settings_hub.family_look')}>
                 <form onSubmit={submit} className="flex flex-col gap-6">
