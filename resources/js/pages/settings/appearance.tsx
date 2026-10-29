@@ -33,7 +33,7 @@ export default function Appearance({ themes, familySkin, defaultTheme, canManage
     ];
 
     return (
-        <AppLayout breadcrumbs={[{ title: t('settings_hub.appearance'), href: '/settings/appearance' }]}>
+        <AppLayout hideMobileHeader breadcrumbs={[{ title: t('settings_hub.appearance'), href: '/settings/appearance' }]}>
             <Head title={t('settings_hub.appearance')} />
             <SettingsPage back={{ href: '/settings', label: t('settings_hub.me') }} title={t('settings_hub.appearance')}>
                 <section className="flex flex-col gap-2.5">

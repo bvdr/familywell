@@ -66,7 +66,7 @@ export default function Members({ family, members, invitations, canManage, link 
     };
 
     return (
-        <AppLayout breadcrumbs={[{ title: t('nav.members'), href: '/family/members' }]}>
+        <AppLayout hideMobileHeader breadcrumbs={[{ title: t('nav.members'), href: '/family/members' }]}>
             <Head title={`${family.name} · ${t('nav.members')}`} />
             <SettingsPage
                 back={{ href: '/settings/family', label: family.name }}

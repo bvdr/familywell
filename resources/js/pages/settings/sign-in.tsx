@@ -29,7 +29,7 @@ export default function SignIn({ socialAccounts = [], providers = [] }: { social
     );
 
     return (
-        <AppLayout breadcrumbs={[{ title: t('settings_hub.sign_in'), href: '/settings/sign-in' }]}>
+        <AppLayout hideMobileHeader breadcrumbs={[{ title: t('settings_hub.sign_in'), href: '/settings/sign-in' }]}>
             <Head title={t('settings_hub.sign_in')} />
             <SettingsPage back={{ href: '/settings', label: t('settings_hub.me') }} title={t('settings_hub.sign_in')}>
                 <div className="flex flex-col gap-2.5">

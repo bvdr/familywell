@@ -64,7 +64,7 @@ export default function Notifications({ categories }: { categories: Category[] }
     const blocked = !supported || needsInstall;
 
     return (
-        <AppLayout breadcrumbs={[{ title: t('notifications.title'), href: '/settings/notifications' }]}>
+        <AppLayout hideMobileHeader breadcrumbs={[{ title: t('notifications.title'), href: '/settings/notifications' }]}>
             <Head title={t('notifications.title')} />
             <SettingsPage back={{ href: '/settings', label: t('settings_hub.me') }} title={t('notifications.title')}>
                 <div className="flex flex-col gap-2.5">

@@ -68,7 +68,7 @@ export default function RecentlyDeleted({ items, days, family }: { items: Item[]
     };
 
     return (
-        <AppLayout breadcrumbs={[{ title: t('trash.title'), href: '/settings/recently-deleted' }]}>
+        <AppLayout hideMobileHeader breadcrumbs={[{ title: t('trash.title'), href: '/settings/recently-deleted' }]}>
             <Head title={t('trash.title')} />
             <SettingsPage back={{ href: '/settings/family', label: family.name }} title={t('trash.title')} lede={t('trash.kept', { days })}>
                 {visible.length === 0 ? (

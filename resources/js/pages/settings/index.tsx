@@ -25,7 +25,7 @@ export default function Me({ signIn, localeName, notifications, apps, family, ho
     const provider = (p: string) => p.charAt(0).toUpperCase() + p.slice(1);
 
     return (
-        <AppLayout breadcrumbs={[{ title: t('settings_hub.me'), href: '/settings' }]}>
+        <AppLayout hideMobileHeader breadcrumbs={[{ title: t('settings_hub.me'), href: '/settings' }]}>
             <Head title={t('settings_hub.me')} />
             <SettingsPage back={{ href: '/dashboard', label: t('settings_hub.back') }}>
                 <div className="flex items-center gap-4">

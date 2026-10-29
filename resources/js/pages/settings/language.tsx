@@ -28,7 +28,7 @@ export default function Language({ locales, current }: { locales: Locale[]; curr
     };
 
     return (
-        <AppLayout breadcrumbs={[{ title: t('settings_hub.language'), href: '/settings/language' }]}>
+        <AppLayout hideMobileHeader breadcrumbs={[{ title: t('settings_hub.language'), href: '/settings/language' }]}>
             <Head title={t('settings_hub.language')} />
             <SettingsPage
                 back={{ href: '/settings', label: t('settings_hub.me') }}

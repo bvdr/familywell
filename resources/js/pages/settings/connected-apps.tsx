@@ -44,7 +44,7 @@ export default function ConnectedApps({ apps, serverUrl }: { apps: App[]; server
     };
 
     return (
-        <AppLayout breadcrumbs={[{ title: t('mcp.connected_apps'), href: '/settings/connected-apps' }]}>
+        <AppLayout hideMobileHeader breadcrumbs={[{ title: t('mcp.connected_apps'), href: '/settings/connected-apps' }]}>
             <Head title={t('mcp.connected_apps')} />
             <SettingsPage
                 back={{ href: '/settings', label: t('settings_hub.me') }}

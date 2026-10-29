@@ -41,7 +41,7 @@ export default function Media({ items, family }: { items: MediaItem[]; family: {
         .filter((g) => g.items.length);
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <AppLayout hideMobileHeader breadcrumbs={breadcrumbs}>
             <Head title={t('settings.media')} />
             <SettingsPage back={{ href: '/settings/family', label: family.name }} title={t('settings.media')} lede={t('settings.media_desc')}>
                 {groups.length === 0 ? (

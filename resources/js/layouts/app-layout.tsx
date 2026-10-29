@@ -8,10 +8,12 @@ interface AppLayoutProps {
     actions?: React.ReactNode;
     // Replaces the breadcrumb header on phones (Home's own top bar: family, search, alerts, avatar).
     mobileHeader?: React.ReactNode;
+    // Hide the breadcrumb bar on phones (desktop keeps it): the settings pages have their own back pill.
+    hideMobileHeader?: boolean;
 }
 
-export default ({ children, breadcrumbs, actions, mobileHeader, ...props }: AppLayoutProps) => (
-    <AppLayoutTemplate breadcrumbs={breadcrumbs} actions={actions} mobileHeader={mobileHeader} {...props}>
+export default ({ children, breadcrumbs, actions, mobileHeader, hideMobileHeader, ...props }: AppLayoutProps) => (
+    <AppLayoutTemplate breadcrumbs={breadcrumbs} actions={actions} mobileHeader={mobileHeader} hideMobileHeader={hideMobileHeader} {...props}>
         {children}
     </AppLayoutTemplate>
 );

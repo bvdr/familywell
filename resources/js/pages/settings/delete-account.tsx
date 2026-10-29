@@ -27,7 +27,7 @@ export default function DeleteAccount() {
     };
 
     return (
-        <AppLayout breadcrumbs={[{ title: t('settings_me.delete_title'), href: '/settings/delete-account' }]}>
+        <AppLayout hideMobileHeader breadcrumbs={[{ title: t('settings_me.delete_title'), href: '/settings/delete-account' }]}>
             <Head title={t('settings_me.delete_title')} />
             <SettingsPage back={{ href: '/settings', label: t('settings_hub.me') }} title={t('settings_me.delete_title')}>
                 <p className="text-primary text-[17px] leading-normal">{t('settings_me.delete_lede')}</p>
