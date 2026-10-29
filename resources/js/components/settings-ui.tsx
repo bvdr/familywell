@@ -57,13 +57,17 @@ export function SettingsGroup({ label, aside, children }: { label?: string; asid
                     {aside && <span className="text-muted-foreground text-sm">{aside}</span>}
                 </div>
             )}
-            <div className="bg-surface-card divide-border overflow-hidden rounded-[22px] border">{children}</div>
+            <div role="group" aria-label={label} className="bg-surface-card divide-border overflow-hidden rounded-[22px] border">
+                {children}
+            </div>
         </section>
     );
 }
 
 type RowProps = {
     icon?: LucideIcon;
+    /** Any leading element instead of `icon`: a member's avatar, a module tile that changes colour with its switch. */
+    lead?: ReactNode;
     /** A tile behind the icon (module rows); plain icon otherwise. */
     tile?: boolean;
     title: ReactNode;
@@ -76,12 +80,14 @@ type RowProps = {
     right?: ReactNode;
     muted?: boolean;
     className?: string;
+    testId?: string;
 };
 
 /** One row: icon, title (+ sub line), value, chevron. A link, a button, or plain (with `right`). */
-export function SettingsRow({ icon: Icon, tile, title, sub, value, href, onClick, right, muted, className }: RowProps) {
+export function SettingsRow({ icon: Icon, lead, tile, title, sub, value, href, onClick, right, muted, className, testId }: RowProps) {
     const body = (
         <>
+            {lead}
             {Icon &&
                 (tile ? (
                     <span className="bg-surface text-primary flex size-11 shrink-0 items-center justify-center rounded-xl">
@@ -103,19 +109,23 @@ export function SettingsRow({ icon: Icon, tile, title, sub, value, href, onClick
     const cls = cn('flex min-h-14 w-full items-center gap-3.5 border-b px-4 py-3 text-left last:border-b-0', className);
     if (href) {
         return (
-            <Link href={href} prefetch className={cn(cls, 'hover:bg-muted/50')}>
+            <Link href={href} prefetch data-testid={testId} className={cn(cls, 'hover:bg-muted/50')}>
                 {body}
             </Link>
         );
     }
     if (onClick) {
         return (
-            <button type="button" onClick={onClick} className={cn(cls, 'hover:bg-muted/50')}>
+            <button type="button" onClick={onClick} data-testid={testId} className={cn(cls, 'hover:bg-muted/50')}>
                 {body}
             </button>
         );
     }
-    return <div className={cls}>{body}</div>;
+    return (
+        <div data-testid={testId} className={cls}>
+            {body}
+        </div>
+    );
 }
 
 /** The design's switch: dark track with a sun knob when on, pale when off. */

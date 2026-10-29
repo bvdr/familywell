@@ -2,8 +2,7 @@ import { Head, router } from '@inertiajs/react';
 import { Bell, Blocks, Repeat, Star, type LucideIcon } from 'lucide-react';
 
 import { MODULE_ITEMS } from '@/components/mobile-tab-bar';
-import { SettingsLeadRow } from '@/components/settings-lead-row';
-import { SettingsGroup, SettingsPage, SettingsSwitch } from '@/components/settings-ui';
+import { SettingsGroup, SettingsPage, SettingsRow, SettingsSwitch } from '@/components/settings-ui';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
@@ -51,7 +50,7 @@ export default function Modules({ catalog, canManage, familyName }: Props) {
         const on = stored(m) && !blocked;
         const Icon = iconFor(m.id);
         return (
-            <SettingsLeadRow
+            <SettingsRow
                 key={m.id}
                 testId={`module-${m.id}`}
                 className={cn(parent && 'bg-surface/60 pl-12')}

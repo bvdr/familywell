@@ -4,8 +4,7 @@ import { FormEventHandler, useState } from 'react';
 
 import InputError from '@/components/input-error';
 import { MemberAvatar } from '@/components/member-avatar';
-import { SettingsLeadRow } from '@/components/settings-lead-row';
-import { SettingsGroup, SettingsPage } from '@/components/settings-ui';
+import { SettingsGroup, SettingsPage, SettingsRow } from '@/components/settings-ui';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
@@ -78,7 +77,7 @@ export default function Members({ family, members, invitations, canManage, link 
                     {visibleMembers.map((m) => {
                         const isOwner = m.id === family.owner_id;
                         return (
-                            <SettingsLeadRow
+                            <SettingsRow
                                 key={m.id}
                                 testId={`member-${m.id}`}
                                 lead={<MemberAvatar userId={m.id} name={m.name} className="size-11 text-base" />}
@@ -116,7 +115,7 @@ export default function Members({ family, members, invitations, canManage, link 
                 {canManage && visibleInvitations.length > 0 && (
                     <SettingsGroup label={t('family.pending_invitations')}>
                         {visibleInvitations.map((i) => (
-                            <SettingsLeadRow
+                            <SettingsRow
                                 key={i.id}
                                 testId={`invitation-${i.id}`}
                                 lead={
