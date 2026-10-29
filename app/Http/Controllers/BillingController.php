@@ -48,6 +48,18 @@ class BillingController extends Controller
             'canManage' => Gate::allows('manageBilling', $family),
             // Today's price for new subscribers (intro while spots last), shown on the plan picker.
             'pricing' => Billing::pricing(),
+            // The rest of what the onboarding checkout (components/plan-checkout.tsx) needs, the same values
+            // OnboardingController::plan passes: the page pays through that flow, not a checkout of its own.
+            // Only for an unpaid family: a paying one sees its plan card and no checkout (and no tax lookup).
+            ...(Billing::isPaid($family) ? [] : [
+                'standard' => ['basic' => config('familywell.pricing.standard'), 'pro' => config('familywell.pricing.pro.standard')],
+                'tiers' => config('familywell.tiers'),
+                'stripeKey' => config('services.stripe.key'),
+                'tax' => Billing::taxRate((string) ($request->header('CF-Connecting-IP') ?: $request->ip())),
+                // Applied on the checkout (POST onboarding.plan.promo), kept in the session until paid or removed.
+                'promo' => $request->session()->get('onboarding.promo'),
+                'email' => $request->user()->email,
+            ]),
         ]);
     }
 
