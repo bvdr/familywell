@@ -1,0 +1,13 @@
+{
+    "title": "Regiune și unități",
+    "country": "Țară sau regiune",
+    "country_pick": "Alege una și completăm restul",
+    "units": "Unități",
+    "metric": "Metric",
+    "imperial": "Imperial",
+    "currency": "Monedă",
+    "how_it_looks": "Cum arată",
+    "applies": "Se aplică tuturor din :family. Limba rămâne personală, în setările tale.",
+    "admin_only": "Doar administratorii familiei pot schimba asta. Limba rămâne personală, în setările tale.",
+    "done": "Gata"
+}

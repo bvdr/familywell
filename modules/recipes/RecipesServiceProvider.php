@@ -8,6 +8,7 @@ use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Engagement;
 use App\Support\Guests\GuestableRegistry;
 use App\Support\Mcp\McpTools;
+use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Search\SearchSources;
 use App\Support\Sharing\ShareableRegistry;
@@ -32,6 +33,22 @@ class RecipesServiceProvider extends ServiceProvider
             Mcp\CreateRecipe::class, Mcp\UpdateRecipe::class, Mcp\SetPhoto::class,
             Mcp\AddToShopping::class, Mcp\DeleteRecipe::class,
         ]);
+
+        // The "Region & units" preview's weight (App\Support\Region): a real gram amount from a recipe this person
+        // can see. Recipes stay in their own units whatever the family picks (metric spoons, no oz conversion).
+        app(Hooks::class)->listen('family.region', function (array $region, int $familyId, ?int $userId) {
+            if ($userId) {
+                foreach (Recipe::where('family_id', $familyId)->visibleTo($userId)->latest()->limit(10)->pluck('ingredients') as $ingredients) {
+                    $g = collect($ingredients)->first(fn ($i) => RecipeScale::normUnit($i['unit'] ?? null) === 'g' && ($i['qty'] ?? 0) > 0);
+                    if ($g) {
+                        $region['samples']['grams'] = $g['qty'];
+                        break;
+                    }
+                }
+            }
+
+            return $region;
+        });
 
         // 30-day trash, the core sharing system (`recipe` in share URLs) and the public guest link.
         Trash::source('recipes', RecipesTrash::class);

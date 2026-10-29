@@ -7,8 +7,10 @@ use App\Models\Family;
 use App\Support\Billing\Billing;
 use App\Support\Dashboard\HomeLayout;
 use App\Support\Modules\ModuleRegistry;
+use App\Support\Region;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Translations;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -57,6 +59,34 @@ class SettingsHubController extends Controller
             'modules' => ['on' => count(array_intersect(array_map(fn ($m) => $m->id, $installed), $registry->enabledIds($family->id))), 'total' => count($installed)],
             // lifetime / paid / free; null when billing is off (self-hosted): the row is hidden.
             'plan' => Billing::enabled() ? (Billing::isLifetime($family) ? 'lifetime' : (Billing::isPaid($family) ? 'paid' : 'free')) : null,
+            // The "Region & units" row's value ("Metric · RON"): only the keys the installed modules report.
+            'region' => Region::current($family->id),
         ]);
+    }
+
+    /**
+     * Settings › Region & units (design Y7): the family hub with the shared Region & units sheet open on top, so
+     * closing it lands back on the hub and the row's URL still works as a link. The sheet's extra data (~250
+     * countries, the preview's real values) only loads here, not on every hub visit.
+     */
+    public function region(Request $request, ModuleRegistry $registry): Response
+    {
+        return $this->family($request, $registry)->with([
+            'regionSheet' => [
+                ...Region::current(CurrentFamily::id(), $request->user()->id),
+                'countries' => Region::countries(),
+            ],
+        ]);
+    }
+
+    // Admin only (like each module's own settings); every member can open the sheet read-only. The modules
+    // validate and store their own keys (Region::save); what's left unknown is ignored.
+    public function updateRegion(Request $request): RedirectResponse
+    {
+        $family = Family::findOrFail(CurrentFamily::id());
+        $this->authorize('manageMembers', $family);
+        Region::save($family, $request->all());
+
+        return to_route('settings.family');
     }
 }

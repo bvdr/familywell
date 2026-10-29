@@ -68,15 +68,25 @@ class VehiclesServiceProvider extends ServiceProvider
         // Notifications settings screen. Registration is idempotent (boot re-runs per request/worker).
         NotificationCategories::register('vehicles', 'Vehicles', 'car');
 
-        // Km or miles for a new family: the onboarding "Region & units" row shows the guess from the sign-up
-        // country (onboarding.region) and can change it; family.created stores what was sent. Miles are the
-        // road unit in the US, the UK, Liberia and Myanmar, everyone else drives in km.
+        // Km or miles: the "Region & units" sheet (onboarding step 1 and Settings, see App\Support\Region) guesses
+        // it from a country (onboarding.region), shows the family's current one (family.region) and stores a
+        // change (family.region.save, also fired when onboarding creates the family). Miles are the road unit in
+        // the US, the UK, Liberia and Myanmar, everyone else drives in km.
         $hooks->listen('onboarding.region', fn (array $region, ?string $country) => [
             ...$region, 'units' => in_array($country, ['US', 'GB', 'LR', 'MM'], true) ? 'imperial' : 'metric',
         ]);
-        $hooks->listen('family.created', function (Family $family, Request $request) {
-            if (in_array($request->input('units'), ['metric', 'imperial'], true)) {
-                VehicleSetting::current($family->id)->update(['unit_system' => $request->input('units')]);
+        $hooks->listen('family.region', function (array $region, int $familyId, ?int $userId) {
+            $region['units'] = VehicleSetting::current($familyId)->unit_system;
+            // The preview's distance: the family's highest odometer (cars aren't shareable, every member sees them).
+            if ($userId && ($km = Vehicle::where('family_id', $familyId)->max('current_mileage'))) {
+                $region['samples']['km'] = (int) $km;
+            }
+
+            return $region;
+        });
+        $hooks->listen('family.region.save', function (Family $family, array $input) {
+            if (in_array($input['units'] ?? null, VehicleSetting::UNIT_SYSTEMS, true)) {
+                VehicleSetting::current($family->id)->update(['unit_system' => $input['units']]);
             }
         });
         $this->loadViewsFrom(__DIR__.'/resources/views', 'vehicles'); // the history PDF template

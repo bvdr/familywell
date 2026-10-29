@@ -1,0 +1,13 @@
+{
+    "title": "Regio en eenheden",
+    "country": "Land of regio",
+    "country_pick": "Kies er een, dan vullen we de rest in",
+    "units": "Eenheden",
+    "metric": "Metrisch",
+    "imperial": "Imperiaal",
+    "currency": "Valuta",
+    "how_it_looks": "Zo ziet het eruit",
+    "applies": "Geldt voor iedereen in :family. Taal blijft persoonlijk, in je eigen instellingen.",
+    "admin_only": "Alleen gezinsbeheerders kunnen dit wijzigen. Taal blijft persoonlijk, in je eigen instellingen.",
+    "done": "Klaar"
+}
