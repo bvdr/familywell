@@ -22,6 +22,7 @@ use Modules\Contacts\Person;
 use Modules\ExpenseImport\ImportBatch;
 use Modules\ExpenseImport\Importer;
 use Modules\ExpenseImport\ImportSetting;
+use Modules\ImportantTodos\ImportantFlag;
 use Modules\Inventory\InventoryCategory;
 use Modules\Inventory\InventoryItem;
 use Modules\Inventory\InventoryLocation;
@@ -516,9 +517,21 @@ class DemoSeeder extends Seeder
                 foreach ($subs as $si => [$sub, $subDone]) {
                     Task::create(['task_list_id' => $list->id, 'parent_id' => $task->id, 'title' => $this->t($sub), 'done' => $subDone, 'position' => $si, 'created_by' => $sarah->id]);
                 }
+                // Home's "Your important" card in its full state (design H1): three of Sarah's (the demo login) and
+                // a few of David's and Noah's for the folded family row. Owner = assignee (ImportantCard).
+                if (in_array($title, self::IMPORTANT, true)) {
+                    ImportantFlag::create(['task_id' => $task->id, 'important' => true, 'starred_by' => $sarah->id]);
+                }
             }
         }
     }
+
+    // The starred to-dos (English titles from tasks() above), at most 3 open per person like the app allows.
+    private const IMPORTANT = [
+        'Call the plumber about the upstairs faucet', "Sign Emma's field trip permission slip", 'Order Halloween costumes', // Sarah
+        'Replace furnace filter', 'Hang the new shelves in the den', // David
+        'Rake the leaves', // Noah
+    ];
 
     // ---- Notes ---------------------------------------------------------------------------------------
 
