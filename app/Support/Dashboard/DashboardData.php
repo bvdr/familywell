@@ -16,9 +16,14 @@ class DashboardData
 {
     public static function build(): array
     {
+        // The person's own section order, minus what they hid (HomeLayout). A hidden section's providers are
+        // skipped below so hiding something also saves its queries.
+        $sections = HomeLayout::visible(auth()->user(), CurrentFamily::id());
+        $shows = fn (string $id) => in_array($id, $sections, true);
+
         // Recent: each provider already returns only its recently-visited entities, tagged with
         // visitedAt. Merge and sort across modules so the newest open wins regardless of module.
-        $recent = collect(DashboardItems::collect())
+        $recent = ! $shows('recent') ? [] : collect(DashboardItems::collect())
             ->sortByDesc('visitedAt')
             ->take(8)
             ->values()
@@ -31,13 +36,15 @@ class DashboardData
         // Overdue rolls into Today (it still needs doing now).
         return [
             // Home's top bar shows the family's mark + name.
+            'sections' => $sections,
             'family' => Family::find(CurrentFamily::id())?->only(['name', 'color', 'symbol', 'emoji']),
             'recent' => $recent,
             'today' => $agenda->filter(fn ($i) => $i['dueDate'] <= $today)->values()->all(),
             'tomorrow' => $agenda->where('dueDate', $tomorrow)->values()->all(),
             'later' => $agenda->filter(fn ($i) => $i['dueDate'] > $tomorrow)->values()->all(),
             'widgets' => DashboardWidgets::collect(),
-            'summaries' => DashboardSummaries::collect(),
+            // ponytail: widgets always run (one registry, three cheap providers); key them per section if one gets heavy.
+            'summaries' => $shows('modules') ? DashboardSummaries::collect() : [],
         ];
     }
 }

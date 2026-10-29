@@ -16,5 +16,14 @@
     "now": "acum",
     "welcome_push_title": "Bun venit, :name 👋",
     "welcome_push_title_anon": "Bun venit în FamilyWell 👋",
-    "welcome_push_body": "Homer aici 🏡 Așa te bate FamilyWell pe umăr când e ceva important."
+    "welcome_push_body": "Homer aici 🏡 Așa te bate FamilyWell pe umăr când e ceva important.",
+    "shared_with_me": "Partajate cu mine",
+    "push_this_phone": "Notificări pe acest telefon",
+    "push_unsupported": "Acest browser nu poate primi notificări push.",
+    "push_install_ios": "Pe iPhone, adaugă întâi FamilyWell pe ecranul principal (Partajează, apoi Adaugă pe ecranul principal) și deschide-l de acolo.",
+    "push_test": "Trimite o notificare de test",
+    "push_test_sent": "Trimisă",
+    "push_per_device": "Notificările push sunt per dispozitiv: pornește-le oriunde vrei alerte. Despre ce ești anunțat se aplică peste tot.",
+    "notify_me_about": "Anunță-mă despre",
+    "muted_note": "Dacă oprești una, nu mai primești push. Apare în continuare în notificările din aplicație."
 }

@@ -11,7 +11,7 @@ import { save } from '@/lib/save';
 import { type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { Blocks, Cake, Check, ChevronDown, ChevronRight, Heart, Inbox, Phone, Plus, Search } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
 // Home (design node XMkKm, "H1 · Today"): Today first. One agenda of to-dos and events for today and tomorrow,
 // the rest of the week folded into a day strip, then money and modules. Members and Settings moved into the
@@ -535,7 +535,10 @@ export default function Dashboard({
     later = [],
     widgets = {},
     summaries = {},
+    // The person's Home sections in their order, hidden ones left out (HomeLayout on the server).
+    sections = ['birthdays', 'today', 'week', 'anytime', 'money', 'modules', 'recent'],
 }: {
+    sections?: string[];
     family?: Family | null;
     // One live line per enabled module for the "Your modules" grid (DashboardSummaries).
     summaries?: Record<string, ModuleSummary>;
@@ -565,79 +568,93 @@ export default function Dashboard({
         .join(' · ');
     const shortDay = (d: Date) => d.toLocaleDateString(locale, { weekday: 'short', day: 'numeric' });
 
+    // Each section by its HomeLayout id (Settings > Home dashboard). The person's order comes from the server
+    // (`sections`, hidden ones already left out); a section with nothing to show still renders nothing.
+    const render: Record<string, () => ReactNode> = {
+        birthdays: () => widgets.birthdays && <Birthdays people={widgets.birthdays} />,
+        today: () => (
+            <>
+                {today.length > 0 && (
+                    <section className="flex flex-col gap-2.5">
+                        <SectionLabel label={t('dashboard.today')} count={today.length} right={shortDay(now)} />
+                        <AgendaList items={today} />
+                    </section>
+                )}
+                {tomorrow.length > 0 && (
+                    <section className="flex flex-col gap-2.5">
+                        <SectionLabel label={t('dashboard.tomorrow')} count={tomorrow.length} right={shortDay(tomorrowDate)} />
+                        <AgendaList items={tomorrow} />
+                    </section>
+                )}
+            </>
+        ),
+        week: () => <RestOfWeek items={later} />,
+        anytime: () =>
+            widgets.tasks && (
+                <Link href="/m/tasks" prefetch className={`${card} flex items-center gap-3 px-4 py-3.5`}>
+                    <Inbox className="text-primary size-5 shrink-0" />
+                    <span className="min-w-0 flex-1">
+                        <span className="text-primary block truncate font-semibold">{t('dashboard.anytime', { count: widgets.tasks.undated })}</span>
+                        <span className="text-muted-foreground block truncate text-sm">{widgets.tasks.titles.join(', ')}</span>
+                    </span>
+                    <ChevronRight className="text-muted-foreground size-5 shrink-0" />
+                </Link>
+            ),
+        money: () => widgets.spending && <MoneyCard spending={widgets.spending} />,
+        modules: () => <YourModules enabled={modules?.enabled ?? []} summaries={summaries} />,
+        recent: () =>
+            recent.length > 0 && (
+                <section className="flex flex-col gap-2.5">
+                    <SectionLabel label={t('dashboard.jump_back_in')} />
+                    {/* Swipes sideways on phones (data-scroll-x tells the viewport check it's meant to). */}
+                    <div data-scroll-x className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-wrap lg:px-0">
+                        {recent.map((it) => {
+                            const Icon = MODULES[it.category ?? '']?.icon ?? Blocks;
+                            return (
+                                <Link
+                                    key={it.href}
+                                    href={it.href}
+                                    prefetch
+                                    className="bg-surface-card text-primary flex max-w-[16rem] shrink-0 items-center gap-2 rounded-full border px-4 py-2.5 font-semibold"
+                                >
+                                    <Icon className="size-4 shrink-0" />
+                                    <span className="truncate">{it.title}</span>
+                                </Link>
+                            );
+                        })}
+                    </div>
+                </section>
+            ),
+    };
+    // Desktop keeps its two columns (the day left; money, modules, recents right), each in the person's order. On
+    // phones the columns are `display: contents`, so every section is an item of the one outer column and the CSS
+    // `order` puts them in the saved order across both. `empty:hidden` drops a wrapper whose section had nothing,
+    // so it doesn't leave a double gap.
+    const column = (ids: string[]) =>
+        sections
+            .filter((id) => ids.includes(id))
+            .map((id) => (
+                <div key={id} style={{ order: sections.indexOf(id) }} className="flex min-w-0 flex-col gap-7 empty:hidden">
+                    {render[id]()}
+                </div>
+            ));
+
     return (
         <AppLayout breadcrumbs={[{ title: t('nav.home'), href: '/dashboard' }]} mobileHeader={<HomeTopBar family={family} />}>
             <Head title={t('nav.home')} />
-            <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-7 p-4 md:p-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)] lg:gap-10">
+            <div className="mx-auto flex w-full max-w-6xl flex-col gap-7 p-4 md:p-8 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)] lg:gap-10">
                 {/* Left: the day. Right (below on phones): money, modules, recents. */}
-                <div className="flex min-w-0 flex-col gap-7">
-                    <div>
+                <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-7">
+                    <div style={{ order: -1 }}>
                         <h1 className="font-heading text-primary text-[28px] leading-tight font-bold tracking-tight sm:text-4xl">
                             {t(greetingKey())}, {firstName}.
                         </h1>
                         <p className="text-muted-foreground mt-1">{dayLine}</p>
                     </div>
-
-                    {widgets.birthdays && <Birthdays people={widgets.birthdays} />}
-
-                    {today.length > 0 && (
-                        <section className="flex flex-col gap-2.5">
-                            <SectionLabel label={t('dashboard.today')} count={today.length} right={shortDay(now)} />
-                            <AgendaList items={today} />
-                        </section>
-                    )}
-
-                    {tomorrow.length > 0 && (
-                        <section className="flex flex-col gap-2.5">
-                            <SectionLabel label={t('dashboard.tomorrow')} count={tomorrow.length} right={shortDay(tomorrowDate)} />
-                            <AgendaList items={tomorrow} />
-                        </section>
-                    )}
-
-                    <RestOfWeek items={later} />
-
-                    {widgets.tasks && (
-                        <Link href="/m/tasks" prefetch className={`${card} flex items-center gap-3 px-4 py-3.5`}>
-                            <Inbox className="text-primary size-5 shrink-0" />
-                            <span className="min-w-0 flex-1">
-                                <span className="text-primary block truncate font-semibold">
-                                    {t('dashboard.anytime', { count: widgets.tasks.undated })}
-                                </span>
-                                <span className="text-muted-foreground block truncate text-sm">{widgets.tasks.titles.join(', ')}</span>
-                            </span>
-                            <ChevronRight className="text-muted-foreground size-5 shrink-0" />
-                        </Link>
-                    )}
+                    {column(['birthdays', 'today', 'week', 'anytime'])}
                 </div>
 
-                <div className="flex min-w-0 flex-col gap-7">
-                    {widgets.spending && <MoneyCard spending={widgets.spending} />}
-
-                    <YourModules enabled={modules?.enabled ?? []} summaries={summaries} />
-
-                    {recent.length > 0 && (
-                        <section className="flex flex-col gap-2.5">
-                            <SectionLabel label={t('dashboard.jump_back_in')} />
-                            {/* Swipes sideways on phones (data-scroll-x tells the viewport check it's meant to). */}
-                            <div data-scroll-x className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-wrap lg:px-0">
-                                {recent.map((it) => {
-                                    const Icon = MODULES[it.category ?? '']?.icon ?? Blocks;
-                                    return (
-                                        <Link
-                                            key={it.href}
-                                            href={it.href}
-                                            prefetch
-                                            className="bg-surface-card text-primary flex max-w-[16rem] shrink-0 items-center gap-2 rounded-full border px-4 py-2.5 font-semibold"
-                                        >
-                                            <Icon className="size-4 shrink-0" />
-                                            <span className="truncate">{it.title}</span>
-                                        </Link>
-                                    );
-                                })}
-                            </div>
-                        </section>
-                    )}
-                </div>
+                <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-7">{column(['money', 'modules', 'recent'])}</div>
             </div>
         </AppLayout>
     );

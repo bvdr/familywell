@@ -129,6 +129,8 @@ class User extends Authenticatable implements OAuthenticatable
             'preview_modules' => 'array',
             // The modules pinned to the dashboard / sidebar (PinnedModulesController); null = never chose. Not fillable.
             'pinned_modules' => 'array',
+            // Their own Home's section order + hidden ones (App\Support\Dashboard\HomeLayout); null = default. Not fillable.
+            'home_layout' => 'array',
             // Set only by admin:grant / admin:revoke; deliberately not fillable.
             'is_platform_admin' => 'boolean',
         ];

@@ -14,10 +14,11 @@ type Props = {
     notifications: { on: number; total: number };
     apps: string[];
     family: { name: string; color: string; symbol: string | null } | null;
+    home: { on: number; total: number };
 };
 
 // Me (design board 12, M1): what the avatar opens. Only the person's own settings, then one row into the family's.
-export default function Me({ signIn, localeName, notifications, apps, family }: Props) {
+export default function Me({ signIn, localeName, notifications, apps, family, home }: Props) {
     const t = useT();
     const { auth } = usePage<SharedData>().props;
     const { appearance } = useAppearance();
@@ -65,7 +66,12 @@ export default function Me({ signIn, localeName, notifications, apps, family }: 
                         value={t('settings_hub.n_of_m_on', { on: notifications.on, total: notifications.total })}
                         href="/settings/notifications"
                     />
-                    <SettingsRow icon={LayoutGrid} title={t('settings_hub.home_dashboard')} href="/settings/home" />
+                    <SettingsRow
+                        icon={LayoutGrid}
+                        title={t('settings_hub.home_dashboard')}
+                        value={t('settings_hub.n_of_m_on', { on: home.on, total: home.total })}
+                        href="/settings/home"
+                    />
                     <SettingsRow
                         icon={Plug}
                         title={t('settings_hub.connected_apps')}
