@@ -13,6 +13,7 @@ use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Dashboard\DashboardWidgets;
 use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
+use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Search\SearchSources;
 use App\Support\Sharing\ShareableRegistry;
@@ -177,7 +178,9 @@ class TasksServiceProvider extends ServiceProvider
                 return null;
             }
             $open = Task::query()->whereNull('due_date')->whereNull('parent_id')->where('done', false)
-                ->whereHas('list', fn ($q) => $q->visibleTo($userId)->whereNull('archived_at'));
+                ->whereHas('list', fn ($q) => $q->visibleTo($userId)->whereNull('archived_at'))
+                // Minus the to-dos another Home section already shows (DashboardData's `dashboard.lifted`).
+                ->whereNotIn('id', app(Hooks::class)->filter('dashboard.lifted', [])['task'] ?? []);
             $count = (clone $open)->count();
 
             return $count === 0 ? null : ['undated' => $count, 'titles' => $open->latest('id')->limit(3)->pluck('title')->all()];
