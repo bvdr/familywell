@@ -374,7 +374,7 @@ it('lists linked accounts and disconnects even the last one (the email code alwa
     $user = User::factory()->create();
     $account = $user->socialAccounts()->create(['provider' => 'google', 'provider_user_id' => 'g-1', 'email' => 'a@example.com']);
 
-    actingAs($user)->get('/settings/sign-in')->assertInertia(fn ($page) => $page->component('settings/sign-in')->where('socialAccounts.0.provider', 'google'));
+    actingAs($user)->get('/settings/sign-in')->assertInertia(fn ($page) => $page->component('settings/sign-in')->where('socialAccounts.0.provider', 'google')->has('providers'));
 
     actingAs($user)->from('/settings/sign-in')->delete("/settings/social-accounts/{$account->id}")
         ->assertRedirect('/settings/sign-in')->assertSessionHasNoErrors();

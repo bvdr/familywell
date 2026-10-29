@@ -52,7 +52,10 @@ Route::middleware('auth')->group(function () {
     // Confirming a new email address with the code sent to it (ProfileController::update sends it).
     Route::post('settings/profile/email', [ProfileController::class, 'confirmEmail'])->middleware(['not-demo:code', 'throttle:20,1'])->name('profile.email.confirm');
     Route::delete('settings/profile/email', [ProfileController::class, 'cancelEmail'])->name('profile.email.cancel');
-    Route::delete('settings/profile', [ProfileController::class, 'destroy'])->middleware('not-demo:email')->name('profile.destroy');
+    // Delete account (design M8): its own page; a code emailed to the person confirms it.
+    Route::get('settings/delete-account', [ProfileController::class, 'deleteAccount'])->name('profile.delete');
+    Route::post('settings/delete-account/code', [ProfileController::class, 'sendDeleteCode'])->middleware('not-demo:code')->name('profile.delete.code');
+    Route::delete('settings/profile', [ProfileController::class, 'destroy'])->middleware('not-demo:code')->name('profile.destroy');
 
     Route::get('settings/sign-in', [SignInController::class, 'edit'])->name('sign-in.edit');
     Route::delete('settings/social-accounts/{id}', [SignInController::class, 'disconnectSocial'])->middleware('not-demo')
