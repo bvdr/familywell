@@ -118,7 +118,7 @@
         "in_hours_one": "om :count t",
         "in_hours_other": "om :count t",
         "until": "Til :time",
-        "rest_of_week": "Resten av uken",
+        "next_days": "Neste :count dager",
         "free": "Ledig",
         "show_days": "Vis :from – :to · :what",
         "show_less": "Vis mindre",

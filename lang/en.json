@@ -118,7 +118,7 @@
         "in_hours_one": "in :count h",
         "in_hours_other": "in :count h",
         "until": "Until :time",
-        "rest_of_week": "Rest of week",
+        "next_days": "Next :count days",
         "free": "Free",
         "show_days": "Show :from – :to · :what",
         "show_less": "Show less",
