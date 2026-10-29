@@ -10,8 +10,8 @@ import { money } from '@/lib/money';
 import { save } from '@/lib/save';
 import { type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { Blocks, Cake, Check, ChevronDown, ChevronRight, Heart, Inbox, Phone, Plus, Search } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { Blocks, Cake, Check, ChevronDown, ChevronRight, Heart, Inbox, Phone, Plus, Search, Star } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 // Home (design node XMkKm, "H1 · Today"): Today first. One agenda of to-dos and events for today and tomorrow,
 // the rest of the week folded into a day strip, then money and modules. Members and Settings moved into the
@@ -87,7 +87,7 @@ function greetingKey() {
 }
 
 // The small mono uppercase section label with an optional count and a right-hand link ("TODAY 5 ........ Tue 20").
-function SectionLabel({ label, count, right, href }: { label: string; count?: number; right?: string; href?: string }) {
+function SectionLabel({ label, count, right, href }: { label: string; count?: number | string; right?: string; href?: string }) {
     return (
         <div className="flex items-baseline justify-between gap-3 px-1">
             <h2 className="text-muted-foreground font-mono text-xs font-semibold tracking-[0.14em] uppercase">
@@ -226,7 +226,7 @@ function Birthdays({ people }: { people: Birthday[] }) {
 
 // The tick circle shared by to-dos and prep to-dos. One-way: tapping marks it done (optimistically) and the row
 // drops off on the next dashboard load; if the save fails the circle unticks again (lib/save).
-function useToggle(item: AgendaItem) {
+function useToggle(item: { toggleUrl?: string; toggleBody?: Record<string, boolean> }) {
     const [done, setDone] = useState(false);
     const toggle = () => {
         if (!item.toggleUrl || done) return;
@@ -480,6 +480,187 @@ function RestOfWeek({ items }: { items: AgendaItem[] }) {
     );
 }
 
+// "Your important" (design H1 / H1a / H1b, data from the important_todos module's ImportantCard): your starred
+// to-dos pinned on top until done, the family's folded into one row under them. Yours are lifted out of the agenda
+// server-side (dashboard.lifted), others' stay there too.
+type ImportantRow = { id: number; title: string; list: string; href: string; dueDate: string | null; toggleUrl: string; owner: Person };
+type ImportantData = { mine: ImportantRow[]; others: { owner: Person; items: ImportantRow[] }[] };
+const IMPORTANT_LIMIT = 3; // ImportantCard::LIMIT
+
+// "Overdue since Sat · Health", "Due today · Household", "Due Fri, Oct 23 · Documents", or just the list.
+function importantMeta(row: ImportantRow, t: TFn, locale: string): { text: string; overdue: boolean; today: boolean } {
+    const today = todayYmd();
+    if (!row.dueDate) return { text: row.list, overdue: false, today: false };
+    const day = parseDay(row.dueDate);
+    const due =
+        row.dueDate < today
+            ? t('dashboard.overdue_since', { day: day.toLocaleDateString(locale, { weekday: 'short' }) })
+            : row.dueDate === today
+              ? t('important_todos.due_today')
+              : t('important_todos.due_on', { date: day.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' }) });
+    return { text: `${due} · ${row.list}`, overdue: row.dueDate < today, today: row.dueDate === today };
+}
+
+function ImportantItem({ row, family, onUnstar }: { row: ImportantRow; family?: boolean; onUnstar?: () => void }) {
+    const t = useT();
+    const locale = useLocale();
+    const [done, toggle] = useToggle({ toggleUrl: row.toggleUrl, toggleBody: { done: true } });
+    const meta = importantMeta(row, t, locale);
+    return (
+        <div className={`flex items-center gap-3 px-4 ${family ? 'py-2.5' : 'py-3'}`}>
+            <Tick done={done} overdue={meta.overdue} onClick={toggle} label={done ? t('dashboard.is_done') : t('dashboard.mark_done')} />
+            <Link href={row.href} prefetch className="min-w-0 flex-1">
+                <span
+                    className={`block truncate font-semibold ${family ? 'text-sm' : 'text-[15px]'} ${done ? 'text-muted-foreground line-through' : 'text-primary'}`}
+                >
+                    {row.title}
+                </span>
+                <span
+                    className={`block truncate ${family ? 'text-xs' : 'text-sm'} ${meta.overdue ? 'text-destructive' : meta.today ? 'text-primary font-medium' : 'text-muted-foreground'}`}
+                >
+                    {meta.text}
+                </span>
+            </Link>
+            {onUnstar ? (
+                // Tap the star to unstar: the to-do goes back to the agenda on the reload.
+                <button
+                    type="button"
+                    onClick={onUnstar}
+                    aria-label={t('important_todos.unstar', { title: row.title })}
+                    className="-mr-2 flex size-11 shrink-0 items-center justify-center"
+                >
+                    <Star className="fill-accent-strong text-primary size-5" strokeWidth={1.5} />
+                </button>
+            ) : (
+                <>
+                    <Star className="fill-accent-strong text-primary size-3.5 shrink-0" strokeWidth={1.5} aria-hidden />
+                    <MemberAvatar userId={row.owner.id} name={row.owner.name} className="size-7 text-xs" />
+                </>
+            )}
+        </div>
+    );
+}
+
+// Show/Hide of the family's rows, remembered per person in this browser (a view preference, like a folded section;
+// not worth a server column). Only while you have important ones yourself: with none, theirs open by default
+// (H1b) and fold back as soon as you star one.
+function useFamilyOpen(userId: number, hasMine: boolean) {
+    const key = `fw:important-family-open:${userId}`;
+    const [stored, setStored] = useState<boolean | null>(null);
+    useEffect(() => {
+        try {
+            const v = localStorage.getItem(key);
+            setStored(v === null ? null : v === '1');
+        } catch {
+            // private mode / blocked storage: just use the default
+        }
+    }, [key]);
+    const [openNoMine, setOpenNoMine] = useState(true);
+    const open = hasMine ? (stored ?? false) : openNoMine;
+    const setOpen = (next: boolean) => {
+        if (!hasMine) return setOpenNoMine(next);
+        setStored(next);
+        try {
+            localStorage.setItem(key, next ? '1' : '0');
+        } catch {
+            // not remembered, still toggles
+        }
+    };
+    return [open, setOpen] as const;
+}
+
+function ImportantCard({ data }: { data: ImportantData }) {
+    const t = useT();
+    const locale = useLocale();
+    const { auth } = usePage<SharedData>().props;
+    // Unstarred here: hidden at once (optimistic), back if the save fails; the reload then drops it for real.
+    const [unstarred, setUnstarred] = useState<number[]>([]);
+    const unstar = (id: number) => {
+        setUnstarred((u) => [...u, id]);
+        void save('patch', `/m/tasks/tasks/${id}`, { important: false }).then(
+            (result) => result !== 'ok' && setUnstarred((u) => u.filter((x) => x !== id)),
+        );
+    };
+    const mine = data.mine.filter((r) => !unstarred.includes(r.id));
+    const others = data.others;
+    const [open, setOpen] = useFamilyOpen(auth.user.id, mine.length > 0);
+
+    const otherRows = others.flatMap((g) => g.items);
+    const nextDue = otherRows
+        .map((r) => r.dueDate)
+        // From today on: an overdue one is already red in its row, "next due Mon" (last Monday) would read wrong.
+        .filter((d): d is string => !!d && d >= todayYmd())
+        .sort()[0];
+    const nextDueText = nextDue
+        ? parseDay(nextDue).toLocaleDateString(
+              locale,
+              nextDue <= ymdOf(new Date(Date.now() + 6 * 864e5)) ? { weekday: 'short' } : { month: 'short', day: 'numeric' },
+          )
+        : null;
+
+    return (
+        <section className="flex flex-col gap-2.5">
+            <SectionLabel
+                label={t('important_todos.your_important')}
+                count={`${mine.length}/${IMPORTANT_LIMIT}`}
+                right={t('important_todos.pinned')}
+            />
+            <div className="bg-surface-card border-primary divide-y overflow-hidden rounded-2xl border-2">
+                {mine.length > 0 ? (
+                    mine.map((r) => <ImportantItem key={r.id} row={r} onUnstar={() => unstar(r.id)} />)
+                ) : (
+                    // H1b: nothing on you, one quiet line so the family's still say what matters.
+                    <div className="flex items-center gap-3 px-4 py-3">
+                        <span className="bg-accent-subtle text-primary flex size-9 shrink-0 items-center justify-center rounded-lg">
+                            <Star className="size-4" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                            <span className="text-primary block truncate text-[15px] font-semibold">{t('important_todos.none_title')}</span>
+                            <span className="text-muted-foreground block text-sm">{t('important_todos.none_sub', { limit: IMPORTANT_LIMIT })}</span>
+                        </span>
+                    </div>
+                )}
+                {others.length > 0 && (
+                    // On paper (bg-surface) so yours stay the loudest.
+                    <div className="bg-surface divide-y">
+                        <button
+                            type="button"
+                            onClick={() => setOpen(!open)}
+                            aria-expanded={open}
+                            data-testid="important-family-toggle"
+                            className="flex w-full items-center gap-3 px-4 py-3 text-left"
+                        >
+                            <span className="flex shrink-0 -space-x-2">
+                                {others.slice(0, 3).map((g) => (
+                                    <MemberAvatar key={g.owner.id} userId={g.owner.id} name={g.owner.name} ring className="size-7 text-xs" />
+                                ))}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                                <span className="text-primary block truncate text-[15px] font-semibold">
+                                    {others.map((g) => `${g.owner.name.split(' ')[0]} ${g.items.length}`).join(' · ')}
+                                </span>
+                                <span className="text-muted-foreground block truncate text-[13px]">
+                                    {[
+                                        t('important_todos.family_important'),
+                                        !open && nextDueText ? t('important_todos.next_due', { day: nextDueText }) : '',
+                                    ]
+                                        .filter(Boolean)
+                                        .join(' · ')}
+                                </span>
+                            </span>
+                            <span className="text-primary flex shrink-0 items-center gap-1 text-sm font-semibold">
+                                {open ? t('important_todos.hide') : t('important_todos.show')}
+                                <ChevronDown className={`size-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+                            </span>
+                        </button>
+                        {open && otherRows.map((r) => <ImportantItem key={r.id} row={r} family />)}
+                    </div>
+                )}
+            </div>
+        </section>
+    );
+}
+
 // The money card: month-to-date total, how many expenses, a bar per week of the month (this week in sun), and a
 // "+" straight into the add-expense form (?new=1). Same figure as the Spending overview (shared MonthToDate).
 function MoneyCard({ spending }: { spending: { total: number; currency: string; count: number; weeks: number[] } }) {
@@ -536,7 +717,7 @@ export default function Dashboard({
     widgets = {},
     summaries = {},
     // The person's Home sections in their order, hidden ones left out (HomeLayout on the server).
-    sections = ['birthdays', 'today', 'week', 'anytime', 'money', 'modules', 'recent'],
+    sections = ['important', 'birthdays', 'today', 'week', 'anytime', 'money', 'modules', 'recent'],
 }: {
     sections?: string[];
     family?: Family | null;
@@ -551,6 +732,7 @@ export default function Dashboard({
         spending?: { total: number; currency: string; count: number; weeks: number[] };
         birthdays?: Birthday[];
         tasks?: { undated: number; titles: string[] };
+        important_todos?: ImportantData;
     };
 }) {
     const { auth, modules } = usePage<SharedData & { modules?: { enabled?: string[] } }>().props;
@@ -571,6 +753,7 @@ export default function Dashboard({
     // Each section by its HomeLayout id (Settings > Home dashboard). The person's order comes from the server
     // (`sections`, hidden ones already left out); a section with nothing to show still renders nothing.
     const render: Record<string, () => ReactNode> = {
+        important: () => widgets.important_todos && <ImportantCard data={widgets.important_todos} />,
         birthdays: () => widgets.birthdays && <Birthdays people={widgets.birthdays} />,
         today: () => (
             <>
@@ -651,7 +834,7 @@ export default function Dashboard({
                         </h1>
                         <p className="text-muted-foreground mt-1">{dayLine}</p>
                     </div>
-                    {column(['birthdays', 'today', 'week', 'anytime'])}
+                    {column(['important', 'birthdays', 'today', 'week', 'anytime'])}
                 </div>
 
                 <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-7">{column(['money', 'modules', 'recent'])}</div>

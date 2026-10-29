@@ -5,6 +5,8 @@
     "drag_to_reorder": "Drag to reorder",
     "reset": "Reset to default order",
     "move": "Move :name (drag, or use the arrow keys)",
+    "important": "Your important",
+    "important_sub": "Starred to-dos, pinned till done",
     "birthdays": "Birthdays",
     "birthdays_sub": "Next 2 weeks",
     "today": "Today & tomorrow",

@@ -12,6 +12,7 @@ class HomeLayout
 {
     /** Section id => the module it needs on (null = always there). In the default order. */
     public const SECTIONS = [
+        'important' => 'important_todos', // Your important to-dos, pinned on top (the important_todos module's card)
         'birthdays' => 'birthdays',
         'today' => null,     // Today + Tomorrow
         'week' => null,      // Rest of the week strip
@@ -23,7 +24,9 @@ class HomeLayout
 
     /**
      * Every section this family can have, in the person's order (saved ids first, then any they never placed, in
-     * the default order), each with its on/off. A section whose module is off is left out entirely: it stays hidden
+     * the default order), each with its on/off. Except: never-placed sections that come before every saved one in the
+     * default order go on top, so a section added later that defaults to first (important) shows on top of an older
+     * saved layout instead of sinking to the bottom where nobody would notice it. A section whose module is off is left out entirely: it stays hidden
      * whatever the person saved, and comes back in its saved place once the module is on again.
      *
      * @return list<array{id: string, on: bool}>
@@ -33,7 +36,16 @@ class HomeLayout
         $enabled = $familyId ? app(ModuleRegistry::class)->enabledIds($familyId) : [];
         $available = array_keys(array_filter(self::SECTIONS, fn ($module) => $module === null || in_array($module, $enabled, true)));
         $saved = $user->home_layout ?? [];
-        $order = array_values(array_unique([...array_intersect($saved['order'] ?? [], $available), ...$available]));
+        $placed = array_values(array_unique(array_intersect($saved['order'] ?? [], $available)));
+        // The unplaced sections ahead of every placed one in the default order lead; the rest follow at the end.
+        $lead = [];
+        foreach ($available as $id) {
+            if (in_array($id, $placed, true)) {
+                break;
+            }
+            $lead[] = $id;
+        }
+        $order = array_values(array_unique([...$lead, ...$placed, ...$available]));
         $hidden = $saved['hidden'] ?? [];
 
         return array_map(fn ($id) => ['id' => $id, 'on' => ! in_array($id, $hidden, true)], $order);
