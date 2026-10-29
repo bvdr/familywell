@@ -19,7 +19,8 @@
         "select": "Selecionar…",
         "add_named": "Adicionar “:name”",
         "remove_named": "Remover :name",
-        "offline": "Você está offline. Itens marcados e adicionados nas compras serão sincronizados quando você voltar; outras alterações não serão salvas."
+        "offline": "Você está offline. Itens marcados e adicionados nas compras serão sincronizados quando você voltar; outras alterações não serão salvas.",
+        "back": "Voltar"
     },
     "nav": {
         "dashboard": "Início",

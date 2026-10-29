@@ -1,0 +1,23 @@
+{
+    "add_details": "Adaugă detalii",
+    "things_one": ":count lucru",
+    "things_few": ":count lucruri",
+    "things_other": ":count de lucruri",
+    "position": ":kind · :i din :n",
+    "when": "Când",
+    "pick": "Alege…",
+    "who_on_it": "Cine se ocupă",
+    "anyone": "Oricine",
+    "note_placeholder": "Adaugă o notă…",
+    "leave_out": "Lasă asta deoparte",
+    "from_typed": "Din ce ai scris",
+    "list_gone": "Lista nu mai există sau nu poți adăuga în ea. Alege alta.",
+    "category_auto": "Ghicește pentru mine",
+    "f_note": "Notă",
+    "f_notes": "Note",
+    "f_list_id": "Listă",
+    "f_category": "Categorie",
+    "f_repeat": "Repetă",
+    "f_who": "Cine",
+    "f_due": "Termen"
+}

@@ -2,6 +2,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerTitle } from '@/components/ui/drawer';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 import { ChevronLeft, X } from 'lucide-react';
 import * as React from 'react';
 
@@ -65,6 +66,8 @@ export function ResponsiveModal({
     className,
     autoFocusRef,
     onBack,
+    backLabel,
+    aside,
 }: {
     open: boolean;
     onOpenChange: (v: boolean) => void;
@@ -74,10 +77,15 @@ export function ResponsiveModal({
     footer?: React.ReactNode; // pinned to the bottom (stays above the keyboard); e.g. a Save button
     className?: string; // extra classes for the content (e.g. a wider desktop max-width)
     autoFocusRef?: React.RefObject<HTMLElement | null>; // field to focus on open (else the container gets focus)
-    // When set, the header-left shows a "< Back" button instead of the title (title stays for a11y only);
+    // When set, the header-left shows a "< Back" pill instead of the title (title stays for a11y only);
     // the caller renders the visible title in the body. For sub-view sheets where Back sits above the title.
+    // A sub-view is one level down, so everything that would close the sheet steps back instead (design H2f:
+    // "swiping down here also steps back one level"): a drag down, Escape, a tap outside; there is no X.
     onBack?: () => void;
+    backLabel?: string; // the pill's words ("3 things"); "Back" when omitted
+    aside?: React.ReactNode; // right of the back pill (e.g. "TO-DO · 3 OF 3")
 }) {
+    const t = useT();
     const isMobile = useIsMobile();
     const keyboardOffset = useKeyboardOffset(isMobile && open);
 
@@ -121,6 +129,16 @@ export function ResponsiveModal({
         setTimeout(centreFocused, 300); // after the keyboard animates in
     };
 
+    const backPill = onBack && (
+        <button
+            type="button"
+            onClick={onBack}
+            className="bg-surface text-primary -ml-1 inline-flex min-h-10 items-center gap-1 self-start rounded-full py-1.5 pr-4 pl-2.5 text-base font-semibold"
+        >
+            <ChevronLeft className="size-5" /> {backLabel ?? t('common.back')}
+        </button>
+    );
+
     if (isMobile) {
         return (
             <Drawer
@@ -129,11 +147,20 @@ export function ResponsiveModal({
                 repositionInputs={false}
                 snapPoints={SNAP_POINTS}
                 activeSnapPoint={snap}
-                setActiveSnapPoint={setSnap}
+                // In a sub-view a drag down to the peek stop is "back" (and the sheet stays full); not dismissible,
+                // so a longer drag can't close it either.
+                setActiveSnapPoint={(s) => {
+                    if (onBack && s !== 1) {
+                        onBack();
+                        setSnap(1);
+                    } else setSnap(s);
+                }}
+                dismissible={!onBack}
             >
                 <DrawerContent
                     className={className}
                     onOpenAutoFocus={onOpenAutoFocus}
+                    onEscapeKeyDown={onBack ? () => onBack() : undefined}
                     // Lift the whole sheet above the keyboard and cap it to the visible height, so the pinned
                     // footer and fields stay in view. Both are no-ops (0 / 94dvh) when no keyboard is open.
                     style={keyboardOffset ? { bottom: keyboardOffset, maxHeight: `calc(100dvh - ${keyboardOffset}px - 0.5rem)` } : undefined}
@@ -142,13 +169,7 @@ export function ResponsiveModal({
                         <div className="flex min-w-0 flex-col gap-1 text-left">
                             {onBack ? (
                                 <>
-                                    <button
-                                        type="button"
-                                        onClick={onBack}
-                                        className="text-primary -ml-1 flex items-center gap-0.5 text-sm font-medium"
-                                    >
-                                        <ChevronLeft className="size-4" /> Back
-                                    </button>
+                                    {backPill}
                                     <DrawerTitle className="sr-only">{title}</DrawerTitle>
                                 </>
                             ) : (
@@ -158,12 +179,16 @@ export function ResponsiveModal({
                                 </>
                             )}
                         </div>
-                        <DrawerClose
-                            aria-label="Close"
-                            className="text-muted-foreground hover:bg-surface hover:text-foreground -mr-1.5 -mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full transition-colors"
-                        >
-                            <X className="size-5" />
-                        </DrawerClose>
+                        {onBack ? (
+                            aside && <div className="flex min-h-10 shrink-0 items-center">{aside}</div>
+                        ) : (
+                            <DrawerClose
+                                aria-label="Close"
+                                className="text-muted-foreground hover:bg-surface hover:text-foreground -mr-1.5 -mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full transition-colors"
+                            >
+                                <X className="size-5" />
+                            </DrawerClose>
+                        )}
                     </div>
                     {/* Only this region scrolls. min-h-0 lets it shrink inside the flex column so it actually
                         scrolls (and lets vaul tell a scroll from a dismiss drag); overflow-x-hidden keeps it vertical. */}
@@ -199,18 +224,19 @@ export function ResponsiveModal({
     }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className={cn('flex max-h-[90vh] flex-col sm:max-w-md', className)} onOpenAutoFocus={onOpenAutoFocus}>
+        // A sub-view (onBack): Escape / a click outside step back, and the dialog's own X (its last child) is hidden.
+        <Dialog open={open} onOpenChange={(v) => (!v && onBack ? onBack() : onOpenChange(v))}>
+            <DialogContent
+                className={cn('flex max-h-[90vh] flex-col sm:max-w-md', onBack && '[&>button:last-child]:hidden', className)}
+                onOpenAutoFocus={onOpenAutoFocus}
+            >
                 <DialogHeader>
                     {onBack ? (
                         <>
-                            <button
-                                type="button"
-                                onClick={onBack}
-                                className="text-primary -ml-1 flex items-center gap-0.5 self-start text-sm font-medium"
-                            >
-                                <ChevronLeft className="size-4" /> Back
-                            </button>
+                            <div className="flex items-center justify-between gap-3">
+                                {backPill}
+                                {aside}
+                            </div>
                             <DialogTitle className="sr-only">{title}</DialogTitle>
                         </>
                     ) : (

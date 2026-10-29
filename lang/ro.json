@@ -19,7 +19,8 @@
         "select": "Alege…",
         "add_named": "Adaugă „:name”",
         "remove_named": "Elimină :name",
-        "offline": "Nu ai conexiune. Produsele bifate sau adăugate în cumpărături se sincronizează când revii online; celelalte modificări nu se salvează."
+        "offline": "Nu ai conexiune. Produsele bifate sau adăugate în cumpărături se sincronizează când revii online; celelalte modificări nu se salvează.",
+        "back": "Înapoi"
     },
     "nav": {
         "dashboard": "Acasă",

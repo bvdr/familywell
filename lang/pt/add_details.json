@@ -1,0 +1,22 @@
+{
+    "add_details": "Adicionar detalhes",
+    "things_one": ":count coisa",
+    "things_other": ":count coisas",
+    "position": ":kind · :i de :n",
+    "when": "Quando",
+    "pick": "Escolher…",
+    "who_on_it": "Quem cuida",
+    "anyone": "Qualquer um",
+    "note_placeholder": "Adicione uma nota…",
+    "leave_out": "Deixar de fora",
+    "from_typed": "Do que você digitou",
+    "list_gone": "Essa lista não existe mais ou você não pode adicionar nela. Escolha outra.",
+    "category_auto": "Adivinhe para mim",
+    "f_note": "Nota",
+    "f_notes": "Notas",
+    "f_list_id": "Lista",
+    "f_category": "Categoria",
+    "f_repeat": "Repetir",
+    "f_who": "Quem",
+    "f_due": "Prazo"
+}

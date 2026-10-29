@@ -36,13 +36,17 @@ class AddController extends Controller
             return response()->json(['outOfPoints' => true, 'pointsLeft' => 0], 409);
         }
 
+        $ctx = AddContext::for($request->user(), $data['path'] ?? '/dashboard');
         try {
-            $items = AddReader::read($data['text'] ?? '', $data['images'] ?? [], AddContext::for($request->user(), $data['path'] ?? '/dashboard'));
+            $items = AddReader::read($data['text'] ?? '', $data['images'] ?? [], $ctx);
         } catch (RuntimeException) {
             return response()->json(['message' => 'unavailable'], 503);
         }
 
-        return response()->json(['items' => $items, 'pointsLeft' => AiPoints::left($family)]);
+        // The family, for the "Who's on it" faces in a card's Add details (the value saved is the name, like a read one).
+        $members = collect($ctx->members)->map(fn ($name, $id) => ['id' => (int) $id, 'name' => $name])->values();
+
+        return response()->json(['items' => $items, 'members' => $members, 'pointsLeft' => AiPoints::left($family)]);
     }
 
     /** Voice: the recording so far -> words (free like reading, but it needs points left). */

@@ -1,0 +1,22 @@
+{
+    "add_details": "Add details",
+    "things_one": ":count thing",
+    "things_other": ":count things",
+    "position": ":kind · :i of :n",
+    "when": "When",
+    "pick": "Pick…",
+    "who_on_it": "Who's on it",
+    "anyone": "Anyone",
+    "note_placeholder": "Add a note…",
+    "leave_out": "Leave this out",
+    "from_typed": "From what you typed",
+    "list_gone": "That list isn't there any more, or you can't add to it. Pick another one.",
+    "category_auto": "Guess for me",
+    "f_note": "Note",
+    "f_notes": "Notes",
+    "f_list_id": "List",
+    "f_category": "Category",
+    "f_repeat": "Repeat",
+    "f_who": "Who",
+    "f_due": "Due date"
+}

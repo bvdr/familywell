@@ -19,7 +19,8 @@
         "select": "Välj…",
         "add_named": "Lägg till ”:name”",
         "remove_named": "Ta bort :name",
-        "offline": "Du är offline. Avbockade och tillagda inköpsvaror synkas när du är tillbaka; andra ändringar sparas inte."
+        "offline": "Du är offline. Avbockade och tillagda inköpsvaror synkas när du är tillbaka; andra ändringar sparas inte.",
+        "back": "Tillbaka"
     },
     "nav": {
         "dashboard": "Översikt",
