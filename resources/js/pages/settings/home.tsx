@@ -1,4 +1,4 @@
-import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { closestCenter, DndContext, MouseSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Head } from '@inertiajs/react';
@@ -44,8 +44,12 @@ export default function HomeDashboard({ sections, family }: { sections: Section[
     };
     const move = (from: number, to: number) => to >= 0 && to < items.length && commit(arrayMove(items, from, to));
 
-    // A short press-and-move picks a row up (the handle has touch-action: none so the page doesn't scroll instead).
-    const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+    // The whole card picks up, not only the handle (on a phone people press the title; iOS then selected the text).
+    // Touch: press and hold ~0.2s, so a swipe over the cards still scrolls the page. Mouse: a short move.
+    const sensors = useSensors(
+        useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
+        useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+    );
     const onDragEnd = ({ active, over }: DragEndEvent) => {
         if (!over || active.id === over.id) return;
         move(
@@ -113,8 +117,8 @@ function SortableRow({
     onToggle: () => void;
 }) {
     const t = useT();
-    // Only the handle's listeners: dnd-kit's own keyboard sensor announces in English, so arrow keys on the handle
-    // move the row directly instead (fully translated, and focus stays on the handle as the row moves).
+    // Pointer listeners on the whole card (see the sensors). No dnd-kit keyboard sensor: it announces in English, so
+    // arrow keys on the handle move the row directly instead (fully translated, focus stays on the handle).
     const { listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: section.id });
     const onKeyDown = (e: KeyboardEvent) => {
         if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
@@ -126,13 +130,17 @@ function SortableRow({
     return (
         <div
             ref={setNodeRef}
+            {...listeners}
             style={{ transform: CSS.Translate.toString(transform), transition }}
-            className={cn('bg-surface-card relative flex items-center border-b pl-1 last:border-b-0', isDragging && 'z-10 shadow-lg')}
+            // No text selection or iOS callout on a long press: that press is how a card is picked up.
+            className={cn(
+                'bg-surface-card relative flex items-center border-b pl-1 select-none [-webkit-touch-callout:none] last:border-b-0',
+                isDragging && 'z-10 shadow-lg',
+            )}
         >
             <button
                 type="button"
                 ref={setActivatorNodeRef}
-                {...listeners}
                 onKeyDown={onKeyDown}
                 aria-label={t('settings_home.move', { name: title })}
                 className="text-muted-foreground flex size-11 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg active:cursor-grabbing"
