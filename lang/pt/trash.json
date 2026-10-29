@@ -1,10 +1,7 @@
 {
     "title": "Lixeira",
-    "desc": "Os itens excluídos ficam aqui por :days dias e depois são apagados para sempre.",
     "empty": "Nada excluído nos últimos :days dias.",
     "restore": "Restaurar",
-    "deleted_on": "Excluído em :date",
-    "removed_on": "removido em :date",
     "type_list": "Lista",
     "type_task": "Tarefa",
     "type_item": "Item",
@@ -23,5 +20,8 @@
     "type_fuel": "Abastecimento",
     "type_repair": "Conserto",
     "type_document": "Documento",
-    "type_maintenance_schedule": "Manutenção"
+    "type_maintenance_schedule": "Manutenção",
+    "kept": "Guardados por :days dias e depois apagados para sempre.",
+    "days_left_one": "resta :count dia",
+    "days_left_other": "restam :count dias"
 }

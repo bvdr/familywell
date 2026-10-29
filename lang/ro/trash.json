@@ -1,10 +1,7 @@
 {
     "title": "Șterse recent",
-    "desc": "Elementele șterse rămân aici :days de zile, apoi sunt eliminate definitiv.",
     "empty": "Nimic șters în ultimele :days de zile.",
     "restore": "Restaurează",
-    "deleted_on": "Șters :date",
-    "removed_on": "eliminat :date",
     "type_list": "Listă",
     "type_task": "Sarcină",
     "type_item": "Produs",
@@ -23,5 +20,9 @@
     "type_fuel": "Alimentare",
     "type_repair": "Reparație",
     "type_document": "Document",
-    "type_maintenance_schedule": "Întreținere"
+    "type_maintenance_schedule": "Întreținere",
+    "kept": "Păstrate :days de zile, apoi șterse definitiv.",
+    "days_left_one": "a mai rămas :count zi",
+    "days_left_few": "au mai rămas :count zile",
+    "days_left_other": "au mai rămas :count de zile"
 }

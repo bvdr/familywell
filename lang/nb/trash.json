@@ -1,10 +1,7 @@
 {
     "title": "Nylig slettet",
-    "desc": "Slettede ting ligger her i :days dager, så fjernes de for godt.",
     "empty": "Ingenting slettet de siste :days dagene.",
     "restore": "Gjenopprett",
-    "deleted_on": "Slettet :date",
-    "removed_on": "fjernes :date",
     "type_list": "Liste",
     "type_task": "Oppgave",
     "type_item": "Vare",
@@ -23,5 +20,8 @@
     "type_fuel": "Fylling",
     "type_repair": "Reparasjon",
     "type_document": "Dokument",
-    "type_maintenance_schedule": "Vedlikehold"
+    "type_maintenance_schedule": "Vedlikehold",
+    "kept": "Tas vare på i :days dager, så fjernes de for godt.",
+    "days_left_one": ":count dag igjen",
+    "days_left_other": ":count dager igjen"
 }

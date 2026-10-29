@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Models\Family;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Trash\Trash;
@@ -24,6 +25,8 @@ class RecentlyDeletedController extends Controller
         return Inertia::render('settings/recently-deleted', [
             'items' => Trash::sorted($rows),
             'days' => Trash::days(),
+            // The back pill reads the family's name (it goes back to the Family settings hub).
+            'family' => Family::findOrFail(CurrentFamily::id())->only(['name']),
         ]);
     }
 

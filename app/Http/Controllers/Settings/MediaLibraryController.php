@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Settings;
 use App\Events\ProjectsChanged;
 use App\Events\SpendingChanged;
 use App\Http\Controllers\Controller;
+use App\Models\Family;
 use App\Support\Media\StoredImage;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Realtime;
@@ -73,7 +74,8 @@ class MediaLibraryController extends Controller
             }
         }
 
-        return Inertia::render('settings/media', ['items' => $items]);
+        // `family`: the back pill reads the family's name (it goes back to the Family settings hub).
+        return Inertia::render('settings/media', ['items' => $items, 'family' => Family::findOrFail($familyId)->only(['name'])]);
     }
 
     public function destroy(Request $request, string $type, int $id): RedirectResponse

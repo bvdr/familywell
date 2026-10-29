@@ -548,8 +548,10 @@ class OnboardingController extends Controller
     }
 
     /**
-     * The family that is paying here: the one this person is onboarding, or (hard paywall) their locked family when
-     * they are sent back to pay, without any onboarding step to open it.
+     * The family that is paying here: the one this person is onboarding, or any unpaid family of theirs they may
+     * bill (a locked hard-paywall family sent back here, or Settings > Billing, which pays through this same
+     * checkout since the settings redesign instead of Stripe's hosted Checkout). Paid / comped families never
+     * get here: isPaid() covers lifetime, the demo and self-hosted, and subscribe() refuses them again.
      */
     private function payingFamily(Request $request): ?Family
     {
@@ -558,7 +560,7 @@ class OnboardingController extends Controller
         }
         $family = Family::find(CurrentFamily::id());
 
-        return $family && $family->hard_paywall && ! Billing::hasAccess($family) && Gate::forUser($request->user())->allows('manageBilling', $family) ? $family : null;
+        return $family && ! Billing::isPaid($family) && Gate::forUser($request->user())->allows('manageBilling', $family) ? $family : null;
     }
 
     /**
