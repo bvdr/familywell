@@ -1,0 +1,13 @@
+{
+    "mode_label": "Modus · nur du",
+    "skin_label": "Familien-Skin · alle",
+    "default_tag": "Standard",
+    "skin_sun": "Papier, Tinte und Sonne",
+    "skin_default": "Papier und Waldgrün",
+    "skin_minimal-mono": "Schwarz, Weiß und Stein",
+    "skin_admin_only": "Der Skin gilt für die ganze Familie. Nur Familien-Admins können ihn ändern.",
+    "look_admin_only": "Nur Familien-Admins können Namen und Aussehen ändern.",
+    "preview": "Vorschau",
+    "save": "Änderungen speichern",
+    "saved": "Gespeichert"
+}

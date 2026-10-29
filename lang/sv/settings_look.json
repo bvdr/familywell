@@ -1,0 +1,13 @@
+{
+    "mode_label": "Läge · bara du",
+    "skin_label": "Familjetema · alla",
+    "default_tag": "Standard",
+    "skin_sun": "Papper, bläck och sol",
+    "skin_default": "Papper och skogsgrönt",
+    "skin_minimal-mono": "Svart, vitt och sten",
+    "skin_admin_only": "Temat är detsamma för hela familjen. Bara en familjeadministratör kan ändra det.",
+    "look_admin_only": "Bara en familjeadministratör kan ändra namn och utseende.",
+    "preview": "Förhandsvisning",
+    "save": "Spara ändringar",
+    "saved": "Sparat"
+}

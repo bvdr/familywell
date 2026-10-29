@@ -1,0 +1,13 @@
+{
+    "mode_label": "Mode · just you",
+    "skin_label": "Family skin · everyone",
+    "default_tag": "Default",
+    "skin_sun": "Paper, ink and sun",
+    "skin_default": "Paper and forest green",
+    "skin_minimal-mono": "Black, white and stone",
+    "skin_admin_only": "The skin is the same for the whole family. Only a family admin can change it.",
+    "look_admin_only": "Only a family admin can change the name and look.",
+    "preview": "Preview",
+    "save": "Save changes",
+    "saved": "Saved"
+}

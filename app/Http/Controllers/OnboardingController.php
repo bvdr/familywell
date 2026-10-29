@@ -161,6 +161,8 @@ class OnboardingController extends Controller
             'emoji' => $data['emoji'] ?? '🏡',
             'symbol' => $data['symbol'] ?? null,
             'owner_id' => $user->id,
+            // The skin they picked on About you becomes the family's: skins are per family (ThemeTokens::resolve).
+            'theme' => $user->theme,
         ]);
         // Hard paywall: no free period for a family made here (Billing::hasAccess). Not fillable, so forceFill.
         $family->forceFill(['hard_paywall' => true])->save();
