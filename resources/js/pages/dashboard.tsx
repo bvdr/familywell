@@ -3,8 +3,6 @@ import { FamilyMark } from '@/components/family-mark';
 import { LucideIcon as DynamicLucideIcon } from '@/components/lucide-icon';
 import { MemberAvatar } from '@/components/member-avatar';
 import { NotificationsBell } from '@/components/notifications-bell';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { UserMenuContent } from '@/components/user-menu-content';
 import { MODULES, YourModules, type ModuleSummary } from '@/components/your-modules';
 import AppLayout from '@/layouts/app-layout';
 import { useLocale, useT, type TFn } from '@/lib/i18n';
@@ -110,8 +108,8 @@ function SectionLabel({ label, count, right, href }: { label: string; count?: nu
 
 const card = 'bg-surface-card overflow-hidden rounded-2xl border';
 
-// Home's own top bar on phones (the design's Top Bar): the family, then search, alerts and the avatar menu
-// (Members, Settings, Log out live there now). Desktop keeps the sidebar + breadcrumb header.
+// Home's own top bar on phones (the design's Top Bar): the family, then search, alerts and the avatar, which opens
+// Me (your settings, the family's settings, Log out). Desktop keeps the sidebar + breadcrumb header.
 function HomeTopBar({ family }: { family: Family | null }) {
     const { auth } = usePage<SharedData>().props;
     const t = useT();
@@ -130,17 +128,14 @@ function HomeTopBar({ family }: { family: Family | null }) {
                 <Search className="size-5" />
             </Link>
             <NotificationsBell />
-            <DropdownMenu>
-                <DropdownMenuTrigger
-                    aria-label={auth.user.name}
-                    className="bg-primary text-primary-foreground flex size-10 shrink-0 items-center justify-center rounded-full text-base font-bold"
-                >
-                    {auth.user.name.charAt(0).toUpperCase()}
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-56">
-                    <UserMenuContent user={auth.user} />
-                </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Tap your face (design board 12): the avatar opens Me, where log out and the family's settings live too. */}
+            <Link
+                href="/settings"
+                aria-label={auth.user.name}
+                className="bg-primary text-primary-foreground flex size-10 shrink-0 items-center justify-center rounded-full text-base font-bold"
+            >
+                {auth.user.name.charAt(0).toUpperCase()}
+            </Link>
         </div>
     );
 }

@@ -5,6 +5,7 @@ use App\Http\Controllers\Settings\ConnectedAppsController;
 use App\Http\Controllers\Settings\MediaLibraryController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\RecentlyDeletedController;
+use App\Http\Controllers\Settings\SettingsHubController;
 use App\Http\Controllers\Settings\SignInController;
 use App\Models\Family;
 use App\Support\Tenancy\CurrentFamily;
@@ -20,11 +21,13 @@ use Modules\Notifications\NotificationCategories;
 Route::post('stripe/webhook', [BillingController::class, 'webhook'])->name('billing.webhook');
 
 Route::middleware('auth')->group(function () {
-    // Settings home: the section menu (phones drill down from here; see layouts/settings/layout.tsx).
-    Route::get('settings', fn () => Inertia::render('settings/index'))->name('settings');
+    // The avatar opens Me (design board 12): only the person's own settings, then a row into the family's.
+    Route::get('settings', [SettingsHubController::class, 'me'])->name('settings');
 
     // Media library needs the active family (to list its uploads), so it also runs the family middleware.
     Route::middleware('family')->group(function () {
+        // Family settings (design board 11): the family-wide pages, opened from Me.
+        Route::get('settings/family', [SettingsHubController::class, 'family'])->name('settings.family');
         Route::get('settings/media', [MediaLibraryController::class, 'index'])->name('media');
         Route::delete('settings/media/{type}/{id}', [MediaLibraryController::class, 'destroy'])->name('media.destroy');
 
