@@ -27,7 +27,7 @@ class SettingsHubController extends Controller
         $user = $request->user();
         $family = Family::find(CurrentFamily::id());
         $saved = $user->notification_prefs ?? [];
-        $categories = array_keys(NotificationCategories::all());
+        $categories = array_keys(NotificationCategories::forFamily(CurrentFamily::id()));
 
         return Inertia::render('settings/index', [
             // Google / Apple when linked, else the email code everyone has.

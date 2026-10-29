@@ -20,7 +20,10 @@ function hubFamily(): array
 }
 
 it('opens Me with the person\'s own values and their family', function () {
-    [, $user] = hubFamily();
+    [$family, $user] = hubFamily();
+    // Counted only for modules the family uses (NotificationCategories::forFamily): Shopping must be on.
+    test()->artisan('modules:migrate')->assertExitCode(0);
+    app(App\Support\Modules\ModuleRegistry::class)->enable('shopping', $family->id);
     $user->update(['notification_prefs' => ['shopping' => false]]);
 
     actingAs($user)->get('/settings')->assertOk()->assertInertia(fn ($page) => $page
