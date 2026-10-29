@@ -11,6 +11,7 @@ use App\Support\Auth\Handoff;
 use App\Support\Billing\Billing;
 use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
+use App\Support\Region;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Theming\ThemeTokens;
 use App\Support\Translations;
@@ -112,9 +113,9 @@ class OnboardingController extends Controller
 
     /**
      * The "Region & units" row: the country Cloudflare saw this request come from, plus whatever the modules
-     * derive from it through the `onboarding.region` filter (Spending: currency; Vehicles: km or miles). Core
-     * doesn't know which modules care, same as `family.created`; whatever they add here is what they read
-     * back from the create request in their `family.created` listener.
+     * derive from it (Spending: currency; Vehicles: km or miles) and the country list the shared sheet picks
+     * from (App\Support\Region). Core doesn't know which modules care; store() hands what was sent back to
+     * them through `family.region.save`.
      *
      * @return array<string, mixed>
      */
@@ -123,7 +124,7 @@ class OnboardingController extends Controller
         $country = TrackLastSeen::country($request);
         $name = $country ? \Locale::getDisplayRegion('-'.$country, app()->getLocale()) : null;
 
-        return app(Hooks::class)->filter('onboarding.region', ['country' => $country, 'countryName' => $name ?: null], $country);
+        return ['country' => $country, 'countryName' => $name ?: null, ...Region::derive($country), 'countries' => Region::countries()];
     }
 
     public function store(Request $request): RedirectResponse
@@ -170,6 +171,9 @@ class OnboardingController extends Controller
         // person signs up, or what they changed in the "Region & units" row), with the request for context.
         // Core doesn't know which modules care.
         app(Hooks::class)->fire('family.created', $family, $request);
+        // What the "Region & units" sheet sent (currency, units...), stored by the modules that own each value,
+        // the same way Settings › Region & units saves. After family.created, so a pick beats the country guess.
+        Region::save($family, $request->all());
         Analytics::track($user, 'family_created', [], '/onboarding');
         // Onboarding funnel, browser side (docs/analytics.md): one `onboarding_<step>` per finished step.
         Analytics::queue('onboarding_family', ['symbol' => $family->symbol ?? 'emoji']);

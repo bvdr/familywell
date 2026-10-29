@@ -9,6 +9,8 @@ use function Pest\Laravel\actingAs;
 
 function hubFamily(): array
 {
+    // The family hub's Region & units row reads the modules' settings tables (Vehicles, Spending).
+    test()->artisan('modules:migrate')->assertExitCode(0);
     $user = User::factory()->create(['name' => 'Ana Rivera', 'locale' => 'ro']);
     $other = User::factory()->create();
     $family = Family::factory()->create(['owner_id' => $user->id, 'name' => 'The Riveras']);

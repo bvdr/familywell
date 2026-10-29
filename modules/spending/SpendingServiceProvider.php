@@ -78,16 +78,36 @@ class SpendingServiceProvider extends ServiceProvider
         // A new family's default currency is where its creator signs up from: Cloudflare's country on the
         // onboarding request -> that country's currency (RO -> RON). Unknown country (local, Tor, no
         // Cloudflare) leaves it unset, which falls back to Currencies::FALLBACK. Changeable in Settings.
-        // The onboarding "Region & units" row shows that guess (onboarding.region) and can change it, in which
-        // case the create request carries `currency`, validated against the list here.
+        // The "Region & units" sheet (onboarding step 1 and Settings, see App\Support\Region) shows that guess
+        // (onboarding.region) or the family's current one (family.region) and can change it: family.region.save
+        // (fired after family.created in onboarding, so a pick there wins over the country guess).
         app(Hooks::class)->listen('onboarding.region', fn (array $region, ?string $country) => [
             ...$region, 'currency' => Currencies::forCountry($country) ?? Currencies::FALLBACK, 'currencies' => Currencies::ALL,
         ]);
         app(Hooks::class)->listen('family.created', function (Family $family, Request $request) {
-            $picked = $request->input('currency');
-            $currency = in_array($picked, Currencies::ALL, true) ? $picked : Currencies::forCountry(TrackLastSeen::country($request));
-            if ($currency) {
+            if ($currency = Currencies::forCountry(TrackLastSeen::country($request))) {
                 SpendSetting::current($family->id)->update(['default_currency' => $currency]);
+            }
+        });
+        app(Hooks::class)->listen('family.region', function (array $region, int $familyId, ?int $userId) {
+            // Unset falls back to Currencies::FALLBACK everywhere money is shown, so that's what "current" is.
+            $region['currency'] = SpendSetting::defaultCurrency($familyId) ?? Currencies::FALLBACK;
+            $region['currencies'] = Currencies::ALL;
+            // The preview's amount: the latest expense this person can see (lists can be private).
+            if ($userId) {
+                $cents = Spend::where('family_id', $familyId)
+                    ->whereHas('event', fn ($q) => $q->visibleTo($userId))
+                    ->latest('spent_at')->value('amount');
+                if ($cents) {
+                    $region['samples']['cents'] = (int) $cents;
+                }
+            }
+
+            return $region;
+        });
+        app(Hooks::class)->listen('family.region.save', function (Family $family, array $input) {
+            if (in_array($input['currency'] ?? null, Currencies::ALL, true)) {
+                SpendSetting::current($family->id)->update(['default_currency' => $input['currency']]);
             }
         });
 
