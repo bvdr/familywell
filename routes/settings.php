@@ -58,18 +58,22 @@ Route::middleware('auth')->group(function () {
     Route::delete('settings/social-accounts/{id}', [SignInController::class, 'disconnectSocial'])->middleware('not-demo')
         ->whereNumber('id')->name('social.disconnect');
 
-    Route::get('settings/appearance', function () {
-        $familyId = CurrentFamily::id();
+    Route::get('settings/appearance', function (Request $request) {
+        $family = Family::find(CurrentFamily::id());
 
+        // Light/dark is personal (client-side, use-appearance); the skin is the family's (boards M4/Y5), shown
+        // here too and editable by its admins. No family yet -> no skin list.
         return Inertia::render('settings/appearance', [
             'themes' => ThemeTokens::available(),
-            'currentTheme' => auth()->user()->theme, // null => inherit the family default
-            'familyDefault' => ($familyId ? Family::find($familyId)?->theme : null) ?: 'minimal-mono',
+            'familySkin' => $family ? ($family->theme ?: ThemeTokens::DEFAULT) : null,
+            'defaultTheme' => ThemeTokens::DEFAULT,
+            'canManage' => $family !== null && $request->user()->can('manageMembers', $family),
             // The skin CSS this person sees right now, so picking a skin applies in place (useSkinCss).
-            'themeCss' => ThemeTokens::css(ThemeTokens::resolve(auth()->user(), $familyId)),
+            'themeCss' => ThemeTokens::css(ThemeTokens::resolve($request->user(), $family?->id)),
         ]);
     })->name('appearance');
-    // Personal skin. null/absent => inherit the family default. Light/dark is separate (client-side).
+    // The person's own skin pick. Settings no longer offers it (the skin is the family's); onboarding's About you
+    // step still does, before a family exists, and the new family takes it over (ThemeTokens::resolve).
     Route::patch('settings/appearance/theme', function (Request $request) {
         $ids = collect(ThemeTokens::available())->pluck('id')->all();
         $data = $request->validate([

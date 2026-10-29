@@ -1,0 +1,13 @@
+{
+    "mode_label": "Mode · rien que pour vous",
+    "skin_label": "Thème de la famille · tout le monde",
+    "default_tag": "Par défaut",
+    "skin_sun": "Papier, encre et soleil",
+    "skin_default": "Papier et vert forêt",
+    "skin_minimal-mono": "Noir, blanc et pierre",
+    "skin_admin_only": "Le thème est le même pour toute la famille. Seul un administrateur de la famille peut le changer.",
+    "look_admin_only": "Seul un administrateur de la famille peut changer le nom et l'apparence.",
+    "preview": "Aperçu",
+    "save": "Enregistrer",
+    "saved": "Enregistré"
+}

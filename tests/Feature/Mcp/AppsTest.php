@@ -99,9 +99,10 @@ it('declares full screen to the host only for widgets that offer it', function (
         ->and($html('tasks'))->not->toContain('availableDisplayModes":[');
 });
 
-it('paints widgets in the person\'s Familywell skin', function () {
+it('paints widgets in the family\'s Familywell skin', function () {
     [$family, $users] = mcpFamily([], 2);
-    $users[1]->update(['theme' => 'default']); // personal skin: Warm
+    // A personal pick no longer overrides the family's skin (ThemeTokens::resolve: the skin is the family's).
+    $users[1]->update(['theme' => 'minimal-mono']);
     $html = function ($user) use ($family) {
         $token = mcpConnect($user, $family->id)['access_token'];
 
@@ -110,11 +111,12 @@ it('paints widgets in the person\'s Familywell skin', function () {
     $warm = json_decode(file_get_contents(resource_path('themes/default/theme.json')), true)['tokens']['background'];
     $builtIn = json_decode(file_get_contents(resource_path('themes/sun/theme.json')), true)['tokens']['background'];
 
-    expect($html($users[1]))->toContain("--background:{$warm}")
-        ->and($html($users[0]))->toContain("--background:{$builtIn}"); // no personal or family skin -> built-in default
+    expect($html($users[1]))->toContain("--background:{$builtIn}")
+        ->and($html($users[0]))->toContain("--background:{$builtIn}"); // no family skin -> built-in default
 
-    $family->update(['theme' => 'default']); // family default applies to members without their own
-    expect($html($users[0]))->toContain("--background:{$warm}");
+    $family->update(['theme' => 'default']); // the family's skin applies to everyone in it
+    expect($html($users[0]))->toContain("--background:{$warm}")
+        ->and($html($users[1]))->toContain("--background:{$warm}");
 });
 
 it('gives the connector the rounded app icon', function () {
