@@ -19,14 +19,27 @@ class DashboardAgenda
         self::$providers[$moduleId] = $provider;
     }
 
+    /** How many days Home's strip shows after Tomorrow. */
+    public const STRIP_DAYS = 3;
+
     /**
-     * The last day providers return items for: the end of this week, but never before tomorrow. Home shows
-     * Today, Tomorrow and the rest of the week; on a Sunday "tomorrow" is already next week, and without the
-     * floor the Tomorrow group would always be empty that day.
+     * The last day providers return items for: Today, Tomorrow, then the next 3 days (Home's strip). It used to be
+     * "the end of this week", which left a one-day strip on Fridays and none at the weekend (2026-10-30).
      */
     public static function until(): string
     {
-        return max(now()->endOfWeek()->toDateString(), now()->addDay()->toDateString());
+        return now()->addDays(1 + self::STRIP_DAYS)->toDateString();
+    }
+
+    /**
+     * The strip's days (the day after tomorrow onwards), from the same clock that sorts Today / Tomorrow / later,
+     * so a strip day and the items under it always agree (a phone's own date can differ from the server's).
+     *
+     * @return list<string>
+     */
+    public static function stripDays(): array
+    {
+        return array_map(fn ($n) => now()->addDays(2 + $n)->toDateString(), range(0, self::STRIP_DAYS - 1));
     }
 
     /**

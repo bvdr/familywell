@@ -133,7 +133,7 @@
         "in_hours_few": "peste :count h",
         "in_hours_other": "peste :count de h",
         "until": "Până la :time",
-        "rest_of_week": "Restul săptămânii",
+        "next_days": "Următoarele :count zile",
         "free": "Liber",
         "show_days": "Arată :from – :to · :what",
         "show_less": "Arată mai puțin",

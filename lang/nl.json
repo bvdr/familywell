@@ -117,7 +117,7 @@
         "in_hours_one": "over :count u",
         "in_hours_other": "over :count u",
         "until": "Tot :time",
-        "rest_of_week": "Rest van de week",
+        "next_days": "Volgende :count dagen",
         "free": "Vrij",
         "show_days": "Toon :from – :to · :what",
         "show_less": "Minder tonen",
