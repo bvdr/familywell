@@ -1,62 +1,77 @@
 {
     "birthdays": {
         "name": "Födelsedagar",
-        "description": "Lägg till födelsedagar med dag och månad (år är valfritt) eller ange en på en kontakt. Visar ålder, nästa födelsedag, ett märke på kontakten och en widget med kommande födelsedagar på startsidan."
+        "description": "Lägg till födelsedagar med dag och månad (år är valfritt) eller ange en på en kontakt. Visar ålder, nästa födelsedag, ett märke på kontakten och en widget med kommande födelsedagar på startsidan.",
+        "tagline": "Missa aldrig en"
     },
     "calendar": {
         "name": "Kalender",
-        "description": "Familjekalendern för resor, möten och högtider, bredvid förfallodatum för uppgifter, födelsedagar och fordonsdatum. Månads- och tidslinjevy samt en prenumerationslänk för Google eller Apple Kalender."
+        "description": "Familjekalendern för resor, möten och högtider, bredvid förfallodatum för uppgifter, födelsedagar och fordonsdatum. Månads- och tidslinjevy samt en prenumerationslänk för Google eller Apple Kalender.",
+        "tagline": "Händelser, resor, prenumerationslänk"
     },
     "contacts": {
         "name": "Kontakter",
-        "description": "En delad adressbok för familjen. Varje post är en person med kontaktuppgifter som andra moduler bygger vidare på: Födelsedagar lägger till ett födelsedatum och projekt kan länka personer."
+        "description": "En delad adressbok för familjen. Varje post är en person med kontaktuppgifter som andra moduler bygger vidare på: Födelsedagar lägger till ett födelsedatum och projekt kan länka personer.",
+        "tagline": "Delad adressbok"
     },
     "expense_import": {
         "name": "Importera utgifter",
-        "description": "Ta in kortutgifter i Utgifter: ladda upp ett kontoutdrag (Wise, Revolut, ING, BT eller valfri CSV/XLSX efter att du kopplat kolumnerna en gång) eller skicka varje Apple Pay-betalning från en iPhone-genväg. Varje rad granskas innan den sparas, dubbletter flaggas, varje import kan ångras och importerade transaktioner läggs aldrig till två gånger."
+        "description": "Ta in kortutgifter i Utgifter: ladda upp ett kontoutdrag (Wise, Revolut, ING, BT eller valfri CSV/XLSX efter att du kopplat kolumnerna en gång) eller skicka varje Apple Pay-betalning från en iPhone-genväg. Varje rad granskas innan den sparas, dubbletter flaggas, varje import kan ångras och importerade transaktioner läggs aldrig till två gånger.",
+        "tagline": "Kontoutdrag och Apple Pay till Utgifter"
     },
     "important_todos": {
         "name": "Viktiga uppgifter",
-        "description": "Lägger till en \"viktig\"-flagga på uppgifter: en reglage i redigeraren, en stjärna på raden och viktiga uppgifter sorteras först."
+        "description": "Lägger till en \"viktig\"-flagga på uppgifter: en reglage i redigeraren, en stjärna på raden och viktiga uppgifter sorteras först.",
+        "tagline": "Stjärnmärk uppgifter så de ligger överst"
     },
     "inventory": {
         "name": "Förråd",
-        "description": "Vet vad du har, vad som håller på att ta slut och vad som behöver fyllas på: ett lugnt hushållsförråd, inget lager."
+        "description": "Vet vad du har, vad som håller på att ta slut och vad som behöver fyllas på: ett lugnt hushållsförråd, inget lager.",
+        "tagline": "Vad ni har och vad som tar slut"
     },
     "notes": {
         "name": "Anteckningar",
-        "description": "Snabba familjeanteckningar och checklistor, ordnade i mappar."
+        "description": "Snabba familjeanteckningar och checklistor, ordnade i mappar.",
+        "tagline": "Delade anteckningar i mappar"
     },
     "notifications": {
         "name": "Aviseringar",
-        "description": "Aviseringar i appen och pushnotiser så att ingen missar något i familjen."
+        "description": "Aviseringar i appen och pushnotiser så att ingen missar något i familjen.",
+        "tagline": "Aviseringar när något behöver dig"
     },
     "projects": {
         "name": "Projekt",
-        "description": "Planera de större sakerna: uppgifter, framsteg och länkade inköpslistor."
+        "description": "Planera de större sakerna: uppgifter, framsteg och länkade inköpslistor.",
+        "tagline": "Samla listor och anteckningar för ett mål"
     },
     "recipes": {
         "name": "Recept",
-        "description": "Familjens recept med bilder och en kalkylator: skala efter portioner, efter hur mycket du vill göra eller efter vad du har."
+        "description": "Familjens recept med bilder och en kalkylator: skala efter portioner, efter hur mycket du vill göra eller efter vad du har.",
+        "tagline": "Familjens kokbok som skalar"
     },
     "recurring_todos": {
         "name": "Återkommande uppgifter",
-        "description": "Låt en uppgift upprepas enligt schema: välj ett datum och ett intervall, så återgår den till \"att göra\" vid nästa tillfälle när den är klar."
+        "description": "Låt en uppgift upprepas enligt schema: välj ett datum och ett intervall, så återgår den till \"att göra\" vid nästa tillfälle när den är klar.",
+        "tagline": "Uppgifter som återkommer enligt schema"
     },
     "shopping": {
         "name": "Handla",
-        "description": "Delade inköpslistor som hela familjen kan bocka av tillsammans."
+        "description": "Delade inköpslistor som hela familjen kan bocka av tillsammans.",
+        "tagline": "Listor, butiker, lägg till med rösten"
     },
     "spending": {
         "name": "Utgifter",
-        "description": "Håll koll på gemensamma kostnader och reglera vem som är skyldig vem, fördelat som du vill."
+        "description": "Håll koll på gemensamma kostnader och reglera vem som är skyldig vem, fördelat som du vill.",
+        "tagline": "Delade kostnader, dela upp, gör upp"
     },
     "tasks": {
         "name": "Uppgifter",
-        "description": "Delade att göra-listor med förfallodatum, deluppgifter och vem som är ansvarig."
+        "description": "Delade att göra-listor med förfallodatum, deluppgifter och vem som är ansvarig.",
+        "tagline": "Att göra-listor med personer och datum"
     },
     "vehicles": {
         "name": "Fordon",
-        "description": "Allt om familjens bilar på ett ställe: status, miltal, underhåll, utgifter och dokument. Lugn bilvård, inget verkstadssystem."
+        "description": "Allt om familjens bilar på ett ställe: status, miltal, underhåll, utgifter och dokument. Lugn bilvård, inget verkstadssystem.",
+        "tagline": "Service, reparationer, dokument"
     }
 }

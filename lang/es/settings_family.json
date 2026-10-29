@@ -1,0 +1,9 @@
+{
+    "modules_lede": "Todo incluido en tu plan. Activa lo que usa tu familia.",
+    "modules_admin_note": "Solo un administrador de la familia puede activar o desactivar módulos.",
+    "modules_needs": "Necesita :name",
+    "members_lede": "Todos los que comparten este espacio familiar.",
+    "members_group": "En la familia",
+    "members_role_owner": "Propietario",
+    "members_invite_group": "Invitar a alguien"
+}

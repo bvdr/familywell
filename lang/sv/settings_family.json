@@ -1,0 +1,9 @@
+{
+    "modules_lede": "Allt ingår i er plan. Slå på det familjen använder.",
+    "modules_admin_note": "Bara en familjeadministratör kan slå på eller av moduler.",
+    "modules_needs": "Kräver :name",
+    "members_lede": "Alla som delar det här familjeutrymmet.",
+    "members_group": "I familjen",
+    "members_role_owner": "Ägare",
+    "members_invite_group": "Bjud in någon"
+}
