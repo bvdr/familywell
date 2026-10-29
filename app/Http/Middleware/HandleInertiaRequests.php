@@ -8,6 +8,7 @@ use App\Support\Auth\SocialLogin;
 use App\Support\Billing\Billing;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Tenancy\FamilyClock;
 use App\Support\Translations;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
@@ -96,6 +97,9 @@ class HandleInertiaRequests extends Middleware
             // so every member gets a different (and consistent, app-wide) colour. Lazy: needs the
             // family context that SetActiveFamily fills in later in the chain.
             'memberColors' => fn () => $this->memberColors(),
+            // The family's zone (FamilyClock), so the browser's "today" (Home's Today, the day strip, due chips) is
+            // the same day the server bucketed by. Null without a family: the browser's own zone then. Lazy, like above.
+            'timezone' => fn () => CurrentFamily::id() ? FamilyClock::zone() : null,
             // Header bell glimpse: unread count + recent items. MUST be shared here (per request), not
             // via Inertia::share in a provider boot(): under Octane boot() runs once per worker and
             // Octane drops the registered share after the first request, so the bell went permanently

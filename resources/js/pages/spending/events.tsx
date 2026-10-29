@@ -58,7 +58,8 @@ type Expense = {
     inMonthly: boolean; // false => kept out of the monthly figures (row shows a "not in monthly" marker)
 };
 
-const today = () => new Date().toISOString().slice(0, 10);
+// The family's day (FamilyClock). It used to be the UTC day: just after midnight in Romania, that's still yesterday.
+const today = () => localToday();
 // Select the whole value when the amount input gains focus, so a tap-and-type overwrites it.
 const selectAllOnFocus = (e: React.FocusEvent<HTMLInputElement>) => e.target.select();
 

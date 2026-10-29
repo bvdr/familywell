@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { dateBucket, groupByDateBucket } from './date-groups.ts';
+import { dateBucket, groupByDateBucket, localToday, setFamilyTimezone } from './date-groups.ts';
 
 // 2026-09-14 is a Monday: the tightest case, since "this week" holds only today + yesterday-as-Sunday.
 test('Monday: yesterday wins over last week, the rest of last week is last_week', () => {
@@ -65,4 +65,14 @@ test('groups a newest-first feed into ordered contiguous buckets', () => {
             ['2026-07', 1],
         ],
     );
+});
+
+test('localToday follows the family zone and steps whole days', () => {
+    // Kiritimati (UTC+14) is always exactly one calendar day ahead of Honolulu (UTC-10, no DST).
+    setFamilyTimezone('Pacific/Kiritimati');
+    const ahead = localToday();
+    setFamilyTimezone('Pacific/Honolulu');
+    assert.notEqual(localToday(), ahead);
+    assert.equal(localToday(1), ahead);
+    setFamilyTimezone(null);
 });
