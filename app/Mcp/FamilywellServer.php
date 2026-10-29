@@ -16,16 +16,19 @@ class FamilywellServer extends Server
     protected string $version = '1.0.0';
 
     protected string $instructions = <<<'MARKDOWN'
-        Familywell is a family organiser: shared to-do lists, shopping lists, expenses and notes.
+        Familywell is a family organiser: shared to-do lists, shopping lists, spending, notes, calendar,
+        projects, recipes, household stock, cars, contacts and birthdays.
         This connection acts for one signed-in person inside ONE family, chosen when they connected.
         Everything you read or change belongs to that family and respects that person's sharing rules.
-        Call get_family first to see the family, its members, and what this connection may read or change.
-        Deletes are reversible for 30 days (see the *_list_deleted and *_restore tools).
+        get_family returns the family's members (ids for assignees) and what this connection may read or change.
+        Deletes are reversible for 30 days (see the *_list_trash and *_restore tools).
         Every entity includes a `url` you can give the person to open it in Familywell.
         MARKDOWN;
+    // No "call X first" in the instructions: the ChatGPT review bans steering the model beyond the user's intent.
 
-    // tools/list pages at 15 by default; serve the whole (scope-filtered) set in one page.
-    public int $defaultPaginationLength = 50;
+    // tools/list pages at 15 by default; serve the whole (scope-filtered) set in one page. A family with every
+    // module granted has ~110 tools, so the page must be bigger than that (50 split it into 3 pages).
+    public int $defaultPaginationLength = 200;
 
     /**
      * The connector's icon in assistants (serverInfo.icons): the rounded app icon, so it reads as an app

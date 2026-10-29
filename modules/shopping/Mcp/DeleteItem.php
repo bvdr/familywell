@@ -19,11 +19,13 @@ class DeleteItem extends Tool
 
     protected string $name = 'shopping_delete_item';
 
-    protected string $description = 'Move a shopping item to the trash (restorable for 30 days with shopping_restore). To tick it off instead, use shopping_update_item with bought=true.';
+    protected string $description = 'Use this when the user wants an item removed from a shopping list. It goes to the trash and can be restored for 30 days with shopping_restore. Do not use to tick an item off as bought (that is shopping_update_item with bought=true).';
+
+    protected string $title = 'Delete shopping item';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['item_id' => $schema->integer()->required()];
+        return ['item_id' => $schema->integer()->description('Shopping item id, from shopping_get_list or shopping_search.')->required()];
     }
 
     public function handle(Request $request): Response|ResponseFactory

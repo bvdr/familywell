@@ -19,11 +19,13 @@ class DeleteEvent extends Tool
 
     protected string $name = 'calendar_delete_event';
 
-    protected string $description = 'Move a calendar event (all its occurrences and its to-dos) to Recently deleted for 30 days. Only the person who created it can delete it.';
+    protected string $description = 'Use this when the user wants to remove a calendar event. Removes every occurrence and the event\'s to-dos; they go to the trash and can be restored for 30 days with calendar_restore. Only the person who created the event can delete it.';
+
+    protected string $title = 'Delete calendar event';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['id' => $schema->integer()->required()];
+        return ['id' => $schema->integer()->description('Calendar event id, from calendar_list_entries or calendar_get_event.')->required()];
     }
 
     public function handle(Request $request): Response|ResponseFactory

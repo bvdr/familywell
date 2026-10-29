@@ -24,11 +24,13 @@ class UpdateRecipe extends Tool
 
     protected ?string $app = 'recipe';
 
-    protected string $description = 'Change a recipe. Only the fields you pass change; pass null to clear one. `ingredients` and `steps` replace the whole list, so send the complete list (read it with recipes_get first). To save a scaled version, pass the scaled ingredients and new servings/yield.';
+    protected string $description = 'Use this when the user wants to change a saved recipe. Only the fields you pass change; pass null to clear one. `ingredients` and `steps` replace the whole list, so send the complete list (read it with recipes_get). To save a scaled version, pass the scaled ingredients and the new servings or yield.';
+
+    protected string $title = 'Update recipe';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['recipe_id' => $schema->integer()->required(), ...RecipeData::fieldSchema($schema)];
+        return ['recipe_id' => $schema->integer()->description('Recipe id, from recipes_list.')->required(), ...RecipeData::fieldSchema($schema)];
     }
 
     public function handle(Request $request): Response|ResponseFactory

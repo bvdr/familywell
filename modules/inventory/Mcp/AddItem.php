@@ -17,7 +17,9 @@ class AddItem extends Tool
 
     protected string $name = 'inventory_add_item';
 
-    protected string $description = 'Start tracking a new household stock item. Only name and unit are required; set min_quantity so it can warn when running low.';
+    protected string $description = 'Use this when the user wants to start tracking a household stock item (pantry, cleaning, bathroom...). Only name and unit are required; set min_quantity to get a low-stock warning.';
+
+    protected string $title = 'Add stock item';
 
     public function schema(JsonSchema $schema): array
     {

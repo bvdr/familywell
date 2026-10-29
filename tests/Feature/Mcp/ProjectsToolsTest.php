@@ -79,7 +79,7 @@ it('trashes a project with its tasks and restores them; a task deleted on its ow
 
     // A sub-task deleted on its own is listed under its project, and restores into it.
     mcpTool($token, 'projects_delete_task', ['task_id' => $gone['id']]);
-    [, $trash] = mcpTool($token, 'projects_list_deleted');
+    [, $trash] = mcpTool($token, 'projects_list_trash');
     expect($trash['deleted'])->toHaveCount(1)->and($trash['deleted'][0])->toMatchArray(['type' => 'task', 'title' => 'Paint', 'where' => 'Garage']);
     [$err] = mcpTool($token, 'projects_restore', ['type' => 'task', 'id' => $gone['id']]);
     expect($err)->toBeFalse();
@@ -92,7 +92,7 @@ it('trashes a project with its tasks and restores them; a task deleted on its ow
     [$err] = mcpTool($token, 'projects_delete', ['project_id' => $p['id']]);
     expect($err)->toBeFalse()->and(Task::find($keep['id']))->toBeNull()->and(Task::find($sub['id']))->toBeNull()
         ->and(mcpTool($token, 'projects_get', ['project_id' => $p['id']])[0])->toBeTrue();
-    [, $trash] = mcpTool($token, 'projects_list_deleted');
+    [, $trash] = mcpTool($token, 'projects_list_trash');
     expect(collect($trash['deleted'])->pluck('type')->all())->toBe(['project']); // tasks of a trashed project ride along
 
     [$err, $r] = mcpTool($token, 'projects_restore', ['type' => 'project', 'id' => $p['id']]);
@@ -168,10 +168,10 @@ it('links and unlinks a spending list and a contact, gated on the token reaching
     $hidden->setVisibility('private');
     $tom = Person::create(['name' => 'Tom', 'created_by' => $users[0]->id]);
 
-    [$err] = mcpTool($full, 'projects_link', ['project_id' => $project->id, 'type' => 'spend_list', 'id' => $budget->id]);
+    [$err] = mcpTool($full, 'projects_link_item', ['project_id' => $project->id, 'type' => 'spend_list', 'id' => $budget->id]);
     expect($err)->toBeFalse();
-    mcpTool($full, 'projects_link', ['project_id' => $project->id, 'type' => 'contact', 'id' => $tom->id]);
-    [$err, $msg] = mcpTool($full, 'projects_link', ['project_id' => $project->id, 'type' => 'spend_list', 'id' => $hidden->id]);
+    mcpTool($full, 'projects_link_item', ['project_id' => $project->id, 'type' => 'contact', 'id' => $tom->id]);
+    [$err, $msg] = mcpTool($full, 'projects_link_item', ['project_id' => $project->id, 'type' => 'spend_list', 'id' => $hidden->id]);
     expect($err)->toBeTrue()->and($msg)->toContain('not found');
 
     [, $got] = mcpTool($full, 'projects_get', ['project_id' => $project->id]);
@@ -183,10 +183,10 @@ it('links and unlinks a spending list and a contact, gated on the token reaching
     $narrow = mcpConnect($users[0], $family->id, ['projects' => 'write'])['access_token'];
     [, $got] = mcpTool($narrow, 'projects_get', ['project_id' => $project->id]);
     expect($got)->not->toHaveKey('spend_lists')->not->toHaveKey('contacts')->not->toHaveKey('shopping_lists');
-    [$err, $msg] = mcpTool($narrow, 'projects_link', ['project_id' => $project->id, 'type' => 'contact', 'id' => $tom->id]);
+    [$err, $msg] = mcpTool($narrow, 'projects_link_item', ['project_id' => $project->id, 'type' => 'contact', 'id' => $tom->id]);
     expect($err)->toBeTrue()->and($msg)->toContain('no access to contacts');
 
-    [$err] = mcpTool($full, 'projects_unlink', ['project_id' => $project->id, 'type' => 'spend_list', 'id' => $budget->id]);
+    [$err] = mcpTool($full, 'projects_unlink_item', ['project_id' => $project->id, 'type' => 'spend_list', 'id' => $budget->id]);
     expect($err)->toBeFalse()
         ->and($project->links()->where('linkable_type', 'spend_event')->exists())->toBeFalse()
         ->and(SpendEvent::find($budget->id))->not->toBeNull();

@@ -21,7 +21,9 @@ class AddDocument extends Tool
 
     protected string $name = 'vehicles_add_document';
 
-    protected string $description = 'Add a document to a car (insurance, inspection, road tax, invoice, manual...), optionally with an expiry date (used for renewal reminders) and the file itself (PDF or image, up to 12 MB). Pass the file as `file` (ChatGPT only: a file the person attached), `file_url` (public https), or `file_base64` + `file_name`. If you cannot pass the file, add the document without it and give the person the returned url to upload it there.';
+    protected string $description = 'Use this when the user wants to file a car document (insurance, inspection, road tax, invoice, manual...), optionally with an expiry date (used for renewal reminders) and the file itself (PDF or image, up to 12 MB) as `file`, `file_url` or `file_base64` + `file_name`. When the file can\'t be passed, add the document without it and give the person the returned url to upload it.';
+
+    protected string $title = 'Add car document';
 
     public function __construct()
     {
@@ -31,11 +33,11 @@ class AddDocument extends Tool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'vehicle_id' => $schema->integer()->required(),
-            'type' => $schema->string()->enum(VehicleDocument::TYPES)->required(),
+            'vehicle_id' => $schema->integer()->description('Car id, from vehicles_list.')->required(),
+            'type' => $schema->string()->description('Kind of document.')->enum(VehicleDocument::TYPES)->required(),
             'title' => $schema->string()->description('e.g. "RCA 2026–2027" or "Deviz service ulei".')->required(),
             'expires_on' => $schema->string()->format('date')->description('YYYY-MM-DD, for documents that expire.'),
-            'notes' => $schema->string(),
+            'notes' => $schema->string()->description('Free-text notes.'),
             ...IncomingFile::schema($schema),
         ];
     }

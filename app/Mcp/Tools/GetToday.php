@@ -20,7 +20,9 @@ class GetToday extends Tool
 
     protected ?string $app = 'today';
 
-    protected string $description = "What's on for this person: open dated items (tasks, shopping items) due today or this week, overdue ones included, plus what they recently opened. Only covers modules this connection may read.";
+    protected string $description = 'Use this when the user asks what is on today or this week. Returns this person\'s open dated items (tasks, shopping items, project and calendar to-dos, events) due today or later this week, including overdue ones, plus the FamilyWell pages they opened recently. Only covers modules this connection may read. Read-only.';
+
+    protected string $title = 'Get today\'s agenda';
 
     public function handle(Request $request): Response|ResponseFactory
     {

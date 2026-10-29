@@ -19,11 +19,13 @@ class DeleteBirthday extends Tool
 
     protected string $name = 'birthdays_delete';
 
-    protected string $description = 'Remove a birthday (the id from birthdays_list). The contact itself stays. Restorable for 30 days with birthdays_restore.';
+    protected string $description = 'Use this when the user wants to remove a birthday. The contact itself is kept. The birthday goes to the trash and can be restored for 30 days with birthdays_restore.';
+
+    protected string $title = 'Delete birthday';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['birthday_id' => $schema->integer()->required()];
+        return ['birthday_id' => $schema->integer()->description('Birthday id, from birthdays_list.')->required()];
     }
 
     public function handle(Request $request): Response|ResponseFactory

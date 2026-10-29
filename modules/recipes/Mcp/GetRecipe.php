@@ -18,11 +18,13 @@ class GetRecipe extends Tool
 
     protected ?string $app = 'recipe';
 
-    protected string $description = 'One recipe in full: photo, servings / total yield, times, ingredients (qty null = to taste) and steps. To recalculate amounts use recipes_scale.';
+    protected string $description = 'Use this when the user wants to read or cook a recipe. Returns the photo, servings or total yield, times, ingredients (qty null = to taste) and steps. Read-only; to recalculate amounts use recipes_scale.';
+
+    protected string $title = 'Get recipe';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['recipe_id' => $schema->integer()->required()];
+        return ['recipe_id' => $schema->integer()->description('Recipe id, from recipes_list.')->required()];
     }
 
     public function handle(Request $request): Response|ResponseFactory

@@ -15,20 +15,20 @@ final class CalendarData
     public static function schema(JsonSchema $s): array
     {
         return [
-            'title' => $s->string(),
-            'notes' => $s->string(),
+            'title' => $s->string()->description('Event title, e.g. "Trip to Vienna".'),
+            'notes' => $s->string()->description('Free-text notes.'),
             'icon' => $s->string()->description('Lucide icon name, e.g. plane, car, briefcase, cake.'),
             'color' => $s->string()->description('One of: green, blue, orange, red, purple, yellow, gray.'),
             'start_date' => $s->string()->description('Y-m-d'),
             'end_date' => $s->string()->description('Y-m-d, inclusive; same as start_date for one day.'),
             'start_time' => $s->string()->description('H:i local time; omit (with end_time) for all-day.'),
             'end_time' => $s->string()->description('H:i local time.'),
-            'repeat' => $s->string()->enum(Occurrences::REPEATS),
+            'repeat' => $s->string()->description('How it repeats; omit for a one-time event.')->enum(Occurrences::REPEATS),
             'repeat_interval' => $s->integer()->description('Every N days/weeks/months/years (default 1).'),
             'repeat_until' => $s->string()->description('Y-m-d, last day an occurrence may start; omit for forever.'),
-            'people' => $s->array()->items($s->object(['type' => $s->string()->enum(['user', 'person']), 'id' => $s->integer()]))
+            'people' => $s->array()->items($s->object(['type' => $s->string()->description('user = a family member, person = a contact.')->enum(['user', 'person']), 'id' => $s->integer()->description('The member id (get_family) or contact id (contacts_list).')]))
                 ->description('Family members (type user, ids from get_family) and contacts (type person, ids from contacts_list).'),
-            'project_id' => $s->integer(),
+            'project_id' => $s->integer()->description('Project to link it to, from projects_list.'),
         ];
     }
 

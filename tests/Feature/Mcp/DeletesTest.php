@@ -67,7 +67,7 @@ it('trashes repairs, documents, fuel fills and schedules, restores one, and free
     Storage::disk('r2')->assertExists($docFile);
     expect($car->repairs()->count() + $car->documents()->count() + $car->fuelEntries()->count() + $car->maintenanceSchedules()->count())->toBe(0);
 
-    [, $trash] = mcpTool($token, 'vehicles_list_deleted');
+    [, $trash] = mcpTool($token, 'vehicles_list_trash');
     expect(collect($trash['deleted'])->pluck('type')->sort()->values()->all())->toBe(['document', 'fuel', 'maintenance_schedule', 'repair'])
         ->and(collect($trash['deleted'])->pluck('where')->unique()->all())->toBe(['Dacia Duster']);
     [$err, $r] = mcpTool($token, 'vehicles_restore', ['type' => 'document', 'id' => $doc['document_id']]);
@@ -88,23 +88,23 @@ it('trashes a whole car with its records, restores it, and frees its files at pu
     [, $doc] = mcpTool($token, 'vehicles_add_document', ['vehicle_id' => $car->id, 'type' => 'insurance', 'title' => 'RCA', 'file_base64' => base64_encode("%PDF-1.4\n%%EOF\n"), 'file_name' => 'rca.pdf']);
     $file = VehicleDocument::find($doc['document_id'])->file_path;
 
-    [$err] = mcpTool($token, 'vehicles_delete', ['vehicle_id' => $car->id]);
+    [$err] = mcpTool($token, 'vehicles_delete_vehicle', ['vehicle_id' => $car->id]);
     expect($err)->toBeFalse()->and(Vehicle::find($car->id))->toBeNull();
     Storage::disk('r2')->assertExists($file);
-    [, $trash] = mcpTool($token, 'vehicles_list_deleted');
+    [, $trash] = mcpTool($token, 'vehicles_list_trash');
     expect(collect($trash['deleted'])->pluck('type')->all())->toBe(['vehicle']); // its records ride along
 
     [$err] = mcpTool($token, 'vehicles_restore', ['type' => 'vehicle', 'id' => $car->id]);
     expect($err)->toBeFalse()->and(mcpTool($token, 'vehicles_get', ['vehicle_id' => $car->id])[1]['documents'])->toHaveCount(1);
 
-    mcpTool($token, 'vehicles_delete', ['vehicle_id' => $car->id]);
+    mcpTool($token, 'vehicles_delete_vehicle', ['vehicle_id' => $car->id]);
     $this->travel(31)->days();
     $this->artisan('trash:purge')->assertExitCode(0);
     Storage::disk('r2')->assertMissing($file);
     expect(Vehicle::withTrashed()->find($car->id))->toBeNull()->and(VehicleDocument::withTrashed()->count())->toBe(0);
 
     $tools = collect(mcpCall($token, 'tools/list')->json('result.tools'))->keyBy('name');
-    expect($tools['vehicles_delete']['annotations']['destructiveHint'] ?? null)->toBeTrue()
+    expect($tools['vehicles_delete_vehicle']['annotations']['destructiveHint'] ?? null)->toBeTrue()
         ->and($tools['vehicles_delete_record']['annotations']['destructiveHint'] ?? null)->toBeTrue();
 });
 
@@ -119,7 +119,7 @@ it('gives every tool a title and explicit readOnlyHint, destructiveHint and open
     }
     expect($tools['notes_list']['annotations'])->toMatchArray(['readOnlyHint' => true, 'destructiveHint' => false, 'openWorldHint' => false])
         ->and($tools['vehicles_log_mileage']['annotations']['destructiveHint'])->toBeTrue()
-        ->and($tools['notes_create']['annotations'])->toMatchArray(['title' => 'Create Note', 'readOnlyHint' => false, 'destructiveHint' => false, 'openWorldHint' => false])
+        ->and($tools['notes_create']['annotations'])->toMatchArray(['title' => 'Create note', 'readOnlyHint' => false, 'destructiveHint' => false, 'openWorldHint' => false])
         ->and($tools['notes_update']['annotations']['destructiveHint'])->toBeTrue()
         ->and($tools['notes_delete']['annotations']['destructiveHint'])->toBeTrue()
         ->and($tools['vehicles_add_document']['annotations']['openWorldHint'])->toBeTrue();

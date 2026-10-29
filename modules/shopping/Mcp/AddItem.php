@@ -19,15 +19,17 @@ class AddItem extends Tool
 
     protected string $name = 'shopping_add_item';
 
-    protected string $description = 'Add an item to a shopping list. The aisle is guessed automatically. If the same item is already on the list (not yet bought) it is still added, and the response says so in `warning` so you can tell the person or update the existing one instead. Optionally set `store` (the primary shop to buy it at; omitted = the list\'s shop) and `alt_stores` (other shops that also sell it).';
+    protected string $description = 'Use this when the user wants something put on a shopping list. The aisle is guessed automatically. If the same item is already on the list unbought it is still added, and `warning` says so, so you can tell the person or update the existing one. Optionally sets the shop to buy it at (`store`) and other shops that sell it (`alt_stores`).';
+
+    protected string $title = 'Add shopping item';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'list_id' => $schema->integer()->required(),
-            'name' => $schema->string()->required(),
+            'list_id' => $schema->integer()->description('Shopping list id, from shopping_list_shopping_lists.')->required(),
+            'name' => $schema->string()->description('What to buy, e.g. "Milk".')->required(),
             'quantity' => $schema->string()->description('Free text, e.g. "2", "1 kg", "a bunch".'),
-            'note' => $schema->string(),
+            'note' => $schema->string()->description('Short note, e.g. "lactose-free".'),
             'store' => $schema->string()->description('Primary shop to buy it at, e.g. "Lidl". Omit to inherit the list\'s shop.'),
             'alt_stores' => $schema->array()->items($schema->string())->description('Other shops that also sell it, e.g. ["Kaufland", "Mega Image"].'),
         ];

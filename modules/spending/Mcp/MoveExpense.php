@@ -19,12 +19,14 @@ class MoveExpense extends Tool
 
     protected string $name = 'spending_move_expense';
 
-    protected string $description = 'Move an expense to another spending list, like "Move to list" in the app. Amount, date, who paid, category, note and shop are kept; the amount is re-converted into the new list\'s currency and its split resets to everyone on the new list. An expense with no own count_in_monthly setting then follows the new list\'s. Expenses paid by a guest can\'t be moved.';
+    protected string $description = 'Use this when the user wants an expense moved to another spending list. Amount, date, payer, category, note and shop are kept; the amount is converted into the new list\'s currency and the split resets to everyone on the new list. Expenses paid by a guest can\'t be moved.';
+
+    protected string $title = 'Move expense to list';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'expense_id' => $schema->integer()->required(),
+            'expense_id' => $schema->integer()->description('Expense id, from spending_list_expenses.')->required(),
             'list_id' => $schema->integer()->required()->description('The spending list to move it to.'),
         ];
     }

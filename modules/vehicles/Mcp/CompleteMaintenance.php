@@ -20,7 +20,9 @@ class CompleteMaintenance extends Tool
 
     protected string $name = 'vehicles_complete_maintenance';
 
-    protected string $description = 'Mark a maintenance schedule (from vehicles_get) as done: records it in the service history, resets when it is next due, moves the odometer forward, closes its reminder task, and records any cost in Spending. An invoice/deviz file (file / file_url / file_base64) is filed with the car\'s documents as a service invoice.';
+    protected string $description = 'Use this when the user says a planned service was done. Records it in the service history, resets when it is next due, moves the odometer forward, closes its reminder task, and records any cost in Spending. An invoice file (`file`, `file_url` or `file_base64`) is filed with the car\'s documents.';
+
+    protected string $title = 'Complete car maintenance';
 
     public function __construct()
     {
@@ -30,13 +32,13 @@ class CompleteMaintenance extends Tool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'vehicle_id' => $schema->integer()->required(),
+            'vehicle_id' => $schema->integer()->description('Car id, from vehicles_list.')->required(),
             'schedule_id' => $schema->integer()->description('schedule_id from vehicles_get.')->required(),
             'performed_on' => $schema->string()->format('date')->description('YYYY-MM-DD (default: today).'),
             'mileage_km' => $schema->integer()->description('Odometer when it was done, in km (default: the current reading).'),
-            'cost' => $schema->number(),
+            'cost' => $schema->number()->description('Total paid, in the family\'s currency.'),
             'provider' => $schema->string()->description('Garage / who did it.'),
-            'notes' => $schema->string(),
+            'notes' => $schema->string()->description('Free-text notes.'),
             ...IncomingFile::schema($schema),
         ];
     }

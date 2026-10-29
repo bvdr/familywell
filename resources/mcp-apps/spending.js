@@ -1,4 +1,4 @@
-// spending_summary (totals by category / shop for a period, with period switching) and
+// spending_get_summary (totals by category / shop for a period, with period switching) and
 // spending_list_expenses (a page of expenses). Category keys get their family names from
 // spending_list_categories, fetched once; until then (or if it fails) the key is prettified.
 let SPEND_NAMES = null;
@@ -108,7 +108,7 @@ FW.start((d) => {
 
     const period = async (from, to, label) => {
         try {
-            FW.data = await FW.call('spending_summary', { from, to });
+            FW.data = await FW.call('spending_get_summary', { from, to });
             FW.draw();
             FW.note(`switched the spending summary to ${label} (${from} to ${to})`);
         } catch (e) {

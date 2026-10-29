@@ -18,12 +18,14 @@ class CreateList extends Tool
 
     protected string $name = 'shopping_create_list';
 
-    protected string $description = 'Create a shopping list owned by this person, visible to the whole family, optionally for one store.';
+    protected string $description = 'Use this when the user wants a new shopping list, optionally for one store. The list belongs to this person and is visible to the whole family.';
+
+    protected string $title = 'Create shopping list';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'name' => $schema->string()->required(),
+            'name' => $schema->string()->description('List name, e.g. "Weekly groceries".')->required(),
             'store' => $schema->string()->description('Optional store/shop name (e.g. "Lidl").'),
         ];
     }

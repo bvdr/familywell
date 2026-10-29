@@ -19,11 +19,13 @@ class DeleteRecipe extends Tool
 
     protected string $name = 'recipes_delete';
 
-    protected string $description = 'Move a recipe to the trash (restorable for 30 days from Settings > Recently deleted in the app). Only the person who created it can delete it.';
+    protected string $description = 'Use this when the user wants to delete a recipe. It goes to the trash and can be restored for 30 days from Settings > Recently deleted in FamilyWell. Only the person who created it can delete it.';
+
+    protected string $title = 'Delete recipe';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['recipe_id' => $schema->integer()->required()];
+        return ['recipe_id' => $schema->integer()->description('Recipe id, from recipes_list.')->required()];
     }
 
     public function handle(Request $request): Response|ResponseFactory

@@ -51,9 +51,9 @@ class ContactData
     public static function methodsSchema($schema)
     {
         return $schema->array()->items($schema->object([
-            'type' => $schema->string()->enum(ContactMethod::TYPES)->required(),
+            'type' => $schema->string()->description('Kind of contact method.')->enum(ContactMethod::TYPES)->required(),
             'label' => $schema->string()->description('Optional, e.g. "work", "home".'),
-            'value' => $schema->string()->required(),
+            'value' => $schema->string()->description('The phone number, email, address, link or other value.')->required(),
         ]));
     }
 }

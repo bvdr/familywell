@@ -17,13 +17,15 @@ class AddTask extends Tool
 
     protected string $name = 'projects_add_task';
 
-    protected string $description = 'Add a task to a project, optionally as a sub-task (one level deep) of one of its tasks, with a due date and an assignee.';
+    protected string $description = 'Use this when the user wants to add a task to a project, optionally as a sub-task (one level deep) of one of its tasks, with a due date and an assignee. Do not use for a to-do list outside a project (that is tasks_create_task).';
+
+    protected string $title = 'Add project task';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'project_id' => $schema->integer()->required(),
-            'title' => $schema->string()->required(),
+            'project_id' => $schema->integer()->description('Project id, from projects_list.')->required(),
+            'title' => $schema->string()->description('What needs doing.')->required(),
             'note' => $schema->string()->description('Short note (max 255 chars).'),
             'due_date' => $schema->string()->format('date')->description('YYYY-MM-DD.'),
             'assigned_to' => $schema->integer()->description('Member id from get_family.'),

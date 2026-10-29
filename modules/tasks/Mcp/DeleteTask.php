@@ -19,11 +19,13 @@ class DeleteTask extends Tool
 
     protected string $name = 'tasks_delete_task';
 
-    protected string $description = 'Move a task (and its sub-tasks) to the trash, restorable for 30 days with tasks_restore.';
+    protected string $description = 'Use this when the user wants a task (and its sub-tasks) deleted. It goes to the trash and can be restored for 30 days with tasks_restore. Do not use to tick a task off (that is tasks_update_task with done=true).';
+
+    protected string $title = 'Delete to-do task';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['task_id' => $schema->integer()->required()];
+        return ['task_id' => $schema->integer()->description('Task id, from tasks_get_list or tasks_search.')->required()];
     }
 
     public function handle(Request $request): Response|ResponseFactory

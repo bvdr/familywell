@@ -16,11 +16,13 @@ class GetExpense extends Tool
 
     protected string $name = 'spending_get_expense';
 
-    protected string $description = 'One expense with its amount, category, shop, date, who paid, and list.';
+    protected string $description = 'Use this when the user asks about one expense in detail. Returns its amount, category, shop, date, who paid and its list. Read-only.';
+
+    protected string $title = 'Get expense';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['expense_id' => $schema->integer()->required()];
+        return ['expense_id' => $schema->integer()->description('Expense id, from spending_list_expenses.')->required()];
     }
 
     public function handle(Request $request): Response|ResponseFactory

@@ -18,13 +18,15 @@ class Restore extends Tool
 
     protected string $name = 'projects_restore';
 
-    protected string $description = 'Bring a project or project task back from the trash (ids from projects_list_deleted). Restoring a project brings back the tasks deleted with it; restoring a sub-task also restores its deleted parent task.';
+    protected string $description = 'Use this when the user wants a deleted project or project task back. Restoring a project also restores the tasks deleted with it; restoring a sub-task also restores its deleted parent. Takes type and id from projects_list_trash.';
+
+    protected string $title = 'Restore project or task';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'type' => $schema->string()->enum(['project', 'task'])->required(),
-            'id' => $schema->integer()->required(),
+            'type' => $schema->string()->description('project or task, from projects_list_trash.')->enum(['project', 'task'])->required(),
+            'id' => $schema->integer()->description('The id from projects_list_trash.')->required(),
         ];
     }
 

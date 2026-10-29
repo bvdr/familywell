@@ -19,11 +19,13 @@ class DeleteNote extends Tool
 
     protected string $name = 'notes_delete';
 
-    protected string $description = 'Move a note to the trash (restorable for 30 days with notes_restore). Only the person who created the note can delete it.';
+    protected string $description = 'Use this when the user wants to delete a note. It goes to the trash and can be restored for 30 days with notes_restore. Only the person who created the note can delete it.';
+
+    protected string $title = 'Delete note';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['note_id' => $schema->integer()->required()];
+        return ['note_id' => $schema->integer()->description('Note id, from notes_list or notes_search.')->required()];
     }
 
     public function handle(Request $request): Response|ResponseFactory

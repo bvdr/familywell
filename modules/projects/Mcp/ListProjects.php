@@ -17,7 +17,9 @@ class ListProjects extends Tool
 
     protected string $name = 'projects_list';
 
-    protected string $description = 'List the family\'s projects this person can see, with status, progress and how many tasks are done.';
+    protected string $description = 'Use this when the user asks about the family\'s projects or wants to pick one. Returns the projects this person can see with status, progress and how many tasks are done. Read-only.';
+
+    protected string $title = 'List projects';
 
     public function schema(JsonSchema $schema): array
     {

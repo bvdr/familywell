@@ -1,4 +1,4 @@
-// inventory_needs_attention (empty / low / expiring / stale buckets) and inventory_list (`items`).
+// inventory_list_needs_attention (empty / low / expiring / stale buckets) and inventory_list (`items`).
 // Each item gets -/+ steppers (inventory_adjust_quantity, logged in its history like the app's quick
 // update) and "Add to shopping" when it isn't on a list yet.
 const INV_STATE = { expired: 'bad', empty: 'bad', expiring: 'warn', low: 'warn', unknown: '', good: 'good' };

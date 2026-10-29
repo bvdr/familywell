@@ -19,11 +19,13 @@ class GetContact extends Tool
 
     protected ?string $app = 'contact';
 
-    protected string $description = 'One person in full: contact methods plus what other enabled modules add (e.g. birthday, age, next birthday).';
+    protected string $description = 'Use this when the user asks for one person\'s details. Returns their contact methods plus what other enabled modules add (e.g. birthday, age, next birthday). Read-only.';
+
+    protected string $title = 'Get contact';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['person_id' => $schema->integer()->required()];
+        return ['person_id' => $schema->integer()->description('Contact id, from contacts_list.')->required()];
     }
 
     public function handle(Request $request): Response|ResponseFactory

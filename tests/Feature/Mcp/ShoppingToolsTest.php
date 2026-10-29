@@ -30,7 +30,7 @@ it('creates a list, adds items, warns on a duplicate, and reads them back', func
     [, $got] = mcpTool($token, 'shopping_get_list', ['list_id' => $list['id']]);
     expect($got['items'])->toHaveCount(2);
 
-    [, $lists] = mcpTool($token, 'shopping_list_lists');
+    [, $lists] = mcpTool($token, 'shopping_list_shopping_lists');
     expect(collect($lists['lists'])->firstWhere('id', $list['id'])['to_buy_count'])->toBe(2);
 
     [, $found] = mcpTool($token, 'shopping_search', ['query' => 'MILK']);
@@ -65,7 +65,7 @@ it('deletes to the trash, lists the trash, and restores', function () {
     [, $dl] = mcpTool($token, 'shopping_delete_list', ['list_id' => $list['id']]);
     expect($dl['deleted'])->toBeTrue();
 
-    [, $trash] = mcpTool($token, 'shopping_list_deleted');
+    [, $trash] = mcpTool($token, 'shopping_list_trash');
     expect(collect($trash['deleted'])->pluck('type')->sort()->values()->all())->toBe(['item', 'list']);
 
     // The item was trashed on its own before the list, so restoring the list leaves it in the trash...
@@ -83,7 +83,7 @@ it('cannot see or touch another member\'s private list, nor delete a list it did
     $hidden = $private->items()->create(['name' => 'Surprise', 'created_by' => $users[1]->id]);
     $shared = ShoppingList::createFor($users[1], ['name' => 'Shared']);
 
-    [, $lists] = mcpTool($token, 'shopping_list_lists');
+    [, $lists] = mcpTool($token, 'shopping_list_shopping_lists');
     expect(collect($lists['lists'])->pluck('name')->all())->toBe(['Shared']);
     [, $found] = mcpTool($token, 'shopping_search', ['query' => 'Surprise']);
     expect($found['items'])->toBe([]);

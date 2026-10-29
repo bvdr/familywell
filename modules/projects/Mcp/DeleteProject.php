@@ -18,11 +18,13 @@ class DeleteProject extends Tool
 
     protected string $name = 'projects_delete';
 
-    protected string $description = 'Move a whole project and its tasks to the trash (restorable for 30 days with projects_restore). Only the person who created it can. Linked shopping and spending lists are not deleted.';
+    protected string $description = 'Use this when the user wants to delete a whole project. The project and its tasks go to the trash and can be restored for 30 days with projects_restore; linked shopping and spending lists are kept. Only the person who created it can delete it.';
+
+    protected string $title = 'Delete project';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['project_id' => $schema->integer()->required()];
+        return ['project_id' => $schema->integer()->description('Project id, from projects_list.')->required()];
     }
 
     public function handle(Request $request): Response|ResponseFactory

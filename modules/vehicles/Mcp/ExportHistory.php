@@ -18,11 +18,13 @@ class ExportHistory extends Tool
 
     protected string $name = 'vehicles_export_history';
 
-    protected string $description = 'A download link to the car\'s full history as a PDF (services, repairs, fuel, documents, mileage, with totals per year and category). The link works for 24 hours without signing in; give it to the person.';
+    protected string $description = 'Use this when the user wants the car\'s full history as a PDF (e.g. to sell the car). Returns a download link to a PDF of services, repairs, fuel, documents and mileage with totals per year and category. The link works for 24 hours without signing in; give it to the person.';
+
+    protected string $title = 'Export car history PDF';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['vehicle_id' => $schema->integer()->required()];
+        return ['vehicle_id' => $schema->integer()->description('Car id, from vehicles_list.')->required()];
     }
 
     public function handle(Request $request): Response|ResponseFactory

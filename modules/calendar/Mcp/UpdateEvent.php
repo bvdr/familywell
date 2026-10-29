@@ -20,11 +20,13 @@ class UpdateEvent extends Tool
 
     protected string $name = 'calendar_update_event';
 
-    protected string $description = 'Change a calendar event. Send only the fields to change; people replaces the whole list. Changes apply to every occurrence of a repeating event.';
+    protected string $description = 'Use this when the user wants to change a calendar event. Send only the fields to change; `people` replaces the whole list. Changes apply to every occurrence of a repeating event.';
+
+    protected string $title = 'Update calendar event';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['id' => $schema->integer()->required(), ...CalendarData::schema($schema)];
+        return ['id' => $schema->integer()->description('Calendar event id, from calendar_list_entries or calendar_get_event.')->required(), ...CalendarData::schema($schema)];
     }
 
     public function handle(Request $request): Response|ResponseFactory

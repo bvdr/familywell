@@ -16,7 +16,7 @@ it('lists only the tools the scopes and enabled modules allow', function () {
     $none = mcpConnect($users[0], $family->id)['access_token'];
 
     expect(mcpToolNames($none))->toBe(['get_family', 'get_today'])
-        ->and(mcpToolNames($read))->toBe(['get_family', 'get_today', 'tasks_get_list', 'tasks_list_lists', 'tasks_search'])
+        ->and(mcpToolNames($read))->toBe(['get_family', 'get_today', 'tasks_get_list', 'tasks_list_todo_lists', 'tasks_search'])
         ->and(mcpToolNames($write))->toContain('tasks_create_task', 'tasks_delete_list', 'tasks_restore', 'tasks_search');
 
     // A read-only token cannot call a write tool: it is not listed, so it does not exist for this token.

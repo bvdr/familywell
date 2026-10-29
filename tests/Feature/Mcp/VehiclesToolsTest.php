@@ -43,7 +43,7 @@ it('lists cars and shows one car with what is due and expiring', function () {
         ->and($got['documents'][0])->toMatchArray(['title' => 'RCA', 'expiring_soon' => true]);
 
     // Read-only token: no write tools.
-    expect(mcpToolNames($token))->toContain('vehicles_history')->not->toContain('vehicles_log_fuel');
+    expect(mcpToolNames($token))->toContain('vehicles_get_history')->not->toContain('vehicles_log_fuel');
 });
 
 it('logs mileage forward only unless it is a correction', function () {
@@ -81,7 +81,7 @@ it('completes a maintenance schedule, resetting when it is next due', function (
         ->and($car->fresh()->current_mileage)->toBe(150300)
         ->and(Spend::count())->toBe(1); // a service cost always lands in Spending, as in the app
 
-    [, $hist] = mcpTool($token, 'vehicles_history', ['vehicle_id' => $car->id, 'type' => 'maintenance']);
+    [, $hist] = mcpTool($token, 'vehicles_get_history', ['vehicle_id' => $car->id, 'type' => 'maintenance']);
     expect($hist['history'][0]['title'])->toBe('Oil & filter');
 });
 
@@ -241,7 +241,7 @@ it('sends the family currency with car costs so the widget can format them', fun
     SpendSetting::current($family->id)->update(['default_currency' => 'RON']);
 
     [, $got] = mcpTool($token, 'vehicles_get', ['vehicle_id' => $car->id]);
-    [, $hist] = mcpTool($token, 'vehicles_history', ['vehicle_id' => $car->id]);
+    [, $hist] = mcpTool($token, 'vehicles_get_history', ['vehicle_id' => $car->id]);
 
     expect($got['currency'])->toBe('RON')->and($hist['currency'])->toBe('RON')->and($hist['display_unit'])->toBe('km');
 });
