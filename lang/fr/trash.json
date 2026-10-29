@@ -1,10 +1,7 @@
 {
     "title": "Supprimés récemment",
-    "desc": "Les éléments supprimés restent ici :days jours, puis ils sont effacés définitivement.",
     "empty": "Rien de supprimé ces :days derniers jours.",
     "restore": "Restaurer",
-    "deleted_on": "Supprimé le :date",
-    "removed_on": "effacé le :date",
     "type_list": "Liste",
     "type_task": "Tâche",
     "type_item": "Article",
@@ -23,5 +20,8 @@
     "type_fuel": "Plein",
     "type_repair": "Réparation",
     "type_document": "Document",
-    "type_maintenance_schedule": "Entretien"
+    "type_maintenance_schedule": "Entretien",
+    "kept": "Conservés :days jours, puis effacés définitivement.",
+    "days_left_one": ":count jour restant",
+    "days_left_other": ":count jours restants"
 }

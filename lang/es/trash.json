@@ -1,10 +1,7 @@
 {
     "title": "Papelera",
-    "desc": "Los elementos eliminados se quedan aquí :days días y después se borran para siempre.",
     "empty": "No se ha eliminado nada en los últimos :days días.",
     "restore": "Restaurar",
-    "deleted_on": "Eliminado :date",
-    "removed_on": "eliminado :date",
     "type_list": "Lista",
     "type_task": "Tarea",
     "type_item": "Artículo",
@@ -23,5 +20,8 @@
     "type_fuel": "Carga de combustible",
     "type_repair": "Reparación",
     "type_document": "Documento",
-    "type_maintenance_schedule": "Mantenimiento"
+    "type_maintenance_schedule": "Mantenimiento",
+    "kept": "Se guardan :days días y después se borran para siempre.",
+    "days_left_one": "queda :count día",
+    "days_left_other": "quedan :count días"
 }

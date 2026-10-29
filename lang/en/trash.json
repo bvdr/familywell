@@ -1,10 +1,7 @@
 {
     "title": "Recently deleted",
-    "desc": "Deleted items stay here for :days days, then they're removed for good.",
     "empty": "Nothing deleted in the last :days days.",
     "restore": "Restore",
-    "deleted_on": "Deleted :date",
-    "removed_on": "removed :date",
     "type_list": "List",
     "type_task": "Task",
     "type_item": "Item",
@@ -23,5 +20,8 @@
     "type_fuel": "Fuel fill",
     "type_repair": "Repair",
     "type_document": "Document",
-    "type_maintenance_schedule": "Maintenance"
+    "type_maintenance_schedule": "Maintenance",
+    "kept": "Kept for :days days, then removed for good.",
+    "days_left_one": ":count day left",
+    "days_left_other": ":count days left"
 }
