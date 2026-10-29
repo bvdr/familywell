@@ -34,6 +34,12 @@ class ShoppingServiceProvider extends ServiceProvider
         // The lists this person can add to, in their order: what the reader may pick for `list`.
         $lists = fn (User $user) => ShoppingList::visibleTo($user->id)->whereNull('archived_at')->orderBy('position');
         $pickList = function (User $user, AddContext $ctx, array $v = []) use ($lists): ?ShoppingList {
+            // Picked by hand in Add details: that list; one this person can't add to is an error, never a silent fallback.
+            if (filled($v['list_id'] ?? null)) {
+                $list = ShoppingData::list($user, $v['list_id']);
+
+                return $list && ! $list->archived_at ? $list : throw ValidationException::withMessages(['list_id' => Translations::get('add_details.list_gone')]);
+            }
             // A list the person named, or the heading of a photographed list ("Oana"): that existing list first.
             $named = filled($v['list'] ?? null) ? $lists($user)->whereRaw('lower(name) = ?', [mb_strtolower(trim((string) $v['list']))])->first() : null;
             $lastList = ShoppingItem::where('created_by', $user->id)->latest('id')->value('shopping_list_id');
@@ -51,9 +57,20 @@ class ShoppingServiceProvider extends ServiceProvider
                 'list' => ['type' => 'text', 'options' => fn (User $user) => $lists($user)->pluck('name')->all(), 'hidden' => true],
                 // Where to buy them ("milk from Lidl"). Free text: a new shop is fine (addItem adds it to Shops).
                 'shop' => ['type' => 'text'],
+                // Add details: the Classic item editor's For / Note / Due date, for every thing on the card, and the
+                // list by hand. (Its department isn't offered: the aisle guesser files each thing, as on a quick add.)
+                'who' => ['type' => 'text', 'ask' => 'member', 'details' => true],
+                'note' => ['type' => 'note', 'details' => true],
+                'due' => ['type' => 'date', 'details' => true],
+                'list_id' => ['type' => 'choice', 'details' => true, 'choices' => fn (User $user) => $lists($user)->get(['id', 'name'])
+                    ->map(fn ($l) => ['value' => (string) $l->id, 'label' => $l->name])->all()],
             ],
             'target' => fn (User $user, AddContext $ctx, array $v) => $pickList($user, $ctx, $v)?->name ?? Translations::get('nav.shopping'),
             'save' => function (User $user, array $v, AddContext $ctx) use ($pickList) {
+                // Same rules as the Classic store (ShoppingController::storeItem).
+                $extra = Validator::validate(['note' => $v['note'] ?? null, 'due_date' => $v['due'] ?? null], [
+                    'note' => ['nullable', 'string', 'max:255'], 'due_date' => ['nullable', 'date'],
+                ]) + ['assigned_to' => $ctx->memberId($v['who'] ?? null)];
                 // {name, quantity} per thing (a bare string still works: just the name).
                 $items = array_values(array_filter(array_map(fn ($i) => [
                     'name' => mb_substr(trim((string) (is_array($i) ? ($i['name'] ?? '') : $i)), 0, 255),
@@ -66,7 +83,7 @@ class ShoppingServiceProvider extends ServiceProvider
                 $store = $shop === '' ? null : (ShoppingShop::whereRaw('lower(name) = ?', [mb_strtolower($shop)])->value('name') ?? $shop);
                 foreach ($items as $item) {
                     if (! ShoppingItem::activeDuplicate($list, $item['name'])) {
-                        ShoppingData::addItem($user, $list, $item + ['store' => $store]);
+                        ShoppingData::addItem($user, $list, $item + $extra + ['store' => $store]);
                     }
                 }
 

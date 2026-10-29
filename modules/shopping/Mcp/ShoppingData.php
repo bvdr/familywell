@@ -40,6 +40,9 @@ class ShoppingData
             'name' => $data['name'],
             'quantity' => $data['quantity'] ?? null,
             'note' => $data['note'] ?? null,
+            // For whom / by when: the Classic editor's fields (ShoppingController::storeItem), set by Add details.
+            'assigned_to' => $data['assigned_to'] ?? null,
+            'due_date' => $data['due_date'] ?? null,
             'store' => $data['store'] ?? null,
             'alt_stores' => $data['alt_stores'] ?? null,
             'created_by' => $user->id,

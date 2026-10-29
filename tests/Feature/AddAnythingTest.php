@@ -2,16 +2,21 @@
 
 use App\Models\Family;
 use App\Models\User;
+use App\Support\Add\AddContext;
 use App\Support\Ai\AiGateway;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Modules\Calendar\CalendarEvent;
+use Modules\Projects\Project;
 use Modules\Shopping\ShoppingItem;
 use Modules\Shopping\ShoppingList;
+use Modules\Shopping\ShoppingShop;
 use Modules\Spending\Spend;
+use Modules\Spending\SpendEvent;
 use Modules\Tasks\Task;
 use Modules\Tasks\TaskList;
 
@@ -196,7 +201,7 @@ it('offers the reader the person\'s lists, and files several to-dos into the lis
         ['kind' => 'todo', 'values' => ['title' => 'reactualizat CV-ul model nou', 'list' => 'Oana']],
         ['kind' => 'todo', 'values' => ['title' => 'site făcut', 'list' => 'oana']], // any case
     ]])->assertOk();
-    $oana = Modules\Tasks\TaskList::withoutGlobalScopes()->where('name', 'Oana')->firstOrFail();
+    $oana = TaskList::withoutGlobalScopes()->where('name', 'Oana')->firstOrFail();
     expect(Task::withoutGlobalScopes()->where('task_list_id', $oana->id)->pluck('title')->all())->toBe(['reactualizat CV-ul model nou', 'site făcut']);
 });
 
@@ -218,7 +223,7 @@ it('turns a recording into words through the reader, priced per second of audio'
         ['provider' => 'workers-ai', 'model' => 'whisper-large-v3-turbo', 'input_tokens' => 6, 'output_tokens' => 0, 'ms' => 2000, 'ok' => true],
     ]])]);
 
-    actingAs($users[0])->post('/add/transcribe', ['audio' => Illuminate\Http\UploadedFile::fake()->create('voice.webm', 40, 'audio/webm'), 'path' => '/dashboard'], ['Accept' => 'application/json'])
+    actingAs($users[0])->post('/add/transcribe', ['audio' => UploadedFile::fake()->create('voice.webm', 40, 'audio/webm'), 'path' => '/dashboard'], ['Accept' => 'application/json'])
         ->assertOk()->assertExactJson(['text' => 'Cumpără lapte și pâine']);
 
     Http::assertSent(fn ($r) => $r->url() === 'https://reader.test/transcribe' && $r->header('Authorization') === ['Bearer sec']
@@ -228,10 +233,10 @@ it('turns a recording into words through the reader, priced per second of audio'
         ->points->toBe(0); // listening is free; the save is the AI action
 
     // Not audio: refused before it reaches the reader.
-    actingAs($users[0])->post('/add/transcribe', ['audio' => Illuminate\Http\UploadedFile::fake()->create('x.pdf', 10, 'application/pdf')], ['Accept' => 'application/json'])->assertUnprocessable();
+    actingAs($users[0])->post('/add/transcribe', ['audio' => UploadedFile::fake()->create('x.pdf', 10, 'application/pdf')], ['Accept' => 'application/json'])->assertUnprocessable();
 
     config(['services.add_reader.url' => null]); // self-hosted: no voice either
-    actingAs($users[0])->post('/add/transcribe', ['audio' => Illuminate\Http\UploadedFile::fake()->create('voice.webm', 40, 'audio/webm')], ['Accept' => 'application/json'])->assertNotFound();
+    actingAs($users[0])->post('/add/transcribe', ['audio' => UploadedFile::fake()->create('voice.webm', 40, 'audio/webm')], ['Accept' => 'application/json'])->assertNotFound();
 });
 
 it('starts a project with its first tasks, and files a task into the project it named', function () {
@@ -241,7 +246,7 @@ it('starts a project with its first tasks, and files a task into the project it 
     actingAs($users[0])->postJson('/add/save', ['items' => [
         ['kind' => 'project', 'values' => ['name' => 'Gard Pietroșani', 'tasks' => [['name' => 'cumpără stâlpi', 'quantity' => null], ['name' => 'sună la constructor']]]],
     ]])->assertOk();
-    $gard = Modules\Projects\Project::withoutGlobalScopes()->where('name', 'Gard Pietroșani')->firstOrFail();
+    $gard = Project::withoutGlobalScopes()->where('name', 'Gard Pietroșani')->firstOrFail();
     $titles = fn () => Task::withoutGlobalScopes()->whereIn('id', $gard->taskIds())->orderBy('id');
     expect($titles()->pluck('title')->all())->toBe(['cumpără stâlpi', 'sună la constructor']);
 
@@ -258,7 +263,7 @@ it('tells the reader which project is on screen and the shopping lists attached 
     [$family, $users] = anythingFamily();
     app(ModuleRegistry::class)->enable('projects', $family->id);
     actingAs($users[0])->post('/m/shopping/lists', ['name' => 'Gard materials']);
-    $project = Modules\Projects\Project::createFor($users[0], ['name' => 'Gard']);
+    $project = Project::createFor($users[0], ['name' => 'Gard']);
     $project->links()->create(['linkable_type' => 'shopping_list', 'linkable_id' => ShoppingList::withoutGlobalScopes()->value('id')]);
     fakeReader([['kind' => 'project_task', 'module' => 'projects', 'p' => 0.9, 'sure' => true, 'fields' => ['title' => ['value' => 'Call the builder', 'confidence' => 0.9]], 'ask' => [], 'missing' => [], 'types' => ['title' => 'text']]]);
 
@@ -279,7 +284,7 @@ it('buys things at the shop it read (keeping a known shop\'s spelling) and adds 
     ]])->assertOk();
 
     expect(ShoppingItem::withoutGlobalScopes()->firstOrFail()->store)->toBe('Lidl')
-        ->and(Modules\Shopping\ShoppingShop::withoutGlobalScopes()->orderBy('name')->pluck('name')->all())->toBe(['Kaufland', 'Lidl']);
+        ->and(ShoppingShop::withoutGlobalScopes()->orderBy('name')->pluck('name')->all())->toBe(['Kaufland', 'Lidl']);
 });
 
 it('reads a shop\'s page as the Shopping screen, not as the shopping list with the same id', function () {
@@ -287,8 +292,8 @@ it('reads a shop\'s page as the Shopping screen, not as the shopping list with t
     actingAs($users[0])->post('/m/shopping/lists', ['name' => 'Groceries']);
     $list = ShoppingList::withoutGlobalScopes()->firstOrFail();
 
-    expect(App\Support\Add\AddContext::for($users[0], "/m/shopping/shops/{$list->id}")->entityId)->toBeNull()
-        ->and(App\Support\Add\AddContext::for($users[0], "/m/shopping/lists/{$list->id}")->entityId)->toBe($list->id);
+    expect(AddContext::for($users[0], "/m/shopping/shops/{$list->id}")->entityId)->toBeNull()
+        ->and(AddContext::for($users[0], "/m/shopping/lists/{$list->id}")->entityId)->toBe($list->id);
 });
 
 it('puts an event\'s to-dos on the event, and files a to-do into the event it named or the one on screen', function () {
@@ -305,4 +310,116 @@ it('puts an event\'s to-dos on the event, and files a to-do into the event it na
     expect($todos())->toBe(['pack lunch', 'sign the form', 'charge the camera', 'pack a raincoat']);
 
     actingAs($users[0])->postJson('/add/save', ['items' => [['kind' => 'event_task', 'values' => ['title' => 'ceva']]]])->assertUnprocessable();
+});
+
+// "Add details" on a card (design H2f): fields the reader never reads, filled by hand, saved through the module's own
+// create path and the add-ons' task.saved hooks like a Classic add.
+
+function detailsFamily(): array
+{
+    [$family, $users] = anythingFamily();
+    foreach (['important_todos', 'recurring_todos'] as $m) {
+        app(ModuleRegistry::class)->enable($m, $family->id);
+    }
+    foreach (['Household', 'School'] as $name) {
+        actingAs($users[0])->post('/m/tasks/lists', ['name' => $name]);
+    }
+
+    return [$family, $users, TaskList::withoutGlobalScopes()->where('name', 'School')->firstOrFail()];
+}
+
+it('keeps details fields from the reader and hands the sheet their form, choices and the family', function () {
+    [, $users, $school] = detailsFamily();
+    fakeReader([['id' => 'todo-0', 'kind' => 'todo', 'module' => 'tasks', 'p' => 0.9, 'sure' => true, 'fields' => ['title' => ['value' => 'Fix the bedroom door', 'confidence' => 0.9]],
+        'ask' => [], 'missing' => [], 'types' => ['title' => 'text', 'due' => 'date', 'who' => 'text', 'list' => 'text']]]);
+
+    $res = actingAs($users[0])->postJson('/add/read', ['text' => 'fix the bedroom door'])->assertOk();
+
+    Http::assertSent(fn ($r) => array_keys($r['kinds']['todo']['fields']) === ['title', 'due', 'who', 'list']
+        && ! isset($r['kinds']['expense']['fields']['category']) && ! isset($r['kinds']['shopping_item']['fields']['note']));
+    expect($res->json('items.0.details'))->toMatchArray([
+        'note' => ['type' => 'note'],
+        'list_id' => ['type' => 'choice', 'choices' => [['value' => (string) ($school->id - 1), 'label' => 'Household'], ['value' => (string) $school->id, 'label' => 'School']]],
+        'ext' => ['type' => 'slot', 'slot' => 'task.editor.fields'],
+    ])->and($res->json('items.0.people'))->toBe(['who'])
+        ->and($res->json('members'))->toBe([['id' => $users[0]->id, 'name' => 'Ana Rivera'], ['id' => $users[1]->id, 'name' => 'Lucia Rivera']]);
+});
+
+it('saves a to-do with its details like the Classic editor: note, date, who, list, and the add-ons\' Important and Repeat', function () {
+    [, $users, $school] = detailsFamily();
+
+    actingAs($users[0])->postJson('/add/save', ['items' => [['kind' => 'todo', 'values' => [
+        'title' => 'Fix the bedroom door', 'note' => 'the hinge squeaks', 'due' => '2026-10-31', 'who' => 'Lucia',
+        'list_id' => (string) $school->id, 'ext' => ['important' => true, 'recurrence' => 'weekly'],
+    ]]]])->assertOk();
+
+    $task = Task::withoutGlobalScopes()->firstOrFail();
+    expect($task->only(['title', 'note', 'task_list_id', 'assigned_to']))->toBe([
+        'title' => 'Fix the bedroom door', 'note' => 'the hinge squeaks', 'task_list_id' => $school->id, 'assigned_to' => $users[1]->id,
+    ])->and($task->due_date->toDateString())->toBe('2026-10-31')
+        ->and((bool) DB::table('important_todos_flags')->where('task_id', $task->id)->value('important'))->toBeTrue()
+        ->and(DB::table('recurring_todos_rules')->where('task_id', $task->id)->value('interval'))->toBe('weekly');
+});
+
+it('refuses details that do not hold up, and a list the person cannot add to', function () {
+    [, $users] = detailsFamily();
+    actingAs($users[1])->post('/m/tasks/lists', ['name' => 'Lucia only']);
+    $private = TaskList::withoutGlobalScopes()->where('name', 'Lucia only')->firstOrFail();
+    $private->setVisibility('private');
+
+    actingAs($users[0])->postJson('/add/save', ['items' => [['kind' => 'todo', 'values' => ['title' => 'x', 'note' => str_repeat('a', 256)]]]])
+        ->assertUnprocessable()->assertJsonValidationErrors('note');
+    actingAs($users[0])->postJson('/add/save', ['items' => [['kind' => 'todo', 'values' => ['title' => 'x', 'list_id' => (string) $private->id]]]])
+        ->assertUnprocessable()->assertJsonValidationErrors(['list_id' => "That list isn't there any more"]);
+    actingAs($users[0])->postJson('/add/save', ['items' => [['kind' => 'expense', 'values' => ['amount' => 5, 'category' => 'not-a-category']]]])
+        ->assertUnprocessable()->assertJsonValidationErrors('category');
+    expect(Task::withoutGlobalScopes()->count())->toBe(0)->and(Spend::withoutGlobalScopes()->count())->toBe(0);
+});
+
+it('says why a 4th important to-do is refused, and saves none of that batch', function () {
+    [, $users] = detailsFamily();
+    $todo = fn (string $title) => ['kind' => 'todo', 'values' => ['title' => $title, 'ext' => ['important' => true]]];
+    actingAs($users[0])->postJson('/add/save', ['items' => [$todo('one'), $todo('two'), $todo('three')]])->assertOk();
+
+    actingAs($users[0])->postJson('/add/save', ['items' => [['kind' => 'todo', 'values' => ['title' => 'plain']], $todo('four')]])
+        ->assertUnprocessable()->assertJsonPath('message', 'You already have 3 important to-dos open. Finish or unstar one first.');
+    expect(Task::withoutGlobalScopes()->pluck('title')->all())->toBe(['one', 'two', 'three']);
+});
+
+it('saves an expense into the list and category picked in its details', function () {
+    [, $users] = anythingFamily();
+    actingAs($users[0])->post('/m/spending/events', ['name' => 'Trip', 'currency' => 'EUR']);
+    $trip = SpendEvent::withoutGlobalScopes()->where('name', 'Trip')->firstOrFail();
+
+    actingAs($users[0])->postJson('/add/save', ['items' => [['kind' => 'expense', 'values' => ['amount' => 30, 'note' => 'Museum', 'category' => 'activities', 'list_id' => (string) $trip->id]]]])->assertOk();
+
+    expect(Spend::withoutGlobalScopes()->firstOrFail()->only(['spend_event_id', 'category']))->toBe(['spend_event_id' => $trip->id, 'category' => 'activities']);
+});
+
+it('saves shopping things with the note, person, date and list from their details', function () {
+    [, $users] = anythingFamily();
+    foreach (['Weekly', 'Party'] as $name) {
+        actingAs($users[0])->post('/m/shopping/lists', ['name' => $name]);
+    }
+    $party = ShoppingList::withoutGlobalScopes()->where('name', 'Party')->firstOrFail();
+
+    actingAs($users[0])->postJson('/add/save', ['items' => [['kind' => 'shopping_item', 'values' => [
+        'items' => [['name' => 'Cheese'], ['name' => 'Eggs', 'quantity' => '10']], 'shop' => 'Lidl',
+        'note' => 'the good kind', 'who' => 'Lucia', 'due' => '2026-10-30', 'list_id' => (string) $party->id,
+    ]]]])->assertOk();
+
+    $items = ShoppingItem::withoutGlobalScopes()->orderBy('id')->get();
+    expect($items->pluck('shopping_list_id')->unique()->all())->toBe([$party->id])
+        ->and($items->pluck('note')->unique()->all())->toBe(['the good kind'])
+        ->and($items->pluck('assigned_to')->unique()->all())->toBe([$users[1]->id])
+        ->and($items[0]->due_date->toDateString())->toBe('2026-10-30')
+        ->and($items->pluck('store')->unique()->all())->toBe(['Lidl']);
+});
+
+it('saves an event with the notes and repeat from its details', function () {
+    [, $users] = anythingFamily();
+    actingAs($users[0])->postJson('/add/save', ['items' => [['kind' => 'event', 'values' => ['title' => 'Piano', 'start' => '2026-10-30T17:00', 'notes' => 'bring the book', 'repeat' => 'weekly']]]])->assertOk();
+    actingAs($users[0])->postJson('/add/save', ['items' => [['kind' => 'event', 'values' => ['title' => 'x', 'start' => '2026-10-30', 'repeat' => 'hourly']]]])->assertUnprocessable();
+
+    expect(CalendarEvent::withoutGlobalScopes()->firstOrFail()->only(['notes', 'repeat']))->toBe(['notes' => 'bring the book', 'repeat' => 'weekly']);
 });

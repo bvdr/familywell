@@ -50,7 +50,6 @@ function parseDay(ymd: string) {
     const [y, m, d] = ymd.split('-').map(Number);
     return new Date(y, m - 1, d);
 }
-const ymdOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 // The FAMILY's today (its zone, Settings › Region & units), the day the server bucketed Today / Tomorrow by.
 const todayYmd = () => localToday();
 
@@ -375,23 +374,13 @@ function AgendaList({ items }: { items: AgendaItem[] }) {
     );
 }
 
-// The strip's days: from the day after tomorrow up to Sunday (the providers' window), stretched if an item ever
-// falls later. Empty on Saturday and Sunday, when Tomorrow already covers what's left.
-function stripDays(items: AgendaItem[]): string[] {
-    const last = items.reduce((max, it) => (it.dueDate > max ? it.dueDate : max), '');
-    const days: string[] = [];
-    const d = parseDay(localToday(2));
-    for (let ymd = ymdOf(d); d.getDay() !== 1 || ymd <= last; d.setDate(d.getDate() + 1), ymd = ymdOf(d)) days.push(ymd);
-    return days;
-}
-
-// The rest of the week folded into a strip: one column per day with a mark per to-do (ring) and event (bar, in its
-// colour) and the first thing on it; "Show Thu – Sun" unfolds the full rows. Days run to the end of the week.
-function RestOfWeek({ items }: { items: AgendaItem[] }) {
+// The next 3 days (after Tomorrow) folded into a strip: one column per day with a mark per to-do (ring) and event
+// (bar, in its colour) and the first thing on it; "Show Sat – Mon" unfolds the full rows. The days come from the
+// server (DashboardAgenda::stripDays), the same clock that sorted the items, so every item has its column.
+function NextDays({ items, days }: { items: AgendaItem[]; days: string[] }) {
     const t = useT();
     const locale = useLocale();
     const [open, setOpen] = useState(false);
-    const days = stripDays(items);
     if (days.length === 0) return null;
     const byDay = (ymd: string) => items.filter((it) => it.dueDate === ymd);
     const todos = items.filter((it) => !isEvent(it)).length;
@@ -400,7 +389,12 @@ function RestOfWeek({ items }: { items: AgendaItem[] }) {
 
     return (
         <section className="flex flex-col gap-2.5">
-            <SectionLabel label={t('dashboard.rest_of_week')} count={items.length} right={t('nav.calendar')} href="/m/calendar" />
+            <SectionLabel
+                label={t('dashboard.next_days', { count: days.length })}
+                count={items.length}
+                right={t('nav.calendar')}
+                href="/m/calendar"
+            />
             <div className={card}>
                 <div className="grid px-2 pt-4 pb-3" style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}>
                     {days.map((ymd) => {
@@ -712,6 +706,7 @@ export default function Dashboard({
     today = [],
     tomorrow = [],
     later = [],
+    stripDays = [],
     widgets = {},
     summaries = {},
     // The person's Home sections in their order, hidden ones left out (HomeLayout on the server).
@@ -725,6 +720,7 @@ export default function Dashboard({
     today?: AgendaItem[];
     tomorrow?: AgendaItem[];
     later?: AgendaItem[];
+    stripDays?: string[];
     // Per-module data (DashboardWidgets): only present when that module is on and has something to show.
     widgets?: {
         spending?: { total: number; currency: string; count: number; weeks: number[] };
@@ -769,7 +765,7 @@ export default function Dashboard({
                 )}
             </>
         ),
-        week: () => <RestOfWeek items={later} />,
+        week: () => <NextDays items={later} days={stripDays} />,
         anytime: () =>
             widgets.tasks && (
                 <Link href="/m/tasks" prefetch className={`${card} flex items-center gap-3 px-4 py-3.5`}>

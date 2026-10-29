@@ -51,6 +51,7 @@ class DashboardData
             'today' => $agenda->filter(fn ($i) => $i['dueDate'] <= $today)->values()->all(),
             'tomorrow' => $agenda->where('dueDate', $tomorrow)->values()->all(),
             'later' => $agenda->filter(fn ($i) => $i['dueDate'] > $tomorrow)->values()->all(),
+            'stripDays' => DashboardAgenda::stripDays(),
             'widgets' => DashboardWidgets::collect(),
             // ponytail: widgets always run (one registry, three cheap providers); key them per section if one gets heavy.
             'summaries' => $shows('modules') ? DashboardSummaries::collect() : [],

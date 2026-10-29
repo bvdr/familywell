@@ -1,4 +1,4 @@
-import { JustSayIt } from '@/components/add-just-say-it';
+import { JustSayIt, type SubView } from '@/components/add-just-say-it';
 import { Segmented } from '@/components/segmented';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useNavPins } from '@/hooks/use-nav-pins';
@@ -230,6 +230,12 @@ function AddSheet({ open, onOpenChange, enabled }: { open: boolean; onOpenChange
             /* private mode: this session only */
         }
     };
+    // A card's "Add details" (design H2f) is a level down inside this same sheet: Just say it hands up its back pill
+    // and "TO-DO · 3 OF 3", and the sheet's close gestures step back to the cards instead (ResponsiveModal onBack).
+    const [sub, setSub] = useState<SubView | null>(null);
+    useEffect(() => {
+        if (!open) setSub(null);
+    }, [open]);
     const ai = data?.ai.available ?? false;
     // Read when the sheet renders: the page that claimed the + (only reachable here when "Just say it" is on).
     const pageAction = open && hasAddAction();
@@ -319,9 +325,16 @@ function AddSheet({ open, onOpenChange, enabled }: { open: boolean; onOpenChange
 
     return (
         // No subtitle under "Add": "Create something new" said the same thing twice (the user, 2026-10-28; the design has none).
-        <ResponsiveModal open={open} onOpenChange={onOpenChange} title={t('create.title')}>
+        <ResponsiveModal
+            open={open}
+            onOpenChange={onOpenChange}
+            title={t('create.title')}
+            onBack={sub?.back}
+            backLabel={sub?.label}
+            aside={sub && <span className="text-muted-foreground font-mono text-xs font-semibold tracking-[0.14em] uppercase">{sub.aside}</span>}
+        >
             <div className="flex flex-col gap-4">
-                {ai && (
+                {ai && !sub && (
                     <Segmented
                         ariaLabel={t('create.title')}
                         value={mode}
@@ -333,7 +346,7 @@ function AddSheet({ open, onOpenChange, enabled }: { open: boolean; onOpenChange
                     />
                 )}
                 {ai && mode === 'say' ? (
-                    <JustSayIt onClose={close} onClassic={() => setMode('classic')} pointsLeft={data?.ai.pointsLeft ?? null} />
+                    <JustSayIt onClose={close} onClassic={() => setMode('classic')} pointsLeft={data?.ai.pointsLeft ?? null} onSubView={setSub} />
                 ) : (
                     classic
                 )}

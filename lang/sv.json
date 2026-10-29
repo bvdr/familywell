@@ -19,7 +19,8 @@
         "select": "Välj…",
         "add_named": "Lägg till ”:name”",
         "remove_named": "Ta bort :name",
-        "offline": "Du är offline. Avbockade och tillagda inköpsvaror synkas när du är tillbaka; andra ändringar sparas inte."
+        "offline": "Du är offline. Avbockade och tillagda inköpsvaror synkas när du är tillbaka; andra ändringar sparas inte.",
+        "back": "Tillbaka"
     },
     "nav": {
         "dashboard": "Översikt",
@@ -117,7 +118,7 @@
         "in_hours_one": "om :count h",
         "in_hours_other": "om :count h",
         "until": "Till :time",
-        "rest_of_week": "Resten av veckan",
+        "next_days": "Nästa :count dagar",
         "free": "Ledig",
         "show_days": "Visa :from – :to · :what",
         "show_less": "Visa mindre",

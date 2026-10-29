@@ -19,7 +19,8 @@
         "select": "Selecionar…",
         "add_named": "Adicionar “:name”",
         "remove_named": "Remover :name",
-        "offline": "Você está offline. Itens marcados e adicionados nas compras serão sincronizados quando você voltar; outras alterações não serão salvas."
+        "offline": "Você está offline. Itens marcados e adicionados nas compras serão sincronizados quando você voltar; outras alterações não serão salvas.",
+        "back": "Voltar"
     },
     "nav": {
         "dashboard": "Início",
@@ -117,7 +118,7 @@
         "in_hours_one": "daqui a :count h",
         "in_hours_other": "daqui a :count h",
         "until": "Até às :time",
-        "rest_of_week": "Resto da semana",
+        "next_days": "Próximos :count dias",
         "free": "Livre",
         "show_days": "Ver :from – :to · :what",
         "show_less": "Ver menos",

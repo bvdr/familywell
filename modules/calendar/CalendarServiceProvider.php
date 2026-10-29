@@ -51,6 +51,11 @@ class CalendarServiceProvider extends ServiceProvider
                 'end' => ['type' => 'datetime'],
                 'who' => ['type' => 'text', 'ask' => 'member'],
                 'tasks' => ['type' => 'list', 'of' => ['name' => 'text']],
+                // Add details: the Classic event sheet's notes and repeat (CalendarEvent::rules checks both).
+                'notes' => ['type' => 'note', 'details' => true],
+                'repeat' => ['type' => 'choice', 'details' => true, 'choices' => fn () => array_map(
+                    fn (string $r) => ['value' => $r, 'label' => Translations::get("calendar.repeat_{$r}")], Occurrences::REPEATS,
+                )],
             ],
             'save' => function (User $user, array $v, AddContext $ctx) {
                 Validator::validate($v, ['start' => ['required', 'date']]); // no silent "today" for an event the reader couldn't date
@@ -63,6 +68,8 @@ class CalendarServiceProvider extends ServiceProvider
                 $who = $ctx->memberId($v['who'] ?? null);
                 $event = CalendarEvent::createFor($user, CalendarEvent::validated([
                     'title' => $v['title'] ?? '',
+                    'notes' => $v['notes'] ?? null,
+                    ...(filled($v['repeat'] ?? null) ? ['repeat' => $v['repeat']] : []),
                     'start_date' => $start->toDateString(),
                     'end_date' => $end->toDateString(),
                     'start_time' => $timed ? $start->format('H:i') : null,

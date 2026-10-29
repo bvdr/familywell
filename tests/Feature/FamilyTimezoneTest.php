@@ -58,14 +58,15 @@ it('puts a Bucharest family on Oct 30 at 23:30 UTC, and a UTC family still on Oc
         ->and(collect($home['later'])->pluck('title')->all())->toBe(['Tomorrow']);
 });
 
-it('runs the week strip to the family\'s Sunday', function () {
-    // Sunday Nov 1, 23:30 UTC = Monday Nov 2 in Bucharest: a new week there, still Sunday in UTC.
+it('runs the next-3-days strip on the family\'s day', function () {
+    // Sunday Nov 1, 23:30 UTC = Monday Nov 2 in Bucharest: Tomorrow is Tuesday there, so the strip is Wed-Fri.
     Carbon::setTestNow('2026-11-01 23:30');
     zoned('Europe/Bucharest');
-    expect(DashboardAgenda::until())->toBe('2026-11-08');
+    expect(DashboardAgenda::until())->toBe('2026-11-06')
+        ->and(DashboardAgenda::stripDays())->toBe(['2026-11-04', '2026-11-05', '2026-11-06']);
 
     Family::find(CurrentFamily::id())->forceFill(['timezone' => 'UTC'])->save();
-    expect(DashboardAgenda::until())->toBe('2026-11-02'); // never before tomorrow
+    expect(DashboardAgenda::stripDays())->toBe(['2026-11-03', '2026-11-04', '2026-11-05']); // still Sunday in UTC
 });
 
 it('falls back to the app zone when a family has none, and validates a picked zone', function () {

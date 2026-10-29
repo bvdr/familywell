@@ -19,7 +19,8 @@
         "select": "Alege…",
         "add_named": "Adaugă „:name”",
         "remove_named": "Elimină :name",
-        "offline": "Nu ai conexiune. Produsele bifate sau adăugate în cumpărături se sincronizează când revii online; celelalte modificări nu se salvează."
+        "offline": "Nu ai conexiune. Produsele bifate sau adăugate în cumpărături se sincronizează când revii online; celelalte modificări nu se salvează.",
+        "back": "Înapoi"
     },
     "nav": {
         "dashboard": "Acasă",
@@ -133,7 +134,7 @@
         "in_hours_few": "peste :count h",
         "in_hours_other": "peste :count de h",
         "until": "Până la :time",
-        "rest_of_week": "Restul săptămânii",
+        "next_days": "Următoarele :count zile",
         "free": "Liber",
         "show_days": "Arată :from – :to · :what",
         "show_less": "Arată mai puțin",

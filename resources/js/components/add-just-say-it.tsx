@@ -1,3 +1,4 @@
+import { AddDetails } from '@/components/add-details';
 import { useVoice, voiceSupported } from '@/hooks/use-voice';
 import { useT } from '@/lib/i18n';
 import { router } from '@inertiajs/react';
@@ -6,6 +7,7 @@ import {
     Camera,
     Car,
     Check,
+    ChevronRight,
     ClipboardPaste,
     FolderKanban,
     ImagePlus,
@@ -14,6 +16,7 @@ import {
     ListPlus,
     Loader2,
     Mic,
+    Plus,
     ShoppingCart,
     Sparkles,
     Store,
@@ -46,9 +49,17 @@ type Item = {
     // Read but not shown as a field (the list it goes into: that's the destination in the header).
     hidden?: string[];
     quantity?: string[]; // list fields whose rows have an amount (shopping items)
+    people?: string[]; // fields naming a family member ("who"): faces in Add details
+    // The kind's "Add details" fields (AddKinds 'details'): never read, only filled by hand in the details form.
+    details?: Record<string, Detail>;
 };
-// What the person changed on a card, kept across re-reads while they keep typing: keyed by kind.
-type Edit = { on?: boolean; values: Record<string, string>; lists?: Record<string, Entry[]> };
+export type Detail = { type: string; choices?: { value: string; label: string }[]; slot?: string };
+export type Member = { id: number; name: string };
+// What the person changed on a card, kept across re-reads while they keep typing: keyed by card id. `slots` holds what
+// add-ons' controls patched in Add details ({ important: true }), per slot field.
+type Edit = { on?: boolean; values: Record<string, string>; lists?: Record<string, Entry[]>; slots?: Record<string, Record<string, unknown>> };
+// What the Add sheet shows in its header while a card's details are open (ResponsiveModal onBack).
+export type SubView = { back: () => void; label: string; aside: string };
 
 const KIND_ICON: Record<string, LucideIcon> = {
     event: CalendarDays,
@@ -121,15 +132,20 @@ export function JustSayIt({
     onClose,
     onClassic,
     pointsLeft: initialPoints,
+    onSubView,
 }: {
     onClose: () => void;
     onClassic: () => void;
     pointsLeft: number | null;
+    onSubView?: (sub: SubView | null) => void;
 }) {
     const t = useT();
     const [text, setText] = useState('');
     const [images, setImages] = useState<string[]>([]);
     const [items, setItems] = useState<Item[]>([]);
+    const [members, setMembers] = useState<Member[]>([]);
+    // The card whose "Add details" form is open (design H2f), by id; null = the cards.
+    const [detailsFor, setDetailsFor] = useState<string | null>(null);
     const [edits, setEdits] = useState<Record<string, Edit>>({});
     const [state, setState] = useState<'idle' | 'reading' | 'saving' | 'out' | 'error'>('idle');
     const [error, setError] = useState<string | null>(null);
@@ -174,6 +190,7 @@ export function JustSayIt({
                 const data = await res.json();
                 readFor.current = text;
                 setItems(data.items);
+                setMembers(data.members ?? []);
                 setPoints(data.pointsLeft);
                 setState('idle');
             } catch (e) {
@@ -236,6 +253,12 @@ export function JustSayIt({
     const setValue = (kind: string, name: string, v: string) =>
         setEdits((cur) => ({ ...cur, [kind]: { ...(cur[kind] ?? { values: {} }), values: { ...(cur[kind]?.values ?? {}), [name]: v } } }));
     const setOn = (kind: string, on: boolean) => setEdits((cur) => ({ ...cur, [kind]: { ...(cur[kind] ?? { values: {} }), on } }));
+    const slotOf = (it: Item, name: string) => edit(it.id).slots?.[name] ?? {};
+    const patchSlot = (id: string, name: string, patch: Record<string, unknown>) =>
+        setEdits((cur) => {
+            const e = cur[id] ?? { values: {} };
+            return { ...cur, [id]: { ...e, slots: { ...e.slots, [name]: { ...e.slots?.[name], ...patch } } } };
+        });
     // A card starts ticked only when the reader is sure and nothing it needs is missing; unsure ones ask first.
     const needs = (it: Item) => it.missing.filter((n) => !valueOf(it, n).trim());
     const isOn = (it: Item) => edit(it.id).on ?? (it.sure && needs(it).length === 0);
@@ -248,16 +271,23 @@ export function JustSayIt({
         const payload = chosen.map((it) => ({
             kind: it.kind,
             values: Object.fromEntries(
-                Object.keys(it.types)
-                    .map((name) => [name, valueOf(it, name).trim()] as const)
+                [...Object.keys(it.types), ...Object.keys(it.details ?? {})]
+                    // A slot field is what the add-ons patched in ({ important: true }); sent whole, as Classic sends it.
+                    .map((name) =>
+                        it.details?.[name]?.type === 'slot'
+                            ? ([name, Object.keys(slotOf(it, name)).length ? slotOf(it, name) : ''] as const)
+                            : ([name, valueOf(it, name).trim()] as const),
+                    )
                     .filter(([, v]) => v !== '')
                     .map(([name, v]) => [
                         name,
-                        it.types[name] === 'list'
-                            ? entriesOf(it, name)
-                                  .filter((e) => e.name.trim())
-                                  .map((e) => ({ name: e.name.trim(), quantity: e.quantity.trim() || null }))
-                            : v,
+                        typeof v !== 'string'
+                            ? v
+                            : it.types[name] === 'list'
+                              ? entriesOf(it, name)
+                                    .filter((e) => e.name.trim())
+                                    .map((e) => ({ name: e.name.trim(), quantity: e.quantity.trim() || null }))
+                              : v,
                     ]),
             ),
         }));
@@ -276,7 +306,18 @@ export function JustSayIt({
         if (voice.error === 'out') setState('out');
     }, [voice.error]);
 
-    const fieldLabel = (name: string) => t(`add.f_${name}`);
+    const fieldLabel = (name: string, it?: Item) => t(it?.details?.[name] ? `add_details.f_${name}` : `add.f_${name}`);
+    // Where the card lands: a list picked in Add details, else what the server named (the read or default list).
+    const targetOf = (it: Item) => {
+        const picked = valueOf(it, 'list_id');
+        return (picked && it.details?.list_id?.choices?.find((c) => c.value === picked)?.label) || it.target || t(`nav.${it.module}`);
+    };
+    // What Add details offers beyond the card, for the grey hint after "Add details" ("Who, Note, List"): the fields the
+    // card isn't showing, then the details-only ones. An add-on slot can't be named here (it may render nothing).
+    const extras = (it: Item) => [
+        ...Object.keys(it.types).filter((n) => !shown(it, n) && !it.hidden?.includes(n) && !it.ask[n]),
+        ...Object.keys(it.details ?? {}).filter((n) => it.details![n].type !== 'slot' && !valueOf(it, n)),
+    ];
     // The card's headline is its first field (an event's title, what an expense was for, the list's name), else
     // "New to-do" while that's still empty: never some other field (it once showed the person, "Bogdan").
     const headline = (it: Item) => valueOf(it, Object.keys(it.types)[0]).trim() || t('add.new_kind', { kind: t(`add.kind_${it.kind}`) });
@@ -287,6 +328,111 @@ export function JustSayIt({
         const v = valueOf(it, name);
         return it.types[name] === 'datetime' && v !== '' && (!v.includes('T') || v.endsWith('T00:00'));
     };
+
+    // A card shows the fields the reader found (or still needs, or the person typed in); the rest wait in Add details.
+    const shown = (it: Item, name: string) =>
+        !it.ask[name] && !it.hidden?.includes(name) && !!(it.fields[name] || it.missing.includes(name) || edit(it.id).values[name] !== undefined);
+    // One editable field, the same input on the card and in its Add details form.
+    const fieldRow = (it: Item, name: string) => {
+        const unsure = (it.fields[name]?.confidence ?? 1) < 0.5;
+        const empty = it.missing.includes(name) && !valueOf(it, name).trim();
+        if (it.types[name] === 'list') {
+            // One row per thing: its name and, for shopping, how much ("Schweppes" × "six pack").
+            const rows = entriesOf(it, name);
+            const qty = it.quantity?.includes(name);
+            const put = (i: number, patch: Partial<Entry>) =>
+                setEntries(
+                    it.id,
+                    name,
+                    rows.map((r, j) => (j === i ? { ...r, ...patch } : r)),
+                );
+            return (
+                <div key={name} className="flex flex-col gap-1.5">
+                    <span className="text-muted-foreground font-mono text-[11px] uppercase">{fieldLabel(name)}</span>
+                    {rows.map((r, i) => (
+                        <div
+                            key={i}
+                            className={`grid ${qty ? 'grid-cols-[minmax(0,1fr)_6.5rem_auto]' : 'grid-cols-[minmax(0,1fr)_auto]'} items-center gap-1.5`}
+                        >
+                            <input
+                                value={r.name}
+                                onChange={(e) => put(i, { name: e.target.value })}
+                                aria-label={fieldLabel(name)}
+                                className="text-primary bg-surface-card min-w-0 rounded-lg border px-2.5 py-1.5 text-base"
+                            />
+                            {qty && (
+                                <input
+                                    value={r.quantity}
+                                    onChange={(e) => put(i, { quantity: e.target.value })}
+                                    placeholder={t('add.f_quantity')}
+                                    aria-label={t('add.f_quantity')}
+                                    className="text-primary bg-surface-card min-w-0 rounded-lg border px-2.5 py-1.5 text-base"
+                                />
+                            )}
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setEntries(
+                                        it.id,
+                                        name,
+                                        rows.filter((_, j) => j !== i),
+                                    )
+                                }
+                                aria-label={t('add.remove_item')}
+                                className="text-muted-foreground flex size-9 items-center justify-center rounded-full"
+                            >
+                                <X className="size-4" />
+                            </button>
+                        </div>
+                    ))}
+                    {empty && <span className="text-destructive text-sm">{t('add.needed')}</span>}
+                </div>
+            );
+        }
+        return (
+            <label key={name} className="grid grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-2">
+                <span className="text-muted-foreground font-mono text-[11px] uppercase">{fieldLabel(name)}</span>
+                <input
+                    type={wholeDay(it, name) ? 'date' : inputType(it.types[name])}
+                    value={wholeDay(it, name) ? valueOf(it, name).slice(0, 10) : valueOf(it, name)}
+                    onChange={(e) => setValue(it.id, name, e.target.value)}
+                    placeholder={empty ? t('add.needed') : ''}
+                    className={`text-primary min-w-0 rounded-lg border px-2.5 py-1.5 text-base ${empty ? 'border-destructive' : unsure ? 'bg-accent-subtle' : 'bg-surface-card'}`}
+                />
+            </label>
+        );
+    };
+
+    // The card whose details are open (gone if a late read replaced the cards: back to the list then).
+    const detailed = items.find((it) => it.id === detailsFor) ?? null;
+    const detailedIndex = detailed ? items.indexOf(detailed) : -1;
+    // Strings, not t, in the deps: useT returns a new function every render, which would loop through the parent.
+    const subLabel = t('add_details.things', { count: items.length });
+    const subAside = detailed ? t('add_details.position', { kind: t(`add.kind_${detailed.kind}`), i: detailedIndex + 1, n: items.length }) : '';
+    useEffect(() => {
+        onSubView?.(detailed ? { back: () => setDetailsFor(null), label: subLabel, aside: subAside } : null);
+    }, [detailed, subLabel, subAside, onSubView]);
+
+    if (detailed) {
+        return (
+            <AddDetails
+                item={detailed}
+                members={members}
+                headlineName={Object.keys(detailed.types)[0]}
+                value={(name) => valueOf(detailed, name)}
+                setValue={(name, v) => setValue(detailed.id, name, v)}
+                slot={(name) => slotOf(detailed, name)}
+                patchSlot={(name, patch) => patchSlot(detailed.id, name, patch)}
+                label={(name) => fieldLabel(name, detailed)}
+                field={(name) => fieldRow(detailed, name)}
+                onDone={() => setDetailsFor(null)}
+                onLeaveOut={() => {
+                    setOn(detailed.id, false);
+                    setDetailsFor(null);
+                }}
+            />
+        );
+    }
 
     if (state === 'out') {
         return (
@@ -444,7 +590,7 @@ export function JustSayIt({
                             </span>
                             <span className="min-w-0 flex-1">
                                 <span className="text-muted-foreground block font-mono text-[11px] font-semibold tracking-[0.14em] uppercase">
-                                    {t(`add.kind_${it.kind}`)} → {it.target ?? t(`nav.${it.module}`)}
+                                    {t(`add.kind_${it.kind}`)} → {targetOf(it)}
                                 </span>
                                 <span className="text-primary block truncate font-semibold first-letter:uppercase">{headline(it)}</span>
                             </span>
@@ -486,81 +632,8 @@ export function JustSayIt({
                         {on && (
                             <div className="mt-3 flex flex-col gap-2 border-t pt-3">
                                 {Object.keys(it.types)
-                                    .filter(
-                                        (name) =>
-                                            !it.ask[name] &&
-                                            !it.hidden?.includes(name) &&
-                                            (it.fields[name] || it.missing.includes(name) || edit(it.id).values[name] !== undefined),
-                                    )
-                                    .map((name) => {
-                                        const unsure = (it.fields[name]?.confidence ?? 1) < 0.5;
-                                        const empty = it.missing.includes(name) && !valueOf(it, name).trim();
-                                        if (it.types[name] === 'list') {
-                                            // One row per thing: its name and, for shopping, how much ("Schweppes" × "six pack").
-                                            const rows = entriesOf(it, name);
-                                            const qty = it.quantity?.includes(name);
-                                            const put = (i: number, patch: Partial<Entry>) =>
-                                                setEntries(
-                                                    it.id,
-                                                    name,
-                                                    rows.map((r, j) => (j === i ? { ...r, ...patch } : r)),
-                                                );
-                                            return (
-                                                <div key={name} className="flex flex-col gap-1.5">
-                                                    <span className="text-muted-foreground font-mono text-[11px] uppercase">{fieldLabel(name)}</span>
-                                                    {rows.map((r, i) => (
-                                                        <div
-                                                            key={i}
-                                                            className={`grid ${qty ? 'grid-cols-[minmax(0,1fr)_6.5rem_auto]' : 'grid-cols-[minmax(0,1fr)_auto]'} items-center gap-1.5`}
-                                                        >
-                                                            <input
-                                                                value={r.name}
-                                                                onChange={(e) => put(i, { name: e.target.value })}
-                                                                aria-label={fieldLabel(name)}
-                                                                className="text-primary bg-surface-card min-w-0 rounded-lg border px-2.5 py-1.5 text-base"
-                                                            />
-                                                            {qty && (
-                                                                <input
-                                                                    value={r.quantity}
-                                                                    onChange={(e) => put(i, { quantity: e.target.value })}
-                                                                    placeholder={t('add.f_quantity')}
-                                                                    aria-label={t('add.f_quantity')}
-                                                                    className="text-primary bg-surface-card min-w-0 rounded-lg border px-2.5 py-1.5 text-base"
-                                                                />
-                                                            )}
-                                                            <button
-                                                                type="button"
-                                                                onClick={() =>
-                                                                    setEntries(
-                                                                        it.id,
-                                                                        name,
-                                                                        rows.filter((_, j) => j !== i),
-                                                                    )
-                                                                }
-                                                                aria-label={t('add.remove_item')}
-                                                                className="text-muted-foreground flex size-9 items-center justify-center rounded-full"
-                                                            >
-                                                                <X className="size-4" />
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                    {empty && <span className="text-destructive text-sm">{t('add.needed')}</span>}
-                                                </div>
-                                            );
-                                        }
-                                        return (
-                                            <label key={name} className="grid grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-2">
-                                                <span className="text-muted-foreground font-mono text-[11px] uppercase">{fieldLabel(name)}</span>
-                                                <input
-                                                    type={wholeDay(it, name) ? 'date' : inputType(it.types[name])}
-                                                    value={wholeDay(it, name) ? valueOf(it, name).slice(0, 10) : valueOf(it, name)}
-                                                    onChange={(e) => setValue(it.id, name, e.target.value)}
-                                                    placeholder={empty ? t('add.needed') : ''}
-                                                    className={`text-primary min-w-0 rounded-lg border px-2.5 py-1.5 text-base ${empty ? 'border-destructive' : unsure ? 'bg-accent-subtle' : 'bg-surface-card'}`}
-                                                />
-                                            </label>
-                                        );
-                                    })}
+                                    .filter((name) => shown(it, name))
+                                    .map((name) => fieldRow(it, name))}
                                 {/* "Which kid is this for?": the reader wasn't sure, so it asks. */}
                                 {Object.entries(it.ask).map(([name, options]) => (
                                     <div key={name} className="bg-accent-subtle flex flex-wrap items-center gap-2 rounded-xl p-2.5">
@@ -577,6 +650,25 @@ export function JustSayIt({
                                         ))}
                                     </div>
                                 ))}
+                                {/* Design H2e: everything the box didn't catch, in this card's own form (H2f). Hidden when
+                                    the card already shows all there is. */}
+                                {extras(it).length > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setDetailsFor(it.id)}
+                                        className="text-primary flex min-h-11 items-center gap-2 border-t pt-2 text-left"
+                                    >
+                                        <Plus className="size-5 shrink-0" />
+                                        <span className="shrink-0 font-semibold">{t('add_details.add_details')}</span>
+                                        <span className="text-muted-foreground min-w-0 flex-1 truncate">
+                                            {extras(it)
+                                                .slice(0, 3)
+                                                .map((n) => fieldLabel(n, it))
+                                                .join(', ')}
+                                        </span>
+                                        <ChevronRight className="text-muted-foreground size-5 shrink-0" />
+                                    </button>
+                                )}
                             </div>
                         )}
                     </section>

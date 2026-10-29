@@ -32,6 +32,37 @@ function ImportantField(props) {
         });
     }
 
+    // variant 'row' (the Add sheet's details form, design H2f): a settings row with a switch. Nothing is saved there
+    // until Add, so a 4th star is refused by the server on Add and its message shows on the sheet.
+    if (props.variant === 'row') {
+        return h(
+            'div',
+            { className: 'flex min-h-14 w-full items-center gap-3.5 border-b px-4 py-3 last:border-b-0' },
+            h(
+                'svg',
+                { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', className: 'text-primary size-5 shrink-0', 'aria-hidden': true },
+                h('path', { d: 'M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z' }),
+            ),
+            h('span', { className: 'text-primary min-w-0 flex-1 truncate text-[17px]' }, t('important_todos.important')),
+            h(
+                'button',
+                {
+                    type: 'button',
+                    role: 'switch',
+                    'aria-checked': on,
+                    'aria-label': t('important_todos.important'),
+                    'data-testid': 'important-toggle',
+                    onClick: toggle,
+                    className: 'relative h-8 w-14 shrink-0 rounded-full transition-colors ' + (on ? 'bg-primary' : 'bg-border'),
+                },
+                h('span', {
+                    className:
+                        'absolute top-1 size-6 rounded-full shadow-sm transition-all ' + (on ? 'bg-accent-strong left-7' : 'left-1 bg-white'),
+                }),
+            ),
+        );
+    }
+
     return h(
         'div',
         { className: 'flex flex-col gap-1.5' },

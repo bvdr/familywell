@@ -19,7 +19,8 @@
         "select": "Choisir…",
         "add_named": "Ajouter « :name »",
         "remove_named": "Retirer :name",
-        "offline": "Tu es hors ligne. Les articles de courses cochés ou ajoutés seront synchronisés à ton retour ; les autres modifications ne seront pas enregistrées."
+        "offline": "Tu es hors ligne. Les articles de courses cochés ou ajoutés seront synchronisés à ton retour ; les autres modifications ne seront pas enregistrées.",
+        "back": "Retour"
     },
     "nav": {
         "dashboard": "Accueil",
@@ -117,7 +118,7 @@
         "in_hours_one": "dans :count h",
         "in_hours_other": "dans :count h",
         "until": "Jusqu’à :time",
-        "rest_of_week": "Reste de la semaine",
+        "next_days": "Les :count prochains jours",
         "free": "Libre",
         "show_days": "Voir :from – :to · :what",
         "show_less": "Voir moins",
