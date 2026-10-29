@@ -1,18 +1,17 @@
 import { Head, router } from '@inertiajs/react';
 import { Check } from 'lucide-react';
 
-import HeadingSmall from '@/components/heading-small';
+import { SettingsGroup, SettingsPage, SettingsRow } from '@/components/settings-ui';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
-import SettingsLayout from '@/layouts/settings/layout';
 import { useT } from '@/lib/i18n';
-import { type BreadcrumbItem } from '@/types';
+import { cn } from '@/lib/utils';
 
-type Locale = { code: string; label: string };
+type Locale = { code: string; label: string; english: string };
 
+// Settings > Language (design M5): tapping a language switches right away, no save button.
 export default function Language({ locales, current }: { locales: Locale[]; current: string }) {
     const t = useT();
-    const breadcrumbs: BreadcrumbItem[] = [{ title: t('settings.language'), href: '/settings/language' }];
 
     // Saving reloads (Inertia back()) so the new locale's translations arrive on the shared prop. The tick
     // moves optimistically; the strings themselves can only change once the reload lands.
@@ -29,29 +28,38 @@ export default function Language({ locales, current }: { locales: Locale[]; curr
     };
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={t('settings.language')} />
-            <SettingsLayout>
-                <div className="space-y-6">
-                    <HeadingSmall title={t('settings.language')} description={t('settings.language_desc')} />
-                    <div className="bg-surface-card divide-border/60 divide-y rounded-xl border">
-                        {locales.map((l) => {
-                            const on = l.code === selected;
-                            return (
-                                <button
-                                    key={l.code}
-                                    type="button"
-                                    onClick={() => choose(l.code)}
-                                    className="flex w-full items-center justify-between px-4 py-3 text-left"
-                                >
-                                    <span className="text-primary text-sm font-medium">{l.label}</span>
-                                    {on && <Check className="text-primary size-4" />}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-            </SettingsLayout>
+        <AppLayout breadcrumbs={[{ title: t('settings_hub.language'), href: '/settings/language' }]}>
+            <Head title={t('settings_hub.language')} />
+            <SettingsPage
+                back={{ href: '/settings', label: t('settings_hub.me') }}
+                title={t('settings_hub.language')}
+                lede={t('settings_me.language_lede')}
+            >
+                <SettingsGroup>
+                    {locales.map((l) => {
+                        const on = l.code === selected;
+                        return (
+                            <SettingsRow
+                                key={l.code}
+                                title={<span className="font-semibold">{l.label}</span>}
+                                // The English name under the native one, unless they're the same word (English).
+                                sub={l.english !== l.label ? l.english : undefined}
+                                onClick={() => choose(l.code)}
+                                right={
+                                    <span
+                                        className={cn(
+                                            'flex size-6 shrink-0 items-center justify-center rounded-full border-2',
+                                            on ? 'border-primary text-primary' : 'border-border',
+                                        )}
+                                    >
+                                        {on && <Check className="size-3.5" strokeWidth={3} />}
+                                    </span>
+                                }
+                            />
+                        );
+                    })}
+                </SettingsGroup>
+            </SettingsPage>
         </AppLayout>
     );
 }
