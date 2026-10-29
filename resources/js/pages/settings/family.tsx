@@ -36,10 +36,16 @@ const MODULE_SETTINGS: Record<string, string> = {
 export default function FamilySettings({ family, isAdmin, members, moduleCount, plan, region, regionSheet }: Props) {
     const t = useT();
     const [saving, setSaving] = useState(false);
-    // "Metric · RON · Bucharest"; no zone picked yet = nothing to show for it.
-    const regionValue = [region.units && t(`settings_region.${region.units}`), region.currency, region.timezone && zoneCity(region.timezone)]
-        .filter(Boolean)
-        .join(' · ');
+    // "Metric · RON · Bucharest"; no zone picked yet = nothing to show for it. The city only from sm up: on a phone
+    // the three don't fit next to "Region & units" and the title got cut instead; the sheet shows the zone a tap away.
+    const regionBase = [region.units && t(`settings_region.${region.units}`), region.currency].filter(Boolean).join(' · ');
+    const city = region.timezone ? zoneCity(region.timezone) : '';
+    const regionValue = (
+        <>
+            {regionBase}
+            {city && <span className="hidden sm:inline">{regionBase ? ` · ${city}` : city}</span>}
+        </>
+    );
     // The sheet is its own URL (a deep link, and the row stays a plain link); closing goes back to the hub.
     const closeRegion = () => router.visit('/settings/family', { preserveScroll: true, preserveState: true });
     const enabled = new Set(usePage<{ modules?: { enabled?: string[] } }>().props.modules?.enabled ?? []);
