@@ -1,0 +1,5 @@
+{
+    "modules_lede": "Allt ingår i er plan. Slå på det familjen använder.",
+    "modules_admin_note": "Bara en familjeadministratör kan slå på eller av moduler.",
+    "modules_needs": "Kräver :name"
+}

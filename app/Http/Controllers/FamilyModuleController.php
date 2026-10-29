@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Family;
-use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Modules\ModuleRegistry;
+use App\Support\Modules\Preview;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Translations;
 use Illuminate\Support\Facades\Gate;
@@ -21,11 +21,17 @@ class FamilyModuleController extends Controller
         $strings = Translations::for(app()->getLocale())['modules'] ?? [];
 
         $modules = collect($registry->discover())
-            ->filter(fn ($m) => $registry->isInstalled($m->id))
+            // A preview module ("preview": true) stays hidden here like everywhere else (enabledIds, the settings hub),
+            // except for someone opted in to it, who needs this switch to try it.
+            ->filter(fn ($m) => $registry->isInstalled($m->id) && (! $m->preview || Preview::on($m->id)))
             ->map(fn ($m) => [
                 'id' => $m->id,
                 'name' => $strings[$m->id]['name'] ?? $m->name,
                 'description' => $strings[$m->id]['description'] ?? $m->description,
+                // The one-line "what it's for" under each switch (design Y2); the long description stays for MCP etc.
+                'tagline' => $strings[$m->id]['tagline'] ?? $strings[$m->id]['description'] ?? $m->description,
+                // module.json `requires`: a module needing exactly one other sits under it as an add-on.
+                'requires' => $m->requires,
                 'version' => $m->version,
                 'enabled' => $registry->isEnabled($m->id, $family->id),
             ])->values();
@@ -36,9 +42,8 @@ class FamilyModuleController extends Controller
         return Inertia::render('family/modules', [
             'catalog' => $modules,
             'canManage' => Gate::allows('manageModules', $family),
-            // Same one-line live status the dashboard's "Your modules" grid shows (DashboardSummaries), reused so
-            // "Shopping · 12 to buy across 2 lists" reads the same everywhere a module tile appears.
-            'summaries' => DashboardSummaries::collect(),
+            // The back pill returns to the family hub, labelled with the family's name.
+            'familyName' => $family->name,
         ]);
     }
 

@@ -1,0 +1,5 @@
+{
+    "modules_lede": "Alt er inkludert i planen. Slå på det familien bruker.",
+    "modules_admin_note": "Bare en familieadministrator kan slå moduler av eller på.",
+    "modules_needs": "Trenger :name"
+}

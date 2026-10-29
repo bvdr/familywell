@@ -1,62 +1,77 @@
 {
     "birthdays": {
         "name": "Anniversaires",
-        "description": "Ajoutez des anniversaires avec jour et mois (année facultative) ou sur un contact. Affiche l'âge, le prochain anniversaire, un badge sur le contact et un widget des prochains anniversaires sur l'accueil."
+        "description": "Ajoutez des anniversaires avec jour et mois (année facultative) ou sur un contact. Affiche l'âge, le prochain anniversaire, un badge sur le contact et un widget des prochains anniversaires sur l'accueil.",
+        "tagline": "N'en ratez plus aucun"
     },
     "calendar": {
         "name": "Calendrier",
-        "description": "Le calendrier familial pour les voyages, rendez-vous et jours fériés, à côté des échéances de tâches, anniversaires et échéances des véhicules. Vues mois et chronologie, plus un lien d'abonnement pour Google ou Apple Calendrier."
+        "description": "Le calendrier familial pour les voyages, rendez-vous et jours fériés, à côté des échéances de tâches, anniversaires et échéances des véhicules. Vues mois et chronologie, plus un lien d'abonnement pour Google ou Apple Calendrier.",
+        "tagline": "Événements, voyages, lien d'abonnement"
     },
     "contacts": {
         "name": "Contacts",
-        "description": "Un carnet d'adresses familial partagé. Chaque entrée est une personne avec ses coordonnées, sur lesquelles d'autres modules s'appuient : Anniversaires ajoute une date de naissance et les projets peuvent lier des personnes."
+        "description": "Un carnet d'adresses familial partagé. Chaque entrée est une personne avec ses coordonnées, sur lesquelles d'autres modules s'appuient : Anniversaires ajoute une date de naissance et les projets peuvent lier des personnes.",
+        "tagline": "Carnet d'adresses partagé"
     },
     "expense_import": {
         "name": "Import de dépenses",
-        "description": "Importez vos dépenses par carte dans Dépenses : envoyez un relevé bancaire (Wise, Revolut, ING, BT ou tout CSV/XLSX après avoir associé ses colonnes une fois) ou transmettez chaque paiement Apple Pay depuis un raccourci iPhone. Chaque ligne est vérifiée avant l'enregistrement, les doublons sont signalés, chaque import peut être annulé et les transactions importées ne sont jamais ajoutées deux fois."
+        "description": "Importez vos dépenses par carte dans Dépenses : envoyez un relevé bancaire (Wise, Revolut, ING, BT ou tout CSV/XLSX après avoir associé ses colonnes une fois) ou transmettez chaque paiement Apple Pay depuis un raccourci iPhone. Chaque ligne est vérifiée avant l'enregistrement, les doublons sont signalés, chaque import peut être annulé et les transactions importées ne sont jamais ajoutées deux fois.",
+        "tagline": "Relevés bancaires et Apple Pay vers Dépenses"
     },
     "important_todos": {
         "name": "Tâches importantes",
-        "description": "Ajoute un marqueur « important » aux tâches : un interrupteur dans l'éditeur, une étoile sur la ligne, et les tâches importantes passent en premier."
+        "description": "Ajoute un marqueur « important » aux tâches : un interrupteur dans l'éditeur, une étoile sur la ligne, et les tâches importantes passent en premier.",
+        "tagline": "Épinglez les tâches pour les garder en haut"
     },
     "inventory": {
         "name": "Stock",
-        "description": "Sachez ce que vous avez, ce qui s'épuise et ce qu'il faut réapprovisionner : un stock domestique serein, pas un entrepôt."
+        "description": "Sachez ce que vous avez, ce qui s'épuise et ce qu'il faut réapprovisionner : un stock domestique serein, pas un entrepôt.",
+        "tagline": "Ce que vous avez et ce qui manque"
     },
     "notes": {
         "name": "Notes",
-        "description": "Notes et listes de contrôle rapides pour la famille, bien rangées dans des dossiers."
+        "description": "Notes et listes de contrôle rapides pour la famille, bien rangées dans des dossiers.",
+        "tagline": "Notes partagées en dossiers"
     },
     "notifications": {
         "name": "Notifications",
-        "description": "Alertes dans l'appli et notifications push pour que personne ne rate l'activité de la famille."
+        "description": "Alertes dans l'appli et notifications push pour que personne ne rate l'activité de la famille.",
+        "tagline": "Des alertes quand on a besoin de vous"
     },
     "projects": {
         "name": "Projets",
-        "description": "Planifiez les projets plus importants : tâches, avancement et listes de courses liées."
+        "description": "Planifiez les projets plus importants : tâches, avancement et listes de courses liées.",
+        "tagline": "Réunir listes et notes pour un objectif"
     },
     "recipes": {
         "name": "Recettes",
-        "description": "Les recettes de la famille avec photos et calculateur : adaptez les quantités selon les portions, la quantité voulue ou ce que vous avez."
+        "description": "Les recettes de la famille avec photos et calculateur : adaptez les quantités selon les portions, la quantité voulue ou ce que vous avez.",
+        "tagline": "Le livre de recettes qui s'adapte"
     },
     "recurring_todos": {
         "name": "Tâches récurrentes",
-        "description": "Faites répéter une tâche selon un calendrier : choisissez une date et un intervalle, et une fois terminée elle repasse à « à faire » à la prochaine occurrence."
+        "description": "Faites répéter une tâche selon un calendrier : choisissez une date et un intervalle, et une fois terminée elle repasse à « à faire » à la prochaine occurrence.",
+        "tagline": "Des tâches qui reviennent à intervalle"
     },
     "shopping": {
         "name": "Courses",
-        "description": "Des listes de courses partagées que toute la famille peut cocher ensemble."
+        "description": "Des listes de courses partagées que toute la famille peut cocher ensemble.",
+        "tagline": "Listes, magasins, ajout vocal"
     },
     "spending": {
         "name": "Dépenses",
-        "description": "Suivez les frais partagés et réglez qui doit quoi à qui, répartis comme vous voulez."
+        "description": "Suivez les frais partagés et réglez qui doit quoi à qui, répartis comme vous voulez.",
+        "tagline": "Dépenses partagées, partage, remboursements"
     },
     "tasks": {
         "name": "Tâches",
-        "description": "Des listes de tâches partagées avec échéances, sous-tâches et personnes assignées."
+        "description": "Des listes de tâches partagées avec échéances, sous-tâches et personnes assignées.",
+        "tagline": "Listes de tâches avec personnes et dates"
     },
     "vehicles": {
         "name": "Véhicules",
-        "description": "Tout sur les voitures de la famille au même endroit : état, kilométrage, entretien, dépenses et documents. Un suivi serein, pas un logiciel d'atelier."
+        "description": "Tout sur les voitures de la famille au même endroit : état, kilométrage, entretien, dépenses et documents. Un suivi serein, pas un logiciel d'atelier.",
+        "tagline": "Entretien, réparations, documents"
     }
 }

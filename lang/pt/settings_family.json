@@ -1,0 +1,5 @@
+{
+    "modules_lede": "Tudo incluído no seu plano. Ative o que sua família usa.",
+    "modules_admin_note": "Só um administrador da família pode ativar ou desativar módulos.",
+    "modules_needs": "Precisa de :name"
+}

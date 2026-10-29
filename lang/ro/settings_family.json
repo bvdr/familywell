@@ -1,0 +1,5 @@
+{
+    "modules_lede": "Toate sunt incluse în plan. Pornește ce folosește familia ta.",
+    "modules_admin_note": "Doar un administrator al familiei poate porni sau opri module.",
+    "modules_needs": "Are nevoie de :name"
+}

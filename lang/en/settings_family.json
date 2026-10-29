@@ -1,0 +1,5 @@
+{
+    "modules_lede": "All included in your plan. Turn on what your family uses.",
+    "modules_admin_note": "Only a family admin can turn modules on or off.",
+    "modules_needs": "Needs :name"
+}
