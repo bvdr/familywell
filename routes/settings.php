@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\BillingController;
+use App\Http\Controllers\FamilyController;
 use App\Http\Controllers\Settings\ConnectedAppsController;
 use App\Http\Controllers\Settings\MediaLibraryController;
 use App\Http\Controllers\Settings\ProfileController;
@@ -28,6 +29,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('family')->group(function () {
         // Family settings (design board 11): the family-wide pages, opened from Me.
         Route::get('settings/family', [SettingsHubController::class, 'family'])->name('settings.family');
+        Route::get('settings/family/look', [FamilyController::class, 'look'])->name('settings.family.look');
         Route::get('settings/media', [MediaLibraryController::class, 'index'])->name('media');
         Route::delete('settings/media/{type}/{id}', [MediaLibraryController::class, 'destroy'])->name('media.destroy');
 

@@ -90,6 +90,7 @@ it('hands the skin pickers the skin CSS in effect, so a pick applies without a r
 
     $css = ThemeTokens::css('minimal-mono'); // the family's, not the old personal pick
     actingAs($user)->get('/settings/appearance')->assertInertia(fn ($page) => $page->where('themeCss', $css));
+    actingAs($user)->get('/settings/family/look')->assertInertia(fn ($page) => $page->where('themeCss', $css));
     actingAs($user)->get('/family/members')->assertInertia(fn ($page) => $page->where('themeCss', $css));
 });
 
