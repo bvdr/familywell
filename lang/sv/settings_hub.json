@@ -12,7 +12,7 @@
     "mode_system": "System",
     "language": "Språk",
     "notifications": "Aviseringar",
-    "n_of_m_on": "{on} av {total} på",
+    "n_of_m_on": ":on av :total på",
     "home_dashboard": "Startsida",
     "connected_apps": "Anslutna appar",
     "none": "Inga",
@@ -31,6 +31,6 @@
     "data": "Data",
     "recently_deleted": "Nyligen raderade",
     "module_settings": "Modulinställningar",
-    "people_one": "{count} person",
-    "people_other": "{count} personer"
+    "people_one": ":count person",
+    "people_other": ":count personer"
 }

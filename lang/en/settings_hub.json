@@ -12,7 +12,7 @@
     "mode_system": "System",
     "language": "Language",
     "notifications": "Notifications",
-    "n_of_m_on": "{on} of {total} on",
+    "n_of_m_on": ":on of :total on",
     "home_dashboard": "Home dashboard",
     "connected_apps": "Connected apps",
     "none": "None",
@@ -31,6 +31,6 @@
     "data": "Data",
     "recently_deleted": "Recently deleted",
     "module_settings": "Module settings",
-    "people_one": "{count} person",
-    "people_other": "{count} people"
+    "people_one": ":count person",
+    "people_other": ":count people"
 }

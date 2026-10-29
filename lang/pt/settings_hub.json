@@ -12,7 +12,7 @@
     "mode_system": "Sistema",
     "language": "Idioma",
     "notifications": "Notificações",
-    "n_of_m_on": "{on} de {total} ativas",
+    "n_of_m_on": ":on de :total ativas",
     "home_dashboard": "Painel inicial",
     "connected_apps": "Apps conectados",
     "none": "Nenhum",
@@ -31,6 +31,6 @@
     "data": "Dados",
     "recently_deleted": "Excluídos recentemente",
     "module_settings": "Configurações dos módulos",
-    "people_one": "{count} pessoa",
-    "people_other": "{count} pessoas"
+    "people_one": ":count pessoa",
+    "people_other": ":count pessoas"
 }

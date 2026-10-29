@@ -12,7 +12,7 @@
     "mode_system": "Sistem",
     "language": "Limbă",
     "notifications": "Notificări",
-    "n_of_m_on": "{on} din {total} pornite",
+    "n_of_m_on": ":on din :total pornite",
     "home_dashboard": "Ecranul Acasă",
     "connected_apps": "Aplicații conectate",
     "none": "Niciuna",
@@ -31,7 +31,7 @@
     "data": "Date",
     "recently_deleted": "Șterse recent",
     "module_settings": "Setările modulelor",
-    "people_one": "{count} persoană",
-    "people_other": "{count} de persoane",
-    "people_few": "{count} persoane"
+    "people_one": ":count persoană",
+    "people_other": ":count de persoane",
+    "people_few": ":count persoane"
 }
