@@ -19,7 +19,8 @@
         "select": "Kies…",
         "add_named": "“:name” toevoegen",
         "remove_named": ":name verwijderen",
-        "offline": "Je bent offline. Afgevinkte en toegevoegde boodschappen worden gesynchroniseerd zodra je weer online bent; andere wijzigingen worden niet opgeslagen."
+        "offline": "Je bent offline. Afgevinkte en toegevoegde boodschappen worden gesynchroniseerd zodra je weer online bent; andere wijzigingen worden niet opgeslagen.",
+        "back": "Terug"
     },
     "nav": {
         "dashboard": "Dashboard",

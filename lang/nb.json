@@ -19,7 +19,8 @@
         "select": "Velg…",
         "add_named": "Legg til «:name»",
         "remove_named": "Fjern :name",
-        "offline": "Du er frakoblet. Varer du krysser av eller legger til på handlelisten synkes når du er tilbake; andre endringer lagres ikke."
+        "offline": "Du er frakoblet. Varer du krysser av eller legger til på handlelisten synkes når du er tilbake; andre endringer lagres ikke.",
+        "back": "Tilbake"
     },
     "nav": {
         "dashboard": "Oversikt",

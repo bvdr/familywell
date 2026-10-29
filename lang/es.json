@@ -19,7 +19,8 @@
         "select": "Seleccionar…",
         "add_named": "Añadir “:name”",
         "remove_named": "Quitar :name",
-        "offline": "No tienes conexión. Los artículos de compras marcados y añadidos se sincronizarán cuando vuelvas; los demás cambios no se guardarán."
+        "offline": "No tienes conexión. Los artículos de compras marcados y añadidos se sincronizarán cuando vuelvas; los demás cambios no se guardarán.",
+        "back": "Atrás"
     },
     "nav": {
         "dashboard": "Inicio",

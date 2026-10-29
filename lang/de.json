@@ -19,7 +19,8 @@
         "select": "Auswählen…",
         "add_named": "„:name“ hinzufügen",
         "remove_named": ":name entfernen",
-        "offline": "Du bist offline. Abgehakte und neue Einkaufsartikel werden synchronisiert, sobald du wieder online bist; andere Änderungen werden nicht gespeichert."
+        "offline": "Du bist offline. Abgehakte und neue Einkaufsartikel werden synchronisiert, sobald du wieder online bist; andere Änderungen werden nicht gespeichert.",
+        "back": "Zurück"
     },
     "nav": {
         "dashboard": "Übersicht",
