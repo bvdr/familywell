@@ -77,6 +77,7 @@ class SettingsHubController extends Controller
             'regionSheet' => [
                 ...Region::current(CurrentFamily::id(), $request->user()->id),
                 'countries' => Region::countries(),
+                'timezones' => Region::timezones(),
             ],
         ]);
     }
@@ -87,6 +88,7 @@ class SettingsHubController extends Controller
     {
         $family = Family::findOrFail(CurrentFamily::id());
         $this->authorize('manageMembers', $family);
+        $request->validate(['timezone' => ['nullable', 'string', Region::TIMEZONE_RULE]]);
         Region::save($family, $request->all());
 
         return to_route('settings.family');

@@ -3,6 +3,7 @@
 use App\Http\Middleware\BlockDemo;
 use App\Http\Middleware\CaptureFirstTouch;
 use App\Http\Middleware\EnsureModuleEnabled;
+use App\Http\Middleware\FillFamilyTimezone;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RequireFamily;
 use App\Http\Middleware\RequireName;
@@ -42,7 +43,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Written by the browser (calendar view picker, CalendarController::index), so it can't be encrypted. It only
         // ever holds a view name, which the server checks against a fixed list before using.
-        $middleware->encryptCookies(except: ['fw_calendar_view']);
+        // fw_tz: the browser's IANA zone, also written by the browser (app.tsx); FillFamilyTimezone validates it against
+        // the zone list before storing it as a family's zone.
+        $middleware->encryptCookies(except: ['fw_calendar_view', 'fw_tz']);
 
         // A visitor who isn't signed in lands on sign-up, not login: most people reaching familywell.co
         // are new (from familywell.org, Reddit, search), and the sign-up page links to login underneath.
@@ -58,6 +61,8 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
             SetActiveFamily::class,
+            // Needs the family context: stores an admin's browser zone on a family that has none yet.
+            FillFamilyTimezone::class,
             // Signed in without a name (email sign-up): "About you" first. See RequireName.
             RequireName::class,
             ShareTheme::class,

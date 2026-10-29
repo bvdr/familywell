@@ -56,6 +56,10 @@ void loadModules(window.__familywellModules ?? []);
 // stuck on a blank white screen.
 armCrashRecovery();
 
+// The browser's zone, for the server to fill in a family that has none yet (FillFamilyTimezone: admins only, only while
+// the family's zone is empty). A cookie, so every request carries it with no extra call. A year, refreshed every load.
+document.cookie = `fw_tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}; path=/; max-age=31536000; samesite=lax`;
+
 createInertiaApp({
     // No app-name suffix on page titles — just the page's own title.
     title: (title) => title,

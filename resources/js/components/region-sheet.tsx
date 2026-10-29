@@ -1,5 +1,5 @@
 import { Banknote, CarFront, ChefHat, Clock, Globe, Wallet } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { Picker } from '@/components/picker';
 import { Segmented } from '@/components/segmented';
@@ -11,8 +11,16 @@ import { currencyOptions, money } from '@/lib/money';
 import { distanceUnitLabel, fmtMileage, kmToUnit, type UnitSystem } from '@/lib/vehicles';
 
 // A key is present only when the module that owns it is installed (App\Support\Region): no Vehicles, no Units line.
-export type RegionValue = { country: string | null; units?: UnitSystem; currency?: string };
-export type RegionCountry = { code: string; name: string; units?: UnitSystem; currency?: string };
+// `timezone` is core (families.timezone, FamilyClock): present whenever the caller passes `timezones`.
+export type RegionValue = { country: string | null; units?: UnitSystem; currency?: string; timezone?: string };
+export type RegionCountry = { code: string; name: string; units?: UnitSystem; currency?: string; timezone?: string };
+// [IANA zone id, its country code] for every zone (App\Support\Region::timezones).
+export type RegionZone = [string, string];
+
+// "America/Argentina/Buenos_Aires" -> "Buenos Aires": the picker's label and the hub row's value. The full id is
+// the picker hint, so "Europe" or "Argentina" still finds it.
+export const zoneCity = (zone: string) => zone.slice(zone.lastIndexOf('/') + 1).replace(/_/g, ' ');
+export const browserZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 // Real numbers from the family's modules for the preview; missing ones (onboarding, empty modules) use the design's.
 export type RegionSamples = { grams?: number; km?: number; cents?: number };
 
@@ -33,6 +41,7 @@ export function RegionSheet({
     onDone,
     countries,
     currencies,
+    timezones,
     samples,
     familyName,
     readOnly = false,
@@ -44,6 +53,7 @@ export function RegionSheet({
     onDone: (value: RegionValue) => void;
     countries: RegionCountry[];
     currencies?: string[];
+    timezones?: RegionZone[];
     samples?: RegionSamples;
     familyName: string;
     // Members who aren't admins see the family's values but can't change them.
@@ -57,7 +67,16 @@ export function RegionSheet({
         // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when it opens, not on every parent render
     }, [open]);
 
-    // Fill in only the lines this family has (a key in the draft = its module is installed).
+    const zoneCountry = useMemo(() => new Map(timezones ?? []), [timezones]);
+    // Plus the family's own zone when it's an old alias a browser reported ("Asia/Calcutta"): valid, but not in the list.
+    const zoneOptions = useMemo(() => {
+        const ids = (timezones ?? []).map(([z]) => z);
+        if (value.timezone && timezones && !ids.includes(value.timezone)) ids.push(value.timezone);
+        return ids.map((z) => ({ value: z, label: zoneCity(z), hint: z.replace(/_/g, ' ') }));
+    }, [timezones, value.timezone]);
+
+    // Fill in only the lines this family has (a key in the draft = its module is installed). The zone changes only
+    // when the one picked isn't in that country already: a family in Los Angeles picking the US keeps Los Angeles.
     const pickCountry = (code: string) => {
         const c = countries.find((x) => x.code === code);
         setDraft((d) => ({
@@ -65,8 +84,13 @@ export function RegionSheet({
             country: code,
             ...(d.units !== undefined && c?.units ? { units: c.units } : {}),
             ...(d.currency !== undefined && c?.currency ? { currency: c.currency } : {}),
+            ...(timezones && c?.timezone && zoneCountry.get(d.timezone ?? '') !== code ? { timezone: c.timezone } : {}),
         }));
     };
+    // The family's clock right now, next to the pick, so a wrong zone shows at a glance.
+    const localTime = draft.timezone
+        ? new Date().toLocaleTimeString(appLocale(), { timeZone: draft.timezone, hour: 'numeric', minute: '2-digit' })
+        : null;
 
     const grams = samples?.grams ?? 375;
     const km = samples?.km ?? 84210;
@@ -151,6 +175,22 @@ export function RegionSheet({
                             ariaLabel={t('settings_region.currency')}
                             disabled={readOnly}
                         />
+                    </div>
+                )}
+
+                {timezones && (
+                    <div className="flex flex-col gap-2">
+                        <Label>{t('settings_region.timezone')}</Label>
+                        <Picker
+                            options={zoneOptions}
+                            selected={draft.timezone ? [draft.timezone] : []}
+                            onChange={([z]) => z && setDraft((d) => ({ ...d, timezone: z }))}
+                            placeholder={t('settings_region.timezone_pick')}
+                            fallbackIcon={Clock}
+                            ariaLabel={t('settings_region.timezone')}
+                            disabled={readOnly}
+                        />
+                        {localTime && <p className="text-muted-foreground text-sm">{t('settings_region.local_time', { time: localTime })}</p>}
                     </div>
                 )}
 
