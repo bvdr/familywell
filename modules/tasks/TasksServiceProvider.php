@@ -23,6 +23,7 @@ use App\Support\Trash\Trash;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\ValidationException;
 use Modules\Notifications\NotificationCategories;
 use Modules\Tasks\Mcp\TaskData;
 
@@ -36,6 +37,13 @@ class TasksServiceProvider extends ServiceProvider
         // The lists this person can add to, in their order: what the reader may pick for `list`.
         $lists = fn (User $user) => TaskList::visibleTo($user->id)->whereNull('archived_at')->orderBy('position');
         $pickList = function (User $user, AddContext $ctx, array $v = []) use ($lists): ?TaskList {
+            // Picked by hand in Add details: that list, and a list this person can't add to is an error, not a silent
+            // fallback (it would land somewhere they didn't choose).
+            if (filled($v['list_id'] ?? null)) {
+                $list = TaskData::list($user, $v['list_id']);
+
+                return $list && ! $list->archived_at ? $list : throw ValidationException::withMessages(['list_id' => Translations::get('add_details.list_gone')]);
+            }
             // A list the person named, or the heading of a photographed list ("Oana"): that existing list first.
             $named = filled($v['list'] ?? null) ? $lists($user)->whereRaw('lower(name) = ?', [mb_strtolower(trim((string) $v['list']))])->first() : null;
             $lastList = Task::where('created_by', $user->id)->whereNotNull('task_list_id')->latest('id')->value('task_list_id');
@@ -52,14 +60,25 @@ class TasksServiceProvider extends ServiceProvider
                 'who' => ['type' => 'text', 'ask' => 'member'],
                 // Which existing list, when the input names one. Shown as the card's destination, not as a field.
                 'list' => ['type' => 'text', 'options' => fn (User $user) => $lists($user)->pluck('name')->all(), 'hidden' => true],
+                // Add details (the Classic task editor's fields): a note, the list by hand, and the add-ons' controls
+                // (Repeat, Important) through the same task.editor.fields slot, saved through task.saved like Classic.
+                'note' => ['type' => 'note', 'details' => true],
+                'list_id' => ['type' => 'choice', 'details' => true, 'choices' => fn (User $user) => $lists($user)->get(['id', 'name'])
+                    ->map(fn ($l) => ['value' => (string) $l->id, 'label' => $l->name])->all()],
+                'ext' => ['type' => 'slot', 'slot' => 'task.editor.fields', 'details' => true],
             ],
             'target' => fn (User $user, AddContext $ctx, array $v) => $pickList($user, $ctx, $v)?->name ?? Translations::get('nav.tasks'),
             'save' => function (User $user, array $v, AddContext $ctx) use ($pickList) {
-                $data = Validator::validate(['title' => $v['title'] ?? null, 'due_date' => $v['due'] ?? null], [
-                    'title' => ['required', 'string', 'max:255'], 'due_date' => ['nullable', 'date'],
+                // note: same rule as the Classic store (TasksController::storeTask).
+                $data = Validator::validate(['title' => $v['title'] ?? null, 'due_date' => $v['due'] ?? null, 'note' => $v['note'] ?? null, 'ext' => $v['ext'] ?? []], [
+                    'title' => ['required', 'string', 'max:255'], 'due_date' => ['nullable', 'date'], 'note' => ['nullable', 'string', 'max:255'],
+                    'ext' => ['array', 'max:10'], // flat values only, as a Classic onPatch sends them
+                    'ext.*' => ['nullable', fn ($attr, $value, $fail) => is_scalar($value) || $fail("{$attr} must be a single value.")],
                 ]);
                 $list = $pickList($user, $ctx, $v) ?? TaskList::createFor($user, ['name' => Translations::get('nav.tasks')]);
-                $task = TaskData::addTask($user, $list, $data + ['assigned_to' => $ctx->memberId($v['who'] ?? null)]);
+                // The add-ons' values ({important: true, recurrence: 'weekly'}) go to task.saved as the request, exactly as
+                // the Classic editor's onPatch sends them; each add-on validates its own (a 4th star is refused there).
+                $task = TaskData::addTask($user, $list, array_diff_key($data, ['ext' => 1]) + ['assigned_to' => $ctx->memberId($v['who'] ?? null)], $data['ext']);
 
                 return ['title' => $task->title, 'url' => "/m/tasks/lists/{$list->id}"];
             },

@@ -24,6 +24,7 @@ use App\Support\Trash\Trash;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\ValidationException;
 use Modules\Notifications\NotificationCategories;
 use Modules\Spending\Mcp\SpendData;
 
@@ -42,17 +43,29 @@ class SpendingServiceProvider extends ServiceProvider
                 'currency' => ['type' => 'text'],
                 'shop' => ['type' => 'text'],
                 'date' => ['type' => 'date'],
+                // Add details (the Classic expense sheet's category and list). Paid by stays the person adding it, as on
+                // the quick-add: who else can pay depends on the list's participants.
+                // '' first: nothing picked = the auto-categorizer guesses, as on the quick-add.
+                'category' => ['type' => 'choice', 'details' => true, 'choices' => fn () => [['value' => '', 'label' => Translations::get('add_details.category_auto')], ...SpendCategory::forFamily()
+                    ->map(fn (SpendCategory $c) => ['value' => $c->key, 'label' => $c->is_default ? Translations::get("spending.category_{$c->key}") : $c->name])->values()->all()]],
+                'list_id' => ['type' => 'choice', 'details' => true, 'choices' => fn (User $user) => SpendData::visibleEvents($user)->whereNull('archived_at')->orderBy('name')->get()
+                    ->filter(fn (SpendEvent $e) => SpendData::event($user, $e->id, edit: true))
+                    ->map(fn (SpendEvent $e) => ['value' => (string) $e->id, 'label' => $e->name])->values()->all()],
             ],
             // Named only, never created here (others() makes the list when it's missing): reading has no side effects.
             'target' => fn (User $user, AddContext $ctx, array $v) => ($ctx->module === 'spending' && $ctx->entityId ? SpendData::event($user, $ctx->entityId, edit: true)?->name : null)
                 ?? Translations::get('spending.others_list'),
             'save' => function (User $user, array $v, AddContext $ctx) {
-                $event = ($ctx->module === 'spending' && $ctx->entityId ? SpendData::event($user, $ctx->entityId, edit: true) : null) ?? SpendEvent::others($user);
+                // A list picked in Add details wins; one this person can't add to is an error, never a silent fallback.
+                $picked = filled($v['list_id'] ?? null) ? (SpendData::event($user, $v['list_id'], edit: true)
+                    ?? throw ValidationException::withMessages(['list_id' => Translations::get('add_details.list_gone')])) : null;
+                $event = $picked ?? ($ctx->module === 'spending' && $ctx->entityId ? SpendData::event($user, $ctx->entityId, edit: true) : null) ?? SpendEvent::others($user);
                 $currency = strtoupper((string) ($v['currency'] ?? ''));
                 [$spend] = SpendData::addExpense($user, $event, [
                     'amount' => $v['amount'] ?? null,
                     'currency' => in_array($currency, Currencies::ALL, true) ? $currency : $event->currency,
-                    'category' => 'other',
+                    // Unpicked = 'other', which the auto-categorizer then guesses; a picked one is checked by spendRules.
+                    'category' => filled($v['category'] ?? null) ? $v['category'] : 'other',
                     'payer_key' => 'u'.$user->id,
                     'note' => $v['note'] ?? null,
                     'store' => $v['shop'] ?? null,

@@ -15,6 +15,13 @@ use Closure;
  *              becomes a question); 'options' => Closure(User): list<string> (the only values that make sense, e.g. the
  *              person's list names); 'hidden' => true (read, but not shown as a field on the card). How to recognise
  *              and read each field is the reader's job (AddReader: the worker);
+ *              'details' => true: a field of the card's "Add details" form only (design H2f), what Classic offers
+ *              beyond what one sentence says (a to-do's note, its list picked by hand). The reader never sees these
+ *              (AddReader strips them) so the worker's schema, eval and cost don't change; the person fills them.
+ *              Detail-only types: note (a longer text under the title), choice ('choices' => Closure(User):
+ *              list<array{value: string, label: string}>, a row that opens a picker) and slot ('slot' => a primitive's
+ *              editor slot, e.g. task.editor.fields: the add-ons' own controls; the value is their fields, which
+ *              the save hands to the primitive's saved hook exactly like Classic does);
  *  - target:   optional Closure(User, AddContext, array $values): ?string naming where it will land ("Oana"), shown on the card
  *              so it's clear what gets created where; read-only (never create anything here);
  *  - save:     Closure(User, array $values, AddContext): array{title: string, url: string} creating the thing through

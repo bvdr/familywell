@@ -1,0 +1,22 @@
+{
+    "add_details": "Details toevoegen",
+    "things_one": ":count ding",
+    "things_other": ":count dingen",
+    "position": ":kind · :i van :n",
+    "when": "Wanneer",
+    "pick": "Kiezen…",
+    "who_on_it": "Wie doet het",
+    "anyone": "Iedereen",
+    "note_placeholder": "Voeg een notitie toe…",
+    "leave_out": "Weglaten",
+    "from_typed": "Uit wat je typte",
+    "list_gone": "Die lijst bestaat niet meer of je kunt er niets aan toevoegen. Kies een andere.",
+    "category_auto": "Raad het voor mij",
+    "f_note": "Notitie",
+    "f_notes": "Notities",
+    "f_list_id": "Lijst",
+    "f_category": "Categorie",
+    "f_repeat": "Herhalen",
+    "f_who": "Wie",
+    "f_due": "Deadline"
+}
