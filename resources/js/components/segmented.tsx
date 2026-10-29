@@ -2,9 +2,10 @@
 // Anything bigger uses <Picker> (searchable dropdown). The rounded pill look of Shopping's Lists / Shops tabs
 // (the user preferred it over the old square-ish one, 2026-10-28), now everywhere a Segmented is used. A11y: a radiogroup of radios with aria-checked; arrow keys move
 // between options like a native radio group.
-import { type KeyboardEvent } from 'react';
+import { type ComponentType, type KeyboardEvent } from 'react';
 
-export type SegmentedOption<T extends string> = { value: T; label: string };
+// `icon` is optional: the share sheet's "Who can access" switch shows one per option.
+export type SegmentedOption<T extends string> = { value: T; label: string; icon?: ComponentType<{ className?: string }> };
 
 export function Segmented<T extends string>({
     options,
@@ -48,9 +49,10 @@ export function Segmented<T extends string>({
                         tabIndex={tabStop ? 0 : -1}
                         disabled={disabled}
                         onClick={() => onChange(o.value)}
-                        className={`min-w-0 truncate rounded-full px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed ${on ? 'bg-accent-strong text-accent-strong-foreground' : 'text-primary'}`}
+                        className={`inline-flex min-w-0 items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed ${on ? 'bg-accent-strong text-accent-strong-foreground' : 'text-primary'}`}
                     >
-                        {o.label}
+                        {o.icon && <o.icon className="size-4 shrink-0" />}
+                        <span className="truncate">{o.label}</span>
                     </button>
                 );
             })}
