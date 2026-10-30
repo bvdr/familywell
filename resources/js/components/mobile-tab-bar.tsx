@@ -377,7 +377,7 @@ function AddSheet({ open, onOpenChange, enabled }: { open: boolean; onOpenChange
                                         onClick={() => togglePin(item.key)}
                                         aria-pressed={isPinned}
                                         aria-label={t(isPinned ? 'create.unpin' : 'create.pin', { name: t(item.labelKey) })}
-                                        className={`mr-1 flex size-11 shrink-0 items-center justify-center rounded-full ${isPinned ? 'text-primary' : 'text-muted-foreground/60'}`}
+                                        className={`mx-1 flex size-11 shrink-0 items-center justify-center rounded-full ${isPinned ? 'text-primary' : 'text-muted-foreground/60'}`}
                                     >
                                         <Pin className={`size-5 ${isPinned ? 'fill-current' : ''}`} />
                                     </button>
