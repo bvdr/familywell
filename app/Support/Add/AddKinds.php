@@ -21,7 +21,8 @@ use Closure;
  *              Detail-only types: note (a longer text under the title), choice ('choices' => Closure(User):
  *              list<array{value: string, label: string}>, a row that opens a picker) and slot ('slot' => a primitive's
  *              editor slot, e.g. task.editor.fields: the add-ons' own controls; the value is their fields, which
- *              the save hands to the primitive's saved hook exactly like Classic does);
+ *              the save hands to the primitive's saved hook exactly like Classic does; optional 'badges' => the
+ *              primitive's row-badge slot, drawn on the card's header with onPatch, e.g. the Important star);
  *  - target:   optional Closure(User, AddContext, array $values): ?string naming where it will land ("Oana"), shown on the card
  *              so it's clear what gets created where; read-only (never create anything here);
  *  - save:     Closure(User, array $values, AddContext): array{title: string, url: string} creating the thing through

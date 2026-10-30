@@ -66,7 +66,8 @@ class TasksServiceProvider extends ServiceProvider
                 'note' => ['type' => 'note', 'details' => true],
                 'list_id' => ['type' => 'choice', 'details' => true, 'choices' => fn (User $user) => $lists($user)->get(['id', 'name'])
                     ->map(fn ($l) => ['value' => (string) $l->id, 'label' => $l->name])->all()],
-                'ext' => ['type' => 'slot', 'slot' => 'task.editor.fields', 'details' => true],
+                // badges: back on the card, the add-ons' row badges (the Important star) mark its header (design H2g).
+                'ext' => ['type' => 'slot', 'slot' => 'task.editor.fields', 'badges' => 'task.row.badges', 'details' => true],
             ],
             'target' => fn (User $user, AddContext $ctx, array $v) => $pickList($user, $ctx, $v)?->name ?? Translations::get('nav.tasks'),
             'save' => function (User $user, array $v, AddContext $ctx) use ($pickList) {

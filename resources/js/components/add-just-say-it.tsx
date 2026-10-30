@@ -1,6 +1,7 @@
 import { AddDetails } from '@/components/add-details';
 import { useVoice, voiceSupported } from '@/hooks/use-voice';
 import { useT } from '@/lib/i18n';
+import { Slot } from '@/lib/modules';
 import { router } from '@inertiajs/react';
 import {
     CalendarDays,
@@ -16,6 +17,7 @@ import {
     ListPlus,
     Loader2,
     Mic,
+    Pencil,
     Plus,
     ShoppingCart,
     Sparkles,
@@ -53,7 +55,8 @@ type Item = {
     // The kind's "Add details" fields (AddKinds 'details'): never read, only filled by hand in the details form.
     details?: Record<string, Detail>;
 };
-export type Detail = { type: string; choices?: { value: string; label: string }[]; slot?: string };
+// badges: a slot whose add-ons mark the card's header (task.row.badges: the Important star), given onPatch to toggle.
+export type Detail = { type: string; choices?: { value: string; label: string }[]; slot?: string; badges?: string };
 export type Member = { id: number; name: string };
 // What the person changed on a card, kept across re-reads while they keep typing: keyed by card id. `slots` holds what
 // add-ons' controls patched in Add details ({ important: true }), per slot field.
@@ -336,7 +339,40 @@ export function JustSayIt({
     const fieldRow = (it: Item, name: string) => {
         const unsure = (it.fields[name]?.confidence ?? 1) < 0.5;
         const empty = it.missing.includes(name) && !valueOf(it, name).trim();
-        if (it.types[name] === 'list') {
+        // A read field's type, else its Add details one (a shopping item's due date, a to-do's note).
+        const type = it.types[name] ?? it.details?.[name]?.type ?? 'text';
+        const label = fieldLabel(name, it);
+        const control = `text-primary min-w-0 rounded-lg border px-2.5 py-1.5 text-base ${empty ? 'border-destructive' : unsure ? 'bg-accent-subtle' : 'bg-surface-card'}`;
+        // Back from Add details (design H2g), "who" and picked choices are rows too: a compact select, in the same
+        // label-left / control-right column as the other fields (the form-row rule), not the details form's faces.
+        const select = (options: { value: string; label: string }[], current: string) => (
+            <label key={name} className="grid grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-2">
+                <span className="text-muted-foreground font-mono text-[11px] uppercase">{label}</span>
+                <select value={current} onChange={(e) => setValue(it.id, name, e.target.value)} className={`${control} h-[38px]`}>
+                    {options.map((o) => (
+                        <option key={o.value} value={o.value}>
+                            {o.label}
+                        </option>
+                    ))}
+                </select>
+            </label>
+        );
+        if (it.people?.includes(name)) {
+            // The value is a name, as the reader gives it ("Marco"): matched to a member by full or first name, else
+            // kept as its own option so a name the family list doesn't have isn't silently dropped.
+            const v = valueOf(it, name).trim();
+            const picked = members.find((m) => [m.name.toLowerCase(), m.name.split(' ')[0].toLowerCase()].includes(v.toLowerCase()));
+            return select(
+                [
+                    { value: '', label: t('add_details.anyone') },
+                    ...members.map((m) => ({ value: m.name, label: m.name })),
+                    ...(v && !picked ? [{ value: v, label: v }] : []),
+                ],
+                picked?.name ?? v,
+            );
+        }
+        if (type === 'choice') return select(it.details?.[name]?.choices ?? [], valueOf(it, name));
+        if (type === 'list') {
             // One row per thing: its name and, for shopping, how much ("Schweppes" × "six pack").
             const rows = entriesOf(it, name);
             const qty = it.quantity?.includes(name);
@@ -348,7 +384,7 @@ export function JustSayIt({
                 );
             return (
                 <div key={name} className="flex flex-col gap-1.5">
-                    <span className="text-muted-foreground font-mono text-[11px] uppercase">{fieldLabel(name)}</span>
+                    <span className="text-muted-foreground font-mono text-[11px] uppercase">{label}</span>
                     {rows.map((r, i) => (
                         <div
                             key={i}
@@ -357,7 +393,7 @@ export function JustSayIt({
                             <input
                                 value={r.name}
                                 onChange={(e) => put(i, { name: e.target.value })}
-                                aria-label={fieldLabel(name)}
+                                aria-label={label}
                                 className="text-primary bg-surface-card min-w-0 rounded-lg border px-2.5 py-1.5 text-base"
                             />
                             {qty && (
@@ -391,17 +427,24 @@ export function JustSayIt({
         }
         return (
             <label key={name} className="grid grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-2">
-                <span className="text-muted-foreground font-mono text-[11px] uppercase">{fieldLabel(name)}</span>
+                <span className="text-muted-foreground font-mono text-[11px] uppercase">{label}</span>
                 <input
-                    type={wholeDay(it, name) ? 'date' : inputType(it.types[name])}
+                    type={wholeDay(it, name) ? 'date' : inputType(type)}
                     value={wholeDay(it, name) ? valueOf(it, name).slice(0, 10) : valueOf(it, name)}
                     onChange={(e) => setValue(it.id, name, e.target.value)}
                     placeholder={empty ? t('add.needed') : ''}
-                    className={`text-primary min-w-0 rounded-lg border px-2.5 py-1.5 text-base ${empty ? 'border-destructive' : unsure ? 'bg-accent-subtle' : 'bg-surface-card'}`}
+                    className={control}
                 />
             </label>
         );
     };
+
+    // Add details fields given a value (design H2g): back on the card they're rows like the read ones. Slots aren't
+    // rows (their add-ons draw nothing generic); the Important one shows as the header's star instead (badges).
+    const detailRows = (it: Item) => Object.keys(it.details ?? {}).filter((n) => it.details![n].type !== 'slot' && valueOf(it, n).trim() !== '');
+    // Anything set in Add details (a detail field, or an add-on's control): the row turns into "Edit details".
+    const touched = (it: Item) =>
+        Object.keys(it.details ?? {}).some((n) => (it.details![n].type === 'slot' ? Object.keys(slotOf(it, n)).length > 0 : !!valueOf(it, n).trim()));
 
     // The card whose details are open (gone if a late read replaced the cards: back to the list then).
     const detailed = items.find((it) => it.id === detailsFor) ?? null;
@@ -594,6 +637,19 @@ export function JustSayIt({
                                 </span>
                                 <span className="text-primary block truncate font-semibold first-letter:uppercase">{headline(it)}</span>
                             </span>
+                            {/* The add-ons' marks for this card (design H2g: the Important star), drawn by the add-ons
+                                themselves through the primitive's row-badge slot; onPatch lets a tap toggle it, kept on
+                                the card like a change made in Add details. */}
+                            {Object.entries(it.details ?? {}).map(
+                                ([n, d]) =>
+                                    d.badges && (
+                                        <Slot
+                                            key={n}
+                                            name={d.badges}
+                                            ctx={{ task: slotOf(it, n), onPatch: (p: Record<string, unknown>) => patchSlot(it.id, n, p) }}
+                                        />
+                                    ),
+                            )}
                             {!asking && (
                                 <button
                                     type="button"
@@ -634,6 +690,7 @@ export function JustSayIt({
                                 {Object.keys(it.types)
                                     .filter((name) => shown(it, name))
                                     .map((name) => fieldRow(it, name))}
+                                {detailRows(it).map((name) => fieldRow(it, name))}
                                 {/* "Which kid is this for?": the reader wasn't sure, so it asks. */}
                                 {Object.entries(it.ask).map(([name, options]) => (
                                     <div key={name} className="bg-accent-subtle flex flex-wrap items-center gap-2 rounded-xl p-2.5">
@@ -650,16 +707,19 @@ export function JustSayIt({
                                         ))}
                                     </div>
                                 ))}
-                                {/* Design H2e: everything the box didn't catch, in this card's own form (H2f). Hidden when
-                                    the card already shows all there is. */}
-                                {extras(it).length > 0 && (
+                                {/* Design H2e: everything the box didn't catch, in this card's own form (H2f). Once something
+                                    was set there it's "Edit details" (H2g), the hint naming what's still empty (none: no
+                                    hint). Hidden when the card shows all there is and nothing was set. */}
+                                {(extras(it).length > 0 || touched(it)) && (
                                     <button
                                         type="button"
                                         onClick={() => setDetailsFor(it.id)}
                                         className="text-primary flex min-h-11 items-center gap-2 border-t pt-2 text-left"
                                     >
-                                        <Plus className="size-5 shrink-0" />
-                                        <span className="shrink-0 font-semibold">{t('add_details.add_details')}</span>
+                                        {touched(it) ? <Pencil className="size-5 shrink-0" /> : <Plus className="size-5 shrink-0" />}
+                                        <span className="shrink-0 font-semibold">
+                                            {t(touched(it) ? 'add_details.edit_details' : 'add_details.add_details')}
+                                        </span>
                                         <span className="text-muted-foreground min-w-0 flex-1 truncate">
                                             {extras(it)
                                                 .slice(0, 3)

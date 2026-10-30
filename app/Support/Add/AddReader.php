@@ -67,6 +67,7 @@ final class AddReader
                 'type' => $f['type'],
                 'choices' => isset($f['choices']) ? ($f['choices'])($ctx->user) : null,
                 'slot' => $f['slot'] ?? null,
+                'badges' => $f['badges'] ?? null,
             ], fn ($x) => $x !== null), array_filter($kinds[$kind]['fields'], fn ($f) => ! empty($f['details'])));
         };
 
