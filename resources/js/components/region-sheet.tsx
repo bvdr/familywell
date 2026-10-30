@@ -87,7 +87,14 @@ export function RegionSheet({
             ...(timezones && c?.timezone && zoneCountry.get(d.timezone ?? '') !== code ? { timezone: c.timezone } : {}),
         }));
     };
-    // The family's clock right now, next to the pick, so a wrong zone shows at a glance.
+    // The family's clock right now, next to the pick, so a wrong zone shows at a glance. Re-read every 30s while the
+    // sheet is open (it showed the time from when the page loaded: "10:41" at 11:03).
+    const [, setTick] = useState(0);
+    useEffect(() => {
+        if (!open) return;
+        const id = window.setInterval(() => setTick((n) => n + 1), 30_000);
+        return () => window.clearInterval(id);
+    }, [open]);
     const localTime = draft.timezone
         ? new Date().toLocaleTimeString(appLocale(), { timeZone: draft.timezone, hour: 'numeric', minute: '2-digit' })
         : null;
@@ -135,8 +142,7 @@ export function RegionSheet({
             }
         >
             <div className="flex flex-col gap-4 pb-2">
-                <div className="flex flex-col gap-2">
-                    <Label>{t('settings_region.country')}</Label>
+                <FieldRow label={t('settings_region.country')}>
                     <Picker
                         options={countries.map((c) => ({ value: c.code, label: c.name }))}
                         selected={draft.country ? [draft.country] : []}
@@ -146,11 +152,10 @@ export function RegionSheet({
                         ariaLabel={t('settings_region.country')}
                         disabled={readOnly}
                     />
-                </div>
+                </FieldRow>
 
                 {draft.units !== undefined && (
-                    <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-3">
-                        <Label>{t('settings_region.units')}</Label>
+                    <FieldRow label={t('settings_region.units')}>
                         <Segmented
                             options={[
                                 { value: 'metric', label: t('settings_region.metric') },
@@ -161,12 +166,11 @@ export function RegionSheet({
                             ariaLabel={t('settings_region.units')}
                             disabled={readOnly}
                         />
-                    </div>
+                    </FieldRow>
                 )}
 
                 {draft.currency !== undefined && currencies && (
-                    <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-start gap-3">
-                        <Label className="pt-3">{t('settings_region.currency')}</Label>
+                    <FieldRow label={t('settings_region.currency')}>
                         <Picker
                             options={currencyOptions(currencies, appLocale())}
                             fallbackIcon={Banknote}
@@ -175,12 +179,14 @@ export function RegionSheet({
                             ariaLabel={t('settings_region.currency')}
                             disabled={readOnly}
                         />
-                    </div>
+                    </FieldRow>
                 )}
 
                 {timezones && (
-                    <div className="flex flex-col gap-2">
-                        <Label>{t('settings_region.timezone')}</Label>
+                    <FieldRow
+                        label={t('settings_region.timezone')}
+                        hint={localTime ? t('settings_region.local_time', { time: localTime }) : undefined}
+                    >
                         <Picker
                             options={zoneOptions}
                             selected={draft.timezone ? [draft.timezone] : []}
@@ -190,8 +196,7 @@ export function RegionSheet({
                             ariaLabel={t('settings_region.timezone')}
                             disabled={readOnly}
                         />
-                        {localTime && <p className="text-muted-foreground text-sm">{t('settings_region.local_time', { time: localTime })}</p>}
-                    </div>
+                    </FieldRow>
                 )}
 
                 <section className="bg-primary text-primary-foreground flex flex-col gap-3 rounded-[20px] p-4">
@@ -208,5 +213,17 @@ export function RegionSheet({
                 </section>
             </div>
         </ResponsiveModal>
+    );
+}
+
+// One field row (the app-wide form rule): label left, control right, every control in the same column with the
+// same width; the label centres on its control whatever its height, and helper text sits under the control.
+function FieldRow({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+    return (
+        <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5">
+            <Label>{label}</Label>
+            <div className="min-w-0">{children}</div>
+            {hint && <p className="text-muted-foreground col-start-2 text-sm">{hint}</p>}
+        </div>
     );
 }
