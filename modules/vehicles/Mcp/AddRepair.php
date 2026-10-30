@@ -4,6 +4,7 @@ namespace Modules\Vehicles\Mcp;
 
 use App\Mcp\Tool;
 use App\Support\Mcp\IncomingFile;
+use App\Support\Tenancy\FamilyClock;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
@@ -64,7 +65,7 @@ class AddRepair extends Tool
         $file = IncomingFile::from($request); // validated (type, size) before anything is written
         $repair = $v->logRepair([
             'title' => $data['title'],
-            'occurred_on' => $data['occurred_on'] ?? now()->toDateString(),
+            'occurred_on' => $data['occurred_on'] ?? FamilyClock::today(),
             'mileage' => $data['mileage_km'] ?? null,
             'cost' => $data['cost'] ?? null,
             'provider' => $data['provider'] ?? null,

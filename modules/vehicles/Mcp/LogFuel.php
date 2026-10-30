@@ -3,6 +3,7 @@
 namespace Modules\Vehicles\Mcp;
 
 use App\Mcp\Tool;
+use App\Support\Tenancy\FamilyClock;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
@@ -55,7 +56,7 @@ class LogFuel extends Tool
         }
 
         $entry = $v->logFuel([
-            'filled_on' => $data['filled_on'] ?? now()->toDateString(),
+            'filled_on' => $data['filled_on'] ?? FamilyClock::today(),
             'liters' => $data['liters'],
             'mileage' => (int) $data['mileage_km'],
             'cost' => $data['cost'] ?? null,

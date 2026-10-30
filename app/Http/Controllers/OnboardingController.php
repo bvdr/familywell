@@ -21,6 +21,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Notifications\NotificationCategories;
@@ -124,7 +125,7 @@ class OnboardingController extends Controller
         $country = TrackLastSeen::country($request);
         $name = $country ? \Locale::getDisplayRegion('-'.$country, app()->getLocale()) : null;
 
-        return ['country' => $country, 'countryName' => $name ?: null, ...Region::derive($country), 'countries' => Region::countries()];
+        return ['country' => $country, 'countryName' => $name ?: null, ...Region::derive($country), 'countries' => Region::countries(), 'timezones' => Region::timezones()];
     }
 
     public function store(Request $request): RedirectResponse
@@ -175,7 +176,14 @@ class OnboardingController extends Controller
         app(Hooks::class)->fire('family.created', $family, $request);
         // What the "Region & units" sheet sent (currency, units...), stored by the modules that own each value,
         // the same way Settings › Region & units saves. After family.created, so a pick beats the country guess.
-        Region::save($family, $request->all());
+        // `timezone` is the creator's browser zone (or their pick in the sheet). A zone this PHP doesn't know must
+        // never block making the family: it's dropped, FamilyClock falls back to UTC and an admin's next visit or
+        // Settings fills it (FillFamilyTimezone).
+        $input = $request->all();
+        if (Validator::make($input, ['timezone' => ['nullable', 'string', Region::TIMEZONE_RULE]])->fails()) {
+            unset($input['timezone']);
+        }
+        Region::save($family, $input);
         Analytics::track($user, 'family_created', [], '/onboarding');
         // Onboarding funnel, browser side (docs/analytics.md): one `onboarding_<step>` per finished step.
         Analytics::queue('onboarding_family', ['symbol' => $family->symbol ?? 'emoji']);

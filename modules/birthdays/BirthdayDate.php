@@ -5,6 +5,7 @@ namespace Modules\Birthdays;
 use App\Models\User;
 use App\Support\Modules\Hooks;
 use App\Support\Tenancy\BelongsToFamily;
+use App\Support\Tenancy\FamilyClock;
 use App\Support\Translations;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -34,11 +35,11 @@ class BirthdayDate extends Model
     /**
      * Birthdays falling on the given day (default today). A Feb 29 birthday is celebrated on Mar 1
      * in non-leap years, matching what nextBirthday() derives, so the card and the push agree with
-     * the list's "Today!".
+     * the list's "Today!". Default: the current family's today (FamilyClock), not the server's.
      */
     public function scopeOn(Builder $query, ?Carbon $date = null): Builder
     {
-        $date ??= Carbon::today();
+        $date ??= FamilyClock::date();
         $query->where(fn (Builder $q) => $q->where('month', $date->month)->where('day', $date->day));
         if ($date->month === 3 && $date->day === 1 && ! $date->isLeapYear()) {
             $query->orWhere(fn (Builder $q) => $q->where('month', 2)->where('day', 29));
@@ -61,10 +62,13 @@ class BirthdayDate extends Model
         return $this->belongsTo(Person::class);
     }
 
-    /** Current age in whole years, or null when the year is unknown. */
+    /**
+     * Current age in whole years, or null when the year is unknown. Counted to the family's today, not Carbon's
+     * ->age (UTC now): just after midnight in Bucharest it's already the birthday, and turning() must agree.
+     */
     public function age(): ?int
     {
-        return $this->birthdate?->age;
+        return $this->birthdate ? (int) $this->birthdate->diffInYears(FamilyClock::date($this->family_id)) : null;
     }
 
     /**
@@ -106,7 +110,7 @@ class BirthdayDate extends Model
     /** @return array{0: string, 1: ?Carbon, 2: ?int} */
     private function upcoming(): array
     {
-        $today = Carbon::today();
+        $today = FamilyClock::date($this->family_id); // the family's day, so "Today!" flips at their midnight
         if ($this->upcoming === null || $this->upcoming[0] !== $today->toDateString()) {
             $next = null;
             if ($this->month && $this->day) {

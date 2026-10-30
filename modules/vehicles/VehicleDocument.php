@@ -5,6 +5,7 @@ namespace Modules\Vehicles;
 use App\Models\User;
 use App\Support\Media\StoredImage;
 use App\Support\Tenancy\BelongsToFamily;
+use App\Support\Tenancy\FamilyClock;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -97,7 +98,7 @@ class VehicleDocument extends Model
         if (! $this->expires_on) {
             return false;
         }
-        $today ??= Carbon::today();
+        $today ??= FamilyClock::date($this->family_id); // the family's day (vehicles:check runs per family too)
 
         return $this->expires_on->copy()->startOfDay()->lte($today->copy()->addDays(self::EXPIRY_LEAD_DAYS));
     }

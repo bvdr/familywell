@@ -4,6 +4,7 @@ namespace Modules\Vehicles;
 
 use App\Models\User;
 use App\Support\Tenancy\BelongsToFamily;
+use App\Support\Tenancy\FamilyClock;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -115,7 +116,7 @@ class VehicleMaintenanceSchedule extends Model
             $this->last_performed_mileage,
             $this->last_performed_at,
             $currentMileage,
-            $today ?? Carbon::today(),
+            $today ?? FamilyClock::date($this->family_id),
             $this->due_mileage,
             $this->due_on,
         );

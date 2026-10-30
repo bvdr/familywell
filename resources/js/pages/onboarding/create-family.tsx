@@ -6,7 +6,7 @@ import { FamilyLookPicker } from '@/components/family-look-picker';
 import { FamilyMark, inkOn } from '@/components/family-mark';
 import { reactHomer } from '@/components/homer';
 import InputError from '@/components/input-error';
-import { RegionSheet, type RegionCountry } from '@/components/region-sheet';
+import { browserZone, RegionSheet, zoneCity, type RegionCountry, type RegionZone } from '@/components/region-sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,6 +22,7 @@ type Region = {
     units?: 'metric' | 'imperial';
     // For the shared Region & units sheet's country picker: each with what it implies.
     countries: RegionCountry[];
+    timezones: RegionZone[];
 };
 
 // `family` is set when they came back from step 2: the family exists and the form edits it.
@@ -49,6 +50,9 @@ export default function CreateFamily({ userName, colors, region, family }: Props
         symbol: (family?.symbol ?? 'house') as string,
         currency: region.currency ?? null,
         units: region.units ?? null,
+        // The family's zone (FamilyClock) starts as this browser's: where the person making it actually is, which the
+        // country guess (Cloudflare's) can't tell apart inside a multi-zone country. The sheet can change it.
+        timezone: browserZone(),
     });
     const { data, setData } = form;
     // Homer (on the desktop rail) thinks along while they type: at most once per his 2.5 s "thinking" beat.
@@ -74,7 +78,9 @@ export default function CreateFamily({ userName, colors, region, family }: Props
         : [1, 2, 3].map((n) => t(`onboarding.suggest_plain_${n}`));
     const displayName = data.name.trim() || t('onboarding.your_family');
 
-    const regionLine = [countryName, region.units && t(`onboarding.units_${data.units}`), data.currency].filter(Boolean).join(' · ');
+    const regionLine = [countryName, region.units && t(`onboarding.units_${data.units}`), data.currency, zoneCity(data.timezone)]
+        .filter(Boolean)
+        .join(' · ');
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -165,11 +171,10 @@ export default function CreateFamily({ userName, colors, region, family }: Props
                                             <p className="truncate text-[14.5px] font-bold">{regionLine}</p>
                                             <p className="text-stone truncate text-xs">{t('onboarding.region_sub')}</p>
                                         </div>
-                                        {(region.currencies || region.units) && (
-                                            <button type="button" onClick={() => setRegionOpen(true)} className="text-[13.5px] font-bold">
-                                                {t('onboarding.change')}
-                                            </button>
-                                        )}
+                                        {/* Always something to change now: the time zone is core, not a module's. */}
+                                        <button type="button" onClick={() => setRegionOpen(true)} className="text-[13.5px] font-bold">
+                                            {t('onboarding.change')}
+                                        </button>
                                     </div>
                                 </div>
                             )}
@@ -182,14 +187,15 @@ export default function CreateFamily({ userName, colors, region, family }: Props
             <RegionSheet
                 open={regionOpen}
                 onOpenChange={setRegionOpen}
-                value={{ country, units: data.units ?? undefined, currency: data.currency ?? undefined }}
+                value={{ country, units: data.units ?? undefined, currency: data.currency ?? undefined, timezone: data.timezone }}
                 onDone={(v) => {
                     setCountry(v.country);
-                    setData((d) => ({ ...d, units: v.units ?? d.units, currency: v.currency ?? d.currency }));
+                    setData((d) => ({ ...d, units: v.units ?? d.units, currency: v.currency ?? d.currency, timezone: v.timezone ?? d.timezone }));
                     setRegionOpen(false);
                 }}
                 countries={region.countries}
                 currencies={region.currencies}
+                timezones={region.timezones}
                 familyName={displayName}
             />
         </form>

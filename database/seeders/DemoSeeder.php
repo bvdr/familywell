@@ -58,6 +58,9 @@ use Modules\Vehicles\VehicleSetting;
  */
 class DemoSeeder extends Seeder
 {
+    // The demo family's zone (families.timezone): the lead picked Bucharest, the team's own zone.
+    public const DEMO_TIMEZONE = 'Europe/Bucharest';
+
     public const FAMILY_NAME = 'The Millers';
 
     /** The account /demo signs visitors in as (the family owner). */
@@ -95,7 +98,8 @@ class DemoSeeder extends Seeder
 
     public function run(): void
     {
-        $this->today = today();
+        // The demo family's own day (it lives in DEMO_TIMEZONE), so "due today" rows land on its Today.
+        $this->today = Carbon::parse(now(self::DEMO_TIMEZONE)->toDateString());
         $this->locale = (string) config('familywell.demo_locale', 'en');
         $this->lang = $this->locale === 'en' ? [] : require database_path("seeders/demo/{$this->locale}.php");
         // Defaults the app names itself (e.g. the "Others" spending list) come from Translations::get() in the
@@ -164,6 +168,8 @@ class DemoSeeder extends Seeder
             'theme' => null,
             'owner_id' => $owner->id,
             'is_demo' => true,
+            // Its days follow this zone (FamilyClock); Bucharest is the team's own, so the demo reads like home.
+            'timezone' => self::DEMO_TIMEZONE,
         ])->save();
 
         $family->members()->sync(

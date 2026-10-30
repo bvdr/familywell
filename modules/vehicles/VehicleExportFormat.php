@@ -2,6 +2,7 @@
 
 namespace Modules\Vehicles;
 
+use App\Support\Tenancy\FamilyClock;
 use App\Support\Translations;
 use IntlDateFormatter;
 use NumberFormatter;
@@ -49,7 +50,7 @@ class VehicleExportFormat
 
     public function today(): string
     {
-        return $this->date(now()->toDateString());
+        return $this->date(FamilyClock::today());
     }
 
     public function distanceUnit(): string

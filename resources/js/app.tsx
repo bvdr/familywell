@@ -32,6 +32,7 @@ import { route as routeFn } from 'ziggy-js';
 import { armCrashRecovery, ErrorBoundary } from './components/error-boundary';
 import { initializeTheme, syncThemeColor } from './hooks/use-appearance';
 import { identify, trackQueued } from './lib/analytics';
+import { setFamilyTimezone } from './lib/date-groups';
 import { setAppLocale, useT } from './lib/i18n';
 import { listenForInstallPrompt } from './lib/install';
 import { loadModules, registerSlot } from './lib/modules';
@@ -56,6 +57,10 @@ void loadModules(window.__familywellModules ?? []);
 // stuck on a blank white screen.
 armCrashRecovery();
 
+// The browser's zone, for the server to fill in a family that has none yet (FillFamilyTimezone: admins only, only while
+// the family's zone is empty). A cookie, so every request carries it with no extra call. A year, refreshed every load.
+document.cookie = `fw_tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}; path=/; max-age=31536000; samesite=lax`;
+
 createInertiaApp({
     // No app-name suffix on page titles — just the page's own title.
     title: (title) => title,
@@ -66,6 +71,7 @@ createInertiaApp({
         // Identify to Umami on the first page, then on every visit (the navigate listener below) so a
         // sign-in, sign-up or account switch re-identifies. Both: identify() dedupes repeat calls.
         setAppLocale(props.initialPage.props.locale as string | undefined);
+        setFamilyTimezone(props.initialPage.props.timezone as string | null | undefined);
         identify(props.initialPage.props.analyticsId);
         trackQueued(props.initialPage.props.analyticsEvents);
 
@@ -95,6 +101,7 @@ router.on('navigate', (event) => {
     document.documentElement.toggleAttribute('data-brand', event.detail.page.component.startsWith('onboarding/'));
     syncThemeColor();
     setAppLocale(event.detail.page.props.locale as string | undefined);
+    setFamilyTimezone(event.detail.page.props.timezone as string | null | undefined);
     identify(event.detail.page.props.analyticsId);
     trackQueued(event.detail.page.props.analyticsEvents);
 });

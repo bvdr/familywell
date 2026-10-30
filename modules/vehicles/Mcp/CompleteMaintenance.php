@@ -4,6 +4,7 @@ namespace Modules\Vehicles\Mcp;
 
 use App\Mcp\Tool;
 use App\Support\Mcp\IncomingFile;
+use App\Support\Tenancy\FamilyClock;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
@@ -62,7 +63,7 @@ class CompleteMaintenance extends Tool
 
         // The same completion path as the app's "Mark as completed" form and a checked-off reminder task.
         $history = MaintenanceCompletion::complete($v, $schedule, [
-            'performed_at' => $data['performed_on'] ?? now()->toDateString(),
+            'performed_at' => $data['performed_on'] ?? FamilyClock::today(),
             'mileage' => (int) ($data['mileage_km'] ?? $v->current_mileage),
             'cost' => $data['cost'] ?? null,
             'provider' => $data['provider'] ?? null,

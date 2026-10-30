@@ -2,6 +2,7 @@
 
 namespace Modules\Spending;
 
+use App\Support\Tenancy\FamilyClock;
 use Illuminate\Support\Collection;
 
 // The "this month" figure: month-to-date spend across the viewer's visible, non-archived lists, rolled up
@@ -47,7 +48,7 @@ class MonthToDate
             ->whereIn('spend_event_id', $eventCcy->keys())
             ->countsInMonthly() // project-only expenses stay out of the monthly figure
             // Same bounds as analyticsPeriod('mtd'): start of month .. end of today (spent_at may carry a time).
-            ->whereBetween('spent_at', [now()->startOfMonth()->toDateString(), now()->endOfDay()->toDateTimeString()])
+            ->whereBetween('spent_at', self::bounds())
             ->groupBy('spend_event_id')
             ->selectRaw('spend_event_id, SUM(base_amount) AS total')
             ->pluck('total', 'spend_event_id');
@@ -79,7 +80,7 @@ class MonthToDate
             ->whereIn('spend_event_id', $eventCcy->keys())
             ->countsInMonthly() // same exclusion as total(), so the hint and the widget agree
             ->whereNotNull('store')
-            ->whereBetween('spent_at', [now()->startOfMonth()->toDateString(), now()->endOfDay()->toDateTimeString()])
+            ->whereBetween('spent_at', self::bounds())
             ->groupBy('store', 'spend_event_id')
             ->selectRaw('store, spend_event_id, SUM(base_amount) AS total')
             ->get();
@@ -105,15 +106,16 @@ class MonthToDate
      */
     public static function weeks(Collection $eventCcy, string $currency): array
     {
-        $first = now()->startOfMonth()->startOfWeek();
-        $weeks = array_fill(0, (int) $first->diffInWeeks(now()->startOfWeek()) + 1, 0);
+        $today = FamilyClock::date();
+        $first = $today->copy()->startOfMonth()->startOfWeek();
+        $weeks = array_fill(0, (int) $first->diffInWeeks($today->copy()->startOfWeek()) + 1, 0);
         if ($eventCcy->isEmpty()) {
             return ['count' => 0, 'weeks' => $weeks];
         }
         $rows = Spend::query()
             ->whereIn('spend_event_id', $eventCcy->keys())
             ->countsInMonthly()
-            ->whereBetween('spent_at', [now()->startOfMonth()->toDateString(), now()->endOfDay()->toDateTimeString()])
+            ->whereBetween('spent_at', self::bounds())
             ->get(['spend_event_id', 'spent_at', 'base_amount']);
 
         foreach ($rows as $r) {
@@ -122,5 +124,18 @@ class MonthToDate
         }
 
         return ['count' => $rows->count(), 'weeks' => $weeks];
+    }
+
+    /**
+     * This month so far: the 1st .. end of today, by the FAMILY's calendar (FamilyClock), so the card turns over at
+     * their midnight, not UTC's. spent_at may carry a time, hence end of day.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private static function bounds(): array
+    {
+        $today = FamilyClock::date();
+
+        return [$today->copy()->startOfMonth()->toDateString(), $today->copy()->endOfDay()->toDateTimeString()];
     }
 }

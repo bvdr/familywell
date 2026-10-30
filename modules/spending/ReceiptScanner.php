@@ -3,6 +3,7 @@
 namespace Modules\Spending;
 
 use App\Support\Ai\AiGateway;
+use App\Support\Tenancy\FamilyClock;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use RuntimeException;
@@ -136,7 +137,7 @@ class ReceiptScanner
     // date. Anything with no usable month/day falls back to today, which the user reviews before saving.
     private function normaliseDate(string $raw): string
     {
-        $today = Carbon::now();
+        $today = FamilyClock::date(); // "never in the future" = after the family's today
 
         // Must be a real YYYY-MM-DD calendar date. createFromFormat silently rolls overflow (2026-13-45
         // becomes 2027-01-14), so we also require it to round-trip back to the same string.

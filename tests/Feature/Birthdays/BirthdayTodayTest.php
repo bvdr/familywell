@@ -39,7 +39,7 @@ function todayBirthday(int $creator, string $name, ?int $year, int $month, int $
 
 it('pushes a localised birthday wish to every member, once per day', function () {
     [, $admin, $ro] = todayFamily();
-    Carbon::setTestNow('2026-09-19');
+    Carbon::setTestNow('2026-09-19 09:00'); // the push waits for 08:00 on the family's clock (UTC here)
     todayBirthday($admin->id, 'Veronica', 2004, 9, 19);
     todayBirthday($admin->id, 'Buni', null, 10, 22); // not today
     Notification::fake();
@@ -55,14 +55,14 @@ it('pushes a localised birthday wish to every member, once per day', function ()
     Notification::assertSentTimes(PushAlert::class, 2);
 
     // Next year it fires again.
-    Carbon::setTestNow('2027-09-19');
+    Carbon::setTestNow('2027-09-19 09:00'); // the push waits for 08:00 on the family's clock (UTC here)
     test()->artisan('birthdays:notify')->assertExitCode(0);
     Notification::assertSentTimes(PushAlert::class, 4);
 });
 
 it('celebrates a Feb 29 birthday on Mar 1 in a non-leap year and skips disabled families', function () {
     [$family, $admin] = todayFamily();
-    Carbon::setTestNow('2027-03-01');
+    Carbon::setTestNow('2027-03-01 09:00'); // the push waits for 08:00 on the family's clock (UTC here)
     todayBirthday($admin->id, 'Leap', null, 2, 29);
     Notification::fake();
 
@@ -70,7 +70,7 @@ it('celebrates a Feb 29 birthday on Mar 1 in a non-leap year and skips disabled 
     Notification::assertSentTo($admin, PushAlert::class, fn (PushAlert $n) => $n->title === "🎂 It's Leap's birthday today");
 
     app(ModuleRegistry::class)->disable('birthdays', $family->id);
-    Carbon::setTestNow('2028-02-29');
+    Carbon::setTestNow('2028-02-29 09:00'); // the push waits for 08:00 on the family's clock (UTC here)
     test()->artisan('birthdays:notify')->assertExitCode(0);
     Notification::assertSentTimes(PushAlert::class, 2); // still just the two members from Mar 1
 });
@@ -99,7 +99,7 @@ it('shows a dashboard card for the next 14 days, today first', function () {
 
 it('does not push a birthday that is in the trash, or one of a trashed contact', function () {
     [, $admin] = todayFamily();
-    Carbon::setTestNow('2026-09-19');
+    Carbon::setTestNow('2026-09-19 09:00'); // the push waits for 08:00 on the family's clock (UTC here)
     todayBirthday($admin->id, 'Veronica', 2004, 9, 19)->delete();
     todayBirthday($admin->id, 'Buni', null, 9, 19)->person->delete();
     Notification::fake();

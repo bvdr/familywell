@@ -11,6 +11,7 @@ use App\Support\Media\StoredImage;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Tenancy\FamilyClock;
 use App\Support\Translations;
 use App\Support\TypeSafe;
 use Illuminate\Http\JsonResponse;
@@ -485,7 +486,7 @@ class SpendingController extends Controller
      */
     private function analyticsPeriod(Request $request, array $eventIds = []): array
     {
-        $today = now();
+        $today = FamilyClock::date(); // the family's day: "this week" / "this month" turn over at their midnight
         switch ($request->query('period')) {
             case 'this_week':
                 return ['this_week', $today->copy()->startOfWeek(Carbon::MONDAY), $today->copy()];

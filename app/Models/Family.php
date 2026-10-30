@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Tenancy\FamilyClock;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -30,6 +31,12 @@ class Family extends Model
     // A stored `symbol` is a lucide key or this. Not checked against lucide's list server-side: the client
     // only draws known keys (anything else falls back to the emoji), so a crafted value can't render.
     public const SYMBOL_RULE = 'regex:/^[a-z0-9-]{1,40}$/';
+
+    // A request-memoized zone (FamilyClock) must not outlive a change to it.
+    protected static function booted(): void
+    {
+        static::saved(fn (self $f) => FamilyClock::forget($f->id));
+    }
 
     // `is_demo` is intentionally NOT fillable: only DemoSeeder sets it (via forceFill). It anchors the
     // nightly demo reset, so a request must never be able to flag a family as the demo.

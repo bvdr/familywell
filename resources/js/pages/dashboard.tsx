@@ -5,6 +5,7 @@ import { MemberAvatar } from '@/components/member-avatar';
 import { NotificationsBell } from '@/components/notifications-bell';
 import { MODULES, YourModules, type ModuleSummary } from '@/components/your-modules';
 import AppLayout from '@/layouts/app-layout';
+import { localToday } from '@/lib/date-groups';
 import { useLocale, useT, type TFn } from '@/lib/i18n';
 import { money } from '@/lib/money';
 import { save } from '@/lib/save';
@@ -49,8 +50,8 @@ function parseDay(ymd: string) {
     const [y, m, d] = ymd.split('-').map(Number);
     return new Date(y, m - 1, d);
 }
-const ymdOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const todayYmd = () => ymdOf(new Date());
+// The FAMILY's today (its zone, Settings › Region & units), the day the server bucketed Today / Tomorrow by.
+const todayYmd = () => localToday();
 
 // "16:30" on today's date, for "in 2 h" and the clock formatting below.
 function atTime(ymd: string, hm: string) {
@@ -586,10 +587,7 @@ function ImportantCard({ data }: { data: ImportantData }) {
         .filter((d): d is string => !!d && d >= todayYmd())
         .sort()[0];
     const nextDueText = nextDue
-        ? parseDay(nextDue).toLocaleDateString(
-              locale,
-              nextDue <= ymdOf(new Date(Date.now() + 6 * 864e5)) ? { weekday: 'short' } : { month: 'short', day: 'numeric' },
-          )
+        ? parseDay(nextDue).toLocaleDateString(locale, nextDue <= localToday(6) ? { weekday: 'short' } : { month: 'short', day: 'numeric' })
         : null;
 
     return (
@@ -735,8 +733,8 @@ export default function Dashboard({
     const t = useT();
     const locale = useLocale();
     const firstName = auth.user.name.split(' ')[0];
-    const now = new Date();
-    const tomorrowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const now = parseDay(localToday());
+    const tomorrowDate = parseDay(localToday(1));
     const dayLine = [
         now.toLocaleDateString(locale, { weekday: 'long', month: 'short', day: 'numeric' }),
         today.length ? t('dashboard.count_today', { count: today.length }) : '',

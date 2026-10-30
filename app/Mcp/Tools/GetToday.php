@@ -6,6 +6,7 @@ use App\Mcp\Tool;
 use App\Support\Dashboard\DashboardAgenda;
 use App\Support\Dashboard\DashboardItems;
 use App\Support\Mcp\McpTools;
+use App\Support\Tenancy\FamilyClock;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
@@ -26,7 +27,7 @@ class GetToday extends Tool
     {
         // Same providers as the web dashboard, limited to the modules this token can read.
         $readable = array_keys(McpTools::accessFromScopes($this->tokenScopes()));
-        $today = now()->toDateString();
+        $today = FamilyClock::today(); // the family's day, same as Home (DashboardData)
 
         $agenda = collect(DashboardAgenda::collect($readable))->sortBy('dueDate')->values()
             ->map(fn ($i) => [

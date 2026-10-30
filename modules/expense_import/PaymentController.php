@@ -8,10 +8,10 @@ use App\Models\User;
 use App\Support\Billing\Billing;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Tenancy\FamilyClock;
 use App\Support\Translations;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Carbon;
 use Modules\ExpenseImport\Statement\Values;
 use Modules\Spending\SpendingController;
 
@@ -52,7 +52,7 @@ class PaymentController extends Controller
             return $this->reply(422, 'expense_import.pay_bad_amount');
         }
         $merchant = Values::merchant((string) ($request->input('merchant') ?: $request->input('card') ?: 'Apple Pay'));
-        $date = Values::date((string) $request->input('date')) ?? Carbon::today()->toDateString();
+        $date = Values::date((string) $request->input('date')) ?? FamilyClock::today(); // CurrentFamily is the token's family (above)
 
         $row->forceFill(['last_used_at' => now()])->save();
         [$status] = Importer::payment($user, (int) round(abs($value) * 100), $currency, $merchant, $date);

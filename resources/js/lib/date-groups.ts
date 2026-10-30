@@ -38,8 +38,28 @@ export function groupByDateBucket<T>(items: T[], dateOf: (item: T) => string, to
     }, []);
 }
 
-// The viewer's local calendar day as 'YYYY-MM-DD' (toISOString alone would give the UTC day).
-export const localToday = (): string => {
-    const n = new Date();
-    return new Date(n.getTime() - n.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+// The family's IANA zone (the shared `timezone` prop, App\Support\Tenancy\FamilyClock), set by app.tsx on every page.
+// Undefined (no family yet) = the browser's own zone.
+let familyZone: string | undefined;
+export function setFamilyTimezone(zone: string | null | undefined): void {
+    familyZone = zone || undefined;
+}
+export const familyTimezone = (): string => familyZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+// en-CA formats a date as YYYY-MM-DD. One formatter per zone, not per call (Home asks for today on every row).
+const ymdFormatters = new Map<string, Intl.DateTimeFormat>();
+function ymdIn(date: Date, zone: string): string {
+    let f = ymdFormatters.get(zone);
+    if (!f) ymdFormatters.set(zone, (f = new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' })));
+    return f.format(date);
+}
+
+// The family's calendar day as 'YYYY-MM-DD': the same day the server buckets Today / overdue by (FamilyClock), so a
+// member travelling, or the browser's own clock, never disagrees with Home. `plusDays` steps whole days from it.
+export const localToday = (plusDays = 0): string => {
+    const today = ymdIn(new Date(), familyTimezone());
+    if (!plusDays) return today;
+    const [y, m, d] = today.split('-').map(Number);
+    // Date.UTC: pure calendar arithmetic, no DST hour in the way.
+    return new Date(Date.UTC(y, m - 1, d + plusDays)).toISOString().slice(0, 10);
 };

@@ -2,6 +2,7 @@
 
 namespace App\Support\Dashboard;
 
+use App\Support\Tenancy\FamilyClock;
 use Closure;
 use Illuminate\Support\Facades\Log;
 
@@ -25,10 +26,11 @@ class DashboardAgenda
     /**
      * The last day providers return items for: Today, Tomorrow, then the next 3 days (Home's strip). It used to be
      * "the end of this week", which left a one-day strip on Fridays and none at the weekend (2026-10-30).
+     * On the family's clock (FamilyClock), like Today.
      */
     public static function until(): string
     {
-        return now()->addDays(1 + self::STRIP_DAYS)->toDateString();
+        return FamilyClock::date()->addDays(1 + self::STRIP_DAYS)->toDateString();
     }
 
     /**
@@ -39,7 +41,9 @@ class DashboardAgenda
      */
     public static function stripDays(): array
     {
-        return array_map(fn ($n) => now()->addDays(2 + $n)->toDateString(), range(0, self::STRIP_DAYS - 1));
+        $today = FamilyClock::date();
+
+        return array_map(fn ($n) => $today->copy()->addDays(2 + $n)->toDateString(), range(0, self::STRIP_DAYS - 1));
     }
 
     /**

@@ -5,6 +5,7 @@ namespace App\Support\Dashboard;
 use App\Models\Family;
 use App\Support\Modules\Hooks;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Tenancy\FamilyClock;
 
 // Assembles Home from the module providers:
 //  - recent:   entities opened in the last few days, most-recent first ("Jump back in")
@@ -37,8 +38,9 @@ class DashboardData
         $agenda = collect(DashboardAgenda::collect())
             ->reject(fn ($i) => in_array($i['id'] ?? null, $lifted[$i['kind'] ?? ''] ?? [], true))
             ->sortBy('dueDate');
-        $today = now()->toDateString();
-        $tomorrow = now()->addDay()->toDateString();
+        // The family's day, not the server's (FamilyClock): at 00:30 in Bucharest it's already tomorrow there.
+        $today = FamilyClock::today();
+        $tomorrow = FamilyClock::date()->addDay()->toDateString();
 
         // Overdue rolls into Today (it still needs doing now).
         return [

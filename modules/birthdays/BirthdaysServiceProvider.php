@@ -52,10 +52,10 @@ class BirthdaysServiceProvider extends ServiceProvider
         // The birthday wish has its own on/off row on Settings > Notifications.
         NotificationCategories::register('birthdays', 'Birthdays', 'cake');
 
-        // Morning push for today's birthdays. 06:00 UTC = 08:00/09:00 in Romania (the app runs on UTC and
-        // has no per-family timezone yet); idempotent per day, so a re-run is harmless.
+        // Morning push for today's birthdays. Hourly: each run wishes the families whose own clock (families.timezone)
+        // has passed 08:00 (NotifyBirthdays::SEND_FROM_HOUR); idempotent per day, so the other runs are no-ops.
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
-            $schedule->command('birthdays:notify')->dailyAt('06:00')->withoutOverlapping();
+            $schedule->command('birthdays:notify')->hourly()->withoutOverlapping();
         });
 
         // Home's birthday card: the next 14 days. Today's people get the big card (with Call / Send a wish when
