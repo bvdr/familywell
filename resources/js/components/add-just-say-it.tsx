@@ -302,6 +302,7 @@ export function JustSayIt({
             return setState('idle');
         }
         onClose();
+        router.flushAll(); // other prefetched pages (Home from the tab bar) predate these adds
         router.reload(); // the page behind shows the new things
     };
 
