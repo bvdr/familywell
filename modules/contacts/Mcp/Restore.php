@@ -17,11 +17,13 @@ class Restore extends Tool
 
     protected string $name = 'contacts_restore';
 
-    protected string $description = 'Bring a contact back from the trash, with their contact methods and anything other modules kept on them (e.g. their birthday).';
+    protected string $description = 'Use this when the user wants a deleted contact back, with their contact methods and anything other modules kept on them (e.g. their birthday). Takes an id from contacts_list_trash.';
+
+    protected string $title = 'Restore contact';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['id' => $schema->integer()->required()->description('Id from contacts_list_deleted.')];
+        return ['id' => $schema->integer()->required()->description('Id from contacts_list_trash.')];
     }
 
     public function handle(Request $request): Response|ResponseFactory

@@ -21,7 +21,9 @@ class ListItems extends Tool
 
     protected ?string $app = 'inventory';
 
-    protected string $description = 'The family\'s household stock (pantry, cleaning, bathroom...), with each item\'s quantity + unit and derived state. Filter by state, category, location or a name search. Also returns the family\'s category and location keys.';
+    protected string $description = 'Use this when the user asks what the household has in stock, or how much of something is left. Returns items with quantity, unit and state, filtered by state, category, location or name, plus the family\'s category and location keys. Read-only.';
+
+    protected string $title = 'List stock items';
 
     public function schema(JsonSchema $schema): array
     {

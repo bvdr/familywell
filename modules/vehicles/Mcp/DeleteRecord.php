@@ -18,14 +18,16 @@ class DeleteRecord extends Tool
 
     protected string $name = 'vehicles_delete_record';
 
-    protected string $description = 'Move one record of a car to the trash: a mileage reading (e.g. a duplicate), a fuel fill, a repair (with its attachments), a document (with its file), or a maintenance schedule (its past services stay in the history). Ids come from vehicles_history ("mileage-123" = mileage 123) and vehicles_get (document_id, schedule_id). Deleting the newest mileage reading sets the odometer back to the previous reading. Deleted records go to the trash, restorable for 30 days with vehicles_restore.';
+    protected string $description = 'Use this when the user wants one record of a car deleted: a mileage reading (e.g. a duplicate), a fuel fill, a repair (with its attachments), a document (with its file) or a maintenance schedule (its past services stay). Deleting the newest mileage reading sets the odometer back to the previous one. Records go to the trash and can be restored for 30 days with vehicles_restore. Do not use to delete the whole car (that is vehicles_delete_vehicle).';
+
+    protected string $title = 'Delete car record';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'vehicle_id' => $schema->integer()->required(),
-            'type' => $schema->string()->enum(['mileage', 'fuel', 'repair', 'document', 'maintenance_schedule'])->required(),
-            'id' => $schema->integer()->required(),
+            'vehicle_id' => $schema->integer()->description('Car id, from vehicles_list.')->required(),
+            'type' => $schema->string()->description('Which kind of record.')->enum(['mileage', 'fuel', 'repair', 'document', 'maintenance_schedule'])->required(),
+            'id' => $schema->integer()->description('Record id, from vehicles_get_history ("mileage-123" means 123) or vehicles_get (document_id, schedule_id).')->required(),
         ];
     }
 

@@ -15,9 +15,11 @@ class ListLists extends Tool
 {
     protected string $module = 'tasks';
 
-    protected string $name = 'tasks_list_lists';
+    protected string $name = 'tasks_list_todo_lists';
 
-    protected string $description = 'List the family\'s to-do lists this person can see, with how many tasks are open and done.';
+    protected string $description = 'Use this when the user asks which to-do lists the family has, or you need a list id. Returns the lists this person can see with how many tasks are open and done. Read-only.';
+
+    protected string $title = 'List to-do lists';
 
     public function schema(JsonSchema $schema): array
     {

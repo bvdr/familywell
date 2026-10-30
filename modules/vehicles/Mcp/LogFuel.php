@@ -16,19 +16,21 @@ class LogFuel extends Tool
 
     protected string $name = 'vehicles_log_fuel';
 
-    protected string $description = 'Log a fuel fill-up. The odometer moves forward to the given reading. Set add_expense=true (with a cost) to also record it in Spending, linked to the car.';
+    protected string $description = 'Use this when the user filled up a car. The odometer moves forward to the given reading. With add_expense=true and a cost it is also recorded in Spending, linked to the car.';
+
+    protected string $title = 'Log fuel fill-up';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'vehicle_id' => $schema->integer()->required(),
-            'liters' => $schema->number()->required(),
+            'vehicle_id' => $schema->integer()->description('Car id, from vehicles_list.')->required(),
+            'liters' => $schema->number()->description('Litres filled, e.g. 42.5.')->required(),
             'mileage_km' => $schema->integer()->description('Odometer at the fill, in km.')->required(),
             'cost' => $schema->number()->description('Total paid, in the family\'s currency.'),
             'filled_on' => $schema->string()->format('date')->description('YYYY-MM-DD (default: today).'),
             'full_tank' => $schema->boolean()->description('Filled to full (default true); needed for consumption figures.'),
-            'station' => $schema->string(),
-            'note' => $schema->string(),
+            'station' => $schema->string()->description('Fuel station name.'),
+            'note' => $schema->string()->description('Free-text note.'),
             'add_expense' => $schema->boolean()->description('Also record the cost in Spending (default false, like the app).'),
         ];
     }

@@ -17,13 +17,15 @@ class Restore extends Tool
 
     protected string $name = 'vehicles_restore';
 
-    protected string $description = 'Bring a car (with everything recorded for it) or one of its records back from the trash. type + id come from vehicles_list_deleted. Restoring the newest mileage reading moves the odometer back up to it.';
+    protected string $description = 'Use this when the user wants a deleted car (with everything recorded for it) or one of its records back. Restoring the newest mileage reading moves the odometer back up to it. Takes type and id from vehicles_list_trash.';
+
+    protected string $title = 'Restore car or record';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'type' => $schema->string()->enum(self::types())->required(),
-            'id' => $schema->integer()->required(),
+            'type' => $schema->string()->description('The type from vehicles_list_trash.')->enum(self::types())->required(),
+            'id' => $schema->integer()->description('The id from vehicles_list_trash.')->required(),
         ];
     }
 

@@ -18,13 +18,15 @@ class CreateTask extends Tool
 
     protected string $name = 'tasks_create_task';
 
-    protected string $description = 'Add a task to a to-do list, optionally as a sub-task (one level deep), with a due date and an assignee.';
+    protected string $description = 'Use this when the user wants to add a to-do to one of the family\'s to-do lists, optionally as a sub-task (one level deep), with a due date and an assignee. The assignee gets a notification. Do not use for project tasks (projects_add_task) or event to-dos (calendar_add_todo).';
+
+    protected string $title = 'Create to-do task';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'list_id' => $schema->integer()->required(),
-            'title' => $schema->string()->required(),
+            'list_id' => $schema->integer()->description('To-do list id, from tasks_list_todo_lists.')->required(),
+            'title' => $schema->string()->description('What needs doing.')->required(),
             'note' => $schema->string()->description('Short note (max 255 chars).'),
             'due_date' => $schema->string()->format('date')->description('YYYY-MM-DD.'),
             'assigned_to' => $schema->integer()->description('Member id from get_family.'),

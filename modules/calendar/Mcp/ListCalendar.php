@@ -17,11 +17,13 @@ class ListCalendar extends Tool
 {
     protected string $module = 'calendar';
 
-    protected string $name = 'calendar_list';
+    protected string $name = 'calendar_list_entries';
 
     protected ?string $app = 'calendar';
 
-    protected string $description = 'Everything on the family calendar between two dates: events (with repeats expanded), plus task due dates, birthdays, car due dates and project starts from modules this connection may read. Optional person filter, and optional `sources` to only include some of those modules (e.g. ["calendar","birthdays"]).';
+    protected string $description = 'Use this when the user asks what is happening between two dates. Returns calendar events (repeats expanded) plus, from modules this connection may read, task due dates, birthdays, car due dates and project starts. Optionally only items linked to one person, or only some sources. Read-only.';
+
+    protected string $title = 'List calendar entries';
 
     public function schema(JsonSchema $schema): array
     {

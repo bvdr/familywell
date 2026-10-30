@@ -17,11 +17,13 @@ class Restore extends Tool
 
     protected string $name = 'inventory_restore';
 
-    protected string $description = 'Bring a stock item back from the trash, with its quantity history.';
+    protected string $description = 'Use this when the user wants a deleted stock item back, with its quantity history. Takes an id from inventory_list_trash.';
+
+    protected string $title = 'Restore stock item';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['id' => $schema->integer()->required()->description('Id from inventory_list_deleted.')];
+        return ['id' => $schema->integer()->required()->description('Id from inventory_list_trash.')];
     }
 
     public function handle(Request $request): Response|ResponseFactory

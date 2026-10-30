@@ -20,9 +20,11 @@ class ListDeleted extends Tool
 
     protected string $access = 'write';
 
-    protected string $name = 'vehicles_list_deleted';
+    protected string $name = 'vehicles_list_trash';
 
-    protected string $description = 'Deleted cars, and records deleted on their own (mileage readings, fuel fills, repairs, documents, maintenance schedules), newest first, with the date each will be removed for good. `type` + `id` go to vehicles_restore.';
+    protected string $description = 'Use this when the user wants to find a car or car record they deleted (mileage reading, fuel fill, repair, document, maintenance schedule), to bring it back. Lists them newest first, with the date each is deleted for good; `type` + `id` go to vehicles_restore. Read-only.';
+
+    protected string $title = 'List deleted car records';
 
     public function schema(JsonSchema $schema): array
     {

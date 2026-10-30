@@ -15,16 +15,18 @@ class VehicleHistory extends Tool
 {
     protected string $module = 'vehicles';
 
-    protected string $name = 'vehicles_history';
+    protected string $name = 'vehicles_get_history';
 
     protected ?string $app = 'vehicle';
 
-    protected string $description = 'A car\'s history, newest first: services done, repairs, mileage readings, tyre changes, documents and expenses (costed fuel fills appear as expenses), each with date, km and cost. Use it for questions like "when did we last change the oil?".';
+    protected string $description = 'Use this when the user asks what was done to a car and when, e.g. "when did we last change the oil?". Returns services, repairs, mileage readings, tyre changes, documents and expenses (costed fuel fills appear as expenses), newest first, each with date, km and cost. Read-only.';
+
+    protected string $title = 'Get car history';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'vehicle_id' => $schema->integer()->required(),
+            'vehicle_id' => $schema->integer()->description('Car id, from vehicles_list.')->required(),
             'type' => $schema->string()->description('Only this kind of entry, one of maintenance, repair, mileage, tire, document, expense.'),
             ...$this->pageSchema($schema),
         ];

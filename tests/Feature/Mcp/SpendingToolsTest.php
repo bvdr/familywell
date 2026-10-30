@@ -62,7 +62,7 @@ it('summarises a period by category and shop', function () {
     mcpTool($token, 'spending_add_expense', ['amount' => 5, 'currency' => 'EUR', 'category' => 'transport', 'date' => now()->toDateString()]);
     mcpTool($token, 'spending_add_expense', ['amount' => 99, 'currency' => 'EUR', 'category' => 'food', 'date' => now()->subMonths(2)->toDateString()]);
 
-    [, $s] = mcpTool($token, 'spending_summary');
+    [, $s] = mcpTool($token, 'spending_get_summary');
     expect($s['total'])->toBe('15.00')->and($s['expense_count'])->toBe(2)
         ->and($s['by_category'][0])->toBe(['name' => 'food', 'amount' => '10.00'])
         ->and(collect($s['by_shop'])->pluck('name')->all())->toBe(['Lidl', '(no shop)']);
@@ -76,7 +76,7 @@ it('deletes to the trash, lists the trash, and restores', function () {
     expect($d['deleted'])->toBeTrue();
     expect(mcpTool($token, 'spending_list_expenses')[1]['expenses'])->toBe([]);
 
-    [, $trash] = mcpTool($token, 'spending_list_deleted');
+    [, $trash] = mcpTool($token, 'spending_list_trash');
     expect(collect($trash['deleted'])->pluck('id')->all())->toBe([$e['id']]);
 
     [, $r] = mcpTool($token, 'spending_restore', ['expense_id' => $e['id']]);
@@ -117,7 +117,7 @@ it('creates lists (project ones kept out of monthly) and sets the per-expense mo
     mcpTool($token, 'spending_add_expense', ['amount' => 10, 'list_id' => $plain['id'], 'category' => 'other', 'date' => $today]);
     expect($tiles['count_in_monthly'])->toBeFalse()->and($paint['count_in_monthly'])->toBeTrue();
 
-    [, $sum] = mcpTool($token, 'spending_summary');
+    [, $sum] = mcpTool($token, 'spending_get_summary');
     expect($sum['total'])->toBe('15.00')->and($sum['expense_count'])->toBe(2);
 
     // null puts the expense back on the list's setting.

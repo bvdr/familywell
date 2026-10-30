@@ -1,5 +1,5 @@
 // vehicles_get (one car: odometer, maintenance with "Mark done", documents, recent work),
-// vehicles_list (`vehicles` cards) and vehicles_history (`history` timeline).
+// vehicles_list (`vehicles` cards) and vehicles_get_history (`history` timeline).
 // Distances arrive in km; shown in the family's display unit when the payload says miles. Costs arrive
 // as decimals in the family's car currency (`currency`), formatted like the app ("408,53 lei").
 const MAINT_PILL = { overdue: ['bad', 'Overdue'], due: ['bad', 'Due'], due_soon: ['warn', 'Due soon'], good: ['good', 'OK'] };

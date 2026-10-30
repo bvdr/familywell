@@ -23,7 +23,9 @@ class CreateRecipe extends Tool
 
     protected ?string $app = 'recipe';
 
-    protected string $description = 'Save a recipe: title, ingredients (name + qty + unit, grouped if the recipe has sections), steps, and servings and/or the total it makes (yield_amount + yield_unit) so it can be scaled later. Optionally a photo: in ChatGPT the image the person attached (`file`); elsewhere a public https image URL (`file_url`) or the bytes (`file_base64`). Claude cannot pass an image attached in the chat: save the recipe without it and give the person the recipe `url`, where they can add the photo. Visible to the whole family by default.';
+    protected string $description = 'Use this when the user wants to save a recipe: title, ingredients (name, amount, unit, grouped into sections if the recipe has them), steps, and servings and/or the total it makes so it can be scaled later. A photo can be attached (`file`, `file_url` or `file_base64`); when none can be passed, save without it and give the person the recipe `url` to add one. Visible to the whole family by default.';
+
+    protected string $title = 'Create recipe';
 
     public function __construct()
     {

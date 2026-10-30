@@ -18,11 +18,13 @@ class DeleteItem extends Tool
 
     protected string $name = 'inventory_delete_item';
 
-    protected string $description = 'Move an inventory item (with its history) to the trash, restorable for 30 days with inventory_restore. A shopping-list row it added stays on the list.';
+    protected string $description = 'Use this when the user wants to stop tracking a stock item. The item and its history go to the trash and can be restored for 30 days with inventory_restore. A shopping-list row it added stays on that list.';
+
+    protected string $title = 'Delete stock item';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['item_id' => $schema->integer()->required()];
+        return ['item_id' => $schema->integer()->description('Stock item id, from inventory_list.')->required()];
     }
 
     public function handle(Request $request): Response|ResponseFactory

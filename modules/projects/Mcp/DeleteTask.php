@@ -20,11 +20,13 @@ class DeleteTask extends Tool
 
     protected string $name = 'projects_delete_task';
 
-    protected string $description = 'Move a project task and its sub-tasks to the trash, as the Delete button in the app does (restorable for 30 days with projects_restore).';
+    protected string $description = 'Use this when the user wants to delete a task (and its sub-tasks) from a project. It goes to the trash and can be restored for 30 days with projects_restore.';
+
+    protected string $title = 'Delete project task';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['task_id' => $schema->integer()->required()];
+        return ['task_id' => $schema->integer()->description('Project task id, from projects_get.')->required()];
     }
 
     public function handle(Request $request): Response|ResponseFactory

@@ -183,7 +183,7 @@ class Spend extends Model
 
     /**
      * Only spends that count toward the monthly figures (MonthToDate, global analytics, the shop hint,
-     * spending_summary): an explicit per-expense flag wins, otherwise the list's setting. The list's own
+     * spending_get_summary): an explicit per-expense flag wins, otherwise the list's setting. The list's own
      * total/stats/settle-up never use this, so excluded spends still count there. One SQL condition with
      * a subquery, so callers keep their single grouped query.
      */

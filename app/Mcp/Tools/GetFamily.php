@@ -19,7 +19,9 @@ class GetFamily extends Tool
 
     protected string $name = 'get_family';
 
-    protected string $description = 'The family this connection acts on: its name, members (with role), the Familywell modules it has turned on, what this connection may do in each module (read or write), and `not_connected`: modules the family uses that this connection was not granted (the person must reconnect Familywell in their AI app to add them). Call this first.';
+    protected string $description = 'Use this when you need the family\'s members (ids, names, roles), which FamilyWell modules are turned on, or what this connection may read or change in each, for example to find a member id for an assignee or to explain why a module can\'t be reached. `not_connected` lists modules the family uses that this connection was not granted; the person can add them by reconnecting FamilyWell. Read-only.';
+
+    protected string $title = 'Get family and access';
 
     public function handle(Request $request): Response|ResponseFactory
     {

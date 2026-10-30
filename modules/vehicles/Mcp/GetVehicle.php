@@ -22,11 +22,13 @@ class GetVehicle extends Tool
 
     protected ?string $app = 'vehicle';
 
-    protected string $description = 'One car in full: details, maintenance schedules (recurring, and one-off planned jobs) with what is due (by km and date), documents and their expiry, fuel consumption stats, and recent services/repairs. Distances in km.';
+    protected string $description = 'Use this when the user asks about one car in detail. Returns its details, maintenance schedules (recurring and one-off) with what is due by km and date, documents and their expiry, fuel consumption, and recent services and repairs. Distances in km. Read-only.';
+
+    protected string $title = 'Get car';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['vehicle_id' => $schema->integer()->required()];
+        return ['vehicle_id' => $schema->integer()->description('Car id, from vehicles_list.')->required()];
     }
 
     public function handle(Request $request): Response|ResponseFactory

@@ -20,9 +20,11 @@ class ListDeleted extends Tool
 
     protected string $access = 'write';
 
-    protected string $name = 'calendar_list_deleted';
+    protected string $name = 'calendar_list_trash';
 
-    protected string $description = 'Calendar events and to-dos in the trash that this person can see, newest first, with the date each will be removed for good.';
+    protected string $description = 'Use this when the user wants to find a calendar event or event to-do they deleted, to bring it back. Lists what this person can see in the trash, newest first, with the date each is deleted for good. Read-only.';
+
+    protected string $title = 'List deleted calendar items';
 
     public function schema(JsonSchema $schema): array
     {

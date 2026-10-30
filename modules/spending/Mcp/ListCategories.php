@@ -18,7 +18,9 @@ class ListCategories extends Tool
 
     protected string $name = 'spending_list_categories';
 
-    protected string $description = 'The family\'s expense categories (key + name), the supported currencies, and the spending lists this person can add expenses to.';
+    protected string $description = 'Use this when you need valid category keys, supported currencies, or the spending lists this person can add expenses to (e.g. before spending_add_expense with a category or list). Read-only.';
+
+    protected string $title = 'List spending categories';
 
     public function handle(Request $request): Response|ResponseFactory
     {

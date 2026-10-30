@@ -1,4 +1,4 @@
-// calendar_list: agenda grouped by day; a multi-day item shows once per day it covers inside the range, as
+// calendar_list_entries: agenda grouped by day; a multi-day item shows once per day it covers inside the range, as
 // "day N of M". calendar_get_event: the event card with people and to-dos. Display only; links open the app.
 FW.start((d) => {
     const { h } = FW;
@@ -36,7 +36,7 @@ FW.start((d) => {
         );
     }
 
-    // calendar_list: bucket items into each day of the range they cover (clamped to the requested window).
+    // calendar_list_entries: bucket items into each day of the range they cover (clamped to the requested window).
     const days = new Map();
     for (const i of d.items || []) {
         const start = i.start < d.from ? d.from : i.start;

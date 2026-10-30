@@ -21,11 +21,13 @@ class UpdateItem extends Tool
 
     protected string $name = 'inventory_update_item';
 
-    protected string $description = 'Change an item\'s details (name, unit, min/target levels, category, location, shop, expiry, notes). Only the fields you send change; send null to clear one. To record usage or a restock prefer inventory_adjust_quantity.';
+    protected string $description = 'Use this when the user wants to change a stock item\'s details: name, unit, min or target level, category, location, shop, expiry or notes. Only the fields you send change; send null to clear one. Do not use to record usage or a restock (that is inventory_adjust_quantity).';
+
+    protected string $title = 'Update stock item';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['item_id' => $schema->integer()->required()] + InventoryData::fieldSchema($schema);
+        return ['item_id' => $schema->integer()->description('Stock item id, from inventory_list.')->required()] + InventoryData::fieldSchema($schema);
     }
 
     public function handle(Request $request): Response|ResponseFactory

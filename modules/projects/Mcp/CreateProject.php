@@ -17,12 +17,14 @@ class CreateProject extends Tool
 
     protected string $name = 'projects_create';
 
-    protected string $description = 'Start a project owned by this person, visible to the whole family.';
+    protected string $description = 'Use this when the user wants to start a family project (a renovation, a move, a party...). The project belongs to this person and is visible to the whole family.';
+
+    protected string $title = 'Create project';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'name' => $schema->string()->required(),
+            'name' => $schema->string()->description('Project name, e.g. "Kitchen renovation".')->required(),
             'description' => $schema->string()->description('Up to 2000 characters.'),
             'status' => $schema->string()->enum(ProjectData::STATUSES)->description('Default planning.'),
             'progress' => $schema->integer()->description('Percent done, 0-100 (default 0).'),

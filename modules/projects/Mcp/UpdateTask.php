@@ -21,17 +21,19 @@ class UpdateTask extends Tool
 
     protected string $name = 'projects_update_task';
 
-    protected string $description = 'Change a project task or sub-task: title, note, due date, assignee, or mark it done/not done. Only the fields you pass change; pass null to clear note, due_date or assigned_to.';
+    protected string $description = 'Use this when the user wants to tick off or change a project task or sub-task: title, note, due date or assignee. Only the fields you pass change; pass null to clear note, due_date or assigned_to.';
+
+    protected string $title = 'Update project task';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'task_id' => $schema->integer()->required(),
-            'title' => $schema->string(),
-            'note' => $schema->string()->nullable(),
-            'due_date' => $schema->string()->format('date')->nullable(),
-            'assigned_to' => $schema->integer()->nullable(),
-            'done' => $schema->boolean(),
+            'task_id' => $schema->integer()->description('Project task id, from projects_get.')->required(),
+            'title' => $schema->string()->description('New title.'),
+            'note' => $schema->string()->description('Short note; null clears it.')->nullable(),
+            'due_date' => $schema->string()->description('YYYY-MM-DD; null clears it.')->format('date')->nullable(),
+            'assigned_to' => $schema->integer()->description('Member id from get_family; null unassigns.')->nullable(),
+            'done' => $schema->boolean()->description('true marks it done, false marks it not done.'),
         ];
     }
 

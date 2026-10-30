@@ -18,7 +18,9 @@ class ListNotes extends Tool
 
     protected string $name = 'notes_list';
 
-    protected string $description = 'Notes this person can see, pinned first then most recently edited, with a short snippet each, plus the family\'s folders. Optionally only one folder.';
+    protected string $description = 'Use this when the user wants to browse their notes or a folder. Returns notes this person can see, pinned first then most recently edited, each with a short snippet, plus the family\'s folders. Read-only.';
+
+    protected string $title = 'List notes';
 
     public function schema(JsonSchema $schema): array
     {

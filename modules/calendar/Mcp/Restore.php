@@ -19,13 +19,15 @@ class Restore extends Tool
 
     protected string $name = 'calendar_restore';
 
-    protected string $description = 'Bring a calendar event (with the to-dos deleted with it) or a single to-do back from the trash. Ids and types come from calendar_list_deleted.';
+    protected string $description = 'Use this when the user wants a deleted calendar event (with the to-dos deleted with it) or a single event to-do back. Takes the id and type from calendar_list_trash.';
+
+    protected string $title = 'Restore calendar item';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'id' => $schema->integer()->required()->description('Id from calendar_list_deleted.'),
-            'type' => $schema->string()->enum(['calendar_event', 'todo'])->description('The entry\'s type from calendar_list_deleted (default calendar_event).'),
+            'id' => $schema->integer()->required()->description('Id from calendar_list_trash.'),
+            'type' => $schema->string()->enum(['calendar_event', 'todo'])->description('The entry\'s type from calendar_list_trash (default calendar_event).'),
         ];
     }
 

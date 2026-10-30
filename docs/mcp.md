@@ -36,17 +36,17 @@ per-module `TrashSource`); `trash:purge` removes it for good afterwards.
 | Module | Read | Write |
 |---|---|---|
 | core (always) | `get_family`, `get_today` | – |
-| Tasks | `tasks_list_lists`, `tasks_get_list`, `tasks_search` | `tasks_create_list`, `tasks_update_list`, `tasks_create_task`, `tasks_update_task`, `tasks_delete_list`, `tasks_delete_task`, `tasks_list_deleted`, `tasks_restore` |
-| Shopping | `shopping_list_lists`, `shopping_get_list`, `shopping_search` | `shopping_create_list`, `shopping_update_list`, `shopping_add_item`, `shopping_update_item`, `shopping_delete_list`, `shopping_delete_item`, `shopping_list_deleted`, `shopping_restore` |
-| Spending | `spending_list_expenses`, `spending_get_expense`, `spending_summary`, `spending_list_categories` | `spending_add_expense`, `spending_update_expense`, `spending_delete_expense`, `spending_list_deleted`, `spending_restore` |
-| Notes | `notes_list`, `notes_get`, `notes_search` | `notes_create`, `notes_update`, `notes_delete`, `notes_list_deleted`, `notes_restore` |
-| Vehicles | `vehicles_list`, `vehicles_get`, `vehicles_history`, `vehicles_export_history` (signed PDF link, 24 h) | `vehicles_log_mileage`, `vehicles_log_fuel`, `vehicles_add_maintenance`, `vehicles_update_maintenance`, `vehicles_complete_maintenance`, `vehicles_add_repair`, `vehicles_add_expense`, `vehicles_add_document`, `vehicles_attach_file`, `vehicles_delete_record`, `vehicles_delete` |
+| Tasks | `tasks_list_todo_lists`, `tasks_get_list`, `tasks_search` | `tasks_create_list`, `tasks_update_list`, `tasks_create_task`, `tasks_update_task`, `tasks_delete_list`, `tasks_delete_task`, `tasks_list_trash`, `tasks_restore` |
+| Shopping | `shopping_list_shopping_lists`, `shopping_get_list`, `shopping_search` | `shopping_create_list`, `shopping_update_list`, `shopping_add_item`, `shopping_update_item`, `shopping_delete_list`, `shopping_delete_item`, `shopping_list_trash`, `shopping_restore` |
+| Spending | `spending_list_expenses`, `spending_get_expense`, `spending_get_summary`, `spending_list_categories` | `spending_add_expense`, `spending_update_expense`, `spending_delete_expense`, `spending_list_trash`, `spending_restore` |
+| Notes | `notes_list`, `notes_get`, `notes_search` | `notes_create`, `notes_update`, `notes_delete`, `notes_list_trash`, `notes_restore` |
+| Vehicles | `vehicles_list`, `vehicles_get`, `vehicles_get_history`, `vehicles_export_history` (signed PDF link, 24 h) | `vehicles_log_mileage`, `vehicles_log_fuel`, `vehicles_add_maintenance`, `vehicles_update_maintenance`, `vehicles_complete_maintenance`, `vehicles_add_repair`, `vehicles_add_expense`, `vehicles_add_document`, `vehicles_attach_file`, `vehicles_delete_record`, `vehicles_delete_vehicle` |
 | Contacts | `contacts_list` (with search), `contacts_get` | `contacts_create`, `contacts_update`, `contacts_delete` |
 | Birthdays | `birthdays_list` (soonest first, `within_days`) | `birthdays_add`, `birthdays_update`, `birthdays_delete` |
 | Recipes | `recipes_list` (search title / tag / ingredient), `recipes_get`, `recipes_scale` | `recipes_create`, `recipes_update`, `recipes_set_photo`, `recipes_add_to_shopping`, `recipes_delete` |
-| Inventory | `inventory_list`, `inventory_get`, `inventory_needs_attention` | `inventory_add_item`, `inventory_update_item`, `inventory_adjust_quantity`, `inventory_add_to_shopping`, `inventory_delete_item` |
+| Inventory | `inventory_list`, `inventory_get`, `inventory_list_needs_attention` | `inventory_add_item`, `inventory_update_item`, `inventory_adjust_quantity`, `inventory_add_to_shopping`, `inventory_delete_item` |
 | Projects | `projects_list`, `projects_get` | `projects_create`, `projects_update`, `projects_add_task`, `projects_update_task`, `projects_delete_task`, `projects_delete` |
-| Calendar | `calendar_list`, `calendar_get_event` | `calendar_create_event`, `calendar_update_event`, `calendar_delete_event`, `calendar_add_todo`, `calendar_update_todo`, `calendar_delete_todo`, `calendar_list_deleted`, `calendar_restore` |
+| Calendar | `calendar_list_entries`, `calendar_get_event` | `calendar_create_event`, `calendar_update_event`, `calendar_delete_event`, `calendar_add_todo`, `calendar_update_todo`, `calendar_delete_todo`, `calendar_list_trash`, `calendar_restore` |
 
 **Files:** MCP has no upload primitive, so tools that take a file (`vehicles_add_document`,
 `vehicles_attach_file`, and the optional file on `vehicles_add_repair` / `vehicles_complete_maintenance`) accept it
@@ -92,10 +92,10 @@ Vehicle distances are kilometres in and out (miles are only a display setting).
 Tools act **as the person who connected**: the same sharing rules as the web app apply (a private list
 of another member is invisible), the same validation, and the same notifications to the family.
 
-**Calendar:** `calendar_list` returns every event in a date range (repeats expanded) plus, from modules
+**Calendar:** `calendar_list_entries` returns every event in a date range (repeats expanded) plus, from modules
 this connection may read, task due dates, birthdays, car maintenance due dates and project starts — all
 as one unified `items` list. A module's items appear only when the token can also read that module
-(e.g. without Tasks access, `calendar_list` carries calendar events and birthdays but not task due
+(e.g. without Tasks access, `calendar_list_entries` carries calendar events and birthdays but not task due
 dates). An optional `sources` (e.g. `["calendar","birthdays"]`) narrows the list further; it can never add
 a module the token cannot read, and unknown ids are ignored. Birthday titles and "day N of M" come out in
 the person's Familywell language. Dated event to-dos are calendar items too (kind `task`, source `calendar`). `calendar_get_event`
@@ -105,7 +105,7 @@ event applies to the whole series, not a single occurrence. `calendar_add_todo` 
 an event (shown on the event's page, with no page of its own); `calendar_update_todo` edits or ticks it
 and `calendar_delete_todo` deletes it (with its sub-tasks). Event to-dos are not reachable through
 `tasks_update_task`, which only covers tasks in a to-do list. A linked project only appears for people
-who can see it. Range requests are capped at 400 days. `calendar_list_deleted` / `calendar_restore`
+who can see it. Range requests are capped at 400 days. `calendar_list_trash` / `calendar_restore`
 work like the other modules' trash tools; restoring an event brings back its to-dos.
 
 ## Widgets (MCP Apps)
@@ -120,14 +120,14 @@ of only the JSON. Other clients see the same JSON as before.
 | `shopping` | `shopping_get_list`, `shopping_search` | items by aisle, tick as bought, add an item, full screen |
 | `project` | `projects_get` | progress, tick tasks, add a task, dependencies, linked lists |
 | `today` | `get_today` | tick off due tasks, shopping items, project tasks and event to-dos |
-| `spending` | `spending_summary`, `spending_list_expenses` | totals by category/shop, switch period |
-| `inventory` | `inventory_needs_attention`, `inventory_list` | -/+ stock, add to shopping |
-| `vehicle` | `vehicles_get`, `vehicles_list`, `vehicles_history` | odometer, mark maintenance done, documents, history |
+| `spending` | `spending_get_summary`, `spending_list_expenses` | totals by category/shop, switch period |
+| `inventory` | `inventory_list_needs_attention`, `inventory_list` | -/+ stock, add to shopping |
+| `vehicle` | `vehicles_get`, `vehicles_list`, `vehicles_get_history` | odometer, mark maintenance done, documents, history |
 | `birthdays` | `birthdays_list` | countdowns (read only) |
 | `note` | `notes_get` | tick the note's `- [ ]` checklists |
 | `contact` | `contacts_get` | call / email / map links |
 | `recipe` | `recipes_list`, `recipes_get`, `recipes_scale`, `recipes_create`, `recipes_update` | photo, calculator (servings / total / I have…), scaled ingredients, tickable steps, add to shopping, full screen |
-| `calendar` | `calendar_list`, `calendar_get_event` | agenda by day (a multi-day item shows as day N of M), or one event with its people and to-dos (read only) |
+| `calendar` | `calendar_list_entries`, `calendar_get_event` | agenda by day (a multi-day item shows as day N of M), or one event with its people and to-dos (read only) |
 
 Only image widgets (`Widget::IMAGES`, the recipe widget) get a CSP `resourceDomains` entry, for this app's own
 origin (signed photo URLs). Widgets change data only by calling the normal write tools through the host, so a *Read* connection gets

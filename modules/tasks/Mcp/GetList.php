@@ -19,12 +19,14 @@ class GetList extends Tool
 
     protected ?string $app = 'tasks';
 
-    protected string $description = 'One to-do list with its tasks (each with its sub-tasks), in list order.';
+    protected string $description = 'Use this when the user wants to see the tasks on one to-do list. Returns its tasks with their sub-tasks, in list order. Read-only.';
+
+    protected string $title = 'Get to-do list';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'list_id' => $schema->integer()->description('The list id (from tasks_list_lists).')->required(),
+            'list_id' => $schema->integer()->description('The list id (from tasks_list_todo_lists).')->required(),
             'include_done' => $schema->boolean()->description('Include completed tasks (default true).'),
         ];
     }

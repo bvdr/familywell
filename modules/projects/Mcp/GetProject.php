@@ -24,7 +24,9 @@ class GetProject extends Tool
 
     protected ?string $app = 'project';
 
-    protected string $description = 'One project with its details, tasks (each with sub-tasks and done state), blockers (dependencies), plus linked shopping lists (`shopping_lists`, needs shopping access), linked spending lists (`spend_lists`, needs spending access) and contacts (`contacts`, needs contacts access).';
+    protected string $description = 'Use this when the user asks about one project in detail. Returns its details, tasks (with sub-tasks and done state), blockers, and the linked shopping lists, spending lists and contacts this connection may read. Read-only.';
+
+    protected string $title = 'Get project';
 
     public function schema(JsonSchema $schema): array
     {

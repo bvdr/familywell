@@ -19,7 +19,9 @@ class AddRepair extends Tool
 
     protected string $name = 'vehicles_add_repair';
 
-    protected string $description = 'Record a repair (something fixed outside the regular maintenance schedule). Set add_expense=true (with a cost) to also record it in Spending, linked to the car. An invoice or photo can be attached (file / file_url / file_base64).';
+    protected string $description = 'Use this when the user wants to record a repair done outside the regular maintenance schedule. With add_expense=true and a cost it is also recorded in Spending, linked to the car. An invoice or photo can be attached (`file`, `file_url` or `file_base64`).';
+
+    protected string $title = 'Add car repair';
 
     public function __construct()
     {
@@ -29,13 +31,13 @@ class AddRepair extends Tool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'vehicle_id' => $schema->integer()->required(),
+            'vehicle_id' => $schema->integer()->description('Car id, from vehicles_list.')->required(),
             'title' => $schema->string()->description('What was fixed, e.g. "Replaced rear brake pads".')->required(),
             'occurred_on' => $schema->string()->format('date')->description('YYYY-MM-DD (default: today).'),
-            'mileage_km' => $schema->integer(),
-            'cost' => $schema->number(),
+            'mileage_km' => $schema->integer()->description('Odometer at the repair, in km.'),
+            'cost' => $schema->number()->description('Total paid, in the family\'s currency.'),
             'provider' => $schema->string()->description('Garage / who fixed it.'),
-            'notes' => $schema->string(),
+            'notes' => $schema->string()->description('Free-text notes.'),
             'add_expense' => $schema->boolean()->description('Also record the cost in Spending (default false, like the app).'),
             ...IncomingFile::schema($schema),
         ];

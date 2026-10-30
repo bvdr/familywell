@@ -17,14 +17,16 @@ class LinkItem extends Tool
 
     protected string $access = 'write';
 
-    protected string $name = 'projects_link';
+    protected string $name = 'projects_link_item';
 
-    protected string $description = 'Link an existing spending list or contact to a project (it then shows on the project page and in projects_get). Linking twice is harmless. The list must be one you can see.';
+    protected string $description = 'Use this when the user wants an existing spending list or contact attached to a project, so it shows on the project page and in projects_get. Linking the same item twice changes nothing. The list must be one this person can see.';
+
+    protected string $title = 'Link item to project';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'project_id' => $schema->integer()->required(),
+            'project_id' => $schema->integer()->description('Project id, from projects_list.')->required(),
             'type' => $schema->string()->enum(['spend_list', 'contact'])->required()->description('spend_list = a Spending list (id from spending tools), contact = a person (id from contacts tools).'),
             'id' => $schema->integer()->required()->description('The spending list id or contact id.'),
         ];

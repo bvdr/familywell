@@ -23,7 +23,7 @@ it('creates an event with people and lists it in a range', function () {
     expect($err)->toBeFalse()->and($e)->toMatchArray(['title' => 'Grecia', 'start_date' => '2026-07-17'])
         ->and($e['people'][0]['id'])->toBe($users[1]->id)->and($e['url'])->toStartWith('http');
 
-    [$err, $list] = mcpTool($token, 'calendar_list', ['from' => '2026-07-01', 'to' => '2026-07-31']);
+    [$err, $list] = mcpTool($token, 'calendar_list_entries', ['from' => '2026-07-01', 'to' => '2026-07-31']);
     expect($err)->toBeFalse()->and(collect($list['items'])->pluck('title')->all())->toBe(['Grecia']);
 });
 
@@ -31,9 +31,9 @@ it('filters the list by person and rejects ranges over 400 days', function () {
     [, $users, $token] = calendarToken();
     mcpTool($token, 'calendar_create_event', ['title' => 'A', 'start_date' => '2026-07-01', 'end_date' => '2026-07-01', 'people' => [['type' => 'user', 'id' => $users[1]->id]]]);
     mcpTool($token, 'calendar_create_event', ['title' => 'B', 'start_date' => '2026-07-02', 'end_date' => '2026-07-02']);
-    [, $list] = mcpTool($token, 'calendar_list', ['from' => '2026-07-01', 'to' => '2026-07-31', 'person' => "user:{$users[1]->id}"]);
+    [, $list] = mcpTool($token, 'calendar_list_entries', ['from' => '2026-07-01', 'to' => '2026-07-31', 'person' => "user:{$users[1]->id}"]);
     expect(collect($list['items'])->pluck('title')->all())->toBe(['A']);
-    [$err] = mcpTool($token, 'calendar_list', ['from' => '2026-01-01', 'to' => '2027-06-01']);
+    [$err] = mcpTool($token, 'calendar_list_entries', ['from' => '2026-01-01', 'to' => '2027-06-01']);
     expect($err)->toBeTrue();
 });
 
@@ -43,8 +43,8 @@ it('only includes other modules the token may read', function () {
     Project::createFor($users[0], ['name' => 'Kitchen', 'target_start' => '2026-07-15']);
     $calOnly = mcpConnect($users[0], $family->id, ['calendar' => 'read'])['access_token'];
     $both = mcpConnect($users[0], $family->id, ['calendar' => 'read', 'projects' => 'read'])['access_token'];
-    [, $a] = mcpTool($calOnly, 'calendar_list', ['from' => '2026-07-01', 'to' => '2026-07-31']);
-    [, $b] = mcpTool($both, 'calendar_list', ['from' => '2026-07-01', 'to' => '2026-07-31']);
+    [, $a] = mcpTool($calOnly, 'calendar_list_entries', ['from' => '2026-07-01', 'to' => '2026-07-31']);
+    [, $b] = mcpTool($both, 'calendar_list_entries', ['from' => '2026-07-01', 'to' => '2026-07-31']);
     expect($a['items'])->toBe([])->and(collect($b['items'])->pluck('title')->all())->toBe(['Kitchen']);
 });
 
@@ -57,7 +57,7 @@ it('narrows the list to the requested sources, never past what the token may rea
     mcpTool($both, 'calendar_create_event', ['title' => 'Grecia', 'start_date' => '2026-07-17', 'end_date' => '2026-07-17']);
     $range = ['from' => '2026-07-01', 'to' => '2026-07-31'];
 
-    $titles = fn ($token, $sources) => collect(mcpTool($token, 'calendar_list', $range + ['sources' => $sources])[1]['items'])->pluck('title')->all();
+    $titles = fn ($token, $sources) => collect(mcpTool($token, 'calendar_list_entries', $range + ['sources' => $sources])[1]['items'])->pluck('title')->all();
     expect($titles($both, ['projects', 'nope']))->toBe(['Kitchen'])
         ->and($titles($both, ['calendar']))->toBe(['Grecia'])
         ->and($titles($calOnly, ['projects']))->toBe([]);
@@ -86,7 +86,7 @@ it('updates, adds a to-do, and deletes', function () {
 
 it('hides write tools from a read-only token', function () {
     [, , $token] = calendarToken(['calendar' => 'read']);
-    expect(mcpToolNames($token))->toContain('calendar_list')->not->toContain('calendar_create_event');
+    expect(mcpToolNames($token))->toContain('calendar_list_entries')->not->toContain('calendar_create_event');
 });
 
 it('refuses a to-do assignee from another family without notifying them', function () {
@@ -101,7 +101,7 @@ it('refuses a to-do assignee from another family without notifying them', functi
 
 it('returns a tool error, not an exception, for an unparseable from date', function () {
     [, , $token] = calendarToken();
-    [$err, $msg] = mcpTool($token, 'calendar_list', ['from' => 'abc', 'to' => '2026-07-31']);
+    [$err, $msg] = mcpTool($token, 'calendar_list_entries', ['from' => 'abc', 'to' => '2026-07-31']);
     expect($err)->toBeTrue()->and($msg)->toContain('from'); // the validation message, not a Carbon parse error
 });
 
@@ -127,7 +127,7 @@ it('ticks, edits and deletes an event to-do and its sub-task', function () {
     expect(mcpTool($token, 'calendar_get_event', ['id' => $e['id']])[1]['todos'])->toBe([]);
 
     // It sits in the trash on its own (the event is live) and restores back onto the event with its sub-task.
-    [, $trash] = mcpTool($token, 'calendar_list_deleted');
+    [, $trash] = mcpTool($token, 'calendar_list_trash');
     expect(collect($trash['deleted'])->map(fn ($r) => [$r['type'], $r['title'], $r['where']])->sort()->values()->all())
         ->toBe([['todo', 'Pack', 'Grecia'], ['todo', 'Passports', 'Grecia']]);
     [$err] = mcpTool($token, 'calendar_restore', ['type' => 'todo', 'id' => $pack['id']]);
@@ -167,7 +167,7 @@ it('lists deleted events and restores one with its to-dos, but not an event this
     $secret->setVisibility('private');
     $secret->delete();
 
-    [$err, $trash] = mcpTool($token, 'calendar_list_deleted');
+    [$err, $trash] = mcpTool($token, 'calendar_list_trash');
     expect($err)->toBeFalse()->and(collect($trash['deleted'])->pluck('title')->all())->toBe(['Grecia']);
 
     [$err, $r] = mcpTool($token, 'calendar_restore', ['id' => $e['id']]);
@@ -183,6 +183,6 @@ it('writes server strings in the person\'s language', function () {
     $users[0]->update(['locale' => 'ro']);
     mcpTool($token, 'birthdays_add', ['name' => 'Ana', 'birth_month' => 7, 'birth_day' => 17]);
 
-    [, $list] = mcpTool($token, 'calendar_list', ['from' => '2026-07-01', 'to' => '2026-07-31']);
+    [, $list] = mcpTool($token, 'calendar_list_entries', ['from' => '2026-07-01', 'to' => '2026-07-31']);
     expect(collect($list['items'])->pluck('title')->all())->toBe(['Ziua lui Ana']);
 });

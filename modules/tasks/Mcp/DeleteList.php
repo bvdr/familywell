@@ -19,11 +19,13 @@ class DeleteList extends Tool
 
     protected string $name = 'tasks_delete_list';
 
-    protected string $description = 'Move a to-do list and its tasks to the trash (restorable for 30 days with tasks_restore). Only the person who created the list can delete it.';
+    protected string $description = 'Use this when the user wants a whole to-do list deleted. The list and its tasks go to the trash and can be restored for 30 days with tasks_restore. Only the person who created the list can delete it.';
+
+    protected string $title = 'Delete to-do list';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['list_id' => $schema->integer()->required()];
+        return ['list_id' => $schema->integer()->description('To-do list id, from tasks_list_todo_lists.')->required()];
     }
 
     public function handle(Request $request): Response|ResponseFactory

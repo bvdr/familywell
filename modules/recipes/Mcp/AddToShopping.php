@@ -18,13 +18,15 @@ class AddToShopping extends Tool
 
     protected string $name = 'recipes_add_to_shopping';
 
-    protected string $description = 'Put a recipe\'s ingredients on a shopping list (list_id from shopping_list_lists), at a scale if given (same options as recipes_scale). One item per ingredient with the amount as its quantity; "to taste" items are skipped. Pass `ingredients` (positions in the recipe\'s list, from 0) to add only some, e.g. what the person doesn\'t have. Needs Shopping turned on and this connection allowed to change Shopping.';
+    protected string $description = 'Use this when the user wants a recipe\'s ingredients on a shopping list, optionally scaled (same options as recipes_scale). Adds one item per ingredient with the amount as its quantity and skips "to taste" ones; `ingredients` limits it to some (e.g. what the person doesn\'t have). Needs Shopping turned on and write access to Shopping.';
+
+    protected string $title = 'Add recipe to shopping';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'recipe_id' => $schema->integer()->required(),
-            'list_id' => $schema->integer()->required(),
+            'recipe_id' => $schema->integer()->description('Recipe id, from recipes_list.')->required(),
+            'list_id' => $schema->integer()->description('Shopping list id, from shopping_list_shopping_lists.')->required(),
             'ingredients' => $schema->array()->items($schema->integer())->description('Only these ingredient positions (0-based). Default: all with an amount.'),
             ...RecipeData::scaleSchema($schema),
         ];

@@ -17,12 +17,14 @@ class AdjustQuantity extends Tool
 
     protected string $name = 'inventory_adjust_quantity';
 
-    protected string $description = 'Record that some of an item was used or restocked. Send `change` (negative = used, positive = restocked, in the item\'s unit) or `quantity` (the new total after counting). Logged in the item\'s history like the app\'s quick update.';
+    protected string $description = 'Use this when the user used up or restocked some of an item. Send `change` (negative = used, positive = restocked, in the item\'s unit) or `quantity` (the new total after counting). The change is logged in the item\'s history.';
+
+    protected string $title = 'Adjust stock quantity';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'item_id' => $schema->integer()->required(),
+            'item_id' => $schema->integer()->description('Stock item id, from inventory_list.')->required(),
             'change' => $schema->number()->description('Signed amount, e.g. -1 for one used, 6 for six bought.'),
             'quantity' => $schema->number()->description('The new total in stock (instead of change).'),
         ];

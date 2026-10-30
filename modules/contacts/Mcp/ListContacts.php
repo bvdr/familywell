@@ -19,7 +19,9 @@ class ListContacts extends Tool
 
     protected string $name = 'contacts_list';
 
-    protected string $description = 'The family address book (people with their phones, emails, addresses, links), A-Z. Pass query to search by name or any contact detail.';
+    protected string $description = 'Use this when the user asks for someone\'s phone, email or address, or wants to browse the family address book. Returns people A-Z with their contact methods; `query` searches names and every contact detail. Read-only.';
+
+    protected string $title = 'List contacts';
 
     public function schema(JsonSchema $schema): array
     {
