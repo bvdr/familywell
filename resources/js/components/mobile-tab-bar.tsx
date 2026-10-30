@@ -85,6 +85,38 @@ const TOP = 4;
 
 const LONG_PRESS_MS = 500;
 
+// Long-press = a second action on a tappable tile/row (pin or unpin), shared by More and Classic add. The timer fires
+// the action; the click that follows the release is swallowed (`swallow`) so a long-press doesn't also navigate.
+function useLongPress(onLong: (key: string) => void) {
+    const timer = useRef<number | null>(null);
+    const longPressed = useRef(false);
+    const end = () => {
+        if (timer.current) window.clearTimeout(timer.current);
+        timer.current = null;
+    };
+    return {
+        bind: (key: string) => ({
+            onPointerDown: () => {
+                longPressed.current = false;
+                timer.current = window.setTimeout(() => {
+                    longPressed.current = true;
+                    onLong(key);
+                }, LONG_PRESS_MS);
+            },
+            onPointerUp: end,
+            onPointerLeave: end,
+            onPointerCancel: end,
+            onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+        }),
+        // Call from onClick: true (and the click cancelled) when this click is the end of a long-press.
+        swallow: (e: React.MouseEvent) => {
+            if (!longPressed.current) return false;
+            e.preventDefault();
+            return true;
+        },
+    };
+}
+
 // A JSON GET for the sheets' live data, fetched when a sheet opens (not shared on every page).
 function useOnOpen<T>(open: boolean, url: string): T | null {
     const [data, setData] = useState<T | null>(null);
@@ -210,7 +242,12 @@ export function MobileTabBar() {
 // and the family has points, else / or by choice Classic: the family's most-added kinds as rows with their 30-day
 // count, everything else as chips. The last mode used is remembered on this device.
 const MODE_KEY = 'familywell:addMode';
-type Usage = { usage: Record<string, number>; ai: { available: boolean; pointsLeft: number | null; limit: number | null } };
+type Usage = {
+    usage: Record<string, number>;
+    pins: string[]; // the person's pinned shortcut(s), kept on top (users.add_pins)
+    last: Record<string, string>; // module => the last thing this person added there ("bananas")
+    ai: { available: boolean; pointsLeft: number | null; limit: number | null };
+};
 
 function AddSheet({ open, onOpenChange, enabled }: { open: boolean; onOpenChange: (open: boolean) => void; enabled: string[] }) {
     const t = useT();
@@ -240,9 +277,33 @@ function AddSheet({ open, onOpenChange, enabled }: { open: boolean; onOpenChange
     // Read when the sheet renders: the page that claimed the + (only reachable here when "Just say it" is on).
     const pageAction = open && hasAddAction();
     const usage = data?.usage ?? null;
+    const last = data?.last ?? {};
+    // Pins (design H2d): per person, saved on the server (users.add_pins, like home_layout) so a pin follows the person
+    // to every device; the mode stays per device (localStorage) since it's about this screen. Shown at once, saved behind.
+    const [pins, setPins] = useState<string[]>([]);
+    useEffect(() => {
+        if (data) setPins(data.pins);
+    }, [data]);
+    const togglePin = (key: string) => {
+        const before = pins;
+        // One pin (AddUsageController::MAX_PINS): pinning another row moves it.
+        const next = pins.includes(key) ? [] : [key];
+        setPins(next);
+        navigator.vibrate?.(10);
+        const xsrf = decodeURIComponent(document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]+)/)?.[1] ?? '');
+        fetch('/add/pins', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-XSRF-TOKEN': xsrf },
+            body: JSON.stringify({ pins: next }),
+        })
+            .then((r) => r.ok || setPins(before))
+            .catch(() => setPins(before)); // offline: undo, so the row isn't shown pinned when it isn't
+    };
+    const press = useLongPress(togglePin);
     const items = CREATE.filter((c) => enabled.includes(c.key));
-    // Most added first; ties (and the moment before the counts arrive) keep the CREATE order.
-    const ranked = usage ? [...items].sort((a, b) => (usage[b.key] ?? 0) - (usage[a.key] ?? 0)) : items;
+    // Pinned first, then most added; ties (and the moment before the counts arrive) keep the CREATE order.
+    const score = (key: string) => (pins.includes(key) ? 1e9 : 0) + (usage?.[key] ?? 0);
+    const ranked = [...items].sort((a, b) => score(b.key) - score(a.key));
     const top = ranked.slice(0, TOP);
     const rest = ranked.slice(TOP);
     const close = () => onOpenChange(false);
@@ -280,24 +341,49 @@ function AddSheet({ open, onOpenChange, enabled }: { open: boolean; onOpenChange
                 <section className="flex flex-col gap-2">
                     <h3 className={sectionLabel}>{t('create.most_used')}</h3>
                     <div className="bg-surface divide-border overflow-hidden rounded-2xl border">
-                        {top.map((item) => (
-                            <Link
-                                key={item.key}
-                                {...linkProps(item)}
-                                className="hover:bg-accent-subtle flex w-full items-center gap-3 border-b px-3 py-3 text-left last:border-b-0"
-                            >
-                                <span className={iconBox}>
-                                    <item.icon className="size-5.5" />
-                                </span>
-                                <span className="text-primary min-w-0 flex-1 truncate text-base font-semibold">{t(item.labelKey)}</span>
-                                {usage && (usage[item.key] ?? 0) > 0 && (
-                                    <span className="text-muted-foreground shrink-0 font-mono text-sm tabular-nums">
-                                        {t('create.times', { n: usage[item.key] })}
-                                    </span>
-                                )}
-                                <ChevronRight className="text-muted-foreground size-5 shrink-0" />
-                            </Link>
-                        ))}
+                        {top.map((item) => {
+                            const isPinned = pins.includes(item.key);
+                            // "Pinned · last: bananas" (design H2d); either half alone when the other is missing.
+                            const sub = last[item.key]
+                                ? t(isPinned ? 'create.pinned_last' : 'create.last', { name: last[item.key] })
+                                : isPinned
+                                  ? t('create.pinned')
+                                  : null;
+                            return (
+                                // The row opens the shortcut; the pin button beside it (not inside: no button in a link)
+                                // pins or unpins it, and so does a long-press on the row, as on More's tiles.
+                                <div key={item.key} className="hover:bg-accent-subtle flex items-center border-b last:border-b-0">
+                                    <Link
+                                        {...linkProps(item)}
+                                        {...press.bind(item.key)}
+                                        onClick={(e: React.MouseEvent) => press.swallow(e) || close()}
+                                        className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-3 text-left select-none [-webkit-touch-callout:none]"
+                                    >
+                                        <span className={iconBox}>
+                                            <item.icon className="size-5.5" />
+                                        </span>
+                                        <span className="min-w-0 flex-1">
+                                            <span className="text-primary block truncate text-base font-semibold">{t(item.labelKey)}</span>
+                                            {sub && <span className="text-muted-foreground block truncate text-sm">{sub}</span>}
+                                        </span>
+                                        {usage && (usage[item.key] ?? 0) > 0 && (
+                                            <span className="text-muted-foreground shrink-0 font-mono text-sm tabular-nums">
+                                                {t('create.times', { n: usage[item.key] })}
+                                            </span>
+                                        )}
+                                    </Link>
+                                    <button
+                                        type="button"
+                                        onClick={() => togglePin(item.key)}
+                                        aria-pressed={isPinned}
+                                        aria-label={t(isPinned ? 'create.unpin' : 'create.pin', { name: t(item.labelKey) })}
+                                        className={`mr-1 flex size-11 shrink-0 items-center justify-center rounded-full ${isPinned ? 'text-primary' : 'text-muted-foreground/60'}`}
+                                    >
+                                        <Pin className={`size-5 ${isPinned ? 'fill-current' : ''}`} />
+                                    </button>
+                                </div>
+                            );
+                        })}
                     </div>
                 </section>
                 {rest.length > 0 && (
@@ -381,24 +467,13 @@ function MoreSheet({
     const t = useT();
     const data = useOnOpen<{ family: string | null; summaries: Record<string, ModuleStatus> }>(open, '/nav/more');
 
-    // Long-press = pin/unpin. The timer fires the toggle; the click that follows the release is swallowed so a
-    // long-press doesn't also open the module. A short tap navigates as normal.
-    const timer = useRef<number | null>(null);
-    const longPressed = useRef(false);
-    const pressStart = (key: string) => {
-        longPressed.current = false;
-        timer.current = window.setTimeout(() => {
-            longPressed.current = true;
-            if (pinnedKeys.has(key) || canPin) {
-                togglePin(key);
-                navigator.vibrate?.(10);
-            }
-        }, LONG_PRESS_MS);
-    };
-    const pressEnd = () => {
-        if (timer.current) window.clearTimeout(timer.current);
-        timer.current = null;
-    };
+    // Long-press = pin/unpin; a short tap navigates as normal.
+    const press = useLongPress((key) => {
+        if (pinnedKeys.has(key) || canPin) {
+            togglePin(key);
+            navigator.vibrate?.(10);
+        }
+    });
 
     const tile = 'relative flex min-h-28 flex-col justify-between gap-3 rounded-2xl p-3 transition-colors select-none';
 
@@ -415,15 +490,8 @@ function MoreSheet({
                                 <Link
                                     key={item.key}
                                     href={item.url}
-                                    onClick={(e) => {
-                                        if (longPressed.current) e.preventDefault();
-                                        else onGo(item.url);
-                                    }}
-                                    onPointerDown={() => pressStart(item.key)}
-                                    onPointerUp={pressEnd}
-                                    onPointerLeave={pressEnd}
-                                    onPointerCancel={pressEnd}
-                                    onContextMenu={(e) => e.preventDefault()}
+                                    {...press.bind(item.key)}
+                                    onClick={(e) => press.swallow(e) || onGo(item.url)}
                                     aria-label={isPinned ? `${t(item.labelKey)} · ${t('nav.pinned')}` : undefined}
                                     className={`${tile} ${isActive(item.url) ? 'bg-accent-subtle ring-primary ring-1' : 'bg-surface'} [-webkit-touch-callout:none]`}
                                 >

@@ -156,7 +156,12 @@
         "most_used": "Meest gebruikt · laatste 30 dagen",
         "everything_else": "Al het andere",
         "times": ":n×",
-        "inventory": "Toevoegen aan voorraad"
+        "inventory": "Toevoegen aan voorraad",
+        "pinned": "Vastgezet",
+        "last": "Laatst: :name",
+        "pinned_last": "Vastgezet · laatst: :name",
+        "pin": ":name bovenaan vastzetten",
+        "unpin": ":name losmaken"
     },
     "add": {
         "say_it": "Zeg het maar",

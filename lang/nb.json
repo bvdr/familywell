@@ -156,7 +156,12 @@
         "most_used": "Mest brukt · siste 30 dager",
         "everything_else": "Alt annet",
         "times": ":n×",
-        "inventory": "Legg til i lageret"
+        "inventory": "Legg til i lageret",
+        "pinned": "Festet",
+        "last": "Sist: :name",
+        "pinned_last": "Festet · sist: :name",
+        "pin": "Fest :name øverst",
+        "unpin": "Løsne :name"
     },
     "add": {
         "say_it": "Bare si det",

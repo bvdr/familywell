@@ -176,7 +176,12 @@
         "most_used": "Cele mai folosite · ultimele 30 de zile",
         "everything_else": "Restul",
         "times": ":n×",
-        "inventory": "Adaugă în inventar"
+        "inventory": "Adaugă în inventar",
+        "pinned": "Fixat",
+        "last": "Ultimul: :name",
+        "pinned_last": "Fixat · ultimul: :name",
+        "pin": "Fixează :name sus",
+        "unpin": "Desprinde :name"
     },
     "add": {
         "say_it": "Spune-o simplu",
