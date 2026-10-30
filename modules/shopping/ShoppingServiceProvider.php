@@ -123,6 +123,8 @@ class ShoppingServiceProvider extends ServiceProvider
         ]]);
         // Adding a ShoppingItem counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('shopping', ShoppingItem::class);
+        // Classic add's sub line ("last: bananas"): this person's newest item they can still see, through its list's sharing.
+        AddKinds::last('shopping', fn (User $u) => ShoppingItem::where('created_by', $u->id)->whereHas('list', fn ($q) => $q->visibleTo($u->id))->latest('id')->value('name'));
 
         // MCP: tools an AI assistant can use on this module, gated by the `shopping:read` / `shopping:write`
         // scopes the person grants on the consent screen (see docs/mcp.md).

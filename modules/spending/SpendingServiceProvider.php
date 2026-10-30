@@ -87,6 +87,8 @@ class SpendingServiceProvider extends ServiceProvider
         });
         // Adding a Spend counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('spending', Spend::class);
+        // Classic add's sub line ("last: bananas"): this person's newest expense with a note they can still see, through its list's sharing (the note is what it was for).
+        AddKinds::last('spending', fn (User $u) => Spend::where('created_by', $u->id)->whereNotNull('note')->whereIn('spend_event_id', SpendData::visibleEvents($u)->select('id'))->latest('id')->value('note'));
 
         // A new family's default currency is where its creator signs up from: Cloudflare's country on the
         // onboarding request -> that country's currency (RO -> RON). Unknown country (local, Tor, no

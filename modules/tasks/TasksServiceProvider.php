@@ -104,6 +104,8 @@ class TasksServiceProvider extends ServiceProvider
         ]]);
         // Adding a Task counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('tasks', Task::class);
+        // Classic add's sub line ("last: bananas"): this person's newest to-do they can still see, through its list's sharing (a project's to-dos have no list: left out).
+        AddKinds::last('tasks', fn (User $u) => Task::where('created_by', $u->id)->whereHas('list', fn ($q) => $q->visibleTo($u->id))->latest('id')->value('title'));
 
         // Reversible delete: trashed rows are purged after the retention window (trash:purge).
         // What this module shows in Settings > Recently deleted and its MCP trash tools.

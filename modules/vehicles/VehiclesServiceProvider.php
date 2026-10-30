@@ -63,6 +63,8 @@ class VehiclesServiceProvider extends ServiceProvider
         DashboardSummaries::register('vehicles', fn () => ['key' => 'dashboard.sum_vehicles', 'params' => ['count' => Vehicle::count()]]);
         // Adding a Vehicle counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('vehicles', Vehicle::class);
+        // Classic add's sub line ("last: bananas"): this person's newest vehicle they can still see (vehicles are family-wide).
+        AddKinds::last('vehicles', fn (User $u) => Vehicle::where('created_by', $u->id)->latest('id')->get(['make', 'model'])->map(fn ($v) => trim("{$v->make} {$v->model}"))->first());
 
         // Our notification category (maintenance-due pushes), so it gets its own on/off row on the
         // Notifications settings screen. Registration is idempotent (boot re-runs per request/worker).

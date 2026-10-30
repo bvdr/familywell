@@ -3,6 +3,8 @@
 namespace Modules\Notes;
 
 use App\Models\EntityVisit;
+use App\Models\User;
+use App\Support\Add\AddKinds;
 use App\Support\Dashboard\DashboardItems;
 use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Engagement;
@@ -25,6 +27,8 @@ class NotesServiceProvider extends ServiceProvider
         DashboardSummaries::register('notes', fn (int $userId) => ['key' => 'dashboard.sum_notes', 'params' => ['count' => Note::visibleTo($userId)->count()]]);
         // Adding a Note counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('notes', Note::class);
+        // Classic add's sub line ("last: bananas"): this person's newest titled note they can still see.
+        AddKinds::last('notes', fn (User $u) => Note::where('created_by', $u->id)->where('title', '!=', '')->visibleTo($u->id)->latest('id')->value('title'));
 
         // MCP: tools an AI assistant can use on this module, gated by the `notes:read` / `notes:write`
         // scopes the person grants on the consent screen (see docs/mcp.md).
