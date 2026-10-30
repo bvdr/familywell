@@ -1,5 +1,6 @@
 {
     "add_details": "Lägg till detaljer",
+    "edit_details": "Redigera detaljer",
     "things_one": ":count sak",
     "things_other": ":count saker",
     "position": ":kind · :i av :n",

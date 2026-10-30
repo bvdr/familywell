@@ -2,6 +2,8 @@
 
 namespace Modules\Inventory;
 
+use App\Models\User;
+use App\Support\Add\AddKinds;
 use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
@@ -28,6 +30,8 @@ class InventoryServiceProvider extends ServiceProvider
         DashboardSummaries::register('inventory', fn () => ['key' => 'dashboard.sum_inventory', 'params' => ['count' => InventoryItem::all()->filter->needsAttention()->count()]]);
         // Adding a InventoryItem counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('inventory', InventoryItem::class);
+        // Classic add's sub line ("last: bananas"): this person's newest item they can still see (inventory is family-wide).
+        AddKinds::last('inventory', fn (User $u) => InventoryItem::where('created_by', $u->id)->latest('id')->value('name'));
 
         // Close the Shopping -> Inventory half of the loop: when a shopping item the family bought is one
         // we surfaced from inventory, restock the linked item (see InventoryReplenishment). We listen on the

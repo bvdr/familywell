@@ -156,7 +156,12 @@
         "most_used": "Am häufigsten · letzte 30 Tage",
         "everything_else": "Alles andere",
         "times": ":n×",
-        "inventory": "Zum Vorrat hinzufügen"
+        "inventory": "Zum Vorrat hinzufügen",
+        "pinned": "Angeheftet",
+        "last": "Zuletzt: :name",
+        "pinned_last": "Angeheftet · zuletzt: :name",
+        "pin": ":name oben anheften",
+        "unpin": ":name lösen"
     },
     "add": {
         "say_it": "Einfach sagen",

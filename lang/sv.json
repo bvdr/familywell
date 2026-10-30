@@ -156,7 +156,12 @@
         "most_used": "Mest använt · senaste 30 dagarna",
         "everything_else": "Allt annat",
         "times": ":n×",
-        "inventory": "Lägg till i förrådet"
+        "inventory": "Lägg till i förrådet",
+        "pinned": "Fäst",
+        "last": "Senast: :name",
+        "pinned_last": "Fäst · senast: :name",
+        "pin": "Fäst :name överst",
+        "unpin": "Lossa :name"
     },
     "add": {
         "say_it": "Säg det bara",

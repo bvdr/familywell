@@ -340,7 +340,7 @@ it('keeps details fields from the reader and hands the sheet their form, choices
     expect($res->json('items.0.details'))->toMatchArray([
         'note' => ['type' => 'note'],
         'list_id' => ['type' => 'choice', 'choices' => [['value' => (string) ($school->id - 1), 'label' => 'Household'], ['value' => (string) $school->id, 'label' => 'School']]],
-        'ext' => ['type' => 'slot', 'slot' => 'task.editor.fields'],
+        'ext' => ['type' => 'slot', 'slot' => 'task.editor.fields', 'badges' => 'task.row.badges'],
     ])->and($res->json('items.0.people'))->toBe(['who'])
         ->and($res->json('members'))->toBe([['id' => $users[0]->id, 'name' => 'Ana Rivera'], ['id' => $users[1]->id, 'name' => 'Lucia Rivera']]);
 });

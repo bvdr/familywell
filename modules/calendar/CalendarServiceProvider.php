@@ -132,6 +132,8 @@ class CalendarServiceProvider extends ServiceProvider
 
         // Adding a CalendarEvent counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('calendar', CalendarEvent::class);
+        // Classic add's sub line ("last: bananas"): this person's newest event they can still see.
+        AddKinds::last('calendar', fn (User $u) => CalendarEvent::where('created_by', $u->id)->visibleTo($u->id)->latest('id')->value('title'));
 
         Trash::source('calendar', CalendarTrash::class);
         Trash::register(CalendarEvent::class);

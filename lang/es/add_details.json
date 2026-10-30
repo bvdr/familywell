@@ -1,5 +1,6 @@
 {
     "add_details": "Añadir detalles",
+    "edit_details": "Editar detalles",
     "things_one": ":count cosa",
     "things_other": ":count cosas",
     "position": ":kind · :i de :n",

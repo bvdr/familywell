@@ -98,6 +98,8 @@ class ProjectsServiceProvider extends ServiceProvider
         DashboardSummaries::register('projects', fn (int $userId) => ['key' => 'dashboard.sum_projects', 'params' => ['count' => Project::visibleTo($userId)->whereNull('archived_at')->count()]]);
         // Adding a Project counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('projects', Project::class);
+        // Classic add's sub line ("last: bananas"): this person's newest project they can still see.
+        AddKinds::last('projects', fn (User $u) => Project::where('created_by', $u->id)->visibleTo($u->id)->latest('id')->value('name'));
 
         // Projects opt into the core sharing system (addressable as `project` in share URLs).
         ShareableRegistry::register('project', Project::class);

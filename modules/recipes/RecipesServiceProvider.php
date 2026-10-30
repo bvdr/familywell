@@ -3,6 +3,8 @@
 namespace Modules\Recipes;
 
 use App\Models\EntityVisit;
+use App\Models\User;
+use App\Support\Add\AddKinds;
 use App\Support\Dashboard\DashboardItems;
 use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Engagement;
@@ -26,6 +28,8 @@ class RecipesServiceProvider extends ServiceProvider
         DashboardSummaries::register('recipes', fn (int $userId) => ['key' => 'dashboard.sum_recipes', 'params' => ['count' => Recipe::visibleTo($userId)->count()]]);
         // Adding a Recipe counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('recipes', Recipe::class);
+        // Classic add's sub line ("last: bananas"): this person's newest recipe they can still see.
+        AddKinds::last('recipes', fn (User $u) => Recipe::where('created_by', $u->id)->visibleTo($u->id)->latest('id')->value('title'));
 
         // MCP: recipes for AI assistants, gated by the `recipes:read` / `recipes:write` scopes.
         McpTools::register('recipes', 'Recipes', [

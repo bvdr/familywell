@@ -131,6 +131,8 @@ Route::middleware(['auth', 'family'])->group(function () {
     })->name('dashboard');
     // The Add sheet's "most used" ranking, fetched when it opens (AddUsageController).
     Route::get('add/usage', AddUsageController::class)->middleware('throttle:60,1')->name('add.usage');
+    // Pin a Classic shortcut on top (per person). The demo may pin too: it's a harmless personal preference.
+    Route::put('add/pins', [AddUsageController::class, 'pins'])->middleware('throttle:30,1')->name('add.pins');
     // "Just say it": read while typing (no points, needs some left), save the confirmed cards (one point).
     Route::post('add/read', [AddController::class, 'read'])->middleware('throttle:40,1')->name('add.read');
     Route::post('add/save', [AddController::class, 'save'])->middleware('throttle:20,1')->name('add.save');

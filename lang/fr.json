@@ -156,7 +156,12 @@
         "most_used": "Les plus utilisés · 30 derniers jours",
         "everything_else": "Tout le reste",
         "times": ":n×",
-        "inventory": "Ajouter à l’inventaire"
+        "inventory": "Ajouter à l’inventaire",
+        "pinned": "Épinglé",
+        "last": "Dernier : :name",
+        "pinned_last": "Épinglé · dernier : :name",
+        "pin": "Épingler :name en haut",
+        "unpin": "Désépingler :name"
     },
     "add": {
         "say_it": "Dites-le",

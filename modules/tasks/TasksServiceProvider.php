@@ -66,7 +66,8 @@ class TasksServiceProvider extends ServiceProvider
                 'note' => ['type' => 'note', 'details' => true],
                 'list_id' => ['type' => 'choice', 'details' => true, 'choices' => fn (User $user) => $lists($user)->get(['id', 'name'])
                     ->map(fn ($l) => ['value' => (string) $l->id, 'label' => $l->name])->all()],
-                'ext' => ['type' => 'slot', 'slot' => 'task.editor.fields', 'details' => true],
+                // badges: back on the card, the add-ons' row badges (the Important star) mark its header (design H2g).
+                'ext' => ['type' => 'slot', 'slot' => 'task.editor.fields', 'badges' => 'task.row.badges', 'details' => true],
             ],
             'target' => fn (User $user, AddContext $ctx, array $v) => $pickList($user, $ctx, $v)?->name ?? Translations::get('nav.tasks'),
             'save' => function (User $user, array $v, AddContext $ctx) use ($pickList) {
@@ -104,6 +105,8 @@ class TasksServiceProvider extends ServiceProvider
         ]]);
         // Adding a Task counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('tasks', Task::class);
+        // Classic add's sub line ("last: bananas"): this person's newest to-do they can still see, through its list's sharing (a project's to-dos have no list: left out).
+        AddKinds::last('tasks', fn (User $u) => Task::where('created_by', $u->id)->whereHas('list', fn ($q) => $q->visibleTo($u->id))->latest('id')->value('title'));
 
         // Reversible delete: trashed rows are purged after the retention window (trash:purge).
         // What this module shows in Settings > Recently deleted and its MCP trash tools.

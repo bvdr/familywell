@@ -131,6 +131,8 @@ class User extends Authenticatable implements OAuthenticatable
             'pinned_modules' => 'array',
             // Their own Home's section order + hidden ones (App\Support\Dashboard\HomeLayout); null = default. Not fillable.
             'home_layout' => 'array',
+            // The Classic Add sheet's pinned shortcuts (AddUsageController::pins); null = none. Not fillable.
+            'add_pins' => 'array',
             // Set only by admin:grant / admin:revoke; deliberately not fillable.
             'is_platform_admin' => 'boolean',
         ];
