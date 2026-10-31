@@ -423,3 +423,19 @@ it('saves an event with the notes and repeat from its details', function () {
 
     expect(CalendarEvent::withoutGlobalScopes()->firstOrFail()->only(['notes', 'repeat']))->toBe(['notes' => 'bring the book', 'repeat' => 'weekly']);
 });
+
+it('gives each thing to buy its own card, each keeping the shop the reader found', function () {
+    [, $users] = anythingFamily();
+    fakeReader([['id' => 'shopping_item-0', 'kind' => 'shopping_item', 'module' => 'shopping', 'p' => 0.9, 'sure' => true, 'fields' => [
+        'items' => ['value' => [['name' => 'pâini', 'quantity' => 'două'], ['name' => 'ouă', 'quantity' => 'șase']], 'confidence' => 0.8],
+        'shop' => ['value' => 'Lidl', 'confidence' => 0.8],
+    ], 'ask' => [], 'missing' => [], 'types' => ['items' => 'list', 'shop' => 'text']]]);
+
+    $items = actingAs($users[0])->postJson('/add/read', ['text' => 'Vreau să cumpăr două pâini și șase ouă de la Lidl'])->assertOk()->json('items');
+
+    expect($items)->toHaveCount(2)
+        ->and(array_column($items, 'id'))->toBe(['shopping_item-0-0', 'shopping_item-0-1'])
+        ->and($items[0]['fields']['items']['value'])->toBe([['name' => 'pâini', 'quantity' => 'două']])
+        ->and($items[1]['fields']['items']['value'])->toBe([['name' => 'ouă', 'quantity' => 'șase']])
+        ->and(array_column(array_column(array_column($items, 'fields'), 'shop'), 'value'))->toBe(['Lidl', 'Lidl']);
+});
