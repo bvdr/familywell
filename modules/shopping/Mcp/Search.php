@@ -19,7 +19,9 @@ class Search extends Tool
 
     protected ?string $app = 'shopping';
 
-    protected string $description = 'Find shopping items across the lists this person can see (e.g. "is milk on any list?").';
+    protected string $description = 'Use this when the user asks whether something is already on a shopping list (e.g. "is milk on any list?"). Searches items across every list this person can see. Read-only.';
+
+    protected string $title = 'Search shopping items';
 
     public function schema(JsonSchema $schema): array
     {

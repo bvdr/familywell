@@ -18,11 +18,13 @@ class ScaleRecipe extends Tool
 
     protected ?string $app = 'recipe';
 
-    protected string $description = 'Recalculate a recipe\'s ingredients. Give ONE of: servings (e.g. 6), a total amount to make (yield_amount + yield_unit, e.g. 800 g), or what you have of one ingredient (have_ingredient + have_amount + have_unit, e.g. "I only have 400 g of flour"). Returns the factor and every ingredient with scaled_qty / scaled_unit and a ready `line`; g/kg, ml/l and spoons convert, "to taste" and non-scalable items stay as they are. Does not change the recipe.';
+    protected string $description = 'Use this when the user wants a recipe\'s amounts for more or fewer servings, a different total, or what they have of one ingredient (e.g. "I only have 400 g of flour"). Give ONE of: servings, yield_amount + yield_unit, or have_ingredient + have_amount + have_unit. Returns the factor and every ingredient scaled, with g/kg, ml/l and spoons converted. Does not change the saved recipe.';
+
+    protected string $title = 'Scale recipe';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['recipe_id' => $schema->integer()->required(), ...RecipeData::scaleSchema($schema)];
+        return ['recipe_id' => $schema->integer()->description('Recipe id, from recipes_list.')->required(), ...RecipeData::scaleSchema($schema)];
     }
 
     public function handle(Request $request): Response|ResponseFactory

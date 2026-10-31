@@ -17,12 +17,14 @@ class Search extends Tool
 
     protected string $name = 'notes_search';
 
-    protected string $description = 'Find notes this person can see by text in the title or body (case-insensitive).';
+    protected string $description = 'Use this when the user is looking for a note by something written in it. Finds notes this person can see whose title or body contains the text (case-insensitive). Read-only.';
+
+    protected string $title = 'Search notes';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'query' => $schema->string()->required(),
+            'query' => $schema->string()->description('Text to find in the title or body.')->required(),
             ...$this->pageSchema($schema),
         ];
     }

@@ -21,16 +21,18 @@ class UpdateItem extends Tool
 
     protected string $name = 'shopping_update_item';
 
-    protected string $description = 'Change a shopping item (name, quantity, note, shops) or tick it off as bought / un-tick it. Only the fields you pass change. `store` is the primary shop (null = inherit the list\'s shop); `alt_stores` REPLACES the item\'s other shops (pass [] or null to clear them).';
+    protected string $description = 'Use this when the user wants to tick a shopping item off as bought (or un-tick it), or change its name, quantity, note or shops. Only the fields you pass change. `store` is the shop to buy it at (null = the list\'s shop); `alt_stores` replaces the other shops ([] or null clears them).';
+
+    protected string $title = 'Update shopping item';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'item_id' => $schema->integer()->required(),
-            'name' => $schema->string(),
-            'quantity' => $schema->string()->nullable(),
-            'note' => $schema->string()->nullable(),
-            'bought' => $schema->boolean(),
+            'item_id' => $schema->integer()->description('Shopping item id, from shopping_get_list or shopping_search.')->required(),
+            'name' => $schema->string()->description('New name.'),
+            'quantity' => $schema->string()->description('Free text, e.g. "2" or "1 kg"; null clears it.')->nullable(),
+            'note' => $schema->string()->description('Short note; null clears it.')->nullable(),
+            'bought' => $schema->boolean()->description('true ticks it off as bought, false puts it back on the list.'),
             'store' => $schema->string()->nullable()->description('Primary shop, e.g. "Lidl". null = inherit the list\'s shop.'),
             'alt_stores' => $schema->array()->items($schema->string())->nullable()->description('Other shops that also sell it. Replaces the current set.'),
         ];

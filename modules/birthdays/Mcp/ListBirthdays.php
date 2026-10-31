@@ -20,7 +20,9 @@ class ListBirthdays extends Tool
 
     protected ?string $app = 'birthdays';
 
-    protected string $description = 'The family\'s birthdays, soonest first, with the next date, days until it, and the age they turn (when the year is known). Pass within_days for upcoming ones only (e.g. 30).';
+    protected string $description = 'Use this when the user asks whose birthday is coming up, or for someone\'s birthday or age. Returns the family\'s birthdays, soonest first, with the next date, days until it, and the age they turn when the birth year is known. Read-only.';
+
+    protected string $title = 'List birthdays';
 
     public function schema(JsonSchema $schema): array
     {

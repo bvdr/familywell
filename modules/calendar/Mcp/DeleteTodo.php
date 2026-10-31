@@ -21,11 +21,13 @@ class DeleteTodo extends Tool
 
     protected string $name = 'calendar_delete_todo';
 
-    protected string $description = 'Move a to-do (and its sub-tasks) on a calendar event to the trash (restorable for 30 days with calendar_restore).';
+    protected string $description = 'Use this when the user wants to remove a to-do (and its sub-tasks) from a calendar event. It goes to the trash and can be restored for 30 days with calendar_restore.';
+
+    protected string $title = 'Delete event to-do';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['task_id' => $schema->integer()->required()];
+        return ['task_id' => $schema->integer()->description('The to-do id, from calendar_get_event.')->required()];
     }
 
     public function handle(Request $request): Response|ResponseFactory

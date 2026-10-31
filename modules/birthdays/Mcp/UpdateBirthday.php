@@ -21,11 +21,13 @@ class UpdateBirthday extends Tool
 
     protected string $name = 'birthdays_update';
 
-    protected string $description = 'Change a birthday\'s date. Month and day are always required; omit birth_year to make it year-less. To rename the person use contacts_update.';
+    protected string $description = 'Use this when the user wants to correct a birthday\'s date. Month and day are always required; leaving out birth_year makes it year-less. Does not rename the person (that is contacts_update).';
+
+    protected string $title = 'Update birthday';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['birthday_id' => $schema->integer()->required(), ...BirthdayData::schema($schema)];
+        return ['birthday_id' => $schema->integer()->description('Birthday id, from birthdays_list.')->required(), ...BirthdayData::schema($schema)];
     }
 
     public function handle(Request $request): Response|ResponseFactory

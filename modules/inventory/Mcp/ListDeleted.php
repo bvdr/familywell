@@ -20,9 +20,11 @@ class ListDeleted extends Tool
 
     protected string $access = 'write';
 
-    protected string $name = 'inventory_list_deleted';
+    protected string $name = 'inventory_list_trash';
 
-    protected string $description = 'Stock items in the trash, newest first, with the date each will be removed for good.';
+    protected string $description = 'Use this when the user wants to find a stock item they deleted, to bring it back. Lists stock items in the trash, newest first, with the date each is deleted for good. Read-only.';
+
+    protected string $title = 'List deleted stock items';
 
     public function schema(JsonSchema $schema): array
     {

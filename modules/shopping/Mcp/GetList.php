@@ -19,12 +19,14 @@ class GetList extends Tool
 
     protected ?string $app = 'shopping';
 
-    protected string $description = 'One shopping list with its items (name, quantity, note, aisle, bought).';
+    protected string $description = 'Use this when the user wants to see what is on one shopping list. Returns its items with quantity, note, aisle and bought state. Read-only.';
+
+    protected string $title = 'Get shopping list';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'list_id' => $schema->integer()->required(),
+            'list_id' => $schema->integer()->description('Shopping list id, from shopping_list_shopping_lists.')->required(),
             'include_bought' => $schema->boolean()->description('Include items already bought (default true).'),
         ];
     }

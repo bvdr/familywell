@@ -17,7 +17,9 @@ class CreateList extends Tool
 
     protected string $name = 'tasks_create_list';
 
-    protected string $description = 'Create a to-do list owned by this person, visible to the whole family.';
+    protected string $description = 'Use this when the user wants a new to-do list. The list belongs to this person and is visible to the whole family.';
+
+    protected string $title = 'Create to-do list';
 
     public function schema(JsonSchema $schema): array
     {

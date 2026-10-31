@@ -18,11 +18,13 @@ class GetNote extends Tool
 
     protected ?string $app = 'note';
 
-    protected string $description = 'One note with its full body (markdown-lite: # headings, - lists, [ ] checklists, **bold**).';
+    protected string $description = 'Use this when the user wants to read a note in full. Returns its title, folder and whole body. Read-only.';
+
+    protected string $title = 'Get note';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['note_id' => $schema->integer()->required()];
+        return ['note_id' => $schema->integer()->description('Note id, from notes_list or notes_search.')->required()];
     }
 
     public function handle(Request $request): Response|ResponseFactory

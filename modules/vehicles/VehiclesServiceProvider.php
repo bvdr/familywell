@@ -95,7 +95,7 @@ class VehiclesServiceProvider extends ServiceProvider
 
         // MCP: tools an AI assistant can use on the family's cars, gated by the `vehicles:read` /
         // `vehicles:write` scopes granted on the consent screen (see docs/mcp.md).
-        // Deletes go to the 30-day trash (vehicles_list_deleted / vehicles_restore).
+        // Deletes go to the 30-day trash (vehicles_list_trash / vehicles_restore).
         McpTools::register('vehicles', 'Vehicles', [
             Mcp\ListVehicles::class, Mcp\GetVehicle::class, Mcp\VehicleHistory::class, Mcp\ExportHistory::class,
             Mcp\LogMileage::class, Mcp\LogFuel::class, Mcp\AddMaintenance::class, Mcp\UpdateMaintenance::class, Mcp\CompleteMaintenance::class,

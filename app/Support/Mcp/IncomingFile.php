@@ -46,14 +46,15 @@ class IncomingFile
         return [
             // Exactly OpenAI's documented file-param shape (download_url + file_id required, mime_type +
             // file_name optional): ChatGPT refuses to submit an app whose `openai/fileParams` object differs.
+            // Neutral wording, no assistant names: the ChatGPT review counts naming other apps as comparative.
             'file' => $schema->object([
                 'download_url' => $schema->string()->required(),
                 'file_id' => $schema->string()->required(),
                 'mime_type' => $schema->string(),
                 'file_name' => $schema->string(),
-            ])->description('ChatGPT only: a file the person attached in the chat (ChatGPT fills this in itself). Other assistants (Claude, ...) cannot pass chat attachments here: leave it out and use file_url or file_base64.'),
+            ])->description('A file the person attached in the chat, when the assistant supports passing attachments (it fills this in itself). Otherwise leave it out and use file_url or file_base64.'),
             'file_url' => $schema->string()->description('Or: a public https URL to download the file from (e.g. the image on the recipe\'s web page).'),
-            'file_base64' => $schema->string()->description('Or: the file content, base64-encoded (needs file_name). Only if you actually have the bytes (e.g. a local file in Claude Code); you cannot base64 an image you can only see.'),
+            'file_base64' => $schema->string()->description('Or: the file content, base64-encoded (needs file_name). Only if you actually have the bytes (e.g. a local file); an image you can only see cannot be base64-encoded.'),
             'file_name' => $schema->string()->description('File name, e.g. "deviz.pdf" (used with file_base64 or file_url).'),
         ];
     }

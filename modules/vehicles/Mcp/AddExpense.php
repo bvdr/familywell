@@ -18,13 +18,15 @@ class AddExpense extends Tool
 
     protected string $name = 'vehicles_add_expense';
 
-    protected string $description = 'Record a car expense that is not a fill-up, service or repair (parking, tolls, car wash, insurance...). It lands in Spending, linked to the car. Needs Spending turned on.';
+    protected string $description = 'Use this when the user wants to record a car cost that is not a fill-up, service or repair (parking, tolls, car wash, insurance...). It is saved in Spending, linked to the car. Needs Spending turned on.';
+
+    protected string $title = 'Add car expense';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'vehicle_id' => $schema->integer()->required(),
-            'amount' => $schema->number()->required(),
+            'vehicle_id' => $schema->integer()->description('Car id, from vehicles_list.')->required(),
+            'amount' => $schema->number()->description('Amount in the family\'s currency, e.g. 15.00.')->required(),
             'note' => $schema->string()->description('What it was, e.g. "Car wash".'),
             'date' => $schema->string()->format('date')->description('YYYY-MM-DD (default: today).'),
         ];

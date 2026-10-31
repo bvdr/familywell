@@ -15,9 +15,11 @@ class ListLists extends Tool
 {
     protected string $module = 'shopping';
 
-    protected string $name = 'shopping_list_lists';
+    protected string $name = 'shopping_list_shopping_lists';
 
-    protected string $description = 'List the family\'s shopping lists this person can see, with how many items are still to buy.';
+    protected string $description = 'Use this when the user asks which shopping lists the family has, or you need a list id. Returns the lists this person can see with how many items are still to buy. Read-only.';
+
+    protected string $title = 'List shopping lists';
 
     public function schema(JsonSchema $schema): array
     {

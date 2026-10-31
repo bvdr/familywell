@@ -18,13 +18,15 @@ class Restore extends Tool
 
     protected string $name = 'tasks_restore';
 
-    protected string $description = 'Bring a list or task back from the trash. Restoring a list brings back the tasks deleted with it; restoring a task also restores its deleted list or parent task.';
+    protected string $description = 'Use this when the user wants a deleted to-do list or task back. Restoring a list also restores the tasks deleted with it; restoring a task also restores its deleted list or parent task. Takes type and id from tasks_list_trash.';
+
+    protected string $title = 'Restore to-do list or task';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'type' => $schema->string()->enum(['list', 'task'])->required(),
-            'id' => $schema->integer()->required(),
+            'type' => $schema->string()->description('list or task, from tasks_list_trash.')->enum(['list', 'task'])->required(),
+            'id' => $schema->integer()->description('The id from tasks_list_trash.')->required(),
         ];
     }
 

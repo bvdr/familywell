@@ -16,12 +16,14 @@ class AddMaintenance extends Tool
 
     protected string $name = 'vehicles_add_maintenance';
 
-    protected string $description = 'Plan maintenance for a car. A one-off job (e.g. a quoted brake job "in about 2,000 km") takes due_km and/or due_on and no interval; it is closed when completed (vehicles_complete_maintenance). A recurring service takes every_km and/or every_months, plus last_done_on/last_done_km as its baseline. Distances in km. Put quote details (garage, parts, price) in notes.';
+    protected string $description = 'Use this when the user wants a car service planned. A one-off job (e.g. a quoted brake job "in about 2,000 km") takes due_km and/or due_on and no interval, and closes when completed with vehicles_complete_maintenance. A recurring service takes every_km and/or every_months, plus last_done_on/last_done_km as its baseline. Distances in km; quote details go in notes.';
+
+    protected string $title = 'Plan car maintenance';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'vehicle_id' => $schema->integer()->required(),
+            'vehicle_id' => $schema->integer()->description('Car id, from vehicles_list.')->required(),
             ...VehicleData::maintenanceSchema($schema),
         ];
     }

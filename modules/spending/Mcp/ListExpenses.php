@@ -19,7 +19,9 @@ class ListExpenses extends Tool
 
     protected ?string $app = 'spending';
 
-    protected string $description = 'Expenses this person can see, newest first, optionally filtered by list, date range, category, shop or who paid.';
+    protected string $description = 'Use this when the user wants to see individual expenses. Returns expenses this person can see, newest first, filtered by list, date range, category, shop or who paid. For totals use spending_get_summary. Read-only.';
+
+    protected string $title = 'List expenses';
 
     public function schema(JsonSchema $schema): array
     {

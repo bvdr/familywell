@@ -19,9 +19,11 @@ class ListDeleted extends Tool
 
     protected string $access = 'write';
 
-    protected string $name = 'projects_list_deleted';
+    protected string $name = 'projects_list_trash';
 
-    protected string $description = 'What is in the Projects trash (deleted projects and project tasks this person can see), newest first, with the date each will be removed for good.';
+    protected string $description = 'Use this when the user wants to find a project or project task they deleted, to bring it back. Lists what this person can see in the Projects trash, newest first, with the date each is deleted for good. Read-only.';
+
+    protected string $title = 'List deleted projects';
 
     public function schema(JsonSchema $schema): array
     {

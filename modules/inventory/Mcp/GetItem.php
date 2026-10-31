@@ -17,11 +17,13 @@ class GetItem extends Tool
 
     protected string $name = 'inventory_get';
 
-    protected string $description = 'One stock item in full, with its notes, what a purchase would top it up to, and its recent quantity history (added / consumed / adjusted / purchased).';
+    protected string $description = 'Use this when the user asks about one stock item in detail. Returns its notes, levels, what a purchase would top it up to, and its recent quantity history. Read-only.';
+
+    protected string $title = 'Get stock item';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['item_id' => $schema->integer()->required()];
+        return ['item_id' => $schema->integer()->description('Stock item id, from inventory_list.')->required()];
     }
 
     public function handle(Request $request): Response|ResponseFactory

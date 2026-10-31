@@ -41,7 +41,7 @@ it('deletes to the trash, lists the trash, and restores', function () {
 
     [, $d] = mcpTool($token, 'notes_delete', ['note_id' => $n['id']]);
     expect($d['deleted'])->toBeTrue();
-    [, $trash] = mcpTool($token, 'notes_list_deleted');
+    [, $trash] = mcpTool($token, 'notes_list_trash');
     expect(collect($trash['deleted'])->pluck('id')->all())->toBe([$n['id']]);
 
     [, $r] = mcpTool($token, 'notes_restore', ['note_id' => $n['id']]);

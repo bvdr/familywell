@@ -319,7 +319,7 @@ it('still lets a reviewer connect Claude as the demo owner and use the MCP tools
     $owner = User::where('email', DemoSeeder::OWNER_EMAIL)->first();
     $token = mcpConnect($owner, $family->id, ['tasks' => 'write'])['access_token'];
 
-    [$err, $lists] = mcpTool($token, 'tasks_list_lists');
+    [$err, $lists] = mcpTool($token, 'tasks_list_todo_lists');
     expect($err)->toBeFalse()->and($lists['lists'])->not->toBeEmpty();
     [$err] = mcpTool($token, 'tasks_create_task', ['list_id' => $lists['lists'][0]['id'], 'title' => 'From Claude']);
     expect($err)->toBeFalse()->and(Task::where('title', 'From Claude')->exists())->toBeTrue();

@@ -18,15 +18,17 @@ class CreateNote extends Tool
 
     protected string $name = 'notes_create';
 
-    protected string $description = 'Create a note owned by this person, visible to the family. Body is markdown-lite (# headings, - lists, [ ] checklists, **bold**). Passing a folder name files it there, creating the folder if needed.';
+    protected string $description = 'Use this when the user wants to write something down as a note. The note belongs to this person and is visible to the family. The body supports # headings, - lists, [ ] checklists and **bold**. A folder name files it there, creating the folder if needed.';
+
+    protected string $title = 'Create note';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'title' => $schema->string()->required(),
-            'body' => $schema->string(),
+            'title' => $schema->string()->description('Note title.')->required(),
+            'body' => $schema->string()->description('Note text: # headings, - lists, [ ] checklists, **bold**.'),
             'folder' => $schema->string()->description('Folder name (created if it does not exist).'),
-            'pinned' => $schema->boolean(),
+            'pinned' => $schema->boolean()->description('true pins it to the top of the notes list.'),
         ];
     }
 

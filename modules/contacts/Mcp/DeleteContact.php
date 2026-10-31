@@ -20,11 +20,13 @@ class DeleteContact extends Tool
 
     protected string $name = 'contacts_delete';
 
-    protected string $description = 'Move a contact to the trash with their phone numbers, emails and anything other modules keep on them (e.g. their birthday). Restorable for 30 days with contacts_restore.';
+    protected string $description = 'Use this when the user wants to remove a person from the address book. Their contact methods and anything other modules keep on them (e.g. their birthday) go too. Everything goes to the trash and can be restored for 30 days with contacts_restore.';
+
+    protected string $title = 'Delete contact';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['person_id' => $schema->integer()->required()];
+        return ['person_id' => $schema->integer()->description('Contact id, from contacts_list.')->required()];
     }
 
     public function handle(Request $request): Response|ResponseFactory

@@ -17,11 +17,13 @@ class Restore extends Tool
 
     protected string $name = 'birthdays_restore';
 
-    protected string $description = 'Bring a removed birthday back from the trash.';
+    protected string $description = 'Use this when the user wants a removed birthday back. Takes an id from birthdays_list_trash.';
+
+    protected string $title = 'Restore birthday';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['id' => $schema->integer()->required()->description('Id from birthdays_list_deleted.')];
+        return ['id' => $schema->integer()->required()->description('Id from birthdays_list_trash.')];
     }
 
     public function handle(Request $request): Response|ResponseFactory

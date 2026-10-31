@@ -43,7 +43,7 @@ class InventoryServiceProvider extends ServiceProvider
 
         // MCP: tools an AI assistant can use on the family's stock, gated by the `inventory:read` /
         // `inventory:write` scopes granted on the consent screen (see docs/mcp.md).
-        // Deletes go to the 30-day trash (inventory_list_deleted / inventory_restore).
+        // Deletes go to the 30-day trash (inventory_list_trash / inventory_restore).
         McpTools::register('inventory', 'Inventory', [
             Mcp\ListItems::class, Mcp\GetItem::class, Mcp\NeedsAttention::class,
             Mcp\AddItem::class, Mcp\UpdateItem::class, Mcp\AdjustQuantity::class, Mcp\AddToShopping::class, Mcp\DeleteItem::class,

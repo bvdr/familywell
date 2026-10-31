@@ -19,14 +19,16 @@ class UnlinkItem extends Tool
 
     protected string $access = 'write';
 
-    protected string $name = 'projects_unlink';
+    protected string $name = 'projects_unlink_item';
 
-    protected string $description = 'Remove a spending list or contact from a project. Only the link goes; the list or contact itself is kept.';
+    protected string $description = 'Use this when the user wants a spending list or contact detached from a project. Only the link is removed; the list or contact itself is kept.';
+
+    protected string $title = 'Unlink item from project';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'project_id' => $schema->integer()->required(),
+            'project_id' => $schema->integer()->description('Project id, from projects_list.')->required(),
             'type' => $schema->string()->enum(['spend_list', 'contact'])->required()->description('spend_list = a Spending list (id from spending tools), contact = a person (id from contacts tools).'),
             'id' => $schema->integer()->required()->description('The spending list id or contact id.'),
         ];

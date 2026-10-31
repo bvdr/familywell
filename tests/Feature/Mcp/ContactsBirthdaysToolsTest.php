@@ -108,8 +108,8 @@ it('trashes a contact with their birthday hidden, and restores both', function (
     expect($err)->toBeFalse()
         ->and(mcpTool($token, 'contacts_list')[1]['contacts'] ?? [])->toBe([])
         ->and(mcpTool($token, 'birthdays_list')[1]['birthdays'])->toBe([]) // hidden with the contact
-        ->and(mcpTool($token, 'birthdays_list_deleted')[1]['deleted'])->toBe([]); // comes back via the contact
-    [, $trash] = mcpTool($token, 'contacts_list_deleted');
+        ->and(mcpTool($token, 'birthdays_list_trash')[1]['deleted'])->toBe([]); // comes back via the contact
+    [, $trash] = mcpTool($token, 'contacts_list_trash');
     expect($trash['deleted'][0])->toMatchArray(['type' => 'contact', 'id' => $ana->id, 'title' => 'Ana Pop']);
 
     [$err, $r] = mcpTool($token, 'contacts_restore', ['id' => $ana->id]);
@@ -124,7 +124,7 @@ it('trashes a birthday, restores it, and lets a new date revive a trashed one', 
     [, $b] = mcpTool($token, 'birthdays_add', ['name' => 'Ana Pop', 'birth_day' => 3, 'birth_month' => 10]);
     mcpTool($token, 'birthdays_delete', ['birthday_id' => $b['id']]);
 
-    [, $trash] = mcpTool($token, 'birthdays_list_deleted');
+    [, $trash] = mcpTool($token, 'birthdays_list_trash');
     expect($trash['deleted'][0])->toMatchArray(['type' => 'birthday', 'id' => $b['id'], 'title' => 'Ana Pop']);
     expect(mcpTool($token, 'birthdays_restore', ['id' => $b['id']])[0])->toBeFalse()
         ->and(BirthdayDate::find($b['id'])->day)->toBe(3);

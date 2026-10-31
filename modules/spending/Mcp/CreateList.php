@@ -25,12 +25,14 @@ class CreateList extends Tool
 
     protected string $name = 'spending_create_list';
 
-    protected string $description = 'Create a spending list (a trip, a budget, a project\'s costs). Everyone in the family takes part, like a list made in the app. Pass project_id to create it for a project and link it there in one step; such lists are kept out of monthly spending by default (count_in_monthly false) while still totalling their own expenses.';
+    protected string $description = 'Use this when the user wants a separate spending list: a trip, a budget, or a project\'s costs. Everyone in the family takes part. With project_id it is linked to that project and kept out of monthly spending by default (count_in_monthly false), while still totalling its own expenses.';
+
+    protected string $title = 'Create spending list';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'name' => $schema->string()->required(),
+            'name' => $schema->string()->description('List name, e.g. "Summer trip 2027".')->required(),
             'currency' => $schema->string()->enum(SpendingController::CURRENCIES)->description('Base currency of the list (default: the family\'s default currency).'),
             'project_id' => $schema->integer()->description('Project to link it to (needs projects access).'),
             'count_in_monthly' => $schema->boolean()->description('Do this list\'s expenses count in monthly spending? Default true, or false when project_id is given.'),

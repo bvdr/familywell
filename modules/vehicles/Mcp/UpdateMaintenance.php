@@ -20,13 +20,15 @@ class UpdateMaintenance extends Tool
 
     protected string $name = 'vehicles_update_maintenance';
 
-    protected string $description = 'Change a maintenance schedule (schedule_id from vehicles_get): name, intervals, due point, baseline, notes, or active=false to pause it. Only the fields you pass change; pass null to clear one. Turning a recurring service into a one-off = clear every_km and every_months and set due_km/due_on.';
+    protected string $description = 'Use this when the user wants to change a maintenance schedule: name, intervals, due point, baseline, notes, or active=false to pause it. Only the fields you pass change; pass null to clear one. To turn a recurring service into a one-off, clear every_km and every_months and set due_km/due_on.';
+
+    protected string $title = 'Update car maintenance';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'vehicle_id' => $schema->integer()->required(),
-            'schedule_id' => $schema->integer()->required(),
+            'vehicle_id' => $schema->integer()->description('Car id, from vehicles_list.')->required(),
+            'schedule_id' => $schema->integer()->description('schedule_id from vehicles_get.')->required(),
             ...VehicleData::maintenanceSchema($schema),
             'active' => $schema->boolean()->description('false = paused: kept, but not counted in the car\'s status.'),
         ];

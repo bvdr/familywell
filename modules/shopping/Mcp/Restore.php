@@ -18,13 +18,15 @@ class Restore extends Tool
 
     protected string $name = 'shopping_restore';
 
-    protected string $description = 'Bring a shopping list or item back from the trash. Restoring a list brings back the items deleted with it; restoring an item also restores its deleted list.';
+    protected string $description = 'Use this when the user wants a deleted shopping list or item back. Restoring a list also restores the items deleted with it; restoring an item also restores its deleted list. Takes type and id from shopping_list_trash.';
+
+    protected string $title = 'Restore shopping list or item';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'type' => $schema->string()->enum(['list', 'item'])->required(),
-            'id' => $schema->integer()->required(),
+            'type' => $schema->string()->description('list or item, from shopping_list_trash.')->enum(['list', 'item'])->required(),
+            'id' => $schema->integer()->description('The id from shopping_list_trash.')->required(),
         ];
     }
 

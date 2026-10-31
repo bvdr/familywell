@@ -21,15 +21,17 @@ class UpdateList extends Tool
 
     protected string $name = 'shopping_update_list';
 
-    protected string $description = 'Rename a shopping list, change its store, or archive/unarchive it. Only the fields you pass change.';
+    protected string $description = 'Use this when the user wants to rename a shopping list, change its store, or archive or unarchive it. Only the fields you pass change.';
+
+    protected string $title = 'Update shopping list';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'list_id' => $schema->integer()->required(),
-            'name' => $schema->string(),
-            'store' => $schema->string()->nullable(),
-            'archived' => $schema->boolean(),
+            'list_id' => $schema->integer()->description('Shopping list id, from shopping_list_shopping_lists.')->required(),
+            'name' => $schema->string()->description('New name.'),
+            'store' => $schema->string()->description('Shop name, e.g. "Lidl"; null clears it.')->nullable(),
+            'archived' => $schema->boolean()->description('true archives the list, false brings it back.'),
         ];
     }
 

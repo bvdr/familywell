@@ -21,16 +21,18 @@ class UpdateNote extends Tool
 
     protected string $name = 'notes_update';
 
-    protected string $description = 'Change a note: title, body (replaces the whole body), folder (by name, created if needed; null un-files it), or pinned. Only the fields you pass change.';
+    protected string $description = 'Use this when the user wants to edit a note: title, body, folder or pinned. `body` replaces the whole text. A folder name files it there (created if needed); null takes it out of its folder. Only the fields you pass change.';
+
+    protected string $title = 'Update note';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'note_id' => $schema->integer()->required(),
-            'title' => $schema->string(),
-            'body' => $schema->string(),
-            'folder' => $schema->string()->nullable(),
-            'pinned' => $schema->boolean(),
+            'note_id' => $schema->integer()->description('Note id, from notes_list or notes_search.')->required(),
+            'title' => $schema->string()->description('New title.'),
+            'body' => $schema->string()->description('The complete new text (replaces the old body).'),
+            'folder' => $schema->string()->description('Folder name (created if needed); null takes it out of its folder.')->nullable(),
+            'pinned' => $schema->boolean()->description('true pins it, false unpins it.'),
         ];
     }
 

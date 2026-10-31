@@ -18,11 +18,13 @@ class Restore extends Tool
 
     protected string $name = 'notes_restore';
 
-    protected string $description = 'Bring a note back from the trash.';
+    protected string $description = 'Use this when the user wants a deleted note back. Takes an id from notes_list_trash.';
+
+    protected string $title = 'Restore note';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['note_id' => $schema->integer()->required()];
+        return ['note_id' => $schema->integer()->description('Note id, from notes_list_trash.')->required()];
     }
 
     public function handle(Request $request): Response|ResponseFactory

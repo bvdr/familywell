@@ -25,17 +25,19 @@ class UpdateTodo extends Tool
 
     protected string $name = 'calendar_update_todo';
 
-    protected string $description = 'Change a to-do (or sub-task) inside a calendar event: title, note, due date, assignee, or mark it done/not done. Only the fields you pass change; pass null to clear note, due_date or assigned_to.';
+    protected string $description = 'Use this when the user wants to tick off or change a to-do (or sub-task) on a calendar event: title, note, due date or assignee. Only the fields you pass change; pass null to clear note, due_date or assigned_to.';
+
+    protected string $title = 'Update event to-do';
 
     public function schema(JsonSchema $schema): array
     {
         return [
             'task_id' => $schema->integer()->required()->description('The to-do id from calendar_get_event or calendar_add_todo.'),
-            'title' => $schema->string(),
-            'note' => $schema->string()->nullable(),
-            'due_date' => $schema->string()->format('date')->nullable(),
+            'title' => $schema->string()->description('New title.'),
+            'note' => $schema->string()->description('Short note; null clears it.')->nullable(),
+            'due_date' => $schema->string()->description('YYYY-MM-DD; null clears it.')->format('date')->nullable(),
             'assigned_to' => $schema->integer()->nullable()->description('Family member user id.'),
-            'done' => $schema->boolean(),
+            'done' => $schema->boolean()->description('true marks it done, false marks it not done.'),
         ];
     }
 

@@ -19,7 +19,9 @@ class ListRecipes extends Tool
 
     protected ?string $app = 'recipe';
 
-    protected string $description = 'The family\'s recipes (title, photo, tags, servings, total time), A to Z. Optionally search: matches the title, a tag, or an ingredient ("what can I make with leeks").';
+    protected string $description = 'Use this when the user wants to browse the family\'s recipes or find one, e.g. "what can I make with leeks". Returns title, photo, tags, servings and total time, A to Z; `query` matches the title, a tag or an ingredient. Read-only.';
+
+    protected string $title = 'List recipes';
 
     public function schema(JsonSchema $schema): array
     {

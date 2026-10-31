@@ -19,11 +19,13 @@ class AddToShopping extends Tool
 
     protected string $name = 'inventory_add_to_shopping';
 
-    protected string $description = 'Put a stock item on the family\'s "Replenish" shopping list. Safe to repeat: while it is already on the list (not yet bought) nothing new is added. When it is marked bought in Shopping, the stock is topped back up automatically.';
+    protected string $description = 'Use this when the user wants to restock an item by putting it on the family\'s "Replenish" shopping list. Repeating it adds nothing while the item is still on the list unbought. When it is marked bought in Shopping, the stock level is topped back up automatically.';
+
+    protected string $title = 'Add stock item to shopping';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['item_id' => $schema->integer()->required()];
+        return ['item_id' => $schema->integer()->description('Stock item id, from inventory_list.')->required()];
     }
 
     public function handle(Request $request): Response|ResponseFactory
