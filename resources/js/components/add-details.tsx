@@ -4,7 +4,21 @@ import { SettingsGroup, SettingsRow } from '@/components/settings-ui';
 import { ymd } from '@/lib/calendar';
 import { appLocale, relativeWord, useT } from '@/lib/i18n';
 import { Slot } from '@/lib/modules';
-import { ChevronRight, ListChecks, Repeat2, SlidersHorizontal, Tag, Trash2, type LucideIcon } from 'lucide-react';
+import {
+    Banknote,
+    CalendarDays,
+    Car,
+    ChevronRight,
+    Coins,
+    Hash,
+    ListChecks,
+    Repeat2,
+    SlidersHorizontal,
+    Store,
+    Tag,
+    Trash2,
+    type LucideIcon,
+} from 'lucide-react';
 import { useRef } from 'react';
 
 // "Add details" on a Just say it card (design XMkKm H2f): that card's full form inside the same Add sheet, the fields
@@ -29,24 +43,66 @@ type Props = {
     slot: (name: string) => Record<string, unknown>;
     patchSlot: (name: string, patch: Record<string, unknown>) => void;
     label: (name: string) => string;
-    field: (name: string) => React.ReactNode; // the card's own input for a plain field (text, number, list…)
+    field: (name: string) => React.ReactNode; // the card's own input for a plain field (datetime, a multi-row list…)
+    rows: (name: string) => { name: string; quantity: string }[]; // a list field's rows (a shopping thing)
+    setRows: (name: string, rows: { name: string; quantity: string }[]) => void;
     onDone: () => void;
     onLeaveOut: () => void;
 };
 
-const ROW_ICON: Record<string, LucideIcon> = { list_id: ListChecks, category: Tag, repeat: Repeat2 };
+// Every row in the group carries an icon, as in the design (Repeat, Important, List).
+const ROW_ICON: Record<string, LucideIcon> = {
+    list_id: ListChecks,
+    category: Tag,
+    repeat: Repeat2,
+    quantity: Hash,
+    shop: Store,
+    amount: Banknote,
+    currency: Coins,
+    plate: Car,
+    year: CalendarDays,
+};
 const chip = (on: boolean) =>
     `rounded-full border px-3 py-2 text-[15px] font-semibold transition-colors ${on ? 'bg-primary border-primary text-primary-foreground' : 'border-border text-primary'}`;
 
-export function AddDetails({ item, members, headlineName, value, setValue, slot, patchSlot, label, field, onDone, onLeaveOut }: Props) {
+export function AddDetails({
+    item,
+    members,
+    headlineName,
+    value,
+    setValue,
+    slot,
+    patchSlot,
+    label,
+    field,
+    rows,
+    setRows,
+    onDone,
+    onLeaveOut,
+}: Props) {
     const t = useT();
     const details = item.details ?? {};
-    const titled = item.types[headlineName] !== 'list'; // a shopping card's headline is its list of things: shown as rows
+    // The design's layout for every kind (H2f): the title + "Add a note…" in one box, When, Who's on it, then one group
+    // of rows (label left, value right) for everything else, then Leave this out and Done. A shopping card is one
+    // thing (AddReader splits them), so its row's name is the title and its quantity a row in the group.
+    const isList = item.types[headlineName] === 'list';
+    const thing = isList ? rows(headlineName) : [];
+    const single = isList && thing.length === 1;
+    const titled = !isList || single;
+    const headline = single ? thing[0].name : value(headlineName);
+    const setHeadline = (v: string) => (single ? setRows(headlineName, [{ ...thing[0], name: v }]) : setValue(headlineName, v));
     const notes = Object.keys(details).filter((n) => details[n].type === 'note');
-    // Card fields, then the details ones drawn inline; choices and slots go in the settings group below.
-    const inline = [...Object.keys(item.types), ...Object.keys(details)].filter(
-        (n) => n !== headlineName && !item.hidden?.includes(n) && !['note', 'choice', 'slot'].includes(details[n]?.type ?? ''),
+    const all = [...Object.keys(item.types), ...Object.keys(details)].filter(
+        (n, i, a) =>
+            a.indexOf(n) === i && n !== headlineName && !item.hidden?.includes(n) && !['note', 'choice', 'slot'].includes(details[n]?.type ?? ''),
     );
+    const typeOf = (n: string) => details[n]?.type ?? item.types[n];
+    const dates = all.filter((n) => typeOf(n) === 'date');
+    const people = all.filter((n) => item.people?.includes(n) && !dates.includes(n));
+    // datetimes (an event's start / end) and multi-row lists keep the card's own input; plain text / numbers are rows.
+    const own = all.filter((n) => !dates.includes(n) && !people.includes(n) && ['datetime', 'list'].includes(typeOf(n)));
+    const plain = all.filter((n) => !dates.includes(n) && !people.includes(n) && !own.includes(n));
+    const hasQty = single && (item as { quantity?: string[] }).quantity?.includes(headlineName);
     const slots = Object.keys(details).filter((n) => details[n].type === 'slot');
     const choices = Object.keys(details).filter((n) => details[n].type === 'choice');
 
@@ -57,8 +113,8 @@ export function AddDetails({ item, members, headlineName, value, setValue, slot,
                 <div className="bg-surface flex flex-col gap-1 rounded-2xl px-4 py-3">
                     {titled && (
                         <input
-                            value={value(headlineName)}
-                            onChange={(e) => setValue(headlineName, e.target.value)}
+                            value={headline}
+                            onChange={(e) => setHeadline(e.target.value)}
                             placeholder={label(headlineName)}
                             aria-label={label(headlineName)}
                             // 16px+ so iOS doesn't zoom in on focus.
@@ -79,18 +135,37 @@ export function AddDetails({ item, members, headlineName, value, setValue, slot,
                 </div>
             )}
 
-            {inline.map((n) =>
-                item.people?.includes(n) ? (
-                    <Who key={n} members={members} value={value(n)} onChange={(v) => setValue(n, v)} />
-                ) : (details[n]?.type ?? item.types[n]) === 'date' ? (
-                    <When key={n} value={value(n)} onChange={(v) => setValue(n, v)} />
-                ) : (
-                    <div key={n}>{field(n)}</div>
-                ),
-            )}
+            {dates.map((n) => (
+                <When key={n} value={value(n)} onChange={(v) => setValue(n, v)} />
+            ))}
+            {people.map((n) => (
+                <Who key={n} members={members} value={value(n)} onChange={(v) => setValue(n, v)} />
+            ))}
+            {own.map((n) => (
+                <div key={n}>{field(n)}</div>
+            ))}
 
-            {(slots.length > 0 || choices.length > 0) && (
+            {(slots.length > 0 || choices.length > 0 || plain.length > 0 || hasQty) && (
                 <SettingsGroup>
+                    {/* Plain values as rows: label left, the value typed in on the right (same column as the pickers). */}
+                    {hasQty && (
+                        <InputRow
+                            icon={Hash}
+                            label={t('add.f_quantity')}
+                            value={thing[0].quantity}
+                            onChange={(v) => setRows(headlineName, [{ ...thing[0], quantity: v }])}
+                        />
+                    )}
+                    {plain.map((n) => (
+                        <InputRow
+                            key={n}
+                            icon={ROW_ICON[n] ?? SlidersHorizontal}
+                            label={label(n)}
+                            value={value(n)}
+                            numeric={typeOf(n) === 'number'}
+                            onChange={(v) => setValue(n, v)}
+                        />
+                    ))}
                     {/* The add-ons' controls, the same Slot the Classic task editor places; variant 'row' draws them as
                         rows here, and onPatch only keeps their values on the card (sent to task.saved on Add). */}
                     {slots.map((n) => (
@@ -234,5 +309,35 @@ function Who({ members, value, onChange }: { members: Member[]; value: string; o
                 ))}
             </div>
         </section>
+    );
+}
+
+// A plain value as a settings row (the form-row rule): the label left, the value typed in on the right.
+function InputRow({
+    icon: Icon,
+    label,
+    value,
+    onChange,
+    numeric,
+}: {
+    icon: LucideIcon;
+    label: string;
+    value: string;
+    onChange: (v: string) => void;
+    numeric?: boolean;
+}) {
+    return (
+        <label className="flex min-h-14 items-center gap-3.5 border-b px-4 py-2 last:border-b-0">
+            <Icon className="text-primary size-5 shrink-0" />
+            <span className="text-primary shrink-0 text-[17px]">{label}</span>
+            <input
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                inputMode={numeric ? 'decimal' : undefined}
+                placeholder="—"
+                // 16px+ so iOS doesn't zoom in on focus; right-aligned like the other rows' values.
+                className="text-primary placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-right text-[17px] font-semibold outline-none"
+            />
+        </label>
     );
 }

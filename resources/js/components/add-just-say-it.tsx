@@ -469,6 +469,8 @@ export function JustSayIt({
                 patchSlot={(name, patch) => patchSlot(detailed.id, name, patch)}
                 label={(name) => fieldLabel(name, detailed)}
                 field={(name) => fieldRow(detailed, name)}
+                rows={(name) => entriesOf(detailed, name)}
+                setRows={(name, rows) => setEntries(detailed.id, name, rows)}
                 onDone={() => setDetailsFor(null)}
                 onLeaveOut={() => {
                     setOn(detailed.id, false);
