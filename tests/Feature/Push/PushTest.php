@@ -45,3 +45,16 @@ it('sends a test push to the current user', function () {
 
     Notification::assertSentTo($user, PushAlert::class);
 });
+
+it('greets a new device by first name with Homer, once', function () {
+    Notification::fake();
+    $user = User::factory()->create(['name' => 'Ana Rivera', 'locale' => 'en']);
+    $sub = ['endpoint' => 'https://push.example.com/new', 'keys' => ['p256dh' => 'k', 'auth' => 'a']];
+
+    actingAs($user)->post('/push/subscribe', $sub)->assertNoContent();
+    // The browser re-sends the same subscription on later visits: no second hello.
+    actingAs($user)->post('/push/subscribe', $sub)->assertNoContent();
+
+    Notification::assertSentToTimes($user, PushAlert::class, 1);
+    Notification::assertSentTo($user, PushAlert::class, fn (PushAlert $n) => $n->title === 'Welcome, Ana 👋' && $n->icon === '/icons/homer-happy-256.png');
+});

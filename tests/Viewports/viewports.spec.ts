@@ -7,6 +7,7 @@ const PAGES: [string, string][] = [
     ['family-members', '/family/members'],
     ['family-modules', '/family/modules'],
     ['notifications', '/notifications'],
+    ['search', '/search?q=banana'],
     ['birthdays', '/m/birthdays'],
     ['calendar', '/m/calendar'],
     ['contacts', '/m/contacts'],
@@ -37,6 +38,14 @@ const PAGES: [string, string][] = [
     ['settings-profile', '/settings/profile'],
     ['settings-sign-in', '/settings/sign-in'],
     ['onboarding-about', '/onboarding/about'],
+    // Onboarding steps as the demo owner: ?preview=1 renders a step for someone already onboarded (GET only).
+    ['onboarding-welcome', '/onboarding?preview=1'],
+    ['onboarding-family', '/onboarding/create?preview=1'],
+    ['onboarding-invite', '/onboarding/invite?preview=1'],
+    ['onboarding-modules', '/onboarding/modules?preview=1'],
+    ['onboarding-install', '/onboarding/install?preview=1'],
+    ['onboarding-notifications', '/onboarding/notifications?preview=1'],
+    ['onboarding-ready', '/onboarding/ready?preview=1'],
     ['settings-appearance', '/settings/appearance'],
     ['settings-language', '/settings/language'],
     ['settings-notifications', '/settings/notifications'],
@@ -44,6 +53,12 @@ const PAGES: [string, string][] = [
     ['settings-media', '/settings/media'],
     ['settings-billing', '/settings/billing'],
     ['settings-recently-deleted', '/settings/recently-deleted'],
+    // Settings redesign (design boards 11 + 12): the family hub and the pages it and Me opened.
+    ['settings-family', '/settings/family'],
+    ['settings-family-look', '/settings/family/look'],
+    ['settings-family-region', '/settings/family/region'],
+    ['settings-home', '/settings/home'],
+    ['settings-delete-account', '/settings/delete-account'],
 ];
 
 // Detail pages: opened from their index via the first matching link, so they follow the seeded data's ids.
@@ -110,7 +125,8 @@ test.describe('phone navigation', () => {
         page.locator(selector).evaluateAll((els) => els.map((e) => [e.textContent?.trim(), Math.round(e.getBoundingClientRect().height)] as const));
 
     test('nav-drawer', async ({ page }, info) => {
-        await page.goto('/dashboard');
+        // Not Home: its phone top bar (family, search, alerts, avatar) replaces the header with the sidebar toggle.
+        await page.goto('/m/shopping');
         await page.getByRole('button', { name: 'Toggle Sidebar' }).click();
         const drawer = page.locator('[data-mobile="true"]');
         await expect(drawer).toBeVisible();
@@ -134,7 +150,7 @@ test.describe('phone navigation', () => {
         await page.locator('nav').getByRole('button', { name: 'More' }).click();
         await expect(page.getByRole('dialog')).toBeVisible();
         await expectCleanLayout(page, () => shoot(page, 'nav-more', info.project.name));
-        for (const [label, h] of await minHeights(page, '[role="dialog"] .grid > div')) {
+        for (const [label, h] of await minHeights(page, '[role="dialog"] .grid > a')) {
             expect(h, `More card "${label}"`).toBeGreaterThanOrEqual(48);
         }
         for (const [label, h] of await minHeights(page, 'nav a, nav button')) {
@@ -143,11 +159,11 @@ test.describe('phone navigation', () => {
     });
 });
 
-// Settings home > Modules: one link per enabled module that has a settings page (resources/js/layouts/settings/layout.tsx).
+// Family settings > Module settings: one link per enabled module that has a settings page (pages/settings/family.tsx).
 // Every link must open a real page, so a module that moves or drops its settings URL fails here.
 test('settings-modules', async ({ page }) => {
-    await page.goto('/settings');
-    const group = page.getByRole('group', { name: 'Modules' });
+    await page.goto('/settings/family');
+    const group = page.getByRole('group', { name: 'Module settings' });
     await expect(group).toBeVisible();
     const hrefs = await group.getByRole('link').evaluateAll((as) => as.map((a) => (a as HTMLAnchorElement).getAttribute('href')!));
     expect(hrefs.length).toBeGreaterThan(0);

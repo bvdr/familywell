@@ -80,6 +80,7 @@ as the reliable totals.
 | `demo_opened` | | queued by `/demo` |
 | `checkout_started` | plan: monthly / yearly | the paywall's plan buttons |
 | `checkout_completed` | | queued when Stripe's return shows the family paid |
+| `onboarding_family` | symbol | queued when step 1 creates the family (`OnboardingController::store`) |
 | `added_<module>` (e.g. `added_shopping`) | module | queued by `Engagement::track`'s `created` hook: someone added an item (not a list or folder) in that module from the app or a guest link. Not sent for MCP (no session; `assistant_tool` covers it) |
 
 "Queued" = `Analytics::queue()`: kept in the session, shared to the next rendered page as
@@ -90,4 +91,5 @@ as the reliable totals.
 `subscription_canceled`.
 
 The funnel in Umami: `cta_click` (hostname familywell.org) -> `signup_started` -> `signup_completed`
--> `checkout_started` -> `checkout_completed`, with `demo_opened` as the side branch.
+-> `checkout_started` -> `checkout_completed`, with `demo_opened` as the side branch. Inside sign-up, the
+onboarding steps (`onboarding_*`) show where new families drop off before they reach the app.

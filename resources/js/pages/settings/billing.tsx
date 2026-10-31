@@ -1,17 +1,29 @@
-import { track } from '@/lib/analytics';
-import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, ArrowRight, ArrowUpRight, Check, Crown, LogOut } from 'lucide-react';
-import { useState } from 'react';
+import { Head, Link, router } from '@inertiajs/react';
+import { Elements } from '@stripe/react-stripe-js';
+import { ArrowRight, Check, Crown, ExternalLink, Lock, LogOut } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import AppLogo from '@/components/app-logo';
+import {
+    Brands,
+    Pay,
+    PromoSheet,
+    elementsOptions,
+    stripeFor,
+    useCheckout,
+    type Amounts,
+    type CheckoutPricing,
+    type Plan,
+    type Promo,
+    type Tax,
+    type Tier,
+} from '@/components/plan-checkout';
+import { SettingsGroup, SettingsPage, SettingsRow } from '@/components/settings-ui';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
-import SettingsLayout from '@/layouts/settings/layout';
 import { useLocale, useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { type BreadcrumbItem } from '@/types';
 
 type Props = {
     family: { name: string };
@@ -24,91 +36,94 @@ type Props = {
     periodEnd: string | null; // ISO; when the current period renews (or ends, when canceling)
     canceling: boolean; // canceled at period end: access runs until periodEnd, then stops
     locked: boolean; // free period over: the app redirects here. False = came here on their own, can go back
+    pricing: CheckoutPricing & { spotsLeft: number };
+    // The onboarding checkout's inputs (unpaid families only, see BillingController::show).
+    standard?: { basic: Amounts; pro: Amounts } | null;
+    tiers?: Record<Tier, { storage_gb: number; ai_points: number }> | null;
+    stripeKey?: string | null;
+    tax?: Tax;
+    promo?: Promo | null;
+    email?: string;
 };
 
-type Plan = 'monthly' | 'yearly';
-
-// The paywall + subscription page. A locked family is redirected here (RequireFamily) and gets a
-// full-screen paywall (no app chrome: every app link would bounce back here anyway). A subscribed
-// family sees the normal Settings > Billing view with the Stripe portal link. Checkout and the portal
-// are both Stripe-hosted: the server answers with an Inertia::location to Stripe.
-export default function Billing({ family, subscribed, lifetime, status, hasCustomer, canManage, plan, periodEnd, canceling, locked }: Props) {
+// Settings > Billing (design Y6). Unpaid: "One plan, whole family." with the two plan cards, a short included list
+// and one big CTA that opens the onboarding's own checkout (components/plan-checkout: Apple Pay / Google Pay, card,
+// promo codes, tax) right under it, so there is one way to pay in the app. Paid / lifetime: the plan as settings rows
+// with the Stripe portal. Only admins get buttons. A locked family (free period over) has no app chrome: every app
+// link would bounce back here, so the header offers sign out instead of the back pill.
+export default function Billing(props: Props) {
     const t = useT();
-    const breadcrumbs: BreadcrumbItem[] = [{ title: t('billing.title'), href: '/settings/billing' }];
-    const [busy, setBusy] = useState(false);
+    const { family, subscribed, locked } = props;
+    const back = { href: '/settings/family', label: family.name };
 
-    const go = (url: string, data: Record<string, string> = {}) => {
-        setBusy(true);
-        router.post(url, data, { onFinish: () => setBusy(false) });
-    };
-
-    if (!subscribed) {
+    if (subscribed) {
         return (
-            <Paywall
-                familyName={family.name}
-                canManage={canManage}
-                locked={locked}
-                busy={busy}
-                onCheckout={(plan) => {
-                    // Funnel step; Stripe's return sends checkout_completed (Analytics::queue).
-                    track('checkout_started', { plan });
-                    go(route('billing.checkout'), { plan });
-                }}
-            />
+            <AppLayout hideMobileHeader breadcrumbs={[{ title: t('billing.title'), href: '/settings/billing' }]}>
+                <Head title={t('billing.title')} />
+                <SettingsPage back={back} title={t('billing.title')} lede={props.lifetime ? t('billing.lifetime_line') : t('billing.thanks')}>
+                    <PlanStatus {...props} />
+                </SettingsPage>
+            </AppLayout>
+        );
+    }
+
+    const title = t('billing.choose_title');
+    const lede = t('billing.locked_desc', { family: family.name });
+
+    if (locked) {
+        return (
+            <div className="bg-background min-h-svh">
+                <Head title={title} />
+                <header className="flex items-center justify-between px-4 py-4 sm:px-8">
+                    <div className="flex items-center">
+                        <AppLogo />
+                    </div>
+                    <Link
+                        method="post"
+                        href={route('logout')}
+                        as="button"
+                        className="text-muted-foreground hover:text-primary flex min-h-11 items-center gap-2 text-sm"
+                    >
+                        <LogOut className="size-4" />
+                        {t('billing.sign_out')}
+                    </Link>
+                </header>
+                {/* SettingsPage's column and title, without its back pill (there is nowhere to go back to). */}
+                <div className="mx-auto flex w-full max-w-xl flex-col gap-6 px-4 pt-2 pb-10">
+                    <div className="flex flex-col gap-2">
+                        <h1 className="font-display text-primary text-[34px] leading-[1.02] font-bold tracking-[-1.2px] text-balance md:text-[40px]">
+                            {title}
+                        </h1>
+                        <p className="text-muted-foreground text-[15px] leading-normal">{lede}</p>
+                    </div>
+                    <Plans {...props} />
+                </div>
+            </div>
         );
     }
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={t('billing.title')} />
-            <SettingsLayout>
-                <SubscriptionCard
-                    plan={plan}
-                    periodEnd={periodEnd}
-                    canceling={canceling}
-                    lifetime={lifetime}
-                    status={status}
-                    // The portal needs a Stripe customer; a member never gets the button, only the hint.
-                    onManage={canManage && hasCustomer && !lifetime ? () => go(route('billing.portal')) : undefined}
-                    adminOnly={!canManage && !lifetime}
-                    busy={busy}
-                />
-            </SettingsLayout>
+        <AppLayout hideMobileHeader breadcrumbs={[{ title: t('billing.title'), href: '/settings/billing' }]}>
+            <Head title={title} />
+            <SettingsPage back={back} title={title} lede={lede}>
+                <Plans {...props} />
+            </SettingsPage>
         </AppLayout>
     );
 }
 
-// The subscribed view, styled like Folio's Account > Plan card: one bordered card, one row (crown tile,
-// plan name + a small dark uppercase badge, a muted thank-you/renewal line) with "Manage plan" on the
-// right, which opens the Stripe customer portal. A comped (VIP) family gets the same card with a
-// LIFETIME badge and no button; a non-admin member gets no button and an "admin only" hint. On a phone
-// the button drops under the row instead of squeezing the text.
-function SubscriptionCard({
-    plan,
-    periodEnd,
-    canceling,
-    lifetime,
-    status,
-    onManage,
-    adminOnly,
-    busy,
-}: {
-    plan: string | null;
-    periodEnd: string | null;
-    canceling: boolean;
-    lifetime: boolean;
-    status: string | null;
-    onManage?: () => void;
-    adminOnly: boolean;
-    busy: boolean;
-}) {
+// The paying family's plan, as settings rows: plan + status badge + renewal line, then "Manage plan" (the Stripe
+// portal: switch plan, card, invoices, cancel). Lifetime has no portal (nothing to manage); a member sees the plan
+// and an "admin only" line instead of the button. The portal needs a Stripe customer.
+function PlanStatus({ plan, periodEnd, canceling, lifetime, status, hasCustomer, canManage }: Props) {
     const t = useT();
     const locale = useLocale();
+    const [busy, setBusy] = useState(false);
     const date = periodEnd ? new Date(periodEnd).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' }) : null;
     const pastDue = status === 'past_due';
-    // 'unknown' = a price we don't configure (or not synced yet): fall back to the product name.
-    const name = lifetime ? t('billing.plan_name') : plan === 'monthly' || plan === 'yearly' ? t(`billing.plan_${plan}`) : t('billing.plan_name');
     const trialing = status === 'trialing';
+    // 'unknown' = a price we don't configure (or not synced yet): fall back to the product name.
+    const name = !lifetime && (plan === 'monthly' || plan === 'yearly') ? t(`billing.plan_${plan}`) : t('billing.plan_name');
     const badge = lifetime
         ? t('billing.badge_lifetime')
         : pastDue
@@ -116,195 +131,214 @@ function SubscriptionCard({
           : trialing
             ? t('billing.badge_trial')
             : t('billing.badge_active');
+    const sub = lifetime
+        ? null
+        : pastDue
+          ? t('billing.past_due')
+          : date && t(canceling ? 'billing.ends_on' : trialing ? 'billing.trial_ends_on' : 'billing.renews_on', { date });
+    const canPortal = canManage && hasCustomer && !lifetime;
 
     return (
-        <Card>
-            <CardHeader className="pb-4">
-                <CardTitle className="text-lg">{t('billing.plan_title')}</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                <div className="flex min-w-0 flex-1 items-start gap-3">
-                    <span className="bg-accent-subtle text-primary flex size-10 shrink-0 items-center justify-center rounded-lg">
-                        <Crown className="size-5" />
-                    </span>
-                    <div className="min-w-0 space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-semibold">{name}</span>
-                            <Badge
-                                className={cn(
-                                    'rounded-md px-1.5 py-0 text-[10px] tracking-wide uppercase',
-                                    pastDue ? 'bg-destructive text-destructive-foreground' : 'bg-foreground text-background',
-                                )}
-                            >
-                                {badge}
-                            </Badge>
-                        </div>
-                        <p className="text-muted-foreground text-sm">{lifetime ? t('billing.lifetime_line') : t('billing.thanks')}</p>
-                        {!lifetime && pastDue && <p className="text-destructive text-sm">{t('billing.past_due')}</p>}
-                        {!lifetime && !pastDue && date && (
-                            <p className="text-muted-foreground text-sm">
-                                {t(canceling ? 'billing.ends_on' : trialing ? 'billing.trial_ends_on' : 'billing.renews_on', { date })}
-                            </p>
-                        )}
-                        {adminOnly && <p className="text-muted-foreground text-sm">{t('billing.admin_only')}</p>}
-                    </div>
-                </div>
-                {onManage && (
-                    <Button variant="secondary" className="w-full sm:w-auto" disabled={busy} onClick={onManage}>
-                        {t('billing.manage')}
-                    </Button>
+        <>
+            <SettingsGroup label={t('billing.plan_title')}>
+                <SettingsRow
+                    icon={Crown}
+                    tile
+                    title={name}
+                    sub={sub && <span className={cn(pastDue && 'text-destructive')}>{sub}</span>}
+                    right={
+                        <Badge
+                            className={cn(
+                                'shrink-0 rounded-md px-1.5 py-0 text-[10px] tracking-wide uppercase',
+                                pastDue ? 'bg-destructive text-destructive-foreground' : 'bg-primary text-primary-foreground',
+                            )}
+                        >
+                            {badge}
+                        </Badge>
+                    }
+                />
+                {canPortal && (
+                    <SettingsRow
+                        icon={ExternalLink}
+                        title={t('billing.manage')}
+                        onClick={() => {
+                            if (busy) return;
+                            setBusy(true);
+                            // Inertia::location answer: a full-page redirect to Stripe's hosted portal.
+                            router.post(route('billing.portal'), {}, { onFinish: () => setBusy(false) });
+                        }}
+                    />
                 )}
-            </CardContent>
-        </Card>
+            </SettingsGroup>
+            {!canManage && !lifetime && <p className="text-muted-foreground px-1 text-sm">{t('billing.admin_only')}</p>}
+        </>
     );
 }
 
-// Full-screen paywall, laid out like the familywell.org pricing section: pitch on the left, the plan
-// card (with its CTA) on the right; stacked on mobile. Sign out stays reachable since nothing else is.
-function Paywall({
-    familyName,
-    canManage,
-    locked,
-    busy,
-    onCheckout,
-}: {
-    familyName: string;
-    canManage: boolean;
-    locked: boolean;
-    busy: boolean;
-    onCheckout: (plan: Plan) => void;
-}) {
+// The plan picker (design Y6): Monthly | Yearly cards (yearly preselected, says why: months free), a Basic | Pro
+// switch only where Pro is on offer, the short included list, and the CTA. The CTA unfolds the onboarding checkout
+// in place (summary with intro discount / promo / tax, then Pay) instead of a second plan picker on another page.
+// Stripe.js only loads once it's opened, so just looking at the plans costs no Stripe call.
+function Plans({ canManage, pricing, standard, tiers, stripeKey, tax, promo: appliedPromo, email }: Props) {
     const t = useT();
     const [plan, setPlan] = useState<Plan>('yearly');
+    const [tier, setTier] = useState<Tier>('basic');
+    const [checkout, setCheckout] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const { usd, prices, listPrices, total, summary, payLabel, setPromo, promoOpen, setPromoOpen } = useCheckout({
+        plan,
+        tier,
+        pricing,
+        standard: standard ?? null,
+        tax: tax ?? null,
+        appliedPromo: appliedPromo ?? null,
+    });
+    const stripePromise = useMemo(() => (checkout && stripeKey ? stripeFor(stripeKey) : null), [checkout, stripeKey]);
+    const checkoutRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (checkout) checkoutRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, [checkout]);
+    // "3 months free": what yearly saves, in months of the monthly price.
+    const monthsFree = Math.round(12 - prices.yearly / prices.monthly);
 
     return (
-        <div className="bg-background flex min-h-svh flex-col">
-            <Head title={t('billing.locked_title')} />
-            <header className="flex items-center justify-between px-4 py-4 sm:px-8">
-                <div className="flex items-center">
-                    <AppLogo />
+        <>
+            {pricing.pro && tiers && (
+                <div className="bg-surface grid grid-cols-2 rounded-full p-1" role="tablist" aria-label={t('onboarding.plan_tiers')}>
+                    {(['basic', 'pro'] as const).map((x) => (
+                        <button
+                            key={x}
+                            type="button"
+                            role="tab"
+                            aria-selected={tier === x}
+                            onClick={() => setTier(x)}
+                            className={cn(
+                                'text-primary min-h-10 rounded-full px-2 py-2 text-sm',
+                                tier === x ? 'bg-surface-card font-bold shadow-sm' : 'text-muted-foreground font-medium',
+                            )}
+                        >
+                            {t(`onboarding.tier_${x}`)}
+                            <span className="text-muted-foreground ml-1.5 font-mono text-[11px] font-medium">
+                                {t('onboarding.plan_tier_sub', { gb: tiers[x].storage_gb, ai: tiers[x].ai_points })}
+                            </span>
+                        </button>
+                    ))}
                 </div>
-                {/* Locked: nothing else is reachable, so sign out is the way off this page. Still in the free
-                    period (came here from Settings): back to the app instead. */}
-                {locked ? (
-                    <Link
-                        method="post"
-                        href={route('logout')}
-                        as="button"
-                        className="text-muted-foreground hover:text-primary flex items-center gap-2 text-sm"
-                    >
-                        <LogOut className="size-4" />
-                        {t('billing.sign_out')}
-                    </Link>
-                ) : (
-                    <Link href={route('dashboard')} className="text-muted-foreground hover:text-primary flex items-center gap-2 text-sm">
-                        <ArrowLeft className="size-4" />
-                        {t('billing.back_to_app')}
-                    </Link>
-                )}
-            </header>
+            )}
 
-            <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center gap-10 px-4 py-8 sm:px-8 lg:flex-row lg:items-center lg:gap-16">
-                <div className="flex max-w-md flex-col gap-5 text-center lg:text-left">
-                    <p className="text-muted-foreground font-mono text-xs tracking-[0.2em] uppercase">{t('billing.kicker')}</p>
-                    <h1 className="font-heading text-primary text-4xl leading-[1.05] font-bold tracking-tight sm:text-5xl">
-                        {t('billing.locked_title')}
-                    </h1>
-                    <p className="text-muted-foreground text-lg">{t('billing.locked_desc', { family: familyName })}</p>
-                    <a
-                        href="https://familywell.org/#features"
-                        target="_blank"
-                        rel="noopener"
-                        className="text-primary inline-flex items-center gap-1 self-center text-sm font-semibold underline underline-offset-4 lg:self-start"
-                    >
-                        {t('billing.see_features')}
-                        <ArrowUpRight className="size-4" />
-                    </a>
-                </div>
-
-                <div className="w-full max-w-md lg:flex-1">
-                    <PlanCard plan={plan} setPlan={setPlan}>
-                        {canManage ? (
-                            <button
-                                type="button"
-                                disabled={busy}
-                                onClick={() => onCheckout(plan)}
-                                className="flex w-full items-center justify-center gap-2 rounded-full bg-[#FFDF00] px-6 py-4 font-bold text-[#121100] transition hover:brightness-95 disabled:opacity-60"
-                            >
-                                {t('billing.start')} <ArrowRight className="size-4" />
-                            </button>
-                        ) : (
-                            <p className="text-center text-sm text-[#C9C6B6]">{t('billing.ask_admin')}</p>
-                        )}
-                    </PlanCard>
-                </div>
-            </main>
-        </div>
-    );
-}
-
-// Mirrors the "Hosted FamilyWell" card on familywell.org (bvdr/familywell-site, #pricing), so the price
-// promise reads the same in-app. Brand colours are literal on purpose: this card is not skinned.
-// Amounts come from the server (Billing::pricing, from .env): the intro price while intro spots last,
-// then the standard one, the same numbers checkout charges.
-function PlanCard({ plan, setPlan, children }: { plan: Plan; setPlan: (p: Plan) => void; children: React.ReactNode }) {
-    const t = useT();
-    const { pricing } = usePage<{ pricing: { intro: boolean; spotsLeft: number; monthly: number; yearly: number } }>().props;
-    const options: { id: Plan; price: string; unit: string; hint?: string }[] = [
-        { id: 'monthly', price: t('billing.monthly_price', { amount: pricing.monthly }), unit: t('billing.monthly_unit') },
-        {
-            id: 'yearly',
-            price: t('billing.yearly_price', { amount: pricing.yearly }),
-            unit: t('billing.yearly_unit'),
-            hint: t('billing.yearly_hint'),
-        },
-    ];
-    const includes = ['inc_modules', 'inc_members', 'inc_backups', 'inc_ai', 'inc_funds'];
-
-    return (
-        <div className="flex flex-col gap-6 rounded-[28px] bg-[#121100] p-6 text-white sm:p-8">
-            <div className="flex items-center justify-between gap-3">
-                <h3 className="text-xl font-bold">{t('billing.plan_name')}</h3>
-                <span className="rounded-full bg-[#FFDF00] px-3 py-1 text-xs font-bold whitespace-nowrap text-[#121100]">
-                    {pricing.intro && pricing.spotsLeft > 0 ? t('billing.badge_intro', { left: pricing.spotsLeft }) : t('billing.badge')}
-                </span>
-            </div>
-            <div role="radiogroup" className="flex flex-col gap-2">
-                {options.map((o) => (
-                    <button
-                        key={o.id}
-                        type="button"
-                        role="radio"
-                        aria-checked={plan === o.id}
-                        onClick={() => setPlan(o.id)}
-                        className={cn(
-                            'flex items-center gap-3 rounded-2xl bg-[#24231A] px-4 py-3 text-left ring-2 ring-transparent transition',
-                            plan === o.id && 'ring-[#FFDF00]',
-                        )}
-                    >
-                        <span className="text-3xl font-bold text-[#FFDF00]">{o.price}</span>
-                        <span className="flex-1 text-sm text-[#C9C6B6]">
-                            {o.unit}
-                            {o.hint && <span className="block text-[#F2F0E6]">{o.hint}</span>}
-                        </span>
-                        {o.hint && (
-                            <em className="rounded-full bg-[#FFDF00] px-2.5 py-1 text-xs font-bold whitespace-nowrap text-[#121100] not-italic">
-                                {t('billing.save')}
-                            </em>
-                        )}
-                    </button>
+            <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label={t('onboarding.plan_choose')}>
+                {(['monthly', 'yearly'] as const).map((p) => (
+                    <PlanCard
+                        key={p}
+                        on={plan === p}
+                        onPick={() => setPlan(p)}
+                        label={t(`billing.plan_${p}`)}
+                        price={usd(prices[p])}
+                        struck={listPrices[p] > prices[p] ? usd(listPrices[p]) : null}
+                        unit={t(p === 'yearly' ? 'billing.per_year' : 'billing.monthly_unit')}
+                        hint={p === 'yearly' && monthsFree > 0 ? t('billing.months_free', { count: monthsFree }) : null}
+                    />
                 ))}
             </div>
-            <p className="text-[15px] leading-relaxed text-[#E6E3D6]">{t('billing.tagline')}</p>
-            <ul className="flex flex-col gap-3 border-t border-[#3A3826] pt-5">
-                {includes.map((k) => (
-                    <li key={k} className="flex items-center gap-3 text-sm text-[#F2F0E6]">
-                        <Check className="size-4 shrink-0 text-[#FFDF00]" />
+
+            <ul className="flex flex-col gap-3 px-1">
+                {['inc_modules', 'inc_members', 'inc_backups', 'inc_ai', 'inc_funds'].map((k) => (
+                    <li key={k} className="text-primary flex items-center gap-3 text-[15px]">
+                        <span className="bg-accent text-primary flex size-6 shrink-0 items-center justify-center rounded-full">
+                            <Check className="size-3.5" strokeWidth={3} />
+                        </span>
                         {t(`billing.${k}`)}
                     </li>
                 ))}
             </ul>
-            {children}
-        </div>
+
+            {!canManage ? (
+                <p className="text-muted-foreground px-1 text-sm">{t('billing.ask_admin')}</p>
+            ) : !checkout ? (
+                <Button
+                    size="cta"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 h-14 w-full rounded-full text-[17px] font-bold"
+                    onClick={() => setCheckout(true)}
+                >
+                    <ArrowRight />
+                    {t('billing.cta', {
+                        price: t(plan === 'yearly' ? 'billing.price_yr' : 'billing.price_mo', {
+                            amount: usd(plan === 'yearly' ? prices.yearly : prices.monthly),
+                        }),
+                    })}
+                </Button>
+            ) : (
+                // The onboarding's checkout card as is (its fixed paper / ink look, like Stripe's own fields inside it),
+                // so the summary and the Elements iframes stay readable on every skin and in dark mode.
+                <Elements stripe={stripePromise} options={elementsOptions(total)}>
+                    <div ref={checkoutRef} className="border-line text-ink flex scroll-mt-4 flex-col gap-4 rounded-[22px] border bg-white p-5">
+                        <span className="flex items-center gap-2 text-[15px] font-bold">
+                            <Lock className="size-4" />
+                            {t('onboarding.plan_checkout')}
+                        </span>
+                        {summary}
+                        <Pay variant="desk" plan={plan} tier={tier} email={email ?? ''} label={payLabel} busy={busy} setBusy={setBusy} />
+                        <Brands />
+                    </div>
+                    <PromoSheet
+                        open={promoOpen}
+                        onOpenChange={setPromoOpen}
+                        onApplied={(p) => {
+                            setPromo(p);
+                            setPromoOpen(false);
+                        }}
+                    />
+                </Elements>
+            )}
+        </>
+    );
+}
+
+function PlanCard({
+    on,
+    onPick,
+    label,
+    price,
+    struck,
+    unit,
+    hint,
+}: {
+    on: boolean;
+    onPick: () => void;
+    label: string;
+    price: string;
+    struck: string | null;
+    unit: string;
+    hint: ReactNode;
+}) {
+    return (
+        <button
+            type="button"
+            role="radio"
+            aria-checked={on}
+            onClick={onPick}
+            className={cn(
+                'flex min-w-0 flex-col gap-1 rounded-[22px] border p-4 text-left transition-colors',
+                on ? 'border-primary bg-accent-strong text-accent-strong-foreground border-2' : 'bg-surface-card text-primary m-px',
+            )}
+        >
+            <span className="flex items-center justify-between gap-2">
+                <span className="truncate font-mono text-xs font-semibold tracking-[0.12em] uppercase">{label}</span>
+                <span
+                    className={cn(
+                        'flex size-6 shrink-0 items-center justify-center rounded-full border-2',
+                        on ? 'border-current bg-current' : 'border-current opacity-80',
+                    )}
+                >
+                    {on && <span className="bg-accent-strong size-2 rounded-full" />}
+                </span>
+            </span>
+            <span className="mt-2 flex flex-wrap items-baseline gap-x-2">
+                <span className="font-display text-[34px] leading-none font-bold tracking-[-1px]">{price}</span>
+                {struck && <span className="text-sm line-through opacity-60">{struck}</span>}
+            </span>
+            <span className="mt-1 text-sm opacity-80">{unit}</span>
+            {hint && <span className="text-sm font-bold">{hint}</span>}
+        </button>
     );
 }

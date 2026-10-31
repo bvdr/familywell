@@ -8,5 +8,21 @@
     "empty": "Ingenting ennå. Familieaktivitet du har tilgang til, dukker opp her.",
     "today": "I dag",
     "yesterday": "I går",
-    "now": "nå"
+    "new_count_one": ":count ny",
+    "new_count_other": ":count nye",
+    "settings": "Varselinnstillinger",
+    "dismiss": "Fjern",
+    "now": "nå",
+    "welcome_push_title": "Velkommen, :name 👋",
+    "welcome_push_title_anon": "Velkommen til FamilyWell 👋",
+    "welcome_push_body": "Homer her 🏡 Slik prikker FamilyWell deg på skulderen.",
+    "shared_with_me": "Delt med meg",
+    "push_this_phone": "Varsler på denne telefonen",
+    "push_unsupported": "Denne nettleseren støtter ikke push-varsler.",
+    "push_install_ios": "På iPhone legger du først FamilyWell til på Hjem-skjermen (Del, så Legg til på Hjem-skjerm) og åpner den derfra.",
+    "push_test": "Send et testvarsel",
+    "push_test_sent": "Sendt",
+    "push_per_device": "Push gjelder per enhet: slå det på der du vil ha varsler. Hva du varsles om gjelder overalt.",
+    "notify_me_about": "Varsle meg om",
+    "muted_note": "Slår du av en, stopper bare push-varselet. Det vises fortsatt i varslene i appen."
 }

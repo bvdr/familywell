@@ -36,5 +36,6 @@
     "enable": "Enable",
     "disable": "Disable",
     "demo_blocked": "Not available in the demo. Sign up to manage your own account and family.",
-    "nav_label": "Family"
+    "nav_label": "Family",
+    "role_teen": "Teen"
 }

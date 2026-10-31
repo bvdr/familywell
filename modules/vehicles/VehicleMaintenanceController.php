@@ -5,9 +5,9 @@ namespace Modules\Vehicles;
 use App\Http\Controllers\Controller;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Tenancy\FamilyClock;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -35,7 +35,7 @@ class VehicleMaintenanceController extends Controller
     public function index(Request $request, Vehicle $vehicle): Response
     {
         $this->authorizeVehicle($vehicle);
-        $today = Carbon::today();
+        $today = FamilyClock::date();
         $mileage = (int) $vehicle->current_mileage;
 
         // Sort by urgency (overdue → due → due_soon → good), then by the soonest trigger within a status,
@@ -211,7 +211,7 @@ class VehicleMaintenanceController extends Controller
             $request->user(),
             (float) $data['amount'],
             $data['note'] ?: trim("{$schedule->name} — {$vehicle->make} {$vehicle->model}"),
-            $data['spent_at'] ?? now()->toDateString(),
+            $data['spent_at'] ?? FamilyClock::today(),
         );
 
         return back();

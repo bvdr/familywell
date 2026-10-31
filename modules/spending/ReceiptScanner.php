@@ -2,9 +2,10 @@
 
 namespace Modules\Spending;
 
+use App\Support\Ai\AiGateway;
+use App\Support\Tenancy\FamilyClock;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
 // Turns a receipt photo into prefill fields for a spend, using Gemini vision. The model reads
@@ -24,7 +25,7 @@ class ReceiptScanner
     // The whole feature is gated on this: no API key, no scanning (and the UI hides the entry).
     public static function configured(): bool
     {
-        return filled(config('services.gemini.key'));
+        return AiGateway::gemini();
     }
 
     /**
@@ -34,7 +35,6 @@ class ReceiptScanner
      */
     public function scan(UploadedFile $file): array
     {
-        $key = config('services.gemini.key');
         $model = config('services.gemini.model');
 
         $schema = [
@@ -68,31 +68,26 @@ class ReceiptScanner
             .'store = the shop brand name only (no address or legal suffix), or empty when not readable.';
 
         // thinkingBudget 0: this is plain extraction, not reasoning, so we skip (billable) thinking tokens.
-        $response = Http::timeout(30)
-            ->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$key}", [
-                'contents' => [[
-                    'parts' => [
-                        ['text' => $prompt],
-                        ['inline_data' => [
-                            'mime_type' => $file->getMimeType() ?: 'image/jpeg',
-                            'data' => base64_encode((string) file_get_contents($file->getRealPath())),
-                        ]],
-                    ],
-                ]],
-                'generationConfig' => [
-                    'responseMimeType' => 'application/json',
-                    'responseSchema' => $schema,
-                    'thinkingConfig' => ['thinkingBudget' => 0],
+        // Through AiGateway: logged in Cloudflare AI Gateway per family / user when configured, and in our ledger.
+        $out = AiGateway::run('receipt_scan', ['scan' => [(string) $model, [
+            'contents' => [[
+                'parts' => [
+                    ['text' => $prompt],
+                    ['inline_data' => [
+                        'mime_type' => $file->getMimeType() ?: 'image/jpeg',
+                        'data' => base64_encode((string) file_get_contents($file->getRealPath())),
+                    ]],
                 ],
-            ]);
+            ]],
+            'generationConfig' => [
+                'responseMimeType' => 'application/json',
+                'responseSchema' => $schema,
+                'thinkingConfig' => ['thinkingBudget' => 0],
+            ],
+        ]]])['scan'];
 
-        if ($response->failed()) {
-            // Log the provider error for us, but never leak it to the client.
-            report(new RuntimeException('Gemini receipt scan failed ('.$response->status().'): '.$response->body()));
-            throw new RuntimeException('Could not read the receipt. Try a clearer, well-lit photo.');
-        }
-
-        $data = json_decode((string) data_get($response->json(), 'candidates.0.content.parts.0.text'), true);
+        // A failed call was reported to us by AiGateway; the provider's error never reaches the client.
+        $data = $out ? json_decode((string) data_get($out, 'candidates.0.content.parts.0.text'), true) : null;
         if (! is_array($data)) {
             throw new RuntimeException('Could not read the receipt. Try a clearer, well-lit photo.');
         }
@@ -142,7 +137,7 @@ class ReceiptScanner
     // date. Anything with no usable month/day falls back to today, which the user reviews before saving.
     private function normaliseDate(string $raw): string
     {
-        $today = Carbon::now();
+        $today = FamilyClock::date(); // "never in the future" = after the family's today
 
         // Must be a real YYYY-MM-DD calendar date. createFromFormat silently rolls overflow (2026-13-45
         // becomes 2027-01-14), so we also require it to round-trip back to the same string.

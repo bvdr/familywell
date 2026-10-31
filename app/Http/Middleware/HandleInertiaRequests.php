@@ -2,11 +2,13 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\Add\AddReader;
 use App\Support\Analytics;
 use App\Support\Auth\SocialLogin;
 use App\Support\Billing\Billing;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Tenancy\FamilyClock;
 use App\Support\Translations;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
@@ -60,6 +62,11 @@ class HandleInertiaRequests extends Middleware
             // share() at the START of the middleware chain, before SetActiveFamily sets the family
             // context, so this must defer to render time when CurrentFamily::id() is available.
             'modules' => fn () => ['enabled' => $this->enabledModuleIds()],
+            // The modules this person pinned (users.pinned_modules, "Pin your top 4"); null = never chose.
+            'pins' => fn () => $request->user()?->pinned_modules,
+            // "Just say it" is on (a reader is configured): the + then always opens the Add sheet, with the page as
+            // context, instead of the page's own add (which moves into the sheet's Classic tab). Config-only, no query.
+            'aiAdd' => AddReader::available(),
             // Module previews this person is opted in to (App\Support\Modules\Preview), for usePreview() in React.
             'preview' => fn () => $request->user()?->preview_modules ?? [],
             // Web Push public (VAPID) key, so the client can subscribe the browser to push. Public by design.
@@ -75,6 +82,8 @@ class HandleInertiaRequests extends Middleware
             // goes out once; a partial reload doesn't evaluate it, leaving them for the next full page.
             'analyticsEvents' => fn () => Analytics::enabled() ? $request->session()->pull('analytics_events', []) : [],
             'vapidPublicKey' => config('webpush.vapid.public_key'),
+            // The onboarding tour runs over the real dashboard right after "Show me around" (OnboardingController::saveReady).
+            'tour' => fn () => $request->user()?->onboarding_step === 'tour',
             // i18n: the current locale + the picker options + the full translation map for that locale
             // (English-filled). SetLocale already ran (see bootstrap/app.php), so both are eager.
             'locale' => $locale,
@@ -88,6 +97,9 @@ class HandleInertiaRequests extends Middleware
             // so every member gets a different (and consistent, app-wide) colour. Lazy: needs the
             // family context that SetActiveFamily fills in later in the chain.
             'memberColors' => fn () => $this->memberColors(),
+            // The family's zone (FamilyClock), so the browser's "today" (Home's Today, the day strip, due chips) is
+            // the same day the server bucketed by. Null without a family: the browser's own zone then. Lazy, like above.
+            'timezone' => fn () => CurrentFamily::id() ? FamilyClock::zone() : null,
             // Header bell glimpse: unread count + recent items. MUST be shared here (per request), not
             // via Inertia::share in a provider boot(): under Octane boot() runs once per worker and
             // Octane drops the registered share after the first request, so the bell went permanently

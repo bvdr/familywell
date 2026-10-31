@@ -1,0 +1,19 @@
+{
+    "your_important": "Your important",
+    "pinned": "Pinned till done",
+    "due_today": "Due today",
+    "due_on": "Due :date",
+    "family_important": "Family important",
+    "next_due": "next due :day",
+    "show": "Show",
+    "hide": "Hide",
+    "none_title": "Nothing important on you",
+    "none_sub": "Star up to :limit to-dos to pin them here.",
+    "unstar": "Unstar :title",
+    "limit_you": "You already have :limit important to-dos open. Finish or unstar one first.",
+    "limit_them": ":name already has :limit important to-dos open. One of them has to be finished or unstarred first.",
+    "limit_ui": "Up to :limit open important to-dos per person. Finish or unstar one first.",
+    "important": "Important",
+    "on": "On",
+    "off": "Off"
+}

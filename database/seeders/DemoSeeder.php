@@ -8,6 +8,7 @@ use App\Support\Demo\DemoFamily;
 use App\Support\Media\StoredImage;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Translations;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -21,12 +22,15 @@ use Modules\Contacts\Person;
 use Modules\ExpenseImport\ImportBatch;
 use Modules\ExpenseImport\Importer;
 use Modules\ExpenseImport\ImportSetting;
+use Modules\ImportantTodos\ImportantFlag;
 use Modules\Inventory\InventoryCategory;
 use Modules\Inventory\InventoryItem;
 use Modules\Inventory\InventoryLocation;
 use Modules\Inventory\InventorySetting;
 use Modules\Notes\Folder;
 use Modules\Notes\Note;
+use Modules\Notifications\NotificationCategories;
+use Modules\Notifications\PushAlert;
 use Modules\Projects\Project;
 use Modules\Projects\ProjectLink;
 use Modules\Recipes\Recipe;
@@ -54,6 +58,9 @@ use Modules\Vehicles\VehicleSetting;
  */
 class DemoSeeder extends Seeder
 {
+    // The demo family's zone (families.timezone): the lead picked Bucharest, the team's own zone.
+    public const DEMO_TIMEZONE = 'Europe/Bucharest';
+
     public const FAMILY_NAME = 'The Millers';
 
     /** The account /demo signs visitors in as (the family owner). */
@@ -91,7 +98,8 @@ class DemoSeeder extends Seeder
 
     public function run(): void
     {
-        $this->today = today();
+        // The demo family's own day (it lives in DEMO_TIMEZONE), so "due today" rows land on its Today.
+        $this->today = Carbon::parse(now(self::DEMO_TIMEZONE)->toDateString());
         $this->locale = (string) config('familywell.demo_locale', 'en');
         $this->lang = $this->locale === 'en' ? [] : require database_path("seeders/demo/{$this->locale}.php");
         // Defaults the app names itself (e.g. the "Others" spending list) come from Translations::get() in the
@@ -117,6 +125,7 @@ class DemoSeeder extends Seeder
             $this->calendar();
             $this->recipes();
             $this->people();
+            $this->notifications();
         });
 
         CurrentFamily::forget();
@@ -159,6 +168,8 @@ class DemoSeeder extends Seeder
             'theme' => null,
             'owner_id' => $owner->id,
             'is_demo' => true,
+            // Its days follow this zone (FamilyClock); Bucharest is the team's own, so the demo reads like home.
+            'timezone' => self::DEMO_TIMEZONE,
         ])->save();
 
         $family->members()->sync(
@@ -228,6 +239,7 @@ class DemoSeeder extends Seeder
                 ['Sourdough loaf', '1', 'bakery', false], ['Chicken thighs', '2 lb', 'meat', false],
                 ['Frozen mango', '1 bag', 'frozen', true], ['Sparkling water', '12-pack', 'beverages', false],
                 ['Olive oil', '1', 'pantry', false], ['Peanut butter', '1 jar', 'pantry', false],
+                ['Banana chips', '1 bag', 'snacks', false],
             ]],
             ['Costco run', 'Costco', 'amber', 'store', 'David', [
                 ['Paper towels', '12-pack', 'household', false], ['Rotisserie chicken', '1', 'meat', false],
@@ -281,6 +293,7 @@ class DemoSeeder extends Seeder
         // current month, so the month-to-date widget and analytics never read zero.
         $spends = [
             [0, 'groceries', 142.37, 'food', "Trader Joe's", 'Weekly groceries', 'Sarah'],
+            [3, 'groceries', 18.40, 'food', 'Farmers market', 'Bananas, local honey', 'Sarah'],
             [0, 'others', 6.45, 'food', 'Starbucks', 'Coffee on the way to work', 'David'],
             [1, 'kids', 38.00, 'education', 'Target', 'Composition notebooks + pencils', 'Sarah'],
             [1, 'others', 62.10, 'transport', 'Shell', 'Gas, Camry', 'David'],
@@ -510,9 +523,21 @@ class DemoSeeder extends Seeder
                 foreach ($subs as $si => [$sub, $subDone]) {
                     Task::create(['task_list_id' => $list->id, 'parent_id' => $task->id, 'title' => $this->t($sub), 'done' => $subDone, 'position' => $si, 'created_by' => $sarah->id]);
                 }
+                // Home's "Your important" card in its full state (design H1): three of Sarah's (the demo login) and
+                // a few of David's and Noah's for the folded family row. Owner = assignee (ImportantCard).
+                if (in_array($title, self::IMPORTANT, true)) {
+                    ImportantFlag::create(['task_id' => $task->id, 'important' => true, 'starred_by' => $sarah->id]);
+                }
             }
         }
     }
+
+    // The starred to-dos (English titles from tasks() above), at most 3 open per person like the app allows.
+    private const IMPORTANT = [
+        'Call the plumber about the upstairs faucet', "Sign Emma's field trip permission slip", 'Order Halloween costumes', // Sarah
+        'Replace furnace filter', 'Hang the new shelves in the den', // David
+        'Rake the leaves', // Noah
+    ];
 
     // ---- Notes ---------------------------------------------------------------------------------------
 
@@ -531,6 +556,7 @@ class DemoSeeder extends Seeder
             [$recipes, 'Sunday pancakes', "2 cups flour, 2 tbsp sugar, 2 tsp baking powder, 1/2 tsp salt, 2 eggs, 1 3/4 cups milk, 4 tbsp melted butter.\n\nKids like blueberries in Noah's, chocolate chips in Lily's.", 'yellow', false, $david],
             [$trips, 'Spring break ideas', "- Outer Banks (again?)\n- Great Smoky Mountains: cabin near Gatlinburg\n- Washington DC museums day trips\n- Check Southwest points balance before booking", 'blue', false, $david],
             [$home, 'Gift ideas', "**Emma:** drawing tablet, concert tickets\n**Noah:** telescope, Lego Technic\n**Lily:** scooter, the big dollhouse\n**David:** smoker (the pellet one)", 'green', false, $sarah],
+            [$home, 'Lunchbox ideas', "- Frozen banana bites\n- Yogurt tubes\n- Pretzels + hummus\n- Apple slices\n- Cheese + crackers", 'default', false, $sarah],
         ];
         foreach ($notes as $i => [$folder, $title, $body, $color, $pinned, $by]) {
             Note::create(['folder_id' => $folder->id, 'title' => $this->t($title), 'body' => $this->t($body), 'color' => $color, 'pinned' => $pinned, 'position' => $i, 'created_by' => $by->id]);
@@ -667,6 +693,16 @@ class DemoSeeder extends Seeder
             ],
             'steps' => ['Soften the onion and garlic in olive oil.', 'Add tomatoes and stock, simmer 15 minutes.', 'Blend smooth and stir in the cream.'],
         ]);
+        $recipe([
+            'title' => 'Banana bread', 'description' => "Grandma's recipe, the one that never lasts a day.",
+            'servings' => 8, 'prep_minutes' => 10, 'cook_minutes' => 60, 'tags' => ['baking', 'kids'],
+            'ingredients' => [
+                ['name' => 'ripe bananas', 'qty' => 3, 'unit' => 'pcs'], ['name' => 'flour', 'qty' => 250, 'unit' => 'g'],
+                ['name' => 'sugar', 'qty' => 150, 'unit' => 'g'], ['name' => 'butter', 'qty' => 100, 'unit' => 'g'],
+                ['name' => 'eggs', 'qty' => 2, 'unit' => 'pcs'], ['name' => 'baking soda', 'qty' => 1, 'unit' => 'tsp'],
+            ],
+            'steps' => ['Mash the bananas and mix with the melted butter.', 'Beat in the sugar and eggs.', 'Fold in the flour and baking soda, pour into a loaf tin and bake 60 min at 180°C.'],
+        ]);
     }
 
     /** Title, description, tags, ingredient names/notes and steps through t(); quantities and unit codes stay. */
@@ -784,5 +820,51 @@ class DemoSeeder extends Seeder
                 'month' => [8, 11, 4][$i], 'day' => [3, 21, 17][$i], 'created_at' => $now, 'updated_at' => $now,
             ]);
         }
+    }
+
+    // ---- Notifications ---------------------------------------------------------------------------------
+
+    // A populated feed for Sarah (the /demo login), grouped today/yesterday with a read/unread mix, so the
+    // notifications page (and its viewport screenshot) never shows the empty state. Written straight to the
+    // `notifications` table (not Notify::toAccessOf / ->notify()) so each row gets an exact backdated
+    // created_at/read_at instead of "now" for every row, and to avoid firing real web-push sends for demo data.
+    private function notifications(): void
+    {
+        $sarah = $this->u['Sarah'];
+        $groceries = ShoppingList::where('name', $this->t('Weekly groceries'))->first();
+        $weekend = TaskList::where('name', $this->t('Weekend projects'))->first();
+        $deckStep = Task::where('task_list_id', $weekend?->id)->where('title', $this->t('Fix the wobbly deck step'))->first();
+        $others = SpendEvent::where('name', Translations::get('spending.others_list', $this->locale))->first();
+        $trip = SpendEvent::where('name', $this->t('Fall road trip'))->first();
+        $kitchen = Project::where('name', $this->t('Kitchen refresh'))->first();
+        $sinkLight = Task::whereNull('task_list_id')->where('title', $this->t('Swap the sink light'))->first();
+
+        $today = $this->today->copy();
+        $yesterday = $this->today->copy()->subDay();
+        $row = fn (string $category, string $title, string $body, string $url, Carbon $at, bool $read) => [
+            'id' => (string) Str::uuid(), 'type' => PushAlert::class, 'notifiable_type' => User::class, 'notifiable_id' => $sarah->id,
+            'data' => json_encode([
+                'title' => $title, 'body' => $body, 'url' => $url, 'category' => $category, 'categoryLabel' => NotificationCategories::label($category),
+            ]),
+            'read_at' => $read ? $at : null, 'created_at' => $at, 'updated_at' => $at,
+        ];
+
+        $rows = [];
+        if ($groceries) {
+            $rows[] = $row('shopping', $groceries->name, "{$this->u['David']->name} added 3 items to {$groceries->name}", "/m/shopping/lists/{$groceries->id}", $today->copy()->setTime(9, 12), false);
+        }
+        if ($weekend && $deckStep) {
+            $rows[] = $row('tasks', $weekend->name, "{$this->u['Emma']->name} finished \"{$deckStep->title}\"", "/m/tasks/lists/{$weekend->id}", $today->copy()->setTime(8, 40), false);
+        }
+        if ($others) {
+            $rows[] = $row('spending', $others->name, "{$this->u['David']->name} paid \$62.10 for Gas, Camry", "/m/spending/events/{$others->id}", $today->copy()->setTime(7, 55), false);
+        }
+        if ($trip) {
+            $rows[] = $row('spending', $trip->name, "{$this->u['David']->name} settled up \$120 with you", "/m/spending/events/{$trip->id}", $yesterday->copy()->setTime(18, 20), true);
+        }
+        if ($kitchen && $sinkLight) {
+            $rows[] = $row('tasks', $kitchen->name, "{$this->u['David']->name} assigned you: {$sinkLight->title}", $kitchen->path(), $yesterday->copy()->setTime(14, 5), true);
+        }
+        DB::table('notifications')->insert($rows);
     }
 }

@@ -5,11 +5,33 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 
 @custom-variant dark (&:is(.dark *));
+/* A computer: wide AND a mouse/trackpad. iPads are wide but touch, and install like a phone (onboarding step 4). */
+@custom-variant desk (@media (min-width: 64rem) and (pointer: fine));
 
 @theme {
     --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
     --font-heading: 'Playfair Display', ui-serif, Georgia, Cambria, 'Times New Roman', serif;
     --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --font-display: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif;
+
+    /* FamilyWell brand colours (design-app.pen variables), fixed on purpose: unlike the skin tokens below they
+       don't change with the theme. The onboarding is drawn in them (it runs before the app's skin matters),
+       like the logo's sun tile. bg-sun, text-ink, border-line, bg-paper, ... */
+    --color-sun: #ffdf00;
+    --color-sun-soft: #fff4a8;
+    --color-ink: #121100;
+    --color-ink-2: #2a2918;
+    --color-stone: #5e5b4e;
+    --color-paper: #f7f5ee;
+    --color-paper-2: #efece2;
+    --color-line: #e2ded1;
+    --color-garage: #0e0d07;
+    --color-garage-2: #1a1910;
+    --color-garage-line: #2e2c1f;
+    --color-garage-text: #b9b6a6;
+    --color-ok: #5bd38a;
+    --color-ok-soft: #dcf4e5;
+    --color-ok-ink: #1f7a45;
 
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);
@@ -115,6 +137,32 @@
 
     body {
         @apply bg-background text-foreground;
+    }
+
+    /* Touch screens behave like a native app: a long press on a label, title, tab or row doesn't select it or pop
+       iOS's Copy / Look Up menu (it kept selecting cards, tab labels and event titles, 2026-10-31). Desktop keeps
+       normal selection. Fields stay editable/selectable, and so do notes (copying from a note is a real use, even
+       read-only); anything else worth copying opts in with the `select-text` utility. */
+    @media (pointer: coarse) {
+        body {
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
+        input,
+        textarea,
+        [contenteditable]:not([contenteditable='false']),
+        .ProseMirror,
+        .select-text {
+            -webkit-user-select: text;
+            user-select: text;
+            -webkit-touch-callout: default;
+        }
+    }
+
+    /* Onboarding pages (data-brand, set in app.tsx): the brand's light paper behind everything, dark mode or not. */
+    html[data-brand] body {
+        background-color: var(--color-paper);
     }
 
     h1,

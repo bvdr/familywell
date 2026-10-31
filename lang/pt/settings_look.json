@@ -1,0 +1,13 @@
+{
+    "mode_label": "Modo · só você",
+    "skin_label": "Tema da família · todos",
+    "default_tag": "Padrão",
+    "skin_sun": "Papel, tinta e sol",
+    "skin_default": "Papel e verde-floresta",
+    "skin_minimal-mono": "Preto, branco e pedra",
+    "skin_admin_only": "O tema é o mesmo para toda a família. Só um administrador da família pode mudá-lo.",
+    "look_admin_only": "Só um administrador da família pode mudar o nome e a aparência.",
+    "preview": "Pré-visualização",
+    "save": "Salvar alterações",
+    "saved": "Salvo"
+}

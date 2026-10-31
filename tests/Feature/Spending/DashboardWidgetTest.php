@@ -42,7 +42,8 @@ it('puts this month\'s spending total on the dashboard when the module is enable
 
     // Nothing spent yet: still present, reads 0 in the display currency.
     actingAs($users[0])->get('/dashboard')
-        ->assertInertia(fn ($p) => $p->component('dashboard')->where('widgets.spending', ['total' => 0, 'currency' => 'EUR'])->etc());
+        ->assertInertia(fn ($p) => $p->component('dashboard')->where('widgets.spending.total', 0)->where('widgets.spending.currency', 'EUR')
+            ->where('widgets.spending.count', 0)->etc());
 
     // mtd-safe dates: never in the future, always inside this month / last month.
     $thisMonth = now()->startOfMonth()->addDays(3)->min(now())->toDateString();
@@ -60,7 +61,11 @@ it('puts this month\'s spending total on the dashboard when the module is enable
     ])->assertRedirect();
 
     actingAs($users[0])->get('/dashboard')
-        ->assertInertia(fn ($p) => $p->where('widgets.spending', ['total' => 4000, 'currency' => 'EUR'])->etc());
+        ->assertInertia(fn ($p) => $p->where('widgets.spending.total', 4000)->where('widgets.spending.currency', 'EUR')
+            // Home's weekly bars: the two spends this month, in one Monday-start week; the weeks add up to the total.
+            ->where('widgets.spending.count', 2)
+            ->where('widgets.spending.weeks', fn ($w) => array_sum($w->all()) === 4000 && count($w) === (int) now()->startOfMonth()->startOfWeek()->diffInWeeks(now()->startOfWeek()) + 1)
+            ->etc());
 
     // Visibility: the RON list goes private, so a sibling member's card drops its 2000.
     $ron->setVisibility('private');

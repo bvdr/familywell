@@ -2,8 +2,8 @@
 
 namespace Modules\RecurringTodos\Console;
 
+use App\Support\Tenancy\FamilyClock;
 use Illuminate\Console\Command;
-use Illuminate\Support\Carbon;
 use Modules\RecurringTodos\RecurringRule;
 use Modules\Tasks\Task;
 
@@ -24,8 +24,10 @@ class ResetDueRecurringTodos extends Command
 
     public function handle(): int
     {
-        $today = Carbon::today();
-        $rules = RecurringRule::where('next_occurrence', '<=', $today->toDateString())->get();
+        // "Arrived" is on each family's own calendar (FamilyClock): fetch everything due by the furthest-ahead zone
+        // (UTC+14 is at most a day ahead), then check each against its family's today below. Hourly, so a family's
+        // to-do resets within the hour after ITS midnight.
+        $rules = RecurringRule::where('next_occurrence', '<=', now()->addDay()->toDateString())->get();
 
         $reset = 0;
         foreach ($rules as $rule) {
@@ -39,6 +41,10 @@ class ResetDueRecurringTodos extends Command
             }
             if ($task->trashed()) {
                 continue;
+            }
+            $today = FamilyClock::date($task->family_id);
+            if ($rule->next_occurrence->gt($today)) {
+                continue; // not there yet in this family's zone
             }
 
             // Catch up if the scheduler missed days: step to the latest occurrence on/before today,

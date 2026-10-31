@@ -36,5 +36,6 @@
     "enable": "Activar",
     "disable": "Desactivar",
     "demo_blocked": "No disponible en la demo. Regístrate para gestionar tu propia cuenta y tu familia.",
-    "nav_label": "Familia"
+    "nav_label": "Familia",
+    "role_teen": "Adolescente"
 }

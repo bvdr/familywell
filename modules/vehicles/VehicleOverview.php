@@ -2,6 +2,7 @@
 
 namespace Modules\Vehicles;
 
+use App\Support\Tenancy\FamilyClock;
 use Illuminate\Support\Carbon;
 
 /**
@@ -28,7 +29,7 @@ class VehicleOverview
      */
     public static function status(Vehicle $vehicle, ?Carbon $today = null): array
     {
-        $today ??= Carbon::today();
+        $today ??= FamilyClock::date();
         $mileage = (int) $vehicle->current_mileage;
 
         $maintenanceAttention = 0;
@@ -60,7 +61,7 @@ class VehicleOverview
      */
     public static function next(Vehicle $vehicle, ?Carbon $today = null): array
     {
-        $today ??= Carbon::today();
+        $today ??= FamilyClock::date();
         $mileage = (int) $vehicle->current_mileage;
 
         return [

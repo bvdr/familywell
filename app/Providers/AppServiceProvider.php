@@ -13,6 +13,7 @@ use App\Support\Mcp\McpTools;
 use App\Support\Mcp\ScopeRepository;
 use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
+use App\Support\Tenancy\FamilyClock;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Auth\StatefulGuard;
 use Illuminate\Http\Request;
@@ -37,6 +38,9 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(Hooks::class);
+        // Scoped, not singleton: Octane and the queue worker flush it between requests/jobs, so a memoized zone
+        // never leaks into the next request (see FamilyClock).
+        $this->app->scoped(FamilyClock::class);
 
         // MCP / OAuth. We register Passport's routes ourselves (routes/mcp.php) to swap in our consent
         // controllers and leave out the JSON client/token API. Passport resolves the scope repository from

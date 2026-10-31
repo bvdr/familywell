@@ -9,6 +9,7 @@ use App\Support\Billing\Billing;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 // Settings > Billing: the paywall page (locked families land here) and, once subscribed, the link to
@@ -47,6 +48,18 @@ class BillingController extends Controller
             'canManage' => Gate::allows('manageBilling', $family),
             // Today's price for new subscribers (intro while spots last), shown on the plan picker.
             'pricing' => Billing::pricing(),
+            // The rest of what the onboarding checkout (components/plan-checkout.tsx) needs, the same values
+            // OnboardingController::plan passes: the page pays through that flow, not a checkout of its own.
+            // Only for an unpaid family: a paying one sees its plan card and no checkout (and no tax lookup).
+            ...(Billing::isPaid($family) ? [] : [
+                'standard' => ['basic' => config('familywell.pricing.standard'), 'pro' => config('familywell.pricing.pro.standard')],
+                'tiers' => config('familywell.tiers'),
+                'stripeKey' => config('services.stripe.key'),
+                'tax' => Billing::taxRate((string) ($request->header('CF-Connecting-IP') ?: $request->ip())),
+                // Applied on the checkout (POST onboarding.plan.promo), kept in the session until paid or removed.
+                'promo' => $request->session()->get('onboarding.promo'),
+                'email' => $request->user()->email,
+            ]),
         ]);
     }
 
@@ -77,7 +90,12 @@ class BillingController extends Controller
     // Stripe -> us. Unauthenticated + CSRF-exempt (bootstrap/app.php); trust comes from the signature.
     public function webhook(Request $request)
     {
-        abort_unless(Billing::validSignature($request->getContent(), $request->header('Stripe-Signature')), 400);
+        if (! Billing::validSignature($request->getContent(), $request->header('Stripe-Signature'))) {
+            // Logged so a misconfigured STRIPE_WEBHOOK_SECRET shows up in the app logs instead of only as
+            // "pending" deliveries in Stripe. Never logs the payload or the signature.
+            Log::warning('Stripe webhook rejected: signature check failed', ['has_header' => $request->hasHeader('Stripe-Signature')]);
+            abort(400);
+        }
 
         $event = $request->json()->all();
         if (str_starts_with($event['type'] ?? '', 'customer.subscription.')) {

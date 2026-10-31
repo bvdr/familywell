@@ -8,6 +8,7 @@ use App\Support\Calendar\CalendarSources;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Tenancy\FamilyClock;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -43,7 +44,7 @@ class CalendarController extends Controller
         }
         $view = $q['view'] ?? 'month';
         $zoom = $q['zoom'] ?? 'month';
-        $date = $q['date'] ?? now()->toDateString();
+        $date = $q['date'] ?? FamilyClock::today(); // opens on the family's today
         [$from, $to] = CalendarRange::for($view, $zoom, $date);
 
         $familyId = (int) CurrentFamily::id();
@@ -113,7 +114,7 @@ class CalendarController extends Controller
     public function update(Request $request, CalendarEvent $event): RedirectResponse
     {
         abort_unless($this->access->canEdit($request->user(), $event), 403);
-        $event->applyUpdate($request->only([...CalendarEvent::COLUMNS, 'people', 'project_id']));
+        $event->applyUpdate($request->only([...CalendarEvent::COLUMNS, 'people', 'project_id']), $request->user());
 
         return back();
     }

@@ -7,9 +7,6 @@ use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
-use Modules\Notifications\Notify;
-use Modules\Shopping\ShoppingItem;
-use Modules\Shopping\ShoppingShop;
 
 class AddItem extends Tool
 {
@@ -53,23 +50,7 @@ class AddItem extends Tool
             return $this->notFound('List');
         }
 
-        // Same soft duplicate check as the add sheet in the web UI: warn, never block.
-        $dup = ShoppingItem::activeDuplicate($list, $data['name']);
-        $item = $list->items()->create([
-            'name' => $data['name'],
-            'quantity' => $data['quantity'] ?? null,
-            'note' => $data['note'] ?? null,
-            'store' => $data['store'] ?? null,
-            'alt_stores' => $data['alt_stores'] ?? null,
-            'created_by' => $user->id,
-        ]);
-        // Promote any new store name to a shop so the Shops view stays complete, as the web UI does.
-        ShoppingShop::ensure($data['store'] ?? null);
-        foreach ($data['alt_stores'] ?? [] as $alt) {
-            ShoppingShop::ensure($alt);
-        }
-        Notify::toAccessOf($list, 'shopping', $user->id, $list->name, "{$user->name} added: {$item->name}", "/m/shopping/lists/{$list->id}");
-        ShoppingData::changed();
+        [$item, $dup] = ShoppingData::addItem($user, $list, $data);
 
         return Response::structured(ShoppingData::itemPayload($item->fresh()) + ($dup ? [
             'warning' => "{$dup->name} was already on this list (item {$dup->id}".($dup->quantity ? ", quantity {$dup->quantity}" : '').').',

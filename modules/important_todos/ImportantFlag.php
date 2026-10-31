@@ -16,7 +16,7 @@ class ImportantFlag extends Model
 
     protected $table = 'important_todos_flags';
 
-    protected $fillable = ['task_id', 'important', 'family_id'];
+    protected $fillable = ['task_id', 'important', 'starred_by', 'family_id'];
 
     protected $casts = ['important' => 'boolean'];
 }

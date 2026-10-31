@@ -1,41 +1,42 @@
 import { Head, usePage } from '@inertiajs/react';
-import { Bell, BellOff, Send } from 'lucide-react';
+import { Bell, Send, Smartphone, UserPlus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import HeadingSmall from '@/components/heading-small';
-import { Button } from '@/components/ui/button';
+import { SettingsGroup, SettingsPage, SettingsRow, SettingsSwitch } from '@/components/settings-ui';
+import { MODULES } from '@/components/your-modules';
 import AppLayout from '@/layouts/app-layout';
-import SettingsLayout from '@/layouts/settings/layout';
+import { useT } from '@/lib/i18n';
 import { iosNeedsInstall, isSubscribed, pushSupported, savePushPrefs, sendTestPush, subscribeToPush, unsubscribeFromPush } from '@/lib/push';
-import { type BreadcrumbItem } from '@/types';
-
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Notifications', href: '/settings/notifications' }];
 
 type Category = { id: string; label: string; icon: string; on: boolean };
 
+// Notifications (design M6): one switch for push on this device, then one per category. The server only sends the
+// categories of modules the family has on (plus non-module ones like "Shared with me"). Push is per device; the
+// categories are per person, saved through PATCH /push/prefs as before.
 export default function Notifications({ categories }: { categories: Category[] }) {
+    const t = useT();
     const vapidPublicKey = (usePage().props as { vapidPublicKey?: string }).vapidPublicKey ?? '';
-    // Category list + labels come from the server (each module registers its own).
     const [prefs, setPrefs] = useState<Record<string, boolean>>(() => Object.fromEntries(categories.map((c) => [c.id, c.on])));
-
-    const togglePref = (key: string) => {
-        const next = { ...prefs, [key]: !prefs[key] };
-        setPrefs(next);
-        void savePushPrefs(next);
-    };
     const [supported, setSupported] = useState(true);
     const [needsInstall, setNeedsInstall] = useState(false);
     const [on, setOn] = useState(false);
     const [busy, setBusy] = useState(false);
-    const [testState, setTestState] = useState<'idle' | 'sent'>('idle');
+    const [sent, setSent] = useState(false);
 
+    // Push support and the subscription live in the browser, so they're read after mount.
     useEffect(() => {
         setSupported(pushSupported());
         setNeedsInstall(iosNeedsInstall());
         void isSubscribed().then(setOn);
     }, []);
 
-    const toggle = async () => {
+    const togglePref = (id: string) => {
+        const next = { ...prefs, [id]: !prefs[id] };
+        setPrefs(next);
+        void savePushPrefs(next);
+    };
+
+    const togglePush = async () => {
         setBusy(true);
         try {
             if (on) {
@@ -50,88 +51,66 @@ export default function Notifications({ categories }: { categories: Category[] }
     };
 
     const test = async () => {
-        setTestState('idle');
+        setSent(false);
         if (await sendTestPush()) {
-            setTestState('sent');
-            setTimeout(() => setTestState('idle'), 4000);
+            setSent(true);
+            setTimeout(() => setSent(false), 4000);
         }
     };
 
+    // Module categories use the module's own name and icon (translated, like the nav); the rest are named here.
+    const label = (c: Category) => (MODULES[c.id] ? t(`nav.${c.id}`) : c.id === 'sharing' ? t('notifications.shared_with_me') : c.label);
+    const icon = (c: Category) => MODULES[c.id]?.icon ?? (c.id === 'sharing' ? UserPlus : Bell);
+    const blocked = !supported || needsInstall;
+
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Notifications" />
-            <SettingsLayout>
-                <div className="space-y-6">
-                    <HeadingSmall
-                        title="Notifications"
-                        description="Get a push on this device (Android, desktop, or an installed iPhone app) when things happen in your family."
-                    />
-
-                    {!supported ? (
-                        <div className="text-muted-foreground rounded-xl border border-dashed p-4 text-sm">
-                            This browser doesn't support push notifications.
-                        </div>
-                    ) : needsInstall ? (
-                        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                            On iPhone/iPad, add FamilyWell to your Home Screen first (Share → Add to Home Screen), then open it from there to turn on
-                            notifications.
-                        </div>
-                    ) : (
-                        <>
-                            <div className="bg-surface-card flex items-center gap-3 rounded-xl border p-4">
-                                <span
-                                    className={`flex size-10 shrink-0 items-center justify-center rounded-lg ${on ? 'bg-accent-subtle text-primary' : 'bg-surface text-muted-foreground'}`}
-                                >
-                                    {on ? <Bell className="size-5" /> : <BellOff className="size-5" />}
-                                </span>
-                                <div className="min-w-0 flex-1">
-                                    <div className="text-primary text-sm font-medium">Push on this device</div>
-                                    <div className="text-muted-foreground text-xs">{on ? 'Enabled' : 'Off'}</div>
-                                </div>
-                                <Button variant={on ? 'outline' : 'default'} onClick={toggle} disabled={busy}>
-                                    {busy ? 'Working…' : on ? 'Turn off' : 'Turn on'}
-                                </Button>
-                            </div>
-
-                            {on && (
-                                <Button variant="outline" onClick={test} className="gap-2">
-                                    <Send className="size-4" />
-                                    {testState === 'sent' ? 'Sent — check your notifications' : 'Send a test notification'}
-                                </Button>
-                            )}
-
-                            <p className="text-muted-foreground text-xs leading-relaxed">
-                                Push is per-device: turn it on wherever you want to be alerted. What you're notified about (below) is account-wide.
-                            </p>
-                        </>
-                    )}
-
-                    <div className="space-y-3 pt-2">
-                        <div className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">Notify me about</div>
-                        <p className="text-muted-foreground text-xs">
-                            Turning one off stops the phone push, but it still shows in your in-app notifications.
-                        </p>
-                        <div className="bg-surface-card divide-border/60 divide-y rounded-xl border">
-                            {categories.map((c) => (
-                                <div key={c.id} className="flex items-center justify-between px-4 py-3">
-                                    <span className="text-primary text-sm font-medium">{c.label}</span>
-                                    <button
-                                        type="button"
-                                        role="switch"
-                                        aria-checked={prefs[c.id]}
-                                        onClick={() => togglePref(c.id)}
-                                        className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${prefs[c.id] ? 'bg-accent-strong' : 'bg-border'}`}
-                                    >
-                                        <span
-                                            className={`absolute top-0.5 size-5 rounded-full bg-white shadow-sm transition-all ${prefs[c.id] ? 'left-[18px]' : 'left-0.5'}`}
-                                        />
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+        <AppLayout hideMobileHeader breadcrumbs={[{ title: t('notifications.title'), href: '/settings/notifications' }]}>
+            <Head title={t('notifications.title')} />
+            <SettingsPage back={{ href: '/settings', label: t('settings_hub.me') }} title={t('notifications.title')}>
+                <div className="flex flex-col gap-2.5">
+                    <SettingsGroup>
+                        <SettingsRow
+                            icon={Smartphone}
+                            title={t('notifications.push_this_phone')}
+                            sub={!supported ? t('notifications.push_unsupported') : needsInstall ? t('notifications.push_install_ios') : undefined}
+                            right={
+                                <SettingsSwitch
+                                    on={on && !blocked}
+                                    onToggle={() => void togglePush()}
+                                    label={t('notifications.push_this_phone')}
+                                    disabled={busy || blocked}
+                                />
+                            }
+                        />
+                        {on && !blocked && (
+                            <SettingsRow
+                                icon={Send}
+                                title={t('notifications.push_test')}
+                                value={sent ? t('notifications.push_test_sent') : undefined}
+                                onClick={() => void test()}
+                            />
+                        )}
+                    </SettingsGroup>
+                    {!blocked && <p className="text-muted-foreground px-1 text-sm">{t('notifications.push_per_device')}</p>}
                 </div>
-            </SettingsLayout>
+
+                {categories.length > 0 && (
+                    <div className="flex flex-col gap-2.5">
+                        <SettingsGroup label={t('notifications.notify_me_about')}>
+                            {categories.map((c) => (
+                                <SettingsRow
+                                    key={c.id}
+                                    icon={icon(c)}
+                                    title={label(c)}
+                                    right={<SettingsSwitch on={prefs[c.id]} onToggle={() => togglePref(c.id)} label={label(c)} />}
+                                />
+                            ))}
+                        </SettingsGroup>
+                        {/* Today a muted category only stops the push; the in-app bell still lists it (PushAlert::via). */}
+                        <p className="text-muted-foreground px-1 text-sm">{t('notifications.muted_note')}</p>
+                    </div>
+                )}
+            </SettingsPage>
         </AppLayout>
     );
 }

@@ -44,16 +44,5 @@
     "email_change_sent": "On a envoyé un code à 6 chiffres à :email. Tape-le ici pour changer d'e-mail ; d'ici là, tu gardes l'actuel.",
     "email_change_confirm": "Confirmer le nouvel e-mail",
     "email_change_cancel": "Garder mon e-mail actuel",
-    "email_taken": "Cet e-mail est déjà utilisé par un autre compte.",
-    "group_account": "Compte",
-    "group_family": "Famille",
-    "hint_profile": "Ton nom, ton e-mail et ton compte",
-    "hint_sign_in": "Connexion avec Google et Apple",
-    "hint_appearance": "Thème, clair ou sombre",
-    "hint_language": "La langue de l'app",
-    "hint_media": "Les photos envoyées par ta famille",
-    "hint_trash": "Récupère ce qui a été supprimé ces 30 derniers jours",
-    "hint_connected_apps": "Assistants IA liés à FamilyWell",
-    "hint_billing": "L'abonnement de ta famille",
-    "hint_notifications": "Notifications push sur cet appareil"
+    "email_taken": "Cet e-mail est déjà utilisé par un autre compte."
 }

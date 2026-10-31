@@ -5,6 +5,7 @@ namespace Modules\Vehicles;
 use App\Models\User;
 use App\Support\Media\StoredImage;
 use App\Support\Tenancy\BelongsToFamily;
+use App\Support\Tenancy\FamilyClock;
 use App\Support\Translations;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -53,6 +54,24 @@ class Vehicle extends Model
     public const FUEL_TYPES = ['petrol', 'diesel', 'hybrid', 'electric', 'lpg', 'cng', 'other'];
 
     public const TRANSMISSIONS = ['manual', 'automatic', 'other'];
+
+    /**
+     * Create a car the way every path does (the add form, the Add sheet's "Just say it"): an opening odometer reading
+     * so the history and current_mileage agree from day one (the overview never shows an empty log next to a non-zero
+     * odometer). $data is already validated.
+     */
+    public static function createFor(User $user, array $data): self
+    {
+        $vehicle = self::create(['current_mileage' => (int) ($data['current_mileage'] ?? 0), 'created_by' => $user->id] + $data);
+        VehicleMileageLog::create([
+            'vehicle_id' => $vehicle->id,
+            'mileage' => $vehicle->current_mileage,
+            'recorded_by' => $user->id,
+            'recorded_at' => now(),
+        ]);
+
+        return $vehicle;
+    }
 
     public function owner(): BelongsTo
     {
@@ -137,7 +156,7 @@ class Vehicle extends Model
      */
     public function maintenanceSummary(?Carbon $today = null): array
     {
-        $today ??= Carbon::today();
+        $today ??= FamilyClock::date($this->family_id);
         $mileage = (int) $this->current_mileage;
 
         $worst = MaintenanceStatus::GOOD;

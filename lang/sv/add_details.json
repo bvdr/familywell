@@ -1,0 +1,23 @@
+{
+    "add_details": "Lägg till detaljer",
+    "edit_details": "Redigera detaljer",
+    "things_one": ":count sak",
+    "things_other": ":count saker",
+    "position": ":kind · :i av :n",
+    "when": "När",
+    "pick": "Välj…",
+    "who_on_it": "Vem tar det",
+    "anyone": "Vem som helst",
+    "note_placeholder": "Lägg till en anteckning…",
+    "leave_out": "Lämna bort den här",
+    "from_typed": "Från det du skrev",
+    "list_gone": "Listan finns inte längre, eller så kan du inte lägga till i den. Välj en annan.",
+    "category_auto": "Gissa åt mig",
+    "f_note": "Anteckning",
+    "f_notes": "Anteckningar",
+    "f_list_id": "Lista",
+    "f_category": "Kategori",
+    "f_repeat": "Upprepa",
+    "f_who": "Vem",
+    "f_due": "Förfallodatum"
+}

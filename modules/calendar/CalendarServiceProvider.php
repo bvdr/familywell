@@ -2,24 +2,34 @@
 
 namespace Modules\Calendar;
 
+use App\Models\User;
+use App\Support\Add\AddContext;
+use App\Support\Add\AddKinds;
 use App\Support\Calendar\CalendarSources;
 use App\Support\Dashboard\DashboardAgenda;
+use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Dashboard\DashboardWidgets;
 use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
+use App\Support\Search\SearchSources;
 use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Tenancy\FamilyClock;
 use App\Support\Translations;
 use App\Support\Trash\Trash;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\ValidationException;
 use Modules\Contacts\Person;
+use Modules\Notifications\NotificationCategories;
 use Modules\Tasks\Task;
 
 class CalendarServiceProvider extends ServiceProvider
@@ -31,6 +41,90 @@ class CalendarServiceProvider extends ServiceProvider
 
     public function boot(Hooks $hooks): void
     {
+        // "Just say it" in the Add sheet: an event read out of what the person typed / photographed (AddKinds), with
+        // its to-dos when listed ("school trip Friday: pack lunch, sign the form" -> the event's own checklist).
+        // A datetime at midnight reads as all-day; no end = an hour for a timed event, the same day otherwise.
+        AddKinds::register('event', 'calendar', [
+            'fields' => [
+                'title' => ['type' => 'text', 'required' => true],
+                'start' => ['type' => 'datetime', 'required' => true],
+                'end' => ['type' => 'datetime'],
+                'who' => ['type' => 'text', 'ask' => 'member'],
+                'tasks' => ['type' => 'list', 'of' => ['name' => 'text']],
+                // Add details: the Classic event sheet's notes and repeat (CalendarEvent::rules checks both).
+                'notes' => ['type' => 'note', 'details' => true],
+                'repeat' => ['type' => 'choice', 'details' => true, 'choices' => fn () => array_map(
+                    fn (string $r) => ['value' => $r, 'label' => Translations::get("calendar.repeat_{$r}")], Occurrences::REPEATS,
+                )],
+            ],
+            'save' => function (User $user, array $v, AddContext $ctx) {
+                Validator::validate($v, ['start' => ['required', 'date']]); // no silent "today" for an event the reader couldn't date
+                $start = Carbon::parse($v['start']);
+                $timed = $start->format('H:i') !== '00:00';
+                $end = ! empty($v['end']) ? Carbon::parse($v['end']) : null;
+                if (! $end || $end->lt($start)) {
+                    $end = $timed ? $start->copy()->addHour() : $start->copy();
+                }
+                $who = $ctx->memberId($v['who'] ?? null);
+                $event = CalendarEvent::createFor($user, CalendarEvent::validated([
+                    'title' => $v['title'] ?? '',
+                    'notes' => $v['notes'] ?? null,
+                    ...(filled($v['repeat'] ?? null) ? ['repeat' => $v['repeat']] : []),
+                    'start_date' => $start->toDateString(),
+                    'end_date' => $end->toDateString(),
+                    'start_time' => $timed ? $start->format('H:i') : null,
+                    'end_time' => $timed ? $end->format('H:i') : null,
+                    'people' => $who ? [['type' => 'user', 'id' => $who]] : [],
+                ]));
+                foreach ((array) ($v['tasks'] ?? []) as $t) {
+                    $title = mb_substr(trim((string) (is_array($t) ? ($t['name'] ?? '') : $t)), 0, 255);
+                    if ($title !== '') {
+                        $event->addTask($user, ['title' => $title]);
+                    }
+                }
+
+                return ['title' => $event->title, 'url' => $event->url()];
+            },
+        ]);
+        // A to-do for an event that's already on the calendar ("for the trip: book the hotel"): the event the input
+        // names (the next one with that title), else the event on screen. Neither: no guess, the card asks on Add.
+        $upcoming = fn (User $user) => CalendarEvent::visibleTo($user->id)->whereDate('end_date', '>=', FamilyClock::today())->orderBy('start_date');
+        $pickEvent = function (User $user, AddContext $ctx, array $v) use ($upcoming): ?CalendarEvent {
+            $named = filled($v['event'] ?? null) ? $upcoming($user)->whereRaw('lower(title) = ?', [mb_strtolower(trim((string) $v['event']))])->first() : null;
+
+            return $named ?? ($ctx->module === 'calendar' && $ctx->entityId ? CalendarEvent::visibleTo($user->id)->find($ctx->entityId) : null);
+        };
+        AddKinds::register('event_task', 'calendar', [
+            'fields' => [
+                'title' => ['type' => 'text', 'required' => true],
+                'due' => ['type' => 'date'],
+                'who' => ['type' => 'text', 'ask' => 'member'],
+                // ponytail: the next 30 events' titles (a repeating event whose first date passed isn't among them); a
+                // far-off or repeating event is reached from its own page (the event on screen).
+                'event' => ['type' => 'text', 'options' => fn (User $user) => $upcoming($user)->limit(30)->pluck('title')->unique()->values()->all(), 'hidden' => true],
+            ],
+            'target' => fn (User $user, AddContext $ctx, array $v) => $pickEvent($user, $ctx, $v)?->title,
+            'save' => function (User $user, array $v, AddContext $ctx) use ($pickEvent) {
+                $data = Validator::validate(['title' => $v['title'] ?? null, 'due_date' => $v['due'] ?? null], [
+                    'title' => ['required', 'string', 'max:255'], 'due_date' => ['nullable', 'date'],
+                ]);
+                $event = $pickEvent($user, $ctx, $v) ?? throw ValidationException::withMessages(['event' => 'Which event? Name it, or add from the event.']);
+                $task = $event->addTask($user, $data + ['assigned_to' => $ctx->memberId($v['who'] ?? null)]);
+
+                return ['title' => $task->title, 'url' => $event->url()];
+            },
+        ]);
+        AddKinds::screen('calendar', fn (?int $id, User $user) => $id && ($e = CalendarEvent::visibleTo($user->id)->find($id))
+            ? "the event {$e->title} on {$e->start_date->toDateString()}" : null);
+
+        // "Your modules" tile: events from today to the end of the week (their own calendar view, recurrences included).
+        DashboardSummaries::register('calendar', fn (int $userId) => ['key' => 'dashboard.sum_calendar', 'params' => [
+            'count' => count(CalendarEvent::itemsFor($userId, FamilyClock::today(), FamilyClock::date()->endOfWeek()->toDateString())),
+        ]]);
+        // "Calendar changes": its own on/off row in Settings > Notifications and the onboarding's notifications step.
+        // Pushed by CalendarEvent::createFor / applyUpdate (events added, moved or renamed).
+        NotificationCategories::register('calendar', 'Calendar', 'calendar-days');
+
         // Other calendars (ICS subscriptions) refresh hourly; withoutOverlapping so a slow host can't stack runs.
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
             $schedule->command('calendar:sync-subscriptions')->hourly()->withoutOverlapping();
@@ -38,6 +132,8 @@ class CalendarServiceProvider extends ServiceProvider
 
         // Adding a CalendarEvent counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('calendar', CalendarEvent::class);
+        // Classic add's sub line ("last: bananas"): this person's newest event they can still see.
+        AddKinds::last('calendar', fn (User $u) => CalendarEvent::where('created_by', $u->id)->visibleTo($u->id)->latest('id')->value('title'));
 
         Trash::source('calendar', CalendarTrash::class);
         Trash::register(CalendarEvent::class);
@@ -52,6 +148,19 @@ class CalendarServiceProvider extends ServiceProvider
             Mcp\UpdateEvent::class, Mcp\DeleteEvent::class, Mcp\AddTodo::class,
             Mcp\UpdateTodo::class, Mcp\DeleteTodo::class, Mcp\ListDeleted::class, Mcp\Restore::class,
         ]);
+
+        // H5 search: title or notes match, visible events only (events already use the core sharing
+        // system, so the same visibleTo() every other provider uses applies here too).
+        SearchSources::register('calendar', function (string $q, int $userId) {
+            $events = SearchSources::ilike(CalendarEvent::query()->visibleTo($userId), ['title', 'notes'], $q)
+                ->orderByDesc('start_date')->limit(20)->get();
+
+            return $events->map(fn (CalendarEvent $e) => [
+                'module' => 'calendar', 'title' => $e->title,
+                'meta' => SearchSources::formatDate($e->start_date).' · '.($e->start_time ? "{$e->start_time}–{$e->end_time}" : Translations::get('calendar.all_day')),
+                'href' => "/m/calendar/events/{$e->id}", 'icon' => 'calendar-days',
+            ])->values()->all();
+        });
 
         // The calendar's own events, through the same registry other modules use.
         CalendarSources::register('calendar', function (string $from, string $to, int $userId) {
@@ -78,9 +187,10 @@ class CalendarServiceProvider extends ServiceProvider
             if (! $userId || ! self::on()) {
                 return [];
             }
-            $today = now()->toDateString();
+            $today = FamilyClock::today(); // the family's day: "day N of M" and Today follow it, not UTC
+            $until = DashboardAgenda::until();
 
-            return collect(CalendarEvent::itemsFor($userId, $today, now()->endOfWeek()->toDateString()))
+            return collect(CalendarEvent::itemsFor($userId, $today, $until))
                 ->map(function (array $i) use ($today) {
                     $days = (int) now()->parse($i['start'])->diffInDays(now()->parse($i['end'])) + 1;
                     $subtitle = $i['startTime']
@@ -90,7 +200,11 @@ class CalendarServiceProvider extends ServiceProvider
                             : Translations::get('calendar.all_day'));
 
                     return ['title' => $i['title'], 'subtitle' => $subtitle, 'href' => $i['href'], 'icon' => $i['icon'],
-                        'dueDate' => max($i['start'], $today), 'kind' => 'event', 'id' => $i['id']];
+                        'dueDate' => max($i['start'], $today), 'kind' => 'event', 'id' => $i['id'],
+                        // Home draws an event with its start time in the rail, its colour as the bar and who
+                        // it's for in the meta line; eventId lets its prep to-dos (below) nest under it.
+                        'time' => $i['startTime'], 'endTime' => $i['endTime'], 'color' => $i['color'],
+                        'people' => array_column($i['people'], 'name'), 'eventId' => $i['id']];
                 })
                 // Open, dated event to-dos due by the end of the week (overdue included), like project tasks:
                 // the tasks provider skips listless tasks, so they'd never surface otherwise.
@@ -99,7 +213,8 @@ class CalendarServiceProvider extends ServiceProvider
                     'dueDate' => $p[0]->due_date->toDateString(),
                     'toggleUrl' => "/m/calendar/tasks/{$p[0]->id}", 'toggleBody' => ['done' => true], // the dashboard tick sends this: set done, never flip
                     'kind' => 'calendar_todo', 'id' => $p[0]->id, // get_today's widget ticks it via calendar_update_todo
-                ], CalendarEvent::datedTodos($userId, fn ($q) => $q->where('done', false)->whereDate('due_date', '<=', now()->endOfWeek()->toDateString()))))
+                    'eventId' => $p[1]->id, 'assignee' => $p[0]->assignee?->only(['id', 'name']), // Home nests it under its event as PREP
+                ], CalendarEvent::datedTodos($userId, fn ($q) => $q->where('done', false)->whereDate('due_date', '<=', $until))))
                 ->values()->all();
         });
 
@@ -109,8 +224,8 @@ class CalendarServiceProvider extends ServiceProvider
             if (! $userId || ! self::on()) {
                 return null;
             }
-            $today = now()->toDateString();
-            $rows = collect(CalendarEvent::itemsFor($userId, $today, now()->addDays(30)->toDateString()))
+            $today = FamilyClock::today();
+            $rows = collect(CalendarEvent::itemsFor($userId, $today, FamilyClock::date()->addDays(30)->toDateString()))
                 ->filter(fn ($i) => $i['end'] > $i['start'])
                 ->map(function ($i) use ($today) {
                     $now = $i['start'] <= $today;

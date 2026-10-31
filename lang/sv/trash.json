@@ -1,10 +1,7 @@
 {
     "title": "Nyligen raderade",
-    "desc": "Raderade saker ligger kvar här i :days dagar, sedan tas de bort för gott.",
     "empty": "Inget raderat de senaste :days dagarna.",
     "restore": "Återställ",
-    "deleted_on": "Raderad :date",
-    "removed_on": "borttagen :date",
     "type_list": "Lista",
     "type_task": "Uppgift",
     "type_item": "Vara",
@@ -23,5 +20,8 @@
     "type_fuel": "Tankning",
     "type_repair": "Reparation",
     "type_document": "Dokument",
-    "type_maintenance_schedule": "Underhåll"
+    "type_maintenance_schedule": "Underhåll",
+    "kept": "Sparas i :days dagar, sedan tas de bort för gott.",
+    "days_left_one": ":count dag kvar",
+    "days_left_other": ":count dagar kvar"
 }

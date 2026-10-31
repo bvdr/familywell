@@ -1,1 +1,3 @@
 resources/js/components/ui/*
+# Verbatim copy of familywell-site/public/mascot/homer.js (see eslint.config.js).
+resources/js/lib/homer.js

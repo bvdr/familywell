@@ -3,24 +3,129 @@
 namespace Modules\Shopping;
 
 use App\Models\EntityVisit;
+use App\Models\User;
+use App\Support\Add\AddContext;
+use App\Support\Add\AddKinds;
 use App\Support\Dashboard\DashboardAgenda;
 use App\Support\Dashboard\DashboardItems;
+use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\ModuleRegistry;
+use App\Support\Search\SearchSources;
 use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Translations;
 use App\Support\Trash\Trash;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\ValidationException;
 use Modules\Notifications\NotificationCategories;
+use Modules\Shopping\Mcp\ShoppingData;
 
 class ShoppingServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        // "Just say it" in the Add sheet (AddKinds): things to buy, or a whole new shopping list. Items go to the list
+        // on screen, else the list this person added to last, else their first list (else a new one); the card names
+        // that list up front (target). Already on the list (not bought) = merged, not added twice (design H2c).
+        // The lists this person can add to, in their order: what the reader may pick for `list`.
+        $lists = fn (User $user) => ShoppingList::visibleTo($user->id)->whereNull('archived_at')->orderBy('position');
+        $pickList = function (User $user, AddContext $ctx, array $v = []) use ($lists): ?ShoppingList {
+            // Picked by hand in Add details: that list; one this person can't add to is an error, never a silent fallback.
+            if (filled($v['list_id'] ?? null)) {
+                $list = ShoppingData::list($user, $v['list_id']);
+
+                return $list && ! $list->archived_at ? $list : throw ValidationException::withMessages(['list_id' => Translations::get('add_details.list_gone')]);
+            }
+            // A list the person named, or the heading of a photographed list ("Oana"): that existing list first.
+            $named = filled($v['list'] ?? null) ? $lists($user)->whereRaw('lower(name) = ?', [mb_strtolower(trim((string) $v['list']))])->first() : null;
+            $lastList = ShoppingItem::where('created_by', $user->id)->latest('id')->value('shopping_list_id');
+
+            return $named
+                ?? ($ctx->module === 'shopping' && $ctx->entityId ? ShoppingData::list($user, $ctx->entityId) : null)
+                ?? ($lastList ? ShoppingData::list($user, $lastList) : null)
+                ?? $lists($user)->first();
+        };
+        AddKinds::register('shopping_item', 'shopping', [
+            'fields' => [
+                // Each thing with its amount ("six pack" of "Schweppes Lămâie și Zmeură"): the reader splits them.
+                // 'split': each thing becomes its own card in the Add sheet (its own shop / details, design H2e).
+                'items' => ['type' => 'list', 'required' => true, 'of' => ['name' => 'text', 'quantity' => 'text'], 'split' => true],
+                // Which existing list, when the input names one. Shown as the card's destination, not as a field.
+                'list' => ['type' => 'text', 'options' => fn (User $user) => $lists($user)->pluck('name')->all(), 'hidden' => true],
+                // Where to buy them ("milk from Lidl"). Free text: a new shop is fine (addItem adds it to Shops).
+                'shop' => ['type' => 'text'],
+                // Add details: the Classic item editor's For / Note / Due date, for every thing on the card, and the
+                // list by hand. (Its department isn't offered: the aisle guesser files each thing, as on a quick add.)
+                'who' => ['type' => 'text', 'ask' => 'member', 'details' => true],
+                'note' => ['type' => 'note', 'details' => true],
+                'due' => ['type' => 'date', 'details' => true],
+                'list_id' => ['type' => 'choice', 'details' => true, 'choices' => fn (User $user) => $lists($user)->get(['id', 'name'])
+                    ->map(fn ($l) => ['value' => (string) $l->id, 'label' => $l->name])->all()],
+            ],
+            'target' => fn (User $user, AddContext $ctx, array $v) => $pickList($user, $ctx, $v)?->name ?? Translations::get('nav.shopping'),
+            'save' => function (User $user, array $v, AddContext $ctx) use ($pickList) {
+                // Same rules as the Classic store (ShoppingController::storeItem).
+                $extra = Validator::validate(['note' => $v['note'] ?? null, 'due_date' => $v['due'] ?? null], [
+                    'note' => ['nullable', 'string', 'max:255'], 'due_date' => ['nullable', 'date'],
+                ]) + ['assigned_to' => $ctx->memberId($v['who'] ?? null)];
+                // {name, quantity} per thing (a bare string still works: just the name).
+                $items = array_values(array_filter(array_map(fn ($i) => [
+                    'name' => mb_substr(trim((string) (is_array($i) ? ($i['name'] ?? '') : $i)), 0, 255),
+                    'quantity' => is_array($i) && filled($i['quantity'] ?? null) ? mb_substr(trim((string) $i['quantity']), 0, 60) : null,
+                ], (array) ($v['items'] ?? [])), fn ($i) => $i['name'] !== ''));
+                throw_if($items === [], ValidationException::withMessages(['items' => 'Nothing to buy was read.']));
+                $list = $pickList($user, $ctx, $v) ?? ShoppingList::createFor($user, ['name' => Translations::get('nav.shopping')]);
+                // An existing shop keeps its spelling ("lidl" -> "Lidl"), so it doesn't split into two shops.
+                $shop = mb_substr(trim((string) ($v['shop'] ?? '')), 0, 120);
+                $store = $shop === '' ? null : (ShoppingShop::whereRaw('lower(name) = ?', [mb_strtolower($shop)])->value('name') ?? $shop);
+                foreach ($items as $item) {
+                    if (! ShoppingItem::activeDuplicate($list, $item['name'])) {
+                        ShoppingData::addItem($user, $list, $item + $extra + ['store' => $store]);
+                    }
+                }
+
+                return ['title' => implode(', ', array_column($items, 'name')), 'url' => "/m/shopping/lists/{$list->id}"];
+            },
+        ]);
+        AddKinds::register('shopping_list', 'shopping', [
+            'fields' => [
+                'name' => ['type' => 'text', 'required' => true],
+            ],
+            'save' => function (User $user, array $v) {
+                $data = Validator::validate(['name' => $v['name'] ?? null], ['name' => ['required', 'string', 'max:255']]);
+                $list = ShoppingList::createFor($user, $data);
+                ShoppingData::changed();
+
+                return ['title' => $list->name, 'url' => "/m/shopping/lists/{$list->id}"];
+            },
+        ]);
+        // A shop the family buys from (the Shops tab), on its own: "add Kaufland to my shops".
+        AddKinds::register('shopping_shop', 'shopping', [
+            'fields' => [
+                'name' => ['type' => 'text', 'required' => true],
+            ],
+            'save' => function (User $user, array $v) {
+                $data = Validator::validate(['name' => trim((string) ($v['name'] ?? ''))], ['name' => ['required', 'string', 'max:120']]);
+                $shop = ShoppingShop::whereRaw('lower(name) = ?', [mb_strtolower($data['name'])])->first() ?? ShoppingShop::create($data);
+                ShoppingData::changed();
+
+                return ['title' => $shop->name, 'url' => "/m/shopping/shops/{$shop->id}"];
+            },
+        ]);
+        AddKinds::screen('shopping', fn (?int $id, User $user) => $id && ($l = ShoppingData::list($user, $id)) ? "the shopping list {$l->name}" : null);
+
+        // "Your modules" tile: what's still to buy on the lists this person can see.
+        DashboardSummaries::register('shopping', fn (int $userId) => ['key' => 'dashboard.sum_shopping', 'params' => [
+            'count' => ShoppingItem::where('bought', false)->whereHas('list', fn ($q) => $q->visibleTo($userId))->count(),
+        ]]);
         // Adding a ShoppingItem counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('shopping', ShoppingItem::class);
+        // Classic add's sub line ("last: bananas"): this person's newest item they can still see, through its list's sharing.
+        AddKinds::last('shopping', fn (User $u) => ShoppingItem::where('created_by', $u->id)->whereHas('list', fn ($q) => $q->visibleTo($u->id))->latest('id')->value('name'));
 
         // MCP: tools an AI assistant can use on this module, gated by the `shopping:read` / `shopping:write`
         // scopes the person grants on the consent screen (see docs/mcp.md).
@@ -82,7 +187,7 @@ class ShoppingServiceProvider extends ServiceProvider
                 return [];
             }
 
-            $weekEnd = now()->endOfWeek()->toDateString();
+            $weekEnd = DashboardAgenda::until();
 
             return ShoppingItem::query()
                 ->whereNotNull('due_date')
@@ -102,6 +207,40 @@ class ShoppingServiceProvider extends ServiceProvider
                     'kind' => 'shopping_item', // kind + id: get_today's widget ticks it off via the MCP tool
                     'id' => $i->id,
                 ])->values()->all();
+        });
+
+        // H5 search: grocery items (name/note) AND the lists themselves (name/store), each a hit of its
+        // own, capped at 20 total so one module can't crowd out the others. Only lists/items this user
+        // can see (visibleTo), same rule as shopping_search above.
+        SearchSources::register('shopping', function (string $q, int $userId) {
+            $rows = [];
+            $items = SearchSources::ilike(
+                ShoppingItem::query()->with('list')->whereHas('list', fn ($l) => $l->visibleTo($userId)),
+                ['name', 'note'], $q
+            )->orderByDesc('id')->limit(20)->get();
+            foreach ($items as $item) {
+                $rows[] = [
+                    'module' => 'shopping', 'title' => $item->name,
+                    'meta' => trim(implode(' · ', array_filter([
+                        $item->list?->name, $item->quantity,
+                        Translations::get($item->bought ? 'search.bought' : 'search.to_buy'),
+                    ]))),
+                    'href' => "/m/shopping/lists/{$item->shopping_list_id}", 'icon' => 'shopping-cart',
+                ];
+            }
+            $lists = SearchSources::ilike(
+                ShoppingList::query()->visibleTo($userId)->whereNull('archived_at'),
+                ['name', 'store'], $q
+            )->orderByDesc('id')->limit(20)->get();
+            foreach ($lists as $list) {
+                $rows[] = [
+                    'module' => 'shopping', 'title' => $list->name,
+                    'meta' => $list->store ?: Translations::get('nav.shopping'),
+                    'href' => "/m/shopping/lists/{$list->id}", 'icon' => 'shopping-cart',
+                ];
+            }
+
+            return array_slice($rows, 0, 20);
         });
 
         // Full Inertia pages (a whole app section, not a dashboard widget). Gated by `module:shopping`

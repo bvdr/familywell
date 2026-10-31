@@ -19,11 +19,34 @@ class RequireFamily
             return to_route('onboarding.index');
         }
 
-        // Paywall (hosted plan only): this gate already wraps every app + module route, so it is the one
-        // place an unpaid family is held. Billing itself is under it too, so it must be let through.
-        // Billing::enabled() first: self-hosted installs pay no extra query.
-        if (Billing::enabled() && ! $request->routeIs('billing.*')
-            && ($family = Family::find(CurrentFamily::id())) && ! Billing::hasAccess($family)) {
+        // Paywall (hosted plan only): this gate already wraps every app + module route, so it is the one place an
+        // unpaid family is held. Billing itself is under it too, so it must be let through. Billing::enabled()
+        // first: self-hosted installs pay no extra query. Worked out BEFORE the onboarding step below, so the tour
+        // (which runs on the dashboard) can't be a way in for a family that hasn't paid.
+        $locked = Billing::enabled() && ! $request->routeIs('billing.*')
+            && ($family = Family::find(CurrentFamily::id())) && ! Billing::hasAccess($family);
+
+        // Mid-onboarding (step 1 done, the rest not): back to the step they're on. GET only, so nothing a page
+        // posts in the meantime is lost. This is also how opening the app from the Home Screen resumes it.
+        // The tour is the exception: it runs on the dashboard itself (the shared `tour` prop), so only other pages
+        // send them back there. Billing stays reachable from the plan step (pay or look at the plans), the same as
+        // for a locked family.
+        if (($step = $request->user()->onboarding_step) && $request->isMethod('GET') && ! ($step === 'plan' && $request->routeIs('billing.*'))) {
+            if ($step !== 'tour') {
+                return to_route("onboarding.{$step}");
+            }
+            if (! $locked) {
+                return $request->routeIs('dashboard') ? $next($request) : to_route('dashboard');
+            }
+        }
+
+        if ($locked) {
+            // A hard-paywall family goes back to the plan step of the onboarding (an admin can pay there, see
+            // OnboardingController::payingFamily). A member who can't pay, or a soft family, gets the Billing page.
+            if ($family->hard_paywall && $request->user()->can('manageBilling', $family)) {
+                return to_route('onboarding.plan');
+            }
+
             return to_route('billing.show');
         }
 

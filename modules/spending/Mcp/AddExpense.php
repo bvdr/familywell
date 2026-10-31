@@ -3,13 +3,11 @@
 namespace Modules\Spending\Mcp;
 
 use App\Mcp\Tool;
+use App\Support\Tenancy\FamilyClock;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Illuminate\Support\Facades\Validator;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
-use Modules\Notifications\Notify;
-use Modules\Spending\Spend;
 use Modules\Spending\SpendEvent;
 
 class AddExpense extends Tool
@@ -51,9 +49,7 @@ class AddExpense extends Tool
             return $this->notFound('List');
         }
 
-        // Same rules as the web form (SpendEvent::spendRules): known currency, the family's categories,
-        // a payer who takes part in this list.
-        $data = Validator::validate([
+        [$spend, $duplicate] = SpendData::addExpense($user, $event, [
             'amount' => $request->get('amount'),
             'currency' => $request->get('currency', $event->currency),
             'category' => $request->get('category', 'other'), // 'other' => the auto-categorizer guesses it
@@ -62,18 +58,10 @@ class AddExpense extends Tool
             'payer_key' => $request->get('payer') ?: 'u'.($request->get('paid_by') ?: $user->id),
             'note' => $request->get('title'),
             'store' => $request->get('shop'),
-            'spent_at' => $request->get('date', now()->toDateString()),
+            'spent_at' => $request->get('date', FamilyClock::today()),
             // Only when given: absent = follow the list (SpendEvent::buildSpend).
             ...($request->get('count_in_monthly') !== null ? ['count_in_monthly' => $request->get('count_in_monthly')] : []),
-        ], $event->spendRules(), ['payer_key.in' => 'paid_by / payer must be one of this list\'s participants: '.implode(', ', array_keys($event->participantNames())).'.']);
-
-        // Soft duplicate check, same as the add form: warn, never block (the same purchase twice is real).
-        $duplicate = Spend::looksDuplicate($data, SpendData::visibleEvents($user)->pluck('id'));
-        $spend = $event->spends()->create([...$event->spendColumns($data), 'created_by' => $user->id]);
-
-        $amount = $data['currency'].' '.number_format((float) $data['amount'], 2);
-        Notify::toAccessOf($event, 'spending', $user->id, $event->name, "{$user->name} added {$amount}".(! empty($data['note']) ? " · {$data['note']}" : ''), "/m/spending/events/{$event->id}");
-        SpendData::changed();
+        ]);
 
         return Response::structured(SpendData::payload($spend->fresh(['event', 'payer', 'payerGuest']), true) + ($duplicate ? [
             'warning' => 'This looks like a duplicate of an expense already recorded (same amount, date and shop/category).',

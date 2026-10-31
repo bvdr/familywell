@@ -1,3 +1,4 @@
+import { localToday } from '@/lib/date-groups';
 import { appLocale, relativeWord } from '@/lib/i18n';
 
 import { Briefcase, CalendarDays, CheckSquare, Heart, Home, ListChecks, Plane, ShoppingBag, Sparkles, Star, type LucideIcon } from 'lucide-react';
@@ -37,8 +38,8 @@ export const itemTone = (color: string | null) => (color ? listColor(color) : 'b
 export function dueLabel(iso: string | null): { label: string; tone: string } | null {
     if (!iso) return null;
     const due = new Date(iso + 'T00:00:00');
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // "Today" is the family's (localToday), the day the server's overdue and Home's Today use.
+    const today = new Date(localToday() + 'T00:00:00');
     const days = Math.round((due.getTime() - today.getTime()) / 86400000);
     const short = due.toLocaleDateString(appLocale(), { month: 'short', day: 'numeric' });
     // overdue / today -> red, next couple of days -> amber, further out -> muted.

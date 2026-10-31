@@ -12,8 +12,9 @@ import { Picker } from '@/components/picker';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { useAddAction } from '@/lib/add-action';
-import { filterItems, shiftDate, ymd, type CalFilter, type CalItem } from '@/lib/calendar';
+import { filterItems, shiftDate, type CalFilter, type CalItem } from '@/lib/calendar';
 import { openNewOnArrival } from '@/lib/create-intent';
+import { localToday } from '@/lib/date-groups';
 import { useLocale, useT } from '@/lib/i18n';
 
 const FILTER_KEY = 'familywell:calendarFilter';
@@ -58,7 +59,7 @@ export default function CalendarIndex({
 }: CalendarProps) {
     const t = useT();
     const locale = useLocale();
-    const todayYmd = ymd(new Date());
+    const todayYmd = localToday(); // the family's day, same as Home and the server
     // Phones list the selected day under the grid: today when it's in the shown month, else the date asked for.
     const [selected, setSelected] = useState(date.slice(0, 7) === todayYmd.slice(0, 7) ? todayYmd : date);
     const [sheet, setSheet] = useState<{ open: boolean; day: string }>(() => ({ open: openNewOnArrival(), day: selected }));

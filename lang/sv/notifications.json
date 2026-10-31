@@ -8,5 +8,21 @@
     "empty": "Inget än. Familjeaktivitet som du kan se dyker upp här.",
     "today": "Idag",
     "yesterday": "Igår",
-    "now": "nu"
+    "new_count_one": ":count ny",
+    "new_count_other": ":count nya",
+    "settings": "Aviseringsinställningar",
+    "dismiss": "Ta bort",
+    "now": "nu",
+    "welcome_push_title": "Välkommen, :name 👋",
+    "welcome_push_title_anon": "Välkommen till FamilyWell 👋",
+    "welcome_push_body": "Homer här 🏡 Så här knackar FamilyWell dig på axeln.",
+    "shared_with_me": "Delat med mig",
+    "push_this_phone": "Pushnotiser på den här telefonen",
+    "push_unsupported": "Den här webbläsaren kan inte ta emot pushnotiser.",
+    "push_install_ios": "På iPhone lägger du först till FamilyWell på hemskärmen (Dela, sedan Lägg till på hemskärmen) och öppnar den därifrån.",
+    "push_test": "Skicka en testnotis",
+    "push_test_sent": "Skickad",
+    "push_per_device": "Push gäller per enhet: slå på det där du vill få notiser. Vad du får notiser om gäller överallt.",
+    "notify_me_about": "Meddela mig om",
+    "muted_note": "Stänger du av en stoppas bara pushnotisen. Den syns fortfarande bland notiserna i appen."
 }

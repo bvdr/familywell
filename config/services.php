@@ -42,6 +42,24 @@ return [
     'gemini' => [
         'key' => env('GEMINI_API_KEY'),
         'model' => env('GEMINI_MODEL', 'gemini-3-flash-preview'),
+        // Hosted: the key is stored in the AI Gateway (BYOK), so GEMINI_API_KEY stays empty here.
+        'via_gateway' => (bool) env('GEMINI_VIA_GATEWAY', false),
+    ],
+
+    // "Just say it" in the Add sheet reads through the FamilyWell reader, a separate private Cloudflare Worker
+    // (App\Support\Add\AddReader). Hosted only: without url + secret the Add sheet is Classic only (self-hosted).
+    'add_reader' => [
+        'url' => env('ADD_READER_URL'),
+        'secret' => env('ADD_READER_SECRET'),
+    ],
+
+    // Cloudflare AI Gateway for the app's own AI calls (receipt scans): usage logged per family / user / feature
+    // (App\Support\Ai\AiGateway). token = an AI Gateway Run token (1Password folio-dev "Cloudflare AI Gateway token
+    // (familywell)"). Self-hosted installs leave it empty and call Gemini directly with their own key.
+    'ai_gateway' => [
+        'account' => env('CLOUDFLARE_AI_ACCOUNT_ID'),
+        'id' => env('CLOUDFLARE_AI_GATEWAY'),
+        'token' => env('CLOUDFLARE_AI_GATEWAY_TOKEN'),
     ],
 
     // TypeSafe (Jev), used only to guess a shopping item's aisle when it was added into the
@@ -73,6 +91,17 @@ return [
         // intro prices above stay in use for good, as before.
         'price_monthly_standard' => env('STRIPE_PRICE_MONTHLY_STANDARD'),
         'price_yearly_standard' => env('STRIPE_PRICE_YEARLY_STANDARD'),
+        // The Pro tier (5 GB, 150 AI points; design "Plan & pay · Pro"): the same four prices again. Pro is only
+        // offered on Plan & pay when all of them that apply are set (Billing::proAvailable), so an install without
+        // Pro prices simply shows Basic.
+        'price_monthly_pro' => env('STRIPE_PRICE_MONTHLY_PRO'),
+        'price_yearly_pro' => env('STRIPE_PRICE_YEARLY_PRO'),
+        'price_monthly_pro_standard' => env('STRIPE_PRICE_MONTHLY_PRO_STANDARD'),
+        'price_yearly_pro_standard' => env('STRIPE_PRICE_YEARLY_PRO_STANDARD'),
+        // Stripe Tax: VAT / sales tax added on top of the price, by where the buyer is (Billing::taxRate). Off
+        // until the Stripe account has Tax set up with a registration (live: only after the accountant's OK);
+        // with it off, checkout charges the bare price as before.
+        'tax' => (bool) env('STRIPE_TAX', false),
     ],
 
     // Umami analytics (hosted familywell.co only). Empty = no tracker at all, so self-hosted installs never

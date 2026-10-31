@@ -1,10 +1,11 @@
 import { MemberAvatar } from '@/components/member-avatar';
 import { Segmented } from '@/components/segmented';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useT } from '@/lib/i18n';
 import { save } from '@/lib/save';
-import { router } from '@inertiajs/react';
-import { Check, Copy, Link2, Lock, UserCheck, Users } from 'lucide-react';
+import { router, usePage } from '@inertiajs/react';
+import { Check, ChevronDown, Copy, Link2, Lock, UserPlus, Users, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 export type ShareMember = { id: number; name: string; role: 'owner' | 'editor' | 'viewer' | null; isOwner: boolean };
@@ -18,10 +19,12 @@ export type ShareState = {
 };
 
 const VISIBILITY = [
-    { key: 'family', icon: Users, titleKey: 'sharing.vis_family_title', subKey: 'sharing.vis_family_sub' },
-    { key: 'invited', icon: UserCheck, titleKey: 'sharing.vis_invited_title', subKey: 'sharing.vis_invited_sub' },
-    { key: 'private', icon: Lock, titleKey: 'sharing.vis_private_title', subKey: 'sharing.vis_private_sub' },
+    { key: 'family', icon: Users, labelKey: 'sharing.vis_family', descKey: 'sharing.vis_family_desc' },
+    { key: 'invited', icon: UserPlus, labelKey: 'sharing.vis_invited', descKey: 'sharing.vis_invited_desc' },
+    { key: 'private', icon: Lock, labelKey: 'sharing.vis_private', descKey: 'sharing.vis_private_desc' },
 ] as const;
+
+type Role = 'editor' | 'viewer' | 'none';
 
 export function ShareSheet({
     open,
@@ -39,6 +42,7 @@ export function ShareSheet({
 }) {
     const [copied, setCopied] = useState(false);
     const t = useT();
+    const authId = usePage<{ auth: { user: { id: number } } }>().props.auth.user.id;
     // Mirror the server prop locally so toggles react instantly. The effect re-syncs whenever the
     // server confirms (props change) or, if the request fails, reverts to the unchanged prop.
     const [state, setState] = useState(share);
@@ -72,120 +76,124 @@ export function ShareSheet({
         });
     };
 
+    const roleLabel = (r: Role) => (r === 'editor' ? t('sharing.can_edit') : r === 'viewer' ? t('sharing.can_view') : t('sharing.no_access'));
+    // Removing a person only sticks once visibility is narrowed; in "family" mode everyone can add regardless.
+    const roles: Role[] = state.visibility === 'family' ? ['editor', 'viewer'] : ['editor', 'viewer', 'none'];
+    const current = VISIBILITY.find((v) => v.key === state.visibility) ?? VISIBILITY[0];
+
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="bottom" className="max-h-[88vh] overflow-y-auto rounded-t-2xl px-4 pb-8 sm:mx-auto sm:max-w-md">
-                <SheetHeader className="px-0 text-left">
-                    <SheetTitle className="font-heading text-primary text-2xl">{t('sharing.title')}</SheetTitle>
-                    <p className="text-muted-foreground -mt-1 text-sm">{eventName}</p>
+            {/* [&>button:last-child]:hidden drops SheetContent's built-in tiny X; the header has the round one. */}
+            <SheetContent
+                side="bottom"
+                className="max-h-[88vh] overflow-y-auto rounded-t-3xl px-4 pb-8 sm:mx-auto sm:max-w-md [&>button:last-child]:hidden"
+            >
+                <SheetHeader className="flex-row items-center justify-between gap-3 space-y-0 px-0 text-left">
+                    <SheetTitle className="font-heading text-primary min-w-0 text-2xl leading-tight break-words">
+                        {t('sharing.title_named', { name: eventName })}
+                    </SheetTitle>
+                    <SheetClose
+                        aria-label={t('sharing.close')}
+                        className="bg-surface text-primary hover:bg-accent flex size-10 shrink-0 items-center justify-center rounded-full transition-colors"
+                    >
+                        <X className="size-5" />
+                    </SheetClose>
                 </SheetHeader>
 
-                {/* Visibility */}
-                <div className="mt-2 flex flex-col gap-2">
-                    <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('sharing.access_title')}</p>
-                    {VISIBILITY.map((v) => {
-                        const active = state.visibility === v.key;
-                        return (
-                            <button
-                                key={v.key}
-                                type="button"
-                                disabled={!state.canManage}
-                                onClick={() => setVisibility(v.key)}
-                                className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
-                                    active ? 'border-primary bg-accent-subtle' : 'bg-surface-card hover:border-accent'
-                                } ${state.canManage ? '' : 'opacity-70'}`}
-                            >
-                                <span
-                                    className={`flex size-9 items-center justify-center rounded-lg ${active ? 'bg-tile text-tile-foreground' : 'bg-accent-subtle text-primary'}`}
-                                >
-                                    <v.icon className="size-4.5" />
-                                </span>
-                                <span className="flex-1">
-                                    <span className="text-primary block font-medium">{t(v.titleKey)}</span>
-                                    <span className="text-muted-foreground block text-xs">{t(v.subKey)}</span>
-                                </span>
-                                <span
-                                    className={`flex size-5 items-center justify-center rounded-full border ${active ? 'border-primary bg-accent-strong text-accent-strong-foreground' : 'border-border'}`}
-                                >
-                                    {active && <Check className="size-3.5" />}
-                                </span>
-                            </button>
-                        );
-                    })}
+                {/* Who can access */}
+                <div className="mt-3 flex flex-col gap-2">
+                    <p className="text-primary text-sm font-semibold">{t('sharing.access_title')}</p>
+                    <Segmented<ShareState['visibility']>
+                        ariaLabel={t('sharing.access_title')}
+                        disabled={!state.canManage}
+                        options={VISIBILITY.map((v) => ({ value: v.key, label: t(v.labelKey), icon: v.icon }))}
+                        value={state.visibility}
+                        onChange={(v) => v !== state.visibility && setVisibility(v)}
+                    />
+                    <p className="text-muted-foreground text-sm">{t(current.descKey)}</p>
                 </div>
 
                 {/* People */}
-                <div className="mt-5 flex flex-col gap-1">
-                    <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('sharing.people_title')}</p>
+                <ul className="bg-surface-card mt-4 divide-y rounded-2xl border">
                     {state.members.map((m) => {
                         // Private = owner only, so everyone else is dimmed and locked out.
                         const excluded = state.visibility === 'private' && !m.isOwner;
+                        const role: Role = m.role === 'editor' || m.role === 'viewer' ? m.role : 'none';
                         return (
-                            <div key={m.id} className={`flex items-center gap-3 py-2 transition-opacity ${excluded ? 'opacity-40' : ''}`}>
+                            <li key={m.id} className={`flex items-center gap-3 px-4 py-3 transition-opacity ${excluded ? 'opacity-40' : ''}`}>
                                 <MemberAvatar userId={m.id} name={m.name} className="size-9 text-sm" />
-                                <div className="flex-1">
-                                    <div className="text-primary text-sm font-medium">{m.name}</div>
-                                    {m.isOwner && <div className="text-muted-foreground text-xs">{t('sharing.owner')}</div>}
-                                </div>
+                                <span className="text-primary min-w-0 flex-1 truncate font-medium">
+                                    {m.name}
+                                    {m.id === authId && ` ${t('sharing.you')}`}
+                                </span>
                                 {m.isOwner ? (
-                                    <span className="text-muted-foreground text-sm">{t('sharing.owner')}</span>
-                                ) : excluded ? (
-                                    <span className="text-muted-foreground text-sm">{t('sharing.no_access')}</span>
-                                ) : state.canManage ? (
-                                    <Segmented<'editor' | 'viewer' | 'none'>
-                                        ariaLabel={m.name}
-                                        options={[
-                                            { value: 'editor', label: t('sharing.can_edit') },
-                                            { value: 'viewer', label: t('sharing.can_view') },
-                                            // Removing a person only sticks once visibility is narrowed; in
-                                            // "family" mode everyone can add regardless.
-                                            ...(state.visibility !== 'family' ? [{ value: 'none' as const, label: t('sharing.no_access') }] : []),
-                                        ]}
-                                        value={m.role === 'editor' || m.role === 'viewer' ? m.role : 'none'}
-                                        // Re-clicking the checked option is a no-op (a native select never fired for it).
-                                        onChange={(v) => {
-                                            if (v === (m.role ?? 'none')) return;
-                                            if (v === 'none') removeMember(m.id);
-                                            else setRole(m.id, v);
-                                        }}
-                                    />
-                                ) : (
-                                    <span className="text-muted-foreground text-sm">
-                                        {m.role === 'editor'
-                                            ? t('sharing.can_edit')
-                                            : m.role === 'viewer'
-                                              ? t('sharing.can_view')
-                                              : t('sharing.no_access')}
+                                    <span className="text-muted-foreground shrink-0 text-sm">{t('sharing.owner')}</span>
+                                ) : excluded || !state.canManage ? (
+                                    <span className="text-muted-foreground shrink-0 text-sm">
+                                        {excluded ? t('sharing.no_access') : roleLabel(role)}
                                     </span>
+                                ) : (
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger
+                                            aria-label={`${m.name}: ${roleLabel(role)}`}
+                                            className="text-primary hover:bg-accent -mr-2 inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-sm font-medium transition-colors"
+                                        >
+                                            {roleLabel(role)}
+                                            <ChevronDown className="size-4 opacity-70" />
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuRadioGroup
+                                                value={role}
+                                                // Re-picking the current role is a no-op (a native select never fired for it).
+                                                onValueChange={(v) => {
+                                                    if (v === role) return;
+                                                    if (v === 'none') removeMember(m.id);
+                                                    else setRole(m.id, v as 'editor' | 'viewer');
+                                                }}
+                                            >
+                                                {roles.map((r) => (
+                                                    <DropdownMenuRadioItem key={r} value={r}>
+                                                        {roleLabel(r)}
+                                                    </DropdownMenuRadioItem>
+                                                ))}
+                                            </DropdownMenuRadioGroup>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 )}
-                            </div>
+                            </li>
                         );
                     })}
-                </div>
+                </ul>
 
-                {/* Invite link */}
+                {/* View-only link */}
                 {withLink && (
-                    <div className="mt-5 flex flex-col gap-2">
-                        <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('sharing.invite_link')}</p>
+                    <div className="bg-surface mt-4 flex flex-col gap-3 rounded-2xl p-4">
+                        <div className="flex items-center gap-3">
+                            <Link2 className="text-primary size-5 shrink-0" />
+                            <div className="min-w-0">
+                                <p className="text-primary font-semibold">{t('sharing.link_title')}</p>
+                                <p className="text-muted-foreground text-sm">{t('sharing.link_view_desc')}</p>
+                            </div>
+                        </div>
                         {state.link ? (
-                            <>
-                                <div className="bg-surface flex items-center gap-2 rounded-xl border p-2 pl-3">
-                                    <Link2 className="text-muted-foreground size-4 shrink-0" />
-                                    <span className="text-primary flex-1 truncate text-sm">{state.link.url}</span>
-                                    <button
-                                        onClick={copy}
-                                        className="bg-accent-strong text-accent-strong-foreground inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium"
-                                    >
-                                        {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-                                        {copied ? t('common.copied') : t('common.copy')}
-                                    </button>
-                                </div>
-                                <p className="text-muted-foreground text-xs">{t('sharing.link_view_desc')}</p>
-                            </>
+                            <div className="flex items-center gap-2">
+                                <span className="bg-background text-primary min-w-0 flex-1 truncate rounded-xl border px-3 py-2.5 font-mono text-sm">
+                                    {state.link.url.replace(/^https?:\/\//, '')}
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={copy}
+                                    className="bg-accent-strong text-accent-strong-foreground inline-flex shrink-0 items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold"
+                                >
+                                    {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+                                    {copied ? t('common.copied') : t('common.copy')}
+                                </button>
+                            </div>
                         ) : state.canManage ? (
                             <button
+                                type="button"
                                 onClick={createLink}
-                                className="bg-surface-card hover:border-accent text-primary inline-flex items-center justify-center gap-2 rounded-xl border p-3 text-sm font-medium transition-colors"
+                                className="bg-background hover:border-accent text-primary inline-flex items-center justify-center gap-2 rounded-xl border p-3 text-sm font-medium transition-colors"
                             >
                                 <Link2 className="size-4" /> {t('sharing.create_link')}
                             </button>
@@ -194,13 +202,6 @@ export function ShareSheet({
                         )}
                     </div>
                 )}
-
-                <button
-                    onClick={() => onOpenChange(false)}
-                    className="bg-accent-strong text-accent-strong-foreground mt-6 w-full rounded-xl py-3 text-sm font-semibold"
-                >
-                    Done
-                </button>
             </SheetContent>
         </Sheet>
     );

@@ -3,6 +3,7 @@
 namespace Modules\Vehicles\Mcp;
 
 use App\Mcp\Tool;
+use App\Support\Tenancy\FamilyClock;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
@@ -49,7 +50,7 @@ class AddExpense extends Tool
 
         // Same path as the car Overview's "Add expense": the family's "Vehicles" spending list, linked to the car.
         $spend = VehicleExpenses::record($v, $this->user(), (float) $data['amount'],
-            ($data['note'] ?? null) ?: trim("{$v->make} {$v->model}"), $data['date'] ?? now()->toDateString());
+            ($data['note'] ?? null) ?: trim("{$v->make} {$v->model}"), $data['date'] ?? FamilyClock::today());
 
         return Response::structured([
             'expense_id' => $spend?->id,

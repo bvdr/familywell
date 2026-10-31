@@ -3,6 +3,7 @@
 namespace Modules\Notifications;
 
 use App\Http\Controllers\Controller;
+use App\Support\Translations;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
@@ -19,7 +20,26 @@ class PushController extends Controller
             'keys.auth' => ['required', 'string'],
         ]);
 
-        $request->user()->updatePushSubscription($data['endpoint'], $data['keys']['p256dh'], $data['keys']['auth']);
+        $user = $request->user();
+        $isNew = ! $user->pushSubscriptions()->where('endpoint', $data['endpoint'])->exists();
+        $user->updatePushSubscription($data['endpoint'], $data['keys']['p256dh'], $data['keys']['auth']);
+
+        // A hello from Homer the moment a device turns notifications on (the onboarding step, or Settings), so the
+        // first push someone sees is a friendly one and proves it works. Only for a new device: the browser
+        // re-sends the same subscription on later visits, and that must not greet them again.
+        if ($isNew) {
+            $locale = $user->locale ?? 'en';
+            $first = strtok((string) $user->name, ' ') ?: '';
+            $title = $first !== ''
+                ? str_replace(':name', $first, Translations::get('notifications.welcome_push_title', $locale))
+                : Translations::get('notifications.welcome_push_title_anon', $locale);
+            try {
+                $user->notify(new PushAlert($title, Translations::get('notifications.welcome_push_body', $locale), icon: '/icons/homer-happy-256.png'));
+            } catch (\Throwable $e) {
+                // Best effort: the subscription is saved either way; a failed hello must not fail turning push on.
+                report($e);
+            }
+        }
 
         return response()->noContent();
     }

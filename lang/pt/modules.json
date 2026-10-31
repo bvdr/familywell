@@ -1,62 +1,77 @@
 {
     "birthdays": {
         "name": "Aniversários",
-        "description": "Adicione aniversários com dia e mês (ano opcional) ou defina um em qualquer contato. Mostra a idade, o próximo aniversário, um selo no contato e um widget de próximos aniversários na tela inicial."
+        "description": "Adicione aniversários com dia e mês (ano opcional) ou defina um em qualquer contato. Mostra a idade, o próximo aniversário, um selo no contato e um widget de próximos aniversários na tela inicial.",
+        "tagline": "Nunca esqueça nenhum"
     },
     "calendar": {
         "name": "Agenda",
-        "description": "A agenda da família para viagens, compromissos e feriados, junto com prazos de tarefas, aniversários e datas dos veículos. Visões de mês e linha do tempo, além de um link de assinatura para o Google ou Apple Agenda."
+        "description": "A agenda da família para viagens, compromissos e feriados, junto com prazos de tarefas, aniversários e datas dos veículos. Visões de mês e linha do tempo, além de um link de assinatura para o Google ou Apple Agenda.",
+        "tagline": "Eventos, viagens, link de assinatura"
     },
     "contacts": {
         "name": "Contatos",
-        "description": "Uma agenda de contatos compartilhada da família. Cada entrada é uma pessoa com dados de contato que outros módulos usam: Aniversários adiciona uma data de nascimento e os projetos podem vincular pessoas."
+        "description": "Uma agenda de contatos compartilhada da família. Cada entrada é uma pessoa com dados de contato que outros módulos usam: Aniversários adiciona uma data de nascimento e os projetos podem vincular pessoas.",
+        "tagline": "Agenda de contatos compartilhada"
     },
     "expense_import": {
         "name": "Importar gastos",
-        "description": "Traga os gastos do cartão para Gastos: envie um extrato bancário (Wise, Revolut, ING, BT ou qualquer CSV/XLSX depois de mapear as colunas uma vez) ou envie cada pagamento do Apple Pay por um Atalho do iPhone. Cada linha é revisada antes de ser salva, duplicatas são sinalizadas, cada importação pode ser desfeita e transações importadas nunca entram duas vezes."
+        "description": "Traga os gastos do cartão para Gastos: envie um extrato bancário (Wise, Revolut, ING, BT ou qualquer CSV/XLSX depois de mapear as colunas uma vez) ou envie cada pagamento do Apple Pay por um Atalho do iPhone. Cada linha é revisada antes de ser salva, duplicatas são sinalizadas, cada importação pode ser desfeita e transações importadas nunca entram duas vezes.",
+        "tagline": "Extratos e Apple Pay para Gastos"
     },
     "important_todos": {
         "name": "Tarefas importantes",
-        "description": "Adiciona um marcador \"importante\" às tarefas: uma chave no editor, uma estrela na linha e as tarefas importantes aparecem primeiro."
+        "description": "Adiciona um marcador \"importante\" às tarefas: uma chave no editor, uma estrela na linha e as tarefas importantes aparecem primeiro.",
+        "tagline": "Destaque tarefas para ficarem no topo"
     },
     "inventory": {
         "name": "Estoque",
-        "description": "Saiba o que você tem, o que está acabando e o que precisa repor: o estoque da casa com calma, sem cara de armazém."
+        "description": "Saiba o que você tem, o que está acabando e o que precisa repor: o estoque da casa com calma, sem cara de armazém.",
+        "tagline": "O que você tem e o que está acabando"
     },
     "notes": {
         "name": "Notas",
-        "description": "Notas rápidas e listas de verificação da família, organizadas em pastas."
+        "description": "Notas rápidas e listas de verificação da família, organizadas em pastas.",
+        "tagline": "Notas compartilhadas em pastas"
     },
     "notifications": {
         "name": "Notificações",
-        "description": "Alertas no app e notificações push para que ninguém perca a atividade da família."
+        "description": "Alertas no app e notificações push para que ninguém perca a atividade da família.",
+        "tagline": "Alertas quando algo precisa de você"
     },
     "projects": {
         "name": "Projetos",
-        "description": "Planeje as coisas maiores: tarefas, progresso e listas de compras vinculadas."
+        "description": "Planeje as coisas maiores: tarefas, progresso e listas de compras vinculadas.",
+        "tagline": "Reúna listas e notas para um objetivo"
     },
     "recipes": {
         "name": "Receitas",
-        "description": "Receitas da família com fotos e uma calculadora: ajuste por porções, pela quantidade que quer fazer ou pelo que você tem."
+        "description": "Receitas da família com fotos e uma calculadora: ajuste por porções, pela quantidade que quer fazer ou pelo que você tem.",
+        "tagline": "Livro de receitas da família que se ajusta"
     },
     "recurring_todos": {
         "name": "Tarefas recorrentes",
-        "description": "Faça uma tarefa se repetir em um cronograma: escolha uma data e um intervalo, e depois de concluída ela volta para \"a fazer\" na próxima ocorrência."
+        "description": "Faça uma tarefa se repetir em um cronograma: escolha uma data e um intervalo, e depois de concluída ela volta para \"a fazer\" na próxima ocorrência.",
+        "tagline": "Tarefas que voltam conforme a agenda"
     },
     "shopping": {
         "name": "Compras",
-        "description": "Listas de compras compartilhadas que toda a família pode marcar junta."
+        "description": "Listas de compras compartilhadas que toda a família pode marcar junta.",
+        "tagline": "Listas, lojas, adicionar por voz"
     },
     "spending": {
         "name": "Gastos",
-        "description": "Acompanhe custos compartilhados e acerte quem deve a quem, divididos como você quiser."
+        "description": "Acompanhe custos compartilhados e acerte quem deve a quem, divididos como você quiser.",
+        "tagline": "Gastos compartilhados, dividir, acertar"
     },
     "tasks": {
         "name": "Tarefas",
-        "description": "Listas de tarefas compartilhadas com prazos, subtarefas e responsáveis."
+        "description": "Listas de tarefas compartilhadas com prazos, subtarefas e responsáveis.",
+        "tagline": "Listas de tarefas com pessoas e datas"
     },
     "vehicles": {
         "name": "Veículos",
-        "description": "O lar de tudo sobre os carros da família: estado, quilometragem, manutenção, gastos e documentos. Cuidado tranquilo com o carro, não um sistema de oficina."
+        "description": "O lar de tudo sobre os carros da família: estado, quilometragem, manutenção, gastos e documentos. Cuidado tranquilo com o carro, não um sistema de oficina.",
+        "tagline": "Revisões, reparos, documentos"
     }
 }

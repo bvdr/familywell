@@ -14,27 +14,31 @@ use App\Models\User;
 // -> :root, `tokensDark` -> .dark (dark-mode overrides), `fonts` -> --font-{sans,heading,mono}.
 class ThemeTokens
 {
+    // The look everyone gets until they pick another: Sun, the brand's own (paper, ink and the yellow), the same as
+    // the onboarding and the website. Was minimal-mono.
+    public const DEFAULT = 'sun';
+
     /**
-     * The skin a person sees: their personal choice wins, else the family's default, else the built-in
-     * default (minimal-mono; css() also falls back to it for an unknown name). The family is only queried
-     * when the person has no personal skin. Shared by the web app (ShareTheme) and the MCP widgets.
+     * The skin a person sees. The skin is the family's (settings redesign, boards M4/Y5: "skins are the family's
+     * look, same for everyone; light/dark is personal"), so inside a family it is the family's skin, else the
+     * built-in default (DEFAULT; css() also falls back to it for an unknown name). users.theme only counts while
+     * the person has no family yet: onboarding's About you step lets them pick one before the family exists, and
+     * OnboardingController::store hands that pick to the family it creates. The column is kept (old personal
+     * picks stay stored) but no longer overrides the family. Shared by the web app (ShareTheme) and the MCP widgets.
      */
     public static function resolve(?User $user, ?int $familyId): string
     {
-        $theme = $user?->theme;
-        if (! $theme && $familyId) {
-            $theme = Family::find($familyId)?->theme;
-        }
+        $theme = $familyId ? Family::find($familyId)?->theme : $user?->theme;
 
-        return $theme ?: 'minimal-mono';
+        return $theme ?: self::DEFAULT;
     }
 
-    public static function css(string $theme = 'minimal-mono'): string
+    public static function css(string $theme = self::DEFAULT): string
     {
         $path = resource_path("themes/{$theme}/theme.json");
-        // Unknown theme name -> fall back to the built-in default (minimal-mono) rather than 500 the app.
+        // Unknown theme name -> fall back to the built-in default rather than 500 the app.
         if (! is_file($path)) {
-            $path = resource_path('themes/minimal-mono/theme.json');
+            $path = resource_path('themes/'.self::DEFAULT.'/theme.json');
         }
         $data = json_decode(file_get_contents($path), true);
 
@@ -74,14 +78,25 @@ class ThemeTokens
                     'id' => basename(dirname($p)),
                     'name' => $data['name'] ?? basename(dirname($p)),
                     // Swatch: page ground, a card, the action accent, and the ink — enough to read the skin.
-                    'swatch' => [
-                        'bg' => $t['background'] ?? '#fff',
-                        'card' => $t['card'] ?? '#fff',
-                        'accent' => $t['accent-strong'] ?? ($t['primary'] ?? '#000'),
-                        'ink' => $t['foreground'] ?? '#000',
-                    ],
+                    'swatch' => self::swatch($t),
+                    // The same four in dark mode (dark tokens over light), for previews that follow the
+                    // Light / Dark choice (the onboarding's About you card).
+                    'swatchDark' => self::swatch([...$t, ...($data['tokensDark'] ?? [])]),
+                    // "NEW" badge on a freshly added skin ("badge": "new" in its theme.json).
+                    'badge' => $data['badge'] ?? null,
                 ];
             })
             ->sortBy('id')->values()->all();
+    }
+
+    /** @return array{bg: string, card: string, accent: string, ink: string} */
+    private static function swatch(array $t): array
+    {
+        return [
+            'bg' => $t['background'] ?? '#fff',
+            'card' => $t['card'] ?? '#fff',
+            'accent' => $t['accent-strong'] ?? ($t['primary'] ?? '#000'),
+            'ink' => $t['foreground'] ?? '#000',
+        ];
     }
 }

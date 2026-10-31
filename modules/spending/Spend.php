@@ -6,6 +6,7 @@ use App\Models\Guest;
 use App\Models\User;
 use App\Support\Media\StoredImage;
 use App\Support\Tenancy\BelongsToFamily;
+use App\Support\Tenancy\FamilyClock;
 use App\Support\Translations;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -172,7 +173,7 @@ class Spend extends Model
         $rebuilt = $target->buildSpend([
             'amount' => $this->amount / 100,
             'currency' => $this->currency,
-            'spent_at' => optional($this->spent_at)->toDateString() ?? now()->toDateString(),
+            'spent_at' => optional($this->spent_at)->toDateString() ?? FamilyClock::today(),
             'source_id' => $this->source_id,
             'category' => $this->category,
             'note' => $this->note,

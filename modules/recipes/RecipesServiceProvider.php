@@ -3,13 +3,19 @@
 namespace Modules\Recipes;
 
 use App\Models\EntityVisit;
+use App\Models\User;
+use App\Support\Add\AddKinds;
 use App\Support\Dashboard\DashboardItems;
+use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Engagement;
 use App\Support\Guests\GuestableRegistry;
 use App\Support\Mcp\McpTools;
+use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
+use App\Support\Search\SearchSources;
 use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Translations;
 use App\Support\Trash\Trash;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -18,8 +24,12 @@ class RecipesServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        // "Your modules" tile: how many recipes this person can see.
+        DashboardSummaries::register('recipes', fn (int $userId) => ['key' => 'dashboard.sum_recipes', 'params' => ['count' => Recipe::visibleTo($userId)->count()]]);
         // Adding a Recipe counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('recipes', Recipe::class);
+        // Classic add's sub line ("last: bananas"): this person's newest recipe they can still see.
+        AddKinds::last('recipes', fn (User $u) => Recipe::where('created_by', $u->id)->visibleTo($u->id)->latest('id')->value('title'));
 
         // MCP: recipes for AI assistants, gated by the `recipes:read` / `recipes:write` scopes.
         McpTools::register('recipes', 'Recipes', [
@@ -27,6 +37,22 @@ class RecipesServiceProvider extends ServiceProvider
             Mcp\CreateRecipe::class, Mcp\UpdateRecipe::class, Mcp\SetPhoto::class,
             Mcp\AddToShopping::class, Mcp\DeleteRecipe::class,
         ]);
+
+        // The "Region & units" preview's weight (App\Support\Region): a real gram amount from a recipe this person
+        // can see. Recipes stay in their own units whatever the family picks (metric spoons, no oz conversion).
+        app(Hooks::class)->listen('family.region', function (array $region, int $familyId, ?int $userId) {
+            if ($userId) {
+                foreach (Recipe::where('family_id', $familyId)->visibleTo($userId)->latest()->limit(10)->pluck('ingredients') as $ingredients) {
+                    $g = collect($ingredients)->first(fn ($i) => RecipeScale::normUnit($i['unit'] ?? null) === 'g' && ($i['qty'] ?? 0) > 0);
+                    if ($g) {
+                        $region['samples']['grams'] = $g['qty'];
+                        break;
+                    }
+                }
+            }
+
+            return $region;
+        });
 
         // 30-day trash, the core sharing system (`recipe` in share URLs) and the public guest link.
         Trash::source('recipes', RecipesTrash::class);
@@ -55,6 +81,19 @@ class RecipesServiceProvider extends ServiceProvider
                     'icon' => 'chef-hat',
                     'visitedAt' => $visits[$r->id]->toIso8601String(),
                 ])->values()->all();
+        });
+
+        // H5 search: title or description match, visible recipes only. Meta is the description (a
+        // snippet if the match is there, else a plain preview) so the row reads like a recipe card.
+        SearchSources::register('recipes', function (string $q, int $userId) {
+            $recipes = SearchSources::ilike(Recipe::query()->visibleTo($userId), ['title', 'description'], $q)
+                ->orderByDesc('id')->limit(20)->get();
+
+            return $recipes->map(fn (Recipe $r) => [
+                'module' => 'recipes', 'title' => $r->title,
+                'meta' => $r->description ? SearchSources::snippet($r->description, $q) : Translations::get('nav.recipes'),
+                'href' => "/m/recipes/{$r->id}", 'icon' => 'chef-hat',
+            ])->values()->all();
         });
 
         // The photo behind a signed URL, for viewers with no Familywell session: the guest page and the

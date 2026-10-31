@@ -9,20 +9,19 @@ import {
     ListChecks,
     NotebookText,
     Package,
-    RotateCcw,
     ShoppingCart,
     Trash2,
     Wallet,
     type LucideIcon,
 } from 'lucide-react';
 
-import HeadingSmall from '@/components/heading-small';
+import { SettingsGroup, SettingsPage, SettingsRow } from '@/components/settings-ui';
 import { Button } from '@/components/ui/button';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
-import SettingsLayout from '@/layouts/settings/layout';
-import { useLocale, useT } from '@/lib/i18n';
+import { useT } from '@/lib/i18n';
 import { save } from '@/lib/save';
+import { cn } from '@/lib/utils';
 
 type Item = {
     module: string;
@@ -50,15 +49,18 @@ const MODULE_ICONS: Record<string, LucideIcon> = {
     vehicles: Car,
 };
 
-// Settings > Recently deleted: the active family's 30-day trash (App\Support\Trash), across modules.
-// Restore is optimistic: the row leaves at once and only comes back if the server refuses.
-export default function RecentlyDeleted({ items, days }: { items: Item[]; days: number }) {
+// Settings > Recently deleted (design Y4): the active family's 30-day trash (App\Support\Trash), across modules.
+// Each row: the module's icon in a tile, what it was, "Kind · where", and how long until it's gone for good (in mono,
+// red in the last 3 days), with Restore. Restore is optimistic: the row leaves at once and only comes back if the
+// server refuses.
+export default function RecentlyDeleted({ items, days, family }: { items: Item[]; days: number; family: { name: string } }) {
     const t = useT();
-    const locale = useLocale();
     const restored = useOptimistic<boolean>();
     const key = (i: Item) => `${i.module}-${i.type}-${i.id}`;
     const visible = items.filter((i) => !restored.get(key(i), false));
-    const date = (iso: string) => new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'short' });
+    // purged_on is a plain date (Trash::row); count whole days from today's local midnight to it.
+    const today = new Date().setHours(0, 0, 0, 0);
+    const daysLeft = (purgedOn: string) => Math.max(0, Math.round((new Date(`${purgedOn}T00:00`).getTime() - today) / 86_400_000));
 
     const restore = (i: Item) => {
         restored.set(key(i), true);
@@ -66,47 +68,56 @@ export default function RecentlyDeleted({ items, days }: { items: Item[]; days: 
     };
 
     return (
-        <AppLayout breadcrumbs={[{ title: t('trash.title'), href: '/settings/recently-deleted' }]}>
+        <AppLayout hideMobileHeader breadcrumbs={[{ title: t('trash.title'), href: '/settings/recently-deleted' }]}>
             <Head title={t('trash.title')} />
-            <SettingsLayout>
-                <div className="space-y-6">
-                    <HeadingSmall title={t('trash.title')} description={t('trash.desc', { days })} />
-
-                    {visible.length === 0 ? (
-                        <div className="text-muted-foreground flex flex-col items-center gap-2 rounded-xl border border-dashed p-10 text-center">
+            <SettingsPage back={{ href: '/settings/family', label: family.name }} title={t('trash.title')} lede={t('trash.kept', { days })}>
+                {visible.length === 0 ? (
+                    <SettingsGroup>
+                        <div className="text-muted-foreground flex flex-col items-center gap-2 p-10 text-center">
                             <Trash2 className="size-6" />
                             <p className="text-sm">{t('trash.empty', { days })}</p>
                         </div>
-                    ) : (
-                        <ul className="divide-border border-border divide-y rounded-xl border">
-                            {visible.map((i) => {
-                                const Icon = MODULE_ICONS[i.module] ?? Trash2;
-                                return (
-                                    <li key={key(i)} className="flex items-center gap-3 p-3">
-                                        <Icon className="text-muted-foreground size-5 shrink-0" />
-                                        <div className="min-w-0 flex-1">
-                                            <div className="truncate font-medium">
-                                                {i.title}
-                                                {i.amount && <span className="text-muted-foreground font-normal tabular-nums"> · {i.amount}</span>}
-                                            </div>
-                                            <div className="text-muted-foreground truncate text-xs">
-                                                {[t(`trash.type_${i.type}`), i.where].filter(Boolean).join(' · ')}
-                                            </div>
-                                            <div className="text-muted-foreground text-xs">
-                                                {t('trash.deleted_on', { date: date(i.deleted_at) })} ·{' '}
-                                                {t('trash.removed_on', { date: date(i.purged_on) })}
-                                            </div>
-                                        </div>
-                                        <Button type="button" size="sm" variant="outline" onClick={() => restore(i)}>
-                                            <RotateCcw className="size-4" /> {t('trash.restore')}
+                    </SettingsGroup>
+                ) : (
+                    <SettingsGroup>
+                        {visible.map((i) => {
+                            const left = daysLeft(i.purged_on);
+                            return (
+                                <SettingsRow
+                                    key={key(i)}
+                                    icon={MODULE_ICONS[i.module] ?? Trash2}
+                                    tile
+                                    title={i.title}
+                                    sub={
+                                        <>
+                                            {/* The amount rides in the sub line: on the title it was the first thing truncated away. */}
+                                            {[t(`trash.type_${i.type}`), i.where, i.amount].filter(Boolean).join(' · ')}
+                                            <span
+                                                className={cn(
+                                                    'block font-mono text-[13px] font-medium',
+                                                    left <= 3 ? 'text-destructive' : 'text-primary',
+                                                )}
+                                            >
+                                                {t('trash.days_left', { count: left })}
+                                            </span>
+                                        </>
+                                    }
+                                    right={
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            className="bg-primary text-primary-foreground hover:bg-primary/90 shrink-0 rounded-full px-4 font-bold"
+                                            onClick={() => restore(i)}
+                                        >
+                                            {t('trash.restore')}
                                         </Button>
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    )}
-                </div>
-            </SettingsLayout>
+                                    }
+                                />
+                            );
+                        })}
+                    </SettingsGroup>
+                )}
+            </SettingsPage>
         </AppLayout>
     );
 }

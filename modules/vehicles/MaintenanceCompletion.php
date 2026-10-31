@@ -3,7 +3,7 @@
 namespace Modules\Vehicles;
 
 use App\Models\User;
-use Illuminate\Support\Carbon;
+use App\Support\Tenancy\FamilyClock;
 use Modules\Tasks\Task;
 
 /**
@@ -103,7 +103,7 @@ class MaintenanceCompletion
         $vehicle = $schedule->vehicle;
 
         return self::complete($vehicle, $schedule, [
-            'performed_at' => Carbon::today()->toDateString(),
+            'performed_at' => FamilyClock::today(),
             'mileage' => (int) $vehicle->current_mileage,
             'cost' => null,
         ], $actor);

@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\AddController;
+use App\Http\Controllers\AddUsageController;
 use App\Http\Controllers\FamilyController;
 use App\Http\Controllers\FamilyInviteController;
 use App\Http\Controllers\FamilyMemberController;
@@ -7,13 +9,18 @@ use App\Http\Controllers\FamilyModuleController;
 use App\Http\Controllers\GuestLinkController;
 use App\Http\Controllers\ModuleAssetController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\PinnedModulesController;
 use App\Http\Controllers\PublicGuestController;
 use App\Http\Controllers\PublicShareController;
 use App\Http\Controllers\ShareController;
+use App\Models\Family;
 use App\Models\User;
 use App\Support\Analytics;
 use App\Support\Dashboard\DashboardData;
+use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Demo\DemoFamily;
+use App\Support\Search\SearchSources;
+use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -71,6 +78,28 @@ Route::middleware(['auth'])->group(function () {
     Route::get('onboarding', [OnboardingController::class, 'index'])->name('onboarding.index');
     Route::get('onboarding/create', [OnboardingController::class, 'create'])->name('onboarding.create');
     Route::post('onboarding', [OnboardingController::class, 'store'])->name('onboarding.store');
+    Route::get('onboarding/invite', [OnboardingController::class, 'invite'])->name('onboarding.invite');
+    // Throttled: each invite sends an email.
+    Route::post('onboarding/invite', [OnboardingController::class, 'sendInvites'])->middleware('throttle:10,1')->name('onboarding.invite.store');
+    Route::get('onboarding/modules', [OnboardingController::class, 'modules'])->name('onboarding.modules');
+    Route::post('onboarding/modules', [OnboardingController::class, 'saveModules'])->name('onboarding.modules.store');
+    Route::get('onboarding/install', [OnboardingController::class, 'install'])->name('onboarding.install');
+    Route::post('onboarding/install', [OnboardingController::class, 'saveInstall'])->name('onboarding.install.store');
+    Route::get('onboarding/notifications', [OnboardingController::class, 'notifications'])->name('onboarding.notifications');
+    Route::post('onboarding/notifications', [OnboardingController::class, 'saveNotifications'])->name('onboarding.notifications.store');
+    Route::get('onboarding/ready', [OnboardingController::class, 'ready'])->name('onboarding.ready');
+    Route::post('onboarding/ready', [OnboardingController::class, 'saveReady'])->name('onboarding.ready.store');
+    Route::post('onboarding/tour', [OnboardingController::class, 'finishTour'])->name('onboarding.tour.finish');
+    Route::get('onboarding/plan', [OnboardingController::class, 'plan'])->name('onboarding.plan');
+    // Starts the incomplete subscription the browser then pays (throttled: each call is a Stripe API write).
+    Route::post('onboarding/plan', [OnboardingController::class, 'subscribe'])->middleware(['not-demo', 'throttle:10,1'])->name('onboarding.plan.subscribe');
+    // Promo codes (throttled: each check is a Stripe API read, and it stops someone guessing codes).
+    Route::post('onboarding/plan/promo', [OnboardingController::class, 'applyPromo'])->middleware('throttle:10,1')->name('onboarding.plan.promo');
+    Route::delete('onboarding/plan/promo', [OnboardingController::class, 'removePromo'])->name('onboarding.plan.promo.remove');
+    Route::get('onboarding/plan/paid', [OnboardingController::class, 'paid'])->name('onboarding.plan.paid');
+    // Sign-in links for the phone (App\Support\Auth\Handoff): throttled, the email one harder since it sends mail.
+    Route::post('onboarding/handoff', [OnboardingController::class, 'handoff'])->middleware('throttle:10,1')->name('onboarding.handoff');
+    Route::post('onboarding/handoff/email', [OnboardingController::class, 'emailHandoff'])->middleware('throttle:3,10')->name('onboarding.handoff.email');
 
     // Accepting requires a logged-in user, but NOT a family (a new/joining user has none yet).
     Route::post('invite/{token}', [FamilyInviteController::class, 'accept'])->name('invite.accept');
@@ -78,6 +107,10 @@ Route::middleware(['auth'])->group(function () {
     // Web Push subscription + the in-app notifications feed now live in the notifications module
     // (Modules\Notifications\NotificationsServiceProvider), registered globally there.
 });
+
+// The phone end of the onboarding's QR code / emailed sign-in link. No auth by design (it IS the sign-in); the
+// token is single-use, expires in 10 minutes and is throttled per IP against guessing.
+Route::get('/h/{token}', [OnboardingController::class, 'useHandoff'])->middleware('throttle:20,1')->name('handoff');
 
 // Public read-only view of a shared entity via its invite-link token. No auth by design; the token
 // is a 48-char unguessable secret. Throttled since it's unauthenticated (enumeration / abuse guard).
@@ -96,6 +129,34 @@ Route::middleware(['auth', 'family'])->group(function () {
         // Recent (Pick up where you left off) + Today + This Week, assembled from module providers.
         return Inertia::render('dashboard', DashboardData::build());
     })->name('dashboard');
+    // The Add sheet's "most used" ranking, fetched when it opens (AddUsageController).
+    Route::get('add/usage', AddUsageController::class)->middleware('throttle:60,1')->name('add.usage');
+    // Pin a Classic shortcut on top (per person). The demo may pin too: it's a harmless personal preference.
+    Route::put('add/pins', [AddUsageController::class, 'pins'])->middleware('throttle:30,1')->name('add.pins');
+    // "Just say it": read while typing (no points, needs some left), save the confirmed cards (one point).
+    Route::post('add/read', [AddController::class, 'read'])->middleware('throttle:40,1')->name('add.read');
+    Route::post('add/save', [AddController::class, 'save'])->middleware('throttle:20,1')->name('add.save');
+    // Voice: the growing recording is re-sent every few seconds while the person talks.
+    Route::post('add/transcribe', [AddController::class, 'transcribe'])->middleware('throttle:60,1')->name('add.transcribe');
+    // The More sheet: each module's live status line (the same DashboardSummaries Home's tiles use) + the family's
+    // name for its own group, fetched when the sheet opens so other pages don't pay for it.
+    Route::get('nav/more', fn () => response()->json([
+        'family' => Family::find(CurrentFamily::id())?->name,
+        'summaries' => DashboardSummaries::collect(),
+    ]))->middleware('throttle:60,1')->name('nav.more');
+
+    // H5 · Search: one search across every module the family has enabled, grouped client-side by
+    // module. Under 2 characters returns no results (the frontend debounces + skips the request, but
+    // an empty/short q is still handled here so a direct/retried request never queries anything).
+    // Throttled since every keystroke (after the debounce) is a request.
+    Route::get('search', function (Request $request) {
+        $q = trim((string) $request->query('q', ''));
+
+        return Inertia::render('search', [
+            'q' => $q,
+            'results' => mb_strlen($q) >= 2 ? SearchSources::collect($q) : [],
+        ]);
+    })->middleware('throttle:60,1')->name('search');
 
     // Generic sharing management for any registered shareable entity ({type}/{id}). Owner-only,
     // enforced in the controller.
@@ -121,6 +182,7 @@ Route::middleware(['auth', 'family'])->group(function () {
 
     Route::get('/m/{module}/frontend.js', [ModuleAssetController::class, 'frontend'])->name('module.frontend');
 
+    Route::put('/settings/pins', [PinnedModulesController::class, 'update'])->middleware('not-demo')->name('pins.update');
     Route::get('/family/modules', [FamilyModuleController::class, 'index'])->name('family.modules.index');
     Route::post('/family/modules/{module}/enable', [FamilyModuleController::class, 'enable'])->name('family.modules.enable');
     Route::delete('/family/modules/{module}', [FamilyModuleController::class, 'disable'])->name('family.modules.disable');

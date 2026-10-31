@@ -6,6 +6,7 @@ use App\Models\Family;
 use App\Models\User;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Tenancy\FamilyClock;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use Modules\Inventory\InventoryAlert;
@@ -36,7 +37,6 @@ class CheckInventory extends Command
 
     public function handle(ModuleRegistry $modules): int
     {
-        $today = now()->toDateString();
         $prior = CurrentFamily::id(); // restore afterwards so a long-running worker isn't left scoped
 
         // Only families that actually hold inventory are worth walking (unscoped: we're outside a family
@@ -64,7 +64,10 @@ class CheckInventory extends Command
                 $members = $family->members; // recipients for the alerts (no actor -> everyone)
                 $items = InventoryItem::query()->get();
 
-                $notified += $this->raiseAlerts($items, $settings, $members, $today);
+                // The once-a-day ledger counts the family's own day (FamilyClock), like "expiring" does.
+                // ponytail: still scheduled once at 07:00 UTC for everyone; hourly + a local-hour gate like
+                // birthdays:notify if a far-west family ever minds the timing.
+                $notified += $this->raiseAlerts($items, $settings, $members, FamilyClock::today($familyId));
                 $addedToShopping += $this->autoReplenish($family, $settings, $modules);
             }
         } finally {

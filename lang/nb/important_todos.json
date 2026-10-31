@@ -1,0 +1,19 @@
+{
+    "your_important": "Dine viktige",
+    "pinned": "Festet til de er gjort",
+    "due_today": "Frist i dag",
+    "due_on": "Frist :date",
+    "family_important": "Viktige i familien",
+    "next_due": "neste frist :day",
+    "show": "Vis",
+    "hide": "Skjul",
+    "none_title": "Ingenting viktig på deg",
+    "none_sub": "Gi opptil :limit gjøremål en stjerne for å feste dem her.",
+    "unstar": "Fjern stjernen fra :title",
+    "limit_you": "Du har allerede :limit åpne viktige gjøremål. Gjør ferdig eller fjern stjernen fra ett først.",
+    "limit_them": ":name har allerede :limit åpne viktige gjøremål. Ett av dem må gjøres ferdig eller miste stjernen først.",
+    "limit_ui": "Opptil :limit åpne viktige gjøremål per person. Gjør ferdig eller fjern stjernen fra ett først.",
+    "important": "Viktig",
+    "on": "På",
+    "off": "Av"
+}

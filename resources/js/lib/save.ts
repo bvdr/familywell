@@ -32,7 +32,12 @@ export async function request(method: string, url: string, body?: unknown): Prom
             credentials: 'same-origin',
             redirect: 'manual',
         });
-        return { result: res.type === 'opaqueredirect' || res.ok ? 'ok' : 'rejected', status: res.status };
+        const result: SaveResult = res.type === 'opaqueredirect' || res.ok ? 'ok' : 'rejected';
+        // A change on the server makes every prefetched page stale (the tab bar prefetches Home for 30s). A plain
+        // fetch doesn't flush Inertia's prefetch cache the way a router visit would, so a star set on a to-do then
+        // Home showed the page from before the star (2026-10-30). Drop them; the next visit loads fresh.
+        if (result === 'ok') router.flushAll();
+        return { result, status: res.status };
     } catch {
         return { result: 'offline', status: 0 };
     }

@@ -1,0 +1,23 @@
+{
+    "add_details": "Details hinzufügen",
+    "edit_details": "Details bearbeiten",
+    "things_one": ":count Sache",
+    "things_other": ":count Sachen",
+    "position": ":kind · :i von :n",
+    "when": "Wann",
+    "pick": "Wählen…",
+    "who_on_it": "Wer kümmert sich",
+    "anyone": "Egal wer",
+    "note_placeholder": "Notiz hinzufügen…",
+    "leave_out": "Weglassen",
+    "from_typed": "Aus deiner Eingabe",
+    "list_gone": "Diese Liste gibt es nicht mehr, oder du kannst nichts hinzufügen. Wähl eine andere.",
+    "category_auto": "Automatisch erkennen",
+    "f_note": "Notiz",
+    "f_notes": "Notizen",
+    "f_list_id": "Liste",
+    "f_category": "Kategorie",
+    "f_repeat": "Wiederholen",
+    "f_who": "Wer",
+    "f_due": "Fällig am"
+}

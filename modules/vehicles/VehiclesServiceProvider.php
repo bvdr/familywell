@@ -2,7 +2,11 @@
 
 namespace Modules\Vehicles;
 
+use App\Models\Family;
+use App\Models\User;
+use App\Support\Add\AddKinds;
 use App\Support\Calendar\CalendarSources;
+use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\Hooks;
@@ -10,7 +14,9 @@ use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Trash\Trash;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ServiceProvider;
 use Modules\Notifications\NotificationCategories;
 use Modules\Shopping\ShoppingItem;
@@ -27,12 +33,64 @@ class VehiclesServiceProvider extends ServiceProvider
 
     public function boot(Hooks $hooks): void
     {
+        // "Just say it" in the Add sheet: a car (AddKinds), e.g. from a photo. In Vehicles with no cars yet the screen
+        // line says so, which is what tips a car photo towards "add a vehicle" (the user's example).
+        AddKinds::register('vehicle', 'vehicles', [
+            'fields' => [
+                'make' => ['type' => 'text', 'required' => true],
+                'model' => ['type' => 'text', 'required' => true],
+                'year' => ['type' => 'number', 'decimals' => 0],
+                'plate' => ['type' => 'text'],
+                'color' => ['type' => 'text'],
+            ],
+            'save' => function (User $user, array $v) {
+                $data = Validator::validate(['make' => $v['make'] ?? null, 'model' => $v['model'] ?? null, 'year' => $v['year'] ?? null, 'license_plate' => $v['plate'] ?? null, 'color' => $v['color'] ?? null], [
+                    'make' => ['required', 'string', 'max:80'], 'model' => ['required', 'string', 'max:80'],
+                    'year' => ['nullable', 'integer', 'min:1900', 'max:2100'], 'license_plate' => ['nullable', 'string', 'max:40'], 'color' => ['nullable', 'string', 'max:40'],
+                ]);
+                $vehicle = Vehicle::createFor($user, $data);
+
+                return ['title' => "{$vehicle->make} {$vehicle->model}", 'url' => "/m/vehicles/{$vehicle->id}"];
+            },
+        ]);
+        AddKinds::screen('vehicles', function (?int $id) {
+            $cars = Vehicle::query()->get(['make', 'model']);
+
+            return $cars->isEmpty() ? 'the family has no vehicles yet' : 'their vehicles: '.$cars->map(fn ($c) => "{$c->make} {$c->model}")->implode(', ');
+        });
+
+        // "Your modules" tile: how many cars the family keeps here.
+        DashboardSummaries::register('vehicles', fn () => ['key' => 'dashboard.sum_vehicles', 'params' => ['count' => Vehicle::count()]]);
         // Adding a Vehicle counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('vehicles', Vehicle::class);
+        // Classic add's sub line ("last: bananas"): this person's newest vehicle they can still see (vehicles are family-wide).
+        AddKinds::last('vehicles', fn (User $u) => Vehicle::where('created_by', $u->id)->latest('id')->get(['make', 'model'])->map(fn ($v) => trim("{$v->make} {$v->model}"))->first());
 
         // Our notification category (maintenance-due pushes), so it gets its own on/off row on the
         // Notifications settings screen. Registration is idempotent (boot re-runs per request/worker).
         NotificationCategories::register('vehicles', 'Vehicles', 'car');
+
+        // Km or miles: the "Region & units" sheet (onboarding step 1 and Settings, see App\Support\Region) guesses
+        // it from a country (onboarding.region), shows the family's current one (family.region) and stores a
+        // change (family.region.save, also fired when onboarding creates the family). Miles are the road unit in
+        // the US, the UK, Liberia and Myanmar, everyone else drives in km.
+        $hooks->listen('onboarding.region', fn (array $region, ?string $country) => [
+            ...$region, 'units' => in_array($country, ['US', 'GB', 'LR', 'MM'], true) ? 'imperial' : 'metric',
+        ]);
+        $hooks->listen('family.region', function (array $region, int $familyId, ?int $userId) {
+            $region['units'] = VehicleSetting::current($familyId)->unit_system;
+            // The preview's distance: the family's highest odometer (cars aren't shareable, every member sees them).
+            if ($userId && ($km = Vehicle::where('family_id', $familyId)->max('current_mileage'))) {
+                $region['samples']['km'] = (int) $km;
+            }
+
+            return $region;
+        });
+        $hooks->listen('family.region.save', function (Family $family, array $input) {
+            if (in_array($input['units'] ?? null, VehicleSetting::UNIT_SYSTEMS, true)) {
+                VehicleSetting::current($family->id)->update(['unit_system' => $input['units']]);
+            }
+        });
         $this->loadViewsFrom(__DIR__.'/resources/views', 'vehicles'); // the history PDF template
 
         // MCP: tools an AI assistant can use on the family's cars, gated by the `vehicles:read` /

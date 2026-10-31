@@ -3,6 +3,7 @@
 namespace Modules\Spending\Mcp;
 
 use App\Mcp\Tool;
+use App\Support\Tenancy\FamilyClock;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
@@ -36,8 +37,9 @@ class Summary extends Tool
     public function handle(Request $request): Response|ResponseFactory
     {
         $f = $request->validate(['from' => ['nullable', 'date'], 'to' => ['nullable', 'date', 'after_or_equal:from']]);
-        $from = $f['from'] ?? now()->startOfMonth()->toDateString();
-        $to = $f['to'] ?? now()->toDateString();
+        // Defaults: this month to today on the family's calendar (FamilyClock).
+        $from = $f['from'] ?? FamilyClock::date()->startOfMonth()->toDateString();
+        $to = $f['to'] ?? FamilyClock::today();
 
         // Same conventions as the app's "this month" figure (MonthToDate): visible, non-archived lists, only
         // expenses that count in monthly spending, each list's frozen base amounts, rolled into the

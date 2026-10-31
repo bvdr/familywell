@@ -8,5 +8,21 @@
     "empty": "Noch nichts. Familienaktivität, die du sehen kannst, erscheint hier.",
     "today": "Heute",
     "yesterday": "Gestern",
-    "now": "jetzt"
+    "new_count_one": ":count neu",
+    "new_count_other": ":count neu",
+    "settings": "Benachrichtigungseinstellungen",
+    "dismiss": "Entfernen",
+    "now": "jetzt",
+    "welcome_push_title": "Willkommen, :name 👋",
+    "welcome_push_title_anon": "Willkommen bei FamilyWell 👋",
+    "welcome_push_body": "Hier ist Homer 🏡 So tippt dir FamilyWell auf die Schulter.",
+    "shared_with_me": "Mit mir geteilt",
+    "push_this_phone": "Push auf diesem Handy",
+    "push_unsupported": "Dieser Browser kann keine Push-Benachrichtigungen.",
+    "push_install_ios": "Auf dem iPhone füge FamilyWell zuerst zum Home-Bildschirm hinzu (Teilen, dann Zum Home-Bildschirm) und öffne es von dort.",
+    "push_test": "Testbenachrichtigung senden",
+    "push_test_sent": "Gesendet",
+    "push_per_device": "Push gilt pro Gerät: Schalte es überall ein, wo du Hinweise willst. Worüber du benachrichtigt wirst, gilt überall.",
+    "notify_me_about": "Benachrichtige mich über",
+    "muted_note": "Ausschalten stoppt nur den Push. In den Benachrichtigungen in der App erscheint es weiterhin."
 }

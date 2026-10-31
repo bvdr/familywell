@@ -65,9 +65,9 @@ export function NotificationsBell() {
                 type="button"
                 onClick={openPanel}
                 aria-label={unread > 0 ? t('notifications.aria_unread', { n: unread }) : t('notifications.aria')}
-                className="border-border text-primary hover:bg-surface relative flex size-9 items-center justify-center rounded-lg border transition-colors"
+                className="bg-surface text-primary hover:bg-accent-subtle relative flex size-10 items-center justify-center rounded-full transition-colors"
             >
-                <Bell className="size-4.5" />
+                <Bell className="size-5" />
                 {unread > 0 && (
                     <span className="bg-accent-strong text-accent-strong-foreground absolute -top-1.5 -right-1.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1 text-[10px] font-semibold">
                         {unread > 9 ? '9+' : unread}

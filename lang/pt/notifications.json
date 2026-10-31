@@ -8,5 +8,21 @@
     "empty": "Nada ainda. A atividade da família que você pode ver vai aparecer aqui.",
     "today": "Hoje",
     "yesterday": "Ontem",
-    "now": "agora"
+    "new_count_one": ":count nova",
+    "new_count_other": ":count novas",
+    "settings": "Configurações de notificações",
+    "dismiss": "Descartar",
+    "now": "agora",
+    "welcome_push_title": "Bem-vindo, :name 👋",
+    "welcome_push_title_anon": "Bem-vindo ao FamilyWell 👋",
+    "welcome_push_body": "Aqui é o Homer 🏡 É assim que o FamilyWell vai te avisar.",
+    "shared_with_me": "Partilhado comigo",
+    "push_this_phone": "Notificações neste telemóvel",
+    "push_unsupported": "Este navegador não suporta notificações push.",
+    "push_install_ios": "No iPhone, adiciona primeiro o FamilyWell ao ecrã principal (Partilhar e depois Adicionar ao ecrã principal) e abre-o a partir daí.",
+    "push_test": "Enviar uma notificação de teste",
+    "push_test_sent": "Enviada",
+    "push_per_device": "As notificações push são por dispositivo: ativa-as onde quiseres alertas. Sobre o que és notificado vale em todos.",
+    "notify_me_about": "Avisar-me sobre",
+    "muted_note": "Desligar um para só a notificação push. Continua a aparecer nas notificações da app."
 }

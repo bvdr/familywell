@@ -25,32 +25,34 @@ it('emits the default theme tokens as CSS custom properties', function () {
         ->toContain('--text-secondary:#A6BFAE');
 });
 
-it('falls back to the built-in default (minimal-mono) for an unknown name', function () {
-    expect(ThemeTokens::css('does-not-exist'))->toBe(ThemeTokens::css('minimal-mono'));
+it('falls back to the built-in default (Sun) for an unknown name', function () {
+    expect(ThemeTokens::css('does-not-exist'))->toBe(ThemeTokens::css('sun'));
 });
 
 it('injects the theme variables into the served document', function () {
-    // Unauthenticated /login has no user/family skin, so it serves the built-in default (minimal-mono).
+    // Unauthenticated /login has no user/family skin, so it serves the built-in default (Sun).
     get('/login')
         ->assertOk()
         ->assertSee('id="theme"', false)
-        ->assertSee('--primary:#1C1917', false);
+        ->assertSee('--primary:#121100', false);
 });
 
-it('resolves the skin as user override, then family default, then built-in', function () {
+it('resolves the skin as the family\'s, the person\'s own only before they have a family', function () {
     $family = Family::factory()->create(['theme' => 'minimal-mono']);
-    $user = User::factory()->create(['theme' => null]);
+    $user = User::factory()->create(['theme' => 'default']);
     $family->members()->attach($user, ['role' => 'admin']);
     session(['active_family_id' => $family->id]);
 
-    // No personal skin -> the family default is served.
+    // In a family, the family's skin wins over an old personal pick (boards M4/Y5: the skin is the family's).
     actingAs($user)->get('/dashboard')->assertSee('--accent-strong:#F59E0B', false);
-
-    // Personal skin overrides the family default.
-    $user->update(['theme' => 'default']);
-    actingAs($user)->get('/dashboard')->assertSee('--primary:hsl(135.9, 35.3%, 27.3%)', false);
+    expect(ThemeTokens::resolve($user, $family->id))->toBe('minimal-mono')
+        // No family yet (onboarding's About you): their own pick shows.
+        ->and(ThemeTokens::resolve($user, null))->toBe('default')
+        // A family without a skin gets the built-in default, not the personal pick.
+        ->and(ThemeTokens::resolve($user, Family::factory()->create(['theme' => null])->id))->toBe(ThemeTokens::DEFAULT);
 });
 
+// Still used by onboarding's About you step (before the family exists); Settings no longer offers it.
 it('lets a member set and clear their personal skin', function () {
     $user = User::factory()->create(['theme' => null]);
 
@@ -81,16 +83,33 @@ it('lets an admin set the family skin but forbids a member', function () {
 });
 
 it('hands the skin pickers the skin CSS in effect, so a pick applies without a reload', function () {
-    $user = User::factory()->create(['theme' => 'warm']);
+    $user = User::factory()->create(['theme' => 'default']);
     $family = Family::factory()->create(['owner_id' => $user->id, 'theme' => 'minimal-mono']);
     $family->members()->attach($user, ['role' => 'admin']);
     session(['active_family_id' => $family->id]);
 
-    actingAs($user)->get('/settings/appearance')->assertInertia(fn ($page) => $page->where('themeCss', ThemeTokens::css('warm')));
-    actingAs($user)->get('/family/members')->assertInertia(fn ($page) => $page->where('themeCss', ThemeTokens::css('warm')));
+    $css = ThemeTokens::css('minimal-mono'); // the family's, not the old personal pick
+    actingAs($user)->get('/settings/appearance')->assertInertia(fn ($page) => $page->where('themeCss', $css));
+    actingAs($user)->get('/settings/family/look')->assertInertia(fn ($page) => $page->where('themeCss', $css));
+});
 
-    $user->update(['theme' => null]); // back to the family default
-    actingAs($user)->get('/settings/appearance')->assertInertia(fn ($page) => $page->where('themeCss', ThemeTokens::css('minimal-mono')));
+it('shows the family skin on Appearance, editable by admins only', function () {
+    $admin = User::factory()->create();
+    $member = User::factory()->create();
+    $family = Family::factory()->create(['owner_id' => $admin->id, 'theme' => null]);
+    $family->members()->attach($admin, ['role' => 'admin']);
+    $family->members()->attach($member, ['role' => 'member']);
+    session(['active_family_id' => $family->id]);
+
+    actingAs($admin)->get('/settings/appearance')->assertOk()->assertInertia(fn ($page) => $page
+        ->component('settings/appearance')
+        ->where('familySkin', ThemeTokens::DEFAULT) // no skin set -> the built-in default is the family's
+        ->where('defaultTheme', ThemeTokens::DEFAULT)
+        ->where('canManage', true)
+        ->has('themes', count(ThemeTokens::available())));
+
+    session(['active_family_id' => $family->id]);
+    actingAs($member)->get('/settings/appearance')->assertInertia(fn ($page) => $page->where('canManage', false));
 });
 
 // The "inverted" cards (spending Total spent, the add-to-home-screen hint) put text-inverse / accent-light text on a

@@ -1,0 +1,9 @@
+{
+    "modules_lede": "Toate sunt incluse în plan. Pornește ce folosește familia ta.",
+    "modules_admin_note": "Doar un administrator al familiei poate porni sau opri module.",
+    "modules_needs": "Are nevoie de :name",
+    "members_lede": "Toți cei care împart acest spațiu de familie.",
+    "members_group": "În familie",
+    "members_role_owner": "Proprietar",
+    "members_invite_group": "Invită pe cineva"
+}

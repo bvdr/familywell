@@ -6,6 +6,7 @@ use App\Events\ShoppingChanged;
 use App\Models\User;
 use App\Support\Realtime;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Tenancy\FamilyClock;
 use Modules\Shopping\ShoppingItem;
 use Modules\Shopping\ShoppingList;
 
@@ -106,7 +107,7 @@ class VehicleParts
 
         $part->forceFill([
             'status' => VehiclePartRequest::STATUS_BOUGHT,
-            'bought_on' => now()->toDateString(),
+            'bought_on' => FamilyClock::today(),
             'shopping_item_id' => null, // loop closed — the request can be re-made later if needed
         ])->save();
 
@@ -121,7 +122,7 @@ class VehicleParts
                     $actor,
                     (float) $part->estimated_cost,
                     $this->label($vehicle, $part->name),
-                    now()->toDateString(),
+                    FamilyClock::today(),
                     null,          // not a maintenance completion
                     null,          // not a repair
                     null,          // not a fuel fill

@@ -1,97 +1,94 @@
+import { Head, router } from '@inertiajs/react';
+import { Bell, Blocks, Repeat, Star, type LucideIcon } from 'lucide-react';
+
+import { MODULE_ITEMS } from '@/components/mobile-tab-bar';
+import { SettingsGroup, SettingsPage, SettingsRow, SettingsSwitch } from '@/components/settings-ui';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
-import { Head, router } from '@inertiajs/react';
-import { Bell, Blocks, Contact, FolderKanban, Import, ListChecks, type LucideIcon, Package, ShoppingCart, StickyNote, Wallet } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-type Module = { id: string; name: string; description: string; version: string; enabled: boolean };
-type Props = { catalog: Module[]; canManage: boolean };
+type Module = { id: string; name: string; tagline: string; requires: string[]; enabled: boolean };
+type Props = { catalog: Module[]; canManage: boolean; familyName: string };
 
-// Reuse the exact iconography the nav and dashboard use, so a module looks the same everywhere it appears.
-const MODULE_ICON: Record<string, LucideIcon> = {
-    spending: Wallet,
-    shopping: ShoppingCart,
-    tasks: ListChecks,
-    projects: FolderKanban,
-    notes: StickyNote,
-    contacts: Contact,
-    inventory: Package,
-    notifications: Bell,
-    expense_import: Import,
+// Icons come from the nav's MODULE_ITEMS so a module looks the same here as in the tab bar and More. Add-ons and
+// notifications have no nav entry (no page of their own), so they get theirs here.
+const EXTRA_ICONS: Record<string, LucideIcon> = { important_todos: Star, recurring_todos: Repeat, notifications: Bell };
+const iconFor = (id: string): LucideIcon => MODULE_ITEMS.find((i) => i.key === id)?.icon ?? EXTRA_ICONS[id] ?? Blocks;
+// Nav order (Shopping, Tasks, Calendar, ...) rather than the server's alphabetical one; anything not in the nav last.
+const rank = (id: string) => {
+    const i = MODULE_ITEMS.findIndex((m) => m.key === id);
+    return i === -1 ? MODULE_ITEMS.length : i;
 };
 
-export default function Modules({ catalog, canManage }: Props) {
+// Modules (design Y2): one plain switch per module with a one-line "what it's for". A module that requires exactly
+// one other (module.json `requires`, e.g. Recurring to-dos -> Tasks) is an add-on and sits indented under it, so
+// "needs Tasks" explains itself. Pinning to the tab bar lives in More (long-press), not here.
+export default function Modules({ catalog, canManage, familyName }: Props) {
     const t = useT();
-    // Optimistic flip: the tile/button switch state on tap; the reload (nav links, sidebar) catches up.
     const enabled = useOptimistic<boolean>();
-    const isEnabled = (m: Module) => enabled.get(m.id, m.enabled);
+    const stored = (m: Module) => enabled.get(m.id, m.enabled);
+    const byId = new Map(catalog.map((m) => [m.id, m]));
+    const parentOf = (m: Module) => (m.requires.length === 1 ? byId.get(m.requires[0]) : undefined);
+
     const toggle = (m: Module) => {
-        const on = isEnabled(m);
-        enabled.set(m.id, !on);
+        const next = !stored(m);
+        enabled.set(m.id, next);
         const opts = { preserveScroll: true, preserveState: true, onSuccess: () => enabled.clear(m.id), onError: () => enabled.clear(m.id) };
-        if (on) {
-            router.delete(`/family/modules/${m.id}`, opts);
-        } else {
-            router.post(`/family/modules/${m.id}/enable`, {}, opts);
-        }
+        if (next) router.post(`/family/modules/${m.id}/enable`, {}, opts);
+        else router.delete(`/family/modules/${m.id}`, opts);
+    };
+
+    const sorted = [...catalog].sort((a, b) => rank(a.id) - rank(b.id) || a.name.localeCompare(b.name));
+    const tops = sorted.filter((m) => !parentOf(m));
+    const addonsOf = (p: Module) => sorted.filter((m) => parentOf(m)?.id === p.id);
+
+    const row = (m: Module, parent?: Module) => {
+        // An add-on whose module is off does nothing (its hooks hang off the parent), so it reads as off and can't be
+        // switched until the parent is on. Its own stored state is kept and comes back with the parent.
+        const blocked = !!parent && !stored(parent);
+        const on = stored(m) && !blocked;
+        const Icon = iconFor(m.id);
+        return (
+            <SettingsRow
+                key={m.id}
+                testId={`module-${m.id}`}
+                className={cn(parent && 'bg-surface/60 pl-12')}
+                lead={
+                    // The tile picks up the sun when on (accent-strong is the skin's sun), stays plain when off.
+                    <span
+                        className={cn(
+                            'flex shrink-0 items-center justify-center rounded-xl',
+                            parent ? 'size-9' : 'size-11',
+                            on ? 'bg-accent-strong/25 text-primary' : 'bg-surface text-muted-foreground',
+                        )}
+                    >
+                        <Icon className={parent ? 'size-4' : 'size-5'} />
+                    </span>
+                }
+                title={m.name}
+                sub={blocked && parent ? t('settings_family.modules_needs', { name: parent.name }) : m.tagline}
+                muted={blocked}
+                right={<SettingsSwitch on={on} onToggle={() => toggle(m)} label={m.name} disabled={!canManage || blocked} />}
+            />
+        );
     };
 
     return (
-        <AppLayout>
-            <Head title={t('nav.modules')} />
-            <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
-                <div>
-                    <h1 className="font-heading text-primary text-2xl">{t('nav.modules')}</h1>
-                    <p className="text-muted-foreground text-sm">{t('dashboard.modules_sub')}</p>
-                </div>
-
-                <ul className="flex flex-col gap-3" data-testid="modules-list">
-                    {catalog.map((m) => {
-                        const Icon = MODULE_ICON[m.id] ?? Blocks;
-                        const on = isEnabled(m);
-                        return (
-                            <li key={m.id} data-testid={`module-${m.id}`} className="bg-surface-card flex items-center gap-4 rounded-xl border p-4">
-                                {/* The tile tints to accent when the module is live, greys out when it is off,
-                                    so enabled/disabled reads at a glance without leaning on the label alone. */}
-                                <div
-                                    className={`flex size-11 shrink-0 items-center justify-center rounded-lg ${
-                                        // text-primary (forest green), not text-accent: shadcn maps --accent to the
-                                        // pale hover-green, which is invisible on the accent-subtle tile.
-                                        on ? 'bg-accent-subtle text-primary' : 'bg-surface text-muted-foreground'
-                                    }`}
-                                >
-                                    <Icon className="size-5" />
-                                </div>
-
-                                <div className="min-w-0 flex-1">
-                                    <div className="flex items-baseline gap-2">
-                                        <span className="font-medium">{m.name}</span>
-                                        <span className="text-muted-foreground text-xs">v{m.version}</span>
-                                    </div>
-                                    <p className="text-text-secondary mt-0.5 text-sm">{m.description}</p>
-                                </div>
-
-                                {canManage ? (
-                                    <button
-                                        onClick={() => toggle(m)}
-                                        data-testid={`toggle-${m.id}`}
-                                        data-state={on ? 'enabled' : 'disabled'}
-                                        className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium ${
-                                            on ? 'text-text-secondary border' : 'bg-accent-strong text-accent-strong-foreground'
-                                        }`}
-                                    >
-                                        {on ? t('family.disable') : t('family.enable')}
-                                    </button>
-                                ) : (
-                                    <span data-testid={`state-${m.id}`} className="text-muted-foreground shrink-0 text-xs uppercase">
-                                        {on ? t('family.enabled') : t('family.disabled')}
-                                    </span>
-                                )}
-                            </li>
-                        );
-                    })}
-                </ul>
-            </div>
+        <AppLayout hideMobileHeader breadcrumbs={[{ title: t('settings_hub.modules'), href: '/family/modules' }]}>
+            <Head title={t('settings_hub.modules')} />
+            <SettingsPage
+                back={{ href: '/settings/family', label: familyName }}
+                title={t('settings_hub.modules')}
+                lede={t('settings_family.modules_lede')}
+            >
+                {!canManage && (
+                    <p className="bg-surface text-muted-foreground rounded-2xl px-4 py-3 text-sm" data-testid="modules-admin-note">
+                        {t('settings_family.modules_admin_note')}
+                    </p>
+                )}
+                <SettingsGroup>{tops.flatMap((m) => [row(m), ...addonsOf(m).map((a) => row(a, m))])}</SettingsGroup>
+            </SettingsPage>
         </AppLayout>
     );
 }

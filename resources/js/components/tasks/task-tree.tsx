@@ -502,12 +502,13 @@ function EditTaskModal({
                 </div>
                 {/* Extension point: a module can inject extra editor fields for this task (e.g. an
                     "important" toggle). `onPatch` lets it persist through the same task endpoint —
-                    the primitive keeps ownership of the save. Renders nothing with no module. */}
+                    the primitive keeps ownership of the save. It returns the save's result so a module can undo its
+                    optimistic change when the server says no (e.g. a 4th important star). Renders nothing with no module. */}
                 <Slot
                     name="task.editor.fields"
                     ctx={{
                         task,
-                        onPatch: (data: Record<string, string | number | boolean | null>) => void save('patch', taskUrl(task.id), data),
+                        onPatch: (data: Record<string, string | number | boolean | null>) => save('patch', taskUrl(task.id), data),
                     }}
                 />
                 <button

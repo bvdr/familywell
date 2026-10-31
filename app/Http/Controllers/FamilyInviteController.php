@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Mail\FamilyInvitationMail;
 use App\Models\Family;
 use App\Models\FamilyInvitation;
+use App\Models\User;
 use App\Support\Analytics;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Http\RedirectResponse;
@@ -24,23 +25,42 @@ class FamilyInviteController extends Controller
 
         $data = $request->validate([
             'email' => ['required', 'email', 'max:255'],
-            'role' => ['required', 'in:admin,member'],
+            'role' => ['required', 'in:'.implode(',', Family::ROLES)],
         ]);
 
         if ($family->members()->where('email', $data['email'])->exists()) {
             throw ValidationException::withMessages(['email' => 'That person is already in the family.']);
         }
 
+        self::send($family, $data['email'], $data['role'], $request->user());
+
+        return back();
+    }
+
+    // Create (or refresh) the invite and email it. Shared with the onboarding's "Who shares your home?" step.
+    public static function send(Family $family, string $email, string $role, User $inviter): void
+    {
         // One pending invite per email per family: reuse the row (and its token) if it already exists.
         $invite = $family->invitations()->updateOrCreate(
-            ['email' => $data['email']],
-            ['role' => $data['role'], 'invited_by' => $request->user()->id, 'expires_at' => now()->addDays(7)],
+            ['email' => $email],
+            ['role' => $role, 'invited_by' => $inviter->id, 'expires_at' => now()->addDays(7)],
         );
 
         Mail::to($invite->email)->send(new FamilyInvitationMail($invite));
-        Analytics::track($request->user(), 'member_invited', [], '/family');
+        Analytics::track($inviter, 'member_invited', [], '/family');
+    }
 
-        return back();
+    /**
+     * The family's shareable join link (an invitation with no email): one per family, renewed for 7 more days
+     * whenever it's shown, so a link copied today keeps working for a week. Joining doesn't use it up.
+     */
+    public static function link(Family $family, User $by): string
+    {
+        $invite = $family->invitations()->whereNull('email')->first()
+            ?? $family->invitations()->create(['email' => null, 'role' => 'member', 'invited_by' => $by->id]);
+        $invite->update(['expires_at' => now()->addDays(7)]);
+
+        return route('invite.show', $invite->token);
     }
 
     public function destroy(Request $request, int $invitation): RedirectResponse
@@ -76,7 +96,7 @@ class FamilyInviteController extends Controller
         return Inertia::render('family/invite', [
             'invite' => [
                 'token' => $invite->token,
-                'family' => ['name' => $invite->family->name, 'emoji' => $invite->family->emoji, 'color' => $invite->family->color],
+                'family' => ['name' => $invite->family->name, 'emoji' => $invite->family->emoji, 'symbol' => $invite->family->symbol, 'color' => $invite->family->color],
                 'inviter' => $invite->inviter->name,
                 'memberCount' => $invite->family->members()->count(),
             ],
@@ -104,7 +124,10 @@ class FamilyInviteController extends Controller
         ]);
         $request->session()->put('active_family_id', $invite->family_id);
         $request->session()->forget('invite_token');
-        $invite->delete();
+        // An emailed invite is for one person; the family link (no email) stays for the next one.
+        if ($invite->email !== null) {
+            $invite->delete();
+        }
         Analytics::track($request->user(), 'invite_accepted', [], '/invite');
     }
 }

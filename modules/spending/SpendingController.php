@@ -6,10 +6,12 @@ use App\Events\SpendingChanged;
 use App\Http\Controllers\Controller;
 use App\Models\EntityVisit;
 use App\Models\Family;
+use App\Support\Ai\AiPoints;
 use App\Support\Media\StoredImage;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Tenancy\FamilyClock;
 use App\Support\Translations;
 use App\Support\TypeSafe;
 use Illuminate\Http\JsonResponse;
@@ -484,7 +486,7 @@ class SpendingController extends Controller
      */
     private function analyticsPeriod(Request $request, array $eventIds = []): array
     {
-        $today = now();
+        $today = FamilyClock::date(); // the family's day: "this week" / "this month" turn over at their midnight
         switch ($request->query('period')) {
             case 'this_week':
                 return ['this_week', $today->copy()->startOfWeek(Carbon::MONDAY), $today->copy()];
@@ -599,12 +601,18 @@ class SpendingController extends Controller
     {
         abort_unless(ReceiptScanner::configured(), 404);
         $request->validate(['photo' => ['required', 'image', 'max:10240']]);
+        // A scan is an AI action: one point from the family's monthly allowance (AiPoints), charged once it worked.
+        $family = Family::findOrFail(CurrentFamily::id());
+        if (! AiPoints::canSpend($family)) {
+            return response()->json(['message' => Translations::get('ai.out_of_points')], 422);
+        }
 
         try {
             $data = (new ReceiptScanner(SpendCategory::keysFor(), self::CURRENCIES))->scan($request->file('photo'));
         } catch (\RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
+        AiPoints::charge('receipt_scan');
 
         return response()->json($data);
     }

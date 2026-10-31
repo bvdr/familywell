@@ -90,10 +90,11 @@ it('hides write tools from a read-only token', function () {
 });
 
 it('refuses a to-do assignee from another family without notifying them', function () {
-    Notification::fake();
     [, $users, $token] = calendarToken();
     $stranger = User::factory()->create();
     [, $e] = mcpTool($token, 'calendar_create_event', ['title' => 'Grecia', 'start_date' => '2026-07-17', 'end_date' => '2026-07-25']);
+    // Faked after the setup: creating the event itself pushes the family ("Calendar changes").
+    Notification::fake();
     [$err] = mcpTool($token, 'calendar_add_todo', ['event_id' => $e['id'], 'title' => 'Pack', 'assigned_to' => $stranger->id]);
     expect($err)->toBeTrue()->and(Task::withoutGlobalScope('family')->where('title', 'Pack')->exists())->toBeFalse();
     Notification::assertNothingSent();

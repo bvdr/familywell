@@ -5,6 +5,7 @@ namespace Modules\Birthdays;
 use App\Models\User;
 use App\Support\Modules\Hooks;
 use App\Support\Tenancy\BelongsToFamily;
+use App\Support\Tenancy\FamilyClock;
 use App\Support\Translations;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -34,11 +35,11 @@ class BirthdayDate extends Model
     /**
      * Birthdays falling on the given day (default today). A Feb 29 birthday is celebrated on Mar 1
      * in non-leap years, matching what nextBirthday() derives, so the card and the push agree with
-     * the list's "Today!".
+     * the list's "Today!". Default: the current family's today (FamilyClock), not the server's.
      */
     public function scopeOn(Builder $query, ?Carbon $date = null): Builder
     {
-        $date ??= Carbon::today();
+        $date ??= FamilyClock::date();
         $query->where(fn (Builder $q) => $q->where('month', $date->month)->where('day', $date->day));
         if ($date->month === 3 && $date->day === 1 && ! $date->isLeapYear()) {
             $query->orWhere(fn (Builder $q) => $q->where('month', 2)->where('day', 29));
@@ -61,10 +62,13 @@ class BirthdayDate extends Model
         return $this->belongsTo(Person::class);
     }
 
-    /** Current age in whole years, or null when the year is unknown. */
+    /**
+     * Current age in whole years, or null when the year is unknown. Counted to the family's today, not Carbon's
+     * ->age (UTC now): just after midnight in Bucharest it's already the birthday, and turning() must agree.
+     */
     public function age(): ?int
     {
-        return $this->birthdate?->age;
+        return $this->birthdate ? (int) $this->birthdate->diffInYears(FamilyClock::date($this->family_id)) : null;
     }
 
     /**
@@ -87,28 +91,51 @@ class BirthdayDate extends Model
         return $this->birthdate?->year;
     }
 
+    /**
+     * [today, next birthday, days until] for this row, worked out once per day. soonestFirst() sorts on daysUntil()
+     * and its callers filter on it again: uncached, that was O(n log n) Carbon work per call, ~450ms for the demo's
+     * 366 birthdays on every Home load (and Home is prefetched from every page). Keyed by today's date so a model
+     * that outlives midnight never serves yesterday's countdown.
+     *
+     * @var array{0: string, 1: ?Carbon, 2: ?int}|null
+     */
+    private ?array $upcoming = null;
+
+    // A new date (setFor) must not keep serving the old countdown.
+    protected static function booted(): void
+    {
+        static::saved(fn (self $b) => $b->upcoming = null);
+    }
+
+    /** @return array{0: string, 1: ?Carbon, 2: ?int} */
+    private function upcoming(): array
+    {
+        $today = FamilyClock::date($this->family_id); // the family's day, so "Today!" flips at their midnight
+        if ($this->upcoming === null || $this->upcoming[0] !== $today->toDateString()) {
+            $next = null;
+            if ($this->month && $this->day) {
+                // setDate overflows Feb 29 to Mar 1 in a non-leap year — fine for our purposes.
+                $next = $today->copy()->setDate($today->year, $this->month, $this->day)->startOfDay();
+                if ($next->lt($today)) {
+                    $next->addYear();
+                }
+            }
+            $this->upcoming = [$today->toDateString(), $next, $next ? (int) $today->diffInDays($next, false) : null];
+        }
+
+        return $this->upcoming;
+    }
+
     /** The next birthday on/after today (this year's, or next year's if it already passed). */
     public function nextBirthday(): ?Carbon
     {
-        if (! $this->month || ! $this->day) {
-            return null;
-        }
-        $today = Carbon::today();
-        // setDate overflows Feb 29 to Mar 1 in a non-leap year — fine for our purposes.
-        $next = Carbon::today()->setDate($today->year, $this->month, $this->day)->startOfDay();
-        if ($next->lt($today)) {
-            $next->addYear();
-        }
-
-        return $next;
+        return $this->upcoming()[1]?->copy();
     }
 
     /** Whole days until the next birthday (0 = today), or null if no date. */
     public function daysUntil(): ?int
     {
-        $next = $this->nextBirthday();
-
-        return $next ? Carbon::today()->diffInDays($next, false) : null;
+        return $this->upcoming()[2];
     }
 
     /**

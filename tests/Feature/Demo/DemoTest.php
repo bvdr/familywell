@@ -99,7 +99,7 @@ it('creates the flagged demo family with five members and every module filled', 
         ->and($count('vehicles_fuel_entries'))->toBe(8)
         ->and($count('vehicles_repairs'))->toBe(2)
         ->and($count('tasks_lists'))->toBe(3)
-        ->and($count('notes_notes'))->toBe(6)
+        ->and($count('notes_notes'))->toBe(7)
         ->and($count('contacts_people'))->toBeGreaterThan(366);
 
     // Spending has rows in the current month (the month-to-date widget must show numbers).
@@ -262,7 +262,7 @@ it('keeps the demo session scoped to the demo family', function () {
 
     actingAs($owner)->withSession(['active_family_id' => $demo->id])
         ->get('/m/notes')->assertOk()
-        ->assertInertia(fn ($p) => $p->where('notes', fn ($notes) => collect($notes)->pluck('title')->doesntContain('Other family secret note') && count($notes) === 6));
+        ->assertInertia(fn ($p) => $p->where('notes', fn ($notes) => collect($notes)->pluck('title')->doesntContain('Other family secret note') && count($notes) === 7));
     actingAs($owner)->withSession(['active_family_id' => $demo->id])
         ->get('/m/tasks')->assertOk()->assertDontSee('Other family secret task');
 });
@@ -293,7 +293,8 @@ it('blocks the demo owner from account takeover, invites, billing and public lin
     actingAs($owner)->patch('/settings/profile', ['name' => 'Mallory', 'email' => 'attacker@example.com'])
         ->assertSessionHasErrors(['email' => $msg]);
     expect($owner->fresh()->email)->toBe(DemoSeeder::OWNER_EMAIL)->and($owner->fresh()->name)->toBe('Sarah Miller');
-    actingAs($owner)->delete('/settings/profile', ['email' => DemoSeeder::OWNER_EMAIL])->assertSessionHasErrors(['email' => $msg]);
+    actingAs($owner)->post('/settings/delete-account/code')->assertSessionHasErrors(['code' => $msg]);
+    actingAs($owner)->delete('/settings/profile', ['code' => '123456'])->assertSessionHasErrors(['code' => $msg]);
     expect(User::find($owner->id))->not->toBeNull();
 
     // A spam relay to any address, with a visitor-written family name: blocked, nothing sent.

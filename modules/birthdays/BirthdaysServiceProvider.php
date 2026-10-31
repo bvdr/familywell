@@ -3,6 +3,7 @@
 namespace Modules\Birthdays;
 
 use App\Support\Calendar\CalendarSources;
+use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Dashboard\DashboardWidgets;
 use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
@@ -41,29 +42,42 @@ class BirthdaysServiceProvider extends ServiceProvider
 
     public function boot(Hooks $hooks): void
     {
+        // "Your modules" tile: birthdays in the next 30 days.
+        DashboardSummaries::register('birthdays', fn () => ['key' => 'dashboard.sum_birthdays', 'params' => [
+            'count' => BirthdayDate::with('person')->get()->filter(fn (BirthdayDate $b) => $b->person && $b->daysUntil() <= 30)->count(),
+        ]]);
         // Adding a BirthdayDate counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('birthdays', BirthdayDate::class);
 
         // The birthday wish has its own on/off row on Settings > Notifications.
         NotificationCategories::register('birthdays', 'Birthdays', 'cake');
 
-        // Morning push for today's birthdays. 06:00 UTC = 08:00/09:00 in Romania (the app runs on UTC and
-        // has no per-family timezone yet); idempotent per day, so a re-run is harmless.
+        // Morning push for today's birthdays. Hourly: each run wishes the families whose own clock (families.timezone)
+        // has passed 08:00 (NotifyBirthdays::SEND_FROM_HOUR); idempotent per day, so the other runs are no-ops.
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
-            $schedule->command('birthdays:notify')->dailyAt('06:00')->withoutOverlapping();
+            $schedule->command('birthdays:notify')->hourly()->withoutOverlapping();
         });
 
-        // Dashboard headline card(s): whoever celebrates today, above Today. null = nobody / module off.
+        // Home's birthday card: the next 14 days. Today's people get the big card (with Call / Send a wish when
+        // the contact has a phone), the rest are listed below it. null = nobody in the window / module off.
         DashboardWidgets::register('birthdays', function () {
             if (! $this->enabledHere()) {
                 return null;
             }
-            $today = BirthdayDate::with('person')->on()->get()->filter(fn (BirthdayDate $b) => $b->person);
+            $soon = BirthdayDate::soonestFirst()->filter(fn (BirthdayDate $b) => $b->daysUntil() <= 14);
+            if ($soon->isEmpty()) {
+                return null;
+            }
+            $soon->load('person.contactMethods');
 
-            return $today->isEmpty() ? null : $today->map(fn (BirthdayDate $b) => [
+            return $soon->map(fn (BirthdayDate $b) => [
                 'personId' => $b->person_id,
                 'name' => $b->person->name,
                 'turning' => $b->turning(),
+                'date' => $b->nextBirthday()->toDateString(),
+                'inDays' => $b->daysUntil(),
+                'born' => $b->birthdate?->toDateString(),
+                'phone' => $b->person->contactMethods->firstWhere('type', 'phone')?->value,
             ])->values()->all();
         });
 

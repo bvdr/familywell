@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Support\Ai\AiUsage;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
@@ -23,7 +24,7 @@ class TypeSafe
      * @param  array<string, array{type: string, instructions: mixed, criteria?: mixed}>  $questions
      * @return array<string, array<string, mixed>>
      */
-    public static function ask(array|string $state, array $questions): array
+    public static function ask(array|string $state, array $questions, string $feature = 'typesafe'): array
     {
         $response = Http::timeout(20)
             ->withToken((string) config('services.typesafe.key'))
@@ -38,6 +39,9 @@ class TypeSafe
 
             return [];
         }
+
+        // Every paid call lands in the ai_usage ledger ($feature says what it was for).
+        AiUsage::record($feature, 'typesafe', (string) config('services.typesafe.model'), (int) $response->json('usage.input_tokens', 0));
 
         return $response->json('answers') ?? [];
     }

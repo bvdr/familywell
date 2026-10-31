@@ -3,12 +3,17 @@
 namespace Modules\Notes;
 
 use App\Models\EntityVisit;
+use App\Models\User;
+use App\Support\Add\AddKinds;
 use App\Support\Dashboard\DashboardItems;
+use App\Support\Dashboard\DashboardSummaries;
 use App\Support\Engagement;
 use App\Support\Mcp\McpTools;
 use App\Support\Modules\ModuleRegistry;
+use App\Support\Search\SearchSources;
 use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Translations;
 use App\Support\Trash\Trash;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -18,8 +23,12 @@ class NotesServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        // "Your modules" tile: how many notes this person can see.
+        DashboardSummaries::register('notes', fn (int $userId) => ['key' => 'dashboard.sum_notes', 'params' => ['count' => Note::visibleTo($userId)->count()]]);
         // Adding a Note counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('notes', Note::class);
+        // Classic add's sub line ("last: bananas"): this person's newest titled note they can still see.
+        AddKinds::last('notes', fn (User $u) => Note::where('created_by', $u->id)->where('title', '!=', '')->visibleTo($u->id)->latest('id')->value('title'));
 
         // MCP: tools an AI assistant can use on this module, gated by the `notes:read` / `notes:write`
         // scopes the person grants on the consent screen (see docs/mcp.md).
@@ -66,6 +75,19 @@ class NotesServiceProvider extends ServiceProvider
                     'icon' => 'sticky-note',
                     'visitedAt' => $visits[$n->id]->toIso8601String(),
                 ])->values()->all();
+        });
+
+        // H5 search: title or body match, visible notes only. Meta is a snippet around the match (title
+        // match shows the start of the body instead, same as "no match found" in snippet()).
+        SearchSources::register('notes', function (string $q, int $userId) {
+            $notes = SearchSources::ilike(Note::query()->visibleTo($userId), ['title', 'body'], $q)
+                ->orderByDesc('updated_at')->orderByDesc('id')->limit(20)->get();
+
+            return $notes->map(fn (Note $n) => [
+                'module' => 'notes', 'title' => $n->title !== '' ? $n->title : Translations::get('notes.untitled'),
+                'meta' => SearchSources::snippet($n->body, $q),
+                'href' => "/m/notes/{$n->id}", 'icon' => 'sticky-note',
+            ])->values()->all();
         });
 
         // Full Inertia pages, gated by `module:notes` so they are only reachable when the family

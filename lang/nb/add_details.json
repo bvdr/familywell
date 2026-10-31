@@ -1,0 +1,23 @@
+{
+    "add_details": "Legg til detaljer",
+    "edit_details": "Rediger detaljer",
+    "things_one": ":count ting",
+    "things_other": ":count ting",
+    "position": ":kind · :i av :n",
+    "when": "Når",
+    "pick": "Velg…",
+    "who_on_it": "Hvem tar det",
+    "anyone": "Hvem som helst",
+    "note_placeholder": "Legg til et notat…",
+    "leave_out": "Utelat denne",
+    "from_typed": "Fra det du skrev",
+    "list_gone": "Den listen finnes ikke lenger, eller du kan ikke legge til i den. Velg en annen.",
+    "category_auto": "Gjett for meg",
+    "f_note": "Notat",
+    "f_notes": "Notater",
+    "f_list_id": "Liste",
+    "f_category": "Kategori",
+    "f_repeat": "Gjenta",
+    "f_who": "Hvem",
+    "f_due": "Frist"
+}

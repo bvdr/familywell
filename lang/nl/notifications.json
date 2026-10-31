@@ -8,5 +8,21 @@
     "empty": "Nog niets. Gezinsactiviteit die je kunt zien, verschijnt hier.",
     "today": "Vandaag",
     "yesterday": "Gisteren",
-    "now": "nu"
+    "new_count_one": ":count nieuw",
+    "new_count_other": ":count nieuw",
+    "settings": "Meldingsinstellingen",
+    "dismiss": "Verwijderen",
+    "now": "nu",
+    "welcome_push_title": "Welkom, :name 👋",
+    "welcome_push_title_anon": "Welkom bij FamilyWell 👋",
+    "welcome_push_body": "Homer hier 🏡 Zo tikt FamilyWell je op de schouder.",
+    "shared_with_me": "Met mij gedeeld",
+    "push_this_phone": "Pushmeldingen op deze telefoon",
+    "push_unsupported": "Deze browser ondersteunt geen pushmeldingen.",
+    "push_install_ios": "Zet FamilyWell op iPhone eerst op je beginscherm (Deel, dan Zet op beginscherm) en open het vanaf daar.",
+    "push_test": "Stuur een testmelding",
+    "push_test_sent": "Verstuurd",
+    "push_per_device": "Push werkt per apparaat: zet het aan waar je meldingen wilt. Waarover je meldingen krijgt, geldt overal.",
+    "notify_me_about": "Meld me over",
+    "muted_note": "Zet je er een uit, dan stopt alleen de pushmelding. Hij staat nog wel in je meldingen in de app."
 }

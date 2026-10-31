@@ -1,0 +1,9 @@
+{
+    "modules_lede": "Alles ist in eurem Tarif enthalten. Schaltet ein, was eure Familie nutzt.",
+    "modules_admin_note": "Nur Familien-Admins können Module ein- oder ausschalten.",
+    "modules_needs": "Braucht :name",
+    "members_lede": "Alle, die sich diesen Familienbereich teilen.",
+    "members_group": "In der Familie",
+    "members_role_owner": "Inhaber",
+    "members_invite_group": "Jemanden einladen"
+}

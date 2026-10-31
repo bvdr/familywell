@@ -79,7 +79,7 @@ class SpendCategorizer
             'type' => 'choice',
             'instructions' => 'Which expense category best describes the household expense `expense`? Judge mainly by its note (in any language), then the list it belongs to and the amount.',
             'criteria' => $criteria,
-        ]])['category'] ?? null;
+        ]], 'spend_category')['category'] ?? null;
 
         $choice = $answer['choice'] ?? 'other';
         $pOther = (float) ($answer['probabilities']['other'] ?? 1);

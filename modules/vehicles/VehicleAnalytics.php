@@ -2,6 +2,7 @@
 
 namespace Modules\Vehicles;
 
+use App\Support\Tenancy\FamilyClock;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Modules\Spending\SpendSetting;
@@ -128,7 +129,7 @@ class VehicleAnalytics
      */
     public static function compact(Vehicle $vehicle, ?Carbon $today = null): array
     {
-        $today ??= Carbon::today();
+        $today ??= FamilyClock::date();
         $ytd = self::forVehicle($vehicle, $today->copy()->startOfYear(), $today->copy());
         $fuel = FuelStats::forEntries($vehicle->fuelEntries()->get());
 
@@ -156,7 +157,7 @@ class VehicleAnalytics
      */
     public static function estimates(Vehicle $vehicle, ?Carbon $today = null): array
     {
-        $today ??= Carbon::today();
+        $today ??= FamilyClock::date();
 
         return [
             'nextService' => VehicleOverview::next($vehicle, $today)['maintenance'],
@@ -173,7 +174,7 @@ class VehicleAnalytics
      */
     public static function range(Vehicle $vehicle, ?string $period, ?string $from = null, ?string $to = null): array
     {
-        $today = Carbon::now();
+        $today = FamilyClock::date(); // periods (this month, YTD) on the family's calendar
 
         switch ($period) {
             case 'last_month':

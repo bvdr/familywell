@@ -7,6 +7,7 @@ use App\Models\Family;
 use App\Support\Media\StoredImage;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Tenancy\FamilyClock;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -61,15 +62,7 @@ class VehiclesController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validateVehicle($request);
-        $data['current_mileage'] = (int) ($data['current_mileage'] ?? 0);
-        $data['created_by'] = $request->user()->id;
-
-        $vehicle = Vehicle::create($data);
-
-        // Every vehicle starts its odometer history with an opening reading, so the history and
-        // current_mileage agree from the very first day (the overview never shows an empty log next to a
-        // non-zero odometer).
-        $this->logMileage($vehicle, $vehicle->current_mileage, $request->user()->id);
+        $vehicle = Vehicle::createFor($request->user(), $data);
 
         return redirect()->route('vehicles.show', $vehicle);
     }
@@ -385,7 +378,7 @@ class VehiclesController extends Controller
             $request->user(),
             (float) $data['amount'],
             $data['note'] ?: trim("{$vehicle->make} {$vehicle->model}"),
-            $data['spent_at'] ?? now()->toDateString(),
+            $data['spent_at'] ?? FamilyClock::today(),
         );
 
         return back();
@@ -478,17 +471,6 @@ class VehiclesController extends Controller
             'photoThumbUrl' => $vehicle->photo_path ? StoredImage::url('vehicles.photo.show', $vehicle, $vehicle->photo_path, thumb: true) : null,
             'photoUrl' => $vehicle->photo_path ? StoredImage::url('vehicles.photo.show', $vehicle, $vehicle->photo_path) : null,
         ];
-    }
-
-    /** Write one odometer reading. family_id is filled by BelongsToFamily on create. */
-    private function logMileage(Vehicle $vehicle, int $mileage, ?int $userId): void
-    {
-        VehicleMileageLog::create([
-            'vehicle_id' => $vehicle->id,
-            'mileage' => $mileage,
-            'recorded_by' => $userId,
-            'recorded_at' => now(),
-        ]);
     }
 
     /**

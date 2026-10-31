@@ -1,0 +1,19 @@
+{
+    "your_important": "Dina viktiga",
+    "pinned": "Fästa tills de är klara",
+    "due_today": "Senast i dag",
+    "due_on": "Senast :date",
+    "family_important": "Viktiga i familjen",
+    "next_due": "nästa senast :day",
+    "show": "Visa",
+    "hide": "Dölj",
+    "none_title": "Inget viktigt på dig",
+    "none_sub": "Stjärnmärk upp till :limit att göra för att fästa dem här.",
+    "unstar": "Ta bort stjärnan från :title",
+    "limit_you": "Du har redan :limit öppna viktiga att göra. Gör klart eller ta bort stjärnan från en först.",
+    "limit_them": ":name har redan :limit öppna viktiga att göra. En av dem måste bli klar eller tappa stjärnan först.",
+    "limit_ui": "Högst :limit öppna viktiga att göra per person. Gör klart eller ta bort stjärnan från en först.",
+    "important": "Viktig",
+    "on": "På",
+    "off": "Av"
+}
