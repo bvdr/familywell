@@ -139,6 +139,27 @@
         @apply bg-background text-foreground;
     }
 
+    /* Touch screens behave like a native app: a long press on a label, title, tab or row doesn't select it or pop
+       iOS's Copy / Look Up menu (it kept selecting cards, tab labels and event titles, 2026-10-31). Desktop keeps
+       normal selection. Fields stay editable/selectable, and so do notes (copying from a note is a real use, even
+       read-only); anything else worth copying opts in with the `select-text` utility. */
+    @media (pointer: coarse) {
+        body {
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
+        input,
+        textarea,
+        [contenteditable]:not([contenteditable='false']),
+        .ProseMirror,
+        .select-text {
+            -webkit-user-select: text;
+            user-select: text;
+            -webkit-touch-callout: default;
+        }
+    }
+
     /* Onboarding pages (data-brand, set in app.tsx): the brand's light paper behind everything, dark mode or not. */
     html[data-brand] body {
         background-color: var(--color-paper);
