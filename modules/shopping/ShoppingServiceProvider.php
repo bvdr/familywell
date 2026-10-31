@@ -52,7 +52,8 @@ class ShoppingServiceProvider extends ServiceProvider
         AddKinds::register('shopping_item', 'shopping', [
             'fields' => [
                 // Each thing with its amount ("six pack" of "Schweppes Lămâie și Zmeură"): the reader splits them.
-                'items' => ['type' => 'list', 'required' => true, 'of' => ['name' => 'text', 'quantity' => 'text']],
+                // 'split': each thing becomes its own card in the Add sheet (its own shop / details, design H2e).
+                'items' => ['type' => 'list', 'required' => true, 'of' => ['name' => 'text', 'quantity' => 'text'], 'split' => true],
                 // Which existing list, when the input names one. Shown as the card's destination, not as a field.
                 'list' => ['type' => 'text', 'options' => fn (User $user) => $lists($user)->pluck('name')->all(), 'hidden' => true],
                 // Where to buy them ("milk from Lidl"). Free text: a new shop is fine (addItem adds it to Shops).

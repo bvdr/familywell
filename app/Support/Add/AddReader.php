@@ -44,7 +44,7 @@ final class AddReader
                 // "Add details" fields aren't read at all (AddKinds 'details').
                 'kinds' => array_map(fn ($k) => ['module' => $k['module'], 'fields' => array_map(fn ($f) => array_diff_key(
                     isset($f['options']) && $f['options'] instanceof \Closure ? array_replace($f, ['options' => ($f['options'])($ctx->user)]) : $f,
-                    ['hidden' => 1],
+                    ['hidden' => 1, 'split' => 1],
                 ), array_filter($k['fields'], fn ($f) => empty($f['details'])))], $kinds),
                 'context' => $ctx->payload(),
                 'meta' => ['family' => CurrentFamily::id(), 'user' => $ctx->user->id], // tags the reader's AI Gateway logs
@@ -85,7 +85,7 @@ final class AddReader
                 'people' => array_keys(array_filter($kind['fields'], fn ($f) => ($f['ask'] ?? null) === 'member')),
                 'details' => (object) $detailsOf($item['kind']), // {} not [] when a kind has none, for the sheet
             ];
-        }, array_values(array_filter($response->json('items') ?? [], fn ($i) => isset($kinds[$i['kind'] ?? '']))));
+        }, self::split(array_values(array_filter($response->json('items') ?? [], fn ($i) => isset($kinds[$i['kind'] ?? '']))), $kinds));
     }
 
     /**
@@ -109,5 +109,36 @@ final class AddReader
         }
 
         return (string) $response->json('text', '');
+    }
+
+    /**
+     * One card per row for a kind whose list field says 'split' (shopping items): "bread, two loaves and six eggs"
+     * reads as one shopping card with rows, but each thing gets its own card (design H2e) so it can carry its own
+     * shop and details. The other fields (the list, the shop) stay on every card. Done here, not in the reader, so
+     * the reader's answers and eval don't change.
+     *
+     * @param  list<array<string, mixed>>  $items
+     * @return list<array<string, mixed>>
+     */
+    private static function split(array $items, array $kinds): array
+    {
+        $out = [];
+        foreach ($items as $item) {
+            $field = array_key_first(array_filter($kinds[$item['kind']]['fields'], fn ($f) => ! empty($f['split'])));
+            $rows = $field !== null ? ($item['fields'][$field]['value'] ?? null) : null;
+            if (! is_array($rows) || count($rows) < 2) {
+                $out[] = $item;
+
+                continue;
+            }
+            foreach (array_values($rows) as $n => $row) {
+                $one = $item;
+                $one['id'] = ($item['id'] ?? $item['kind']).'-'.$n;
+                $one['fields'][$field]['value'] = [$row];
+                $out[] = $one;
+            }
+        }
+
+        return $out;
     }
 }
