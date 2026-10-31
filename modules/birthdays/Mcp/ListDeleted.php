@@ -20,9 +20,11 @@ class ListDeleted extends Tool
 
     protected string $access = 'write';
 
-    protected string $name = 'birthdays_list_deleted';
+    protected string $name = 'birthdays_list_trash';
 
-    protected string $description = 'Removed birthdays in the trash (of contacts that still exist), newest first, with the date each will be removed for good. A deleted contact\'s birthday comes back with contacts_restore.';
+    protected string $description = 'Use this when the user wants to find a birthday they removed, to bring it back. Lists removed birthdays (of contacts that still exist), newest first, with the date each is deleted for good. A birthday removed together with its contact comes back with contacts_restore. Read-only.';
+
+    protected string $title = 'List deleted birthdays';
 
     public function schema(JsonSchema $schema): array
     {

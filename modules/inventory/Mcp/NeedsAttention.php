@@ -14,11 +14,13 @@ class NeedsAttention extends Tool
 {
     protected string $module = 'inventory';
 
-    protected string $name = 'inventory_needs_attention';
+    protected string $name = 'inventory_list_needs_attention';
 
     protected ?string $app = 'inventory';
 
-    protected string $description = 'What needs doing in the household stock, the same buckets as the app\'s Needs Attention screen: empty, low, expiring (incl. already expired, soonest first) and stale (stocked but not updated in a while). Each item is in one bucket only.';
+    protected string $description = 'Use this when the user asks what is running out, low, expiring or due a recount. Returns stock grouped into empty, low, expiring (expired ones included, soonest first) and stale (stocked but not updated in a while); each item is in one group only. Read-only.';
+
+    protected string $title = 'List stock needing attention';
 
     public function handle(Request $request): Response|ResponseFactory
     {

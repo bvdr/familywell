@@ -18,11 +18,13 @@ class Summary extends Tool
 {
     protected string $module = 'spending';
 
-    protected string $name = 'spending_summary';
+    protected string $name = 'spending_get_summary';
 
     protected ?string $app = 'spending';
 
-    protected string $description = 'Total spent over a period (default: this month so far) across the lists this person can see, in one display currency, broken down by category and by shop. Expenses kept out of monthly spending (count_in_monthly false, e.g. a project budget) are not included.';
+    protected string $description = 'Use this when the user asks how much was spent over a period (default: this month so far). Returns the total across the lists this person can see in one display currency, broken down by category and by shop. Expenses kept out of monthly spending (e.g. a project budget) are not counted. Read-only.';
+
+    protected string $title = 'Get spending summary';
 
     public function schema(JsonSchema $schema): array
     {

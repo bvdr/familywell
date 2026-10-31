@@ -30,7 +30,7 @@ it('creates a list, adds tasks and a sub-task, and reads them back', function ()
     [, $got] = mcpTool($token, 'tasks_get_list', ['list_id' => $list['id']]);
     expect($got['tasks'])->toHaveCount(1)->and($got['tasks'][0]['subtasks'][0]['title'])->toBe('Rake leaves');
 
-    [, $lists] = mcpTool($token, 'tasks_list_lists');
+    [, $lists] = mcpTool($token, 'tasks_list_todo_lists');
     expect(collect($lists['lists'])->firstWhere('id', $list['id'])['open_count'])->toBe(2);
 
     [, $found] = mcpTool($token, 'tasks_search', ['query' => 'rake']);
@@ -66,7 +66,7 @@ it('deletes to the trash, lists the trash, and restores', function () {
     [, $del] = mcpTool($token, 'tasks_delete_list', ['list_id' => $list['id']]);
     expect($del['deleted'])->toBeTrue()->and($del['purged_on'])->toBe(now()->addDays(30)->toDateString());
 
-    [, $trash] = mcpTool($token, 'tasks_list_deleted');
+    [, $trash] = mcpTool($token, 'tasks_list_trash');
     expect(collect($trash['deleted'])->map(fn ($d) => $d['type'].':'.$d['id'])->sort()->values()->all())
         ->toBe(['list:'.$list['id'], 'task:'.$task['id']]);
 
@@ -90,7 +90,7 @@ it('cannot see or touch another member\'s private list', function () {
     $private = TaskList::createFor($users[1], ['name' => 'Secret'], 'private');
     $task = $private->addTask($users[1], ['title' => 'Hidden']);
 
-    [, $lists] = mcpTool($token, 'tasks_list_lists');
+    [, $lists] = mcpTool($token, 'tasks_list_todo_lists');
     expect(collect($lists['lists'])->pluck('name'))->not->toContain('Secret');
     [, $found] = mcpTool($token, 'tasks_search', ['query' => 'Hidden']);
     expect($found['tasks'])->toBe([]);

@@ -21,7 +21,9 @@ class SetPhoto extends Tool
 
     protected string $name = 'recipes_set_photo';
 
-    protected string $description = 'Set or replace a recipe\'s photo (JPEG, PNG or WebP, up to 12 MB): in ChatGPT the image the person attached (`file`); elsewhere a public https image URL (`file_url`) or `file_base64` + `file_name`. Claude cannot pass an image attached in the chat: give the person the recipe link to add it in Familywell instead.';
+    protected string $description = 'Use this when the user wants to add or replace a recipe\'s photo (JPEG, PNG or WebP, up to 12 MB), passed as `file`, `file_url` or `file_base64` + `file_name`. When no image can be passed, give the person the recipe link to add it in FamilyWell.';
+
+    protected string $title = 'Set recipe photo';
 
     public function __construct()
     {
@@ -30,7 +32,7 @@ class SetPhoto extends Tool
 
     public function schema(JsonSchema $schema): array
     {
-        return ['recipe_id' => $schema->integer()->required(), ...IncomingFile::schema($schema)];
+        return ['recipe_id' => $schema->integer()->description('Recipe id, from recipes_list.')->required(), ...IncomingFile::schema($schema)];
     }
 
     public function handle(Request $request): Response|ResponseFactory

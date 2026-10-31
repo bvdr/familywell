@@ -16,13 +16,15 @@ class DeleteVehicle extends Tool
 
     protected string $access = 'write';
 
-    protected string $name = 'vehicles_delete';
+    protected string $name = 'vehicles_delete_vehicle';
 
-    protected string $description = 'Move a whole car to the trash with everything recorded for it (mileage, services, repairs, fuel, documents and their files), restorable for 30 days with vehicles_restore. Its expenses stay in Spending.';
+    protected string $description = 'Use this when the user wants a whole car removed, with everything recorded for it (mileage, services, repairs, fuel, documents and their files). It goes to the trash and can be restored for 30 days with vehicles_restore. Its expenses stay in Spending.';
+
+    protected string $title = 'Delete car';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['vehicle_id' => $schema->integer()->required()];
+        return ['vehicle_id' => $schema->integer()->description('Car id, from vehicles_list.')->required()];
     }
 
     public function handle(Request $request): Response|ResponseFactory

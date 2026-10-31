@@ -19,11 +19,13 @@ class DeleteList extends Tool
 
     protected string $name = 'shopping_delete_list';
 
-    protected string $description = 'Move a shopping list and its items to the trash (restorable for 30 days with shopping_restore). Only the person who created the list can delete it.';
+    protected string $description = 'Use this when the user wants a whole shopping list deleted. The list and its items go to the trash and can be restored for 30 days with shopping_restore. Only the person who created the list can delete it.';
+
+    protected string $title = 'Delete shopping list';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['list_id' => $schema->integer()->required()];
+        return ['list_id' => $schema->integer()->description('Shopping list id, from shopping_list_shopping_lists.')->required()];
     }
 
     public function handle(Request $request): Response|ResponseFactory

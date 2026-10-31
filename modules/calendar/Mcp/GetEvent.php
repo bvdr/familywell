@@ -20,11 +20,13 @@ class GetEvent extends Tool
 
     protected ?string $app = 'calendar';
 
-    protected string $description = 'One calendar event with its people, to-dos, linked project and repeat rule.';
+    protected string $description = 'Use this when the user asks about one calendar event in detail. Returns its dates, people, to-dos, linked project and repeat rule. Read-only.';
+
+    protected string $title = 'Get calendar event';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['id' => $schema->integer()->required()];
+        return ['id' => $schema->integer()->description('Calendar event id, from calendar_list_entries.')->required()];
     }
 
     public function handle(Request $request): Response|ResponseFactory

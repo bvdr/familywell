@@ -19,9 +19,11 @@ class ListDeleted extends Tool
 
     protected string $access = 'write';
 
-    protected string $name = 'shopping_list_deleted';
+    protected string $name = 'shopping_list_trash';
 
-    protected string $description = 'What is in the Shopping trash (deleted lists and items this person can see), newest first, with the date each will be removed for good.';
+    protected string $description = 'Use this when the user wants to find a shopping list or item they deleted, to bring it back. Lists what this person can see in the Shopping trash, newest first, with the date each is deleted for good. Read-only.';
+
+    protected string $title = 'List deleted shopping';
 
     public function schema(JsonSchema $schema): array
     {

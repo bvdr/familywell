@@ -21,7 +21,9 @@ class AttachFile extends Tool
 
     protected string $name = 'vehicles_attach_file';
 
-    protected string $description = 'Attach a file (PDF or image, up to 12 MB) to an existing repair (adds it to the repair\'s attachments) or document (replaces its file). Ids come from vehicles_add_repair / vehicles_add_document / vehicles_get (document_id) / vehicles_history ("repair-12" means repair 12). For a service invoice, use vehicles_add_document with type service_invoice. Pass the file as `file` (ChatGPT only: a file the person attached), `file_url` (public https), or `file_base64` + `file_name`.';
+    protected string $description = 'Use this when the user wants a file (PDF or image, up to 12 MB) added to an existing repair (added to its attachments) or document (replaces its file). Ids come from vehicles_add_repair, vehicles_add_document, vehicles_get (document_id) or vehicles_get_history ("repair-12" means repair 12). For a service invoice use vehicles_add_document with type service_invoice.';
+
+    protected string $title = 'Attach file to car record';
 
     public function __construct()
     {
@@ -31,8 +33,8 @@ class AttachFile extends Tool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'vehicle_id' => $schema->integer()->required(),
-            'target' => $schema->string()->enum(['repair', 'document'])->required(),
+            'vehicle_id' => $schema->integer()->description('Car id, from vehicles_list.')->required(),
+            'target' => $schema->string()->description('repair or document.')->enum(['repair', 'document'])->required(),
             'id' => $schema->integer()->description('The repair or document id.')->required(),
             ...IncomingFile::schema($schema),
         ];

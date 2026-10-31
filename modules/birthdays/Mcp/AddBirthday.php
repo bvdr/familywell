@@ -19,11 +19,13 @@ class AddBirthday extends Tool
 
     protected string $name = 'birthdays_add';
 
-    protected string $description = 'Add (or set) someone\'s birthday by name. An existing contact with that exact name gets the birthday; otherwise a new contact is created.';
+    protected string $description = 'Use this when the user wants to save someone\'s birthday. If a contact with exactly that name exists, the birthday is set on it; otherwise a new contact with that name is created.';
+
+    protected string $title = 'Add birthday';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['name' => $schema->string()->required(), ...BirthdayData::schema($schema)];
+        return ['name' => $schema->string()->description('The person\'s full name, e.g. "Ana Popescu".')->required(), ...BirthdayData::schema($schema)];
     }
 
     public function handle(Request $request): Response|ResponseFactory

@@ -20,15 +20,17 @@ class UpdateList extends Tool
 
     protected string $name = 'tasks_update_list';
 
-    protected string $description = 'Rename, recolour, or archive/unarchive a to-do list. Only the fields you pass change.';
+    protected string $description = 'Use this when the user wants to rename, recolour, or archive or unarchive a to-do list. Only the fields you pass change.';
+
+    protected string $title = 'Update to-do list';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'list_id' => $schema->integer()->required(),
-            'name' => $schema->string(),
-            'color' => $schema->string(),
-            'icon' => $schema->string(),
+            'list_id' => $schema->integer()->description('To-do list id, from tasks_list_todo_lists.')->required(),
+            'name' => $schema->string()->description('New name.'),
+            'color' => $schema->string()->description('Colour key, e.g. green, blue, amber.'),
+            'icon' => $schema->string()->description('Icon key, e.g. list, home, cart.'),
             'archived' => $schema->boolean()->description('true archives the list, false brings it back.'),
         ];
     }

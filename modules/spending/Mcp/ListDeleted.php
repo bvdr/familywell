@@ -19,9 +19,11 @@ class ListDeleted extends Tool
 
     protected string $access = 'write';
 
-    protected string $name = 'spending_list_deleted';
+    protected string $name = 'spending_list_trash';
 
-    protected string $description = 'Expenses in the trash (from lists this person can see), newest first, with the date each will be removed for good.';
+    protected string $description = 'Use this when the user wants to find an expense they deleted, to bring it back. Lists expenses in the trash from lists this person can see, newest first, with the date each is deleted for good. Read-only.';
+
+    protected string $title = 'List deleted expenses';
 
     public function schema(JsonSchema $schema): array
     {

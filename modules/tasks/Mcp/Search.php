@@ -19,7 +19,9 @@ class Search extends Tool
 
     protected ?string $app = 'tasks';
 
-    protected string $description = 'Find tasks across the to-do lists this person can see, by text and/or filters (assignee, due date, done).';
+    protected string $description = 'Use this when the user asks about tasks across lists, e.g. what is assigned to someone, what is due this week, or whether a task exists. Filters by text, assignee, due date and done state. Read-only.';
+
+    protected string $title = 'Search to-do tasks';
 
     public function schema(JsonSchema $schema): array
     {

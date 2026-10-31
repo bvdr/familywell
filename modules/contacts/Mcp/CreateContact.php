@@ -18,13 +18,15 @@ class CreateContact extends Tool
 
     protected string $name = 'contacts_create';
 
-    protected string $description = 'Add a person to the family address book, with optional contact methods (phone, email, address, url, other). Check contacts_list first to avoid duplicates.';
+    protected string $description = 'Use this when the user wants to add a person to the family address book, optionally with phone numbers, emails, addresses, links or other contact methods. Look the name up with contacts_list beforehand when a duplicate is possible.';
+
+    protected string $title = 'Create contact';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'name' => $schema->string()->required(),
-            'contact_methods' => ContactData::methodsSchema($schema),
+            'name' => $schema->string()->description('The person\'s name.')->required(),
+            'contact_methods' => ContactData::methodsSchema($schema)->description('Phone numbers, emails, addresses, links or other ways to reach them.'),
         ];
     }
 

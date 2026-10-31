@@ -21,14 +21,16 @@ class UpdateContact extends Tool
 
     protected string $name = 'contacts_update';
 
-    protected string $description = 'Rename a person and/or replace their contact methods. contact_methods, when given, is the COMPLETE new set (send the existing ones you want to keep, from contacts_get); omit it to leave them unchanged.';
+    protected string $description = 'Use this when the user wants to rename a person or change their phone numbers, emails or addresses. `contact_methods`, when given, is the complete new set: include the existing ones to keep (read them with contacts_get). Leave it out to keep them unchanged.';
+
+    protected string $title = 'Update contact';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'person_id' => $schema->integer()->required(),
-            'name' => $schema->string(),
-            'contact_methods' => ContactData::methodsSchema($schema),
+            'person_id' => $schema->integer()->description('Contact id, from contacts_list.')->required(),
+            'name' => $schema->string()->description('New name.'),
+            'contact_methods' => ContactData::methodsSchema($schema)->description('The complete new set of contact methods (replaces the existing ones); omit to keep them.'),
         ];
     }
 

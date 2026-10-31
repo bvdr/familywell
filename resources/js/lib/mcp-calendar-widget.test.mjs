@@ -1,4 +1,4 @@
-// The calendar_list MCP widget (resources/mcp-apps/calendar.js) buckets items per day. Run: `npm run test:js`.
+// The calendar_list_entries MCP widget (resources/mcp-apps/calendar.js) buckets items per day. Run: `npm run test:js`.
 // Pinned to a zone with a DST change inside the range: stepping +24h from local midnight used to show
 // 25 Oct 2026 twice and drop 27 Oct. Each test file runs in its own process, so setting TZ here is safe.
 // (Imports are hoisted; node re-reads TZ on change, and no Date is made before this line runs.)

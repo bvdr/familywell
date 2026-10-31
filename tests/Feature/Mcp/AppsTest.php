@@ -48,7 +48,7 @@ it('returns tool data as structuredContent as well as JSON text', function () {
     $token = mcpConnect($users[0], $family->id, ['tasks' => 'write'])['access_token'];
     mcpTool($token, 'tasks_create_list', ['name' => 'Home']);
 
-    foreach (['get_today', 'tasks_list_lists'] as $tool) {
+    foreach (['get_today', 'tasks_list_todo_lists'] as $tool) {
         $result = mcpCall($token, 'tools/call', ['name' => $tool, 'arguments' => (object) []])->assertOk()->json('result');
         expect($result['structuredContent'] ?? null)->toBeArray()->not->toBeEmpty()
             ->and($result['structuredContent'])->toEqual(json_decode($result['content'][0]['text'], true));

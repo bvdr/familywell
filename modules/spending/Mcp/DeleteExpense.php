@@ -19,11 +19,13 @@ class DeleteExpense extends Tool
 
     protected string $name = 'spending_delete_expense';
 
-    protected string $description = 'Move an expense to the trash (restorable for 30 days with spending_restore).';
+    protected string $description = 'Use this when the user wants an expense deleted. It goes to the trash and can be restored for 30 days with spending_restore.';
+
+    protected string $title = 'Delete expense';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['expense_id' => $schema->integer()->required()];
+        return ['expense_id' => $schema->integer()->description('Expense id, from spending_list_expenses.')->required()];
     }
 
     public function handle(Request $request): Response|ResponseFactory

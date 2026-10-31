@@ -18,11 +18,13 @@ class Restore extends Tool
 
     protected string $name = 'spending_restore';
 
-    protected string $description = 'Bring an expense back from the trash.';
+    protected string $description = 'Use this when the user wants a deleted expense back. Takes an id from spending_list_trash.';
+
+    protected string $title = 'Restore expense';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['expense_id' => $schema->integer()->required()];
+        return ['expense_id' => $schema->integer()->description('Expense id, from spending_list_trash.')->required()];
     }
 
     public function handle(Request $request): Response|ResponseFactory

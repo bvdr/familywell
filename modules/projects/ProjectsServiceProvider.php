@@ -108,7 +108,7 @@ class ProjectsServiceProvider extends ServiceProvider
 
         // MCP: tools an AI assistant can use on this module, gated by the `projects:read` /
         // `projects:write` scopes the person grants on the consent screen (see docs/mcp.md).
-        // Deleted projects and project tasks go to the 30-day trash (projects_list_deleted / projects_restore).
+        // Deleted projects and project tasks go to the 30-day trash (projects_list_trash / projects_restore).
         McpTools::register('projects', 'Projects', [
             Mcp\ListProjects::class, Mcp\GetProject::class,
             Mcp\CreateProject::class, Mcp\UpdateProject::class,

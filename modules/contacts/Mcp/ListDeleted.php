@@ -20,9 +20,11 @@ class ListDeleted extends Tool
 
     protected string $access = 'write';
 
-    protected string $name = 'contacts_list_deleted';
+    protected string $name = 'contacts_list_trash';
 
-    protected string $description = 'Contacts in the trash, newest first, with the date each will be removed for good.';
+    protected string $description = 'Use this when the user wants to find a contact they deleted, to bring it back. Lists contacts in the trash, newest first, with the date each is deleted for good. Read-only.';
+
+    protected string $title = 'List deleted contacts';
 
     public function schema(JsonSchema $schema): array
     {

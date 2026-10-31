@@ -17,7 +17,9 @@ class CreateEvent extends Tool
 
     protected string $name = 'calendar_create_event';
 
-    protected string $description = 'Add an event to the family calendar: a trip, conference, appointment or holiday. All-day unless start_time/end_time are given. Can repeat and can be linked to people and a project.';
+    protected string $description = 'Use this when the user wants to put something on the family calendar: a trip, appointment, conference or holiday. All-day unless start_time and end_time are given. Can repeat, and can be linked to people and a project.';
+
+    protected string $title = 'Create calendar event';
 
     public function schema(JsonSchema $schema): array
     {

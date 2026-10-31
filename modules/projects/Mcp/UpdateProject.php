@@ -21,18 +21,20 @@ class UpdateProject extends Tool
 
     protected string $name = 'projects_update';
 
-    protected string $description = 'Change a project: name, description, status, progress, owner, target start, what it is waiting on, or archive it. Only the fields you pass change; pass null to clear description, target_start or waiting_on.';
+    protected string $description = 'Use this when the user wants to change a project: name, description, status, progress, owner, target start, what it is waiting on, or to archive it. Only the fields you pass change; pass null to clear description, target_start or waiting_on.';
+
+    protected string $title = 'Update project';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'project_id' => $schema->integer()->required(),
-            'name' => $schema->string(),
-            'description' => $schema->string()->nullable(),
-            'status' => $schema->string()->enum(ProjectData::STATUSES),
+            'project_id' => $schema->integer()->description('Project id, from projects_list.')->required(),
+            'name' => $schema->string()->description('New name.'),
+            'description' => $schema->string()->description('Up to 2000 characters; null clears it.')->nullable(),
+            'status' => $schema->string()->description('New status.')->enum(ProjectData::STATUSES),
             'progress' => $schema->integer()->description('Percent done, 0-100.'),
             'owner_id' => $schema->integer()->description('Member id from get_family.'),
-            'target_start' => $schema->string()->format('date')->nullable(),
+            'target_start' => $schema->string()->description('YYYY-MM-DD; null clears it.')->format('date')->nullable(),
             'waiting_on' => $schema->string()->nullable()->description('What a blocked project waits for.'),
             'archived' => $schema->boolean()->description('true archives the project, false brings it back.'),
         ];

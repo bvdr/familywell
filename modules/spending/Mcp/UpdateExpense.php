@@ -21,18 +21,20 @@ class UpdateExpense extends Tool
 
     protected string $name = 'spending_update_expense';
 
-    protected string $description = 'Change an expense. Only the fields you pass change (including count_in_monthly, whether it counts in monthly spending); the amount is re-converted into the list\'s currency at the (new) date.';
+    protected string $description = 'Use this when the user wants to correct an expense. Only the fields you pass change, including count_in_monthly (whether it counts in monthly spending). The amount is converted into the list\'s currency at the (new) date.';
+
+    protected string $title = 'Update expense';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'expense_id' => $schema->integer()->required(),
-            'amount' => $schema->number(),
-            'currency' => $schema->string(),
-            'title' => $schema->string()->nullable(),
-            'category' => $schema->string(),
-            'shop' => $schema->string()->nullable(),
-            'date' => $schema->string()->format('date'),
+            'expense_id' => $schema->integer()->description('Expense id, from spending_list_expenses.')->required(),
+            'amount' => $schema->number()->description('Amount in major units, e.g. 12.50.'),
+            'currency' => $schema->string()->description('EUR, RON, USD or GBP.'),
+            'title' => $schema->string()->description('What it was; null clears it.')->nullable(),
+            'category' => $schema->string()->description('Category key, from spending_list_categories.'),
+            'shop' => $schema->string()->description('Shop or merchant name; null clears it.')->nullable(),
+            'date' => $schema->string()->description('YYYY-MM-DD.')->format('date'),
             'paid_by' => $schema->integer()->description('Member id who paid.'),
             'payer' => $schema->string()->description('Who paid, as a participant key of the list: "u7" (member) or "g12" (guest). Overrides paid_by.'),
             'count_in_monthly' => $schema->boolean()->nullable()->description('true/false pins whether it counts in monthly spending; null makes it follow the list\'s setting again.'),

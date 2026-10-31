@@ -21,12 +21,14 @@ class LogMileage extends Tool
 
     protected string $name = 'vehicles_log_mileage';
 
-    protected string $description = 'Record an odometer reading in km. Without a date it is a reading for today: it must not be below the current one unless correction=true (for fixing a wrong value). With a past date (e.g. from an old invoice) it is added to the history at that date, must fit between the readings around it, and does not change the current odometer.';
+    protected string $description = 'Use this when the user gives a car\'s odometer reading in km. Without a date it is today\'s reading and must not be below the current one unless correction=true (to fix a wrong value). With a past date (e.g. from an old invoice) it is added to the history at that date, must fit between the readings around it, and leaves the current odometer unchanged.';
+
+    protected string $title = 'Log car mileage';
 
     public function schema(JsonSchema $schema): array
     {
         return [
-            'vehicle_id' => $schema->integer()->required(),
+            'vehicle_id' => $schema->integer()->description('Car id, from vehicles_list.')->required(),
             'mileage_km' => $schema->integer()->description('Odometer reading in kilometres.')->required(),
             'correction' => $schema->boolean()->description('true only to overwrite a wrong, higher reading with a lower one.'),
             'date' => $schema->string()->format('date')->description('When the reading was taken, YYYY-MM-DD (default: now).'),

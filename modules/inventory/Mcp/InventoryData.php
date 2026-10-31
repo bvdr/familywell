@@ -45,9 +45,9 @@ class InventoryData
     public static function fieldSchema($schema): array
     {
         return [
-            'name' => $schema->string(),
+            'name' => $schema->string()->description('Item name, e.g. "Olive oil".'),
             'quantity' => $schema->number()->description('How much is in stock now, in `unit`. Omit/null if unknown.'),
-            'unit' => $schema->string()->enum(InventoryItem::UNITS),
+            'unit' => $schema->string()->description('Unit the quantity is counted in.')->enum(InventoryItem::UNITS),
             'min_quantity' => $schema->number()->description('At or below this the item is "low" (0 = no low alert).'),
             'target_quantity' => $schema->number()->description('The "full" level a purchase tops it up to.'),
             'category' => $schema->string()->description('Category key or name; a new name creates the category.'),
@@ -55,7 +55,7 @@ class InventoryData
             'shop' => $schema->string()->description('Where it is usually bought (shop name).'),
             'expires_on' => $schema->string()->format('date')->description('YYYY-MM-DD.'),
             'auto_replenish' => $schema->boolean()->description('Include in "add all low items to Shopping" (default true).'),
-            'notes' => $schema->string(),
+            'notes' => $schema->string()->description('Free-text notes.'),
         ];
     }
 

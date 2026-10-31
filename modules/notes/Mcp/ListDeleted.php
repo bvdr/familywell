@@ -19,9 +19,11 @@ class ListDeleted extends Tool
 
     protected string $access = 'write';
 
-    protected string $name = 'notes_list_deleted';
+    protected string $name = 'notes_list_trash';
 
-    protected string $description = 'Notes in the trash that this person can see, newest first, with the date each will be removed for good.';
+    protected string $description = 'Use this when the user wants to find a note they deleted, to bring it back. Lists notes in the trash this person can see, newest first, with the date each is deleted for good. Read-only.';
+
+    protected string $title = 'List deleted notes';
 
     public function schema(JsonSchema $schema): array
     {

@@ -67,15 +67,15 @@ class RecipeData
     public static function fieldSchema(JsonSchema $schema): array
     {
         return [
-            'title' => $schema->string(),
-            'description' => $schema->string()->nullable(),
+            'title' => $schema->string()->description('Recipe title, e.g. "Leek and potato soup".'),
+            'description' => $schema->string()->description('Short description; null clears it.')->nullable(),
             'servings' => $schema->integer()->nullable()->description('How many people the amounts are for.'),
             'yield_amount' => $schema->number()->nullable()->description('Total amount the recipe makes, e.g. 1200 (with yield_unit "g"). Lets the person scale by "I want 800 g".'),
             'yield_unit' => $schema->string()->nullable()->description('Unit of yield_amount: g, kg, ml, l, pcs...'),
-            'prep_minutes' => $schema->integer()->nullable(),
-            'cook_minutes' => $schema->integer()->nullable(),
+            'prep_minutes' => $schema->integer()->description('Preparation time in minutes; null clears it.')->nullable(),
+            'cook_minutes' => $schema->integer()->description('Cooking time in minutes; null clears it.')->nullable(),
             'ingredients' => $schema->array()->items($schema->object([
-                'name' => $schema->string()->required(),
+                'name' => $schema->string()->description('Ingredient name, e.g. "flour".')->required(),
                 'qty' => $schema->number()->nullable()->description('Omit/null for "to taste".'),
                 'unit' => $schema->string()->nullable()->description('g, kg, ml, l, tsp, tbsp, cup, pcs, pinch, clove... (metric units and spoons convert when scaling).'),
                 'group' => $schema->string()->nullable()->description('Section, e.g. "Dough", "Filling".'),
@@ -85,7 +85,7 @@ class RecipeData
             'steps' => $schema->array()->items($schema->string())->description('The method, one entry per step, in order (replaces the existing steps).'),
             'tags' => $schema->array()->items($schema->string())->description('e.g. ["dessert", "vegetarian"].'),
             'source_url' => $schema->string()->nullable()->description('Where the recipe came from.'),
-            'notes' => $schema->string()->nullable(),
+            'notes' => $schema->string()->description('Free-text notes; null clears them.')->nullable(),
         ];
     }
 

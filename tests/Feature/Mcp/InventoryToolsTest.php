@@ -38,7 +38,7 @@ it('lists, filters, shows and triages stock', function () {
     [, $got] = mcpTool($token, 'inventory_get', ['item_id' => $milk->id]);
     expect($got['replenish_to'])->toEqual(4);
 
-    [, $att] = mcpTool($token, 'inventory_needs_attention');
+    [, $att] = mcpTool($token, 'inventory_list_needs_attention');
     expect($att['total'])->toBe(1)->and($att['low'][0]['id'])->toBe($milk->id);
 
     // Read-only token: no write tools.
@@ -110,7 +110,7 @@ it('trashes an item with its history, restores it, and clears a category deleted
 
     [$err] = mcpTool($token, 'inventory_delete_item', ['item_id' => $milk->id]);
     expect($err)->toBeFalse()->and(collect(mcpTool($token, 'inventory_list')[1]['items'])->pluck('name')->all())->toBe(['Dish soap']);
-    [, $trash] = mcpTool($token, 'inventory_list_deleted');
+    [, $trash] = mcpTool($token, 'inventory_list_trash');
     expect($trash['deleted'][0])->toMatchArray(['type' => 'inventory_item', 'id' => $milk->id, 'title' => 'Milk', 'where' => 'Inventory']);
 
     [$err, $r] = mcpTool($token, 'inventory_restore', ['id' => $milk->id]);
