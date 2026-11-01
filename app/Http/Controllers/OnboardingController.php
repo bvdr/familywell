@@ -445,6 +445,16 @@ class OnboardingController extends Controller
         if (! Billing::enabled() || ! $family = $this->payingFamily($request)) {
             return $this->leave($request);
         }
+        // Nothing to buy: the family is comped (VIP / lifetime, given from admin), already paying, or the demo. The
+        // onboarding family is returned even when paid (payingFamily), so without this an admin's VIP grant left the
+        // person on checkout (2026-11-01). Carry on where a payment would have led.
+        if (Billing::isPaid($family) && ! $request->boolean('preview')) {
+            $user = $request->user();
+            $onboarding = $user->onboarding_step === 'plan';
+            $user->forceFill(['onboarding_step' => $onboarding ? 'ready' : null])->save();
+
+            return to_route($onboarding ? 'onboarding.ready' : 'dashboard');
+        }
 
         return Inertia::render('onboarding/plan', [
             'family' => $family->only(['name']),

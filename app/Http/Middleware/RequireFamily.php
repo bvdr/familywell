@@ -41,9 +41,10 @@ class RequireFamily
         }
 
         if ($locked) {
-            // A hard-paywall family goes back to the plan step of the onboarding (an admin can pay there, see
-            // OnboardingController::payingFamily). A member who can't pay, or a soft family, gets the Billing page.
-            if ($family->hard_paywall && $request->user()->can('manageBilling', $family)) {
+            // Whoever can pay goes to the plan selection (the onboarding's plan step, OnboardingController::payingFamily),
+            // hard-paywall and free-period families alike: since 2026-11-01 a free period that ran out lands there
+            // too, not on Settings > Billing. A member who can't pay gets the Billing page ("ask an admin").
+            if ($request->user()->can('manageBilling', $family)) {
                 return to_route('onboarding.plan');
             }
 

@@ -2,6 +2,7 @@
 
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Modules\Spending\Spend;
@@ -18,12 +19,15 @@ use Modules\Vehicles\VehicleMileageLog;
 
 function carsToken(array $access = ['vehicles' => 'write'], array $modules = ['vehicles', 'tasks', 'spending']): array
 {
+    // A fixed day: "13 months ago" is 30 or 31 days past due depending on the month, which flips the oil change
+    // between due and overdue (failed on 2026-11-01).
+    Carbon::setTestNow('2026-06-15 10:00');
     [$family, $users] = mcpFamily($modules);
     CurrentFamily::set($family->id);
     $car = Vehicle::create(['make' => 'Dacia', 'model' => 'Duster', 'year' => 2019, 'current_mileage' => 150000, 'license_plate' => 'B 123 ABC']);
     $oil = $car->maintenanceSchedules()->create([
         'name' => 'Oil & filter', 'type' => 'oil_change', 'interval_km' => 15000, 'interval_months' => 12,
-        'last_performed_mileage' => 134000, 'last_performed_at' => now()->subMonths(13)->toDateString(),
+        'last_performed_mileage' => 134000, 'last_performed_at' => now()->subYear()->subDays(10)->toDateString(), // 10 days past its date: due, not overdue (> 30)
     ]);
     $car->documents()->create(['type' => 'insurance', 'title' => 'RCA', 'expires_on' => now()->addDays(10)->toDateString()]);
     $token = mcpConnect($users[0], $family->id, $access)['access_token'];
