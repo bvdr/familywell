@@ -40,7 +40,7 @@ function lifetimeAdminToken(): string
 it('lets a lifetime family in with no subscription, shows Lifetime (VIP) and never sends it to checkout', function () {
     lifetimeStripeOn();
     [$user, $family] = lifetimeFamily();
-    actingAs($user)->get('/dashboard')->assertRedirect('/settings/billing'); // unpaid: locked
+    actingAs($user)->get('/dashboard')->assertRedirect(route('onboarding.plan')); // unpaid: locked
 
     $family->forceFill(['access_override' => Family::LIFETIME])->save();
     actingAs($user)->get('/dashboard')->assertOk();
@@ -80,7 +80,7 @@ it('is granted and revoked by a platform admin through the admin API, and shown 
     $this->withToken($token)->deleteJson("/api/admin/families/{$family->id}/lifetime")->assertOk()->assertJson(['lifetime' => false]);
     expect($family->fresh()->access_override)->toBeNull();
     auth()->forgetGuards();
-    actingAs($user)->get('/dashboard')->assertRedirect('/settings/billing'); // locked again
+    actingAs($user)->get('/dashboard')->assertRedirect(route('onboarding.plan')); // locked again
 });
 
 it('refuses the toggle to anyone but a platform admin', function () {
