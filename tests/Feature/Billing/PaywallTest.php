@@ -47,12 +47,12 @@ it('never locks or shows billing when Stripe is not configured (self-hosted)', f
     get('/settings/billing')->assertNotFound();
 });
 
-it('sends an unpaid family to billing and lets a paid or demo family in', function () {
+it('sends an unpaid family to the plan selection and lets a paid or demo family in', function () {
     stripeOn();
     [$user, $family] = paidFamily();
     actingAs($user);
 
-    get('/dashboard')->assertRedirect('/settings/billing');
+    get('/dashboard')->assertRedirect(route('onboarding.plan'));
     get('/settings/billing')->assertOk();
     get('/settings/profile')->assertOk();
 

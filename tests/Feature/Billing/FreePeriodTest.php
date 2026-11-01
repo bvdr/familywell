@@ -36,7 +36,9 @@ it('keeps a new unpaid family in until 3 modules AND 24 hours, then shows the pa
     actingAs($user)->get('/dashboard')->assertOk(); // 3 modules, but not 24h old yet
 
     $this->travel(25)->hours();
-    actingAs($user)->get('/dashboard')->assertRedirect('/settings/billing');
+    actingAs($user)->get('/dashboard')->assertRedirect(route('onboarding.plan'));
+    // The plan selection opens for them (no onboarding step needed), not the old Billing page.
+    actingAs($user)->get('/onboarding/plan')->assertOk()->assertInertia(fn ($page) => $page->component('onboarding/plan'));
 });
 
 it('shows the paywall the moment an older family adds its 3rd module, not before', function () {
@@ -49,7 +51,7 @@ it('shows the paywall the moment an older family adds its 3rd module, not before
     actingAs($user)->get('/dashboard')->assertOk();
 
     Engagement::record($family->id, 'calendar');
-    actingAs($user)->get('/dashboard')->assertRedirect('/settings/billing');
+    actingAs($user)->get('/dashboard')->assertRedirect(route('onboarding.plan'));
 });
 
 it('counts the items people add (any path), not the containers the app or they set up', function () {
