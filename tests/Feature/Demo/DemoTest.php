@@ -83,6 +83,9 @@ function demoSeed(): Family
 beforeEach(fn () => Storage::fake('r2'));
 
 it('creates the flagged demo family with five members and every module filled', function () {
+    // Mid-month: on the 1st the demo has barely any spending yet "this month", so the month-to-date check below
+    // failed on the first days of each month (2026-11-01).
+    Carbon::setTestNow('2026-10-15 10:00');
     $demo = demoSeed();
 
     expect($demo->is_demo)->toBeTrue()
