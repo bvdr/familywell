@@ -120,3 +120,16 @@ it('makes the onboarding create hard-paywall families', function () {
 
     expect(Family::where('owner_id', $user->id)->value('hard_paywall'))->toBeTrue();
 });
+
+it('moves a family made VIP while on the plan step past checkout to the recap', function () {
+    [$user, $family] = hardFamily();
+    $user->forceFill(['onboarding_step' => 'plan'])->save();
+    session(['active_family_id' => $family->id]);
+    actingAs($user)->get('/onboarding/plan')->assertOk(); // unpaid: the checkout
+
+    Billing::setLifetime($family, true, 'admin@test'); // the admin's VIP toggle
+
+    actingAs($user->fresh())->get('/dashboard')->assertRedirect(route('onboarding.plan'));
+    actingAs($user->fresh())->get('/onboarding/plan')->assertRedirect(route('onboarding.ready'));
+    expect($user->fresh()->onboarding_step)->toBe('ready');
+});
