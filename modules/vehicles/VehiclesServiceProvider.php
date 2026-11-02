@@ -12,6 +12,7 @@ use App\Support\Mcp\McpTools;
 use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use App\Support\Translations;
 use App\Support\Trash\Trash;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Http\Request;
@@ -168,13 +169,13 @@ class VehiclesServiceProvider extends ServiceProvider
                     }
                     $due = $s->statusFor((int) $car->current_mileage)['nextDueDate'];
                     if ($due && $due >= $from && $due <= $to) {
-                        $items[] = CalendarSources::item('vehicle_maintenance', $s->id, "{$name}: {$s->name}", $due, href: "/m/vehicles/{$car->id}", icon: 'wrench');
+                        $items[] = CalendarSources::item('vehicle_maintenance', $s->id, "{$name}: {$s->name}", $due, href: "/m/vehicles/{$car->id}", icon: 'wrench', sub: Translations::get('nav.vehicles'));
                     }
                 }
                 foreach ($car->documents as $d) {
                     $exp = $d->expires_on?->toDateString();
                     if ($exp && $exp >= $from && $exp <= $to) {
-                        $items[] = CalendarSources::item('vehicle_document', $d->id, "{$name}: {$d->title}", $exp, href: "/m/vehicles/{$car->id}", icon: 'file-text');
+                        $items[] = CalendarSources::item('vehicle_document', $d->id, "{$name}: {$d->title}", $exp, href: "/m/vehicles/{$car->id}", icon: 'file-text', sub: Translations::get('nav.vehicles'));
                     }
                 }
             }

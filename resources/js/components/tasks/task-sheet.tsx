@@ -36,6 +36,7 @@ export function TaskSheet({
     members,
     family,
     list,
+    addons = true,
     taskUrl,
     onClose,
     onDelete,
@@ -43,7 +44,10 @@ export function TaskSheet({
     task: SubTask;
     members: TaskMember[];
     family: TaskMember[];
-    list: { id: number; name: string };
+    // The task's list: the List row (move it). An event's to-dos have none.
+    list?: { id: number; name: string };
+    // Repeat / Important: only where the task.saved add-ons run (a list's tasks; not an event's to-dos).
+    addons?: boolean;
     taskUrl: (id: number) => string;
     onClose: () => void;
     onDelete: () => void;
@@ -52,7 +56,7 @@ export function TaskSheet({
     const [draft, setDraft] = useState<Draft>({ ...task });
     // The add-ons' fields changed in the sheet ({important: true, recurrence: 'quarterly'}), sent with Save.
     const [ext, setExt] = useState<Record<string, unknown>>({});
-    const [listId, setListId] = useState(String(list.id));
+    const [listId, setListId] = useState(String(list?.id ?? ''));
     // A pushed screen: an add-on's (Repeat), or the list picker's: pick (T3b), New list (T3c), every icon (T3d).
     const [view, setView] = useState<View | 'list' | 'new' | 'icons' | null>(null);
     const [lists, setLists] = useState<{ choices: Choice[]; guess: { value: string; word: string; count: number } | null } | null>(null);
@@ -67,8 +71,8 @@ export function TaskSheet({
     const set = (p: Partial<SubTask>) => setDraft((d) => ({ ...d, ...p }));
     const creator = family.find((m) => m.id === task.createdBy);
     const made = task.createdAt ? new Date(`${task.createdAt}T00:00:00`).toLocaleDateString(appLocale(), { month: 'short', day: 'numeric' }) : null;
-    const options = withNew(lists?.choices ?? [{ value: String(list.id), label: list.name }], listId);
-    const listName = options.find((o) => o.value === listId)?.label ?? list.name;
+    const options = withNew(lists?.choices ?? (list ? [{ value: String(list.id), label: list.name }] : []), listId);
+    const listName = options.find((o) => o.value === listId)?.label ?? list?.name ?? '';
 
     // The picker's rows and its guess from similar tasks load when it first opens (one small request).
     useEffect(() => {
@@ -93,7 +97,7 @@ export function TaskSheet({
                 // moved to.
                 ...(parseNew(moveTo)
                     ? { new_list: JSON.parse(moveTo.slice(4)) }
-                    : moveTo !== String(list.id)
+                    : list && moveTo !== String(list.id)
                       ? { task_list_id: Number(moveTo) }
                       : {}),
                 ...(ext as Record<string, string | number | boolean | null>),
@@ -170,7 +174,7 @@ export function TaskSheet({
                 <NewListForm
                     draft={newList}
                     setDraft={setNewList}
-                    note={t('add_details.moves_here', { title: draft.title, from: list.name })}
+                    note={t('add_details.moves_here', { title: draft.title, from: list?.name ?? '' })}
                     submitLabel={t('add_details.create_and_move')}
                     onMoreIcons={() => setView('icons')}
                     busy={saving}
@@ -232,17 +236,26 @@ export function TaskSheet({
                         </div>
                     </section>
 
-                    <SettingsGroup>
-                        {/* Repeat and Important: the add-ons' own rows. push lets Repeat open its picker in this sheet. */}
-                        <Slot name="task.editor.fields" ctx={{ task: draft, onPatch: patch, variant: 'row', push: (v: View) => setView(v) }} />
-                        <SettingsRow
-                            icon={ListChecks}
-                            title={t('add_details.f_list_id')}
-                            value={<span className="text-primary font-semibold">{listName}</span>}
-                            onClick={() => setView('list')}
-                            className="order-2"
-                        />
-                    </SettingsGroup>
+                    {(addons || list) && (
+                        <SettingsGroup>
+                            {/* Repeat and Important: the add-ons' own rows. push lets Repeat open its picker in this sheet. */}
+                            {addons && (
+                                <Slot
+                                    name="task.editor.fields"
+                                    ctx={{ task: draft, onPatch: patch, variant: 'row', push: (v: View) => setView(v) }}
+                                />
+                            )}
+                            {list && (
+                                <SettingsRow
+                                    icon={ListChecks}
+                                    title={t('add_details.f_list_id')}
+                                    value={<span className="text-primary font-semibold">{listName}</span>}
+                                    onClick={() => setView('list')}
+                                    className="order-2"
+                                />
+                            )}
+                        </SettingsGroup>
+                    )}
 
                     {error && (
                         <p role="alert" className="text-destructive text-sm">

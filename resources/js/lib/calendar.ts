@@ -18,6 +18,7 @@ export type CalItem = {
     people: CalPerson[];
     done: boolean;
     editable: boolean;
+    sub?: string | null; // a second line where people alone don't say it (a to-do's list)
 };
 export type CalFilter = { people: string[]; sources: string[] };
 
@@ -113,7 +114,7 @@ export function shiftDate(view: string, zoom: string, date: string, dir: 1 | -1)
 
 // Timeline rows: one per item (a repeating series is one item, so its occurrences share a row as several bars),
 // keeping only occurrences inside the window (Notion's "off-screen arrow" rows are deliberately not copied).
-// Rows are ordered by their earliest in-window start, then title; `item` is that earliest occurrence.
+// Rows are ordered by their start (oldest first), then title; `item` is the earliest in-window occurrence.
 export type TimelineBar = { item: CalItem; offset: number; span: number };
 export function timelineRows(items: CalItem[], from: string, to: string): { key: string; item: CalItem; bars: TimelineBar[] }[] {
     const rows = new Map<string, TimelineBar[]>();
@@ -128,7 +129,8 @@ export function timelineRows(items: CalItem[], from: string, to: string): { key:
             bars.sort((a, b) => a.offset - b.offset);
             return { key, item: bars[0].item, bars };
         })
-        .sort((a, b) => a.bars[0].offset - b.bars[0].offset || a.item.title.localeCompare(b.item.title));
+        // Oldest on top (design 04b): by when the thing really starts, so one that began before the window sits above.
+        .sort((a, b) => a.item.start.localeCompare(b.item.start) || a.item.title.localeCompare(b.item.title));
 }
 
 // Kinds that are something to get done by a date, as opposed to something that happens on it (an event, a birthday):
