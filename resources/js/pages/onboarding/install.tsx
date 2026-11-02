@@ -27,7 +27,8 @@ import { useT } from '@/lib/i18n';
 import { canPromptInstall, isStandalone, onInstallPromptChange, promptInstall } from '@/lib/install';
 import { cn } from '@/lib/utils';
 
-type Props = { email: string; step: string | null; preview: boolean };
+// setup: opened from the browser's "Install the app" nudge, outside the onboarding (back leads Home).
+type Props = { email: string; step: string | null; preview: boolean; setup?: boolean };
 type Via = 'standalone' | 'desktop' | 'browser';
 
 const advance = (via: Via) => router.post(route('onboarding.install.store'), { via });
@@ -63,7 +64,7 @@ const ESCAPE_AFTER_MS = 30_000;
 
 // Step 4 (design 04 / D2). Phone: add to Home Screen, required; the page moves on by itself as soon as it runs
 // installed. Computer: "Now take it to your phone" with a QR code that signs the phone in.
-export default function Install({ email, step, preview }: Props) {
+export default function Install({ email, step, preview, setup }: Props) {
     const t = useT();
 
     // Opened from the Home Screen (or the installed desktop app): that's the step done.
@@ -91,7 +92,7 @@ export default function Install({ email, step, preview }: Props) {
         <>
             <Head title={t('onboarding.install_title')} />
             <div className="desk:hidden">
-                <PhoneInstall />
+                <PhoneInstall setup={setup} />
             </div>
             <div className="desk:block hidden">
                 <DesktopHandoff email={email} preview={preview} />
@@ -100,7 +101,7 @@ export default function Install({ email, step, preview }: Props) {
     );
 }
 
-function PhoneInstall() {
+function PhoneInstall({ setup }: { setup?: boolean }) {
     const t = useT();
     const [device, setDevice] = useState<'ios' | 'android'>(() =>
         typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent) ? 'android' : 'ios',
@@ -159,7 +160,7 @@ function PhoneInstall() {
         <OnboardingLayout
             step={4}
             homer={{ loop: 'walk' }}
-            back={route('onboarding.modules')}
+            back={setup ? route('dashboard') : route('onboarding.modules')}
             title={t('onboarding.install_title')}
             sub={t('onboarding.install_sub')}
         >
