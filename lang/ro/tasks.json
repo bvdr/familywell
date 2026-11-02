@@ -59,5 +59,17 @@
     "group_later": "Mai târziu",
     "group_none": "Fără dată",
     "group_done": "Gata",
-    "n_left_few": ":count rămase"
+    "n_left_few": ":count rămase",
+    "overdue": "Întârziată",
+    "note_meta": "notă: :note",
+    "done_n_one": "Gata · :count",
+    "done_n_other": "Gata · :count",
+    "last_done_by": "ultima: :title, de :name",
+    "last_done": "ultima: :title",
+    "dictate": "Spune",
+    "rhythm_daily": "în fiecare zi",
+    "rhythm_weekly": "în fiecare săptămână",
+    "rhythm_monthly": "în fiecare lună",
+    "rhythm_yearly": "în fiecare an",
+    "done_n_few": "Gata · :count"
 }

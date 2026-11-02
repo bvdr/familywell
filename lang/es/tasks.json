@@ -58,5 +58,16 @@
     "group_week": "Esta semana",
     "group_later": "Más adelante",
     "group_none": "Sin fecha",
-    "group_done": "Hechas"
+    "group_done": "Hechas",
+    "overdue": "Atrasada",
+    "note_meta": "nota: :note",
+    "done_n_one": "Hechas · :count",
+    "done_n_other": "Hechas · :count",
+    "last_done_by": "última: :title, por :name",
+    "last_done": "última: :title",
+    "dictate": "Dictar",
+    "rhythm_daily": "cada día",
+    "rhythm_weekly": "cada semana",
+    "rhythm_monthly": "cada mes",
+    "rhythm_yearly": "cada año"
 }

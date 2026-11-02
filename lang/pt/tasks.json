@@ -58,5 +58,16 @@
     "group_week": "Esta semana",
     "group_later": "Mais tarde",
     "group_none": "Sem data",
-    "group_done": "Feitas"
+    "group_done": "Feitas",
+    "overdue": "Atrasada",
+    "note_meta": "nota: :note",
+    "done_n_one": "Feitas · :count",
+    "done_n_other": "Feitas · :count",
+    "last_done_by": "última: :title, por :name",
+    "last_done": "última: :title",
+    "dictate": "Ditar",
+    "rhythm_daily": "todo dia",
+    "rhythm_weekly": "toda semana",
+    "rhythm_monthly": "todo mês",
+    "rhythm_yearly": "todo ano"
 }

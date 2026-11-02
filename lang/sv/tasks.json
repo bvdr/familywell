@@ -58,5 +58,16 @@
     "group_week": "Den här veckan",
     "group_later": "Senare",
     "group_none": "Inget datum",
-    "group_done": "Klart"
+    "group_done": "Klart",
+    "overdue": "Försenad",
+    "note_meta": "anteckning: :note",
+    "done_n_one": "Klart · :count",
+    "done_n_other": "Klart · :count",
+    "last_done_by": "senast: :title, av :name",
+    "last_done": "senast: :title",
+    "dictate": "Säg det",
+    "rhythm_daily": "varje dag",
+    "rhythm_weekly": "varje vecka",
+    "rhythm_monthly": "varje månad",
+    "rhythm_yearly": "varje år"
 }

@@ -58,5 +58,16 @@
     "group_week": "Deze week",
     "group_later": "Later",
     "group_none": "Geen datum",
-    "group_done": "Klaar"
+    "group_done": "Klaar",
+    "overdue": "Te laat",
+    "note_meta": "notitie: :note",
+    "done_n_one": "Klaar · :count",
+    "done_n_other": "Klaar · :count",
+    "last_done_by": "laatst: :title, door :name",
+    "last_done": "laatst: :title",
+    "dictate": "Inspreken",
+    "rhythm_daily": "elke dag",
+    "rhythm_weekly": "elke week",
+    "rhythm_monthly": "elke maand",
+    "rhythm_yearly": "elk jaar"
 }

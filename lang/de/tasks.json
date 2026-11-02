@@ -58,5 +58,16 @@
     "group_week": "Diese Woche",
     "group_later": "Später",
     "group_none": "Ohne Datum",
-    "group_done": "Erledigt"
+    "group_done": "Erledigt",
+    "overdue": "Überfällig",
+    "note_meta": "Notiz: :note",
+    "done_n_one": "Erledigt · :count",
+    "done_n_other": "Erledigt · :count",
+    "last_done_by": "zuletzt: :title, von :name",
+    "last_done": "zuletzt: :title",
+    "dictate": "Sprechen",
+    "rhythm_daily": "jeden Tag",
+    "rhythm_weekly": "jede Woche",
+    "rhythm_monthly": "jeden Monat",
+    "rhythm_yearly": "jedes Jahr"
 }

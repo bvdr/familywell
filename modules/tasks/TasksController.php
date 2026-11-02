@@ -149,7 +149,11 @@ class TasksController extends Controller
         // Behavior hook `task.query`: a module may add a primary sort/filter (e.g. important-first),
         // applied before the base position order so the module's sort wins; a no-op with no listener.
         $query = $this->hooks->filter('task.query', $query, $list);
-        $tasks = $query->orderBy('tasks_tasks.position')->orderBy('tasks_tasks.id')->get();
+        // A list reads starred first (the hook above), then by due date, the undated last, then its own order (T2).
+        $tasks = $query->orderByRaw('tasks_tasks.due_date is null')->orderBy('tasks_tasks.due_date')
+            ->orderBy('tasks_tasks.position')->orderBy('tasks_tasks.id')->get();
+        // The folded Done row's "last: Mow lawn, by David".
+        $lastDone = $list->tasks()->where('done', true)->whereNotNull('done_at')->with('doneBy:id,name')->latest('done_at')->first(['id', 'title', 'done_by', 'done_at']);
 
         return Inertia::render('tasks/list', [
             'list' => [
@@ -163,6 +167,9 @@ class TasksController extends Controller
             'share' => $this->shareState($list, $family),
             'members' => $members,
             'tasks' => $tasks->map(fn (Task $t) => $this->taskPayload($t))->values(),
+            'lastDone' => $lastDone ? ['title' => $lastDone->title, 'by' => $lastDone->doneBy?->name] : null,
+            // Who made each task, for the task sheet's "Created by Ana · Jul 19" (any member, not only the assignable).
+            'family' => $family->members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),
         ]);
     }
 
@@ -178,6 +185,8 @@ class TasksController extends Controller
             'done' => $task->done,
             'dueDate' => optional($task->due_date)->toDateString(),
             'assignedTo' => $task->assigned_to,
+            'createdBy' => $task->created_by,
+            'createdAt' => $task->created_at?->toDateString(),
             'subtasks' => $task->subtasks->map(fn (Task $s) => $this->hooks->filter('task.serialize', [
                 'id' => $s->id,
                 'title' => $s->title,
@@ -185,6 +194,8 @@ class TasksController extends Controller
                 'done' => $s->done,
                 'dueDate' => optional($s->due_date)->toDateString(),
                 'assignedTo' => $s->assigned_to,
+                'createdBy' => $s->created_by,
+                'createdAt' => $s->created_at?->toDateString(),
             ], $s))->values(),
         ], $task);
     }
