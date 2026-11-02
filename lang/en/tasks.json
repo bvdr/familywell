@@ -66,8 +66,6 @@
     "last_done_by": "last: :title, by :name",
     "last_done": "last: :title",
     "dictate": "Say it",
-    "rhythm_daily": "every day",
-    "rhythm_weekly": "every week",
-    "rhythm_monthly": "every month",
-    "rhythm_yearly": "every year"
+    "created_by": "Created by :name · :date",
+    "save_failed": "Couldn't save that. Try again."
 }

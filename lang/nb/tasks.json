@@ -66,8 +66,6 @@
     "last_done_by": "sist: :title, av :name",
     "last_done": "sist: :title",
     "dictate": "Si det",
-    "rhythm_daily": "hver dag",
-    "rhythm_weekly": "hver uke",
-    "rhythm_monthly": "hver måned",
-    "rhythm_yearly": "hvert år"
+    "created_by": "Laget av :name · :date",
+    "save_failed": "Kunne ikke lagre. Prøv igjen."
 }

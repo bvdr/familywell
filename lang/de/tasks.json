@@ -66,8 +66,6 @@
     "last_done_by": "zuletzt: :title, von :name",
     "last_done": "zuletzt: :title",
     "dictate": "Sprechen",
-    "rhythm_daily": "jeden Tag",
-    "rhythm_weekly": "jede Woche",
-    "rhythm_monthly": "jeden Monat",
-    "rhythm_yearly": "jedes Jahr"
+    "created_by": "Erstellt von :name · :date",
+    "save_failed": "Konnte nicht speichern. Bitte nochmal."
 }

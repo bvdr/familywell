@@ -66,8 +66,6 @@
     "last_done_by": "laatst: :title, door :name",
     "last_done": "laatst: :title",
     "dictate": "Inspreken",
-    "rhythm_daily": "elke dag",
-    "rhythm_weekly": "elke week",
-    "rhythm_monthly": "elke maand",
-    "rhythm_yearly": "elk jaar"
+    "created_by": "Gemaakt door :name · :date",
+    "save_failed": "Opslaan lukte niet. Probeer opnieuw."
 }

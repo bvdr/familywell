@@ -65,3 +65,11 @@ export function ago(iso: string): string {
     if (days < 7) return then.toLocaleDateString(appLocale(), { weekday: 'short' });
     return then.toLocaleDateString(appLocale(), { month: 'short', day: 'numeric' });
 }
+
+// A repeat rhythm in a row's meta line ("every 3 months", "every 2 weeks"), the Repeat add-on's wording
+// (recurring_todos.every_*, same rules as its rhythmLabel) with a small first letter.
+export function rhythmText(t: (key: string, params?: Record<string, string | number>) => string, v: string): string {
+    const m = /^(\d{1,3}):(day|week|month)$/.exec(v);
+    const s = m ? t(`recurring_todos.every_${m[2]}`, { count: Number(m[1]) }) : t(`recurring_todos.every_${v}`);
+    return s.charAt(0).toLocaleLowerCase(appLocale()) + s.slice(1);
+}

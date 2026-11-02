@@ -66,8 +66,6 @@
     "last_done_by": "dernière : :title, par :name",
     "last_done": "dernière : :title",
     "dictate": "Dicter",
-    "rhythm_daily": "chaque jour",
-    "rhythm_weekly": "chaque semaine",
-    "rhythm_monthly": "chaque mois",
-    "rhythm_yearly": "chaque année"
+    "created_by": "Créée par :name · :date",
+    "save_failed": "Impossible d’enregistrer. Réessayez."
 }

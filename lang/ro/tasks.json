@@ -67,9 +67,7 @@
     "last_done_by": "ultima: :title, de :name",
     "last_done": "ultima: :title",
     "dictate": "Spune",
-    "rhythm_daily": "în fiecare zi",
-    "rhythm_weekly": "în fiecare săptămână",
-    "rhythm_monthly": "în fiecare lună",
-    "rhythm_yearly": "în fiecare an",
-    "done_n_few": "Gata · :count"
+    "done_n_few": "Gata · :count",
+    "created_by": "Creată de :name · :date",
+    "save_failed": "N-am putut salva. Mai încearcă."
 }

@@ -393,7 +393,7 @@ function SortableRow({
 }
 
 // Edit a single task: title, note, due date, assignee, plus a Delete. Save PATCHes the task endpoint.
-export function EditTaskModal({
+function EditTaskModal({
     task,
     members,
     taskUrl,

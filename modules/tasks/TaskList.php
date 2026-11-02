@@ -46,6 +46,25 @@ class TaskList extends Model
     }
 
     /**
+     * The list picker's rows (design D-T1: Add details, the task sheet): the lists this person can add to, each with
+     * its tile (icon, colour), when it last changed, whose it is ('only you' = private: null) and how many are open.
+     * One query (plus the share settings and creators, eager-loaded).
+     */
+    public static function pickerChoices(User $user): array
+    {
+        return static::visibleTo($user->id)->whereNull('archived_at')->orderBy('position')
+            ->with(['shareSetting', 'creator:id,name'])
+            ->withCount(['tasks as open' => fn ($q) => $q->where('done', false)])
+            ->get(['id', 'name', 'icon', 'color', 'created_by', 'touched_at', 'updated_at'])
+            ->map(fn (self $l) => [
+                'value' => (string) $l->id, 'label' => $l->name, 'icon' => $l->icon, 'color' => $l->color,
+                'updated_at' => (string) ($l->touched_at ?? $l->updated_at),
+                'by' => $l->visibility() === 'private' ? null : strtok((string) $l->creator?->name, ' '),
+                'open' => $l->open,
+            ])->all();
+    }
+
+    /**
      * Create a list owned by $user: the creator gets the `owner` share (manages visibility/roles), and the
      * list defaults to `family` visibility. One place for the rule so the web UI and MCP tools agree.
      */

@@ -366,3 +366,20 @@ it('counts the next one from when it got done, when asked to', function () {
     actingAs($users[0])->patch("/m/tasks/tasks/{$task->id}", ['done' => true])->assertRedirect();
     expect($rule->fresh()->count_from)->toBe('due')->and($rule->fresh()->next_occurrence->toDateString())->toBe('2027-01-19');
 });
+
+it('moves a task, with its sub-tasks, to another list from the task sheet, but not into one you cannot reach', function () {
+    [, $users] = tasksFamily();
+    actingAs($users[0])->post('/m/tasks/lists', ['name' => 'Household']);
+    actingAs($users[0])->post('/m/tasks/lists', ['name' => 'Garden']);
+    actingAs($users[1])->post('/m/tasks/lists', ['name' => 'Lucia only']);
+    [$house, $garden, $private] = TaskList::withoutGlobalScopes()->orderBy('id')->get()->all();
+    $private->setVisibility('private');
+    actingAs($users[0])->post("/m/tasks/lists/{$house->id}/tasks", ['title' => 'Rake the yard']);
+    $task = Task::withoutGlobalScopes()->first();
+    actingAs($users[0])->post("/m/tasks/lists/{$house->id}/tasks", ['title' => 'Find the rake', 'parent_id' => $task->id]);
+
+    actingAs($users[0])->patch("/m/tasks/tasks/{$task->id}", ['task_list_id' => $garden->id])->assertRedirect();
+    expect(Task::withoutGlobalScopes()->pluck('task_list_id')->unique()->all())->toBe([$garden->id]);
+
+    actingAs($users[0])->patch("/m/tasks/tasks/{$task->id}", ['task_list_id' => $private->id])->assertForbidden();
+});

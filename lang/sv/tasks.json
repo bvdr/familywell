@@ -66,8 +66,6 @@
     "last_done_by": "senast: :title, av :name",
     "last_done": "senast: :title",
     "dictate": "Säg det",
-    "rhythm_daily": "varje dag",
-    "rhythm_weekly": "varje vecka",
-    "rhythm_monthly": "varje månad",
-    "rhythm_yearly": "varje år"
+    "created_by": "Skapad av :name · :date",
+    "save_failed": "Kunde inte spara. Försök igen."
 }

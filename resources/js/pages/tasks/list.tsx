@@ -17,9 +17,11 @@ import {
 } from 'lucide-react';
 import { useRef, useState } from 'react';
 
+import { type Detail } from '@/components/add-just-say-it';
 import { MemberAvatar } from '@/components/member-avatar';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
-import { EditTaskModal, type SubTask, type TaskMember, type TaskNode } from '@/components/tasks/task-tree';
+import { TaskSheet } from '@/components/tasks/task-sheet';
+import { type SubTask, type TaskMember, type TaskNode } from '@/components/tasks/task-tree';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
@@ -32,7 +34,7 @@ import { useAddAction } from '@/lib/add-action';
 import { localToday } from '@/lib/date-groups';
 import { appLocale, relativeWord, useT } from '@/lib/i18n';
 import { save } from '@/lib/save';
-import { LIST_COLORS, LIST_ICONS, listColor, listIcon } from '@/lib/tasks';
+import { LIST_COLORS, LIST_ICONS, listColor, listIcon, rhythmText } from '@/lib/tasks';
 import { type BreadcrumbItem } from '@/types';
 
 type List = { id: number; name: string; color: string; icon: string; archived: boolean; visibility: string };
@@ -44,9 +46,10 @@ type Props = {
     tasks: TaskNode[];
     lastDone: { title: string; by: string | null } | null;
     family: TaskMember[];
+    lists?: NonNullable<Detail['choices']>;
 };
 
-export default function ListDetail({ list, share, members, tasks, lastDone }: Props) {
+export default function ListDetail({ list, share, members, tasks, lastDone, family, lists }: Props) {
     const t = useT();
     const [sharing, setSharing] = useState(false);
     const [editing, setEditing] = useState(false);
@@ -165,7 +168,7 @@ export default function ListDetail({ list, share, members, tasks, lastDone }: Pr
                     </span>
                 </div>
 
-                <ListTasks tasks={tasks} members={members} listId={list.id} lastDone={lastDone} addInputRef={addInputRef} />
+                <ListTasks tasks={tasks} members={members} list={list} lastDone={lastDone} family={family} lists={lists} addInputRef={addInputRef} />
             </div>
 
             <EditListModal open={editing} onOpenChange={setEditing} list={list} />
@@ -180,14 +183,18 @@ export default function ListDetail({ list, share, members, tasks, lastDone }: Pr
 function ListTasks({
     tasks,
     members,
-    listId,
+    list,
     lastDone,
+    family,
+    lists,
     addInputRef,
 }: {
     tasks: TaskNode[];
     members: TaskMember[];
-    listId: number;
+    list: List;
     lastDone: Props['lastDone'];
+    family: TaskMember[];
+    lists: Props['lists'];
     addInputRef: React.RefObject<HTMLInputElement | null>;
 }) {
     const t = useT();
@@ -217,7 +224,7 @@ function ListTasks({
         const key = Date.now() + Math.random();
         setAdding((a) => [...a, { key, title: v }]);
         setTitle('');
-        void save('post', route('tasks.tasks.store', listId), { title: v }).then((r) => {
+        void save('post', route('tasks.tasks.store', list.id), { title: v }).then((r) => {
             setAdding((a) => a.filter((p) => p.key !== key));
             if (r !== 'ok') setTitle((c) => c || v);
         });
@@ -231,7 +238,7 @@ function ListTasks({
                     {due.text}
                 </span>
             ),
-            x.recurrence && x.recurrence !== 'none' && t(`tasks.rhythm_${x.recurrence}`),
+            x.recurrence && x.recurrence !== 'none' && rhythmText(t, x.recurrence),
             x.note && t('tasks.note_meta', { note: x.note }),
         ].filter(Boolean);
         return parts.length ? parts.flatMap((p, i) => (i ? [' · ', p] : [p])) : null;
@@ -353,9 +360,12 @@ function ListTasks({
             </div>
 
             {editing && (
-                <EditTaskModal
+                <TaskSheet
                     task={editing}
                     members={members}
+                    family={family}
+                    list={list}
+                    lists={lists}
                     taskUrl={taskUrl}
                     onClose={() => setEditing(null)}
                     onDelete={() => {

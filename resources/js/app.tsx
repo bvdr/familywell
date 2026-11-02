@@ -33,7 +33,7 @@ import { armCrashRecovery, ErrorBoundary } from './components/error-boundary';
 import { initializeTheme, syncThemeColor } from './hooks/use-appearance';
 import { identify, trackQueued } from './lib/analytics';
 import { setFamilyTimezone } from './lib/date-groups';
-import { setAppLocale, useT } from './lib/i18n';
+import { appLocale, setAppLocale, useT } from './lib/i18n';
 import { listenForInstallPrompt } from './lib/install';
 import { loadModules, registerSlot } from './lib/modules';
 import { registerServiceWorker } from './lib/push';
@@ -42,7 +42,7 @@ import { startShoppingOutbox } from './lib/shopping-outbox';
 declare global {
     const route: typeof routeFn;
     interface Window {
-        Familywell: { React: typeof React; registerSlot: typeof registerSlot; Picker: typeof Picker; useT: typeof useT };
+        Familywell: { React: typeof React; registerSlot: typeof registerSlot; Picker: typeof Picker; useT: typeof useT; appLocale: typeof appLocale };
         __familywellModules?: string[];
     }
 }
@@ -50,7 +50,7 @@ declare global {
 // Expose the shell runtime so pre-built module assets register UI without a bundler or a second React.
 // Picker is exposed so prebuilt module frontends (modules/*/resources/dist) use the app's one dropdown
 // instead of a native <select> (they can't import from the app bundle). useT so their strings follow the app language.
-window.Familywell = { React, registerSlot, Picker, useT };
+window.Familywell = { React, registerSlot, Picker, useT, appLocale };
 void loadModules(window.__familywellModules ?? []);
 
 // Catch stale-chunk failures after a deploy and auto-reload once, so an installed PWA never gets

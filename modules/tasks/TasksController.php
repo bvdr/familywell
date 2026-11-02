@@ -168,6 +168,8 @@ class TasksController extends Controller
             'members' => $members,
             'tasks' => $tasks->map(fn (Task $t) => $this->taskPayload($t))->values(),
             'lastDone' => $lastDone ? ['title' => $lastDone->title, 'by' => $lastDone->doneBy?->name] : null,
+            // The task sheet's list picker, loaded when it opens (a partial reload).
+            'lists' => Inertia::optional(fn () => TaskList::pickerChoices($request->user())),
             // Who made each task, for the task sheet's "Created by Ana · Jul 19" (any member, not only the assignable).
             'family' => $family->members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),
         ]);
@@ -362,7 +364,17 @@ class TasksController extends Controller
                 'due_date' => ['sometimes', 'nullable', 'date'],
                 'assigned_to' => ['sometimes', 'nullable', 'integer'],
                 'done' => ['sometimes', 'boolean'],
+                // The task sheet's List row (T3): move it, with its sub-tasks, to another list this person can edit.
+                'task_list_id' => ['sometimes', 'integer'],
             ]);
+            if (isset($data['task_list_id']) && $data['task_list_id'] !== $task->task_list_id) {
+                $to = TaskList::find($data['task_list_id']);
+                abort_unless($to && ! $to->archived_at && $task->parent_id === null && $this->access->roleFor($actor, $to) !== null, 403);
+                Task::where('parent_id', $task->id)->update(['task_list_id' => $to->id]);
+                $url = route('tasks.show', $to, false);
+            } else {
+                unset($data['task_list_id']);
+            }
             $before = $task->assigned_to;
             $wasDone = $task->done;
             $task->update($data);
