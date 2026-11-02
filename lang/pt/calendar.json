@@ -116,5 +116,8 @@
     "who": "Quem",
     "nobody": "Ninguém ainda",
     "left_one": "falta :count",
-    "left_other": "faltam :count"
+    "left_other": "faltam :count",
+    "add_event": "Adicionar evento",
+    "whos_going": "Quem vai",
+    "add_contact": "Adicionar um contato"
 }

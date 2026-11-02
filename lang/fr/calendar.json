@@ -116,5 +116,8 @@
     "who": "Qui",
     "nobody": "Personne encore",
     "left_one": ":count restante",
-    "left_other": ":count restantes"
+    "left_other": ":count restantes",
+    "add_event": "Ajouter l’événement",
+    "whos_going": "Qui vient",
+    "add_contact": "Ajouter un contact"
 }

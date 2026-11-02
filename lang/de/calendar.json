@@ -116,5 +116,8 @@
     "who": "Wer",
     "nobody": "Noch niemand",
     "left_one": ":count offen",
-    "left_other": ":count offen"
+    "left_other": ":count offen",
+    "add_event": "Termin hinzufügen",
+    "whos_going": "Wer kommt mit",
+    "add_contact": "Kontakt hinzufügen"
 }

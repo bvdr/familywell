@@ -116,5 +116,8 @@
     "who": "Who",
     "nobody": "No one yet",
     "left_one": ":count left",
-    "left_other": ":count left"
+    "left_other": ":count left",
+    "add_event": "Add event",
+    "whos_going": "Who's going",
+    "add_contact": "Add a contact"
 }

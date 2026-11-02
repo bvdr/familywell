@@ -116,5 +116,8 @@
     "who": "Wie",
     "nobody": "Nog niemand",
     "left_one": "nog :count",
-    "left_other": "nog :count"
+    "left_other": "nog :count",
+    "add_event": "Afspraak toevoegen",
+    "whos_going": "Wie gaat er mee",
+    "add_contact": "Contact toevoegen"
 }

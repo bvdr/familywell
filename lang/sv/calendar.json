@@ -116,5 +116,8 @@
     "who": "Vem",
     "nobody": "Ingen än",
     "left_one": ":count kvar",
-    "left_other": ":count kvar"
+    "left_other": ":count kvar",
+    "add_event": "Lägg till händelse",
+    "whos_going": "Vem följer med",
+    "add_contact": "Lägg till en kontakt"
 }

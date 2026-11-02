@@ -116,5 +116,8 @@
     "who": "Hvem",
     "nobody": "Ingen ennå",
     "left_one": ":count igjen",
-    "left_other": ":count igjen"
+    "left_other": ":count igjen",
+    "add_event": "Legg til hendelse",
+    "whos_going": "Hvem blir med",
+    "add_contact": "Legg til en kontakt"
 }

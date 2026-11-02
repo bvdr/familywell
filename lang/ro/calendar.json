@@ -121,5 +121,8 @@
     "nobody": "Nimeni încă",
     "left_one": "mai e :count",
     "left_other": "mai sunt :count",
-    "left_few": "mai sunt :count"
+    "left_few": "mai sunt :count",
+    "add_event": "Adaugă evenimentul",
+    "whos_going": "Cine vine",
+    "add_contact": "Adaugă un contact"
 }
