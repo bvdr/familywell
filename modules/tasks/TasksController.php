@@ -21,25 +21,37 @@ class TasksController extends Controller
 {
     public function __construct(private ShareAccess $access, private Hooks $hooks) {}
 
+    /**
+     * The overview (design j6QDy4, T1 / T1b): one page, two views. Lists: every list, last touched first, each with
+     * how many are left, the next one, and who touched it when. Tasks: every open task of those lists by due date,
+     * with the family for the people strip; the done ones only load when "Done" is switched on (a partial reload).
+     */
     public function index(Request $request): Response
     {
         $userId = $request->user()->id;
 
         $lists = TaskList::query()
-            ->withCount([
-                'tasks',
-                'tasks as done_count' => fn ($q) => $q->where('done', true),
-            ])
-            ->with(['shareSetting', 'shares', 'tasks:id,task_list_id,assigned_to'])
-            ->orderBy('position')
-            ->latest()
+            ->with(['shareSetting', 'shares', 'toucher:id,name'])
+            ->orderByDesc('touched_at')->orderByDesc('id')
             ->get()
             // BelongsToFamily already limits to the current family; `family`-visibility lists are
             // visible to every member, `invited`/`private` need an explicit share row.
             ->filter(fn (TaskList $l) => $l->visibility() === 'family' || $l->shares->contains('user_id', $userId))
             ->values();
+        $live = $lists->whereNull('archived_at')->pluck('id');
+        $members = Family::findOrFail(CurrentFamily::id())->members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values();
 
-        $memberNames = Family::findOrFail(CurrentFamily::id())->members->pluck('name', 'id');
+        // Every open task of every list in one query: the cards' counts and "next", and the Tasks view. Soonest due
+        // first (no date last), then the list's own order.
+        $open = Task::whereIn('task_list_id', $lists->pluck('id'))->where('done', false)
+            ->orderByRaw('due_date is null')->orderBy('due_date')->orderBy('position')->orderBy('id')
+            ->get(['id', 'task_list_id', 'parent_id', 'title', 'due_date', 'assigned_to']);
+        $byList = $open->groupBy('task_list_id');
+        $names = $lists->pluck('name', 'id');
+        $row = fn (Task $t) => [
+            'id' => $t->id, 'title' => $t->title, 'done' => (bool) $t->done, 'dueDate' => $t->due_date?->toDateString(),
+            'assignedTo' => $t->assigned_to, 'listId' => $t->task_list_id, 'list' => $names[$t->task_list_id] ?? null,
+        ];
 
         return Inertia::render('tasks/lists', [
             'lists' => $lists->map(fn (TaskList $l) => [
@@ -47,13 +59,18 @@ class TasksController extends Controller
                 'name' => $l->name,
                 'color' => $l->color,
                 'icon' => $l->icon,
-                'taskCount' => $l->tasks_count,
-                'doneCount' => $l->done_count,
+                'open' => $byList->get($l->id)?->count() ?? 0,
+                'next' => $byList->get($l->id)?->first()?->title,
                 'archived' => $l->archived_at !== null,
                 'visibility' => $l->visibility(),
-                'members' => $l->tasks->pluck('assigned_to')->filter()->unique()->values()
-                    ->map(fn ($id) => ['id' => $id, 'name' => $memberNames[$id] ?? '?'])->all(),
+                'touchedAt' => $l->touched_at?->toIso8601String(),
+                'touchedBy' => $l->toucher ? ['id' => $l->toucher->id, 'name' => $l->toucher->name] : null,
             ])->values(),
+            'tasks' => $open->whereIn('task_list_id', $live)->map($row)->values(),
+            'members' => $members,
+            // Switched on: the done ones too, newest first. ponytail: the last 100, a "more" when families hit it.
+            'doneTasks' => Inertia::optional(fn () => Task::whereIn('task_list_id', $live)->where('done', true)
+                ->latest('done_at')->limit(100)->get(['id', 'task_list_id', 'title', 'done', 'due_date', 'assigned_to'])->map($row)->values()),
         ]);
     }
 

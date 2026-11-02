@@ -24,14 +24,19 @@ class TaskList extends Model
 
     protected $table = 'tasks_lists';
 
-    protected $fillable = ['name', 'color', 'icon', 'archived_at', 'position', 'created_by'];
+    protected $fillable = ['name', 'color', 'icon', 'archived_at', 'position', 'created_by', 'touched_at', 'touched_by'];
 
-    protected $casts = ['archived_at' => 'datetime'];
+    protected $casts = ['archived_at' => 'datetime', 'touched_at' => 'datetime'];
 
     // Every task in the list, sub-tasks included. FK is the conventional task_list_id (TaskList).
     public function tasks(): HasMany
     {
         return $this->hasMany(Task::class);
+    }
+
+    public function toucher(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'touched_by');
     }
 
     // Who made the list (the list picker's "Dan").
@@ -51,6 +56,8 @@ class TaskList extends Model
             'color' => $attrs['color'] ?? 'green',
             'icon' => $attrs['icon'] ?? 'list',
             'created_by' => $user->id,
+            'touched_at' => now(),
+            'touched_by' => $user->id,
         ]);
         $list->shares()->create(['user_id' => $user->id, 'role' => 'owner']);
         if ($visibility) {
@@ -81,6 +88,8 @@ class TaskList extends Model
             'assigned_to' => $data['assigned_to'] ?? null,
             'position' => (int) $this->tasks()->where('parent_id', $parentId)->max('position') + 1,
             'created_by' => $user->id,
+            'touched_at' => now(),
+            'touched_by' => $user->id,
         ]);
     }
 }

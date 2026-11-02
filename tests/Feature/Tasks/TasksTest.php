@@ -6,6 +6,7 @@ use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareAccess;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
+use Inertia\Testing\AssertableInertia;
 use Modules\ImportantTodos\ImportantFlag;
 use Modules\Notifications\PushAlert;
 use Modules\RecurringTodos\RecurringRule;
@@ -283,4 +284,46 @@ it('deletes a task carrying the important flag + a recurring rule and cleans up 
 
     // The page the delete redirects back to still resolves (no branded "Nothing here").
     actingAs($users[0])->get("/m/tasks/lists/{$list->id}")->assertOk();
+});
+
+// The Tasks overview (design j6QDy4, T1 / T1b): lists by last touched, with who; every open task across lists; the
+// done ones only on request.
+it('sorts lists by when they were last touched, says by whom, and counts what is left', function () {
+    [, $users] = tasksFamily();
+    Carbon::setTestNow('2026-11-01 09:00');
+    actingAs($users[0])->post('/m/tasks/lists', ['name' => 'Household']);
+    actingAs($users[0])->post('/m/tasks/lists', ['name' => 'Garden']);
+    $house = TaskList::withoutGlobalScopes()->where('name', 'Household')->firstOrFail();
+
+    Carbon::setTestNow('2026-11-02 10:00');
+    actingAs($users[1])->post("/m/tasks/lists/{$house->id}/tasks", ['title' => 'Replace the filter']);
+    actingAs($users[1])->post("/m/tasks/lists/{$house->id}/tasks", ['title' => 'Clean gutters']);
+
+    actingAs($users[0])->get('/m/tasks')->assertInertia(fn (AssertableInertia $p) => $p
+        ->where('lists.0.name', 'Household')
+        ->where('lists.0.open', 2)
+        ->where('lists.0.next', 'Replace the filter')
+        ->where('lists.0.touchedBy.id', $users[1]->id)
+        ->where('lists.1.name', 'Garden')
+        ->has('tasks', 2)
+        ->where('tasks.0.list', 'Household')
+        ->missing('doneTasks'));
+});
+
+it('remembers who ticked a task and when, and loads the done ones only when asked', function () {
+    [, $users] = tasksFamily();
+    actingAs($users[0])->post('/m/tasks/lists', ['name' => 'Household']);
+    $house = TaskList::withoutGlobalScopes()->firstOrFail();
+    actingAs($users[0])->post("/m/tasks/lists/{$house->id}/tasks", ['title' => 'Mow the lawn']);
+    $task = Task::withoutGlobalScopes()->firstOrFail();
+
+    actingAs($users[1])->patch("/m/tasks/tasks/{$task->id}", ['done' => true]);
+    expect($task->fresh()->done_by)->toBe($users[1]->id)->and($task->fresh()->done_at)->not->toBeNull();
+
+    actingAs($users[0])->get('/m/tasks')->assertInertia(fn (AssertableInertia $p) => $p
+        ->missing('doneTasks')
+        ->reloadOnly('doneTasks', fn (AssertableInertia $r) => $r->where('doneTasks.0.title', 'Mow the lawn')));
+
+    actingAs($users[1])->patch("/m/tasks/tasks/{$task->id}", ['done' => false]);
+    expect($task->fresh()->done_by)->toBeNull()->and($task->fresh()->done_at)->toBeNull();
 });
