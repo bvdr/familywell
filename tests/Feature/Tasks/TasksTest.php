@@ -383,3 +383,16 @@ it('moves a task, with its sub-tasks, to another list from the task sheet, but n
 
     actingAs($users[0])->patch("/m/tasks/tasks/{$task->id}", ['task_list_id' => $private->id])->assertForbidden();
 });
+
+it('makes a new list from the task sheet and moves the task into it', function () {
+    [, $users] = tasksFamily();
+    actingAs($users[0])->post('/m/tasks/lists', ['name' => 'Tasks']);
+    $list = TaskList::withoutGlobalScopes()->first();
+    actingAs($users[0])->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Pay the insurance']);
+    $task = Task::withoutGlobalScopes()->first();
+
+    actingAs($users[0])->patch("/m/tasks/tasks/{$task->id}", ['title' => 'Pay the insurance', 'new_list' => 'Bills'])->assertRedirect();
+
+    $bills = TaskList::withoutGlobalScopes()->where('name', 'Bills')->firstOrFail();
+    expect($task->fresh()->task_list_id)->toBe($bills->id)->and($bills->created_by)->toBe($users[0]->id);
+});
