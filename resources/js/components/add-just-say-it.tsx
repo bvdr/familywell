@@ -1,4 +1,4 @@
-import { AddDetails } from '@/components/add-details';
+import { AddDetails, withNew } from '@/components/add-details';
 import { useVoice, voiceSupported } from '@/hooks/use-voice';
 import { useT } from '@/lib/i18n';
 import { Slot } from '@/lib/modules';
@@ -56,7 +56,14 @@ type Item = {
     details?: Record<string, Detail>;
 };
 // badges: a slot whose add-ons mark the card's header (task.row.badges: the Important star), given onPatch to toggle.
-export type Detail = { type: string; choices?: { value: string; label: string }[]; slot?: string; badges?: string };
+// choices: a list choice also carries its tile (icon, color), last change (updated_at), owner (by: null = only you) and
+// open to-dos, for the list picker.
+export type Detail = {
+    type: string;
+    choices?: { value: string; label: string; icon?: string; color?: string; updated_at?: string; by?: string | null; open?: number }[];
+    slot?: string;
+    badges?: string;
+};
 export type Member = { id: number; name: string };
 // What the person changed on a card, kept across re-reads while they keep typing: keyed by card id. `slots` holds what
 // add-ons' controls patched in Add details ({ important: true }), per slot field.
@@ -149,6 +156,8 @@ export function JustSayIt({
     const [members, setMembers] = useState<Member[]>([]);
     // The card whose "Add details" form is open (design H2f), by id; null = the cards.
     const [detailsFor, setDetailsFor] = useState<string | null>(null);
+    // The list picker open inside Add details (design D-T1): the field it picks for.
+    const [picking, setPicking] = useState<string | null>(null);
     const [edits, setEdits] = useState<Record<string, Edit>>({});
     const [state, setState] = useState<'idle' | 'reading' | 'saving' | 'out' | 'error'>('idle');
     const [error, setError] = useState<string | null>(null);
@@ -314,7 +323,11 @@ export function JustSayIt({
     // Where the card lands: a list picked in Add details, else what the server named (the read or default list).
     const targetOf = (it: Item) => {
         const picked = valueOf(it, 'list_id');
-        return (picked && it.details?.list_id?.choices?.find((c) => c.value === picked)?.label) || it.target || t(`nav.${it.module}`);
+        return (
+            (picked && withNew(it.details?.list_id?.choices ?? [], picked).find((c) => c.value === picked)?.label) ||
+            it.target ||
+            t(`nav.${it.module}`)
+        );
     };
     // What Add details offers beyond the card, for the grey hint after "Add details" ("Who, Note, List"): the fields the
     // card isn't showing, then the details-only ones. An add-on slot can't be named here (it may render nothing).
@@ -372,7 +385,7 @@ export function JustSayIt({
                 picked?.name ?? v,
             );
         }
-        if (type === 'choice') return select(it.details?.[name]?.choices ?? [], valueOf(it, name));
+        if (type === 'choice') return select(withNew(it.details?.[name]?.choices ?? [], valueOf(it, name)), valueOf(it, name));
         if (type === 'list') {
             // One row per thing: its name and, for shopping, how much ("Schweppes" × "six pack").
             const rows = entriesOf(it, name);
@@ -452,10 +465,23 @@ export function JustSayIt({
     const detailedIndex = detailed ? items.indexOf(detailed) : -1;
     // Strings, not t, in the deps: useT returns a new function every render, which would loop through the parent.
     const subLabel = t('add_details.things', { count: items.length });
-    const subAside = detailed ? t('add_details.position', { kind: t(`add.kind_${detailed.kind}`), i: detailedIndex + 1, n: items.length }) : '';
+    const kindName = detailed ? t(`add.kind_${detailed.kind}`) : '';
+    // Picking a list: "‹ To-do · LIST", back closes the picker only.
+    const subAside = detailed
+        ? picking
+            ? fieldLabel(picking, detailed)
+            : t('add_details.position', { kind: kindName, i: detailedIndex + 1, n: items.length })
+        : '';
+    const pickLabel = kindName.charAt(0).toLocaleUpperCase() + kindName.slice(1);
     useEffect(() => {
-        onSubView?.(detailed ? { back: () => setDetailsFor(null), label: subLabel, aside: subAside } : null);
-    }, [detailed, subLabel, subAside, onSubView]);
+        onSubView?.(
+            detailed
+                ? picking
+                    ? { back: () => setPicking(null), label: pickLabel, aside: subAside }
+                    : { back: () => setDetailsFor(null), label: subLabel, aside: subAside }
+                : null,
+        );
+    }, [detailed, picking, pickLabel, subLabel, subAside, onSubView]);
 
     if (detailed) {
         return (
@@ -471,6 +497,8 @@ export function JustSayIt({
                 field={(name) => fieldRow(detailed, name)}
                 rows={(name) => entriesOf(detailed, name)}
                 setRows={(name, rows) => setEntries(detailed.id, name, rows)}
+                picking={picking}
+                setPicking={setPicking}
                 onDone={() => setDetailsFor(null)}
                 onLeaveOut={() => {
                     setOn(detailed.id, false);
@@ -716,7 +744,10 @@ export function JustSayIt({
                                 {(extras(it).length > 0 || touched(it)) && (
                                     <button
                                         type="button"
-                                        onClick={() => setDetailsFor(it.id)}
+                                        onClick={() => {
+                                            setPicking(null);
+                                            setDetailsFor(it.id);
+                                        }}
                                         className="text-primary flex min-h-11 items-center gap-2 border-t pt-2 text-left"
                                     >
                                         {touched(it) ? <Pencil className="size-5 shrink-0" /> : <Plus className="size-5 shrink-0" />}

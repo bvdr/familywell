@@ -84,6 +84,11 @@ class HandleInertiaRequests extends Middleware
             'vapidPublicKey' => config('webpush.vapid.public_key'),
             // The onboarding tour runs over the real dashboard right after "Show me around" (OnboardingController::saveReady).
             'tour' => fn () => $request->user()?->onboarding_step === 'tour',
+            // The browser nudge's "Install the app" setup under way ('install' / 'notifications'): an installed app
+            // opening with one goes to that step (InstallNudge). Lazy, like tour: user state, read at render time.
+            'setupStep' => fn () => $request->user()?->isDemo() ? null : $request->user()?->setup_step,
+            // Not for the shared demo account: one visitor's setup would follow every other visitor around.
+            'installNudge' => fn () => $request->user() !== null && ! $request->user()->isDemo(),
             // i18n: the current locale + the picker options + the full translation map for that locale
             // (English-filled). SetLocale already ran (see bootstrap/app.php), so both are eager.
             'locale' => $locale,

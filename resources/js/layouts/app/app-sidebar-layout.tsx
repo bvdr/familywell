@@ -1,8 +1,8 @@
-import { AddToHomeScreenHint } from '@/components/add-to-home-screen-hint';
 import { AppContent } from '@/components/app-content';
 import { AppShell } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
+import { InstallNudge } from '@/components/install-nudge';
 import { MobileTabBar } from '@/components/mobile-tab-bar';
 import { OnboardingTour } from '@/components/onboarding-tour';
 import { type BreadcrumbItem } from '@/types';
@@ -45,7 +45,7 @@ export default function AppSidebarLayout({
                 <div className="pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0">{children}</div>
             </AppContent>
             <MobileTabBar />
-            <AddToHomeScreenHint />
+            <InstallNudge />
             {/* Right after onboarding's "Show me around" (shared `tour` prop); renders nothing otherwise. */}
             <OnboardingTour />
         </AppShell>

@@ -87,6 +87,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('onboarding/install', [OnboardingController::class, 'saveInstall'])->name('onboarding.install.store');
     Route::get('onboarding/notifications', [OnboardingController::class, 'notifications'])->name('onboarding.notifications');
     Route::post('onboarding/notifications', [OnboardingController::class, 'saveNotifications'])->name('onboarding.notifications.store');
+    // The browser's "Install the app" nudge: the install + alerts steps outside the onboarding (startSetup).
+    Route::post('setup/install', [OnboardingController::class, 'startSetup'])->name('setup.start');
     Route::get('onboarding/ready', [OnboardingController::class, 'ready'])->name('onboarding.ready');
     Route::post('onboarding/ready', [OnboardingController::class, 'saveReady'])->name('onboarding.ready.store');
     Route::post('onboarding/tour', [OnboardingController::class, 'finishTour'])->name('onboarding.tour.finish');

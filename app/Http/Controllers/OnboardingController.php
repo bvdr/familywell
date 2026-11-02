@@ -285,14 +285,17 @@ class OnboardingController extends Controller
      */
     public function install(Request $request): RedirectResponse|Response
     {
-        if (! $this->onboardingFamily($request)) {
+        $setup = $this->setupMode($request);
+        if (! $setup && ! $this->onboardingFamily($request)) {
             return $this->leave($request);
         }
 
         return Inertia::render('onboarding/install', [
             'email' => $request->user()->email,
             // Polled by the computer while the phone does this step: once the phone has moved on, so does it.
-            'step' => fn () => $request->user()->fresh()->onboarding_step,
+            'step' => fn () => $setup ? $request->user()->fresh()->setup_step : $request->user()->fresh()->onboarding_step,
+            // Opened from the browser's "Install the app" nudge, not the onboarding: back leads Home (startSetup).
+            'setup' => $setup,
             // ?preview=1 shows the screen without following anyone's progress.
             'preview' => $request->boolean('preview'),
         ]);
@@ -300,7 +303,8 @@ class OnboardingController extends Controller
 
     public function saveInstall(Request $request): RedirectResponse
     {
-        if (! $this->onboardingFamily($request)) {
+        $setup = $this->setupMode($request);
+        if (! $setup && ! $this->onboardingFamily($request)) {
             return $this->leave($request);
         }
         // How they got past it, for the funnel: opened installed, installed on the computer, or the phone's
@@ -309,6 +313,12 @@ class OnboardingController extends Controller
         Analytics::queue('onboarding_installed', ['via' => $data['via']]);
         // For the next screens: the "Opened from your Home Screen" pill and the recap's install line.
         $request->session()->put('onboarding.installed_via', $data['via']);
+        if ($setup) {
+            // The nudge's setup: installed, now the alerts (then Home, see saveNotifications).
+            $request->user()->forceFill(['setup_step' => 'notifications'])->save();
+
+            return to_route('onboarding.notifications');
+        }
 
         return $this->advance($request->user(), $this->next('install'));
     }
@@ -316,7 +326,8 @@ class OnboardingController extends Controller
     // A fresh sign-in link for the computer's QR code. JSON, so the page can renew it before it expires.
     public function handoff(Request $request): JsonResponse
     {
-        abort_unless($this->onboardingFamily($request), 403);
+        // The nudge's setup uses the same install step, so its QR code too (setupMode).
+        abort_unless($this->onboardingFamily($request) || $this->setupMode($request), 403);
 
         return response()->json(['url' => Handoff::create($request->user()), 'ttl' => Handoff::TTL_MINUTES * 60]);
     }
@@ -325,7 +336,7 @@ class OnboardingController extends Controller
     // signs this account in must not be sendable to someone else's inbox.
     public function emailHandoff(Request $request): RedirectResponse
     {
-        if (! $this->onboardingFamily($request)) {
+        if (! $this->onboardingFamily($request) && ! $this->setupMode($request)) {
             return $this->leave($request);
         }
         Mail::to($request->user()->email)->send(new HandoffLinkMail(Handoff::create($request->user())));
@@ -343,7 +354,8 @@ class OnboardingController extends Controller
         Auth::login($user, remember: true);
         $request->session()->regenerate();
 
-        return to_route('dashboard');
+        // Signed in on the phone from the computer's setup step: carry on there (the onboarding resumes by itself).
+        return $user->onboarding_step === null && $user->setup_step ? to_route("onboarding.{$user->setup_step}") : to_route('dashboard');
     }
 
     /**
@@ -353,7 +365,8 @@ class OnboardingController extends Controller
      */
     public function notifications(Request $request): RedirectResponse|Response
     {
-        if (! $family = $this->onboardingFamily($request)) {
+        $setup = $this->setupMode($request);
+        if (! $family = ($setup ? Family::find(CurrentFamily::id()) : $this->onboardingFamily($request))) {
             return $this->leave($request);
         }
         // A toggle per PINNED module that has a push category (Calendar has none yet, so it isn't offered).
@@ -363,16 +376,24 @@ class OnboardingController extends Controller
             'categories' => $categories,
             'names' => $this->invitedNames($family) ?: [str($request->user()->name)->before(' ')->toString()],
             'installedVia' => $request->session()->get('onboarding.installed_via'),
+            'setup' => $setup,
         ]);
     }
 
     public function saveNotifications(Request $request): RedirectResponse
     {
-        if (! $this->onboardingFamily($request)) {
+        $setup = $this->setupMode($request);
+        if (! $setup && ! $this->onboardingFamily($request)) {
             return $this->leave($request);
         }
         $data = $request->validate(['granted' => ['required', 'boolean']]);
         Analytics::queue('onboarding_notifications', ['granted' => $data['granted'] ? 'yes' : 'no']);
+        if ($setup) {
+            // The end of the nudge's setup: back to the app, not on to the plan / recap of an onboarding.
+            $request->user()->forceFill(['setup_step' => null])->save();
+
+            return to_route('dashboard');
+        }
 
         return $this->advance($request->user(), $this->next('notifications'));
     }
@@ -644,6 +665,34 @@ class OnboardingController extends Controller
      * and an admin of it (an invited member never set it up, so never gets these steps). `?preview=1` on a GET
      * shows the steps for the active family without changing anything.
      */
+    /**
+     * POST from the browser's "Install the app" nudge: the install step, then the alerts, outside the onboarding
+     * (anyone in a family, not only an admin). Remembered on the account (users.setup_step) so the new Home Screen
+     * app, which on an iPhone doesn't share Safari's storage, picks it up (the app layout sends an installed app
+     * with a setup under way to its step). Someone still onboarding just goes back to their onboarding step.
+     */
+    public function startSetup(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        abort_if($user->isDemo(), 403); // shared account: one visitor's setup would follow every other one
+        if ($user->onboarding_step !== null) {
+            return to_route("onboarding.{$user->onboarding_step}");
+        }
+        if ($user->setup_step === null) {
+            $user->forceFill(['setup_step' => 'install'])->save();
+        }
+
+        return to_route("onboarding.{$user->setup_step}");
+    }
+
+    // Not onboarding, but the nudge's setup is under way (startSetup): the install / alerts steps serve it.
+    private function setupMode(Request $request): bool
+    {
+        $user = $request->user();
+
+        return $user->onboarding_step === null && in_array($user->setup_step, ['install', 'notifications'], true);
+    }
+
     private function onboardingFamily(Request $request): ?Family
     {
         $user = $request->user();

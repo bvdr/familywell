@@ -19,5 +19,17 @@
     "f_category": "Categorie",
     "f_repeat": "Herhalen",
     "f_who": "Wie",
-    "f_due": "Deadline"
+    "f_due": "Deadline",
+    "only_you": "alleen jij",
+    "n_open_one": ":count open",
+    "n_open_other": ":count open",
+    "search_lists_one": "Zoek in :count lijst",
+    "search_lists_other": "Zoek in :count lijsten",
+    "suggested": "Voorgesteld",
+    "recently_updated": "Laatst bijgewerkt",
+    "matching": "Gevonden",
+    "recent": "Recent",
+    "a_z": "A–Z",
+    "new_list": "Nieuwe lijst",
+    "create_list": "Maak de lijst ‘:name’"
 }
