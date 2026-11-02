@@ -1,5 +1,6 @@
 import { localToday } from '@/lib/date-groups';
 import { appLocale, relativeWord } from '@/lib/i18n';
+import { listIconFor } from '@/lib/list-icons';
 
 import { Briefcase, CalendarDays, CheckSquare, Heart, Home, ListChecks, Plane, ShoppingBag, Sparkles, Star, type LucideIcon } from 'lucide-react';
 
@@ -17,7 +18,8 @@ export const LIST_ICONS: Record<string, LucideIcon> = {
     sparkles: Sparkles,
 };
 
-export const listIcon = (slug: string) => LIST_ICONS[slug] ?? ListChecks;
+// Any icon a list can have (lib/list-icons: the New list screen's full set), not only the ten above.
+export const listIcon = (slug: string) => listIconFor(slug);
 export const LIST_ICON_KEYS = Object.keys(LIST_ICONS);
 
 // Per-list colour swatch -> tile classes (bg + icon colour). Same palette as the shopping module.
@@ -27,7 +29,12 @@ export const LIST_COLORS: Record<string, string> = {
     red: 'bg-red-100 text-red-700',
     blue: 'bg-blue-100 text-blue-700',
     purple: 'bg-purple-100 text-purple-700',
+    // The New list screen's colours (design j6QDy4 T3c): sun yellow and plain sand, with the four above.
+    yellow: 'bg-accent-strong text-accent-strong-foreground',
+    sand: 'bg-surface text-primary',
 };
+// The swatches the New list screen offers, in the design's order.
+export const NEW_LIST_COLORS = ['yellow', 'green', 'red', 'blue', 'amber', 'sand'];
 
 export const listColor = (slug: string) => LIST_COLORS[slug] ?? LIST_COLORS.green;
 export const LIST_COLOR_KEYS = Object.keys(LIST_COLORS);

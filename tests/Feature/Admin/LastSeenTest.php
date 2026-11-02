@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\OAuthClient;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -45,7 +46,7 @@ it('stamps MCP use as mcp', function () {
 
 it('shows lastActiveAt and lastActiveVia in the admin API', function () {
     $admin = User::factory()->create(['is_platform_admin' => true]);
-    $token = boardToken($admin, adminClient(), App\Models\OAuthClient::ADMIN_SCOPE)['access_token'];
+    $token = boardToken($admin, adminClient(), OAuthClient::ADMIN_SCOPE)['access_token'];
     auth()->forgetGuards();
     $ana = User::factory()->create(['name' => 'Ana']);
     DB::table('users')->where('id', $ana->id)->update(['last_seen_at' => '2026-10-09 08:00:00', 'last_seen_via' => 'mcp']);
@@ -91,7 +92,7 @@ it('never takes the country from MCP calls (the assistant\'s servers, not the pe
 
 it('shows the country in the admin API list and detail', function () {
     $admin = User::factory()->create(['is_platform_admin' => true]);
-    $token = boardToken($admin, adminClient(), App\Models\OAuthClient::ADMIN_SCOPE)['access_token'];
+    $token = boardToken($admin, adminClient(), OAuthClient::ADMIN_SCOPE)['access_token'];
     auth()->forgetGuards();
     $ana = User::factory()->create(['name' => 'Ana']);
     DB::table('users')->where('id', $ana->id)->update(['country' => 'RO']);

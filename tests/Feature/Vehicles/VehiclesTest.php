@@ -4,6 +4,7 @@ use App\Models\Family;
 use App\Models\User;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Tenancy\CurrentFamily;
+use Modules\Spending\SpendSetting;
 use Modules\Vehicles\Vehicle;
 use Modules\Vehicles\VehicleMileageLog;
 
@@ -201,7 +202,7 @@ it('gives every Vehicles page the car currency, never a hard-coded euro', functi
     actingAs($users[0])->get("/m/vehicles/{$car->id}")->assertInertia(fn ($p) => $p->where('carCurrency', 'EUR')->etc());
 
     // A RON family (the bug: its lei amounts showed as €1,072.29).
-    Modules\Spending\SpendSetting::current($family->id)->update(['default_currency' => 'RON']);
+    SpendSetting::current($family->id)->update(['default_currency' => 'RON']);
     actingAs($users[0])->get("/m/vehicles/{$car->id}")->assertInertia(fn ($p) => $p->where('carCurrency', 'RON')->etc());
     actingAs($users[0])->get("/m/vehicles/{$car->id}/fuel")->assertInertia(fn ($p) => $p->where('carCurrency', 'RON')->etc());
 });

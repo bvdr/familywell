@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 import { useRef, useState } from 'react';
 
-import { type Detail } from '@/components/add-just-say-it';
 import { MemberAvatar } from '@/components/member-avatar';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
 import { TaskSheet } from '@/components/tasks/task-sheet';
@@ -46,10 +45,9 @@ type Props = {
     tasks: TaskNode[];
     lastDone: { title: string; by: string | null } | null;
     family: TaskMember[];
-    lists?: NonNullable<Detail['choices']>;
 };
 
-export default function ListDetail({ list, share, members, tasks, lastDone, family, lists }: Props) {
+export default function ListDetail({ list, share, members, tasks, lastDone, family }: Props) {
     const t = useT();
     const [sharing, setSharing] = useState(false);
     const [editing, setEditing] = useState(false);
@@ -168,7 +166,7 @@ export default function ListDetail({ list, share, members, tasks, lastDone, fami
                     </span>
                 </div>
 
-                <ListTasks tasks={tasks} members={members} list={list} lastDone={lastDone} family={family} lists={lists} addInputRef={addInputRef} />
+                <ListTasks tasks={tasks} members={members} list={list} lastDone={lastDone} family={family} addInputRef={addInputRef} />
             </div>
 
             <EditListModal open={editing} onOpenChange={setEditing} list={list} />
@@ -186,7 +184,6 @@ function ListTasks({
     list,
     lastDone,
     family,
-    lists,
     addInputRef,
 }: {
     tasks: TaskNode[];
@@ -194,7 +191,6 @@ function ListTasks({
     list: List;
     lastDone: Props['lastDone'];
     family: TaskMember[];
-    lists: Props['lists'];
     addInputRef: React.RefObject<HTMLInputElement | null>;
 }) {
     const t = useT();
@@ -365,7 +361,6 @@ function ListTasks({
                     members={members}
                     family={family}
                     list={list}
-                    lists={lists}
                     taskUrl={taskUrl}
                     onClose={() => setEditing(null)}
                     onDelete={() => {

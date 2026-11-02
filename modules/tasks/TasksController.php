@@ -11,6 +11,7 @@ use App\Support\Modules\Hooks;
 use App\Support\Realtime;
 use App\Support\Sharing\ShareAccess;
 use App\Support\Tenancy\CurrentFamily;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -168,8 +169,6 @@ class TasksController extends Controller
             'members' => $members,
             'tasks' => $tasks->map(fn (Task $t) => $this->taskPayload($t))->values(),
             'lastDone' => $lastDone ? ['title' => $lastDone->title, 'by' => $lastDone->doneBy?->name] : null,
-            // The task sheet's list picker, loaded when it opens (a partial reload).
-            'lists' => Inertia::optional(fn () => TaskList::pickerChoices($request->user())),
             // Who made each task, for the task sheet's "Created by Ana · Jul 19" (any member, not only the assignable).
             'family' => $family->members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),
         ]);
@@ -339,6 +338,20 @@ class TasksController extends Controller
         return back();
     }
 
+    /**
+     * The task sheet's list picker (design j6QDy4 T3b), loaded when it opens: every list this person can move the task
+     * to, and one guess from tasks like it ("has 2 'filter' tasks").
+     */
+    public function taskLists(Request $request, Task $task): JsonResponse
+    {
+        abort_unless($task->list && $this->access->canView($request->user(), $task->list), 403);
+
+        return response()->json([
+            'choices' => TaskList::pickerChoices($request->user()),
+            'guess' => TaskList::similarTo($request->user(), $task->title, $task->task_list_id),
+        ]);
+    }
+
     public function updateTask(Request $request, Task $task): RedirectResponse
     {
         // Only list tasks are managed here; project (listless) tasks go through the projects module.
@@ -366,11 +379,16 @@ class TasksController extends Controller
                 'done' => ['sometimes', 'boolean'],
                 // The task sheet's List row (T3): move it, with its sub-tasks, to another list this person can edit.
                 'task_list_id' => ['sometimes', 'integer'],
-                // "+" in that picker: a new list by this name (yours, family-visible like any new list), the task moves in.
-                'new_list' => ['sometimes', 'string', 'max:255'],
+                // "New list" in that picker (T3c): name, icon, colour and who sees it; it's made and the task moves in.
+                'new_list' => ['sometimes', 'array'],
+                'new_list.name' => ['required_with:new_list', 'string', 'max:255'],
+                'new_list.icon' => ['nullable', 'string', 'max:20'],
+                'new_list.color' => ['nullable', 'string', 'max:20'],
+                'new_list.visibility' => ['nullable', 'in:family,private'],
             ]);
-            if (filled(trim($data['new_list'] ?? '')) && $task->parent_id === null) {
-                $data['task_list_id'] = TaskList::createFor($actor, ['name' => trim($data['new_list'])])->id;
+            if (isset($data['new_list']) && $task->parent_id === null) {
+                $new = $data['new_list'];
+                $data['task_list_id'] = TaskList::createFor($actor, ['name' => trim($new['name'])] + array_filter(['icon' => $new['icon'] ?? null, 'color' => $new['color'] ?? null]), $new['visibility'] ?? null)->id;
             }
             unset($data['new_list']);
             if (isset($data['task_list_id']) && $data['task_list_id'] !== $task->task_list_id) {
