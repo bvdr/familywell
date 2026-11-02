@@ -8,6 +8,8 @@ use Modules\Spending\SpendEvent;
 
 use function Pest\Laravel\actingAs;
 
+require_once __DIR__.'/../ImportantTodos/helpers.php';
+
 // The dashboard's Spending card (widgets.spending): this month's total in the family display currency,
 // the same figure as the Spending overview widget (shared MonthToDate).
 

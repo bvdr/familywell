@@ -7,6 +7,8 @@ use Modules\Spending\SpendEvent;
 
 use function Pest\Laravel\actingAs;
 
+require_once __DIR__.'/helpers.php';
+
 // A family with the spending module enabled and active in session. Local (uniquely-named) helper so this
 // file runs standalone; mirrors spendingFamily() in SpendingTest.php, which is unconditionally declared
 // there and so can't be safely reused across files.
