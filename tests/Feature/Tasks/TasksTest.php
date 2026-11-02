@@ -327,3 +327,42 @@ it('remembers who ticked a task and when, and loads the done ones only when aske
     actingAs($users[1])->patch("/m/tasks/tasks/{$task->id}", ['done' => false]);
     expect($task->fresh()->done_by)->toBeNull()->and($task->fresh()->done_at)->toBeNull();
 });
+
+// The repeat picker's rhythms (design j6QDy4 T4).
+it('steps every rhythm the repeat picker offers, custom ones included', function (string $interval, string $from, string $next) {
+    expect(RecurringRule::valid($interval))->toBeTrue()
+        ->and(RecurringRule::advance(Carbon::parse($from), $interval)->toDateString())->toBe($next);
+})->with([
+    'weekdays from Friday' => ['weekdays', '2026-10-23', '2026-10-26'],
+    'every 3 months' => ['quarterly', '2026-10-19', '2027-01-19'],
+    'every 2 weeks' => ['2:week', '2026-10-19', '2026-11-02'],
+    'every 10 days' => ['10:day', '2026-10-19', '2026-10-29'],
+    'every 6 months, month end' => ['6:month', '2026-08-31', '2027-02-28'],
+]);
+
+it('refuses a made-up rhythm', function () {
+    expect(RecurringRule::valid('0:week'))->toBeFalse()->and(RecurringRule::valid('fortnightly'))->toBeFalse()->and(RecurringRule::valid('2:year'))->toBeFalse();
+});
+
+it('counts the next one from when it got done, when asked to', function () {
+    [$family, $users] = tasksFamily();
+    app(ModuleRegistry::class)->enable('recurring_todos', $family->id);
+    actingAs($users[0])->post('/m/tasks/lists', ['name' => 'Household']);
+    $list = TaskList::withoutGlobalScopes()->first();
+    actingAs($users[0])->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Replace furnace filter', 'due_date' => '2026-10-19']);
+    $task = Task::withoutGlobalScopes()->first();
+
+    actingAs($users[0])->patch("/m/tasks/tasks/{$task->id}", ['recurrence' => 'quarterly', 'recurrence_from' => 'done'])->assertRedirect();
+    $rule = RecurringRule::withoutGlobalScopes()->where('task_id', $task->id)->first();
+    expect($rule->count_from)->toBe('done')->and($rule->next_occurrence->toDateString())->toBe('2027-01-19');
+
+    // Done late, on Nov 2: the next one lands Feb 2, not Jan 19.
+    Carbon::setTestNow('2026-11-02 12:00');
+    actingAs($users[0])->patch("/m/tasks/tasks/{$task->id}", ['done' => true])->assertRedirect();
+    expect($rule->fresh()->next_occurrence->toDateString())->toBe('2027-02-02');
+
+    // Counted from the due date (the default), a late tick doesn't move it.
+    actingAs($users[0])->patch("/m/tasks/tasks/{$task->id}", ['recurrence' => 'quarterly', 'recurrence_from' => 'due', 'done' => false])->assertRedirect();
+    actingAs($users[0])->patch("/m/tasks/tasks/{$task->id}", ['done' => true])->assertRedirect();
+    expect($rule->fresh()->count_from)->toBe('due')->and($rule->fresh()->next_occurrence->toDateString())->toBe('2027-01-19');
+});
