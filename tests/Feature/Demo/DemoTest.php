@@ -59,7 +59,7 @@ function demoSnapshot(int $familyId, bool $exact): array
         $out[$table] = DB::table($table)->where('family_id', $familyId)->get()
             ->map(fn ($r) => collect((array) $r)
                 // url: calendar_subscriptions.url is encrypted with a random IV, so the same link never encrypts the same twice.
-                ->when(! $exact, fn ($c) => $c->except(['id', 'created_at', 'updated_at', 'url'])->reject(fn ($v, $k) => $k !== 'family_id' && str_ends_with($k, '_id')))
+                ->when(! $exact, fn ($c) => $c->except(['id', 'created_at', 'updated_at', 'touched_at', 'done_at', 'url'])->reject(fn ($v, $k) => $k !== 'family_id' && str_ends_with($k, '_id')))
                 ->sortKeys()->toJson())
             ->sort()->values()->all();
     }

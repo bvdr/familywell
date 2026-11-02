@@ -28,7 +28,19 @@ import { dueLabel } from '@/lib/tasks';
 import { buildTree, type FlatTask, flatten, getProjection, INDENT, removeChildrenOf } from './tree-utils';
 
 export type TaskMember = { id: number; name: string };
-export type SubTask = { id: number; title: string; note: string | null; done: boolean; dueDate: string | null; assignedTo: number | null };
+export type SubTask = {
+    id: number;
+    title: string;
+    note: string | null;
+    done: boolean;
+    dueDate: string | null;
+    assignedTo: number | null;
+    createdBy?: number;
+    createdAt?: string | null;
+    // From the add-ons (task.serialize): the star and the repeat rhythm.
+    important?: boolean;
+    recurrence?: string | null;
+};
 export type TaskNode = SubTask & { subtasks: SubTask[] };
 
 // Shared task list, used by the tasks module and the project detail's unified Tasks section. The two

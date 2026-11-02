@@ -22,6 +22,8 @@ use Modules\Tasks\TaskList;
 
 use function Pest\Laravel\actingAs;
 
+require_once __DIR__.'/ImportantTodos/helpers.php';
+
 // "Just say it" (Add sheet, design XMkKm H2): the app's side. What it sends the reader worker (kinds, context), what
 // it does with the answer (targets, usage ledger, points) and how cards are saved. The reading itself is the worker's.
 
@@ -375,6 +377,12 @@ it('makes the new list picked with + in the list picker, and files the to-do in 
     $garage = TaskList::withoutGlobalScopes()->where('name', 'Garage')->firstOrFail();
     expect(Task::withoutGlobalScopes()->where('title', 'Oil the hinges')->value('task_list_id'))->toBe($garage->id)
         ->and($garage->created_by)->toBe($users[0]->id);
+
+    // The New list screen sends its icon, colour and who sees it along.
+    $spec = json_encode(['name' => 'Bills', 'icon' => 'bank', 'color' => 'yellow', 'visibility' => 'private']);
+    actingAs($users[0])->postJson('/add/save', ['items' => [['kind' => 'todo', 'values' => ['title' => 'Pay insurance', 'list_id' => "new:{$spec}"]]]])->assertOk();
+    $bills = TaskList::withoutGlobalScopes()->where('name', 'Bills')->firstOrFail();
+    expect($bills->only(['icon', 'color']))->toBe(['icon' => 'bank', 'color' => 'yellow'])->and($bills->visibility())->toBe('private');
 });
 
 it('refuses details that do not hold up, and a list the person cannot add to', function () {

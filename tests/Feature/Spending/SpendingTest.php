@@ -15,20 +15,7 @@ use Modules\Spending\SpendSource;
 
 use function Pest\Laravel\actingAs;
 
-// A family with three members, the spending module installed and enabled, and it active in session.
-function spendingFamily(int $members = 3): array
-{
-    $users = User::factory()->count($members)->create();
-    $family = Family::factory()->create(['owner_id' => $users[0]->id]);
-    foreach ($users as $i => $u) {
-        $family->members()->attach($u, ['role' => $i === 0 ? 'admin' : 'member']);
-    }
-    session(['active_family_id' => $family->id]);
-    test()->artisan('modules:migrate')->assertExitCode(0);
-    app(ModuleRegistry::class)->enable('spending', $family->id);
-
-    return [$family, $users];
-}
+require_once __DIR__.'/helpers.php';
 
 it('archives and unarchives an event', function () {
     [, $users] = spendingFamily();

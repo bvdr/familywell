@@ -32,12 +32,12 @@ test('tasks: edit a task, the list shows the change', async ({ page }, info) => 
     await page.getByPlaceholder('Add a task…').press('Enter');
     await expect(page.getByRole('button', { name: original })).toBeVisible();
 
-    // The task drawer has no Save button: it auto-saves and flushes on close.
+    // The task sheet (design j6QDy4 T3) saves with its Save button.
     const edited = `${original} edited`;
     await page.getByRole('button', { name: original }).click();
     const dialog = page.getByRole('dialog');
     await dialog.locator('input').first().fill(edited);
-    await dialog.getByRole('button', { name: 'Close' }).click();
+    await dialog.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(dialog).toBeHidden();
     await expect(page.getByRole('button', { name: edited })).toBeVisible();
 

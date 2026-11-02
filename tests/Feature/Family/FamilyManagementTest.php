@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Mail;
 
 use function Pest\Laravel\actingAs;
 
+require_once __DIR__.'/../Admin/helpers.php';
+
 // A family with an admin (owner) and a plain member; the family is active in session.
 function managedFamily(): array
 {

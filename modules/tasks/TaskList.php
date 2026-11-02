@@ -24,9 +24,9 @@ class TaskList extends Model
 
     protected $table = 'tasks_lists';
 
-    protected $fillable = ['name', 'color', 'icon', 'archived_at', 'position', 'created_by'];
+    protected $fillable = ['name', 'color', 'icon', 'archived_at', 'position', 'created_by', 'touched_at', 'touched_by'];
 
-    protected $casts = ['archived_at' => 'datetime'];
+    protected $casts = ['archived_at' => 'datetime', 'touched_at' => 'datetime'];
 
     // Every task in the list, sub-tasks included. FK is the conventional task_list_id (TaskList).
     public function tasks(): HasMany
@@ -34,10 +34,65 @@ class TaskList extends Model
         return $this->hasMany(Task::class);
     }
 
+    public function toucher(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'touched_by');
+    }
+
     // Who made the list (the list picker's "Dan").
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * The list picker's rows (design D-T1: Add details, the task sheet): the lists this person can add to, each with
+     * its tile (icon, colour), when it last changed, whose it is ('only you' = private: null) and how many are open.
+     * One query (plus the share settings and creators, eager-loaded).
+     */
+    public static function pickerChoices(User $user): array
+    {
+        return static::visibleTo($user->id)->whereNull('archived_at')->orderBy('position')
+            ->with(['shareSetting', 'creator:id,name'])
+            ->withCount(['tasks as open' => fn ($q) => $q->where('done', false)])
+            ->get(['id', 'name', 'icon', 'color', 'created_by', 'touched_at', 'updated_at'])
+            ->map(fn (self $l) => [
+                'value' => (string) $l->id, 'label' => $l->name, 'icon' => $l->icon, 'color' => $l->color,
+                'updated_at' => (string) ($l->touched_at ?? $l->updated_at),
+                'by' => $l->visibility() === 'private' ? null : strtok((string) $l->creator?->name, ' '),
+                'open' => $l->open,
+                // The current list's line: "current · 5 open · Family" (family / invited / private).
+                'visibility' => $l->visibility(),
+            ])->all();
+    }
+
+    /**
+     * The picker's second suggestion (design j6QDy4 T3b, "has 2 'filter' tasks"): the list, other than $exceptId,
+     * with the most tasks sharing a word with $title. Words of 4+ letters; one query; null when nothing fits.
+     *
+     * @return array{value: string, word: string, count: int}|null
+     */
+    public static function similarTo(User $user, string $title, ?int $exceptId): ?array
+    {
+        $words = collect(preg_split('/[^\p{L}\p{N}]+/u', mb_strtolower($title)))->filter(fn ($w) => mb_strlen($w) >= 4)->unique()->take(6)->values();
+        if ($words->isEmpty()) {
+            return null;
+        }
+        $lists = static::visibleTo($user->id)->whereNull('archived_at')->when($exceptId, fn ($q) => $q->whereKeyNot($exceptId))->pluck('id');
+        $tasks = Task::whereIn('task_list_id', $lists)
+            ->where(fn ($q) => $words->each(fn ($w) => $q->orWhereRaw('lower(title) like ?', ['%'.$w.'%'])))
+            ->limit(200)->get(['task_list_id', 'title']);
+        $best = null;
+        foreach ($tasks->groupBy('task_list_id') as $id => $rows) {
+            foreach ($words as $w) {
+                $n = $rows->filter(fn ($t) => str_contains(mb_strtolower($t->title), $w))->count();
+                if ($n && (! $best || $n > $best['count'])) {
+                    $best = ['value' => (string) $id, 'word' => $w, 'count' => $n];
+                }
+            }
+        }
+
+        return $best;
     }
 
     /**
@@ -51,6 +106,8 @@ class TaskList extends Model
             'color' => $attrs['color'] ?? 'green',
             'icon' => $attrs['icon'] ?? 'list',
             'created_by' => $user->id,
+            'touched_at' => now(),
+            'touched_by' => $user->id,
         ]);
         $list->shares()->create(['user_id' => $user->id, 'role' => 'owner']);
         if ($visibility) {
@@ -81,6 +138,8 @@ class TaskList extends Model
             'assigned_to' => $data['assigned_to'] ?? null,
             'position' => (int) $this->tasks()->where('parent_id', $parentId)->max('position') + 1,
             'created_by' => $user->id,
+            'touched_at' => now(),
+            'touched_by' => $user->id,
         ]);
     }
 }

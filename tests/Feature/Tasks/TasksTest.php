@@ -6,6 +6,7 @@ use App\Support\Modules\ModuleRegistry;
 use App\Support\Sharing\ShareAccess;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
+use Inertia\Testing\AssertableInertia;
 use Modules\ImportantTodos\ImportantFlag;
 use Modules\Notifications\PushAlert;
 use Modules\RecurringTodos\RecurringRule;
@@ -283,4 +284,135 @@ it('deletes a task carrying the important flag + a recurring rule and cleans up 
 
     // The page the delete redirects back to still resolves (no branded "Nothing here").
     actingAs($users[0])->get("/m/tasks/lists/{$list->id}")->assertOk();
+});
+
+// The Tasks overview (design j6QDy4, T1 / T1b): lists by last touched, with who; every open task across lists; the
+// done ones only on request.
+it('sorts lists by when they were last touched, says by whom, and counts what is left', function () {
+    [, $users] = tasksFamily();
+    Carbon::setTestNow('2026-11-01 09:00');
+    actingAs($users[0])->post('/m/tasks/lists', ['name' => 'Household']);
+    actingAs($users[0])->post('/m/tasks/lists', ['name' => 'Garden']);
+    $house = TaskList::withoutGlobalScopes()->where('name', 'Household')->firstOrFail();
+
+    Carbon::setTestNow('2026-11-02 10:00');
+    actingAs($users[1])->post("/m/tasks/lists/{$house->id}/tasks", ['title' => 'Replace the filter']);
+    actingAs($users[1])->post("/m/tasks/lists/{$house->id}/tasks", ['title' => 'Clean gutters']);
+
+    actingAs($users[0])->get('/m/tasks')->assertInertia(fn (AssertableInertia $p) => $p
+        ->where('lists.0.name', 'Household')
+        ->where('lists.0.open', 2)
+        ->where('lists.0.next', 'Replace the filter')
+        ->where('lists.0.touchedBy.id', $users[1]->id)
+        ->where('lists.1.name', 'Garden')
+        ->has('tasks', 2)
+        ->where('tasks.0.list', 'Household')
+        ->missing('doneTasks'));
+});
+
+it('remembers who ticked a task and when, and loads the done ones only when asked', function () {
+    [, $users] = tasksFamily();
+    actingAs($users[0])->post('/m/tasks/lists', ['name' => 'Household']);
+    $house = TaskList::withoutGlobalScopes()->firstOrFail();
+    actingAs($users[0])->post("/m/tasks/lists/{$house->id}/tasks", ['title' => 'Mow the lawn']);
+    $task = Task::withoutGlobalScopes()->firstOrFail();
+
+    actingAs($users[1])->patch("/m/tasks/tasks/{$task->id}", ['done' => true]);
+    expect($task->fresh()->done_by)->toBe($users[1]->id)->and($task->fresh()->done_at)->not->toBeNull();
+
+    actingAs($users[0])->get('/m/tasks')->assertInertia(fn (AssertableInertia $p) => $p
+        ->missing('doneTasks')
+        ->reloadOnly('doneTasks', fn (AssertableInertia $r) => $r->where('doneTasks.0.title', 'Mow the lawn')));
+
+    actingAs($users[1])->patch("/m/tasks/tasks/{$task->id}", ['done' => false]);
+    expect($task->fresh()->done_by)->toBeNull()->and($task->fresh()->done_at)->toBeNull();
+});
+
+// The repeat picker's rhythms (design j6QDy4 T4).
+it('steps every rhythm the repeat picker offers, custom ones included', function (string $interval, string $from, string $next) {
+    expect(RecurringRule::valid($interval))->toBeTrue()
+        ->and(RecurringRule::advance(Carbon::parse($from), $interval)->toDateString())->toBe($next);
+})->with([
+    'weekdays from Friday' => ['weekdays', '2026-10-23', '2026-10-26'],
+    'every 3 months' => ['quarterly', '2026-10-19', '2027-01-19'],
+    'every 2 weeks' => ['2:week', '2026-10-19', '2026-11-02'],
+    'every 10 days' => ['10:day', '2026-10-19', '2026-10-29'],
+    'every 6 months, month end' => ['6:month', '2026-08-31', '2027-02-28'],
+]);
+
+it('refuses a made-up rhythm', function () {
+    expect(RecurringRule::valid('0:week'))->toBeFalse()->and(RecurringRule::valid('fortnightly'))->toBeFalse()->and(RecurringRule::valid('2:year'))->toBeFalse();
+});
+
+it('counts the next one from when it got done, when asked to', function () {
+    [$family, $users] = tasksFamily();
+    app(ModuleRegistry::class)->enable('recurring_todos', $family->id);
+    actingAs($users[0])->post('/m/tasks/lists', ['name' => 'Household']);
+    $list = TaskList::withoutGlobalScopes()->first();
+    actingAs($users[0])->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Replace furnace filter', 'due_date' => '2026-10-19']);
+    $task = Task::withoutGlobalScopes()->first();
+
+    actingAs($users[0])->patch("/m/tasks/tasks/{$task->id}", ['recurrence' => 'quarterly', 'recurrence_from' => 'done'])->assertRedirect();
+    $rule = RecurringRule::withoutGlobalScopes()->where('task_id', $task->id)->first();
+    expect($rule->count_from)->toBe('done')->and($rule->next_occurrence->toDateString())->toBe('2027-01-19');
+
+    // Done late, on Nov 2: the next one lands Feb 2, not Jan 19.
+    Carbon::setTestNow('2026-11-02 12:00');
+    actingAs($users[0])->patch("/m/tasks/tasks/{$task->id}", ['done' => true])->assertRedirect();
+    expect($rule->fresh()->next_occurrence->toDateString())->toBe('2027-02-02');
+
+    // Counted from the due date (the default), a late tick doesn't move it.
+    actingAs($users[0])->patch("/m/tasks/tasks/{$task->id}", ['recurrence' => 'quarterly', 'recurrence_from' => 'due', 'done' => false])->assertRedirect();
+    actingAs($users[0])->patch("/m/tasks/tasks/{$task->id}", ['done' => true])->assertRedirect();
+    expect($rule->fresh()->count_from)->toBe('due')->and($rule->fresh()->next_occurrence->toDateString())->toBe('2027-01-19');
+});
+
+it('moves a task, with its sub-tasks, to another list from the task sheet, but not into one you cannot reach', function () {
+    [, $users] = tasksFamily();
+    actingAs($users[0])->post('/m/tasks/lists', ['name' => 'Household']);
+    actingAs($users[0])->post('/m/tasks/lists', ['name' => 'Garden']);
+    actingAs($users[1])->post('/m/tasks/lists', ['name' => 'Lucia only']);
+    [$house, $garden, $private] = TaskList::withoutGlobalScopes()->orderBy('id')->get()->all();
+    $private->setVisibility('private');
+    actingAs($users[0])->post("/m/tasks/lists/{$house->id}/tasks", ['title' => 'Rake the yard']);
+    $task = Task::withoutGlobalScopes()->first();
+    actingAs($users[0])->post("/m/tasks/lists/{$house->id}/tasks", ['title' => 'Find the rake', 'parent_id' => $task->id]);
+
+    actingAs($users[0])->patch("/m/tasks/tasks/{$task->id}", ['task_list_id' => $garden->id])->assertRedirect();
+    expect(Task::withoutGlobalScopes()->pluck('task_list_id')->unique()->all())->toBe([$garden->id]);
+
+    actingAs($users[0])->patch("/m/tasks/tasks/{$task->id}", ['task_list_id' => $private->id])->assertForbidden();
+});
+
+it('makes a new list from the task sheet and moves the task into it', function () {
+    [, $users] = tasksFamily();
+    actingAs($users[0])->post('/m/tasks/lists', ['name' => 'Tasks']);
+    $list = TaskList::withoutGlobalScopes()->first();
+    actingAs($users[0])->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Pay the insurance']);
+    $task = Task::withoutGlobalScopes()->first();
+
+    actingAs($users[0])->patch("/m/tasks/tasks/{$task->id}", ['title' => 'Pay the insurance', 'new_list' => ['name' => 'Bills', 'icon' => 'bank', 'color' => 'yellow', 'visibility' => 'private']])->assertRedirect();
+
+    $bills = TaskList::withoutGlobalScopes()->where('name', 'Bills')->firstOrFail();
+    expect($task->fresh()->task_list_id)->toBe($bills->id)->and($bills->created_by)->toBe($users[0]->id)
+        ->and($bills->only(['icon', 'color']))->toBe(['icon' => 'bank', 'color' => 'yellow'])->and($bills->visibility())->toBe('private');
+});
+
+it('guesses a second list from tasks like this one', function () {
+    [, $users] = tasksFamily();
+    foreach (['Household', 'Kitchen refresh', 'Garden'] as $name) {
+        actingAs($users[0])->post('/m/tasks/lists', ['name' => $name]);
+    }
+    [$house, $kitchen, $garden] = TaskList::withoutGlobalScopes()->orderBy('id')->get()->all();
+    actingAs($users[0])->post("/m/tasks/lists/{$kitchen->id}/tasks", ['title' => 'Buy a water filter']);
+    actingAs($users[0])->post("/m/tasks/lists/{$kitchen->id}/tasks", ['title' => 'Fit the filter']);
+    actingAs($users[0])->post("/m/tasks/lists/{$garden->id}/tasks", ['title' => 'Rake leaves']);
+
+    expect(TaskList::similarTo($users[0], 'Replace furnace filter', $house->id))->toBe(['value' => (string) $kitchen->id, 'word' => 'filter', 'count' => 2])
+        ->and(TaskList::similarTo($users[0], 'Call mom', $house->id))->toBeNull();
+
+    actingAs($users[0])->post("/m/tasks/lists/{$house->id}/tasks", ['title' => 'Replace furnace filter']);
+    $task = Task::withoutGlobalScopes()->where('title', 'Replace furnace filter')->first();
+    actingAs($users[0])->getJson("/m/tasks/tasks/{$task->id}/lists")->assertOk()
+        ->assertJsonCount(3, 'choices')->assertJsonPath('guess.value', (string) $kitchen->id);
 });

@@ -1,8 +1,7 @@
 import { Confetti } from '@/components/confetti';
-import { FamilyMark } from '@/components/family-mark';
+import { HomeTopBar } from '@/components/home-top-bar';
 import { LucideIcon as DynamicLucideIcon } from '@/components/lucide-icon';
 import { MemberAvatar } from '@/components/member-avatar';
-import { NotificationsBell } from '@/components/notifications-bell';
 import { MODULES, YourModules, type ModuleSummary } from '@/components/your-modules';
 import AppLayout from '@/layouts/app-layout';
 import { localToday } from '@/lib/date-groups';
@@ -11,7 +10,7 @@ import { money } from '@/lib/money';
 import { save } from '@/lib/save';
 import { type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { Blocks, Cake, Check, ChevronDown, ChevronRight, Heart, Inbox, Phone, Plus, Search, Star } from 'lucide-react';
+import { Blocks, Cake, Check, ChevronDown, ChevronRight, Heart, Inbox, Phone, Plus, Star } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 
 // Home (design node XMkKm, "H1 · Today"): Today first. One agenda of to-dos and events for today and tomorrow,
@@ -108,38 +107,6 @@ function SectionLabel({ label, count, right, href }: { label: string; count?: nu
 }
 
 const card = 'bg-surface-card overflow-hidden rounded-2xl border';
-
-// Home's own top bar on phones (the design's Top Bar): the family, then search, alerts and the avatar, which opens
-// Me (your settings, the family's settings, Log out). Desktop keeps the sidebar + breadcrumb header.
-function HomeTopBar({ family }: { family: Family | null }) {
-    const { auth } = usePage<SharedData>().props;
-    const t = useT();
-    return (
-        <div className="flex w-full items-center gap-2">
-            <Link href="/family/members" className="flex min-w-0 flex-1 items-center gap-2.5">
-                {family && <FamilyMark {...family} className="size-9 rounded-xl text-lg" />}
-                <span className="text-primary truncate text-lg font-bold">{family?.name}</span>
-                <ChevronDown className="text-muted-foreground size-4 shrink-0" />
-            </Link>
-            <Link
-                href="/search"
-                aria-label={t('common.search')}
-                className="bg-surface text-primary flex size-10 shrink-0 items-center justify-center rounded-full"
-            >
-                <Search className="size-5" />
-            </Link>
-            <NotificationsBell />
-            {/* Tap your face (design board 12): the avatar opens Me, where log out and the family's settings live too. */}
-            <Link
-                href="/settings"
-                aria-label={auth.user.name}
-                className="bg-primary text-primary-foreground flex size-10 shrink-0 items-center justify-center rounded-full text-base font-bold"
-            >
-                {auth.user.name.charAt(0).toUpperCase()}
-            </Link>
-        </div>
-    );
-}
 
 // Birthdays in the next 14 days: today's in a sun card with Call / Send a wish (when the contact has a phone),
 // the coming ones listed below. Nobody today: only the list.
@@ -701,7 +668,6 @@ function MoneyCard({ spending }: { spending: { total: number; currency: string; 
 }
 
 export default function Dashboard({
-    family = null,
     recent = [],
     today = [],
     tomorrow = [],
@@ -817,7 +783,7 @@ export default function Dashboard({
             ));
 
     return (
-        <AppLayout breadcrumbs={[{ title: t('nav.home'), href: '/dashboard' }]} mobileHeader={<HomeTopBar family={family} />}>
+        <AppLayout breadcrumbs={[{ title: t('nav.home'), href: '/dashboard' }]} mobileHeader={<HomeTopBar />}>
             <Head title={t('nav.home')} />
             <div className="mx-auto flex w-full max-w-6xl flex-col gap-7 p-4 md:p-8 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)] lg:gap-10">
                 {/* Left: the day. Right (below on phones): money, modules, recents. */}

@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Family;
 use App\Support\Add\AddReader;
 use App\Support\Analytics;
 use App\Support\Auth\SocialLogin;
@@ -105,6 +106,8 @@ class HandleInertiaRequests extends Middleware
             // The family's zone (FamilyClock), so the browser's "today" (Home's Today, the day strip, due chips) is
             // the same day the server bucketed by. Null without a family: the browser's own zone then. Lazy, like above.
             'timezone' => fn () => CurrentFamily::id() ? FamilyClock::zone() : null,
+            // The family in the phone top bar (Home, Tasks: the design's Top Bar). Lazy: resolved after SetActiveFamily.
+            'currentFamily' => fn () => CurrentFamily::id() ? Family::find(CurrentFamily::id())?->only(['name', 'color', 'symbol', 'emoji']) : null,
             // Header bell glimpse: unread count + recent items. MUST be shared here (per request), not
             // via Inertia::share in a provider boot(): under Octane boot() runs once per worker and
             // Octane drops the registered share after the first request, so the bell went permanently

@@ -68,19 +68,7 @@ class TasksServiceProvider extends ServiceProvider
                 // Add details (the Classic task editor's fields): a note, the list by hand, and the add-ons' controls
                 // (Repeat, Important) through the same task.editor.fields slot, saved through task.saved like Classic.
                 'note' => ['type' => 'note', 'details' => true],
-                // The list picker (design D-T1): each list's tile (icon, colour), when it last changed (the list or any
-                // to-do in it), whose it is ('only you' = private: null) and how many to-dos are open. One query.
-                'list_id' => ['type' => 'choice', 'details' => true, 'choices' => fn (User $user) => $lists($user)
-                    ->with(['shareSetting', 'creator:id,name'])
-                    ->withCount(['tasks as open' => fn ($q) => $q->where('done', false)])
-                    ->withMax('tasks', 'updated_at')
-                    ->get(['id', 'name', 'icon', 'color', 'created_by', 'updated_at'])
-                    ->map(fn ($l) => [
-                        'value' => (string) $l->id, 'label' => $l->name, 'icon' => $l->icon, 'color' => $l->color,
-                        'updated_at' => max((string) $l->updated_at, (string) $l->tasks_max_updated_at),
-                        'by' => $l->visibility() === 'private' ? null : strtok((string) $l->creator?->name, ' '),
-                        'open' => $l->open,
-                    ])->all()],
+                'list_id' => ['type' => 'choice', 'details' => true, 'choices' => fn (User $user) => TaskList::pickerChoices($user)],
                 // badges: back on the card, the add-ons' row badges (the Important star) mark its header (design H2g).
                 'ext' => ['type' => 'slot', 'slot' => 'task.editor.fields', 'badges' => 'task.row.badges', 'details' => true],
             ],
@@ -92,8 +80,8 @@ class TasksServiceProvider extends ServiceProvider
                     'ext' => ['array', 'max:10'], // flat values only, as a Classic onPatch sends them
                     'ext.*' => ['nullable', fn ($attr, $value, $fail) => is_scalar($value) || $fail("{$attr} must be a single value.")],
                 ]);
-                $new = Validator::validate(['name' => self::newList($v)], ['name' => ['nullable', 'string', 'max:255']])['name'];
-                $list = ($new ? TaskList::createFor($user, ['name' => $new]) : $pickList($user, $ctx, $v))
+                $new = self::newListSpec($v);
+                $list = ($new ? TaskList::createFor($user, $new, $new['visibility'] ?? null) : $pickList($user, $ctx, $v))
                     ?? TaskList::createFor($user, ['name' => Translations::get('nav.tasks')]);
                 // The add-ons' values ({important: true, recurrence: 'weekly'}) go to task.saved as the request, exactly as
                 // the Classic editor's onPatch sends them; each add-on validates its own (a 4th star is refused there).
@@ -286,15 +274,40 @@ class TasksServiceProvider extends ServiceProvider
                 Route::post('/lists/{list}/tasks', [TasksController::class, 'storeTask'])->name('tasks.store');
                 Route::post('/lists/{list}/tasks/reorder', [TasksController::class, 'reorderTasks'])->name('tasks.reorder');
                 Route::patch('/tasks/{task}', [TasksController::class, 'updateTask'])->name('tasks.update');
+                Route::get('/tasks/{task}/lists', [TasksController::class, 'taskLists'])->name('tasks.lists');
                 Route::delete('/tasks/{task}', [TasksController::class, 'destroyTask'])->name('tasks.destroy');
             });
     }
 
-    // The name of a list made in the list picker ("new:Garage" → "Garage"), else null.
-    private static function newList(array $v): ?string
+    /**
+     * A list made in the list picker: "new:Garage", or "new:" + JSON {name, icon, color, visibility} from the New
+     * list screen (design j6QDy4 T3c). Null when it isn't one.
+     *
+     * @return array{name: string, icon?: string, color?: string, visibility?: string}|null
+     */
+    private static function newListSpec(array $v): ?array
     {
         $id = (string) ($v['list_id'] ?? '');
+        if (! str_starts_with($id, 'new:')) {
+            return null;
+        }
+        $raw = substr($id, 4);
+        $spec = json_decode($raw, true);
+        $spec = is_array($spec) ? $spec : ['name' => $raw];
+        $name = trim((string) ($spec['name'] ?? ''));
+        if ($name === '') {
+            return null;
+        }
 
-        return str_starts_with($id, 'new:') && trim(substr($id, 4)) !== '' ? trim(substr($id, 4)) : null;
+        return ['name' => mb_substr($name, 0, 255)] + array_filter([
+            'icon' => is_string($spec['icon'] ?? null) ? mb_substr($spec['icon'], 0, 20) : null,
+            'color' => is_string($spec['color'] ?? null) ? mb_substr($spec['color'], 0, 20) : null,
+            'visibility' => in_array($spec['visibility'] ?? null, ['family', 'private'], true) ? $spec['visibility'] : null,
+        ]);
+    }
+
+    private static function newList(array $v): ?string
+    {
+        return self::newListSpec($v)['name'] ?? null;
     }
 }

@@ -1,21 +1,13 @@
 <?php
 
 use App\Models\Family;
-use App\Models\OAuthClient;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
+require_once __DIR__.'/helpers.php';
+
 // admin.familywell.org's read-only API. Every call: a token with `admin`, from the platform-admin client,
 // for a user who is a platform admin right now.
-
-function adminApiToken(?User $user = null): string
-{
-    $user ??= User::factory()->create(['name' => 'Bogdan', 'email' => 'boss@example.com', 'is_platform_admin' => true]);
-    $token = boardToken($user, adminClient(), OAuthClient::ADMIN_SCOPE)['access_token'];
-    auth()->forgetGuards();
-
-    return $token;
-}
 
 it('answers me', function () {
     $token = adminApiToken();
