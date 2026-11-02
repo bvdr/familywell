@@ -7,9 +7,23 @@ on:
       - main
   # Run on every pull request, including stacked PRs whose base is a feature branch.
   pull_request:
+    # Words-only changes can't break code: no run for them.
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
 
+# A new push to the same PR / branch cancels the run still going for the old one.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+# Speed (2026-11-02, was ~13 min): the two halves run side by side as separate jobs, Pest runs on several
+# processes (`--parallel`), and Xdebug is off (it was loaded for coverage nobody collected, slowing every PHP
+# request, the viewport checks' server included). Tests that share a helper keep it in a helpers.php they
+# require_once, so a parallel worker always has it.
 jobs:
   ci:
+    name: ci
     runs-on: ubuntu-latest
 
     steps:
@@ -21,7 +35,53 @@ jobs:
         with:
           php-version: 8.4
           tools: composer:v2
-          coverage: xdebug
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install Node Dependencies
+        run: npm ci
+
+      # Pages rendered by the tests reference the built assets (the Vite manifest).
+      - name: Build Assets
+        run: npm run build
+
+      - name: JS Unit Tests
+        run: npm run test:js
+
+      - name: Install Dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Copy Environment File
+        run: cp .env.example .env
+
+      - name: Generate Application Key
+        run: php artisan key:generate
+
+      - name: Tests
+        run: ./vendor/bin/pest --parallel
+
+  # UI guardrail: every page at 390x844 and 1280x800, signed in as the seeded demo family, must have no
+  # sideways scroll, cut-off content or overlapping text (tests/Viewports, playwright.config.ts); plus the
+  # edit-and-save flows and the MCP widgets.
+  viewports:
+    name: viewports
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.4
+          tools: composer:v2
+          coverage: none
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -35,12 +95,6 @@ jobs:
       - name: Build Assets
         run: npm run build
 
-      - name: JS Unit Tests
-        run: npm run test:js
-
-      - name: Create SQLite Database
-        run: touch database/database.sqlite
-
       - name: Install Dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
@@ -50,25 +104,24 @@ jobs:
       - name: Generate Application Key
         run: php artisan key:generate
 
-      - name: Tests
-        run: ./vendor/bin/pest
-
-      # UI guardrail: every page at 390x844 and 1280x800, signed in as the seeded demo family, must have no
-      # sideways scroll, cut-off content or overlapping text (tests/Viewports, playwright.config.ts).
-      # Pest above runs on in-memory SQLite, so database/database.sqlite is free for the seeded app.
-      - name: Seed the demo family for the viewport checks
+      - name: Seed the demo family
         run: |
+          touch database/database.sqlite
           php artisan migrate --force
           php artisan modules:migrate
           php artisan db:seed --class=DemoSeeder --force
+
+      # The MCP widget checks read fixtures a Pest test writes from the real pages.
+      - name: Write the MCP widget fixtures
+        run: ./vendor/bin/pest tests/Feature/Mcp/WidgetFixturesTest.php
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
       - name: Viewport checks (390 + 1280)
         env:
-          # php artisan serve with a few workers, so parallel page loads don't queue behind each other.
-          PHP_CLI_SERVER_WORKERS: 4
+          # php artisan serve with several workers, so parallel page loads don't queue behind each other.
+          PHP_CLI_SERVER_WORKERS: 8
         run: npm run test:viewports
 
       - name: Upload viewport screenshots

@@ -11,8 +11,8 @@ export default defineConfig({
     testDir: 'tests/Viewports',
     fullyParallel: true,
     forbidOnly: !!process.env.CI,
-    // php artisan serve is single-threaded: keep the load modest so pages don't time out.
-    workers: process.env.CI ? 2 : 4,
+    // 4 on CI too (2026-11-02): GitHub's runners have 4 cores, and the PHP server runs 8 workers.
+    workers: 4,
     reporter: process.env.CI ? [['list'], ['html', { open: 'never', outputFolder: 'tests/Viewports/report' }]] : 'list',
     outputDir: 'tests/Viewports/results',
     use: { baseURL, trace: 'retain-on-failure' },
