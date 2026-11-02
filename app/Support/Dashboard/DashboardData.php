@@ -2,7 +2,6 @@
 
 namespace App\Support\Dashboard;
 
-use App\Models\Family;
 use App\Support\Modules\Hooks;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Tenancy\FamilyClock;
@@ -44,9 +43,7 @@ class DashboardData
 
         // Overdue rolls into Today (it still needs doing now).
         return [
-            // Home's top bar shows the family's mark + name.
             'sections' => $sections,
-            'family' => Family::find(CurrentFamily::id())?->only(['name', 'color', 'symbol', 'emoji']),
             'recent' => $recent,
             'today' => $agenda->filter(fn ($i) => $i['dueDate'] <= $today)->values()->all(),
             'tomorrow' => $agenda->where('dueDate', $tomorrow)->values()->all(),

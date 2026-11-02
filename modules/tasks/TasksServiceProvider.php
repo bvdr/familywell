@@ -68,19 +68,7 @@ class TasksServiceProvider extends ServiceProvider
                 // Add details (the Classic task editor's fields): a note, the list by hand, and the add-ons' controls
                 // (Repeat, Important) through the same task.editor.fields slot, saved through task.saved like Classic.
                 'note' => ['type' => 'note', 'details' => true],
-                // The list picker (design D-T1): each list's tile (icon, colour), when it last changed (the list or any
-                // to-do in it), whose it is ('only you' = private: null) and how many to-dos are open. One query.
-                'list_id' => ['type' => 'choice', 'details' => true, 'choices' => fn (User $user) => $lists($user)
-                    ->with(['shareSetting', 'creator:id,name'])
-                    ->withCount(['tasks as open' => fn ($q) => $q->where('done', false)])
-                    ->withMax('tasks', 'updated_at')
-                    ->get(['id', 'name', 'icon', 'color', 'created_by', 'updated_at'])
-                    ->map(fn ($l) => [
-                        'value' => (string) $l->id, 'label' => $l->name, 'icon' => $l->icon, 'color' => $l->color,
-                        'updated_at' => max((string) $l->updated_at, (string) $l->tasks_max_updated_at),
-                        'by' => $l->visibility() === 'private' ? null : strtok((string) $l->creator?->name, ' '),
-                        'open' => $l->open,
-                    ])->all()],
+                'list_id' => ['type' => 'choice', 'details' => true, 'choices' => fn (User $user) => TaskList::pickerChoices($user)],
                 // badges: back on the card, the add-ons' row badges (the Important star) mark its header (design H2g).
                 'ext' => ['type' => 'slot', 'slot' => 'task.editor.fields', 'badges' => 'task.row.badges', 'details' => true],
             ],

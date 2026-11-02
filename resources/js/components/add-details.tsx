@@ -4,7 +4,7 @@ import { SettingsGroup, SettingsRow } from '@/components/settings-ui';
 import { ymd } from '@/lib/calendar';
 import { appLocale, relativeWord, useT } from '@/lib/i18n';
 import { Slot } from '@/lib/modules';
-import { listColor, listIcon } from '@/lib/tasks';
+import { ago, listColor, listIcon } from '@/lib/tasks';
 import {
     Banknote,
     CalendarDays,
@@ -275,7 +275,7 @@ export function AddDetails({
 
 // "When" (design vsI6t): Today, Tomorrow, then a date chip: the picked day with a calendar ("Sat, Oct 24"), or Pick…
 // before one is picked; it opens the native date picker. Tapping a picked Today / Tomorrow again clears it.
-function When({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+export function When({ value, onChange }: { value: string; onChange: (v: string) => void }) {
     const t = useT();
     const pick = useRef<HTMLInputElement>(null);
     const day = value.slice(0, 10);
@@ -385,31 +385,21 @@ function InputRow({
     );
 }
 
-// "When it last changed", as the design writes it: 12 min ago, 2 h ago, Yesterday, Mon, Oct 14.
-function ago(iso: string): string {
-    const then = new Date(iso);
-    const mins = Math.max(0, Math.floor((Date.now() - then.getTime()) / 60000));
-    const rtf = new Intl.RelativeTimeFormat(appLocale(), { numeric: 'auto', style: 'short' });
-    if (mins < 60) return rtf.format(-mins, 'minute');
-    if (mins < 24 * 60) return rtf.format(-Math.floor(mins / 60), 'hour');
-    const days = Math.round((new Date(ymd(new Date())).getTime() - new Date(ymd(then)).getTime()) / 864e5);
-    if (days === 1) return relativeWord(-1, 'day');
-    if (days < 7) return then.toLocaleDateString(appLocale(), { weekday: 'short' });
-    return then.toLocaleDateString(appLocale(), { month: 'short', day: 'numeric' });
-}
-
 // The list picker (design D-T1, n70n03), pushed into the same sheet: search on top (+ makes a list named as typed),
 // our guess under SUGGESTED, then every list by last change (A–Z one tap away). A tap picks and goes straight back.
-function ListPicker({
+export function ListPicker({
     options,
     value,
     suggested,
     onPick,
+    canCreate = true,
 }: {
     options: Choice[];
     value: string;
     suggested: string | null;
     onPick: (v: string) => void;
+    // "+" (a new list named as typed): the Add sheet makes it on Add; moving an existing task can't (no list yet).
+    canCreate?: boolean;
 }) {
     const t = useT();
     const [q, setQ] = useState('');
@@ -469,14 +459,16 @@ function ListPicker({
                     />
                 </label>
                 {/* + names a new list after what's typed; with nothing typed it puts the cursor in the box first. */}
-                <button
-                    type="button"
-                    aria-label={t('add_details.new_list')}
-                    onClick={() => (q.trim() ? onPick(`new:${q.trim()}`) : search.current?.focus())}
-                    className="bg-surface text-primary flex size-12 shrink-0 items-center justify-center rounded-full"
-                >
-                    <Plus className="size-6" />
-                </button>
+                {canCreate && (
+                    <button
+                        type="button"
+                        aria-label={t('add_details.new_list')}
+                        onClick={() => (q.trim() ? onPick(`new:${q.trim()}`) : search.current?.focus())}
+                        className="bg-surface text-primary flex size-12 shrink-0 items-center justify-center rounded-full"
+                    >
+                        <Plus className="size-6" />
+                    </button>
+                )}
             </div>
             {guess && (
                 <section className="flex flex-col gap-2">
@@ -505,14 +497,16 @@ function ListPicker({
                     <div className="bg-surface-card overflow-hidden rounded-2xl border">{rest.map(row)}</div>
                 ) : (
                     // Nothing matches: + (or this) makes the list.
-                    <button
-                        type="button"
-                        onClick={() => onPick(`new:${q.trim()}`)}
-                        className="text-primary flex items-center gap-2 px-1 py-2 text-base font-semibold"
-                    >
-                        <Plus className="size-5" />
-                        {t('add_details.create_list', { name: q.trim() })}
-                    </button>
+                    canCreate && (
+                        <button
+                            type="button"
+                            onClick={() => onPick(`new:${q.trim()}`)}
+                            className="text-primary flex items-center gap-2 px-1 py-2 text-base font-semibold"
+                        >
+                            <Plus className="size-5" />
+                            {t('add_details.create_list', { name: q.trim() })}
+                        </button>
+                    )
                 )}
             </section>
         </div>

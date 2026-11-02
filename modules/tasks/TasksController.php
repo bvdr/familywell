@@ -21,25 +21,37 @@ class TasksController extends Controller
 {
     public function __construct(private ShareAccess $access, private Hooks $hooks) {}
 
+    /**
+     * The overview (design j6QDy4, T1 / T1b): one page, two views. Lists: every list, last touched first, each with
+     * how many are left, the next one, and who touched it when. Tasks: every open task of those lists by due date,
+     * with the family for the people strip; the done ones only load when "Done" is switched on (a partial reload).
+     */
     public function index(Request $request): Response
     {
         $userId = $request->user()->id;
 
         $lists = TaskList::query()
-            ->withCount([
-                'tasks',
-                'tasks as done_count' => fn ($q) => $q->where('done', true),
-            ])
-            ->with(['shareSetting', 'shares', 'tasks:id,task_list_id,assigned_to'])
-            ->orderBy('position')
-            ->latest()
+            ->with(['shareSetting', 'shares', 'toucher:id,name'])
+            ->orderByDesc('touched_at')->orderByDesc('id')
             ->get()
             // BelongsToFamily already limits to the current family; `family`-visibility lists are
             // visible to every member, `invited`/`private` need an explicit share row.
             ->filter(fn (TaskList $l) => $l->visibility() === 'family' || $l->shares->contains('user_id', $userId))
             ->values();
+        $live = $lists->whereNull('archived_at')->pluck('id');
+        $members = Family::findOrFail(CurrentFamily::id())->members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values();
 
-        $memberNames = Family::findOrFail(CurrentFamily::id())->members->pluck('name', 'id');
+        // Every open task of every list in one query: the cards' counts and "next", and the Tasks view. Soonest due
+        // first (no date last), then the list's own order.
+        $open = Task::whereIn('task_list_id', $lists->pluck('id'))->where('done', false)
+            ->orderByRaw('due_date is null')->orderBy('due_date')->orderBy('position')->orderBy('id')
+            ->get(['id', 'task_list_id', 'parent_id', 'title', 'due_date', 'assigned_to']);
+        $byList = $open->groupBy('task_list_id');
+        $names = $lists->pluck('name', 'id');
+        $row = fn (Task $t) => [
+            'id' => $t->id, 'title' => $t->title, 'done' => (bool) $t->done, 'dueDate' => $t->due_date?->toDateString(),
+            'assignedTo' => $t->assigned_to, 'listId' => $t->task_list_id, 'list' => $names[$t->task_list_id] ?? null,
+        ];
 
         return Inertia::render('tasks/lists', [
             'lists' => $lists->map(fn (TaskList $l) => [
@@ -47,13 +59,18 @@ class TasksController extends Controller
                 'name' => $l->name,
                 'color' => $l->color,
                 'icon' => $l->icon,
-                'taskCount' => $l->tasks_count,
-                'doneCount' => $l->done_count,
+                'open' => $byList->get($l->id)?->count() ?? 0,
+                'next' => $byList->get($l->id)?->first()?->title,
                 'archived' => $l->archived_at !== null,
                 'visibility' => $l->visibility(),
-                'members' => $l->tasks->pluck('assigned_to')->filter()->unique()->values()
-                    ->map(fn ($id) => ['id' => $id, 'name' => $memberNames[$id] ?? '?'])->all(),
+                'touchedAt' => $l->touched_at?->toIso8601String(),
+                'touchedBy' => $l->toucher ? ['id' => $l->toucher->id, 'name' => $l->toucher->name] : null,
             ])->values(),
+            'tasks' => $open->whereIn('task_list_id', $live)->map($row)->values(),
+            'members' => $members,
+            // Switched on: the done ones too, newest first. ponytail: the last 100, a "more" when families hit it.
+            'doneTasks' => Inertia::optional(fn () => Task::whereIn('task_list_id', $live)->where('done', true)
+                ->latest('done_at')->limit(100)->get(['id', 'task_list_id', 'title', 'done', 'due_date', 'assigned_to'])->map($row)->values()),
         ]);
     }
 
@@ -132,7 +149,11 @@ class TasksController extends Controller
         // Behavior hook `task.query`: a module may add a primary sort/filter (e.g. important-first),
         // applied before the base position order so the module's sort wins; a no-op with no listener.
         $query = $this->hooks->filter('task.query', $query, $list);
-        $tasks = $query->orderBy('tasks_tasks.position')->orderBy('tasks_tasks.id')->get();
+        // A list reads starred first (the hook above), then by due date, the undated last, then its own order (T2).
+        $tasks = $query->orderByRaw('tasks_tasks.due_date is null')->orderBy('tasks_tasks.due_date')
+            ->orderBy('tasks_tasks.position')->orderBy('tasks_tasks.id')->get();
+        // The folded Done row's "last: Mow lawn, by David".
+        $lastDone = $list->tasks()->where('done', true)->whereNotNull('done_at')->with('doneBy:id,name')->latest('done_at')->first(['id', 'title', 'done_by', 'done_at']);
 
         return Inertia::render('tasks/list', [
             'list' => [
@@ -146,6 +167,11 @@ class TasksController extends Controller
             'share' => $this->shareState($list, $family),
             'members' => $members,
             'tasks' => $tasks->map(fn (Task $t) => $this->taskPayload($t))->values(),
+            'lastDone' => $lastDone ? ['title' => $lastDone->title, 'by' => $lastDone->doneBy?->name] : null,
+            // The task sheet's list picker, loaded when it opens (a partial reload).
+            'lists' => Inertia::optional(fn () => TaskList::pickerChoices($request->user())),
+            // Who made each task, for the task sheet's "Created by Ana · Jul 19" (any member, not only the assignable).
+            'family' => $family->members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),
         ]);
     }
 
@@ -161,6 +187,8 @@ class TasksController extends Controller
             'done' => $task->done,
             'dueDate' => optional($task->due_date)->toDateString(),
             'assignedTo' => $task->assigned_to,
+            'createdBy' => $task->created_by,
+            'createdAt' => $task->created_at?->toDateString(),
             'subtasks' => $task->subtasks->map(fn (Task $s) => $this->hooks->filter('task.serialize', [
                 'id' => $s->id,
                 'title' => $s->title,
@@ -168,6 +196,8 @@ class TasksController extends Controller
                 'done' => $s->done,
                 'dueDate' => optional($s->due_date)->toDateString(),
                 'assignedTo' => $s->assigned_to,
+                'createdBy' => $s->created_by,
+                'createdAt' => $s->created_at?->toDateString(),
             ], $s))->values(),
         ], $task);
     }
@@ -334,7 +364,17 @@ class TasksController extends Controller
                 'due_date' => ['sometimes', 'nullable', 'date'],
                 'assigned_to' => ['sometimes', 'nullable', 'integer'],
                 'done' => ['sometimes', 'boolean'],
+                // The task sheet's List row (T3): move it, with its sub-tasks, to another list this person can edit.
+                'task_list_id' => ['sometimes', 'integer'],
             ]);
+            if (isset($data['task_list_id']) && $data['task_list_id'] !== $task->task_list_id) {
+                $to = TaskList::find($data['task_list_id']);
+                abort_unless($to && ! $to->archived_at && $task->parent_id === null && $this->access->roleFor($actor, $to) !== null, 403);
+                Task::where('parent_id', $task->id)->update(['task_list_id' => $to->id]);
+                $url = route('tasks.show', $to, false);
+            } else {
+                unset($data['task_list_id']);
+            }
             $before = $task->assigned_to;
             $wasDone = $task->done;
             $task->update($data);

@@ -43,7 +43,9 @@ class RecurringTodosServiceProvider extends ServiceProvider
             if (! $this->enabledHere()) {
                 return $payload;
             }
-            $payload['recurrence'] = RecurringRule::where('task_id', $task->id)->value('interval');
+            $rule = RecurringRule::where('task_id', $task->id)->first(['interval', 'count_from']);
+            $payload['recurrence'] = $rule?->interval;
+            $payload['recurrence_from'] = $rule?->count_from ?? 'due';
 
             return $payload;
         });
@@ -55,8 +57,8 @@ class RecurringTodosServiceProvider extends ServiceProvider
                 return $props;
             }
 
-            return $props + ['recurrence' => $schema->string()->enum([...RecurringRule::INTERVALS, 'none'])
-                ->description('Repeat the task: once done it resets to "to do" on the next occurrence. "none" stops repeating. Anchored to the due date (today if none).')];
+            return $props + ['recurrence' => $schema->string()
+                ->description('Repeat the task: once done it resets to "to do" on the next occurrence. One of '.implode(', ', RecurringRule::INTERVALS).', or "N:day", "N:week", "N:month" (every N days / weeks / months); "none" stops repeating. Anchored to the due date (today if none).')];
         });
 
         // BEHAVIOR (save) — persist the chosen recurrence, and keep next_occurrence anchored to the
@@ -67,10 +69,13 @@ class RecurringTodosServiceProvider extends ServiceProvider
                 return;
             }
 
+            // "Count next from" (T4): 'due' or 'done'; anything else is ignored.
+            $from = in_array($request->input('recurrence_from'), RecurringRule::COUNT_FROM, true) ? $request->input('recurrence_from') : null;
+
             // The editor sent a recurrence choice: set, change, or clear the rule.
             if ($request->has('recurrence')) {
                 $val = (string) $request->input('recurrence');
-                if ($val === '' || $val === 'none' || ! in_array($val, RecurringRule::INTERVALS, true)) {
+                if ($val === '' || $val === 'none' || ! RecurringRule::valid($val)) {
                     RecurringRule::where('task_id', $task->id)->delete();
 
                     return;
@@ -82,10 +87,24 @@ class RecurringTodosServiceProvider extends ServiceProvider
                 }
                 RecurringRule::updateOrCreate(
                     ['task_id' => $task->id],
-                    ['interval' => $val, 'next_occurrence' => RecurringRule::advance($task->due_date, $val)],
+                    ['interval' => $val, 'next_occurrence' => RecurringRule::advance($task->due_date, $val)] + ($from ? ['count_from' => $from] : []),
                 );
 
                 return;
+            }
+            if ($from) {
+                RecurringRule::where('task_id', $task->id)->update(['count_from' => $from]);
+            }
+
+            // Ticked done on a rule counted from when it's done: the next one is one rhythm from today, not from
+            // the due date (design T4: "Done late on Nov 2? The next one lands Feb 2, not Jan 19").
+            if ($request->boolean('done') && $task->done) {
+                $rule = RecurringRule::where('task_id', $task->id)->first();
+                if ($rule?->count_from === 'done') {
+                    $rule->update(['next_occurrence' => RecurringRule::advance(FamilyClock::date(), $rule->interval)]);
+
+                    return;
+                }
             }
 
             // The due date moved on an already-recurring task → recompute the next occurrence from it.

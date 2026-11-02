@@ -49,3 +49,27 @@ export function dueLabel(iso: string | null): { label: string; tone: string } | 
     if (days <= 3) return { label: short, tone: 'bg-amber-100 text-amber-700' };
     return { label: short, tone: 'bg-surface text-muted-foreground' };
 }
+
+// 'YYYY-MM-DD' of a moment in the browser's day (for "Yesterday" / weekday labels).
+const isoDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+// "When it last changed", as the design writes it: 12 min ago, 2 h ago, Yesterday, Mon, Oct 14.
+export function ago(iso: string): string {
+    const then = new Date(iso);
+    const mins = Math.max(0, Math.floor((Date.now() - then.getTime()) / 60000));
+    const rtf = new Intl.RelativeTimeFormat(appLocale(), { numeric: 'auto', style: 'short' });
+    if (mins < 60) return rtf.format(-mins, 'minute');
+    if (mins < 24 * 60) return rtf.format(-Math.floor(mins / 60), 'hour');
+    const days = Math.round((new Date(isoDay(new Date())).getTime() - new Date(isoDay(then)).getTime()) / 864e5);
+    if (days === 1) return relativeWord(-1, 'day');
+    if (days < 7) return then.toLocaleDateString(appLocale(), { weekday: 'short' });
+    return then.toLocaleDateString(appLocale(), { month: 'short', day: 'numeric' });
+}
+
+// A repeat rhythm in a row's meta line ("every 3 months", "every 2 weeks"), the Repeat add-on's wording
+// (recurring_todos.every_*, same rules as its rhythmLabel) with a small first letter.
+export function rhythmText(t: (key: string, params?: Record<string, string | number>) => string, v: string): string {
+    const m = /^(\d{1,3}):(day|week|month)$/.exec(v);
+    const s = m ? t(`recurring_todos.every_${m[2]}`, { count: Number(m[1]) }) : t(`recurring_todos.every_${v}`);
+    return s.charAt(0).toLocaleLowerCase(appLocale()) + s.slice(1);
+}
