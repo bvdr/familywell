@@ -19,5 +19,17 @@
     "f_category": "Categoría",
     "f_repeat": "Repetir",
     "f_who": "Quién",
-    "f_due": "Fecha límite"
+    "f_due": "Fecha límite",
+    "only_you": "solo tú",
+    "n_open_one": ":count pendiente",
+    "n_open_other": ":count pendientes",
+    "search_lists_one": "Buscar en :count lista",
+    "search_lists_other": "Buscar en :count listas",
+    "suggested": "Sugerida",
+    "recently_updated": "Actualizadas hace poco",
+    "matching": "Coincidencias",
+    "recent": "Recientes",
+    "a_z": "A–Z",
+    "new_list": "Lista nueva",
+    "create_list": "Crear la lista «:name»"
 }

@@ -19,5 +19,17 @@
     "f_category": "Catégorie",
     "f_repeat": "Répéter",
     "f_who": "Qui",
-    "f_due": "Échéance"
+    "f_due": "Échéance",
+    "only_you": "vous seul",
+    "n_open_one": ":count en cours",
+    "n_open_other": ":count en cours",
+    "search_lists_one": "Chercher dans :count liste",
+    "search_lists_other": "Chercher dans :count listes",
+    "suggested": "Suggérée",
+    "recently_updated": "Modifiées récemment",
+    "matching": "Résultats",
+    "recent": "Récentes",
+    "a_z": "A–Z",
+    "new_list": "Nouvelle liste",
+    "create_list": "Créer la liste « :name »"
 }

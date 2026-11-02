@@ -339,9 +339,15 @@ it('keeps details fields from the reader and hands the sheet their form, choices
         && ! isset($r['kinds']['expense']['fields']['category']) && ! isset($r['kinds']['shopping_item']['fields']['note']));
     expect($res->json('items.0.details'))->toMatchArray([
         'note' => ['type' => 'note'],
-        'list_id' => ['type' => 'choice', 'choices' => [['value' => (string) ($school->id - 1), 'label' => 'Household'], ['value' => (string) $school->id, 'label' => 'School']]],
         'ext' => ['type' => 'slot', 'slot' => 'task.editor.fields', 'badges' => 'task.row.badges'],
-    ])->and($res->json('items.0.people'))->toBe(['who'])
+    ])
+        // The list picker's rows: name, tile, whose (null = only you) and open to-dos.
+        ->and(collect($res->json('items.0.details.list_id.choices'))->map(fn ($c) => array_intersect_key($c, array_flip(['value', 'label', 'icon', 'by', 'open'])))->all())
+        ->toBe([
+            ['value' => (string) ($school->id - 1), 'label' => 'Household', 'icon' => 'list', 'by' => 'Ana', 'open' => 0],
+            ['value' => (string) $school->id, 'label' => 'School', 'icon' => 'list', 'by' => 'Ana', 'open' => 0],
+        ])
+        ->and($res->json('items.0.people'))->toBe(['who'])
         ->and($res->json('members'))->toBe([['id' => $users[0]->id, 'name' => 'Ana Rivera'], ['id' => $users[1]->id, 'name' => 'Lucia Rivera']]);
 });
 
@@ -359,6 +365,16 @@ it('saves a to-do with its details like the Classic editor: note, date, who, lis
     ])->and($task->due_date->toDateString())->toBe('2026-10-31')
         ->and((bool) DB::table('important_todos_flags')->where('task_id', $task->id)->value('important'))->toBeTrue()
         ->and(DB::table('recurring_todos_rules')->where('task_id', $task->id)->value('interval'))->toBe('weekly');
+});
+
+it('makes the new list picked with + in the list picker, and files the to-do in it', function () {
+    [, $users] = detailsFamily();
+
+    actingAs($users[0])->postJson('/add/save', ['items' => [['kind' => 'todo', 'values' => ['title' => 'Oil the hinges', 'list_id' => 'new:Garage']]]])->assertOk();
+
+    $garage = TaskList::withoutGlobalScopes()->where('name', 'Garage')->firstOrFail();
+    expect(Task::withoutGlobalScopes()->where('title', 'Oil the hinges')->value('task_list_id'))->toBe($garage->id)
+        ->and($garage->created_by)->toBe($users[0]->id);
 });
 
 it('refuses details that do not hold up, and a list the person cannot add to', function () {

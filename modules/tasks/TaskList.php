@@ -7,6 +7,7 @@ use App\Support\Sharing\Shareable;
 use App\Support\Tenancy\BelongsToFamily;
 use App\Support\Trash\CascadesTrash;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -31,6 +32,12 @@ class TaskList extends Model
     public function tasks(): HasMany
     {
         return $this->hasMany(Task::class);
+    }
+
+    // Who made the list (the list picker's "Dan").
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     /**

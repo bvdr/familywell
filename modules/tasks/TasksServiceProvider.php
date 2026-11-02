@@ -40,6 +40,10 @@ class TasksServiceProvider extends ServiceProvider
         $pickList = function (User $user, AddContext $ctx, array $v = []) use ($lists): ?TaskList {
             // Picked by hand in Add details: that list, and a list this person can't add to is an error, not a silent
             // fallback (it would land somewhere they didn't choose).
+            // "+" in the list picker: a new list by that name ("new:Garage"), made on Add (save), named on the card.
+            if (str_starts_with((string) ($v['list_id'] ?? ''), 'new:')) {
+                return null;
+            }
             if (filled($v['list_id'] ?? null)) {
                 $list = TaskData::list($user, $v['list_id']);
 
@@ -64,12 +68,23 @@ class TasksServiceProvider extends ServiceProvider
                 // Add details (the Classic task editor's fields): a note, the list by hand, and the add-ons' controls
                 // (Repeat, Important) through the same task.editor.fields slot, saved through task.saved like Classic.
                 'note' => ['type' => 'note', 'details' => true],
-                'list_id' => ['type' => 'choice', 'details' => true, 'choices' => fn (User $user) => $lists($user)->get(['id', 'name'])
-                    ->map(fn ($l) => ['value' => (string) $l->id, 'label' => $l->name])->all()],
+                // The list picker (design D-T1): each list's tile (icon, colour), when it last changed (the list or any
+                // to-do in it), whose it is ('only you' = private: null) and how many to-dos are open. One query.
+                'list_id' => ['type' => 'choice', 'details' => true, 'choices' => fn (User $user) => $lists($user)
+                    ->with(['shareSetting', 'creator:id,name'])
+                    ->withCount(['tasks as open' => fn ($q) => $q->where('done', false)])
+                    ->withMax('tasks', 'updated_at')
+                    ->get(['id', 'name', 'icon', 'color', 'created_by', 'updated_at'])
+                    ->map(fn ($l) => [
+                        'value' => (string) $l->id, 'label' => $l->name, 'icon' => $l->icon, 'color' => $l->color,
+                        'updated_at' => max((string) $l->updated_at, (string) $l->tasks_max_updated_at),
+                        'by' => $l->visibility() === 'private' ? null : strtok((string) $l->creator?->name, ' '),
+                        'open' => $l->open,
+                    ])->all()],
                 // badges: back on the card, the add-ons' row badges (the Important star) mark its header (design H2g).
                 'ext' => ['type' => 'slot', 'slot' => 'task.editor.fields', 'badges' => 'task.row.badges', 'details' => true],
             ],
-            'target' => fn (User $user, AddContext $ctx, array $v) => $pickList($user, $ctx, $v)?->name ?? Translations::get('nav.tasks'),
+            'target' => fn (User $user, AddContext $ctx, array $v) => self::newList($v) ?? $pickList($user, $ctx, $v)?->name ?? Translations::get('nav.tasks'),
             'save' => function (User $user, array $v, AddContext $ctx) use ($pickList) {
                 // note: same rule as the Classic store (TasksController::storeTask).
                 $data = Validator::validate(['title' => $v['title'] ?? null, 'due_date' => $v['due'] ?? null, 'note' => $v['note'] ?? null, 'ext' => $v['ext'] ?? []], [
@@ -77,7 +92,9 @@ class TasksServiceProvider extends ServiceProvider
                     'ext' => ['array', 'max:10'], // flat values only, as a Classic onPatch sends them
                     'ext.*' => ['nullable', fn ($attr, $value, $fail) => is_scalar($value) || $fail("{$attr} must be a single value.")],
                 ]);
-                $list = $pickList($user, $ctx, $v) ?? TaskList::createFor($user, ['name' => Translations::get('nav.tasks')]);
+                $new = Validator::validate(['name' => self::newList($v)], ['name' => ['nullable', 'string', 'max:255']])['name'];
+                $list = ($new ? TaskList::createFor($user, ['name' => $new]) : $pickList($user, $ctx, $v))
+                    ?? TaskList::createFor($user, ['name' => Translations::get('nav.tasks')]);
                 // The add-ons' values ({important: true, recurrence: 'weekly'}) go to task.saved as the request, exactly as
                 // the Classic editor's onPatch sends them; each add-on validates its own (a 4th star is refused there).
                 $task = TaskData::addTask($user, $list, array_diff_key($data, ['ext' => 1]) + ['assigned_to' => $ctx->memberId($v['who'] ?? null)], $data['ext']);
@@ -271,5 +288,13 @@ class TasksServiceProvider extends ServiceProvider
                 Route::patch('/tasks/{task}', [TasksController::class, 'updateTask'])->name('tasks.update');
                 Route::delete('/tasks/{task}', [TasksController::class, 'destroyTask'])->name('tasks.destroy');
             });
+    }
+
+    // The name of a list made in the list picker ("new:Garage" → "Garage"), else null.
+    private static function newList(array $v): ?string
+    {
+        $id = (string) ($v['list_id'] ?? '');
+
+        return str_starts_with($id, 'new:') && trim(substr($id, 4)) !== '' ? trim(substr($id, 4)) : null;
     }
 }

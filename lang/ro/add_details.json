@@ -20,5 +20,19 @@
     "f_category": "Categorie",
     "f_repeat": "Repetă",
     "f_who": "Cine",
-    "f_due": "Termen"
+    "f_due": "Termen",
+    "only_you": "doar tu",
+    "n_open_one": ":count deschisă",
+    "n_open_other": ":count de deschise",
+    "search_lists_one": "Caută în :count listă",
+    "search_lists_other": "Caută în :count de liste",
+    "suggested": "Sugerată",
+    "recently_updated": "Actualizate recent",
+    "matching": "Potriviri",
+    "recent": "Recente",
+    "a_z": "A–Z",
+    "new_list": "Listă nouă",
+    "create_list": "Fă o listă numită „:name”",
+    "n_open_few": ":count deschise",
+    "search_lists_few": "Caută în :count liste"
 }

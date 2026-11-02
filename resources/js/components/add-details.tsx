@@ -4,22 +4,26 @@ import { SettingsGroup, SettingsRow } from '@/components/settings-ui';
 import { ymd } from '@/lib/calendar';
 import { appLocale, relativeWord, useT } from '@/lib/i18n';
 import { Slot } from '@/lib/modules';
+import { listColor, listIcon } from '@/lib/tasks';
 import {
     Banknote,
     CalendarDays,
     Car,
+    Check,
     ChevronRight,
     Coins,
     Hash,
     ListChecks,
+    Plus,
     Repeat2,
+    Search,
     SlidersHorizontal,
     Store,
     Tag,
     Trash2,
     type LucideIcon,
 } from 'lucide-react';
-import { useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 // "Add details" on a Just say it card (design XMkKm H2f): that card's full form inside the same Add sheet, the fields
 // Classic has for the kind. It only edits the card (nothing is saved until "Add"); Done / the back pill / a swipe down
@@ -48,7 +52,17 @@ type Props = {
     setRows: (name: string, rows: { name: string; quantity: string }[]) => void;
     onDone: () => void;
     onLeaveOut: () => void;
+    // The list picker open over the form (design D-T1): its field name, kept by the sheet so its header reads
+    // "‹ To-do · LIST" and its back pill closes the picker, not the form.
+    picking: string | null;
+    setPicking: (name: string | null) => void;
 };
+
+type Choice = NonNullable<Detail['choices']>[number];
+// A list made with "+" in the picker isn't among the server's choices yet ("new:Garage"): add it, named, so the row
+// and the card show it.
+export const withNew = (options: Choice[], value: string): Choice[] =>
+    value.startsWith('new:') && !options.some((o) => o.value === value) ? [{ value, label: value.slice(4) }, ...options] : options;
 
 // Every row in the group carries an icon, as in the design (Repeat, Important, List).
 const ROW_ICON: Record<string, LucideIcon> = {
@@ -63,7 +77,7 @@ const ROW_ICON: Record<string, LucideIcon> = {
     year: CalendarDays,
 };
 const chip = (on: boolean) =>
-    `rounded-full border px-3 py-2 text-[15px] font-semibold transition-colors ${on ? 'bg-primary border-primary text-primary-foreground' : 'border-border text-primary'}`;
+    `flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors ${on ? 'bg-primary border-primary text-primary-foreground' : 'border-border bg-surface-card text-primary'}`;
 
 export function AddDetails({
     item,
@@ -79,6 +93,8 @@ export function AddDetails({
     setRows,
     onDone,
     onLeaveOut,
+    picking,
+    setPicking,
 }: Props) {
     const t = useT();
     const details = item.details ?? {};
@@ -105,6 +121,21 @@ export function AddDetails({
     const hasQty = single && (item as { quantity?: string[] }).quantity?.includes(headlineName);
     const slots = Object.keys(details).filter((n) => details[n].type === 'slot');
     const choices = Object.keys(details).filter((n) => details[n].type === 'choice');
+
+    if (picking && details[picking]) {
+        return (
+            <ListPicker
+                options={withNew(details[picking].choices ?? [], value(picking))}
+                // Nothing picked yet: the list it lands in now (the guess) is the ticked one.
+                value={value(picking) || (details[picking].choices ?? []).find((o) => o.label === item.target)?.value || ''}
+                suggested={item.target}
+                onPick={(v) => {
+                    setValue(picking, v);
+                    setPicking(null);
+                }}
+            />
+        );
+    }
 
     return (
         <div className="flex flex-col gap-5">
@@ -176,15 +207,28 @@ export function AddDetails({
                         />
                     ))}
                     {choices.map((n) => {
-                        const options = details[n].choices ?? [];
+                        const options = withNew(details[n].choices ?? [], value(n));
                         // Unpicked: the option meaning "nothing picked" (value ''), else where the card lands now (its
                         // target, for a list), else the first.
                         const current =
                             value(n) || (options.find((o) => o.value === '') ?? options.find((o) => o.label === item.target) ?? options[0])?.value;
                         const Icon = ROW_ICON[n] ?? SlidersHorizontal;
+                        // Lists (choices that carry when they last changed) open the picker in the sheet.
+                        if (options.some((o) => o.updated_at)) {
+                            return (
+                                <SettingsRow
+                                    key={n}
+                                    icon={Icon}
+                                    title={label(n)}
+                                    value={<span className="text-primary font-semibold">{options.find((o) => o.value === current)?.label}</span>}
+                                    onClick={() => setPicking(n)}
+                                    className="order-2"
+                                />
+                            );
+                        }
                         return (
                             // A native select laid over the row: the phone's own picker opens on a tap (the wheel on iOS).
-                            <div key={n} className="relative border-b last:border-b-0">
+                            <div key={n} className="relative order-2 border-b last:border-b-0">
                                 <SettingsRow
                                     icon={Icon}
                                     title={label(n)}
@@ -229,25 +273,21 @@ export function AddDetails({
     );
 }
 
-// "When": the read date first (as the design's "Sat, Oct 24"), Today, Tomorrow, then Pick… (the native date picker).
-// Tapping the picked chip again clears it.
+// "When" (design vsI6t): Today, Tomorrow, then a date chip: the picked day with a calendar ("Sat, Oct 24"), or Pick…
+// before one is picked; it opens the native date picker. Tapping a picked Today / Tomorrow again clears it.
 function When({ value, onChange }: { value: string; onChange: (v: string) => void }) {
     const t = useT();
     const pick = useRef<HTMLInputElement>(null);
     const day = value.slice(0, 10);
     const today = ymd(new Date());
     const tomorrow = ymd(new Date(Date.now() + 864e5));
+    const other = !!day && day !== today && day !== tomorrow;
     const set = (d: string) => onChange(day === d ? '' : d);
     return (
         <section className="flex flex-col gap-2">
-            <h3 className="text-primary text-base font-semibold">{t('add_details.when')}</h3>
+            <h3 className="text-primary text-sm font-semibold">{t('add_details.when')}</h3>
             {/* One row that swipes sideways when it can't fit (a long date or a long "Tomorrow" in another language). */}
             <div data-scroll-x className="-mx-5 flex gap-1.5 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:px-0 [&>*]:shrink-0">
-                {day && day !== today && day !== tomorrow && (
-                    <button type="button" onClick={() => onChange('')} className={chip(true)}>
-                        {new Date(`${day}T00:00:00`).toLocaleDateString(appLocale(), { weekday: 'short', month: 'short', day: 'numeric' })}
-                    </button>
-                )}
                 <button type="button" onClick={() => set(today)} className={chip(day === today)}>
                     {relativeWord(0, 'day')}
                 </button>
@@ -258,9 +298,12 @@ function When({ value, onChange }: { value: string; onChange: (v: string) => voi
                     <button
                         type="button"
                         onClick={() => (pick.current?.showPicker ? pick.current.showPicker() : pick.current?.focus())}
-                        className={chip(false)}
+                        className={chip(other)}
                     >
-                        {t('add_details.pick')}
+                        <CalendarDays className={`size-4 ${other ? 'text-accent-strong' : ''}`} />
+                        {other
+                            ? new Date(`${day}T00:00:00`).toLocaleDateString(appLocale(), { weekday: 'short', month: 'short', day: 'numeric' })
+                            : t('add_details.pick')}
                     </button>
                     {/* Under the chip, not display:none: showPicker() needs a rendered input. */}
                     <input
@@ -285,13 +328,13 @@ function Who({ members, value, onChange }: { members: Member[]; value: string; o
     const isPicked = (m: Member) => !!v && (m.name.toLowerCase() === v || m.name.split(' ')[0].toLowerCase() === v);
     return (
         <section className="flex flex-col gap-2">
-            <h3 className="text-primary text-base font-semibold">{t('add_details.who_on_it')}</h3>
+            <h3 className="text-primary text-sm font-semibold">{t('add_details.who_on_it')}</h3>
             <div className="flex flex-wrap items-center gap-2">
                 <button
                     type="button"
                     onClick={() => onChange('')}
                     aria-pressed={!v}
-                    className={`min-h-10 rounded-full px-4 text-base font-semibold ${!v ? 'bg-primary text-primary-foreground' : 'bg-surface text-primary'}`}
+                    className={`min-h-9 rounded-full px-4 text-sm font-semibold ${!v ? 'bg-primary text-primary-foreground' : 'bg-surface text-primary'}`}
                 >
                     {t('add_details.anyone')}
                 </button>
@@ -304,7 +347,7 @@ function Who({ members, value, onChange }: { members: Member[]; value: string; o
                         aria-label={m.name}
                         className={`rounded-full ${isPicked(m) ? 'ring-primary ring-offset-background ring-2 ring-offset-2' : ''}`}
                     >
-                        <MemberAvatar userId={m.id} name={m.name} className="size-10 text-base" />
+                        <MemberAvatar userId={m.id} name={m.name} className="size-9 text-sm" />
                     </button>
                 ))}
             </div>
@@ -339,5 +382,139 @@ function InputRow({
                 className="text-primary placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-right text-[17px] font-semibold outline-none"
             />
         </label>
+    );
+}
+
+// "When it last changed", as the design writes it: 12 min ago, 2 h ago, Yesterday, Mon, Oct 14.
+function ago(iso: string): string {
+    const then = new Date(iso);
+    const mins = Math.max(0, Math.floor((Date.now() - then.getTime()) / 60000));
+    const rtf = new Intl.RelativeTimeFormat(appLocale(), { numeric: 'auto', style: 'short' });
+    if (mins < 60) return rtf.format(-mins, 'minute');
+    if (mins < 24 * 60) return rtf.format(-Math.floor(mins / 60), 'hour');
+    const days = Math.round((new Date(ymd(new Date())).getTime() - new Date(ymd(then)).getTime()) / 864e5);
+    if (days === 1) return relativeWord(-1, 'day');
+    if (days < 7) return then.toLocaleDateString(appLocale(), { weekday: 'short' });
+    return then.toLocaleDateString(appLocale(), { month: 'short', day: 'numeric' });
+}
+
+// The list picker (design D-T1, n70n03), pushed into the same sheet: search on top (+ makes a list named as typed),
+// our guess under SUGGESTED, then every list by last change (A–Z one tap away). A tap picks and goes straight back.
+function ListPicker({
+    options,
+    value,
+    suggested,
+    onPick,
+}: {
+    options: Choice[];
+    value: string;
+    suggested: string | null;
+    onPick: (v: string) => void;
+}) {
+    const t = useT();
+    const [q, setQ] = useState('');
+    const [az, setAz] = useState(false);
+    const search = useRef<HTMLInputElement>(null);
+    const query = q.trim().toLowerCase();
+    const guess = query ? undefined : options.find((o) => o.label === suggested);
+    const rest = useMemo(
+        () =>
+            options
+                .filter((o) => (query ? o.label.toLowerCase().includes(query) : o !== guess))
+                .sort((a, b) => (az ? a.label.localeCompare(b.label, appLocale()) : (b.updated_at ?? '').localeCompare(a.updated_at ?? ''))),
+        [options, query, guess, az],
+    );
+    const row = (o: Choice) => {
+        const Icon = listIcon(o.icon ?? 'list');
+        const meta = [
+            o.updated_at && ago(o.updated_at),
+            o.updated_at && (o.by || t('add_details.only_you')),
+            o.open !== undefined && t('add_details.n_open', { count: o.open }),
+        ].filter(Boolean);
+        return (
+            <button
+                key={o.value}
+                type="button"
+                onClick={() => onPick(o.value)}
+                className="flex w-full items-center gap-3 border-b px-3.5 py-2.5 text-left last:border-b-0"
+            >
+                <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${listColor(o.color ?? 'green')}`}>
+                    <Icon className="size-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                    <span className="text-primary block truncate text-base font-semibold">{o.label}</span>
+                    {meta.length > 0 && <span className="text-muted-foreground block truncate text-sm">{meta.join(' · ')}</span>}
+                </span>
+                {o.value === value && (
+                    <span className="bg-primary text-primary-foreground flex size-6 shrink-0 items-center justify-center rounded-full">
+                        <Check className="size-4" />
+                    </span>
+                )}
+            </button>
+        );
+    };
+    const eyebrow = 'text-muted-foreground font-mono text-xs font-semibold tracking-[0.12em] uppercase';
+    return (
+        <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-2">
+                <label className="bg-surface flex min-h-12 min-w-0 flex-1 items-center gap-2.5 rounded-2xl px-4">
+                    <Search className="text-muted-foreground size-5 shrink-0" />
+                    <input
+                        ref={search}
+                        value={q}
+                        onChange={(e) => setQ(e.target.value)}
+                        placeholder={t('add_details.search_lists', { count: options.length })}
+                        // 16px so iOS doesn't zoom in on focus.
+                        className="text-primary placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-base outline-none"
+                    />
+                </label>
+                {/* + names a new list after what's typed; with nothing typed it puts the cursor in the box first. */}
+                <button
+                    type="button"
+                    aria-label={t('add_details.new_list')}
+                    onClick={() => (q.trim() ? onPick(`new:${q.trim()}`) : search.current?.focus())}
+                    className="bg-surface text-primary flex size-12 shrink-0 items-center justify-center rounded-full"
+                >
+                    <Plus className="size-6" />
+                </button>
+            </div>
+            {guess && (
+                <section className="flex flex-col gap-2">
+                    <h3 className={eyebrow}>{t('add_details.suggested')}</h3>
+                    <div className="bg-surface-card overflow-hidden rounded-2xl border">{row(guess)}</div>
+                </section>
+            )}
+            <section className="flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-3">
+                    <h3 className={eyebrow}>{t(query ? 'add_details.matching' : 'add_details.recently_updated')}</h3>
+                    <div className="bg-surface flex rounded-full p-0.5 text-sm font-semibold">
+                        {[false, true].map((v) => (
+                            <button
+                                key={String(v)}
+                                type="button"
+                                aria-pressed={az === v}
+                                onClick={() => setAz(v)}
+                                className={`rounded-full px-3 py-1 ${az === v ? 'bg-surface-card text-primary shadow-sm' : 'text-muted-foreground'}`}
+                            >
+                                {t(v ? 'add_details.a_z' : 'add_details.recent')}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+                {rest.length > 0 ? (
+                    <div className="bg-surface-card overflow-hidden rounded-2xl border">{rest.map(row)}</div>
+                ) : (
+                    // Nothing matches: + (or this) makes the list.
+                    <button
+                        type="button"
+                        onClick={() => onPick(`new:${q.trim()}`)}
+                        className="text-primary flex items-center gap-2 px-1 py-2 text-base font-semibold"
+                    >
+                        <Plus className="size-5" />
+                        {t('add_details.create_list', { name: q.trim() })}
+                    </button>
+                )}
+            </section>
+        </div>
     );
 }

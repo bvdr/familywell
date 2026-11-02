@@ -63,7 +63,8 @@ export function SettingsGroup({ label, aside, children }: { label?: string; asid
                     {aside && <span className="text-muted-foreground text-sm">{aside}</span>}
                 </div>
             )}
-            <div role="group" aria-label={label} className="bg-surface-card divide-border overflow-hidden rounded-[22px] border">
+            {/* flex-col: a row may set its place with order-* (Add details puts the add-ons' rows before List). */}
+            <div role="group" aria-label={label} className="bg-surface-card divide-border flex flex-col overflow-hidden rounded-[22px] border">
                 {children}
             </div>
         </section>
