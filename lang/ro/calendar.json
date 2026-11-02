@@ -113,5 +113,13 @@
     "zoom_twoweeks": "2s",
     "zoom_month": "Lună",
     "things_few": ":count lucruri",
-    "in_months_few": "în :count luni"
+    "in_months_few": "în :count luni",
+    "done_label": "Gata",
+    "day_progress": "Ziua :n din :total · mai sunt :left",
+    "whole_family": "Toată familia",
+    "who": "Cine",
+    "nobody": "Nimeni încă",
+    "left_one": "mai e :count",
+    "left_other": "mai sunt :count",
+    "left_few": "mai sunt :count"
 }

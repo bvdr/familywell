@@ -109,5 +109,12 @@
     "view_timeline": "Tijdlijn",
     "zoom_week": "1w",
     "zoom_twoweeks": "2w",
-    "zoom_month": "Maand"
+    "zoom_month": "Maand",
+    "done_label": "Voorbij",
+    "day_progress": "Dag :n van :total · nog :left",
+    "whole_family": "Hele gezin",
+    "who": "Wie",
+    "nobody": "Nog niemand",
+    "left_one": "nog :count",
+    "left_other": "nog :count"
 }

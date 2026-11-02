@@ -109,5 +109,12 @@
     "view_timeline": "Chronologie",
     "zoom_week": "1 sem",
     "zoom_twoweeks": "2 sem",
-    "zoom_month": "Mois"
+    "zoom_month": "Mois",
+    "done_label": "Terminé",
+    "day_progress": "Jour :n sur :total · encore :left",
+    "whole_family": "Toute la famille",
+    "who": "Qui",
+    "nobody": "Personne encore",
+    "left_one": ":count restante",
+    "left_other": ":count restantes"
 }

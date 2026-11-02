@@ -109,5 +109,12 @@
     "view_timeline": "Linha do tempo",
     "zoom_week": "1s",
     "zoom_twoweeks": "2s",
-    "zoom_month": "Mês"
+    "zoom_month": "Mês",
+    "done_label": "Terminado",
+    "day_progress": "Dia :n de :total · faltam :left",
+    "whole_family": "Família toda",
+    "who": "Quem",
+    "nobody": "Ninguém ainda",
+    "left_one": "falta :count",
+    "left_other": "faltam :count"
 }

@@ -109,5 +109,12 @@
     "view_timeline": "Zeitleiste",
     "zoom_week": "1W",
     "zoom_twoweeks": "2W",
-    "zoom_month": "Monat"
+    "zoom_month": "Monat",
+    "done_label": "Vorbei",
+    "day_progress": "Tag :n von :total · noch :left",
+    "whole_family": "Ganze Familie",
+    "who": "Wer",
+    "nobody": "Noch niemand",
+    "left_one": ":count offen",
+    "left_other": ":count offen"
 }

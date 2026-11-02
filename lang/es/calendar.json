@@ -109,5 +109,12 @@
     "view_timeline": "Cronología",
     "zoom_week": "1s",
     "zoom_twoweeks": "2s",
-    "zoom_month": "Mes"
+    "zoom_month": "Mes",
+    "done_label": "Terminado",
+    "day_progress": "Día :n de :total · faltan :left",
+    "whole_family": "Toda la familia",
+    "who": "Quién",
+    "nobody": "Nadie aún",
+    "left_one": "queda :count",
+    "left_other": "quedan :count"
 }

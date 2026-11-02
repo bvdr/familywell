@@ -109,5 +109,12 @@
     "view_timeline": "Tidslinje",
     "zoom_week": "1u",
     "zoom_twoweeks": "2u",
-    "zoom_month": "Måned"
+    "zoom_month": "Måned",
+    "done_label": "Ferdig",
+    "day_progress": "Dag :n av :total · :left igjen",
+    "whole_family": "Hele familien",
+    "who": "Hvem",
+    "nobody": "Ingen ennå",
+    "left_one": ":count igjen",
+    "left_other": ":count igjen"
 }

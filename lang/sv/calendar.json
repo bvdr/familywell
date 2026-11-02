@@ -109,5 +109,12 @@
     "view_timeline": "Tidslinje",
     "zoom_week": "1v",
     "zoom_twoweeks": "2v",
-    "zoom_month": "Månad"
+    "zoom_month": "Månad",
+    "done_label": "Klart",
+    "day_progress": "Dag :n av :total · :left kvar",
+    "whole_family": "Hela familjen",
+    "who": "Vem",
+    "nobody": "Ingen än",
+    "left_one": ":count kvar",
+    "left_other": ":count kvar"
 }

@@ -109,5 +109,12 @@
     "view_timeline": "Timeline",
     "zoom_week": "1w",
     "zoom_twoweeks": "2w",
-    "zoom_month": "Month"
+    "zoom_month": "Month",
+    "done_label": "Done",
+    "day_progress": "Day :n of :total · :left to go",
+    "whole_family": "Whole family",
+    "who": "Who",
+    "nobody": "No one yet",
+    "left_one": ":count left",
+    "left_other": ":count left"
 }
