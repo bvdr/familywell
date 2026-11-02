@@ -19,5 +19,17 @@
     "f_category": "Kategori",
     "f_repeat": "Gjenta",
     "f_who": "Hvem",
-    "f_due": "Frist"
+    "f_due": "Frist",
+    "only_you": "bare deg",
+    "n_open_one": ":count åpen",
+    "n_open_other": ":count åpne",
+    "search_lists_one": "Søk i :count liste",
+    "search_lists_other": "Søk i :count lister",
+    "suggested": "Forslag",
+    "recently_updated": "Nylig oppdatert",
+    "matching": "Treff",
+    "recent": "Nyeste",
+    "a_z": "A–Å",
+    "new_list": "Ny liste",
+    "create_list": "Lag listen «:name»"
 }

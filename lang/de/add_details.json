@@ -19,5 +19,17 @@
     "f_category": "Kategorie",
     "f_repeat": "Wiederholen",
     "f_who": "Wer",
-    "f_due": "Fällig am"
+    "f_due": "Fällig am",
+    "only_you": "nur du",
+    "n_open_one": ":count offen",
+    "n_open_other": ":count offen",
+    "search_lists_one": "In :count Liste suchen",
+    "search_lists_other": "In :count Listen suchen",
+    "suggested": "Vorschlag",
+    "recently_updated": "Zuletzt geändert",
+    "matching": "Treffer",
+    "recent": "Neueste",
+    "a_z": "A–Z",
+    "new_list": "Neue Liste",
+    "create_list": "Liste „:name“ anlegen"
 }

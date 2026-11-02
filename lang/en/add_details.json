@@ -19,5 +19,17 @@
     "f_category": "Category",
     "f_repeat": "Repeat",
     "f_who": "Who",
-    "f_due": "Due date"
+    "f_due": "Due date",
+    "only_you": "only you",
+    "n_open_one": ":count open",
+    "n_open_other": ":count open",
+    "search_lists_one": "Search :count list",
+    "search_lists_other": "Search :count lists",
+    "suggested": "Suggested",
+    "recently_updated": "Recently updated",
+    "matching": "Matching",
+    "recent": "Recent",
+    "a_z": "A–Z",
+    "new_list": "New list",
+    "create_list": "Make a list called “:name”"
 }

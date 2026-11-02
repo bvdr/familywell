@@ -19,5 +19,17 @@
     "f_category": "Categoria",
     "f_repeat": "Repetir",
     "f_who": "Quem",
-    "f_due": "Prazo"
+    "f_due": "Prazo",
+    "only_you": "só você",
+    "n_open_one": ":count aberta",
+    "n_open_other": ":count abertas",
+    "search_lists_one": "Pesquisar em :count lista",
+    "search_lists_other": "Pesquisar em :count listas",
+    "suggested": "Sugerida",
+    "recently_updated": "Atualizadas recentemente",
+    "matching": "Resultados",
+    "recent": "Recentes",
+    "a_z": "A–Z",
+    "new_list": "Nova lista",
+    "create_list": "Criar a lista “:name”"
 }

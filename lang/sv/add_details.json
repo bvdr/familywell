@@ -19,5 +19,17 @@
     "f_category": "Kategori",
     "f_repeat": "Upprepa",
     "f_who": "Vem",
-    "f_due": "Förfallodatum"
+    "f_due": "Förfallodatum",
+    "only_you": "bara du",
+    "n_open_one": ":count öppen",
+    "n_open_other": ":count öppna",
+    "search_lists_one": "Sök i :count lista",
+    "search_lists_other": "Sök i :count listor",
+    "suggested": "Förslag",
+    "recently_updated": "Senast ändrade",
+    "matching": "Träffar",
+    "recent": "Senaste",
+    "a_z": "A–Ö",
+    "new_list": "Ny lista",
+    "create_list": "Skapa listan ”:name”"
 }
