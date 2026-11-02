@@ -6,13 +6,10 @@ use Laravel\Passport\Token;
 
 use function Pest\Laravel\actingAs;
 
+require_once __DIR__.'/helpers.php';
+
 // admin.familywell.org signs in as a first-party client flagged platform_admin, with exactly
 // `board:identity admin`, and only platform admins get a code. Helpers in tests/Pest.php.
-
-function admin(): User
-{
-    return User::factory()->create(['is_platform_admin' => true]);
-}
 
 it('lets a platform admin in with no consent screen and an admin token', function () {
     $client = adminClient();

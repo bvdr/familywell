@@ -11,6 +11,10 @@ use NotificationChannels\WebPush\PushSubscription;
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
 
+require_once __DIR__.'/helpers.php';
+
+require_once __DIR__.'/../Billing/helpers.php';
+
 // Pushes to the admin PWA (App\Support\AdminPush). adminApiToken() is in AdminApiTest, stripeOn() /
 // paidFamily() / signedWebhook() in Billing/PaywallTest.
 

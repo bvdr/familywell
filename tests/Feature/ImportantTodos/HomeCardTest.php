@@ -13,6 +13,8 @@ use Modules\Tasks\TaskList;
 
 use function Pest\Laravel\actingAs;
 
+require_once __DIR__.'/helpers.php';
+
 // Home's "Your important" card (important_todos module): yours vs the family's, urgency order, up to 3 per person
 // (also enforced when starring), lifted out of the agenda, list visibility, and the Home layout section.
 
@@ -47,14 +49,6 @@ function homeList(User $by, string $name = 'Household'): TaskList
     actingAs($by)->post('/m/tasks/lists', ['name' => $name]);
 
     return TaskList::withoutGlobalScopes()->where('name', $name)->firstOrFail();
-}
-
-function card(User $as): ?array
-{
-    actingAs($as);
-    request()->attributes->remove('important_todos.card'); // per-request memo: a fresh "request" per call
-
-    return DashboardData::build()['widgets']['important_todos'] ?? null;
 }
 
 beforeEach(fn () => Carbon::setTestNow('2026-10-21 10:00')); // a Wednesday
