@@ -3,6 +3,7 @@
 use App\Models\Family;
 use App\Models\User;
 use App\Support\Modules\ModuleRegistry;
+use App\Support\Tenancy\CurrentFamily;
 use Modules\Shopping\ShoppingList;
 
 use function Pest\Laravel\actingAs;
@@ -20,7 +21,7 @@ it('sends a live line for each enabled module and none for the others', function
     }
 
     actingAs($user)->withSession(['active_family_id' => $family->id]);
-    App\Support\Tenancy\CurrentFamily::set($family->id);
+    CurrentFamily::set($family->id);
     $list = ShoppingList::createFor($user, ['name' => 'Groceries']);
     $list->items()->createMany(collect([['name' => 'Milk'], ['name' => 'Eggs'], ['name' => 'Bread', 'bought' => true]])->map(fn ($i) => $i + ['created_by' => $user->id])->all());
 

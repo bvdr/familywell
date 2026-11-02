@@ -1,4 +1,5 @@
-import { AddDetails, withNew } from '@/components/add-details';
+import { AddDetails } from '@/components/add-details';
+import { withNew } from '@/components/list-picker';
 import { useVoice, voiceSupported } from '@/hooks/use-voice';
 import { useT } from '@/lib/i18n';
 import { Slot } from '@/lib/modules';
@@ -60,7 +61,16 @@ type Item = {
 // open to-dos, for the list picker.
 export type Detail = {
     type: string;
-    choices?: { value: string; label: string; icon?: string; color?: string; updated_at?: string; by?: string | null; open?: number }[];
+    choices?: {
+        value: string;
+        label: string;
+        icon?: string;
+        color?: string;
+        updated_at?: string;
+        by?: string | null;
+        open?: number;
+        visibility?: string;
+    }[];
     slot?: string;
     badges?: string;
 };
@@ -466,22 +476,34 @@ export function JustSayIt({
     // Strings, not t, in the deps: useT returns a new function every render, which would loop through the parent.
     const subLabel = t('add_details.things', { count: items.length });
     const kindName = detailed ? t(`add.kind_${detailed.kind}`) : '';
-    // Picking a list: "‹ To-do · LIST", back closes the picker only.
+    // The list picker's screens, each one back: "‹ To-do · LIST", "‹ Lists · NEW LIST", "‹ New list · ICON".
+    const [pickField, pickStage] = (picking ?? '').split('/');
+    const pickLabel = !picking
+        ? ''
+        : pickStage === 'new'
+          ? t('add_details.lists')
+          : pickStage === 'icons'
+            ? t('add_details.new_list')
+            : kindName.charAt(0).toLocaleUpperCase() + kindName.slice(1);
     const subAside = detailed
         ? picking
-            ? fieldLabel(picking, detailed)
+            ? pickStage === 'new'
+                ? t('add_details.new_list')
+                : pickStage === 'icons'
+                  ? t('add_details.icon')
+                  : fieldLabel(pickField, detailed)
             : t('add_details.position', { kind: kindName, i: detailedIndex + 1, n: items.length })
         : '';
-    const pickLabel = kindName.charAt(0).toLocaleUpperCase() + kindName.slice(1);
     useEffect(() => {
+        const back = pickStage === 'icons' ? `${pickField}/new` : pickStage === 'new' ? pickField : null;
         onSubView?.(
             detailed
                 ? picking
-                    ? { back: () => setPicking(null), label: pickLabel, aside: subAside }
+                    ? { back: () => setPicking(back), label: pickLabel, aside: subAside }
                     : { back: () => setDetailsFor(null), label: subLabel, aside: subAside }
                 : null,
         );
-    }, [detailed, picking, pickLabel, subLabel, subAside, onSubView]);
+    }, [detailed, picking, pickField, pickStage, pickLabel, subLabel, subAside, onSubView]);
 
     if (detailed) {
         return (

@@ -391,8 +391,28 @@ it('makes a new list from the task sheet and moves the task into it', function (
     actingAs($users[0])->post("/m/tasks/lists/{$list->id}/tasks", ['title' => 'Pay the insurance']);
     $task = Task::withoutGlobalScopes()->first();
 
-    actingAs($users[0])->patch("/m/tasks/tasks/{$task->id}", ['title' => 'Pay the insurance', 'new_list' => 'Bills'])->assertRedirect();
+    actingAs($users[0])->patch("/m/tasks/tasks/{$task->id}", ['title' => 'Pay the insurance', 'new_list' => ['name' => 'Bills', 'icon' => 'bank', 'color' => 'yellow', 'visibility' => 'private']])->assertRedirect();
 
     $bills = TaskList::withoutGlobalScopes()->where('name', 'Bills')->firstOrFail();
-    expect($task->fresh()->task_list_id)->toBe($bills->id)->and($bills->created_by)->toBe($users[0]->id);
+    expect($task->fresh()->task_list_id)->toBe($bills->id)->and($bills->created_by)->toBe($users[0]->id)
+        ->and($bills->only(['icon', 'color']))->toBe(['icon' => 'bank', 'color' => 'yellow'])->and($bills->visibility())->toBe('private');
+});
+
+it('guesses a second list from tasks like this one', function () {
+    [, $users] = tasksFamily();
+    foreach (['Household', 'Kitchen refresh', 'Garden'] as $name) {
+        actingAs($users[0])->post('/m/tasks/lists', ['name' => $name]);
+    }
+    [$house, $kitchen, $garden] = TaskList::withoutGlobalScopes()->orderBy('id')->get()->all();
+    actingAs($users[0])->post("/m/tasks/lists/{$kitchen->id}/tasks", ['title' => 'Buy a water filter']);
+    actingAs($users[0])->post("/m/tasks/lists/{$kitchen->id}/tasks", ['title' => 'Fit the filter']);
+    actingAs($users[0])->post("/m/tasks/lists/{$garden->id}/tasks", ['title' => 'Rake leaves']);
+
+    expect(TaskList::similarTo($users[0], 'Replace furnace filter', $house->id))->toBe(['value' => (string) $kitchen->id, 'word' => 'filter', 'count' => 2])
+        ->and(TaskList::similarTo($users[0], 'Call mom', $house->id))->toBeNull();
+
+    actingAs($users[0])->post("/m/tasks/lists/{$house->id}/tasks", ['title' => 'Replace furnace filter']);
+    $task = Task::withoutGlobalScopes()->where('title', 'Replace furnace filter')->first();
+    actingAs($users[0])->getJson("/m/tasks/tasks/{$task->id}/lists")->assertOk()
+        ->assertJsonCount(3, 'choices')->assertJsonPath('guess.value', (string) $kitchen->id);
 });

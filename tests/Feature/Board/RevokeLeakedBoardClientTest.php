@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\OAuthClient;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 // The data migration that revokes the board client whose secret leaked (incident 2026-10-10).
@@ -15,7 +16,7 @@ it('revokes the leaked client, its tokens and refresh tokens, and drops its auth
     mcpKeys();
     $client = boardClient();
     $client->forceFill(['id' => LEAKED_BOARD_CLIENT])->saveQuietly();
-    $user = App\Models\User::factory()->create();
+    $user = User::factory()->create();
     $now = now();
     DB::table('oauth_access_tokens')->insert(['id' => 'tok1', 'user_id' => $user->id, 'client_id' => LEAKED_BOARD_CLIENT, 'revoked' => false, 'created_at' => $now, 'updated_at' => $now]);
     DB::table('oauth_refresh_tokens')->insert(['id' => 'ref1', 'access_token_id' => 'tok1', 'revoked' => false]);

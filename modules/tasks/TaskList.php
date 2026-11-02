@@ -61,7 +61,38 @@ class TaskList extends Model
                 'updated_at' => (string) ($l->touched_at ?? $l->updated_at),
                 'by' => $l->visibility() === 'private' ? null : strtok((string) $l->creator?->name, ' '),
                 'open' => $l->open,
+                // The current list's line: "current · 5 open · Family" (family / invited / private).
+                'visibility' => $l->visibility(),
             ])->all();
+    }
+
+    /**
+     * The picker's second suggestion (design j6QDy4 T3b, "has 2 'filter' tasks"): the list, other than $exceptId,
+     * with the most tasks sharing a word with $title. Words of 4+ letters; one query; null when nothing fits.
+     *
+     * @return array{value: string, word: string, count: int}|null
+     */
+    public static function similarTo(User $user, string $title, ?int $exceptId): ?array
+    {
+        $words = collect(preg_split('/[^\p{L}\p{N}]+/u', mb_strtolower($title)))->filter(fn ($w) => mb_strlen($w) >= 4)->unique()->take(6)->values();
+        if ($words->isEmpty()) {
+            return null;
+        }
+        $lists = static::visibleTo($user->id)->whereNull('archived_at')->when($exceptId, fn ($q) => $q->whereKeyNot($exceptId))->pluck('id');
+        $tasks = Task::whereIn('task_list_id', $lists)
+            ->where(fn ($q) => $words->each(fn ($w) => $q->orWhereRaw('lower(title) like ?', ['%'.$w.'%'])))
+            ->limit(200)->get(['task_list_id', 'title']);
+        $best = null;
+        foreach ($tasks->groupBy('task_list_id') as $id => $rows) {
+            foreach ($words as $w) {
+                $n = $rows->filter(fn ($t) => str_contains(mb_strtolower($t->title), $w))->count();
+                if ($n && (! $best || $n > $best['count'])) {
+                    $best = ['value' => (string) $id, 'word' => $w, 'count' => $n];
+                }
+            }
+        }
+
+        return $best;
     }
 
     /**

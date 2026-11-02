@@ -9,7 +9,6 @@ use Modules\Notifications\PushAlert;
 use Modules\Tasks\Task;
 use Modules\Vehicles\Vehicle;
 use Modules\Vehicles\VehicleExpenseLink;
-use Modules\Vehicles\VehicleMaintenanceHistory;
 use Modules\Vehicles\VehicleMaintenanceSchedule;
 use Modules\Vehicles\VehicleMileageLog;
 use Modules\Vehicles\VehicleSetting;

@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Family;
+use App\Support\Tenancy\BelongsToFamily;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
@@ -20,10 +21,13 @@ it('hides rows from other families and auto-fills family_id', function () {
     $famA = Family::factory()->create();
     $famB = Family::factory()->create();
 
-    $model = new class extends Model {
+    $model = new class extends Model
+    {
         protected $table = 'notes';
+
         protected $guarded = [];
-        use \App\Support\Tenancy\BelongsToFamily;
+
+        use BelongsToFamily;
     };
 
     CurrentFamily::set($famA->id);

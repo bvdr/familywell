@@ -1,9 +1,19 @@
 import { router, usePage } from '@inertiajs/react';
 import { ListChecks, Trash2 } from 'lucide-react';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 
-import { ListPicker, When, withNew } from '@/components/add-details';
-import { type Detail } from '@/components/add-just-say-it';
+import { When } from '@/components/add-details';
+import {
+    type Choice,
+    emptyDraft,
+    IconBrowser,
+    ListPicker,
+    type NewListDraft,
+    NewListForm,
+    newListValue,
+    parseNew,
+    withNew,
+} from '@/components/list-picker';
 import { MemberAvatar } from '@/components/member-avatar';
 import { SettingsGroup, SettingsRow } from '@/components/settings-ui';
 import { type SubTask, type TaskMember } from '@/components/tasks/task-tree';
@@ -12,7 +22,6 @@ import { appLocale, useT } from '@/lib/i18n';
 import { Slot } from '@/lib/modules';
 import { type SharedData } from '@/types';
 
-type Choice = NonNullable<Detail['choices']>[number];
 // A screen pushed into the sheet (T4 Repeat, the list picker): the header's right words and what to draw. render gets
 // the sheet's draft, so a picker shows and changes what Save will send.
 type View = { aside: ReactNode; render: (ctx: { task: Draft; onPatch: (p: Record<string, unknown>) => void }) => ReactNode };
@@ -27,7 +36,6 @@ export function TaskSheet({
     members,
     family,
     list,
-    lists,
     taskUrl,
     onClose,
     onDelete,
@@ -36,7 +44,6 @@ export function TaskSheet({
     members: TaskMember[];
     family: TaskMember[];
     list: { id: number; name: string };
-    lists: Choice[] | undefined;
     taskUrl: (id: number) => string;
     onClose: () => void;
     onDelete: () => void;
@@ -46,8 +53,10 @@ export function TaskSheet({
     // The add-ons' fields changed in the sheet ({important: true, recurrence: 'quarterly'}), sent with Save.
     const [ext, setExt] = useState<Record<string, unknown>>({});
     const [listId, setListId] = useState(String(list.id));
-    // A pushed screen: an add-on's (Repeat) or the list picker.
-    const [view, setView] = useState<View | 'list' | null>(null);
+    // A pushed screen: an add-on's (Repeat), or the list picker's: pick (T3b), New list (T3c), every icon (T3d).
+    const [view, setView] = useState<View | 'list' | 'new' | 'icons' | null>(null);
+    const [lists, setLists] = useState<{ choices: Choice[]; guess: { value: string; word: string; count: number } | null } | null>(null);
+    const [newList, setNewList] = useState<NewListDraft>(() => emptyDraft());
     const me = usePage<SharedData>().props.auth.user.id;
     const [error, setError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
@@ -58,14 +67,18 @@ export function TaskSheet({
     const set = (p: Partial<SubTask>) => setDraft((d) => ({ ...d, ...p }));
     const creator = family.find((m) => m.id === task.createdBy);
     const made = task.createdAt ? new Date(`${task.createdAt}T00:00:00`).toLocaleDateString(appLocale(), { month: 'short', day: 'numeric' }) : null;
-    const options = withNew(lists ?? [{ value: String(list.id), label: list.name }], listId);
+    const options = withNew(lists?.choices ?? [{ value: String(list.id), label: list.name }], listId);
     const listName = options.find((o) => o.value === listId)?.label ?? list.name;
 
-    const openLists = () => {
-        if (!lists) router.reload({ only: ['lists'] }); // the picker's rows load on first open
-        setView('list');
-    };
-    const save = () => {
+    // The picker's rows and its guess from similar tasks load when it first opens (one small request).
+    useEffect(() => {
+        if (view !== 'list' || lists) return;
+        void fetch(route('tasks.tasks.lists', task.id), { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((d) => d && setLists(d));
+    }, [view, lists, task.id]);
+
+    const save = (moveTo: string = listId) => {
         if (!draft.title.trim()) return;
         setSaving(true);
         setError(null);
@@ -76,8 +89,13 @@ export function TaskSheet({
                 note: (draft.note ?? '').trim() || null,
                 due_date: draft.dueDate || null,
                 assigned_to: draft.assignedTo,
-                // A list made with + in the picker ("new:Garage") is made on Save; an existing one is moved to.
-                ...(listId.startsWith('new:') ? { new_list: listId.slice(4) } : listId !== String(list.id) ? { task_list_id: Number(listId) } : {}),
+                // A list made in the picker is made on Save (its name, icon, colour, who sees it); an existing one is
+                // moved to.
+                ...(parseNew(moveTo)
+                    ? { new_list: JSON.parse(moveTo.slice(4)) }
+                    : moveTo !== String(list.id)
+                      ? { task_list_id: Number(moveTo) }
+                      : {}),
                 ...(ext as Record<string, string | number | boolean | null>),
             },
             {
@@ -90,24 +108,27 @@ export function TaskSheet({
         );
     };
 
-    const picking = view === 'list';
+    // Each list screen steps back one: icons → New list → Lists → the task.
+    const listStage = typeof view === 'string' ? view : null;
+    const back = { list: [null, t('tasks.edit_task')], new: ['list', t('add_details.lists')], icons: ['new', t('add_details.new_list')] } as const;
+    const aside = { list: t('add_details.f_list_id'), new: t('add_details.new_list'), icons: t('add_details.icon') };
     return (
         <ResponsiveModal
             open
             onOpenChange={(v) => !v && onClose()}
             title={t('tasks.edit_task')}
-            onBack={view ? () => setView(null) : undefined}
-            backLabel={t('tasks.edit_task')}
+            onBack={view ? () => setView(listStage ? back[listStage][0] : null) : undefined}
+            backLabel={listStage ? back[listStage][1] : t('tasks.edit_task')}
             aside={
                 view && (
                     <span className="text-muted-foreground font-mono text-xs font-semibold tracking-[0.12em] uppercase">
-                        {picking ? t('add_details.f_list_id') : view.aside}
+                        {listStage ? aside[listStage] : (view as View).aside}
                     </span>
                 )
             }
             footer={
                 view ? (
-                    !picking && (
+                    !listStage && (
                         <button
                             type="button"
                             onClick={() => setView(null)}
@@ -119,7 +140,7 @@ export function TaskSheet({
                 ) : (
                     <button
                         type="button"
-                        onClick={save}
+                        onClick={() => save()}
                         disabled={saving || !draft.title.trim()}
                         className="bg-accent-strong text-accent-strong-foreground border-primary w-full rounded-full border-2 py-3.5 text-lg font-bold disabled:opacity-60"
                     >
@@ -128,18 +149,43 @@ export function TaskSheet({
                 )
             }
         >
-            {picking ? (
+            {listStage === 'list' ? (
                 <ListPicker
                     options={options}
                     value={listId}
-                    suggested={list.name}
+                    guess={lists?.guess}
                     onPick={(v) => {
                         setListId(v);
                         setView(null);
                     }}
+                    onNew={(name) => {
+                        setNewList(parseNew(listId) ?? emptyDraft(name));
+                        setView('new');
+                    }}
+                    newSub={t('add_details.new_list_sub_task')}
+                />
+            ) : listStage === 'new' ? (
+                // One button makes the list and moves the task in: it saves the whole sheet.
+                <NewListForm
+                    draft={newList}
+                    setDraft={setNewList}
+                    note={t('add_details.moves_here', { title: draft.title, from: list.name })}
+                    submitLabel={t('add_details.create_and_move')}
+                    onMoreIcons={() => setView('icons')}
+                    busy={saving}
+                    onSubmit={() => save(newListValue(newList))}
+                />
+            ) : listStage === 'icons' ? (
+                <IconBrowser
+                    name={newList.name}
+                    value={newList.icon}
+                    onPick={(icon) => {
+                        setNewList({ ...newList, icon, iconPicked: true });
+                        setView('new');
+                    }}
                 />
             ) : view ? (
-                view.render({ task: draft, onPatch: patch })
+                (view as View).render({ task: draft, onPatch: patch })
             ) : (
                 <div className="flex flex-col gap-5">
                     <div className="bg-surface flex flex-col gap-1 rounded-2xl px-4 py-3">
@@ -192,7 +238,7 @@ export function TaskSheet({
                             icon={ListChecks}
                             title={t('add_details.f_list_id')}
                             value={<span className="text-primary font-semibold">{listName}</span>}
-                            onClick={openLists}
+                            onClick={() => setView('list')}
                             className="order-2"
                         />
                     </SettingsGroup>
