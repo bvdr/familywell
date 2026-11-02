@@ -2,7 +2,7 @@ import { router, usePage } from '@inertiajs/react';
 import { ListChecks, Trash2 } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 
-import { ListPicker, When } from '@/components/add-details';
+import { ListPicker, When, withNew } from '@/components/add-details';
 import { type Detail } from '@/components/add-just-say-it';
 import { MemberAvatar } from '@/components/member-avatar';
 import { SettingsGroup, SettingsRow } from '@/components/settings-ui';
@@ -58,7 +58,7 @@ export function TaskSheet({
     const set = (p: Partial<SubTask>) => setDraft((d) => ({ ...d, ...p }));
     const creator = family.find((m) => m.id === task.createdBy);
     const made = task.createdAt ? new Date(`${task.createdAt}T00:00:00`).toLocaleDateString(appLocale(), { month: 'short', day: 'numeric' }) : null;
-    const options = lists ?? [{ value: String(list.id), label: list.name }];
+    const options = withNew(lists ?? [{ value: String(list.id), label: list.name }], listId);
     const listName = options.find((o) => o.value === listId)?.label ?? list.name;
 
     const openLists = () => {
@@ -76,7 +76,8 @@ export function TaskSheet({
                 note: (draft.note ?? '').trim() || null,
                 due_date: draft.dueDate || null,
                 assigned_to: draft.assignedTo,
-                ...(listId !== String(list.id) ? { task_list_id: Number(listId) } : {}),
+                // A list made with + in the picker ("new:Garage") is made on Save; an existing one is moved to.
+                ...(listId.startsWith('new:') ? { new_list: listId.slice(4) } : listId !== String(list.id) ? { task_list_id: Number(listId) } : {}),
                 ...(ext as Record<string, string | number | boolean | null>),
             },
             {
@@ -132,8 +133,6 @@ export function TaskSheet({
                     options={options}
                     value={listId}
                     suggested={list.name}
-                    // Moving a task needs a list that exists: lists are made on the Tasks page.
-                    canCreate={false}
                     onPick={(v) => {
                         setListId(v);
                         setView(null);

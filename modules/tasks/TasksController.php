@@ -366,7 +366,13 @@ class TasksController extends Controller
                 'done' => ['sometimes', 'boolean'],
                 // The task sheet's List row (T3): move it, with its sub-tasks, to another list this person can edit.
                 'task_list_id' => ['sometimes', 'integer'],
+                // "+" in that picker: a new list by this name (yours, family-visible like any new list), the task moves in.
+                'new_list' => ['sometimes', 'string', 'max:255'],
             ]);
+            if (filled(trim($data['new_list'] ?? '')) && $task->parent_id === null) {
+                $data['task_list_id'] = TaskList::createFor($actor, ['name' => trim($data['new_list'])])->id;
+            }
+            unset($data['new_list']);
             if (isset($data['task_list_id']) && $data['task_list_id'] !== $task->task_list_id) {
                 $to = TaskList::find($data['task_list_id']);
                 abort_unless($to && ! $to->archived_at && $task->parent_id === null && $this->access->roleFor($actor, $to) !== null, 403);
