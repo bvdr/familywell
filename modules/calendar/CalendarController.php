@@ -74,16 +74,16 @@ class CalendarController extends Controller
     }
 
     /**
-     * The things that take a day (design 04b: trips, fasts, holidays, birthdays; not a 3pm dentist, not to-dos) in
-     * the 9 months after $to, soonest first: the timeline's NEXT row and desktop's "Further out". A repeating event
-     * counts once (its next time).
+     * The things that take a day (design 04b: trips, fasts, holidays, school breaks: all-day events; not a 3pm dentist,
+     * not to-dos, not every contact's birthday) in the 9 months after $to, soonest first: the timeline's NEXT row and
+     * desktop's "Further out". A repeating event counts once (its next time). Same rule as takesADay in the browser.
      */
     private function bigThingsAfter(string $to, int $userId): array
     {
         $from = CarbonImmutable::parse($to)->addDay();
         $seen = [];
 
-        return collect(CalendarSources::collect($from->toDateString(), $from->addMonths(9)->toDateString(), $userId, ['calendar', 'birthdays']))
+        return collect(CalendarSources::collect($from->toDateString(), $from->addMonths(9)->toDateString(), $userId, ['calendar']))
             ->filter(fn ($i) => $i['startTime'] === null)
             ->filter(function ($i) use (&$seen) {
                 $key = "{$i['source']}-{$i['kind']}-{$i['id']}";
