@@ -119,6 +119,7 @@ export function TaskSheet({
             title={t('tasks.edit_task')}
             onBack={view ? () => setView(listStage ? back[listStage][0] : null) : undefined}
             backLabel={listStage ? back[listStage][1] : t('tasks.edit_task')}
+            viewKey={listStage ?? (view ? 'addon' : 'form')}
             aside={
                 view && (
                     <span className="text-muted-foreground font-mono text-xs font-semibold tracking-[0.12em] uppercase">

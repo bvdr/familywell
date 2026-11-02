@@ -214,9 +214,12 @@ export function NewListForm({
         <div className="flex flex-col gap-4">
             <div className="flex items-center gap-3">
                 <Tile icon={draft.icon} color={draft.color} size="size-14" />
+                {/* No autoFocus: the keyboard coming up on arrival covered the form, and a drag down to reach the
+                    field stepped the sheet back a screen. autoComplete off: iOS offered "AutoFill Contact" here. */}
                 <input
-                    autoFocus
                     value={draft.name}
+                    autoComplete="off"
+                    name="list-name"
                     onChange={(e) => setName(e.target.value)}
                     placeholder={t('tasks.list_name_placeholder')}
                     aria-label={t('tasks.list_name_placeholder')}

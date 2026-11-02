@@ -68,6 +68,7 @@ export function ResponsiveModal({
     onBack,
     backLabel,
     aside,
+    viewKey,
 }: {
     open: boolean;
     onOpenChange: (v: boolean) => void;
@@ -84,6 +85,9 @@ export function ResponsiveModal({
     onBack?: () => void;
     backLabel?: string; // the pill's words ("3 things"); "Back" when omitted
     aside?: React.ReactNode; // right of the back pill (e.g. "TO-DO · 3 OF 3")
+    // Which screen the sheet shows, when it pushes several (a picker, then New list...): a new one starts at the top.
+    // Defaults to backLabel, which already differs per screen in most sheets.
+    viewKey?: string;
 }) {
     const t = useT();
     const isMobile = useIsMobile();
@@ -94,6 +98,14 @@ export function ResponsiveModal({
     // Content scrolled under the pinned header fades out instead of being cut at a hard line (TopFade).
     const [scrolled, setScrolled] = React.useState(false);
     const onBodyScroll = (e: React.UIEvent<HTMLDivElement>) => setScrolled(e.currentTarget.scrollTop > 2);
+    // A pushed screen opens at its top, not where the previous one was scrolled to: the task form scrolled down to
+    // its List row opened New list scrolled down too, its name field above the fold (2026-11-03, iPhone).
+    const bodyRef = React.useRef<HTMLDivElement>(null);
+    const screen = viewKey ?? backLabel ?? (onBack ? 'sub' : 'main');
+    React.useLayoutEffect(() => {
+        bodyRef.current?.scrollTo({ top: 0 });
+        setScrolled(false);
+    }, [screen]);
     React.useEffect(() => {
         if (open) setSnap(1);
     }, [open]);
@@ -199,6 +211,7 @@ export function ResponsiveModal({
                             // room to scroll up to centre, clear of the keyboard + its accessory bar. It's empty
                             // scroll space behind the keyboard, so it's invisible; collapses to a hair when closed.
                             style={{ paddingBottom: keyboardOffset ? '55vh' : '0.5rem' }}
+                            ref={bodyRef}
                             onFocus={onBodyFocus}
                             onScroll={onBodyScroll}
                         >
@@ -247,7 +260,7 @@ export function ResponsiveModal({
                     )}
                 </DialogHeader>
                 <div className="relative flex min-h-0 flex-1 flex-col">
-                    <div className="min-h-0 flex-1 overflow-y-auto" onScroll={onBodyScroll}>
+                    <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto" onScroll={onBodyScroll}>
                         {children}
                     </div>
                     <TopFade on={scrolled} />
