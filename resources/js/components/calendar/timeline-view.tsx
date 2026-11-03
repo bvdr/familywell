@@ -10,6 +10,7 @@ import { itemTone } from '@/lib/tasks';
 
 const ROW_PX = 40;
 const LINGER = 14; // days a thing that ended keeps its row after it scrolls off the left edge
+const AHEAD = 42; // days before it starts that a coming thing gets its row (6 weeks past the screen's right edge)
 const CHUNK = 42; // days fetched per edge load: more than the widest zoom (35), so one load always fills a screen
 const ACROSS = { week: 7, twoweeks: 14, month: 35 } as const; // days across the screen per zoom
 const fmt = (d: string, o: Intl.DateTimeFormatOptions) => parseDay(d).toLocaleDateString(appLocale(), o);
@@ -161,7 +162,7 @@ export const TimelineView = forwardRef<
             const to = days[Math.max(first, last)];
             setShown((w) => (w && w[0] === from && w[1] === to ? w : [from, to]));
             if (first < across) void loadLeft();
-            if (last > days.length - 1 - across) void loadRight();
+            if (last > days.length - 1 - across - AHEAD) void loadRight(); // AHEAD: the coming rows need those days
         };
         const onScroll = () => {
             frame ||= requestAnimationFrame(measure);
@@ -204,9 +205,9 @@ export const TimelineView = forwardRef<
 
     // One row per thing touching the screen, oldest first; a repeating one keeps every time it falls here on its row.
     const rows = timelineRows(all.filter(takesADay), span.from, span.to).filter(
-        // A thing that ended stays until you've scrolled LINGER days past its end (feedback 2026-11-03: rows vanishing
-        // the moment their bar left the screen felt like losing them).
-        ({ bars }) => !win || bars.some((b) => b.offset <= win[1] && b.offset + b.span - 1 >= win[0] - LINGER),
+        // A thing that ended stays until you've scrolled LINGER days past its end, and a coming one shows up AHEAD days
+        // before it reaches the screen (feedback 2026-11-03: rows popping in and out exactly at the edges felt jumpy).
+        ({ bars }) => !win || bars.some((b) => b.offset <= win[1] + AHEAD && b.offset + b.span - 1 >= win[0] - LINGER),
     );
     // NEXT: the first thing coming after the screen that isn't already a row (loaded, or the server's months ahead).
     const next = [...all.filter(takesADay), ...ahead]
@@ -233,6 +234,7 @@ export const TimelineView = forwardRef<
 
     const meta = (i: CalItem) => {
         const total = daysBetween(i.start, i.end) + 1;
+        if (i.start > lastDay) return t('calendar.starts_on', { day: fmt(i.start, { month: 'short', day: 'numeric' }) });
         if (i.end < firstDay) return t('calendar.ended_on', { day: fmt(i.end, { month: 'short', day: 'numeric' }) });
         if (i.start < firstDay) {
             return i.end <= lastDay
@@ -324,11 +326,16 @@ export const TimelineView = forwardRef<
                             const barR = (offset + len) * dayW;
                             const inside = Math.min(barR, viewR) - Math.max(barL, viewL) >= 0.45 * boxW;
                             const right = viewR - barR >= barL - viewL;
+                            const after = i.start > lastDay;
+                            // Beside a bar off either edge, the label holds on at that edge.
+                            const edgeL = Math.max(barR, viewL);
+                            const edgeR = Math.min(barL, viewR);
                             const label = (
                                 <span className="flex min-w-0 items-baseline gap-1.5">
                                     {before && <ArrowLeft className="size-3.5 shrink-0 self-center" />}
                                     <span className="truncate font-semibold">{i.title}</span>
                                     <span className="text-muted-foreground shrink-0 font-mono text-[11px]">{meta(i)}</span>
+                                    {after && <ArrowRight className="size-3.5 shrink-0 self-center" />}
                                     {fresh.has(key) && (
                                         <span className="bg-primary text-accent-strong shrink-0 rounded px-1 font-mono text-[10px] font-bold">
                                             {t('calendar.new_badge')}
@@ -364,10 +371,10 @@ export const TimelineView = forwardRef<
                                             className="text-primary absolute top-0 bottom-0 flex items-center px-2 text-sm whitespace-nowrap"
                                             style={
                                                 right
-                                                    ? { left: px(Math.max(barR, viewL)), maxWidth: px(Math.max(120, viewR - Math.max(barR, viewL))) }
+                                                    ? { left: px(edgeL), maxWidth: px(Math.max(120, viewR - edgeL)) }
                                                     : {
-                                                          right: px(trackW - barL),
-                                                          maxWidth: px(Math.max(120, barL - viewL)),
+                                                          right: px(trackW - edgeR),
+                                                          maxWidth: px(Math.max(120, edgeR - viewL)),
                                                           justifyContent: 'flex-end',
                                                       }
                                             }
@@ -391,7 +398,7 @@ export const TimelineView = forwardRef<
                             <button
                                 type="button"
                                 onClick={goToday}
-                                className={`bg-accent-strong text-accent-strong-foreground inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-sm font-bold ${today < firstDay ? '' : 'order-last'}`}
+                                className={`bg-accent-strong text-accent-strong-foreground inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-sm font-bold ${today < firstDay ? '' : 'order-last ml-auto'}`}
                             >
                                 {today < firstDay && <ArrowLeft className="size-4" />}
                                 {t('calendar.today')}

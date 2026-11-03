@@ -120,5 +120,6 @@
     "add_event": "Afspraak toevoegen",
     "whos_going": "Wie gaat er mee",
     "add_contact": "Contact toevoegen",
-    "ended_on": "eindigde :day"
+    "ended_on": "eindigde :day",
+    "starts_on": "begint :day"
 }
