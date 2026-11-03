@@ -8,6 +8,12 @@
                 "title": "Shops get their logo",
                 "text": "Type Kaufland, mega or Lidl Romania and the shop shows its own logo. Local shops get their first letter.",
                 "href": "/m/shopping/shops"
+            },
+            {
+                "module": "shopping",
+                "title": "Shopping settings, your way",
+                "text": "Pick a default shop, turn off duplicate warnings, and let bought items clear themselves after a week. Drag your shops into the order you visit them.",
+                "href": "/m/shopping/settings"
             }
         ],
         "fixes": []

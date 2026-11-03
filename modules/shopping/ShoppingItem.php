@@ -24,7 +24,7 @@ class ShoppingItem extends Model
 
     protected $fillable = ['shopping_list_id', 'name', 'quantity', 'department', 'bought', 'note', 'assigned_to', 'due_date', 'position', 'created_by', 'store', 'alt_stores'];
 
-    protected $casts = ['bought' => 'boolean', 'alt_stores' => 'array', 'due_date' => 'date'];
+    protected $casts = ['bought' => 'boolean', 'alt_stores' => 'array', 'due_date' => 'date', 'bought_at' => 'datetime'];
 
     // Mirror the column default so a freshly created model (no refresh) already reads 'other',
     // which the AisleGuesser `created` hook relies on.
@@ -35,6 +35,12 @@ class ShoppingItem extends Model
         // Every create path (quick-add, shop add, voice/paste bulk, inventory replenish, list copy)
         // funnels through here, so items left in "Other" get an AI aisle guess after the response.
         static::created(fn (self $item) => AisleGuesser::queue($item));
+        // When it was ticked (every path: web, MCP, offline replay): auto-clean and a shop's "Last trip" read it.
+        static::saving(function (self $item) {
+            if ($item->isDirty('bought')) {
+                $item->bought_at = $item->bought ? now() : null;
+            }
+        });
     }
 
     /**

@@ -25,6 +25,7 @@ const PAGES: [string, string][] = [
     ['shopping', '/m/shopping'],
     ['shopping-shops', '/m/shopping/shops'],
     ['shopping-settings', '/m/shopping/settings'],
+    ['shopping-your-shops', '/m/shopping/settings/shops'],
     ['spending', '/m/spending'],
     ['spending-settings', '/m/spending/settings'],
     ['tasks', '/m/tasks'],
