@@ -65,5 +65,9 @@
     "icons_money": "Dinheiro",
     "icons_garden": "Jardim",
     "icons_fun": "Lazer",
-    "fits": "Para “:name”"
+    "fits": "Para “:name”",
+    "date": "Data",
+    "set_date": "Definir data",
+    "clear_date": "Limpar data",
+    "no_date": "Sem data"
 }

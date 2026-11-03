@@ -2,7 +2,7 @@ import { router, usePage } from '@inertiajs/react';
 import { ListChecks, Trash2 } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
 
-import { When } from '@/components/add-details';
+import { DatePick, When } from '@/components/add-details';
 import {
     type Choice,
     emptyDraft,
@@ -24,7 +24,8 @@ import { type SharedData } from '@/types';
 
 // A screen pushed into the sheet (T4 Repeat, the list picker): the header's right words and what to draw. render gets
 // the sheet's draft, so a picker shows and changes what Save will send.
-type View = { aside: ReactNode; render: (ctx: { task: Draft; onPatch: (p: Record<string, unknown>) => void }) => ReactNode };
+// done: the footer button's words (Set date); Done when left out.
+type View = { aside: ReactNode; done?: string; render: (ctx: { task: Draft; onPatch: (p: Record<string, unknown>) => void }) => ReactNode };
 type Draft = SubTask & Record<string, unknown>;
 
 // The task sheet (design j6QDy4 T3): the same form as Add details, for a task that exists. Title and note in one box,
@@ -139,7 +140,7 @@ export function TaskSheet({
                             onClick={() => setView(null)}
                             className="bg-accent-strong text-accent-strong-foreground border-primary w-full rounded-full border-2 py-3.5 text-lg font-bold"
                         >
-                            {t('common.done')}
+                            {(view as View).done ?? t('common.done')}
                         </button>
                     )
                 ) : (
@@ -211,7 +212,18 @@ export function TaskSheet({
                         />
                     </div>
 
-                    <When value={draft.dueDate ?? ''} onChange={(v) => set({ dueDate: v || null })} />
+                    {/* The date chip pushes the calendar into this sheet (T3e), like Repeat and List. */}
+                    <When
+                        value={draft.dueDate ?? ''}
+                        onChange={(v) => set({ dueDate: v || null })}
+                        onOpen={() =>
+                            setView({
+                                aside: t('add_details.date'),
+                                done: t('add_details.set_date'),
+                                render: ({ task }) => <DatePick value={task.dueDate ?? ''} onChange={(v) => set({ dueDate: v || null })} />,
+                            })
+                        }
+                    />
 
                     {/* Who's on it (T3): faces with names, "You" for you; swipes sideways when they don't fit. */}
                     <section className="flex flex-col gap-2">

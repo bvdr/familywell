@@ -2,7 +2,7 @@ import type { Detail, Member } from '@/components/add-just-say-it';
 import { emptyDraft, IconBrowser, ListPicker, NewListForm, newListValue, parseNew, withNew, type NewListDraft } from '@/components/list-picker';
 import { MemberAvatar } from '@/components/member-avatar';
 import { SettingsGroup, SettingsRow } from '@/components/settings-ui';
-import { ymd } from '@/lib/calendar';
+import { addDays, daysBetween, parseDay, weeksOf, ymd } from '@/lib/calendar';
 import { appLocale, relativeWord, useT } from '@/lib/i18n';
 import { Slot } from '@/lib/modules';
 
@@ -10,6 +10,7 @@ import {
     Banknote,
     CalendarDays,
     Car,
+    ChevronLeft,
     ChevronRight,
     Coins,
     Hash,
@@ -302,7 +303,8 @@ export function AddDetails({
 
 // "When" (design vsI6t): Today, Tomorrow, then a date chip: the picked day with a calendar ("Sat, Oct 24"), or Pick…
 // before one is picked; it opens the native date picker. Tapping a picked Today / Tomorrow again clears it.
-export function When({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+// onOpen: the date chip pushes the in-sheet calendar (DatePick, T3e) instead of the phone's native picker.
+export function When({ value, onChange, onOpen }: { value: string; onChange: (v: string) => void; onOpen?: () => void }) {
     const t = useT();
     const pick = useRef<HTMLInputElement>(null);
     const day = value.slice(0, 10);
@@ -324,7 +326,7 @@ export function When({ value, onChange }: { value: string; onChange: (v: string)
                 <span className="relative">
                     <button
                         type="button"
-                        onClick={() => (pick.current?.showPicker ? pick.current.showPicker() : pick.current?.focus())}
+                        onClick={() => (onOpen ? onOpen() : pick.current?.showPicker ? pick.current.showPicker() : pick.current?.focus())}
                         className={chip(other)}
                     >
                         <CalendarDays className={`size-4 ${other ? 'text-accent-strong' : ''}`} />
@@ -345,6 +347,93 @@ export function When({ value, onChange }: { value: string; onChange: (v: string)
                 </span>
             </div>
         </section>
+    );
+}
+
+// T3e: a task's date as a month calendar pushed into the sheet. The picked day on top ("Monday, Oct 19 · In 4 days")
+// with Clear date; today ringed, the picked day inked. Weeks start Monday, as the design draws them.
+// ponytail: no dots for the family's other tasks yet; add when the sheet has their dates to hand.
+export function DatePick({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+    const t = useT();
+    const today = ymd(new Date());
+    const [month, setMonth] = useState(() => (value || today).slice(0, 7) + '-01');
+    const first = parseDay(month);
+    const last = ymd(new Date(first.getFullYear(), first.getMonth() + 1, 0));
+    const from = addDays(month, -((first.getDay() + 6) % 7));
+    const to = addDays(last, 6 - ((parseDay(last).getDay() + 6) % 7));
+    const weeks = weeksOf(from, to);
+    const step = (n: number) => setMonth(ymd(new Date(first.getFullYear(), first.getMonth() + n, 1)));
+    const fmt = (d: string, o: Intl.DateTimeFormatOptions) => parseDay(d).toLocaleDateString(appLocale(), o);
+    return (
+        <div className="flex flex-col gap-4">
+            <div className="flex items-end justify-between gap-3">
+                <div className="min-w-0">
+                    <p className="font-heading text-primary text-2xl font-bold first-letter:uppercase">
+                        {value ? fmt(value, { weekday: 'long', month: 'short', day: 'numeric' }) : t('add_details.no_date')}
+                    </p>
+                    {value && <p className="text-muted-foreground text-sm">{relativeWord(daysBetween(today, value), 'day')}</p>}
+                </div>
+                {value && (
+                    <button type="button" onClick={() => onChange('')} className="text-primary shrink-0 text-sm font-semibold">
+                        {t('add_details.clear_date')}
+                    </button>
+                )}
+            </div>
+            <div className="bg-surface-card rounded-2xl border p-3">
+                <div className="mb-2 flex items-center justify-between">
+                    <span className="text-primary pl-1 text-lg font-bold first-letter:uppercase">
+                        {fmt(month, { month: 'long', year: 'numeric' })}
+                    </span>
+                    <span className="flex gap-1.5">
+                        {([-1, 1] as const).map((n) => (
+                            <button
+                                key={n}
+                                type="button"
+                                onClick={() => step(n)}
+                                aria-label={fmt(ymd(new Date(first.getFullYear(), first.getMonth() + n, 1)), { month: 'long', year: 'numeric' })}
+                                className="bg-surface text-primary flex size-9 items-center justify-center rounded-full"
+                            >
+                                {n < 0 ? <ChevronLeft className="size-5" /> : <ChevronRight className="size-5" />}
+                            </button>
+                        ))}
+                    </span>
+                </div>
+                <div className="grid grid-cols-7 text-center">
+                    {weeks[0].map((d) => (
+                        <span key={d} className="text-muted-foreground py-1 font-mono text-xs font-semibold uppercase">
+                            {fmt(d, { weekday: 'narrow' })}
+                        </span>
+                    ))}
+                    {weeks.flat().map((d) => {
+                        const on = d === value;
+                        return (
+                            <button
+                                key={d}
+                                type="button"
+                                onClick={() => onChange(d)}
+                                aria-pressed={on}
+                                aria-label={fmt(d, { weekday: 'long', month: 'long', day: 'numeric' })}
+                                className="flex justify-center py-1"
+                            >
+                                <span
+                                    className={`flex size-10 items-center justify-center rounded-full text-base tabular-nums ${
+                                        on
+                                            ? 'bg-primary text-primary-foreground font-bold'
+                                            : d === today
+                                              ? 'border-primary text-primary border-2 font-bold'
+                                              : d.slice(0, 7) === month.slice(0, 7)
+                                                ? 'text-primary'
+                                                : 'text-muted-foreground/50'
+                                    }`}
+                                >
+                                    {Number(d.slice(8))}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
     );
 }
 

@@ -65,5 +65,9 @@
     "icons_money": "Argent",
     "icons_garden": "Jardin",
     "icons_fun": "Loisirs",
-    "fits": "Pour « :name »"
+    "fits": "Pour « :name »",
+    "date": "Date",
+    "set_date": "Valider la date",
+    "clear_date": "Effacer la date",
+    "no_date": "Pas de date"
 }
