@@ -1,13 +1,13 @@
 import { Head, router } from '@inertiajs/react';
 import { ChevronLeft, ChevronRight, Share, SlidersHorizontal } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { AgendaView } from '@/components/calendar/agenda';
 import { EventSheet } from '@/components/calendar/event-sheet';
 import { FeedSheet, type Subscription } from '@/components/calendar/feed-sheet';
 import { FilterSheet } from '@/components/calendar/filter-sheet';
 import { MonthView } from '@/components/calendar/month-view';
-import { TimelineView } from '@/components/calendar/timeline-view';
+import { TimelineView, type TimelineHandle } from '@/components/calendar/timeline-view';
 import { HomeTopBar } from '@/components/home-top-bar';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
@@ -128,15 +128,22 @@ export default function CalendarIndex({
         );
     };
     const fmt = (d: string, o: Intl.DateTimeFormatOptions) => parseDay(d).toLocaleDateString(locale, o);
+    // The timeline scrolls freely: its title follows the days on screen, and the arrows scroll it a screen.
+    const strip = useRef<TimelineHandle>(null);
+    const [visible, setVisible] = useState(range);
 
     // Header: the month (agenda: of the week shown; "Week 43 · 6 things" under it), or the timeline's days.
     const title =
         view === 'timeline'
-            ? range.from.slice(0, 7) === range.to.slice(0, 7)
-                ? `${fmt(range.from, { month: 'short', day: 'numeric' })} – ${Number(range.to.slice(8))}`
-                : `${fmt(range.from, { month: 'short', day: 'numeric' })} – ${fmt(range.to, { month: 'short', day: 'numeric' })}`
+            ? (visible.from.slice(0, 4) !== today.slice(0, 4) ? `${visible.from.slice(0, 4)} · ` : '') +
+              (visible.from.slice(0, 7) === visible.to.slice(0, 7)
+                  ? `${fmt(visible.from, { month: 'short', day: 'numeric' })} – ${Number(visible.to.slice(8))}`
+                  : `${fmt(visible.from, { month: 'short', day: 'numeric' })} – ${fmt(visible.to, { month: 'short', day: 'numeric' })}`)
             : fmt(view === 'agenda' ? addDays(range.from, 3) : date, { month: 'long' });
-    const step = (dir: 1 | -1) => go({ date: view === 'month' ? shiftDate('month', 'month', date, dir) : addDays(range.from, 7 * dir) });
+    const step = (dir: 1 | -1) =>
+        view === 'timeline'
+            ? strip.current?.scrollPage(dir)
+            : go({ date: view === 'month' ? shiftDate('month', 'month', date, dir) : addDays(range.from, 7 * dir) });
     const round = 'bg-surface text-primary flex size-10 shrink-0 items-center justify-center rounded-full disabled:opacity-40';
     const seg = (on: boolean) =>
         `rounded-full px-3 py-1.5 text-sm font-semibold ${on ? 'bg-surface-card text-primary shadow-sm' : 'text-muted-foreground'}`;
@@ -190,21 +197,16 @@ export default function CalendarIndex({
                             </button>
                         </>
                     )}
-                    {/* Month steps with arrows everywhere; the other views on desktop (phones swipe). */}
+                    {/* Month steps with arrows everywhere; the other views on desktop (phones swipe; the timeline scrolls freely). */}
                     <div className={`gap-2 ${view === 'month' ? 'flex' : 'hidden md:flex'}`}>
-                        <button
-                            type="button"
-                            onClick={() => step(-1)}
-                            disabled={view === 'timeline' && range.from <= addDays(today, -14)}
-                            aria-label={t('calendar.previous')}
-                            className={round}
-                        >
+                        <button type="button" onClick={() => step(-1)} aria-label={t('calendar.previous')} className={round}>
                             <ChevronLeft className="size-5" />
                         </button>
                         <button type="button" onClick={() => step(1)} aria-label={t('calendar.next')} className={round}>
                             <ChevronRight className="size-5" />
                         </button>
-                        {!inRange(today) && (
+                        {/* The timeline has its own Today pill. */}
+                        {view !== 'timeline' && !inRange(today) && (
                             <button
                                 type="button"
                                 onClick={() => go({ date: today })}
@@ -246,16 +248,16 @@ export default function CalendarIndex({
                     <MonthView items={shown} range={range} date={date} today={today} selected={selected} onSelect={setSelected} onToggle={toggle} />
                 ) : (
                     <TimelineView
+                        ref={strip}
                         items={shown}
                         ahead={filterItems(ahead, filter)}
+                        filter={filter}
                         range={range}
+                        zoom={zoom}
                         today={today}
                         selected={selected}
                         onSelect={setSelected}
-                        onShift={(dir) => step(dir)}
-                        onJump={(d) => go({ date: d })}
-                        // Swiping back stops 2 weeks before today (04b).
-                        canGoBack={range.from > addDays(today, -14)}
+                        onVisible={(from, to) => setVisible({ from, to })}
                         onToggle={toggle}
                     />
                 )}
