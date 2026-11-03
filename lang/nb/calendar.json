@@ -120,5 +120,6 @@
     "add_event": "Legg til hendelse",
     "whos_going": "Hvem blir med",
     "add_contact": "Legg til en kontakt",
-    "ended_on": "sluttet :day"
+    "ended_on": "sluttet :day",
+    "starts_on": "starter :day"
 }

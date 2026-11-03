@@ -120,5 +120,6 @@
     "add_event": "Ajouter l’événement",
     "whos_going": "Qui vient",
     "add_contact": "Ajouter un contact",
-    "ended_on": "terminé :day"
+    "ended_on": "terminé :day",
+    "starts_on": "commence :day"
 }
