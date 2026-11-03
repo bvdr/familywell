@@ -1,5 +1,5 @@
-import { Head } from '@inertiajs/react';
-import { CalendarDays, MapPin } from 'lucide-react';
+import { Head, Link } from '@inertiajs/react';
+import { CalendarDays, ChevronLeft, MapPin } from 'lucide-react';
 
 import AppLayout from '@/layouts/app-layout';
 import { daysBetween } from '@/lib/calendar';
@@ -37,17 +37,26 @@ export default function ExternalEvent({ event, calendar }: { event: ExternalEven
                 { title: t('nav.calendar'), href: '/m/calendar' },
                 { title: event.title, href: '' },
             ]}
+            // Phones: the back pill, like an event of ours (C3).
+            mobileHeader={
+                <Link
+                    href="/m/calendar"
+                    prefetch
+                    className="bg-surface text-primary inline-flex min-h-10 items-center gap-1.5 rounded-full py-2 pr-4 pl-3 text-base font-semibold"
+                >
+                    <ChevronLeft className="size-5" />
+                    {t('nav.calendar')}
+                </Link>
+            }
         >
             <Head title={event.title} />
             <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 p-4">
-                <div className="flex items-start gap-3">
-                    <span className={`flex size-12 shrink-0 items-center justify-center rounded-xl ${itemTone(calendar.color)}`}>
-                        <CalendarDays className="size-6" />
+                <div className="flex flex-col gap-3">
+                    <span className={`flex size-14 items-center justify-center rounded-2xl ${itemTone(calendar.color)}`}>
+                        <CalendarDays className="size-7" />
                     </span>
-                    <div className="min-w-0 flex-1">
-                        <h1 className="font-heading text-primary text-2xl break-words">{event.title}</h1>
-                        <p className="text-muted-foreground text-sm">{when}</p>
-                    </div>
+                    <h1 className="font-heading text-primary text-4xl font-extrabold tracking-tight break-words">{event.title}</h1>
+                    <p className="text-muted-foreground">{when}</p>
                 </div>
 
                 {event.location && (

@@ -5,6 +5,7 @@ import { AppSidebarHeader } from '@/components/app-sidebar-header';
 import { InstallNudge } from '@/components/install-nudge';
 import { MobileTabBar } from '@/components/mobile-tab-bar';
 import { OnboardingTour } from '@/components/onboarding-tour';
+import { UpdateNudge } from '@/components/update-nudge';
 import { type BreadcrumbItem } from '@/types';
 
 export default function AppSidebarLayout({
@@ -46,6 +47,8 @@ export default function AppSidebarLayout({
             </AppContent>
             <MobileTabBar />
             <InstallNudge />
+            {/* A new deploy while the app is open: Refresh when it suits (design ntvzN). */}
+            <UpdateNudge />
             {/* Right after onboarding's "Show me around" (shared `tour` prop); renders nothing otherwise. */}
             <OnboardingTour />
         </AppShell>

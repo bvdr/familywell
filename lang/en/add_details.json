@@ -65,5 +65,11 @@
     "icons_money": "Money",
     "icons_garden": "Garden",
     "icons_fun": "Fun",
-    "fits": "Fits “:name”"
+    "fits": "Fits “:name”",
+    "date": "Date",
+    "set_date": "Set date",
+    "clear_date": "Clear date",
+    "no_date": "No date",
+    "time": "Time",
+    "any_time": "Any time"
 }

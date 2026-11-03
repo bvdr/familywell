@@ -65,5 +65,11 @@
     "icons_money": "Pengar",
     "icons_garden": "Trädgård",
     "icons_fun": "Nöje",
-    "fits": "Passar ”:name”"
+    "fits": "Passar ”:name”",
+    "date": "Datum",
+    "set_date": "Ange datum",
+    "clear_date": "Rensa datum",
+    "no_date": "Inget datum",
+    "time": "Tid",
+    "any_time": "När som helst"
 }

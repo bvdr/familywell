@@ -13,6 +13,7 @@ use App\Http\Controllers\PinnedModulesController;
 use App\Http\Controllers\PublicGuestController;
 use App\Http\Controllers\PublicShareController;
 use App\Http\Controllers\ShareController;
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\Family;
 use App\Models\User;
 use App\Support\Analytics;
@@ -26,6 +27,13 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+
+// The running build's asset version (what Inertia stamps on every page). The update nudge polls this and offers a
+// reload when it no longer matches the page's own: the service worker caches nothing (Octane serves fresh pages), so
+// a deploy never leaves a waiting worker to detect, unlike the design's SW flow (ntvzN, section D).
+Route::get('/app-version', fn (Request $request) => response()
+    ->json(['version' => app(HandleInertiaRequests::class)->version($request)])
+    ->header('Cache-Control', 'no-store'))->name('app.version');
 
 // Client-side crash reporter: the frontend ErrorBoundary POSTs here so account/device-specific
 // render errors (that never reach our test accounts) land in the server logs with the page + stack.

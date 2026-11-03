@@ -65,5 +65,11 @@
     "icons_money": "Dinero",
     "icons_garden": "Jardín",
     "icons_fun": "Ocio",
-    "fits": "Para «:name»"
+    "fits": "Para «:name»",
+    "date": "Fecha",
+    "set_date": "Poner fecha",
+    "clear_date": "Quitar fecha",
+    "no_date": "Sin fecha",
+    "time": "Hora",
+    "any_time": "Cualquier hora"
 }

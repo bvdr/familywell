@@ -1,16 +1,14 @@
 import { router } from '@inertiajs/react';
-import { Check, FolderKanban, Repeat } from 'lucide-react';
-import { useState } from 'react';
+import { Check, ChevronRight, Clock, Contact, FolderKanban, Plus, Repeat, Sun } from 'lucide-react';
+import { useRef, useState } from 'react';
 
 import { IconPicker } from '@/components/icon-picker';
+import { MemberAvatar } from '@/components/member-avatar';
 import { Picker } from '@/components/picker';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
+import { SettingsSwitch } from '@/components/settings-ui';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
-import { Textarea } from '@/components/ui/textarea';
 import { personKey, type CalPerson } from '@/lib/calendar';
-import { useT } from '@/lib/i18n';
+import { appLocale, useT } from '@/lib/i18n';
 import { LIST_COLOR_KEYS, listColor } from '@/lib/tasks';
 
 export type EventForm = {
@@ -33,8 +31,16 @@ export type EventForm = {
 type Named = { id: number; name: string };
 const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly'];
 
-// Same label style as the tasks/projects create sheets.
-const LABEL = 'text-muted-foreground text-xs font-semibold tracking-widest uppercase';
+// A new event starts at the next half hour and lasts an hour (design C4's smart defaults); late at night it ends at
+// 23:59 rather than spilling into tomorrow.
+function nextHalfHour(): [string, string] {
+    const d = new Date();
+    const mins = d.getHours() * 60 + d.getMinutes();
+    const start = Math.min(23 * 60 + 30, Math.ceil((mins + 1) / 30) * 30);
+    const end = Math.min(23 * 60 + 59, start + 60);
+    const hm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+    return [hm(start), hm(end)];
+}
 
 const blank = (day: string): EventForm => ({
     title: '',
@@ -43,8 +49,8 @@ const blank = (day: string): EventForm => ({
     color: null,
     start_date: day,
     end_date: day,
-    start_time: null,
-    end_time: null,
+    start_time: nextHalfHour()[0],
+    end_time: nextHalfHour()[1],
     repeat: 'none',
     repeat_interval: 1,
     repeat_until: null,
@@ -52,8 +58,9 @@ const blank = (day: string): EventForm => ({
     project: null,
 });
 
-// Create / edit an event. Keyboard-safe ResponsiveModal (pinned header + Save footer). People are toggle chips
-// (members, then contacts) rather than a search box: families have a handful of people.
+// Create / edit an event (design j6QDy4 C4). Keyboard-safe ResponsiveModal (pinned header + the button pinned at
+// the bottom). Title first with its icon + colour beside it; time in one group with smart defaults; who's going as
+// faces (family) and chips (contacts); project and notes behind "+" chips.
 export function EventSheet({
     open,
     onOpenChange,
@@ -75,6 +82,8 @@ export function EventSheet({
     const [f, setF] = useState<EventForm>(event ?? blank(defaultDate));
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
+    // Optional bits (C4): below the fold, each behind a "+" chip until it has something.
+    const [more, setMore] = useState({ project: false, notes: false });
 
     // Reset the form each time the sheet OPENS (React's "adjust state on prop change" pattern, no effect).
     // Keyed on the open transition only, not on `event`: the detail page passes a fresh object every render,
@@ -85,6 +94,7 @@ export function EventSheet({
         if (open) {
             setF(event ?? blank(defaultDate));
             setErrors({});
+            setMore({ project: false, notes: false });
         }
     }
 
@@ -124,13 +134,12 @@ export function EventSheet({
         else router.post('/m/calendar/events', body, opts);
     };
 
-    const chip = (on: boolean) =>
-        `shrink-0 rounded-full border px-3 py-1.5 text-sm transition-colors ${on ? 'border-primary bg-accent-subtle text-primary' : 'border-border text-muted-foreground'}`;
     const err = (k: string) => errors[k] && <p className="text-destructive text-sm">{errors[k]}</p>;
-    const people: CalPerson[] = [
-        ...members.map((m) => ({ type: 'user' as const, id: m.id, name: m.name })),
-        ...contacts.map((c) => ({ type: 'person' as const, id: c.id, name: c.name })),
-    ];
+    const users = members.map((m) => ({ type: 'user' as const, id: m.id, name: m.name }));
+    const others = contacts.map((c) => ({ type: 'person' as const, id: c.id, name: c.name }));
+    const showProject = !!projects && (more.project || !!f.project);
+    const showNotes = more.notes || !!f.notes;
+    const row = 'flex min-h-12 items-center gap-3.5 border-b px-4 py-2.5 last:border-b-0';
 
     return (
         <ResponsiveModal
@@ -138,136 +147,192 @@ export function EventSheet({
             onOpenChange={onOpenChange}
             title={f.id ? t('calendar.edit') : t('calendar.new')}
             footer={
-                <Button className="w-full" disabled={saving || !f.title.trim()} onClick={save}>
-                    {t('calendar.save')}
-                </Button>
+                <button
+                    type="button"
+                    disabled={saving || !f.title.trim()}
+                    onClick={save}
+                    className="bg-accent-strong text-accent-strong-foreground border-primary w-full rounded-full border-2 py-3.5 text-lg font-bold disabled:opacity-60"
+                >
+                    {f.id ? t('calendar.save') : t('calendar.add_event')}
+                </button>
             }
         >
-            <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-3">
-                        {/* Tile shows the chosen colour behind the icon, like a task list's tile. */}
+                        {/* Title first, its icon + colour right beside it. */}
                         <IconPicker
                             value={f.icon ?? 'calendar'}
                             onChange={(icon) => set({ icon })}
                             ariaLabel={t('calendar.icon_color')}
-                            className={`size-12 rounded-xl ${f.color ? listColor(f.color) : 'bg-tile text-tile-foreground'}`}
+                            className={`size-14 rounded-2xl ${f.color ? listColor(f.color) : 'bg-tile text-tile-foreground'}`}
                             iconClassName="size-6"
                         />
-                        <Input
-                            autoFocus
+                        <input
                             value={f.title}
                             onChange={(e) => set({ title: e.target.value })}
                             placeholder={t('calendar.title_placeholder')}
-                            className="text-base"
+                            aria-label={t('calendar.title')}
+                            className="bg-surface text-primary placeholder:text-muted-foreground min-w-0 flex-1 rounded-2xl px-4 py-3.5 text-lg font-bold outline-none"
                         />
                     </div>
                     {err('title')}
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                    {LIST_COLOR_KEYS.map((c) => (
-                        <button
-                            key={c}
-                            type="button"
-                            aria-label={c}
-                            onClick={() => set({ color: f.color === c ? null : c })}
-                            className={`flex size-9 items-center justify-center rounded-full ${listColor(c)} ${f.color === c ? 'ring-primary ring-2 ring-offset-2' : ''}`}
-                        >
-                            {f.color === c && <Check className="size-4" />}
-                        </button>
-                    ))}
-                </div>
-
-                <label className="flex items-center justify-between gap-3 text-base">
-                    {t('calendar.all_day')}
-                    <Checkbox
-                        checked={allDay}
-                        onCheckedChange={(on) => set(on ? { start_time: null, end_time: null } : { start_time: '09:00', end_time: '10:00' })}
-                    />
-                </label>
-
-                {/* Stacked full-width rows: native date inputs won't shrink in a narrow grid cell (iOS). */}
-                {(['start', 'end'] as const).map((k) => (
-                    <div key={k} className="flex flex-col gap-1.5">
-                        <span className={LABEL}>{t(k === 'start' ? 'calendar.starts' : 'calendar.ends')}</span>
-                        <div className="flex gap-2">
-                            <Input
-                                type="date"
-                                className="flex-1 text-base"
-                                value={f[`${k}_date`]}
-                                onChange={(e) => set({ [`${k}_date`]: e.target.value } as Partial<EventForm>)}
-                            />
-                            {!allDay && (
-                                <Input
-                                    type="time"
-                                    className="w-32 text-base"
-                                    value={f[`${k}_time`] ?? ''}
-                                    onChange={(e) => set({ [`${k}_time`]: e.target.value || null } as Partial<EventForm>)}
-                                />
-                            )}
-                        </div>
-                        {err(`${k}_date`)}
-                        {err(`${k}_time`)}
+                    <div className="flex gap-2 pt-1 pl-[4.25rem]">
+                        {LIST_COLOR_KEYS.map((c) => (
+                            <button
+                                key={c}
+                                type="button"
+                                aria-label={t('tasks.color_aria', { color: c })}
+                                aria-pressed={f.color === c}
+                                onClick={() => set({ color: f.color === c ? null : c })}
+                                className={`flex size-7 items-center justify-center rounded-full ${listColor(c)} ${f.color === c ? 'ring-primary ring-2 ring-offset-1' : ''}`}
+                            >
+                                {f.color === c && <Check className="size-3.5" />}
+                            </button>
+                        ))}
                     </div>
-                ))}
+                </div>
 
-                <div className="flex flex-col gap-1.5">
-                    <span className={LABEL}>{t('calendar.repeat')}</span>
-                    <Picker
-                        ariaLabel={t('calendar.repeat')}
-                        fallbackIcon={Repeat}
-                        options={REPEATS.map((r) => ({ value: r, label: t(`calendar.repeat_${r}`) }))}
-                        selected={[f.repeat]}
-                        onChange={(next) => next[0] && set({ repeat: next[0] })}
-                    />
+                <div className="bg-surface-card overflow-hidden rounded-[22px] border">
+                    <div className={row}>
+                        <Sun className="text-primary size-5 shrink-0" />
+                        <span className="text-primary flex-1 text-[17px]">{t('calendar.all_day')}</span>
+                        <SettingsSwitch
+                            on={allDay}
+                            label={t('calendar.all_day')}
+                            onToggle={() =>
+                                set(allDay ? (([a, b]) => ({ start_time: a, end_time: b }))(nextHalfHour()) : { start_time: null, end_time: null })
+                            }
+                        />
+                    </div>
+                    {(['start', 'end'] as const).map((k) => (
+                        <div key={k} className={row}>
+                            <Clock className="text-primary size-5 shrink-0" />
+                            <span className="text-primary shrink-0 text-[17px]">{t(k === 'start' ? 'calendar.starts' : 'calendar.ends')}</span>
+                            <span className="flex min-w-0 flex-1 items-center justify-end gap-1">
+                                <NativePick
+                                    type="date"
+                                    label={t(k === 'start' ? 'calendar.starts' : 'calendar.ends')}
+                                    value={f[`${k}_date`]}
+                                    text={new Date(`${f[`${k}_date`]}T12:00`).toLocaleDateString(appLocale(), {
+                                        weekday: 'short',
+                                        month: 'short',
+                                        day: 'numeric',
+                                    })}
+                                    onChange={(v) => v && set({ [`${k}_date`]: v } as Partial<EventForm>)}
+                                />
+                                {!allDay && (
+                                    <>
+                                        <span className="text-muted-foreground">·</span>
+                                        <NativePick
+                                            type="time"
+                                            label={t(k === 'start' ? 'calendar.starts' : 'calendar.ends')}
+                                            value={f[`${k}_time`] ?? ''}
+                                            text={(f[`${k}_time`] ?? '').replace(/^0(\d)/, '$1')}
+                                            onChange={(v) => set({ [`${k}_time`]: v || null } as Partial<EventForm>)}
+                                        />
+                                    </>
+                                )}
+                            </span>
+                        </div>
+                    ))}
+                    <label className={`${row} relative`}>
+                        <Repeat className="text-primary size-5 shrink-0" />
+                        <span className="text-primary flex-1 text-[17px]">{t('calendar.repeat')}</span>
+                        <span className="text-primary font-semibold">{t(`calendar.repeat_${f.repeat}`)}</span>
+                        <ChevronRight className="text-muted-foreground size-5 shrink-0" />
+                        {/* The phone's own picker opens on a tap. */}
+                        <select
+                            value={f.repeat}
+                            onChange={(e) => set({ repeat: e.target.value })}
+                            aria-label={t('calendar.repeat')}
+                            className="absolute inset-0 size-full cursor-pointer opacity-0"
+                        >
+                            {REPEATS.map((r) => (
+                                <option key={r} value={r}>
+                                    {t(`calendar.repeat_${r}`)}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
                     {f.repeat !== 'none' && (
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm">{t('calendar.every')}</span>
-                            <Input
+                        <div className={`${row} text-primary text-base`}>
+                            <span>{t('calendar.every')}</span>
+                            <input
                                 type="number"
                                 min={1}
                                 max={99}
-                                className="w-16 text-base"
+                                inputMode="numeric"
+                                aria-label={t('calendar.every')}
+                                className="bg-surface w-14 rounded-lg px-2 py-1 text-center text-base font-semibold outline-none"
                                 value={f.repeat_interval}
                                 onChange={(e) => set({ repeat_interval: Math.min(99, Math.max(1, Number(e.target.value) || 1)) })}
                             />
-                            <span className="text-sm">{t('calendar.until')}</span>
-                            <Input
+                            <span className="ml-auto">{t('calendar.until')}</span>
+                            <NativePick
                                 type="date"
-                                className="flex-1 text-base"
+                                label={t('calendar.until')}
                                 value={f.repeat_until ?? ''}
-                                aria-label={t('calendar.until')}
-                                onChange={(e) => set({ repeat_until: e.target.value || null })}
+                                text={
+                                    f.repeat_until
+                                        ? new Date(`${f.repeat_until}T12:00`).toLocaleDateString(appLocale(), {
+                                              month: 'short',
+                                              day: 'numeric',
+                                              year: 'numeric',
+                                          })
+                                        : t('calendar.until_forever')
+                                }
+                                onChange={(v) => set({ repeat_until: v || null })}
                             />
                         </div>
                     )}
-                    {err('repeat_until')}
                 </div>
+                {err('start_date')}
+                {err('end_date')}
+                {err('start_time')}
+                {err('end_time')}
+                {err('repeat_until')}
 
-                {people.length > 0 && (
-                    <div className="flex flex-col gap-1.5">
-                        <span className={LABEL}>{t('calendar.people')}</span>
-                        <div className="flex flex-wrap gap-2">
-                            {people.map((p) => (
+                {users.length + others.length > 0 && (
+                    <section className="flex flex-col gap-2">
+                        <h3 className="text-primary text-sm font-semibold">{t('calendar.whos_going')}</h3>
+                        <div className="flex flex-wrap items-center gap-2">
+                            {users.map((p) => (
                                 <button
                                     key={personKey(p)}
                                     type="button"
                                     aria-pressed={has(p)}
-                                    className={chip(has(p))}
+                                    aria-label={p.name}
                                     onClick={() => togglePerson(p)}
+                                    className={`rounded-full ${has(p) ? 'ring-primary ring-offset-background ring-2 ring-offset-2' : 'opacity-60'}`}
                                 >
-                                    {p.name}
+                                    <MemberAvatar userId={p.id} name={p.name} className="size-10 text-sm" />
                                 </button>
                             ))}
                         </div>
+                        {/* Contacts (a family can have hundreds): picked ones in a searchable list, not a wall of chips. */}
+                        {others.length > 0 && (
+                            <Picker
+                                multi
+                                ariaLabel={t('calendar.contacts')}
+                                placeholder={t('calendar.add_contact')}
+                                fallbackIcon={Contact}
+                                options={others.map((p) => ({ value: personKey(p), label: p.name }))}
+                                selected={f.people.filter((p) => p.type === 'person').map(personKey)}
+                                onChange={(keys) =>
+                                    set({
+                                        people: [...f.people.filter((p) => p.type === 'user'), ...others.filter((p) => keys.includes(personKey(p)))],
+                                    })
+                                }
+                            />
+                        )}
                         {err('people')}
-                    </div>
+                    </section>
                 )}
 
-                {projects && (
-                    <div className="flex flex-col gap-1.5">
-                        <span className={LABEL}>{t('calendar.project')}</span>
+                {showProject && projects && (
+                    <section className="flex flex-col gap-2">
+                        <h3 className="text-primary text-sm font-semibold">{t('calendar.project')}</h3>
                         <Picker
                             ariaLabel={t('calendar.project')}
                             fallbackIcon={FolderKanban}
@@ -278,14 +343,82 @@ export function EventSheet({
                             selected={[f.project ? String(f.project.id) : '']}
                             onChange={(next) => set({ project: next[0] ? { id: Number(next[0]) } : null })}
                         />
+                    </section>
+                )}
+                {showNotes && (
+                    <section className="flex flex-col gap-2">
+                        <h3 className="text-primary text-sm font-semibold">{t('calendar.notes')}</h3>
+                        <textarea
+                            rows={3}
+                            autoFocus={more.notes && !f.notes}
+                            value={f.notes ?? ''}
+                            onChange={(e) => set({ notes: e.target.value || null })}
+                            className="bg-surface text-primary rounded-2xl px-4 py-3 text-base outline-none"
+                        />
+                    </section>
+                )}
+                {(!showProject || !showNotes) && (
+                    <div className="flex flex-wrap gap-2">
+                        {projects && !showProject && (
+                            <button
+                                type="button"
+                                onClick={() => setMore({ ...more, project: true })}
+                                className="border-border text-primary flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-semibold"
+                            >
+                                <Plus className="size-4" /> {t('calendar.project')}
+                            </button>
+                        )}
+                        {!showNotes && (
+                            <button
+                                type="button"
+                                onClick={() => setMore({ ...more, notes: true })}
+                                className="border-border text-primary flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-semibold"
+                            >
+                                <Plus className="size-4" /> {t('calendar.notes')}
+                            </button>
+                        )}
                     </div>
                 )}
-
-                <div className="flex flex-col gap-1.5">
-                    <span className={LABEL}>{t('calendar.notes')}</span>
-                    <Textarea rows={3} value={f.notes ?? ''} onChange={(e) => set({ notes: e.target.value || null })} />
-                </div>
             </div>
         </ResponsiveModal>
+    );
+}
+
+// A date or time drawn as plain words ("Thu, Oct 22", "3:00"), the phone's own picker on a tap: the input sits
+// under the words, not display:none, because showPicker() needs a rendered input.
+function NativePick({
+    type,
+    label,
+    value,
+    text,
+    onChange,
+}: {
+    type: 'date' | 'time';
+    label: string;
+    value: string;
+    text: string;
+    onChange: (v: string) => void;
+}) {
+    const ref = useRef<HTMLInputElement>(null);
+    return (
+        <span className="relative">
+            <button
+                type="button"
+                aria-label={label}
+                onClick={() => (ref.current?.showPicker ? ref.current.showPicker() : ref.current?.focus())}
+                className="text-primary rounded-lg px-1 py-1 text-base font-semibold whitespace-nowrap"
+            >
+                {text || '—'}
+            </button>
+            <input
+                ref={ref}
+                type={type}
+                value={value}
+                tabIndex={-1}
+                aria-hidden
+                onChange={(e) => onChange(e.target.value)}
+                className="pointer-events-none absolute inset-0 -z-10 opacity-0"
+            />
+        </span>
     );
 }

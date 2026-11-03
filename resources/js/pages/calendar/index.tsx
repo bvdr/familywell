@@ -1,21 +1,22 @@
 import { Head, router } from '@inertiajs/react';
-import { CalendarDays, CalendarPlus, CalendarRange, ChartGantt, ChevronLeft, ChevronRight, Filter, Plus } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, Share, SlidersHorizontal } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
+import { AgendaView } from '@/components/calendar/agenda';
 import { EventSheet } from '@/components/calendar/event-sheet';
 import { FeedSheet, type Subscription } from '@/components/calendar/feed-sheet';
 import { FilterSheet } from '@/components/calendar/filter-sheet';
-import { InfiniteTimeline, type TimelineHandle } from '@/components/calendar/infinite-timeline';
 import { MonthView } from '@/components/calendar/month-view';
-import { WeekView } from '@/components/calendar/week-view';
-import { Picker } from '@/components/picker';
-import { Button } from '@/components/ui/button';
+import { TimelineView, type TimelineHandle } from '@/components/calendar/timeline-view';
+import { HomeTopBar } from '@/components/home-top-bar';
+import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useAddAction } from '@/lib/add-action';
-import { filterItems, shiftDate, type CalFilter, type CalItem } from '@/lib/calendar';
+import { addDays, filterItems, parseDay, shiftDate, type CalFilter, type CalItem } from '@/lib/calendar';
 import { openNewOnArrival } from '@/lib/create-intent';
 import { localToday } from '@/lib/date-groups';
 import { useLocale, useT } from '@/lib/i18n';
+import { save } from '@/lib/save';
 
 const FILTER_KEY = 'familywell:calendarFilter';
 const readFilter = (): CalFilter => {
@@ -27,13 +28,16 @@ const readFilter = (): CalFilter => {
     }
 };
 
+type View = 'agenda' | 'month' | 'timeline';
+type Zoom = 'week' | 'twoweeks' | 'month';
 type Named = { id: number; name: string };
 export type CalendarProps = {
-    view: 'month' | 'week' | 'timeline';
-    zoom: 'week' | 'month' | 'year';
+    view: View;
+    zoom: Zoom;
     date: string;
     range: { from: string; to: string };
     items: CalItem[];
+    ahead: CalItem[];
     sources: string[];
     members: Named[];
     contacts: Named[];
@@ -42,14 +46,24 @@ export type CalendarProps = {
     subscriptions: Subscription[];
 };
 
-// View, zoom and date live in the query string (back/forward + shareable); the server answers with the range
-// and its items. Navigation is a partial reload of only those props: members/contacts/projects stay put.
+// ISO week number (the agenda's "Week 43").
+function isoWeek(d: string): number {
+    const x = parseDay(d);
+    x.setDate(x.getDate() + 3 - ((x.getDay() + 6) % 7));
+    const jan4 = new Date(x.getFullYear(), 0, 4);
+    return 1 + Math.round(((x.getTime() - jan4.getTime()) / 864e5 - 3 + ((jan4.getDay() + 6) % 7)) / 7);
+}
+
+// The calendar (design j6QDy4 04 / 04b): Agenda first (a week strip, then the days), Month (the regular grid with
+// bars), Timeline (the big stuff, one row each). View, zoom and date live in the query string (back / forward,
+// shareable); the server answers with the window and its items, and moving is a partial reload of only those.
 export default function CalendarIndex({
     view,
     zoom,
     date,
     range,
     items,
+    ahead,
     sources,
     members,
     contacts,
@@ -59,22 +73,28 @@ export default function CalendarIndex({
 }: CalendarProps) {
     const t = useT();
     const locale = useLocale();
-    const todayYmd = localToday(); // the family's day, same as Home and the server
-    // Phones list the selected day under the grid: today when it's in the shown month, else the date asked for.
-    const [selected, setSelected] = useState(date.slice(0, 7) === todayYmd.slice(0, 7) ? todayYmd : date);
+    const today = localToday(); // the family's day, same as Home and the server
+    const inRange = (d: string) => d >= range.from && d <= range.to;
+    const [selected, setSelected] = useState(() =>
+        view === 'month' ? (date.slice(0, 7) === today.slice(0, 7) ? today : date) : inRange(today) ? today : range.from,
+    );
+    // A new window: keep the picked day if it's still on screen, else today (when shown) or its first day.
+    useEffect(() => {
+        if (view === 'month') return;
+        setSelected((s) => (inRange(s) ? s : inRange(today) ? today : range.from));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [range.from, range.to]);
     const [sheet, setSheet] = useState<{ open: boolean; day: string }>(() => ({ open: openNewOnArrival(), day: selected }));
-    const add = (day = selected) => setSheet({ open: true, day });
-    useAddAction(() => add());
+    useAddAction(() => setSheet({ open: true, day: selected }));
 
-    // Drop any remembered source/person no longer valid for this family (a module disabled since it was
-    // saved, or a removed member/contact) so a stale filter never silently hides everything.
+    // Drop any remembered source/person no longer valid for this family (a module disabled since it was saved, or a
+    // removed member/contact) so a stale filter never silently hides everything.
     const validSources = new Set(sources);
     const validPeople = new Set([...members.map((m) => `user:${m.id}`), ...contacts.map((c) => `person:${c.id}`)]);
-    const sanitizeFilter = (f: CalFilter): CalFilter => ({
-        people: f.people.filter((p) => validPeople.has(p)),
-        sources: f.sources.filter((s) => validSources.has(s)),
+    const [filter, setFilterState] = useState<CalFilter>(() => {
+        const f = readFilter();
+        return { people: f.people.filter((p) => validPeople.has(p)), sources: f.sources.filter((s) => validSources.has(s)) };
     });
-    const [filter, setFilterState] = useState<CalFilter>(() => sanitizeFilter(readFilter()));
     const [filtering, setFiltering] = useState(false);
     const [feedOpen, setFeedOpen] = useState(false);
     const setFilter = (f: CalFilter) => {
@@ -85,102 +105,161 @@ export default function CalendarIndex({
             /* private mode: not remembered */
         }
     };
-    const shown = filterItems(items, filter);
+    // A to-do ticked from the calendar: the circle fills at once; lib/save reloads the items after.
+    const doneOpt = useOptimistic<boolean>();
+    const toggle = (i: CalItem) => {
+        const next = !doneOpt.get(i.id, i.done);
+        doneOpt.set(i.id, next);
+        void save('patch', route('tasks.tasks.update', i.id), { done: next }).then(() => doneOpt.clear(i.id));
+    };
+    const shown = filterItems(items, filter).map((i) => (i.kind === 'task' ? { ...i, done: doneOpt.get(i.id, i.done) } : i));
     const active = filter.people.length + filter.sources.length;
 
-    // The endless timeline scrolls instead of loading another window: prev/next page through it, Today scrolls back,
-    // and the title follows the month on screen.
-    const endless = view === 'timeline';
-    const strip = useRef<TimelineHandle>(null);
-    const [stripMonth, setStripMonth] = useState<string | null>(null);
-    const go = (q: Partial<Pick<CalendarProps, 'view' | 'zoom' | 'date'>>) => {
-        if (q.date) setSelected(q.date);
+    const go = (q: Partial<{ view: View; zoom: Zoom; date: string }>) => {
+        const nextView = q.view ?? view;
+        const nextZoom = q.zoom ?? zoom;
+        // Remembered per device; the server reads it when the calendar opens without a view.
+        document.cookie = `fw_calendar_view=${nextView === 'timeline' ? `timeline:${nextZoom}` : nextView}; path=/; max-age=31536000; samesite=lax`;
+        if (q.date && nextView === 'month') setSelected(q.date);
         router.get(
             '/m/calendar',
-            { view, zoom, date, ...q },
-            { preserveState: true, preserveScroll: true, only: ['view', 'zoom', 'date', 'range', 'items'] },
+            { view: nextView, zoom: nextZoom, date: q.date ?? date },
+            { preserveState: true, preserveScroll: true, only: ['view', 'zoom', 'date', 'range', 'items', 'ahead'] },
         );
     };
-    // Remembered per device; the server reads it when the calendar opens without a view.
-    const remember = (v: string) => {
-        document.cookie = `fw_calendar_view=${v}; path=/; max-age=31536000; samesite=lax`;
-    };
-    const label = new Date((endless && stripMonth ? stripMonth : date) + 'T12:00').toLocaleDateString(
-        locale,
-        view === 'timeline' && zoom === 'year' ? { year: 'numeric' } : { month: 'long', year: 'numeric' },
-    );
+    const fmt = (d: string, o: Intl.DateTimeFormatOptions) => parseDay(d).toLocaleDateString(locale, o);
+    // The timeline scrolls freely: its title follows the days on screen, and the arrows scroll it a screen.
+    const strip = useRef<TimelineHandle>(null);
+    const [visible, setVisible] = useState(range);
+
+    // Header: the month (agenda: of the week shown; "Week 43 · 6 things" under it), or the timeline's days.
+    const title =
+        view === 'timeline'
+            ? (visible.from.slice(0, 4) !== today.slice(0, 4) ? `${visible.from.slice(0, 4)} · ` : '') +
+              (visible.from.slice(0, 7) === visible.to.slice(0, 7)
+                  ? `${fmt(visible.from, { month: 'short', day: 'numeric' })} – ${Number(visible.to.slice(8))}`
+                  : `${fmt(visible.from, { month: 'short', day: 'numeric' })} – ${fmt(visible.to, { month: 'short', day: 'numeric' })}`)
+            : fmt(view === 'agenda' ? addDays(range.from, 3) : date, { month: 'long' });
+    const step = (dir: 1 | -1) =>
+        view === 'timeline'
+            ? strip.current?.scrollPage(dir)
+            : go({ date: view === 'month' ? shiftDate('month', 'month', date, dir) : addDays(range.from, 7 * dir) });
+    const round = 'bg-surface text-primary flex size-10 shrink-0 items-center justify-center rounded-full disabled:opacity-40';
+    const seg = (on: boolean) =>
+        `rounded-full px-3 py-1.5 text-sm font-semibold ${on ? 'bg-surface-card text-primary shadow-sm' : 'text-muted-foreground'}`;
 
     return (
-        <AppLayout breadcrumbs={[{ title: t('nav.calendar'), href: '/m/calendar' }]}>
+        <AppLayout breadcrumbs={[{ title: t('nav.calendar'), href: '/m/calendar' }]} mobileHeader={<HomeTopBar />}>
             <Head title={t('nav.calendar')} />
-            <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4">
-                <div className="flex items-center gap-1">
-                    <h1 className="font-heading text-primary mr-auto truncate text-2xl first-letter:uppercase">{label}</h1>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label={t('calendar.previous')}
-                        onClick={() => (endless ? strip.current?.scrollPage(-1) : go({ date: shiftDate(view, zoom, date, -1) }))}
-                    >
-                        <ChevronLeft className="size-5" />
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="rounded-full"
-                        onClick={() => (endless ? strip.current?.scrollToToday() : go({ date: todayYmd }))}
-                    >
-                        {t('calendar.today')}
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label={t('calendar.next')}
-                        onClick={() => (endless ? strip.current?.scrollPage(1) : go({ date: shiftDate(view, zoom, date, 1) }))}
-                    >
-                        <ChevronRight className="size-5" />
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => setFiltering(true)}>
-                        <Filter className="size-4" />
-                        {active > 0 ? ` ${active}` : ''}
-                    </Button>
-                    <Button variant="ghost" size="icon" aria-label={t('calendar.calendars_title')} onClick={() => setFeedOpen(true)}>
-                        <CalendarPlus className="size-5" />
-                    </Button>
-                    {/* Hidden on mobile: the nav's context-aware "+" adds an event there. */}
-                    <Button size="icon" className="ml-2 hidden rounded-full md:inline-flex" onClick={() => add()} aria-label={t('calendar.new')}>
-                        <Plus className="size-5" />
-                    </Button>
+            <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-4">
+                <div className="flex items-center gap-2">
+                    <div className="mr-auto min-w-0">
+                        <h1 className="font-heading text-primary truncate text-4xl font-extrabold tracking-tight first-letter:uppercase">{title}</h1>
+                        {view === 'agenda' && (
+                            <p className="text-muted-foreground text-sm">
+                                {t('calendar.week_n', { n: isoWeek(range.from) })} · {t('calendar.things', { count: shown.length })}
+                            </p>
+                        )}
+                    </div>
+                    {view === 'timeline' && (
+                        <div className="bg-surface flex shrink-0 rounded-full border p-0.5">
+                            {(['week', 'twoweeks', 'month'] as const).map((z) => (
+                                <button
+                                    key={z}
+                                    type="button"
+                                    aria-pressed={zoom === z}
+                                    onClick={() => go({ zoom: z })}
+                                    // The 5-week zoom is desktop's (D2); a phone has 1w and 2w.
+                                    className={`${seg(zoom === z)} ${z === 'month' ? 'hidden md:block' : ''}`}
+                                >
+                                    {t(`calendar.zoom_${z}`)}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    {view === 'agenda' && (
+                        <>
+                            <button
+                                type="button"
+                                onClick={() => setFiltering(true)}
+                                aria-label={t('calendar.filters')}
+                                className={`${round} relative`}
+                            >
+                                <SlidersHorizontal className="size-5" />
+                                {active > 0 && (
+                                    <span className="bg-accent-strong text-accent-strong-foreground absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full text-[11px] font-bold">
+                                        {active}
+                                    </span>
+                                )}
+                            </button>
+                            <button type="button" onClick={() => setFeedOpen(true)} aria-label={t('calendar.calendars_title')} className={round}>
+                                <Share className="size-5" />
+                            </button>
+                        </>
+                    )}
+                    {/* Month steps with arrows everywhere; the other views on desktop (phones swipe; the timeline scrolls freely). */}
+                    <div className={`gap-2 ${view === 'month' ? 'flex' : 'hidden md:flex'}`}>
+                        <button type="button" onClick={() => step(-1)} aria-label={t('calendar.previous')} className={round}>
+                            <ChevronLeft className="size-5" />
+                        </button>
+                        <button type="button" onClick={() => step(1)} aria-label={t('calendar.next')} className={round}>
+                            <ChevronRight className="size-5" />
+                        </button>
+                        {/* The timeline has its own Today pill. */}
+                        {view !== 'timeline' && !inRange(today) && (
+                            <button
+                                type="button"
+                                onClick={() => go({ date: today })}
+                                className="bg-surface text-primary hidden rounded-full px-4 text-sm font-semibold md:block"
+                            >
+                                {t('calendar.today')}
+                            </button>
+                        )}
+                    </div>
                 </div>
 
-                {/* View dropdown (week, month, timeline), opening over the calendar. A query param, so each pick is a partial
-                    reload and the server answers with the matching range; remembered per device (fw_calendar_view cookie,
-                    read by CalendarController::index). The timeline has no zoom: it is endless, at one day size. */}
-                <div className="w-40">
-                    <Picker
-                        searchable={false}
-                        floating
-                        ariaLabel={t('calendar.view')}
-                        selected={[view]}
-                        onChange={([v]) => {
-                            if (!v) return;
-                            const next = v as CalendarProps['view'];
-                            remember(next);
-                            go({ view: next });
-                        }}
-                        options={[
-                            { value: 'week', label: t('calendar.week'), icon: CalendarRange },
-                            { value: 'month', label: t('calendar.month'), icon: CalendarDays },
-                            { value: 'timeline', label: t('calendar.timeline'), icon: ChartGantt },
-                        ]}
-                    />
+                {/* Agenda / Month / Timeline */}
+                <div className="bg-surface grid grid-cols-3 rounded-full border p-1">
+                    {(['agenda', 'month', 'timeline'] as const).map((v) => (
+                        <button
+                            key={v}
+                            type="button"
+                            aria-pressed={view === v}
+                            onClick={() => go({ view: v, date: v === view ? date : today })}
+                            className={`rounded-full py-2 text-base font-semibold ${view === v ? 'bg-surface-card text-primary shadow-sm' : 'text-muted-foreground'}`}
+                        >
+                            {t(`calendar.view_${v}`)}
+                        </button>
+                    ))}
                 </div>
-                {view === 'timeline' ? (
-                    <InfiniteTimeline ref={strip} items={items} range={range} filter={filter} onMonth={setStripMonth} />
-                ) : view === 'week' ? (
-                    <WeekView items={shown} range={range} onAdd={add} />
+
+                {/* Timeline: a chip per source (04b), All first. */}
+                {view === 'agenda' ? (
+                    <AgendaView
+                        items={shown}
+                        range={range}
+                        today={today}
+                        selected={selected}
+                        onSelect={setSelected}
+                        onWeek={(dir) => step(dir)}
+                        onToggle={toggle}
+                    />
+                ) : view === 'month' ? (
+                    <MonthView items={shown} range={range} date={date} today={today} selected={selected} onSelect={setSelected} onToggle={toggle} />
                 ) : (
-                    <MonthView items={shown} range={range} date={date} selected={selected} onSelect={setSelected} onAdd={add} />
+                    <TimelineView
+                        ref={strip}
+                        items={shown}
+                        ahead={filterItems(ahead, filter)}
+                        filter={filter}
+                        range={range}
+                        zoom={zoom}
+                        today={today}
+                        selected={selected}
+                        onSelect={setSelected}
+                        onVisible={(from, to) => setVisible({ from, to })}
+                        onToggle={toggle}
+                    />
                 )}
             </div>
             <EventSheet

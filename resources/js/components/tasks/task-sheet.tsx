@@ -2,7 +2,7 @@ import { router, usePage } from '@inertiajs/react';
 import { ListChecks, Trash2 } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
 
-import { When } from '@/components/add-details';
+import { DatePick, When } from '@/components/add-details';
 import {
     type Choice,
     emptyDraft,
@@ -24,7 +24,8 @@ import { type SharedData } from '@/types';
 
 // A screen pushed into the sheet (T4 Repeat, the list picker): the header's right words and what to draw. render gets
 // the sheet's draft, so a picker shows and changes what Save will send.
-type View = { aside: ReactNode; render: (ctx: { task: Draft; onPatch: (p: Record<string, unknown>) => void }) => ReactNode };
+// done: the footer button's words (Set date); Done when left out.
+type View = { aside: ReactNode; done?: string; render: (ctx: { task: Draft; onPatch: (p: Record<string, unknown>) => void }) => ReactNode };
 type Draft = SubTask & Record<string, unknown>;
 
 // The task sheet (design j6QDy4 T3): the same form as Add details, for a task that exists. Title and note in one box,
@@ -36,6 +37,7 @@ export function TaskSheet({
     members,
     family,
     list,
+    addons = true,
     taskUrl,
     onClose,
     onDelete,
@@ -43,7 +45,10 @@ export function TaskSheet({
     task: SubTask;
     members: TaskMember[];
     family: TaskMember[];
-    list: { id: number; name: string };
+    // The task's list: the List row (move it). An event's to-dos have none.
+    list?: { id: number; name: string };
+    // Repeat / Important: only where the task.saved add-ons run (a list's tasks; not an event's to-dos).
+    addons?: boolean;
     taskUrl: (id: number) => string;
     onClose: () => void;
     onDelete: () => void;
@@ -52,7 +57,7 @@ export function TaskSheet({
     const [draft, setDraft] = useState<Draft>({ ...task });
     // The add-ons' fields changed in the sheet ({important: true, recurrence: 'quarterly'}), sent with Save.
     const [ext, setExt] = useState<Record<string, unknown>>({});
-    const [listId, setListId] = useState(String(list.id));
+    const [listId, setListId] = useState(String(list?.id ?? ''));
     // A pushed screen: an add-on's (Repeat), or the list picker's: pick (T3b), New list (T3c), every icon (T3d).
     const [view, setView] = useState<View | 'list' | 'new' | 'icons' | null>(null);
     const [lists, setLists] = useState<{ choices: Choice[]; guess: { value: string; word: string; count: number } | null } | null>(null);
@@ -67,8 +72,8 @@ export function TaskSheet({
     const set = (p: Partial<SubTask>) => setDraft((d) => ({ ...d, ...p }));
     const creator = family.find((m) => m.id === task.createdBy);
     const made = task.createdAt ? new Date(`${task.createdAt}T00:00:00`).toLocaleDateString(appLocale(), { month: 'short', day: 'numeric' }) : null;
-    const options = withNew(lists?.choices ?? [{ value: String(list.id), label: list.name }], listId);
-    const listName = options.find((o) => o.value === listId)?.label ?? list.name;
+    const options = withNew(lists?.choices ?? (list ? [{ value: String(list.id), label: list.name }] : []), listId);
+    const listName = options.find((o) => o.value === listId)?.label ?? list?.name ?? '';
 
     // The picker's rows and its guess from similar tasks load when it first opens (one small request).
     useEffect(() => {
@@ -93,7 +98,7 @@ export function TaskSheet({
                 // moved to.
                 ...(parseNew(moveTo)
                     ? { new_list: JSON.parse(moveTo.slice(4)) }
-                    : moveTo !== String(list.id)
+                    : list && moveTo !== String(list.id)
                       ? { task_list_id: Number(moveTo) }
                       : {}),
                 ...(ext as Record<string, string | number | boolean | null>),
@@ -135,7 +140,7 @@ export function TaskSheet({
                             onClick={() => setView(null)}
                             className="bg-accent-strong text-accent-strong-foreground border-primary w-full rounded-full border-2 py-3.5 text-lg font-bold"
                         >
-                            {t('common.done')}
+                            {(view as View).done ?? t('common.done')}
                         </button>
                     )
                 ) : (
@@ -170,7 +175,7 @@ export function TaskSheet({
                 <NewListForm
                     draft={newList}
                     setDraft={setNewList}
-                    note={t('add_details.moves_here', { title: draft.title, from: list.name })}
+                    note={t('add_details.moves_here', { title: draft.title, from: list?.name ?? '' })}
                     submitLabel={t('add_details.create_and_move')}
                     onMoreIcons={() => setView('icons')}
                     busy={saving}
@@ -207,7 +212,18 @@ export function TaskSheet({
                         />
                     </div>
 
-                    <When value={draft.dueDate ?? ''} onChange={(v) => set({ dueDate: v || null })} />
+                    {/* The date chip pushes the calendar into this sheet (T3e), like Repeat and List. */}
+                    <When
+                        value={draft.dueDate ?? ''}
+                        onChange={(v) => set({ dueDate: v || null })}
+                        onOpen={() =>
+                            setView({
+                                aside: t('add_details.date'),
+                                done: t('add_details.set_date'),
+                                render: ({ task }) => <DatePick value={task.dueDate ?? ''} onChange={(v) => set({ dueDate: v || null })} />,
+                            })
+                        }
+                    />
 
                     {/* Who's on it (T3): faces with names, "You" for you; swipes sideways when they don't fit. */}
                     <section className="flex flex-col gap-2">
@@ -232,17 +248,26 @@ export function TaskSheet({
                         </div>
                     </section>
 
-                    <SettingsGroup>
-                        {/* Repeat and Important: the add-ons' own rows. push lets Repeat open its picker in this sheet. */}
-                        <Slot name="task.editor.fields" ctx={{ task: draft, onPatch: patch, variant: 'row', push: (v: View) => setView(v) }} />
-                        <SettingsRow
-                            icon={ListChecks}
-                            title={t('add_details.f_list_id')}
-                            value={<span className="text-primary font-semibold">{listName}</span>}
-                            onClick={() => setView('list')}
-                            className="order-2"
-                        />
-                    </SettingsGroup>
+                    {(addons || list) && (
+                        <SettingsGroup>
+                            {/* Repeat and Important: the add-ons' own rows. push lets Repeat open its picker in this sheet. */}
+                            {addons && (
+                                <Slot
+                                    name="task.editor.fields"
+                                    ctx={{ task: draft, onPatch: patch, variant: 'row', push: (v: View) => setView(v) }}
+                                />
+                            )}
+                            {list && (
+                                <SettingsRow
+                                    icon={ListChecks}
+                                    title={t('add_details.f_list_id')}
+                                    value={<span className="text-primary font-semibold">{listName}</span>}
+                                    onClick={() => setView('list')}
+                                    className="order-2"
+                                />
+                            )}
+                        </SettingsGroup>
+                    )}
 
                     {error && (
                         <p role="alert" className="text-destructive text-sm">

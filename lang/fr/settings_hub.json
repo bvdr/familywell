@@ -32,5 +32,14 @@
     "recently_deleted": "Supprimés récemment",
     "module_settings": "Réglages des modules",
     "people_one": ":count personne",
-    "people_other": ":count personnes"
+    "people_other": ":count personnes",
+    "whats_new": "Nouveautés",
+    "version": "Version :version",
+    "up_to_date": "À jour",
+    "checked": "Vérifié à l'instant",
+    "checking": "Vérification…",
+    "update_ready": "Une nouvelle version est prête",
+    "fixes": "Corrections",
+    "show_me": "Voir",
+    "about": "À propos"
 }

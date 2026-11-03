@@ -28,8 +28,9 @@ class CalendarController extends Controller
     public function index(Request $request): Response
     {
         $q = $request->validate([
-            'view' => ['nullable', 'in:month,week,timeline'],
-            'zoom' => ['nullable', 'in:week,month,year'],
+            // 'week' was the week view before the agenda replaced it (old links / bookmarks): it opens the agenda.
+            'view' => ['nullable', 'in:agenda,month,timeline,week'],
+            'zoom' => ['nullable', 'string'],
             'date' => ['nullable', 'date_format:Y-m-d'],
         ]);
         // The last view picked is remembered per device, so opening the calendar lands where you
@@ -37,13 +38,15 @@ class CalendarController extends Controller
         // the session: the page's own background requests race the session write and could restore the old value.
         if (! isset($q['view'])) {
             $remembered = $request->cookie('fw_calendar_view');
-            if (in_array($remembered, ['week', 'month', 'timeline', 'timeline:week', 'timeline:month', 'timeline:year'], true)) {
-                [$q['view'], $rememberedZoom] = explode(':', $remembered.':');
+            [$rememberedView, $rememberedZoom] = explode(':', ((string) $remembered).':');
+            if (in_array($rememberedView, [...CalendarRange::VIEWS, 'week'], true)) {
+                $q['view'] = $rememberedView;
                 $q['zoom'] ??= $rememberedZoom ?: null;
             }
         }
-        $view = $q['view'] ?? 'month';
-        $zoom = $q['zoom'] ?? 'month';
+        // Agenda first (design 04: "Agenda first with a week strip"); an old 'week' (view or zoom) maps to the new ones.
+        $view = ($q['view'] ?? 'agenda') === 'week' ? 'agenda' : ($q['view'] ?? 'agenda');
+        $zoom = in_array($q['zoom'] ?? null, CalendarRange::ZOOMS, true) ? $q['zoom'] : 'twoweeks';
         $date = $q['date'] ?? FamilyClock::today(); // opens on the family's today
         [$from, $to] = CalendarRange::for($view, $zoom, $date);
 
@@ -57,6 +60,8 @@ class CalendarController extends Controller
             'date' => $date,
             'range' => ['from' => $from, 'to' => $to],
             'items' => CalendarSources::collect($from, $to, $request->user()->id),
+            // Timeline (04b): the NEXT big thing after the window, and desktop's "Further out" (the next few months).
+            'ahead' => $view === 'timeline' ? $this->bigThingsAfter($to, $request->user()->id) : [],
             // Filter chips: only sources whose module is on for this family.
             'sources' => array_values(array_filter(CalendarSources::modules(), fn ($m) => $registry->isEnabled($m, $familyId))),
             'members' => $family->members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),
@@ -66,6 +71,26 @@ class CalendarController extends Controller
             // Other calendars for the Calendars sheet. A closure, so date navigation (partial reloads of items) skips it.
             'subscriptions' => fn () => CalendarSubscriptionController::listFor($request->user()->id),
         ]);
+    }
+
+    /**
+     * The things that take a day (design 04b: trips, fasts, holidays, school breaks: all-day events; not a 3pm dentist,
+     * not to-dos, not every contact's birthday) in the 9 months after $to, soonest first: the timeline's NEXT row and
+     * desktop's "Further out". A repeating event counts once (its next time). Same rule as takesADay in the browser.
+     */
+    private function bigThingsAfter(string $to, int $userId): array
+    {
+        $from = CarbonImmutable::parse($to)->addDay();
+        $seen = [];
+
+        return collect(CalendarSources::collect($from->toDateString(), $from->addMonths(9)->toDateString(), $userId, ['calendar']))
+            ->filter(fn ($i) => $i['startTime'] === null)
+            ->filter(function ($i) use (&$seen) {
+                $key = "{$i['source']}-{$i['kind']}-{$i['id']}";
+
+                return isset($seen[$key]) ? false : ($seen[$key] = true);
+            })
+            ->take(6)->values()->all();
     }
 
     /**

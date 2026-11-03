@@ -1,8 +1,10 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import { Bell, ChevronRight, Languages, LayoutGrid, LogIn, Pencil, Plug, SunMoon, User } from 'lucide-react';
+import { Bell, ChevronRight, Languages, LayoutGrid, LogIn, Pencil, Plug, RefreshCw, Sparkles, SunMoon, User } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 import { FamilyMark } from '@/components/family-mark';
 import { SettingsGroup, SettingsPage, SettingsRow } from '@/components/settings-ui';
+import { checkForUpdate, showUpdateAgain } from '@/components/update-nudge';
 import { useAppearance } from '@/hooks/use-appearance';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
@@ -15,14 +17,25 @@ type Props = {
     apps: string[];
     family: { name: string; color: string; symbol: string | null } | null;
     home: { on: number; total: number };
+    release: { version: string | null; unseen: boolean };
 };
 
 // Me (design board 12, M1): what the avatar opens. Only the person's own settings, then one row into the family's.
-export default function Me({ signIn, localeName, notifications, apps, family, home }: Props) {
+export default function Me({ signIn, localeName, notifications, apps, family, home, release }: Props) {
     const t = useT();
     const { auth } = usePage<SharedData>().props;
     const { appearance } = useAppearance();
     const provider = (p: string) => p.charAt(0).toUpperCase() + p.slice(1);
+    // Version row (design W2): checks for a newer build on open and on a tap; one found brings the update pill back.
+    const [update, setUpdate] = useState<'checking' | 'none' | 'ready'>('checking');
+    const check = () => {
+        setUpdate('checking');
+        void checkForUpdate().then((r) => {
+            setUpdate(r ? 'ready' : 'none');
+            if (r) showUpdateAgain();
+        });
+    };
+    useEffect(check, []);
 
     return (
         <AppLayout hideMobileHeader breadcrumbs={[{ title: t('settings_hub.me'), href: '/settings' }]}>
@@ -92,6 +105,36 @@ export default function Me({ signIn, localeName, notifications, apps, family, ho
                         </Link>
                     </SettingsGroup>
                 )}
+
+                <SettingsGroup label={t('settings_hub.about')}>
+                    <SettingsRow
+                        icon={Sparkles}
+                        title={t('settings_hub.whats_new')}
+                        value={
+                            release.unseen ? (
+                                <span className="flex items-center gap-1.5 text-red-600">
+                                    <span className="size-2 rounded-full bg-red-600" aria-hidden />
+                                    {release.version}
+                                </span>
+                            ) : (
+                                release.version
+                            )
+                        }
+                        href="/settings/whats-new"
+                    />
+                    <SettingsRow
+                        icon={RefreshCw}
+                        title={t('settings_hub.version', { version: release.version ?? '' })}
+                        sub={
+                            update === 'checking'
+                                ? t('settings_hub.checking')
+                                : update === 'ready'
+                                  ? t('settings_hub.update_ready')
+                                  : `${t('settings_hub.up_to_date')} · ${t('settings_hub.checked')}`
+                        }
+                        onClick={check}
+                    />
+                </SettingsGroup>
 
                 <div className="flex flex-col items-start gap-1 px-2">
                     <Link method="post" href={route('logout')} as="button" className="text-primary min-h-11 text-lg font-semibold">

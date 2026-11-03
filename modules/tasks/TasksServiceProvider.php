@@ -227,7 +227,8 @@ class TasksServiceProvider extends ServiceProvider
                 ->filter(fn (Task $t) => $t->list && ($t->list->visibility() === 'family' || $t->list->shares->contains('user_id', $userId)))
                 ->map(fn (Task $t) => CalendarSources::item('task', $t->id, $t->title, $t->due_date->toDateString(),
                     href: "/m/tasks/lists/{$t->task_list_id}", icon: 'list-checks', color: $t->list->color,
-                    people: $t->assignee ? [['type' => 'user', 'id' => $t->assignee->id, 'name' => $t->assignee->name]] : [], done: $t->done))
+                    people: $t->assignee ? [['type' => 'user', 'id' => $t->assignee->id, 'name' => $t->assignee->name]] : [], done: $t->done,
+                    sub: $t->list->name))
                 ->values()->all();
         });
 

@@ -1,5 +1,5 @@
 import { Check, ChevronRight, CornerDownRight, MoreHorizontal, Plus, Search } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { type Detail } from '@/components/add-just-say-it';
 import { appLocale, useT } from '@/lib/i18n';
@@ -150,7 +150,10 @@ export function ListPicker({
             {/* New list: last, outlined. What's typed in search becomes its name. */}
             <button
                 type="button"
-                onClick={() => onNew(q.trim())}
+                onClick={(e) => {
+                    holdKeyboard(e.currentTarget);
+                    onNew(q.trim());
+                }}
                 className="border-primary bg-surface-card flex w-full items-center gap-3 rounded-2xl border-2 px-3.5 py-3 text-left"
             >
                 <span className="bg-accent-strong text-accent-strong-foreground flex size-10 shrink-0 items-center justify-center rounded-xl">
@@ -166,6 +169,20 @@ export function ListPicker({
             </button>
         </div>
     );
+}
+
+// iOS raises the keyboard only for a focus() inside the tap itself, and the New list screen mounts after the tap.
+// So the tap focuses an invisible stand-in (the keyboard comes up) and the name field takes the focus over when it
+// mounts. The stand-in sits in the sheet, not <body>: the sheet's focus trap would pull focus back out of <body>.
+function holdKeyboard(from: HTMLElement) {
+    const stand = document.createElement('input');
+    stand.setAttribute('aria-hidden', 'true');
+    stand.tabIndex = -1;
+    // 16px: a smaller font makes iOS zoom in on focus.
+    stand.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;font-size:16px;';
+    (from.closest('[role="dialog"]') ?? document.body).appendChild(stand);
+    stand.focus({ preventScroll: true });
+    setTimeout(() => stand.remove(), 1000);
 }
 
 // T3c: name first (prefilled from search), the first icon row picked from the name (••• opens every icon), then the
@@ -188,6 +205,14 @@ export function NewListForm({
     busy?: boolean;
 }) {
     const t = useT();
+    const nameRef = useRef<HTMLInputElement>(null);
+    // Arrive typing: the name (prefilled from search) focused and selected, so typing replaces it (user, Nov 3).
+    // preventScroll: the sheet stays at its top with the field in view above the keyboard.
+    useLayoutEffect(() => {
+        const el = nameRef.current;
+        el?.focus({ preventScroll: true });
+        el?.setSelectionRange(0, el.value.length);
+    }, []);
     const fits = iconsFor(draft.name);
     // Row 1: what fits the name (padded with the everyday ones); row 2: common picks, then •••.
     const everyday = ['home', 'kids', 'baby', 'dog', 'gift', 'trip', 'tools', 'cart', 'sprout', 'docs', 'car', 'heart', 'list'];
@@ -214,12 +239,14 @@ export function NewListForm({
         <div className="flex flex-col gap-4">
             <div className="flex items-center gap-3">
                 <Tile icon={draft.icon} color={draft.color} size="size-14" />
-                {/* No autoFocus: the keyboard coming up on arrival covered the form, and a drag down to reach the
-                    field stepped the sheet back a screen. autoComplete off: iOS offered "AutoFill Contact" here. */}
+                {/* autoComplete off and no "name" in the field's name: iOS offered "AutoFill Contact" here (it reads
+                    the name attribute; autoComplete alone didn't stop it). */}
                 <input
+                    ref={nameRef}
                     value={draft.name}
                     autoComplete="off"
-                    name="list-name"
+                    name="list-title"
+                    enterKeyHint="done"
                     onChange={(e) => setName(e.target.value)}
                     placeholder={t('tasks.list_name_placeholder')}
                     aria-label={t('tasks.list_name_placeholder')}

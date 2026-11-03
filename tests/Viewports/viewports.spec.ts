@@ -35,6 +35,7 @@ const PAGES: [string, string][] = [
     ['expense-import', '/m/expense-import'],
     ['expense-import-settings', '/m/expense-import/settings'],
     ['settings', '/settings'],
+    ['settings-whats-new', '/settings/whats-new'],
     ['settings-profile', '/settings/profile'],
     ['settings-sign-in', '/settings/sign-in'],
     ['onboarding-about', '/onboarding/about'],

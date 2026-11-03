@@ -1,0 +1,65 @@
+[
+    {
+        "version": "1.2",
+        "date": "2026-11-03",
+        "items": [
+            {
+                "module": "tasks",
+                "title": "Pick a date from a calendar",
+                "text": "Tap a task's date and a month calendar opens right in the sheet. Clear date is one tap.",
+                "href": "/m/tasks"
+            },
+            {
+                "module": "app",
+                "title": "New versions wait for you",
+                "text": "When an update is ready, a small pill offers Refresh. It never reloads on its own or while you're typing.",
+                "href": null
+            },
+            {
+                "module": "calendar",
+                "title": "Every day on screen, listed",
+                "text": "Under the Timeline you now see what's in the days on screen, not just the one you tapped.",
+                "href": "/m/calendar?view=timeline"
+            }
+        ],
+        "fixes": ["Names on the Timeline stay put while you swipe", "A new list's name is ready to type over"]
+    },
+    {
+        "version": "1.1",
+        "date": "2026-11-03",
+        "items": [
+            {
+                "module": "calendar",
+                "title": "Trips and holidays, one row each",
+                "text": "The new Timeline shows the big stuff side by side and swipes freely, with Agenda and Month a tap away.",
+                "href": "/m/calendar?view=timeline"
+            },
+            {
+                "module": "tasks",
+                "title": "Move a task to any list",
+                "text": "Pick a list, or make a new one with its own icon and colour, without leaving the task.",
+                "href": "/m/tasks"
+            }
+        ],
+        "fixes": []
+    },
+    {
+        "version": "1.0",
+        "date": "2026-11-02",
+        "items": [
+            {
+                "module": "tasks",
+                "title": "Tasks, redesigned",
+                "text": "Lists with sub-tasks, who's on it at a glance, and Today, Tomorrow or a date in one tap.",
+                "href": "/m/tasks"
+            },
+            {
+                "module": "app",
+                "title": "Get the app",
+                "text": "Using FamilyWell in a browser? Add it to your Home Screen for reminders on your phone.",
+                "href": null
+            }
+        ],
+        "fixes": []
+    }
+]
