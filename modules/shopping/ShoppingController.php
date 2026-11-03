@@ -122,6 +122,7 @@ class ShoppingController extends Controller
 
     public function shopShow(Request $request, ShoppingShop $shop): Response
     {
+        $this->ownShop($shop);
         $user = $request->user();
         [$lists, $listById] = $this->accessibleLists($user->id);
         $aisles = $this->resolveAisles($shop->name); // slug/name/icon, in walk order
@@ -199,14 +200,18 @@ class ShoppingController extends Controller
     public function storeShop(Request $request): RedirectResponse
     {
         $data = $request->validate(['name' => ['required', 'string', 'max:120']]);
-        ShoppingShop::firstOrCreate(['name' => trim($data['name'])]);
+        $shop = ShoppingShop::firstOrCreate(['name' => trim($data['name'])]);
         Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
 
-        return back();
+        // From Your shops: a new shop asks for its starting aisles straight away (design S1g).
+        return $request->boolean('pick_aisles') && $shop->wasRecentlyCreated
+            ? redirect()->route('shopping.shops.aisles', [$shop, 'pick' => 1])
+            : back();
     }
 
     public function updateShop(Request $request, ShoppingShop $shop): RedirectResponse
     {
+        $this->ownShop($shop);
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:120'],
             'icon' => ['sometimes', 'string', 'max:40'],
@@ -252,6 +257,7 @@ class ShoppingController extends Controller
     // list (must be editable) or the user's default list, with this shop preset as its store.
     public function storeShopItem(Request $request, ShoppingShop $shop): RedirectResponse
     {
+        $this->ownShop($shop);
         $user = $request->user();
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -335,8 +341,32 @@ class ShoppingController extends Controller
 
     // Shop-scoped aisle editing (the shop's "settings"). Same store-name-keyed logic as the list
     // editor, but addressed by shop and stamping shop_id on the rows.
+    // A shop's aisles (design S1f): where it started from (S1g sheet to switch), its aisles in walking order with
+    // how many items each holds, add / rename / reorder. Opens with the template sheet up for a new shop (?pick=1).
+    public function shopAisles(Request $request, ShoppingShop $shop): Response
+    {
+        $this->ownShop($shop);
+        $this->materializeAisles($shop->name);
+        ShoppingAisle::where('store', $shop->name)->whereNull('shop_id')->update(['shop_id' => $shop->id]);
+        // Items at this shop (its own store, or the list's when the item has none), per aisle.
+        $listIds = ShoppingList::where('store', $shop->name)->pluck('id');
+        $counts = ShoppingItem::where(fn ($q) => $q->where('store', $shop->name)
+            ->orWhere(fn ($q) => $q->whereNull('store')->whereIn('shopping_list_id', $listIds)))
+            ->selectRaw('department, count(*) as n')->groupBy('department')->pluck('n', 'department');
+        $names = fn (string $key) => array_map(fn ($a) => StoreTemplates::displayName($a[0], $a[1]), StoreTemplates::TEMPLATES[$key]);
+
+        return Inertia::render('shopping/shop-aisles', [
+            'shop' => ['id' => $shop->id, 'name' => $shop->name, 'logo' => $shop->logoUrl(), 'template' => $shop->template ?? 'grocery'],
+            'aisles' => array_map(fn ($a) => $a + ['items' => (int) ($counts[$a['slug']] ?? 0)], $this->aisleListJson($shop->name)),
+            'templates' => array_map(fn ($o) => $o + ['names' => $names($o['key'])], StoreTemplates::options()),
+            'suggested' => StoreTemplates::guess($shop->name, $shop->brand),
+            'pick' => $request->boolean('pick'),
+        ]);
+    }
+
     public function ensureShopAisles(ShoppingShop $shop): JsonResponse
     {
+        $this->ownShop($shop);
         $this->materializeAisles($shop->name);
         ShoppingAisle::where('store', $shop->name)->whereNull('shop_id')->update(['shop_id' => $shop->id]);
 
@@ -345,6 +375,7 @@ class ShoppingController extends Controller
 
     public function storeShopAisle(Request $request, ShoppingShop $shop): JsonResponse
     {
+        $this->ownShop($shop);
         $data = $request->validate(['name' => ['required', 'string', 'max:60'], 'icon' => ['required', 'string', 'max:40']]);
         $this->materializeAisles($shop->name);
         ShoppingAisle::create([
@@ -362,6 +393,7 @@ class ShoppingController extends Controller
 
     public function reorderShopAisles(Request $request, ShoppingShop $shop): JsonResponse
     {
+        $this->ownShop($shop);
         $data = $request->validate(['slugs' => ['required', 'array'], 'slugs.*' => ['string']]);
         foreach (array_values($data['slugs']) as $i => $slug) {
             ShoppingAisle::where('store', $shop->name)->where('slug', $slug)->update(['position' => $i]);
@@ -373,8 +405,10 @@ class ShoppingController extends Controller
 
     public function applyShopTemplate(Request $request, ShoppingShop $shop): JsonResponse
     {
+        $this->ownShop($shop);
         $data = $request->validate(['template' => ['required', 'in:'.implode(',', array_keys(StoreTemplates::TEMPLATES))]]);
         ShoppingAisle::where('store', $shop->name)->delete();
+        $shop->update(['template' => $data['template']]);
         foreach (StoreTemplates::TEMPLATES[$data['template']] as $i => [$slug, $name, $icon]) {
             ShoppingAisle::create(['shop_id' => $shop->id, 'store' => $shop->name, 'slug' => $slug, 'name' => $name, 'icon' => $icon, 'position' => $i]);
         }
@@ -837,6 +871,13 @@ class ShoppingController extends Controller
     // ---------------------------------------------------------------------------------------------
 
     /** @return Collection<int, ShoppingAisle> */
+    // {shop} route binding runs before the `family` middleware sets the tenant (BelongsToFamily's scope isn't on
+    // yet), so another family's shop would resolve: every {shop} endpoint checks it's the active family's.
+    private function ownShop(ShoppingShop $shop): void
+    {
+        abort_unless((int) $shop->family_id === (int) CurrentFamily::id(), 404);
+    }
+
     private function aisleRows(?string $store)
     {
         return ShoppingAisle::where('store', (string) $store)->orderBy('position')->orderBy('id')->get();

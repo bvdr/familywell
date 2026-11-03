@@ -72,6 +72,7 @@ const DETAILS: [string, string, RegExp, string?][] = [
     ['project', '/m/projects', /\/m\/projects\/\d+$/],
     ['recipe', '/m/recipes', /\/m\/recipes\/\d+$/],
     ['shopping-list', '/m/shopping', /\/m\/shopping\/lists\/\d+$/],
+    ['shopping-shop-aisles', '/m/shopping/settings/shops', /\/m\/shopping\/shops\/\d+\/aisles$/],
     ['spending-list', '/m/spending', /\/m\/spending\/events\/\d+$/],
     ['task-list', '/m/tasks', /\/m\/tasks\/lists\/\d+$/],
     ['vehicle', '/m/vehicles', /\/m\/vehicles\/\d+$/],

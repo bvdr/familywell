@@ -206,5 +206,19 @@
     "n_archived_one": ":count arkivert liste",
     "n_archived_other": ":count arkiverte lister",
     "cleanup_note_one": "Kjøpte varer forlater listen :count dag etter at de ble krysset av og venter 30 dager i Nylig slettet. Hver liste kan ha sin egen tid.",
-    "cleanup_note_other": "Kjøpte varer forlater listen :count dager etter at de ble krysset av og venter 30 dager i Nylig slettet. Hver liste kan ha sin egen tid."
+    "cleanup_note_other": "Kjøpte varer forlater listen :count dager etter at de ble krysset av og venter 30 dager i Nylig slettet. Hver liste kan ha sin egen tid.",
+    "shop_aisles": ":name – avdelinger",
+    "started_from": "Startet fra",
+    "add_an_aisle": "Legg til en avdeling",
+    "aisles_hint": "Nye varer havner i en avdeling av seg selv. Flytt en vare én gang, så blir den der neste gang. Trykk på en avdeling for å gi den nytt navn.",
+    "aisles_for": "Avdelinger for :name",
+    "use_template": "Bruk :name",
+    "pick_starting_set": "Velg et utgangspunkt. Sorter, gi nytt navn eller legg til avdelinger etterpå.",
+    "template_blank_sub": "Bare «Annet». Lag dine egne.",
+    "suggested": "Foreslått",
+    "rename_aisle": "Gi avdelingen nytt navn",
+    "aisle_name": "Avdelingsnavn",
+    "remove_aisle": "Fjern avdeling",
+    "n_items_one": ":count vare",
+    "n_items_other": ":count varer"
 }

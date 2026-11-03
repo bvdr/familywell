@@ -46,11 +46,12 @@ export default function YourShops({ shops: initial }: { shops: Shop[] }) {
         if (!n) return;
         router.post(
             route('shopping.shops.store'),
-            { name: n },
+            // A new shop goes straight to its aisles with the starting-set sheet up (S1g); an existing name stays here.
+            { name: n, pick_aisles: true },
             {
-                preserveScroll: true,
                 onSuccess: (page) => {
-                    setShops((page.props as unknown as { shops: Shop[] }).shops);
+                    const fresh = (page.props as unknown as { shops?: Shop[] }).shops;
+                    if (fresh) setShops(fresh);
                     setName('');
                     setAdding(false);
                 },
@@ -153,7 +154,7 @@ function ShopRow({ shop, sub, onMove }: { shop: Shop; sub: string; onMove: (by: 
             >
                 <GripVertical className="size-5" />
             </button>
-            <Link href={`/m/shopping/shops/${shop.id}`} className="flex min-w-0 flex-1 items-center gap-3 py-3 pr-4">
+            <Link href={`/m/shopping/shops/${shop.id}/aisles`} className="flex min-w-0 flex-1 items-center gap-3 py-3 pr-4">
                 <ShopLogo name={shop.name} logo={shop.logo} className="size-10 rounded-xl" />
                 <span className="min-w-0 flex-1">
                     <span className="text-primary block truncate text-[17px] font-semibold">{shop.name}</span>

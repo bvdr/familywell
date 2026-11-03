@@ -206,5 +206,19 @@
     "n_archived_one": ":count lista arquivada",
     "n_archived_other": ":count listas arquivadas",
     "cleanup_note_one": "Os comprados saem da lista :count dia depois de marcados e ficam 30 dias em Eliminados recentemente. Cada lista pode ter o seu prazo.",
-    "cleanup_note_other": "Os comprados saem da lista :count dias depois de marcados e ficam 30 dias em Eliminados recentemente. Cada lista pode ter o seu prazo."
+    "cleanup_note_other": "Os comprados saem da lista :count dias depois de marcados e ficam 30 dias em Eliminados recentemente. Cada lista pode ter o seu prazo.",
+    "shop_aisles": "Corredores de :name",
+    "started_from": "Começou com",
+    "add_an_aisle": "Adicionar um corredor",
+    "aisles_hint": "Os artigos novos vão sozinhos para um corredor. Muda um artigo uma vez e fica lá da próxima. Toca num corredor para lhe mudar o nome.",
+    "aisles_for": "Corredores para :name",
+    "use_template": "Usar :name",
+    "pick_starting_set": "Escolhe um ponto de partida. Depois ordena, renomeia ou adiciona corredores.",
+    "template_blank_sub": "Só «Outros». Cria os teus.",
+    "suggested": "Sugerido",
+    "rename_aisle": "Renomear corredor",
+    "aisle_name": "Nome do corredor",
+    "remove_aisle": "Remover corredor",
+    "n_items_one": ":count artigo",
+    "n_items_other": ":count artigos"
 }

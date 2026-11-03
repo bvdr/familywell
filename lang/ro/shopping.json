@@ -211,5 +211,20 @@
     "n_archived_other": ":count de liste arhivate",
     "cleanup_note_one": "Produsele cumpărate pleacă de pe listă la :count zi după bifare și stau 30 de zile în Șterse recent, apoi dispar. Fiecare listă își poate seta propriul timp.",
     "cleanup_note_few": "Produsele cumpărate pleacă de pe listă la :count zile după bifare și stau 30 de zile în Șterse recent, apoi dispar. Fiecare listă își poate seta propriul timp.",
-    "cleanup_note_other": "Produsele cumpărate pleacă de pe listă la :count de zile după bifare și stau 30 de zile în Șterse recent, apoi dispar. Fiecare listă își poate seta propriul timp."
+    "cleanup_note_other": "Produsele cumpărate pleacă de pe listă la :count de zile după bifare și stau 30 de zile în Șterse recent, apoi dispar. Fiecare listă își poate seta propriul timp.",
+    "shop_aisles": "Raioanele :name",
+    "started_from": "Pornit de la",
+    "add_an_aisle": "Adaugă un raion",
+    "aisles_hint": "Produsele noi ajung singure într-un raion. Mută un produs o dată și rămâne acolo data viitoare. Atinge un raion ca să-l redenumești.",
+    "aisles_for": "Raioane pentru :name",
+    "use_template": "Folosește :name",
+    "pick_starting_set": "Alege un set de pornire. Apoi reordonezi, redenumești sau adaugi raioane.",
+    "template_blank_sub": "Doar „Altele”. Construiește-ți propriile raioane.",
+    "suggested": "Sugerat",
+    "rename_aisle": "Redenumește raionul",
+    "aisle_name": "Numele raionului",
+    "remove_aisle": "Șterge raionul",
+    "n_items_one": ":count produs",
+    "n_items_few": ":count produse",
+    "n_items_other": ":count de produse"
 }
