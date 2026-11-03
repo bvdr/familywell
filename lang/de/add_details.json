@@ -65,5 +65,9 @@
     "icons_money": "Geld",
     "icons_garden": "Garten",
     "icons_fun": "Freizeit",
-    "fits": "Passend zu „:name“"
+    "fits": "Passend zu „:name“",
+    "date": "Datum",
+    "set_date": "Datum festlegen",
+    "clear_date": "Datum entfernen",
+    "no_date": "Kein Datum"
 }

@@ -65,5 +65,9 @@
     "icons_money": "Penger",
     "icons_garden": "Hage",
     "icons_fun": "Moro",
-    "fits": "Passer «:name»"
+    "fits": "Passer «:name»",
+    "date": "Dato",
+    "set_date": "Sett dato",
+    "clear_date": "Fjern dato",
+    "no_date": "Ingen dato"
 }

@@ -69,5 +69,9 @@
     "icons_garden": "Grădină",
     "icons_fun": "Distracție",
     "fits": "Potrivite pentru „:name”",
-    "has_like_few": "are :count sarcini „:word”"
+    "has_like_few": "are :count sarcini „:word”",
+    "date": "Dată",
+    "set_date": "Setează data",
+    "clear_date": "Șterge data",
+    "no_date": "Fără dată"
 }

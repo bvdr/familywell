@@ -65,5 +65,9 @@
     "icons_money": "Geld",
     "icons_garden": "Tuin",
     "icons_fun": "Plezier",
-    "fits": "Past bij ‘:name’"
+    "fits": "Past bij ‘:name’",
+    "date": "Datum",
+    "set_date": "Datum instellen",
+    "clear_date": "Datum wissen",
+    "no_date": "Geen datum"
 }
