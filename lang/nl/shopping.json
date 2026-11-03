@@ -206,5 +206,19 @@
     "n_archived_one": ":count gearchiveerde lijst",
     "n_archived_other": ":count gearchiveerde lijsten",
     "cleanup_note_one": "Gekochte items verlaten de lijst :count dag na het afvinken en wachten 30 dagen in Recent verwijderd. Elke lijst kan een eigen termijn hebben.",
-    "cleanup_note_other": "Gekochte items verlaten de lijst :count dagen na het afvinken en wachten 30 dagen in Recent verwijderd. Elke lijst kan een eigen termijn hebben."
+    "cleanup_note_other": "Gekochte items verlaten de lijst :count dagen na het afvinken en wachten 30 dagen in Recent verwijderd. Elke lijst kan een eigen termijn hebben.",
+    "shop_aisles": "Gangpaden van :name",
+    "started_from": "Begonnen met",
+    "add_an_aisle": "Gangpad toevoegen",
+    "aisles_hint": "Nieuwe items komen vanzelf in een gangpad. Verplaats een item één keer en het blijft daar. Tik op een gangpad om het te hernoemen.",
+    "aisles_for": "Gangpaden voor :name",
+    "use_template": ":name gebruiken",
+    "pick_starting_set": "Kies een startset. Daarna kun je gangpaden ordenen, hernoemen of toevoegen.",
+    "template_blank_sub": "Alleen ‘Overig’. Maak je eigen.",
+    "suggested": "Aanbevolen",
+    "rename_aisle": "Gangpad hernoemen",
+    "aisle_name": "Naam gangpad",
+    "remove_aisle": "Gangpad verwijderen",
+    "n_items_one": ":count item",
+    "n_items_other": ":count items"
 }

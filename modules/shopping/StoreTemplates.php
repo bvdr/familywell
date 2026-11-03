@@ -53,6 +53,31 @@ class StoreTemplates
         'blank' => 'Blank',
     ];
 
+    // DIY and pharmacy chains from resources/shop-brands.json; the rest guess from words in the name.
+    private const BRAND_TEMPLATE = [
+        'dedeman' => 'bricolage', 'hornbach' => 'bricolage', 'leroy-merlin' => 'bricolage', 'brico-depot' => 'bricolage',
+        'bauhaus' => 'bricolage', 'obi' => 'bricolage', 'toom' => 'bricolage', 'home-depot' => 'bricolage',
+        'farmacia-tei' => 'pharmacy', 'catena' => 'pharmacy', 'sensiblu' => 'pharmacy', 'help-net' => 'pharmacy',
+        'cvs' => 'pharmacy', 'walgreens' => 'pharmacy', 'boots' => 'pharmacy', 'apotek-hjartat' => 'pharmacy',
+    ];
+
+    /** The starting set to suggest for a shop (design S1g): its brand's kind, else words in its name, else Grocery. */
+    public static function guess(string $name, ?string $brand = null): string
+    {
+        if ($brand && isset(self::BRAND_TEMPLATE[$brand])) {
+            return self::BRAND_TEMPLATE[$brand];
+        }
+        $n = mb_strtolower($name);
+        if (preg_match('/farmac|pharm|apotek|apothek|drug|chemist/u', $n)) {
+            return 'pharmacy';
+        }
+        if (preg_match('/brico|diy|hardware|baumarkt|bau|depot|tools|scule/u', $n)) {
+            return 'bricolage';
+        }
+
+        return 'grocery';
+    }
+
     /** The aisle set a shop with no custom rows uses (keeps legacy grocery lists grouping). */
     public static function default(): array
     {

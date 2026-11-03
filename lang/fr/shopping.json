@@ -206,5 +206,19 @@
     "n_archived_one": ":count liste archivée",
     "n_archived_other": ":count listes archivées",
     "cleanup_note_one": "Les achats quittent la liste :count jour après avoir été cochés et restent 30 jours dans Supprimés récemment. Chaque liste peut avoir son propre délai.",
-    "cleanup_note_other": "Les achats quittent la liste :count jours après avoir été cochés et restent 30 jours dans Supprimés récemment. Chaque liste peut avoir son propre délai."
+    "cleanup_note_other": "Les achats quittent la liste :count jours après avoir été cochés et restent 30 jours dans Supprimés récemment. Chaque liste peut avoir son propre délai.",
+    "shop_aisles": "Rayons de :name",
+    "started_from": "Démarré avec",
+    "add_an_aisle": "Ajouter un rayon",
+    "aisles_hint": "Les nouveaux articles trouvent leur rayon tout seuls. Déplacez un article une fois et il y restera. Touchez un rayon pour le renommer.",
+    "aisles_for": "Rayons pour :name",
+    "use_template": "Utiliser :name",
+    "pick_starting_set": "Choisissez un point de départ. Réordonnez, renommez ou ajoutez des rayons ensuite.",
+    "template_blank_sub": "Seulement « Autre ». Créez les vôtres.",
+    "suggested": "Suggéré",
+    "rename_aisle": "Renommer le rayon",
+    "aisle_name": "Nom du rayon",
+    "remove_aisle": "Supprimer le rayon",
+    "n_items_one": ":count article",
+    "n_items_other": ":count articles"
 }

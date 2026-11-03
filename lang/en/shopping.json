@@ -206,5 +206,19 @@
     "n_archived_one": ":count archived list",
     "n_archived_other": ":count archived lists",
     "cleanup_note_one": "Bought items leave the list :count day after they were ticked and wait in Recently deleted for 30 days, then they’re gone. Each list can set its own timing.",
-    "cleanup_note_other": "Bought items leave the list :count days after they were ticked and wait in Recently deleted for 30 days, then they’re gone. Each list can set its own timing."
+    "cleanup_note_other": "Bought items leave the list :count days after they were ticked and wait in Recently deleted for 30 days, then they’re gone. Each list can set its own timing.",
+    "shop_aisles": ":name aisles",
+    "started_from": "Started from",
+    "add_an_aisle": "Add an aisle",
+    "aisles_hint": "New items land in an aisle on their own. Move an item to another aisle once and it stays there next time. Tap an aisle to rename it.",
+    "aisles_for": "Aisles for :name",
+    "use_template": "Use :name",
+    "pick_starting_set": "Pick a starting set. Reorder, rename or add aisles after.",
+    "template_blank_sub": "Only 'Other'. Build your own.",
+    "suggested": "Suggested",
+    "rename_aisle": "Rename aisle",
+    "aisle_name": "Aisle name",
+    "remove_aisle": "Remove aisle",
+    "n_items_one": ":count item",
+    "n_items_other": ":count items"
 }

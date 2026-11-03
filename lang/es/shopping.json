@@ -206,5 +206,19 @@
     "n_archived_one": ":count lista archivada",
     "n_archived_other": ":count listas archivadas",
     "cleanup_note_one": "Los comprados salen de la lista :count día después de marcarlos y esperan 30 días en Eliminado recientemente. Cada lista puede tener su propio plazo.",
-    "cleanup_note_other": "Los comprados salen de la lista :count días después de marcarlos y esperan 30 días en Eliminado recientemente. Cada lista puede tener su propio plazo."
+    "cleanup_note_other": "Los comprados salen de la lista :count días después de marcarlos y esperan 30 días en Eliminado recientemente. Cada lista puede tener su propio plazo.",
+    "shop_aisles": "Pasillos de :name",
+    "started_from": "Empezó con",
+    "add_an_aisle": "Añadir un pasillo",
+    "aisles_hint": "Los artículos nuevos caen solos en un pasillo. Mueve uno a otro pasillo una vez y se quedará ahí. Toca un pasillo para renombrarlo.",
+    "aisles_for": "Pasillos para :name",
+    "use_template": "Usar :name",
+    "pick_starting_set": "Elige un punto de partida. Luego reordena, renombra o añade pasillos.",
+    "template_blank_sub": "Solo «Otros». Crea los tuyos.",
+    "suggested": "Sugerido",
+    "rename_aisle": "Renombrar pasillo",
+    "aisle_name": "Nombre del pasillo",
+    "remove_aisle": "Quitar pasillo",
+    "n_items_one": ":count artículo",
+    "n_items_other": ":count artículos"
 }

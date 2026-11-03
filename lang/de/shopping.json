@@ -206,5 +206,19 @@
     "n_archived_one": ":count archivierte Liste",
     "n_archived_other": ":count archivierte Listen",
     "cleanup_note_one": "Gekaufte Artikel verlassen die Liste :count Tag nach dem Abhaken und warten 30 Tage in „Zuletzt gelöscht“, dann sind sie weg. Jede Liste kann eine eigene Zeit festlegen.",
-    "cleanup_note_other": "Gekaufte Artikel verlassen die Liste :count Tage nach dem Abhaken und warten 30 Tage in „Zuletzt gelöscht“, dann sind sie weg. Jede Liste kann eine eigene Zeit festlegen."
+    "cleanup_note_other": "Gekaufte Artikel verlassen die Liste :count Tage nach dem Abhaken und warten 30 Tage in „Zuletzt gelöscht“, dann sind sie weg. Jede Liste kann eine eigene Zeit festlegen.",
+    "shop_aisles": ":name – Gänge",
+    "started_from": "Gestartet mit",
+    "add_an_aisle": "Gang hinzufügen",
+    "aisles_hint": "Neue Artikel landen von selbst in einem Gang. Verschiebst du einen Artikel einmal, bleibt er beim nächsten Mal dort. Tippe auf einen Gang, um ihn umzubenennen.",
+    "aisles_for": "Gänge für :name",
+    "use_template": ":name verwenden",
+    "pick_starting_set": "Wähle eine Startauswahl. Danach kannst du Gänge sortieren, umbenennen oder hinzufügen.",
+    "template_blank_sub": "Nur „Sonstiges“. Bau dir deine eigenen.",
+    "suggested": "Vorschlag",
+    "rename_aisle": "Gang umbenennen",
+    "aisle_name": "Name des Gangs",
+    "remove_aisle": "Gang entfernen",
+    "n_items_one": ":count Artikel",
+    "n_items_other": ":count Artikel"
 }

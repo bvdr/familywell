@@ -17,7 +17,7 @@ class ShoppingShop extends Model
 
     protected $table = 'shopping_shops';
 
-    protected $fillable = ['name', 'icon', 'color', 'position'];
+    protected $fillable = ['name', 'icon', 'color', 'position', 'template'];
 
     // Every way a shop gets or changes its name (web, MCP, a list's store) saves through here: match it to a known
     // brand for its logo (ShopBrands), preferring brands sold in the family's country.

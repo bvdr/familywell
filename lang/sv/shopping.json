@@ -206,5 +206,19 @@
     "n_archived_one": ":count arkiverad lista",
     "n_archived_other": ":count arkiverade listor",
     "cleanup_note_one": "Köpta varor lämnar listan :count dag efter att de bockats av och väntar 30 dagar i Nyligen raderade. Varje lista kan ha egen tid.",
-    "cleanup_note_other": "Köpta varor lämnar listan :count dagar efter att de bockats av och väntar 30 dagar i Nyligen raderade. Varje lista kan ha egen tid."
+    "cleanup_note_other": "Köpta varor lämnar listan :count dagar efter att de bockats av och väntar 30 dagar i Nyligen raderade. Varje lista kan ha egen tid.",
+    "shop_aisles": ":name – avdelningar",
+    "started_from": "Började från",
+    "add_an_aisle": "Lägg till en avdelning",
+    "aisles_hint": "Nya varor hamnar i en avdelning av sig själva. Flytta en vara en gång så stannar den där. Tryck på en avdelning för att byta namn.",
+    "aisles_for": "Avdelningar för :name",
+    "use_template": "Använd :name",
+    "pick_starting_set": "Välj en startuppsättning. Sortera, byt namn eller lägg till avdelningar sen.",
+    "template_blank_sub": "Bara ”Övrigt”. Bygg dina egna.",
+    "suggested": "Föreslagen",
+    "rename_aisle": "Byt namn på avdelning",
+    "aisle_name": "Avdelningens namn",
+    "remove_aisle": "Ta bort avdelning",
+    "n_items_one": ":count vara",
+    "n_items_other": ":count varor"
 }
