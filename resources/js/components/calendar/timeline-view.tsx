@@ -251,6 +251,12 @@ export const TimelineView = forwardRef<
         onToggle(i);
     };
 
+    const inView = daysOf(firstDay, lastDay).filter((d) => itemsOn(all, d).length > 0);
+    const pick = (d: string) => {
+        onSelect(d);
+        document.getElementById(`day-${d}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+
     const trackW = days.length * dayW;
     const todayIdx = days.indexOf(today);
     const todayInView = !!win && todayIdx >= win[0] && todayIdx <= win[1];
@@ -286,7 +292,7 @@ export const TimelineView = forwardRef<
                                     <button
                                         key={d}
                                         type="button"
-                                        onClick={() => onSelect(d)}
+                                        onClick={() => pick(d)}
                                         aria-pressed={d === selected}
                                         className={`flex shrink-0 flex-col items-center gap-0.5 py-1.5 ${d.endsWith('-01') ? 'border-l' : ''}`}
                                         style={{ width: px(dayW) }}
@@ -424,7 +430,16 @@ export const TimelineView = forwardRef<
 
             {/* min-w-0 children: a long "who" line must truncate, not widen the page. */}
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2 [&>*]:min-w-0">
-                <DayList items={all} day={selected} today={today} onToggle={toggle} count />
+                {/* Every day on screen that has something, in order, so a swipe shows what's in those days without
+                    tapping each one (user, Nov 3). Tapping a day scrolls to its heading. */}
+                <div className="flex flex-col gap-5">
+                    {inView.length === 0 && <p className="text-muted-foreground px-1 text-sm">{t('calendar.nothing_range')}</p>}
+                    {inView.map((d) => (
+                        <div key={d} id={`day-${d}`} className="scroll-mt-4">
+                            <DayList items={all} day={d} today={today} onToggle={toggle} count />
+                        </div>
+                    ))}
+                </div>
                 {/* Desktop (D2): further out, the next few months' big things. */}
                 {ahead.length > 0 && (
                     <section className="hidden flex-col gap-2 md:flex">
