@@ -255,10 +255,11 @@ class ShoppingServiceProvider extends ServiceProvider
             return response($disk->get("brands/{$slug}.png"), 200, ['Content-Type' => 'image/png', 'Cache-Control' => 'public, max-age=31536000, immutable']);
         })->name('shopping.brand-logo');
 
-        $this->commands([FindShopLogos::class]);
+        $this->commands([FindShopLogos::class, CleanBoughtItems::class]);
         // Weekly sweep for logos of shop names no known brand matched (Monday night, quiet hours).
         $this->callAfterResolving(Schedule::class, function ($schedule) {
             $schedule->command('shops:find-logos')->weeklyOn(1, '03:00')->withoutOverlapping();
+            $schedule->command('shopping:clean-bought')->dailyAt('04:00')->withoutOverlapping();
         });
 
         // Full Inertia pages (a whole app section, not a dashboard widget). Gated by `module:shopping`
@@ -269,6 +270,9 @@ class ShoppingServiceProvider extends ServiceProvider
             ->group(function () {
                 Route::get('/', [ShoppingController::class, 'index'])->name('index');
                 Route::get('/settings', [ShoppingController::class, 'settings'])->name('settings');
+                Route::patch('/settings', [ShoppingController::class, 'updateSettings'])->name('settings.update');
+                Route::get('/settings/shops', [ShoppingController::class, 'yourShops'])->name('settings.shops');
+                Route::post('/shops/reorder', [ShoppingController::class, 'reorderShops'])->name('shops.reorder');
 
                 // Shops: the family's stores as first-class pages (aggregated cross-list view + aisles).
                 Route::get('/shops', [ShoppingController::class, 'shopsIndex'])->name('shops.index');

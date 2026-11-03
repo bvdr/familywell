@@ -28,9 +28,64 @@ class ShoppingController extends Controller
 
     // Module-level settings (e.g. the voice dictation language). The settings themselves are a
     // per-device client preference (localStorage), so the page needs no server payload today.
-    public function settings(): Response
+    // Shopping settings (design S1d): your shops, what new lists start with, the helpers, clean-up, archive.
+    public function settings(Request $request): Response
     {
-        return Inertia::render('shopping/settings');
+        [$accessible] = $this->accessibleLists($request->user()->id);
+
+        return Inertia::render('shopping/settings', [
+            'settings' => ShoppingSetting::current()->only(['default_shop', 'sort', 'bought', 'ai_sort', 'warn_duplicates', 'keep_awake', 'auto_clean', 'clean_after_days']),
+            'shops' => ShoppingShop::orderBy('position')->orderBy('name')->pluck('name'),
+            'archived' => ShoppingList::whereNotNull('archived_at')->count(),
+            'aiEnabled' => AisleGuesser::configured(),
+            'lists' => $accessible->count(),
+        ]);
+    }
+
+    public function updateSettings(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'default_shop' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'sort' => ['sometimes', 'in:aisle,az,added'],
+            'bought' => ['sometimes', 'in:sink,hide'],
+            'ai_sort' => ['sometimes', 'boolean'],
+            'warn_duplicates' => ['sometimes', 'boolean'],
+            'keep_awake' => ['sometimes', 'boolean'],
+            'auto_clean' => ['sometimes', 'boolean'],
+            'clean_after_days' => ['sometimes', 'integer', 'in:1,3,7,14,30'],
+        ]);
+        ShoppingSetting::current()->update($data);
+
+        return back();
+    }
+
+    // Your shops (design S1e): every shop with its logo and how many lists use it; drag sets their order.
+    public function yourShops(Request $request): Response
+    {
+        [$accessible] = $this->accessibleLists($request->user()->id);
+        $perShop = $accessible->countBy('store');
+        $default = ShoppingSetting::current()->default_shop;
+
+        return Inertia::render('shopping/your-shops', [
+            'shops' => ShoppingShop::orderBy('position')->orderBy('name')->get()->map(fn (ShoppingShop $s) => [
+                'id' => $s->id,
+                'name' => $s->name,
+                'logo' => $s->logoUrl(),
+                'lists' => $perShop[$s->name] ?? 0,
+                'isDefault' => $default !== null && mb_strtolower($default) === mb_strtolower($s->name),
+            ])->values(),
+        ]);
+    }
+
+    public function reorderShops(Request $request): JsonResponse
+    {
+        $ids = $request->validate(['ids' => ['required', 'array'], 'ids.*' => ['integer']])['ids'];
+        // BelongsToFamily scopes the query: ids from another family simply don't match.
+        foreach (ShoppingShop::whereIn('id', $ids)->get() as $shop) {
+            $shop->update(['position' => array_search($shop->id, $ids, true)]);
+        }
+
+        return response()->json(['ok' => true]);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -260,7 +315,8 @@ class ShoppingController extends Controller
 
     private function warnIfDuplicate(Request $request, ShoppingList $list, string $name): void
     {
-        if ($request->boolean('add_anyway')) {
+        // "Warn about duplicates" off in Shopping settings: just add it.
+        if ($request->boolean('add_anyway') || ! ShoppingSetting::current()->warn_duplicates) {
             return;
         }
         if ($dup = ShoppingItem::activeDuplicate($list, $name)) {
@@ -356,9 +412,21 @@ class ShoppingController extends Controller
         // Shops + per-shop unbought counts across accessible lists (drives the Shops tab).
         [$accessible, $listById] = $this->accessibleLists($userId);
         $counts = [];
+        $needs = []; // shop => names of the (active) lists waiting on it, for the Shops tab's second line (S1b)
+        $lastTrip = []; // shop => the last day something was ticked there ("Last trip 12 Oct")
         $noShopCount = 0; // unbought items that belong to no shop at all -> the "No shop" bucket
-        foreach (ShoppingItem::whereIn('shopping_list_id', $accessible->pluck('id'))->where('bought', false)->get() as $i) {
+        $items = ShoppingItem::whereIn('shopping_list_id', $accessible->pluck('id'))
+            ->where(fn ($q) => $q->where('bought', false)->orWhereNotNull('bought_at'))
+            ->get(['id', 'shopping_list_id', 'store', 'alt_stores', 'bought', 'bought_at']);
+        foreach ($items as $i) {
             $shops = $this->itemShops($i, $listById);
+            if ($i->bought) {
+                foreach ($shops as $name) {
+                    $lastTrip[$name] = max($lastTrip[$name] ?? $i->bought_at, $i->bought_at);
+                }
+
+                continue;
+            }
             if ($shops === []) {
                 $noShopCount++;
 
@@ -366,6 +434,7 @@ class ShoppingController extends Controller
             }
             foreach ($shops as $name) {
                 $counts[$name] = ($counts[$name] ?? 0) + 1;
+                $needs[$name][$i->shopping_list_id] = $listById[$i->shopping_list_id]->name;
             }
         }
 
@@ -385,15 +454,20 @@ class ShoppingController extends Controller
             ])->values(),
             // Distinct stores already in use, offered as chips on the New List screen.
             'stores' => ShoppingList::whereNotNull('store')->distinct()->orderBy('store')->pluck('store')->values(),
-            'shops' => ShoppingShop::orderBy('name')->get()->map(fn (ShoppingShop $s) => [
+            // In the family's order (drag in Your shops, S1e), then A-Z.
+            'shops' => ShoppingShop::orderBy('position')->orderBy('name')->get()->map(fn (ShoppingShop $s) => [
                 'id' => $s->id,
                 'name' => $s->name,
                 'icon' => $s->icon,
                 'color' => $s->color,
                 'logo' => $s->logoUrl(),
+                'lists' => array_values($needs[$s->name] ?? []),
+                'lastTrip' => isset($lastTrip[$s->name]) ? $lastTrip[$s->name]->toDateString() : null,
                 'toBuy' => $counts[$s->name] ?? 0,
             ])->values(),
             'noShopCount' => $noShopCount,
+            // New lists start with the family's default shop (Shopping settings).
+            'defaultShop' => ShoppingSetting::current()->default_shop,
         ];
     }
 
