@@ -1,3 +1,4 @@
+import { ShopLogo } from '@/components/shopping/shop-logo';
 import { useAddAction } from '@/lib/add-action';
 import { openNewOnArrival } from '@/lib/create-intent';
 import { Head, Link, router, useForm } from '@inertiajs/react';
@@ -79,7 +80,7 @@ function ListCard({ list }: { list: List }) {
     );
 }
 
-type Shop = { id: number; name: string; icon: string; color: string; toBuy: number };
+type Shop = { id: number; name: string; icon: string; color: string; toBuy: number; logo?: string | null };
 
 function ShopCard({ shop: s, faded = false, href }: { shop: Shop; faded?: boolean; href?: string }) {
     const t = useT();
@@ -90,9 +91,7 @@ function ShopCard({ shop: s, faded = false, href }: { shop: Shop; faded?: boolea
             prefetch
             className={`bg-surface-card hover:border-accent flex items-center gap-3 rounded-2xl border p-4 text-left transition-colors ${faded ? 'opacity-55' : ''}`}
         >
-            <span className="bg-accent-subtle text-primary flex size-11 shrink-0 items-center justify-center rounded-xl">
-                <Store className="size-5.5" />
-            </span>
+            <ShopLogo name={s.name} logo={s.logo} className="size-11 rounded-xl" />
             <div className="min-w-0 flex-1">
                 <div className="text-primary truncate font-medium">{s.name}</div>
                 <div className="text-muted-foreground mt-0.5 text-xs">

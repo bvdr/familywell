@@ -17,7 +17,9 @@ use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Translations;
 use App\Support\Trash\Trash;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\ValidationException;
@@ -241,6 +243,22 @@ class ShoppingServiceProvider extends ServiceProvider
             }
 
             return array_slice($rows, 0, 20);
+        });
+
+        // Shop logos the weekly sweep found (ShopBrands, FindShopLogos): stored on R2, served with a year's cache so
+        // a browser asks once. Not behind auth: a brand's public logo, nothing about a family.
+        Route::get('brands/x/{slug}.png', function (string $slug) {
+            abort_unless(preg_match('/^x-[a-z0-9-]+$/', $slug), 404);
+            $disk = Storage::disk('r2');
+            abort_unless($disk->exists("brands/{$slug}.png"), 404);
+
+            return response($disk->get("brands/{$slug}.png"), 200, ['Content-Type' => 'image/png', 'Cache-Control' => 'public, max-age=31536000, immutable']);
+        })->name('shopping.brand-logo');
+
+        $this->commands([FindShopLogos::class]);
+        // Weekly sweep for logos of shop names no known brand matched (Monday night, quiet hours).
+        $this->callAfterResolving(Schedule::class, function ($schedule) {
+            $schedule->command('shops:find-logos')->weeklyOn(1, '03:00')->withoutOverlapping();
         });
 
         // Full Inertia pages (a whole app section, not a dashboard widget). Gated by `module:shopping`
