@@ -69,5 +69,7 @@
     "date": "Data",
     "set_date": "Definir data",
     "clear_date": "Limpar data",
-    "no_date": "Sem data"
+    "no_date": "Sem data",
+    "time": "Hora",
+    "any_time": "Qualquer hora"
 }

@@ -69,5 +69,7 @@
     "date": "Fecha",
     "set_date": "Poner fecha",
     "clear_date": "Quitar fecha",
-    "no_date": "Sin fecha"
+    "no_date": "Sin fecha",
+    "time": "Hora",
+    "any_time": "Cualquier hora"
 }

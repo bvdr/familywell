@@ -69,5 +69,7 @@
     "date": "Dato",
     "set_date": "Sett dato",
     "clear_date": "Fjern dato",
-    "no_date": "Ingen dato"
+    "no_date": "Ingen dato",
+    "time": "Tid",
+    "any_time": "Når som helst"
 }

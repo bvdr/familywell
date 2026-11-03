@@ -73,5 +73,7 @@
     "date": "Dată",
     "set_date": "Setează data",
     "clear_date": "Șterge data",
-    "no_date": "Fără dată"
+    "no_date": "Fără dată",
+    "time": "Ora",
+    "any_time": "Oricând"
 }
