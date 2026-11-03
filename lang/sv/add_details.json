@@ -69,5 +69,7 @@
     "date": "Datum",
     "set_date": "Ange datum",
     "clear_date": "Rensa datum",
-    "no_date": "Inget datum"
+    "no_date": "Inget datum",
+    "time": "Tid",
+    "any_time": "När som helst"
 }

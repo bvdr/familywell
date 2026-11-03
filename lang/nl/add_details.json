@@ -69,5 +69,7 @@
     "date": "Datum",
     "set_date": "Datum instellen",
     "clear_date": "Datum wissen",
-    "no_date": "Geen datum"
+    "no_date": "Geen datum",
+    "time": "Tijd",
+    "any_time": "Elk moment"
 }

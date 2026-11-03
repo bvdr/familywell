@@ -12,6 +12,7 @@ import {
     Car,
     ChevronLeft,
     ChevronRight,
+    Clock,
     Coins,
     Hash,
     ListChecks,
@@ -20,6 +21,7 @@ import {
     Store,
     Tag,
     Trash2,
+    X,
     type LucideIcon,
 } from 'lucide-react';
 import { useRef, useState } from 'react';
@@ -352,9 +354,22 @@ export function When({ value, onChange, onOpen }: { value: string; onChange: (v:
 
 // T3e: a task's date as a month calendar pushed into the sheet. The picked day on top ("Monday, Oct 19 · In 4 days")
 // with Clear date; today ringed, the picked day inked. Weeks start Monday, as the design draws them.
+// Pass time + onTime for the Time row under the calendar ("Any time" until one is picked; the phone's own time
+// picker on a tap). Tasks have no time yet, so the task sheet leaves it out.
 // ponytail: no dots for the family's other tasks yet; add when the sheet has their dates to hand.
-export function DatePick({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+export function DatePick({
+    value,
+    onChange,
+    time,
+    onTime,
+}: {
+    value: string;
+    onChange: (v: string) => void;
+    time?: string; // HH:MM, '' = any time
+    onTime?: (v: string) => void;
+}) {
     const t = useT();
+    const clock = useRef<HTMLInputElement>(null);
     const today = ymd(new Date());
     const [month, setMonth] = useState(() => (value || today).slice(0, 7) + '-01');
     const first = parseDay(month);
@@ -433,6 +448,42 @@ export function DatePick({ value, onChange }: { value: string; onChange: (v: str
                     })}
                 </div>
             </div>
+            {onTime && (
+                // The whole row opens the picker; the input sits under it (showPicker() needs a rendered input).
+                <div className="bg-surface-card relative flex items-center gap-3 rounded-2xl border px-4 py-3">
+                    <button
+                        type="button"
+                        onClick={() => (clock.current?.showPicker ? clock.current.showPicker() : clock.current?.focus())}
+                        className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                    >
+                        <Clock className="text-primary size-5 shrink-0" />
+                        <span className="text-primary flex-1 text-base font-semibold">{t('add_details.time')}</span>
+                        <span className={time ? 'text-primary font-semibold' : 'text-muted-foreground'}>
+                            {time ? time.replace(/^0(\d)/, '$1') : t('add_details.any_time')}
+                        </span>
+                        {!time && <ChevronRight className="text-muted-foreground size-5 shrink-0" />}
+                    </button>
+                    {time && (
+                        <button
+                            type="button"
+                            onClick={() => onTime('')}
+                            aria-label={t('add_details.any_time')}
+                            className="text-muted-foreground shrink-0"
+                        >
+                            <X className="size-5" />
+                        </button>
+                    )}
+                    <input
+                        ref={clock}
+                        type="time"
+                        value={time ?? ''}
+                        tabIndex={-1}
+                        aria-hidden
+                        onChange={(e) => onTime(e.target.value)}
+                        className="pointer-events-none absolute inset-0 -z-10 opacity-0"
+                    />
+                </div>
+            )}
         </div>
     );
 }

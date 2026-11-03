@@ -69,5 +69,7 @@
     "date": "Date",
     "set_date": "Valider la date",
     "clear_date": "Effacer la date",
-    "no_date": "Pas de date"
+    "no_date": "Pas de date",
+    "time": "Heure",
+    "any_time": "N'importe quand"
 }
