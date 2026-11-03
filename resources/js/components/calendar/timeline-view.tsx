@@ -327,9 +327,6 @@ export const TimelineView = forwardRef<
                             const inside = Math.min(barR, viewR) - Math.max(barL, viewL) >= 0.45 * boxW;
                             const right = viewR - barR >= barL - viewL;
                             const after = i.start > lastDay;
-                            // Beside a bar off either edge, the label holds on at that edge.
-                            const edgeL = Math.max(barR, viewL);
-                            const edgeR = Math.min(barL, viewR);
                             const label = (
                                 <span className="flex min-w-0 items-baseline gap-1.5">
                                     {before && <ArrowLeft className="size-3.5 shrink-0 self-center" />}
@@ -367,19 +364,20 @@ export const TimelineView = forwardRef<
                                         </span>
                                     ))}
                                     {!inside && (
+                                        // Beside the bar: a lane from the bar to the track's end (or start), with the label
+                                        // sticky in it. The browser holds it at the screen edge while the bar is off
+                                        // screen, every frame of a swipe. Positioning it from the visible days in JS made
+                                        // it slide with the strip and snap back a day at a time (Nov 3 recording).
                                         <span
-                                            className="text-primary absolute top-0 bottom-0 flex items-center px-2 text-sm whitespace-nowrap"
-                                            style={
-                                                right
-                                                    ? { left: px(edgeL), maxWidth: px(Math.max(120, viewR - edgeL)) }
-                                                    : {
-                                                          right: px(trackW - edgeR),
-                                                          maxWidth: px(Math.max(120, edgeR - viewL)),
-                                                          justifyContent: 'flex-end',
-                                                      }
-                                            }
+                                            className={`absolute top-0 bottom-0 flex items-center ${right ? '' : 'justify-end'}`}
+                                            style={right ? { left: px(barR), right: 0 } : { left: 0, width: px(barL) }}
                                         >
-                                            {label}
+                                            <span
+                                                className={`text-primary sticky flex px-2 text-sm whitespace-nowrap ${right ? 'left-0' : 'right-0'}`}
+                                                style={{ maxWidth: px(boxW * 0.9) }}
+                                            >
+                                                {label}
+                                            </span>
                                         </span>
                                     )}
                                 </Link>
