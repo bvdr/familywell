@@ -82,7 +82,7 @@ class ShoppingController extends Controller
         $defaultList = $editable->firstWhere('created_by', $user->id) ?? $editable->first();
 
         return Inertia::render('shopping/shop', [
-            'shop' => ['id' => $shop->id, 'name' => $shop->name, 'icon' => $shop->icon, 'color' => $shop->color],
+            'shop' => ['id' => $shop->id, 'name' => $shop->name, 'icon' => $shop->icon, 'color' => $shop->color, 'logo' => $shop->logoUrl()],
             'aisles' => $aisles,
             'items' => $items,
             // For the item editor here: all shops (Shops picker) + the lists a new item can go to.
@@ -390,6 +390,7 @@ class ShoppingController extends Controller
                 'name' => $s->name,
                 'icon' => $s->icon,
                 'color' => $s->color,
+                'logo' => $s->logoUrl(),
                 'toBuy' => $counts[$s->name] ?? 0,
             ])->values(),
             'noShopCount' => $noShopCount,
