@@ -9,6 +9,7 @@ use App\Http\Controllers\Settings\RecentlyDeletedController;
 use App\Http\Controllers\Settings\SettingsHubController;
 use App\Http\Controllers\Settings\SignInController;
 use App\Models\Family;
+use App\Support\Changelog;
 use App\Support\Dashboard\HomeLayout;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Theming\ThemeTokens;
@@ -25,6 +26,12 @@ Route::post('stripe/webhook', [BillingController::class, 'webhook'])->name('bill
 Route::middleware('auth')->group(function () {
     // The avatar opens Me (design board 12): only the person's own settings, then a row into the family's.
     Route::get('settings', [SettingsHubController::class, 'me'])->name('settings');
+    // What's new: every release, newest first. Opening it marks the newest as seen (the Me row's dot goes).
+    Route::get('settings/whats-new', function (Request $request) {
+        $request->user()->forceFill(['seen_version' => Changelog::latest()])->save();
+
+        return Inertia::render('settings/whats-new', ['releases' => Changelog::all()]);
+    })->name('settings.whats-new');
 
     // Media library needs the active family (to list its uploads), so it also runs the family middleware.
     Route::middleware('family')->group(function () {

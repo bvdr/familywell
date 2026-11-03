@@ -32,5 +32,14 @@
     "recently_deleted": "Nyligen raderade",
     "module_settings": "Modulinställningar",
     "people_one": ":count person",
-    "people_other": ":count personer"
+    "people_other": ":count personer",
+    "whats_new": "Nyheter",
+    "version": "Version :version",
+    "up_to_date": "Uppdaterad",
+    "checked": "Kontrollerad nyss",
+    "checking": "Kontrollerar…",
+    "update_ready": "En ny version är klar",
+    "fixes": "Rättningar",
+    "show_me": "Visa mig",
+    "about": "Om"
 }

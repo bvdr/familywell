@@ -33,5 +33,14 @@
     "module_settings": "Setările modulelor",
     "people_one": ":count persoană",
     "people_other": ":count de persoane",
-    "people_few": ":count persoane"
+    "people_few": ":count persoane",
+    "whats_new": "Ce e nou",
+    "version": "Versiunea :version",
+    "up_to_date": "La zi",
+    "checked": "Verificat acum",
+    "checking": "Se verifică…",
+    "update_ready": "O versiune nouă e gata",
+    "fixes": "Reparații",
+    "show_me": "Arată-mi",
+    "about": "Despre"
 }

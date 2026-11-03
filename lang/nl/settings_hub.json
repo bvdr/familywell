@@ -32,5 +32,14 @@
     "recently_deleted": "Recent verwijderd",
     "module_settings": "Module-instellingen",
     "people_one": ":count persoon",
-    "people_other": ":count personen"
+    "people_other": ":count personen",
+    "whats_new": "Wat is er nieuw",
+    "version": "Versie :version",
+    "up_to_date": "Bijgewerkt",
+    "checked": "Net gecontroleerd",
+    "checking": "Controleren…",
+    "update_ready": "Er staat een nieuwe versie klaar",
+    "fixes": "Oplossingen",
+    "show_me": "Laat zien",
+    "about": "Over"
 }
