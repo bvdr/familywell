@@ -119,7 +119,9 @@ export function UpdateNudge() {
         } catch {
             // storage blocked: reload anyway, just without the toast
         }
-        window.location.reload();
+        // Reload only after "Updating…" and the spinner have been painted: reloading in the same tick left the
+        // old pill on screen, unchanged, until the new page arrived, so people kept tapping (user, 2026-11-03).
+        requestAnimationFrame(() => requestAnimationFrame(() => window.location.reload()));
     };
     const later = () => {
         dismissed = true;

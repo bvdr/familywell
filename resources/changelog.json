@@ -22,7 +22,7 @@
                 "href": "/m/shopping/settings/shops"
             }
         ],
-        "fixes": ["Another family's shop page can no longer be opened by its address"]
+        "fixes": ["Another family's shop page can no longer be opened by its address", "Refresh shows it's updating straight away"]
     },
     {
         "version": "1.2",
