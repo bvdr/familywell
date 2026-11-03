@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Controller;
 use App\Models\Family;
 use App\Support\Billing\Billing;
+use App\Support\Changelog;
 use App\Support\Dashboard\HomeLayout;
 use App\Support\Modules\ModuleRegistry;
 use App\Support\Region;
@@ -44,6 +45,8 @@ class SettingsHubController extends Controller
             'family' => $family?->only(['name', 'color', 'symbol']),
             // Home dashboard row: "5 of 7 on" (sections shown / sections this family has).
             'home' => ['on' => count(HomeLayout::visible($user, $family?->id)), 'total' => count(HomeLayout::for($user, $family?->id))],
+            // About: What's new (a dot until this person opens the newest) and the version running.
+            'release' => ['version' => Changelog::latest(), 'unseen' => Changelog::unseen($user)],
         ]);
     }
 

@@ -1,4 +1,4 @@
-import { usePage } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { Check, LoaderCircle, Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
@@ -11,7 +11,7 @@ import { useT } from '@/lib/i18n';
 // - WAITS: held back while a sheet is open or something is being typed in, so a reload never eats a draft.
 // - LATER: a sideways swipe (Later on desktop) hides it for this visit; the next fresh start loads the new version.
 // - AFTER: back on the same screen and scroll, a toast says you're on the latest for 4 seconds.
-// ponytail: no What's new link or sheet yet (section C); add with a whats-new.json per release.
+// What's new opens the settings page (resources/changelog.json), not the design's W1 sheet.
 
 const HOUR = 60 * 60 * 1000;
 const AFTER_KEY = 'fw-updated-scroll'; // sessionStorage: set right before the reload, read once after it
@@ -27,25 +27,37 @@ const subscribe = (l: () => void) => {
     return () => listeners.delete(l);
 };
 
+let pageVersion: string | undefined;
+
+// Is a newer build running than this page's? Also called by Me's Version row ("check now"), which brings the pill
+// back even if it was swiped away.
+export async function checkForUpdate(): Promise<boolean> {
+    if (ready) return true;
+    try {
+        const r = await fetch('/app-version', { cache: 'no-store', credentials: 'same-origin' });
+        const v = r.ok ? ((await r.json()) as { version?: string | null }).version : null;
+        if (v && pageVersion && v !== pageVersion) {
+            ready = true;
+            emit();
+        }
+    } catch {
+        // offline: try again next time
+    }
+    return ready;
+}
+
+export const showUpdateAgain = () => {
+    dismissed = false;
+    emit();
+};
+
 function start(version: string | undefined) {
     if (started || !version) return;
     started = true;
-    const check = async () => {
-        if (ready) return;
-        try {
-            const r = await fetch('/app-version', { cache: 'no-store', credentials: 'same-origin' });
-            const v = r.ok ? ((await r.json()) as { version?: string | null }).version : null;
-            if (v && v !== version) {
-                ready = true;
-                emit();
-            }
-        } catch {
-            // offline: try again next time
-        }
-    };
-    void check();
-    document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && void check());
-    window.setInterval(check, HOUR);
+    pageVersion = version;
+    void checkForUpdate();
+    document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && void checkForUpdate());
+    window.setInterval(checkForUpdate, HOUR);
 }
 
 // A sheet is open, or the person is typing: not the moment.
@@ -128,7 +140,10 @@ export function UpdateNudge() {
                     <span className="bg-accent-strong text-accent-strong-foreground flex size-6 shrink-0 items-center justify-center rounded-full">
                         <Check className="size-4" />
                     </span>
-                    <span className="text-[15px] font-semibold">{t('update_nudge.done')}</span>
+                    <span className="flex-1 text-[15px] font-semibold">{t('update_nudge.done')}</span>
+                    <Link href="/settings/whats-new" className="text-accent-strong shrink-0 px-2 text-sm font-bold">
+                        {t('update_nudge.whats_new')}
+                    </Link>
                 </div>
             </div>
         );

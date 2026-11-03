@@ -14,3 +14,7 @@ Every page must be flawless at phone AND desktop width. UI work is not done unti
 ## Analytics
 
 familywell.org and familywell.co report into ONE Umami website (since 2026-10-16) so a click-through is one visit, not an .org bounce + a new .co visitor; split reports by hostname. The old .co website stays read-only for its history. Funnel steps go from the browser (`resources/js/lib/analytics.ts`, or `Analytics::queue()` for a step that ends in a redirect); server-side `Analytics::track()` lands in a different Umami session. Why, the evidence and the event list: `docs/analytics.md`.
+
+## Changelog
+
+Every user-facing change ships with a What's new entry in `resources/changelog.json`, in the same PR (Settings > Me > What's new, and the link on the "You're on the latest" toast). Newest first: `{version, date, items: [{module, title, text, href}], fixes: []}`. At most 3 items, written for the family, not for developers; small fixes go in `fixes`. A PR that adds to today's release edits its entry; the first one on a new day bumps the version (1.2 → 1.3). `tests/Feature/ChangelogTest.php` checks the shape.
