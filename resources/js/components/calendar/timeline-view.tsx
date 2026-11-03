@@ -9,6 +9,7 @@ import { appLocale, useT } from '@/lib/i18n';
 import { itemTone } from '@/lib/tasks';
 
 const ROW_PX = 40;
+const LINGER = 14; // days a thing that ended keeps its row after it scrolls off the left edge
 const CHUNK = 42; // days fetched per edge load: more than the widest zoom (35), so one load always fills a screen
 const ACROSS = { week: 7, twoweeks: 14, month: 35 } as const; // days across the screen per zoom
 const fmt = (d: string, o: Intl.DateTimeFormatOptions) => parseDay(d).toLocaleDateString(appLocale(), o);
@@ -96,7 +97,9 @@ export const TimelineView = forwardRef<
     const dayW = boxW / across;
 
     // Scroll position → the visible days [first, last], re-measured once per frame while scrolling.
-    const [win, setWin] = useState<[number, number] | null>(null);
+    // Kept as dates, not indexes into `days`: days get prepended (every index shifts) or replaced (a jump to a far
+    // date) before the next scroll measure, and a stale index read past the end crashed the page (iPhone, 2026-11-03).
+    const [shown, setShown] = useState<[string, string] | null>(null);
     const loading = useRef({ left: false, right: false });
     const shiftBy = useRef(0); // px to add to scrollLeft after days were prepended
     const scrollTo = useRef<string | null>(range.from);
@@ -152,9 +155,11 @@ export const TimelineView = forwardRef<
         let frame = 0;
         const measure = () => {
             frame = 0;
-            const first = Math.max(0, Math.floor(b.scrollLeft / dayW + 0.01));
+            const first = Math.min(days.length - 1, Math.max(0, Math.floor(b.scrollLeft / dayW + 0.01)));
             const last = Math.min(days.length - 1, Math.ceil((b.scrollLeft + b.clientWidth) / dayW - 0.01) - 1);
-            setWin((w) => (w && w[0] === first && w[1] === last ? w : [first, last]));
+            const from = days[first];
+            const to = days[Math.max(first, last)];
+            setShown((w) => (w && w[0] === from && w[1] === to ? w : [from, to]));
             if (first < across) void loadLeft();
             if (last > days.length - 1 - across) void loadRight();
         };
@@ -170,8 +175,10 @@ export const TimelineView = forwardRef<
         // eslint-disable-next-line react-hooks/exhaustive-deps -- re-bind when the strip or day width changes
     }, [days, dayW]);
 
-    const firstDay = win ? days[win[0]] : range.from;
-    const lastDay = win ? days[win[1]] : range.to;
+    const firstDay = shown?.[0] ?? range.from;
+    const lastDay = shown?.[1] ?? range.to;
+    // The window as columns of the loaded strip (for the rows and labels).
+    const win = shown && ([daysBetween(span.from, firstDay), daysBetween(span.from, lastDay)] as const);
     useEffect(() => onVisible(firstDay, lastDay), [firstDay, lastDay]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Go to a day: scroll there if it's loaded, else start a fresh strip around it.
@@ -197,7 +204,9 @@ export const TimelineView = forwardRef<
 
     // One row per thing touching the screen, oldest first; a repeating one keeps every time it falls here on its row.
     const rows = timelineRows(all.filter(takesADay), span.from, span.to).filter(
-        ({ bars }) => !win || bars.some((b) => b.offset <= win[1] && b.offset + b.span - 1 >= win[0]),
+        // A thing that ended stays until you've scrolled LINGER days past its end (feedback 2026-11-03: rows vanishing
+        // the moment their bar left the screen felt like losing them).
+        ({ bars }) => !win || bars.some((b) => b.offset <= win[1] && b.offset + b.span - 1 >= win[0] - LINGER),
     );
     // NEXT: the first thing coming after the screen that isn't already a row (loaded, or the server's months ahead).
     const next = [...all.filter(takesADay), ...ahead]
@@ -224,6 +233,7 @@ export const TimelineView = forwardRef<
 
     const meta = (i: CalItem) => {
         const total = daysBetween(i.start, i.end) + 1;
+        if (i.end < firstDay) return t('calendar.ended_on', { day: fmt(i.end, { month: 'short', day: 'numeric' }) });
         if (i.start < firstDay) {
             return i.end <= lastDay
                 ? i.end === firstDay
@@ -308,11 +318,11 @@ export const TimelineView = forwardRef<
                         {rows.map(({ key, item: i, bars }) => {
                             const { offset, span: len } = bars[0];
                             const before = i.start < firstDay;
-                            // Inside the bar when it's at least ~45% of the screen (a long name fits); otherwise beside it,
-                            // on whichever side of the screen has room.
-                            const inside = len * dayW >= 0.45 * boxW;
+                            // Inside the bar when ~45% of the screen shows it (a long name fits); otherwise beside it, on
+                            // whichever side of the screen has room (an ended one: at the left edge, after its bar).
                             const barL = offset * dayW;
                             const barR = (offset + len) * dayW;
+                            const inside = Math.min(barR, viewR) - Math.max(barL, viewL) >= 0.45 * boxW;
                             const right = viewR - barR >= barL - viewL;
                             const label = (
                                 <span className="flex min-w-0 items-baseline gap-1.5">
@@ -354,7 +364,7 @@ export const TimelineView = forwardRef<
                                             className="text-primary absolute top-0 bottom-0 flex items-center px-2 text-sm whitespace-nowrap"
                                             style={
                                                 right
-                                                    ? { left: px(barR), maxWidth: px(Math.max(120, viewR - barR)) }
+                                                    ? { left: px(Math.max(barR, viewL)), maxWidth: px(Math.max(120, viewR - Math.max(barR, viewL))) }
                                                     : {
                                                           right: px(trackW - barL),
                                                           maxWidth: px(Math.max(120, barL - viewL)),

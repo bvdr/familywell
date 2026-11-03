@@ -124,5 +124,6 @@
     "left_few": "mai sunt :count",
     "add_event": "Adaugă evenimentul",
     "whos_going": "Cine vine",
-    "add_contact": "Adaugă un contact"
+    "add_contact": "Adaugă un contact",
+    "ended_on": "s-a încheiat :day"
 }
