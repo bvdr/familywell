@@ -1,1225 +1,778 @@
 [
- {
-  "slug": "mega-image",
-  "name": "Mega Image",
-  "domain": "mega-image.ro",
-  "countries": [
-   "RO"
-  ],
-  "aliases": [
-   "mega",
-   "megaimage"
-  ],
-  "logo": true
- },
- {
-  "slug": "kaufland",
-  "name": "Kaufland",
-  "domain": "kaufland.ro",
-  "countries": [
-   "RO",
-   "DE",
-   "PL",
-   "CZ",
-   "SK",
-   "BG",
-   "HR"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "lidl",
-  "name": "Lidl",
-  "domain": "lidl.ro",
-  "countries": [
-   "*"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "carrefour",
-  "name": "Carrefour",
-  "domain": "carrefour.ro",
-  "countries": [
-   "RO",
-   "FR",
-   "ES",
-   "IT",
-   "BE",
-   "PL"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "penny",
-  "name": "Penny",
-  "domain": "penny.ro",
-  "countries": [
-   "RO",
-   "DE",
-   "AT",
-   "IT",
-   "CZ",
-   "HU"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "profi",
-  "name": "Profi",
-  "domain": "profi.ro",
-  "countries": [
-   "RO"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "auchan",
-  "name": "Auchan",
-  "domain": "auchan.ro",
-  "countries": [
-   "RO",
-   "FR",
-   "ES",
-   "PT",
-   "PL",
-   "HU"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "dm",
-  "name": "dm",
-  "domain": "dm.ro",
-  "countries": [
-   "RO",
-   "DE",
-   "AT",
-   "CZ",
-   "SK",
-   "HU",
-   "HR",
-   "SI",
-   "BG",
-   "IT"
-  ],
-  "aliases": [
-   "dm drogerie",
-   "dm drogerie markt"
-  ],
-  "logo": true
- },
- {
-  "slug": "farmacia-tei",
-  "name": "Farmacia Tei",
-  "domain": "farmaciatei.ro",
-  "countries": [
-   "RO"
-  ],
-  "aliases": [
-   "tei"
-  ],
-  "logo": true
- },
- {
-  "slug": "la-doi-pasi",
-  "name": "La Doi Pași",
-  "domain": "ladoipasi.ro",
-  "countries": [
-   "RO"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "altex",
-  "name": "Altex",
-  "domain": "altex.ro",
-  "countries": [
-   "RO"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "emag",
-  "name": "eMAG",
-  "domain": "emag.ro",
-  "countries": [
-   "RO",
-   "BG",
-   "HU"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "dedeman",
-  "name": "Dedeman",
-  "domain": "dedeman.ro",
-  "countries": [
-   "RO"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "brico-depot",
-  "name": "Brico Dépôt",
-  "domain": "bricodepot.ro",
-  "countries": [
-   "RO",
-   "FR",
-   "ES",
-   "PT"
-  ],
-  "aliases": [
-   "bricodepot"
-  ],
-  "logo": true
- },
- {
-  "slug": "hm",
-  "name": "H&M",
-  "domain": "hm.com",
-  "countries": [
-   "*"
-  ],
-  "aliases": [
-   "hm",
-   "h m",
-   "h and m"
-  ],
-  "logo": true
- },
- {
-  "slug": "zara",
-  "name": "Zara",
-  "domain": "zara.com",
-  "countries": [
-   "*"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "jumbo-ro",
-  "name": "Jumbo",
-  "domain": "e-jumbo.ro",
-  "countries": [
-   "RO",
-   "GR",
-   "BG"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "pepco",
-  "name": "Pepco",
-  "domain": "pepco.ro",
-  "countries": [
-   "RO",
-   "PL",
-   "CZ",
-   "HU",
-   "BG",
-   "HR"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "action",
-  "name": "Action",
-  "domain": "action.com",
-  "countries": [
-   "NL",
-   "BE",
-   "FR",
-   "DE",
-   "AT",
-   "PL",
-   "CZ",
-   "RO",
-   "ES",
-   "IT",
-   "PT"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "selgros",
-  "name": "Selgros",
-  "domain": "selgros.ro",
-  "countries": [
-   "RO",
-   "DE",
-   "PL"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "metro",
-  "name": "Metro",
-  "domain": "metro.ro",
-  "countries": [
-   "RO",
-   "DE",
-   "AT",
-   "PL",
-   "CZ",
-   "IT",
-   "ES",
-   "PT",
-   "FR",
-   "NL"
-  ],
-  "aliases": [
-   "metro cash carry"
-  ],
-  "logo": true
- },
- {
-  "slug": "freshful",
-  "name": "Freshful",
-  "domain": "freshful.ro",
-  "countries": [
-   "RO"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "sezamo",
-  "name": "Sezamo",
-  "domain": "sezamo.ro",
-  "countries": [
-   "RO"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "glovo",
-  "name": "Glovo",
-  "domain": "glovoapp.com",
-  "countries": [
-   "RO",
-   "ES",
-   "PT",
-   "IT",
-   "PL"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "catena",
-  "name": "Catena",
-  "domain": "catena.ro",
-  "countries": [
-   "RO"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "sensiblu",
-  "name": "Sensiblu",
-  "domain": "sensiblu.com",
-  "countries": [
-   "RO"
-  ],
-  "aliases": [
-   "dr max",
-   "drmax",
-   "dr. max"
-  ],
-  "logo": true
- },
- {
-  "slug": "help-net",
-  "name": "Help Net",
-  "domain": "helpnet.ro",
-  "countries": [
-   "RO"
-  ],
-  "aliases": [
-   "helpnet"
-  ],
-  "logo": true
- },
- {
-  "slug": "decathlon",
-  "name": "Decathlon",
-  "domain": "decathlon.com",
-  "countries": [
-   "*"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "ikea",
-  "name": "IKEA",
-  "domain": "ikea.com",
-  "countries": [
-   "*"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "kik",
-  "name": "KiK",
-  "domain": "kik.de",
-  "countries": [
-   "RO",
-   "DE",
-   "AT",
-   "CZ",
-   "PL",
-   "HU",
-   "IT",
-   "NL"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "takko",
-  "name": "Takko",
-  "domain": "takko.com",
-  "countries": [
-   "RO",
-   "DE",
-   "AT",
-   "CZ",
-   "PL",
-   "HU",
-   "NL"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "sephora",
-  "name": "Sephora",
-  "domain": "sephora.com",
-  "countries": [
-   "*"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "douglas",
-  "name": "Douglas",
-  "domain": "douglas.de",
-  "countries": [
-   "RO",
-   "DE",
-   "AT",
-   "NL",
-   "PL",
-   "IT",
-   "ES",
-   "FR"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "noriel",
-  "name": "Noriel",
-  "domain": "noriel.ro",
-  "countries": [
-   "RO"
-  ],
-  "aliases": [],
-  "logo": false
- },
- {
-  "slug": "hornbach",
-  "name": "Hornbach",
-  "domain": "hornbach.ro",
-  "countries": [
-   "RO",
-   "DE",
-   "AT",
-   "NL",
-   "SE",
-   "CZ",
-   "SK",
-   "CH"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "leroy-merlin",
-  "name": "Leroy Merlin",
-  "domain": "leroymerlin.ro",
-  "countries": [
-   "RO",
-   "FR",
-   "ES",
-   "PT",
-   "IT",
-   "PL"
-  ],
-  "aliases": [
-   "leroy"
-  ],
-  "logo": true
- },
- {
-  "slug": "flanco",
-  "name": "Flanco",
-  "domain": "flanco.ro",
-  "countries": [
-   "RO"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "jysk",
-  "name": "Jysk",
-  "domain": "jysk.com",
-  "countries": [
-   "*"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "annabella",
-  "name": "Annabella",
-  "domain": "annabella.ro",
-  "countries": [
-   "RO"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "rewe",
-  "name": "Rewe",
-  "domain": "rewe.de",
-  "countries": [
-   "DE",
-   "AT"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "edeka",
-  "name": "Edeka",
-  "domain": "edeka.de",
-  "countries": [
-   "DE"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "aldi",
-  "name": "Aldi",
-  "domain": "aldi-sued.de",
-  "countries": [
-   "DE",
-   "AT",
-   "GB",
-   "US",
-   "NL",
-   "BE",
-   "FR",
-   "ES",
-   "PT",
-   "IT",
-   "PL"
-  ],
-  "aliases": [
-   "aldi sud",
-   "aldi nord",
-   "aldi süd"
-  ],
-  "logo": true
- },
- {
-  "slug": "netto",
-  "name": "Netto",
-  "domain": "netto-online.de",
-  "countries": [
-   "DE",
-   "DK",
-   "PL"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "rossmann",
-  "name": "Rossmann",
-  "domain": "rossmann.de",
-  "countries": [
-   "DE",
-   "PL",
-   "CZ",
-   "HU"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "mueller",
-  "name": "Müller",
-  "domain": "mueller.de",
-  "countries": [
-   "DE",
-   "AT",
-   "CH",
-   "HR",
-   "HU",
-   "SI",
-   "ES"
-  ],
-  "aliases": [
-   "mueller"
-  ],
-  "logo": true
- },
- {
-  "slug": "bauhaus",
-  "name": "Bauhaus",
-  "domain": "bauhaus.info",
-  "countries": [
-   "DE",
-   "AT",
-   "SE",
-   "NO",
-   "DK",
-   "CZ",
-   "HR"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "obi",
-  "name": "OBI",
-  "domain": "obi.de",
-  "countries": [
-   "DE",
-   "AT",
-   "IT",
-   "PL",
-   "CZ",
-   "HU",
-   "RO"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "toom",
-  "name": "toom",
-  "domain": "toom.de",
-  "countries": [
-   "DE"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "mediamarkt",
-  "name": "MediaMarkt",
-  "domain": "mediamarkt.de",
-  "countries": [
-   "DE",
-   "AT",
-   "NL",
-   "BE",
-   "ES",
-   "PT",
-   "IT",
-   "PL",
-   "SE"
-  ],
-  "aliases": [
-   "media markt"
-  ],
-  "logo": true
- },
- {
-  "slug": "saturn",
-  "name": "Saturn",
-  "domain": "saturn.de",
-  "countries": [
-   "DE",
-   "AT"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "billa",
-  "name": "Billa",
-  "domain": "billa.at",
-  "countries": [
-   "AT",
-   "CZ",
-   "SK",
-   "BG"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "spar",
-  "name": "Spar",
-  "domain": "spar.at",
-  "countries": [
-   "AT",
-   "NL",
-   "IT",
-   "SI",
-   "HR",
-   "HU"
-  ],
-  "aliases": [
-   "interspar",
-   "eurospar"
-  ],
-  "logo": true
- },
- {
-  "slug": "tesco",
-  "name": "Tesco",
-  "domain": "tesco.com",
-  "countries": [
-   "GB",
-   "IE",
-   "CZ",
-   "SK",
-   "HU"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "sainsburys",
-  "name": "Sainsbury’s",
-  "domain": "sainsburys.co.uk",
-  "countries": [
-   "GB"
-  ],
-  "aliases": [
-   "sainsbury",
-   "sainsburys"
-  ],
-  "logo": true
- },
- {
-  "slug": "asda",
-  "name": "Asda",
-  "domain": "asda.com",
-  "countries": [
-   "GB"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "morrisons",
-  "name": "Morrisons",
-  "domain": "morrisons.com",
-  "countries": [
-   "GB"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "waitrose",
-  "name": "Waitrose",
-  "domain": "waitrose.com",
-  "countries": [
-   "GB"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "boots",
-  "name": "Boots",
-  "domain": "boots.com",
-  "countries": [
-   "GB",
-   "IE"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "walmart",
-  "name": "Walmart",
-  "domain": "walmart.com",
-  "countries": [
-   "US",
-   "CA"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "target",
-  "name": "Target",
-  "domain": "target.com",
-  "countries": [
-   "US"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "costco",
-  "name": "Costco",
-  "domain": "costco.com",
-  "countries": [
-   "US",
-   "CA",
-   "GB",
-   "ES",
-   "FR",
-   "SE"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "kroger",
-  "name": "Kroger",
-  "domain": "kroger.com",
-  "countries": [
-   "US"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "whole-foods",
-  "name": "Whole Foods",
-  "domain": "wholefoodsmarket.com",
-  "countries": [
-   "US",
-   "CA",
-   "GB"
-  ],
-  "aliases": [
-   "whole foods market"
-  ],
-  "logo": true
- },
- {
-  "slug": "trader-joes",
-  "name": "Trader Joe’s",
-  "domain": "traderjoes.com",
-  "countries": [
-   "US"
-  ],
-  "aliases": [
-   "trader joes",
-   "trader joe"
-  ],
-  "logo": true
- },
- {
-  "slug": "cvs",
-  "name": "CVS",
-  "domain": "cvs.com",
-  "countries": [
-   "US"
-  ],
-  "aliases": [
-   "cvs pharmacy"
-  ],
-  "logo": true
- },
- {
-  "slug": "walgreens",
-  "name": "Walgreens",
-  "domain": "walgreens.com",
-  "countries": [
-   "US"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "home-depot",
-  "name": "The Home Depot",
-  "domain": "homedepot.com",
-  "countries": [
-   "US",
-   "CA"
-  ],
-  "aliases": [
-   "home depot"
-  ],
-  "logo": true
- },
- {
-  "slug": "amazon",
-  "name": "Amazon",
-  "domain": "amazon.com",
-  "countries": [
-   "*"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "albert-heijn",
-  "name": "Albert Heijn",
-  "domain": "ah.nl",
-  "countries": [
-   "NL",
-   "BE"
-  ],
-  "aliases": [
-   "ah",
-   "appie"
-  ],
-  "logo": true
- },
- {
-  "slug": "jumbo-nl",
-  "name": "Jumbo",
-  "domain": "jumbo.com",
-  "countries": [
-   "NL",
-   "BE"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "kruidvat",
-  "name": "Kruidvat",
-  "domain": "kruidvat.nl",
-  "countries": [
-   "NL",
-   "BE"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "hema",
-  "name": "HEMA",
-  "domain": "hema.nl",
-  "countries": [
-   "NL",
-   "BE",
-   "DE",
-   "FR"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "colruyt",
-  "name": "Colruyt",
-  "domain": "colruyt.be",
-  "countries": [
-   "BE",
-   "FR"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "delhaize",
-  "name": "Delhaize",
-  "domain": "delhaize.be",
-  "countries": [
-   "BE"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "leclerc",
-  "name": "E.Leclerc",
-  "domain": "e.leclerc",
-  "countries": [
-   "FR"
-  ],
-  "aliases": [
-   "leclerc",
-   "e leclerc"
-  ],
-  "logo": true
- },
- {
-  "slug": "intermarche",
-  "name": "Intermarché",
-  "domain": "intermarche.com",
-  "countries": [
-   "FR",
-   "BE",
-   "PT"
-  ],
-  "aliases": [
-   "intermarche"
-  ],
-  "logo": true
- },
- {
-  "slug": "monoprix",
-  "name": "Monoprix",
-  "domain": "monoprix.fr",
-  "countries": [
-   "FR"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "super-u",
-  "name": "Super U",
-  "domain": "magasins-u.com",
-  "countries": [
-   "FR"
-  ],
-  "aliases": [
-   "hyper u",
-   "u express",
-   "systeme u"
-  ],
-  "logo": true
- },
- {
-  "slug": "casino",
-  "name": "Casino",
-  "domain": "supercasino.fr",
-  "countries": [
-   "FR"
-  ],
-  "aliases": [
-   "geant casino"
-  ],
-  "logo": true
- },
- {
-  "slug": "picard",
-  "name": "Picard",
-  "domain": "picard.fr",
-  "countries": [
-   "FR"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "mercadona",
-  "name": "Mercadona",
-  "domain": "mercadona.es",
-  "countries": [
-   "ES",
-   "PT"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "dia",
-  "name": "Dia",
-  "domain": "dia.es",
-  "countries": [
-   "ES"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "el-corte-ingles",
-  "name": "El Corte Inglés",
-  "domain": "elcorteingles.es",
-  "countries": [
-   "ES",
-   "PT"
-  ],
-  "aliases": [
-   "corte ingles"
-  ],
-  "logo": true
- },
- {
-  "slug": "eroski",
-  "name": "Eroski",
-  "domain": "eroski.es",
-  "countries": [
-   "ES"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "continente",
-  "name": "Continente",
-  "domain": "continente.pt",
-  "countries": [
-   "PT"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "pingo-doce",
-  "name": "Pingo Doce",
-  "domain": "pingodoce.pt",
-  "countries": [
-   "PT"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "ica",
-  "name": "ICA",
-  "domain": "ica.se",
-  "countries": [
-   "SE"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "coop",
-  "name": "Coop",
-  "domain": "coop.se",
-  "countries": [
-   "SE",
-   "NO",
-   "DK",
-   "CH",
-   "IT"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "willys",
-  "name": "Willys",
-  "domain": "willys.se",
-  "countries": [
-   "SE"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "hemkop",
-  "name": "Hemköp",
-  "domain": "hemkop.se",
-  "countries": [
-   "SE"
-  ],
-  "aliases": [
-   "hemkop"
-  ],
-  "logo": true
- },
- {
-  "slug": "apotek-hjartat",
-  "name": "Apotek Hjärtat",
-  "domain": "apotekhjartat.se",
-  "countries": [
-   "SE"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "rema-1000",
-  "name": "Rema 1000",
-  "domain": "rema.no",
-  "countries": [
-   "NO",
-   "DK"
-  ],
-  "aliases": [
-   "rema"
-  ],
-  "logo": true
- },
- {
-  "slug": "kiwi",
-  "name": "Kiwi",
-  "domain": "kiwi.no",
-  "countries": [
-   "NO"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "meny",
-  "name": "Meny",
-  "domain": "meny.no",
-  "countries": [
-   "NO"
-  ],
-  "aliases": [],
-  "logo": true
- },
- {
-  "slug": "extra-no",
-  "name": "Extra",
-  "domain": "coop.no",
-  "countries": [
-   "NO"
-  ],
-  "aliases": [
-   "coop extra"
-  ],
-  "logo": true
- },
- {
-  "slug": "vinmonopolet",
-  "name": "Vinmonopolet",
-  "domain": "vinmonopolet.no",
-  "countries": [
-   "NO"
-  ],
-  "aliases": [
-   "polet"
-  ],
-  "logo": true
- },
- {
-  "slug": "systembolaget",
-  "name": "Systembolaget",
-  "domain": "systembolaget.se",
-  "countries": [
-   "SE"
-  ],
-  "aliases": [
-   "bolaget"
-  ],
-  "logo": true
- }
+    {
+        "slug": "mega-image",
+        "name": "Mega Image",
+        "domain": "mega-image.ro",
+        "countries": ["RO"],
+        "aliases": ["mega", "megaimage"],
+        "logo": true
+    },
+    {
+        "slug": "kaufland",
+        "name": "Kaufland",
+        "domain": "kaufland.ro",
+        "countries": ["RO", "DE", "PL", "CZ", "SK", "BG", "HR"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "lidl",
+        "name": "Lidl",
+        "domain": "lidl.ro",
+        "countries": ["*"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "carrefour",
+        "name": "Carrefour",
+        "domain": "carrefour.ro",
+        "countries": ["RO", "FR", "ES", "IT", "BE", "PL"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "penny",
+        "name": "Penny",
+        "domain": "penny.ro",
+        "countries": ["RO", "DE", "AT", "IT", "CZ", "HU"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "profi",
+        "name": "Profi",
+        "domain": "profi.ro",
+        "countries": ["RO"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "auchan",
+        "name": "Auchan",
+        "domain": "auchan.ro",
+        "countries": ["RO", "FR", "ES", "PT", "PL", "HU"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "dm",
+        "name": "dm",
+        "domain": "dm.ro",
+        "countries": ["RO", "DE", "AT", "CZ", "SK", "HU", "HR", "SI", "BG", "IT"],
+        "aliases": ["dm drogerie", "dm drogerie markt"],
+        "logo": true
+    },
+    {
+        "slug": "farmacia-tei",
+        "name": "Farmacia Tei",
+        "domain": "farmaciatei.ro",
+        "countries": ["RO"],
+        "aliases": ["tei"],
+        "logo": true
+    },
+    {
+        "slug": "la-doi-pasi",
+        "name": "La Doi Pași",
+        "domain": "ladoipasi.ro",
+        "countries": ["RO"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "altex",
+        "name": "Altex",
+        "domain": "altex.ro",
+        "countries": ["RO"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "emag",
+        "name": "eMAG",
+        "domain": "emag.ro",
+        "countries": ["RO", "BG", "HU"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "dedeman",
+        "name": "Dedeman",
+        "domain": "dedeman.ro",
+        "countries": ["RO"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "brico-depot",
+        "name": "Brico Dépôt",
+        "domain": "bricodepot.ro",
+        "countries": ["RO", "FR", "ES", "PT"],
+        "aliases": ["bricodepot"],
+        "logo": true
+    },
+    {
+        "slug": "hm",
+        "name": "H&M",
+        "domain": "hm.com",
+        "countries": ["*"],
+        "aliases": ["hm", "h m", "h and m"],
+        "logo": true
+    },
+    {
+        "slug": "zara",
+        "name": "Zara",
+        "domain": "zara.com",
+        "countries": ["*"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "jumbo-ro",
+        "name": "Jumbo",
+        "domain": "e-jumbo.ro",
+        "countries": ["RO", "GR", "BG"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "pepco",
+        "name": "Pepco",
+        "domain": "pepco.ro",
+        "countries": ["RO", "PL", "CZ", "HU", "BG", "HR"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "action",
+        "name": "Action",
+        "domain": "action.com",
+        "countries": ["NL", "BE", "FR", "DE", "AT", "PL", "CZ", "RO", "ES", "IT", "PT"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "selgros",
+        "name": "Selgros",
+        "domain": "selgros.ro",
+        "countries": ["RO", "DE", "PL"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "metro",
+        "name": "Metro",
+        "domain": "metro.ro",
+        "countries": ["RO", "DE", "AT", "PL", "CZ", "IT", "ES", "PT", "FR", "NL"],
+        "aliases": ["metro cash carry"],
+        "logo": true
+    },
+    {
+        "slug": "freshful",
+        "name": "Freshful",
+        "domain": "freshful.ro",
+        "countries": ["RO"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "sezamo",
+        "name": "Sezamo",
+        "domain": "sezamo.ro",
+        "countries": ["RO"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "glovo",
+        "name": "Glovo",
+        "domain": "glovoapp.com",
+        "countries": ["RO", "ES", "PT", "IT", "PL"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "catena",
+        "name": "Catena",
+        "domain": "catena.ro",
+        "countries": ["RO"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "sensiblu",
+        "name": "Sensiblu",
+        "domain": "sensiblu.com",
+        "countries": ["RO"],
+        "aliases": ["dr max", "drmax", "dr. max"],
+        "logo": true
+    },
+    {
+        "slug": "help-net",
+        "name": "Help Net",
+        "domain": "helpnet.ro",
+        "countries": ["RO"],
+        "aliases": ["helpnet"],
+        "logo": true
+    },
+    {
+        "slug": "decathlon",
+        "name": "Decathlon",
+        "domain": "decathlon.com",
+        "countries": ["*"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "ikea",
+        "name": "IKEA",
+        "domain": "ikea.com",
+        "countries": ["*"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "kik",
+        "name": "KiK",
+        "domain": "kik.de",
+        "countries": ["RO", "DE", "AT", "CZ", "PL", "HU", "IT", "NL"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "takko",
+        "name": "Takko",
+        "domain": "takko.com",
+        "countries": ["RO", "DE", "AT", "CZ", "PL", "HU", "NL"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "sephora",
+        "name": "Sephora",
+        "domain": "sephora.com",
+        "countries": ["*"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "douglas",
+        "name": "Douglas",
+        "domain": "douglas.de",
+        "countries": ["RO", "DE", "AT", "NL", "PL", "IT", "ES", "FR"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "noriel",
+        "name": "Noriel",
+        "domain": "noriel.ro",
+        "countries": ["RO"],
+        "aliases": [],
+        "logo": false
+    },
+    {
+        "slug": "hornbach",
+        "name": "Hornbach",
+        "domain": "hornbach.ro",
+        "countries": ["RO", "DE", "AT", "NL", "SE", "CZ", "SK", "CH"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "leroy-merlin",
+        "name": "Leroy Merlin",
+        "domain": "leroymerlin.ro",
+        "countries": ["RO", "FR", "ES", "PT", "IT", "PL"],
+        "aliases": ["leroy"],
+        "logo": true
+    },
+    {
+        "slug": "flanco",
+        "name": "Flanco",
+        "domain": "flanco.ro",
+        "countries": ["RO"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "jysk",
+        "name": "Jysk",
+        "domain": "jysk.com",
+        "countries": ["*"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "annabella",
+        "name": "Annabella",
+        "domain": "annabella.ro",
+        "countries": ["RO"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "rewe",
+        "name": "Rewe",
+        "domain": "rewe.de",
+        "countries": ["DE", "AT"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "edeka",
+        "name": "Edeka",
+        "domain": "edeka.de",
+        "countries": ["DE"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "aldi",
+        "name": "Aldi",
+        "domain": "aldi-sued.de",
+        "countries": ["DE", "AT", "GB", "US", "NL", "BE", "FR", "ES", "PT", "IT", "PL"],
+        "aliases": ["aldi sud", "aldi nord", "aldi süd"],
+        "logo": true
+    },
+    {
+        "slug": "netto",
+        "name": "Netto",
+        "domain": "netto-online.de",
+        "countries": ["DE", "DK", "PL"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "rossmann",
+        "name": "Rossmann",
+        "domain": "rossmann.de",
+        "countries": ["DE", "PL", "CZ", "HU"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "mueller",
+        "name": "Müller",
+        "domain": "mueller.de",
+        "countries": ["DE", "AT", "CH", "HR", "HU", "SI", "ES"],
+        "aliases": ["mueller"],
+        "logo": true
+    },
+    {
+        "slug": "bauhaus",
+        "name": "Bauhaus",
+        "domain": "bauhaus.info",
+        "countries": ["DE", "AT", "SE", "NO", "DK", "CZ", "HR"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "obi",
+        "name": "OBI",
+        "domain": "obi.de",
+        "countries": ["DE", "AT", "IT", "PL", "CZ", "HU", "RO"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "toom",
+        "name": "toom",
+        "domain": "toom.de",
+        "countries": ["DE"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "mediamarkt",
+        "name": "MediaMarkt",
+        "domain": "mediamarkt.de",
+        "countries": ["DE", "AT", "NL", "BE", "ES", "PT", "IT", "PL", "SE"],
+        "aliases": ["media markt"],
+        "logo": true
+    },
+    {
+        "slug": "saturn",
+        "name": "Saturn",
+        "domain": "saturn.de",
+        "countries": ["DE", "AT"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "billa",
+        "name": "Billa",
+        "domain": "billa.at",
+        "countries": ["AT", "CZ", "SK", "BG"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "spar",
+        "name": "Spar",
+        "domain": "spar.at",
+        "countries": ["AT", "NL", "IT", "SI", "HR", "HU"],
+        "aliases": ["interspar", "eurospar"],
+        "logo": true
+    },
+    {
+        "slug": "tesco",
+        "name": "Tesco",
+        "domain": "tesco.com",
+        "countries": ["GB", "IE", "CZ", "SK", "HU"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "sainsburys",
+        "name": "Sainsbury’s",
+        "domain": "sainsburys.co.uk",
+        "countries": ["GB"],
+        "aliases": ["sainsbury", "sainsburys"],
+        "logo": true
+    },
+    {
+        "slug": "asda",
+        "name": "Asda",
+        "domain": "asda.com",
+        "countries": ["GB"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "morrisons",
+        "name": "Morrisons",
+        "domain": "morrisons.com",
+        "countries": ["GB"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "waitrose",
+        "name": "Waitrose",
+        "domain": "waitrose.com",
+        "countries": ["GB"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "boots",
+        "name": "Boots",
+        "domain": "boots.com",
+        "countries": ["GB", "IE"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "walmart",
+        "name": "Walmart",
+        "domain": "walmart.com",
+        "countries": ["US", "CA"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "target",
+        "name": "Target",
+        "domain": "target.com",
+        "countries": ["US"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "costco",
+        "name": "Costco",
+        "domain": "costco.com",
+        "countries": ["US", "CA", "GB", "ES", "FR", "SE"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "kroger",
+        "name": "Kroger",
+        "domain": "kroger.com",
+        "countries": ["US"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "whole-foods",
+        "name": "Whole Foods",
+        "domain": "wholefoodsmarket.com",
+        "countries": ["US", "CA", "GB"],
+        "aliases": ["whole foods market"],
+        "logo": true
+    },
+    {
+        "slug": "trader-joes",
+        "name": "Trader Joe’s",
+        "domain": "traderjoes.com",
+        "countries": ["US"],
+        "aliases": ["trader joes", "trader joe"],
+        "logo": true
+    },
+    {
+        "slug": "cvs",
+        "name": "CVS",
+        "domain": "cvs.com",
+        "countries": ["US"],
+        "aliases": ["cvs pharmacy"],
+        "logo": true
+    },
+    {
+        "slug": "walgreens",
+        "name": "Walgreens",
+        "domain": "walgreens.com",
+        "countries": ["US"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "home-depot",
+        "name": "The Home Depot",
+        "domain": "homedepot.com",
+        "countries": ["US", "CA"],
+        "aliases": ["home depot"],
+        "logo": true
+    },
+    {
+        "slug": "amazon",
+        "name": "Amazon",
+        "domain": "amazon.com",
+        "countries": ["*"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "albert-heijn",
+        "name": "Albert Heijn",
+        "domain": "ah.nl",
+        "countries": ["NL", "BE"],
+        "aliases": ["ah", "appie"],
+        "logo": true
+    },
+    {
+        "slug": "jumbo-nl",
+        "name": "Jumbo",
+        "domain": "jumbo.com",
+        "countries": ["NL", "BE"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "kruidvat",
+        "name": "Kruidvat",
+        "domain": "kruidvat.nl",
+        "countries": ["NL", "BE"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "hema",
+        "name": "HEMA",
+        "domain": "hema.nl",
+        "countries": ["NL", "BE", "DE", "FR"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "colruyt",
+        "name": "Colruyt",
+        "domain": "colruyt.be",
+        "countries": ["BE", "FR"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "delhaize",
+        "name": "Delhaize",
+        "domain": "delhaize.be",
+        "countries": ["BE"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "leclerc",
+        "name": "E.Leclerc",
+        "domain": "e.leclerc",
+        "countries": ["FR"],
+        "aliases": ["leclerc", "e leclerc"],
+        "logo": true
+    },
+    {
+        "slug": "intermarche",
+        "name": "Intermarché",
+        "domain": "intermarche.com",
+        "countries": ["FR", "BE", "PT"],
+        "aliases": ["intermarche"],
+        "logo": true
+    },
+    {
+        "slug": "monoprix",
+        "name": "Monoprix",
+        "domain": "monoprix.fr",
+        "countries": ["FR"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "super-u",
+        "name": "Super U",
+        "domain": "magasins-u.com",
+        "countries": ["FR"],
+        "aliases": ["hyper u", "u express", "systeme u"],
+        "logo": true
+    },
+    {
+        "slug": "casino",
+        "name": "Casino",
+        "domain": "supercasino.fr",
+        "countries": ["FR"],
+        "aliases": ["geant casino"],
+        "logo": true
+    },
+    {
+        "slug": "picard",
+        "name": "Picard",
+        "domain": "picard.fr",
+        "countries": ["FR"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "mercadona",
+        "name": "Mercadona",
+        "domain": "mercadona.es",
+        "countries": ["ES", "PT"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "dia",
+        "name": "Dia",
+        "domain": "dia.es",
+        "countries": ["ES"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "el-corte-ingles",
+        "name": "El Corte Inglés",
+        "domain": "elcorteingles.es",
+        "countries": ["ES", "PT"],
+        "aliases": ["corte ingles"],
+        "logo": true
+    },
+    {
+        "slug": "eroski",
+        "name": "Eroski",
+        "domain": "eroski.es",
+        "countries": ["ES"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "continente",
+        "name": "Continente",
+        "domain": "continente.pt",
+        "countries": ["PT"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "pingo-doce",
+        "name": "Pingo Doce",
+        "domain": "pingodoce.pt",
+        "countries": ["PT"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "ica",
+        "name": "ICA",
+        "domain": "ica.se",
+        "countries": ["SE"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "coop",
+        "name": "Coop",
+        "domain": "coop.se",
+        "countries": ["SE", "NO", "DK", "CH", "IT"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "willys",
+        "name": "Willys",
+        "domain": "willys.se",
+        "countries": ["SE"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "hemkop",
+        "name": "Hemköp",
+        "domain": "hemkop.se",
+        "countries": ["SE"],
+        "aliases": ["hemkop"],
+        "logo": true
+    },
+    {
+        "slug": "apotek-hjartat",
+        "name": "Apotek Hjärtat",
+        "domain": "apotekhjartat.se",
+        "countries": ["SE"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "rema-1000",
+        "name": "Rema 1000",
+        "domain": "rema.no",
+        "countries": ["NO", "DK"],
+        "aliases": ["rema"],
+        "logo": true
+    },
+    {
+        "slug": "kiwi",
+        "name": "Kiwi",
+        "domain": "kiwi.no",
+        "countries": ["NO"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "meny",
+        "name": "Meny",
+        "domain": "meny.no",
+        "countries": ["NO"],
+        "aliases": [],
+        "logo": true
+    },
+    {
+        "slug": "extra-no",
+        "name": "Extra",
+        "domain": "coop.no",
+        "countries": ["NO"],
+        "aliases": ["coop extra"],
+        "logo": true
+    },
+    {
+        "slug": "vinmonopolet",
+        "name": "Vinmonopolet",
+        "domain": "vinmonopolet.no",
+        "countries": ["NO"],
+        "aliases": ["polet"],
+        "logo": true
+    },
+    {
+        "slug": "systembolaget",
+        "name": "Systembolaget",
+        "domain": "systembolaget.se",
+        "countries": ["SE"],
+        "aliases": ["bolaget"],
+        "logo": true
+    }
 ]

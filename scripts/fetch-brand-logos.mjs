@@ -3,7 +3,9 @@
 // the result, commit the PNGs. The app itself never calls Google: logos ship with it.
 //   node scripts/fetch-brand-logos.mjs            # only missing ones
 //   node scripts/fetch-brand-logos.mjs --all      # refetch everything
+import { Buffer } from 'node:buffer';
 import fs from 'node:fs';
+import process from 'node:process';
 const brands = JSON.parse(fs.readFileSync('resources/shop-brands.json', 'utf8'));
 const all = process.argv.includes('--all');
 for (const b of brands) {
