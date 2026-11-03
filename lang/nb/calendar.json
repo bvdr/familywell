@@ -119,5 +119,6 @@
     "left_other": ":count igjen",
     "add_event": "Legg til hendelse",
     "whos_going": "Hvem blir med",
-    "add_contact": "Legg til en kontakt"
+    "add_contact": "Legg til en kontakt",
+    "ended_on": "sluttet :day"
 }

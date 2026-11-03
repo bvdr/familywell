@@ -119,5 +119,6 @@
     "left_other": ":count left",
     "add_event": "Add event",
     "whos_going": "Who's going",
-    "add_contact": "Add a contact"
+    "add_contact": "Add a contact",
+    "ended_on": "ended :day"
 }

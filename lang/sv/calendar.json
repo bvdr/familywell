@@ -119,5 +119,6 @@
     "left_other": ":count kvar",
     "add_event": "Lägg till händelse",
     "whos_going": "Vem följer med",
-    "add_contact": "Lägg till en kontakt"
+    "add_contact": "Lägg till en kontakt",
+    "ended_on": "slutade :day"
 }

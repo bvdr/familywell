@@ -119,5 +119,6 @@
     "left_other": ":count offen",
     "add_event": "Termin hinzufügen",
     "whos_going": "Wer kommt mit",
-    "add_contact": "Kontakt hinzufügen"
+    "add_contact": "Kontakt hinzufügen",
+    "ended_on": "endete :day"
 }
