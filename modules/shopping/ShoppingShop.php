@@ -2,7 +2,9 @@
 
 namespace Modules\Shopping;
 
+use App\Models\Family;
 use App\Support\Tenancy\BelongsToFamily;
+use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -15,7 +17,25 @@ class ShoppingShop extends Model
 
     protected $table = 'shopping_shops';
 
-    protected $fillable = ['name', 'icon', 'color', 'position'];
+    protected $fillable = ['name', 'icon', 'color', 'position', 'template'];
+
+    // Every way a shop gets or changes its name (web, MCP, a list's store) saves through here: match it to a known
+    // brand for its logo (ShopBrands), preferring brands sold in the family's country.
+    protected static function booted(): void
+    {
+        static::saving(function (ShoppingShop $shop) {
+            if ($shop->isDirty('name')) {
+                $tz = Family::whereKey($shop->family_id ?? CurrentFamily::id())->value('timezone');
+                $shop->brand = ShopBrands::match($shop->name, ShopBrands::countryOf($tz));
+            }
+        });
+    }
+
+    /** The logo to show: the matched brand's, or null for a letter tile. */
+    public function logoUrl(): ?string
+    {
+        return ShopBrands::logo($this->brand);
+    }
 
     public function aisles(): HasMany
     {

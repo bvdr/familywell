@@ -17,7 +17,9 @@ use App\Support\Sharing\ShareableRegistry;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Translations;
 use App\Support\Trash\Trash;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\ValidationException;
@@ -243,6 +245,23 @@ class ShoppingServiceProvider extends ServiceProvider
             return array_slice($rows, 0, 20);
         });
 
+        // Shop logos the weekly sweep found (ShopBrands, FindShopLogos): stored on R2, served with a year's cache so
+        // a browser asks once. Not behind auth: a brand's public logo, nothing about a family.
+        Route::get('brands/x/{slug}.png', function (string $slug) {
+            abort_unless(preg_match('/^x-[a-z0-9-]+$/', $slug), 404);
+            $disk = Storage::disk('r2');
+            abort_unless($disk->exists("brands/{$slug}.png"), 404);
+
+            return response($disk->get("brands/{$slug}.png"), 200, ['Content-Type' => 'image/png', 'Cache-Control' => 'public, max-age=31536000, immutable']);
+        })->name('shopping.brand-logo');
+
+        $this->commands([FindShopLogos::class, CleanBoughtItems::class]);
+        // Weekly sweep for logos of shop names no known brand matched (Monday night, quiet hours).
+        $this->callAfterResolving(Schedule::class, function ($schedule) {
+            $schedule->command('shops:find-logos')->weeklyOn(1, '03:00')->withoutOverlapping();
+            $schedule->command('shopping:clean-bought')->dailyAt('04:00')->withoutOverlapping();
+        });
+
         // Full Inertia pages (a whole app section, not a dashboard widget). Gated by `module:shopping`
         // so it is only reachable when the family has enabled it.
         Route::middleware(['web', 'auth', 'family', 'module:shopping'])
@@ -251,6 +270,9 @@ class ShoppingServiceProvider extends ServiceProvider
             ->group(function () {
                 Route::get('/', [ShoppingController::class, 'index'])->name('index');
                 Route::get('/settings', [ShoppingController::class, 'settings'])->name('settings');
+                Route::patch('/settings', [ShoppingController::class, 'updateSettings'])->name('settings.update');
+                Route::get('/settings/shops', [ShoppingController::class, 'yourShops'])->name('settings.shops');
+                Route::post('/shops/reorder', [ShoppingController::class, 'reorderShops'])->name('shops.reorder');
 
                 // Shops: the family's stores as first-class pages (aggregated cross-list view + aisles).
                 Route::get('/shops', [ShoppingController::class, 'shopsIndex'])->name('shops.index');
@@ -260,6 +282,7 @@ class ShoppingServiceProvider extends ServiceProvider
                 Route::get('/shops/{shop}', [ShoppingController::class, 'shopShow'])->name('shops.show');
                 Route::patch('/shops/{shop}', [ShoppingController::class, 'updateShop'])->name('shops.update');
                 Route::post('/shops/{shop}/items', [ShoppingController::class, 'storeShopItem'])->name('shops.items.store');
+                Route::get('/shops/{shop}/aisles', [ShoppingController::class, 'shopAisles'])->name('shops.aisles');
                 Route::post('/shops/{shop}/aisles/ensure', [ShoppingController::class, 'ensureShopAisles'])->name('shops.aisles.ensure');
                 Route::post('/shops/{shop}/aisles/reorder', [ShoppingController::class, 'reorderShopAisles'])->name('shops.aisles.reorder');
                 Route::post('/shops/{shop}/aisles/template', [ShoppingController::class, 'applyShopTemplate'])->name('shops.aisles.template');

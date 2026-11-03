@@ -1,5 +1,30 @@
 [
     {
+        "version": "1.3",
+        "date": "2026-11-03",
+        "items": [
+            {
+                "module": "shopping",
+                "title": "Shops get their logo",
+                "text": "Type Kaufland, mega or Lidl Romania and the shop shows its own logo. Local shops get their first letter.",
+                "href": "/m/shopping/shops"
+            },
+            {
+                "module": "shopping",
+                "title": "Shopping settings, your way",
+                "text": "Pick a default shop, turn off duplicate warnings, and let bought items clear themselves after a week. Drag your shops into the order you visit them.",
+                "href": "/m/shopping/settings"
+            },
+            {
+                "module": "shopping",
+                "title": "Aisles that fit each shop",
+                "text": "A new shop asks how it's laid out (grocery, DIY, pharmacy) and suggests one. Drag aisles into your walking order and see how many items each holds.",
+                "href": "/m/shopping/settings/shops"
+            }
+        ],
+        "fixes": ["Another family's shop page can no longer be opened by its address", "Refresh shows it's updating straight away"]
+    },
+    {
         "version": "1.2",
         "date": "2026-11-03",
         "items": [

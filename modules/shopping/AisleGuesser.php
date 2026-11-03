@@ -27,7 +27,8 @@ class AisleGuesser
 
     public static function queue(ShoppingItem $item): void
     {
-        if (! self::configured() || $item->department !== 'other') {
+        // "Sort by aisle with AI" off in Shopping settings: leave it in Other.
+        if (! self::configured() || $item->department !== 'other' || ! ShoppingSetting::current($item->family_id)->ai_sort) {
             return;
         }
         self::$pending[$item->id] = $item;

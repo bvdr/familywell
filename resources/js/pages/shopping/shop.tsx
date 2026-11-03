@@ -1,6 +1,8 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { Calendar, Check, ChevronLeft, Minus, Plus, Settings, ShoppingCart, Store, Trash2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+
+import { ShopLogo } from '@/components/shopping/shop-logo';
 import { createPortal } from 'react-dom';
 
 import { AisleEditor } from '@/components/aisle-editor';
@@ -33,7 +35,7 @@ type Item = {
     listId: number;
     listName: string;
 };
-type Shop = { id: number; name: string; icon: string; color: string };
+type Shop = { id: number; name: string; icon: string; color: string; logo?: string | null };
 type ListRef = { id: number; name: string };
 type Draft = { name: string; quantity: string; department: string; note: string; due_date: string; shops: string[]; list_id: number | null };
 
@@ -239,9 +241,7 @@ export default function ShopDetail({
                     >
                         <ChevronLeft className="size-5" />
                     </Link>
-                    <span className="bg-accent-subtle text-primary flex size-9 shrink-0 items-center justify-center rounded-xl">
-                        <Store className="size-5" />
-                    </span>
+                    <ShopLogo name={shopTitle} logo={virtual ? null : shop.logo} className="size-10 rounded-xl" />
                     <div className="min-w-0 flex-1">
                         <h1 className="font-heading text-primary truncate text-2xl">{shopTitle}</h1>
                         <p className="text-muted-foreground text-sm">{t('shopping.to_buy', { n: remaining })}</p>
@@ -552,10 +552,8 @@ export default function ShopDetail({
                     <Button
                         type="button"
                         variant="outline"
-                        onClick={() => {
-                            setSettingsOpen(false);
-                            setAislesOpen(true);
-                        }}
+                        // The shop's aisles page (design S1f): starting set, order, rename, add.
+                        onClick={() => router.visit(`/m/shopping/shops/${shop.id}/aisles`)}
                     >
                         {t('shopping.edit_departments')}
                     </Button>
