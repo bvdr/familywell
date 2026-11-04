@@ -71,10 +71,7 @@
     "sorting": "Sorteren...",
     "done_button": "Klaar",
     "redo": "Opnieuw",
-    "organized_by_ai": "Gesorteerd door AI",
     "heard_heading": "Dit hoorde ik",
-    "items_sorted_one": ":n item per afdeling gesorteerd. Pas aan of verwijder wat je wilt.",
-    "items_sorted_other": ":n items per afdeling gesorteerd. Pas aan of verwijder wat je wilt.",
     "quantity": "Aantal",
     "quantity_placeholder": "2 bossen",
     "remove": "Verwijderen",
@@ -131,7 +128,6 @@
     "already_on_list": ":name staat al op deze lijst.",
     "add_anyway": "Toch toevoegen",
     "bump_to": "Verhoog naar :n",
-    "on_list_tag": "Staat al op lijst",
     "waiting_to_sync_one": ":n item wacht op synchronisatie",
     "waiting_to_sync_other": ":n items wachten op synchronisatie",
     "aisle_produce": "Groente & fruit",
@@ -253,5 +249,7 @@
     "tap_to_talk": "Tik om te praten",
     "adding_to": "Toevoegen aan :list",
     "type": "Typen",
-    "pause_hint": "Wacht 2 seconden en ik rond af"
+    "pause_hint": "Wacht 2 seconden en ik rond af",
+    "on_this_list": "staat al op deze lijst",
+    "item_name": "Artikel"
 }

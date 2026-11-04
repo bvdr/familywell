@@ -71,10 +71,7 @@
     "sorting": "Sorterer...",
     "done_button": "Ferdig",
     "redo": "Prøv igjen",
-    "organized_by_ai": "Sortert av AI",
     "heard_heading": "Dette hørte jeg",
-    "items_sorted_one": ":n vare sortert i avdelinger. Rediger eller fjern om du vil.",
-    "items_sorted_other": ":n varer sortert i avdelinger. Rediger eller fjern om du vil.",
     "quantity": "Antall",
     "quantity_placeholder": "2 bunter",
     "remove": "Fjern",
@@ -131,7 +128,6 @@
     "already_on_list": ":name står allerede på listen.",
     "add_anyway": "Legg til likevel",
     "bump_to": "Øk til :n",
-    "on_list_tag": "Står på listen",
     "waiting_to_sync_one": ":n vare venter på synk",
     "waiting_to_sync_other": ":n varer venter på synk",
     "aisle_produce": "Frukt og grønt",
@@ -253,5 +249,7 @@
     "tap_to_talk": "Trykk for å snakke",
     "adding_to": "Legger til i :list",
     "type": "Skriv",
-    "pause_hint": "Ta en pause på 2 sekunder, så runder jeg av"
+    "pause_hint": "Ta en pause på 2 sekunder, så runder jeg av",
+    "on_this_list": "allerede på denne listen",
+    "item_name": "Vare"
 }

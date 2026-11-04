@@ -71,10 +71,7 @@
     "sorting": "Se sortează...",
     "done_button": "Gata",
     "redo": "Reia",
-    "organized_by_ai": "Organizat de AI",
     "heard_heading": "Iată ce am auzit",
-    "items_sorted_one": ":n produs sortat pe rafturi. Editează sau elimină oricare.",
-    "items_sorted_other": ":n produse sortate pe rafturi. Editează sau elimină oricare.",
     "quantity": "Cantitate",
     "quantity_placeholder": "2 legături",
     "remove": "Elimină",
@@ -131,7 +128,6 @@
     "already_on_list": ":name e deja pe această listă.",
     "add_anyway": "Adaugă oricum",
     "bump_to": "Crește la :n",
-    "on_list_tag": "Deja pe listă",
     "waiting_to_sync_one": ":n produs așteaptă sincronizarea",
     "waiting_to_sync_few": ":n produse așteaptă sincronizarea",
     "waiting_to_sync_other": ":n de produse așteaptă sincronizarea",
@@ -262,5 +258,7 @@
     "tap_to_talk": "Atinge ca să vorbești",
     "adding_to": "Adaug în :list",
     "type": "Scrie",
-    "pause_hint": "Fă o pauză de 2 secunde și închei"
+    "pause_hint": "Fă o pauză de 2 secunde și închei",
+    "on_this_list": "deja pe această listă",
+    "item_name": "Produs"
 }

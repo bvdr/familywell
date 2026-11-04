@@ -71,10 +71,7 @@
     "sorting": "Ordenando...",
     "done_button": "Listo",
     "redo": "Rehacer",
-    "organized_by_ai": "Organizado con IA",
     "heard_heading": "Esto es lo que escuché",
-    "items_sorted_one": ":n artículo ordenado por pasillos. Edita o quita lo que quieras.",
-    "items_sorted_other": ":n artículos ordenados por pasillos. Edita o quita lo que quieras.",
     "quantity": "Cantidad",
     "quantity_placeholder": "2 manojos",
     "remove": "Quitar",
@@ -131,7 +128,6 @@
     "already_on_list": ":name ya está en esta lista.",
     "add_anyway": "Añadir de todos modos",
     "bump_to": "Subir a :n",
-    "on_list_tag": "Ya está en la lista",
     "waiting_to_sync_one": ":n artículo pendiente de sincronizar",
     "waiting_to_sync_other": ":n artículos pendientes de sincronizar",
     "aisle_produce": "Frutas y verduras",
@@ -253,5 +249,7 @@
     "tap_to_talk": "Toca para hablar",
     "adding_to": "Añadiendo a :list",
     "type": "Escribir",
-    "pause_hint": "Haz una pausa de 2 segundos y termino"
+    "pause_hint": "Haz una pausa de 2 segundos y termino",
+    "on_this_list": "ya está en esta lista",
+    "item_name": "Artículo"
 }

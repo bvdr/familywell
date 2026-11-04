@@ -71,10 +71,7 @@
     "sorting": "Wird sortiert …",
     "done_button": "Fertig",
     "redo": "Wiederholen",
-    "organized_by_ai": "Von KI organisiert",
     "heard_heading": "Das habe ich verstanden",
-    "items_sorted_one": ":n Artikel in Gänge sortiert. Bearbeite oder entferne beliebig.",
-    "items_sorted_other": ":n Artikel in Gänge sortiert. Bearbeite oder entferne beliebig.",
     "quantity": "Menge",
     "quantity_placeholder": "2 Bund",
     "remove": "Entfernen",
@@ -131,7 +128,6 @@
     "already_on_list": ":name ist schon auf dieser Liste.",
     "add_anyway": "Trotzdem hinzufügen",
     "bump_to": "Auf :n erhöhen",
-    "on_list_tag": "Schon auf der Liste",
     "waiting_to_sync_one": ":n Artikel wartet auf Synchronisierung",
     "waiting_to_sync_other": ":n Artikel warten auf Synchronisierung",
     "aisle_produce": "Obst & Gemüse",
@@ -253,5 +249,7 @@
     "tap_to_talk": "Tippen zum Sprechen",
     "adding_to": "Hinzufügen zu :list",
     "type": "Schreiben",
-    "pause_hint": "2 Sekunden Pause, dann bin ich fertig"
+    "pause_hint": "2 Sekunden Pause, dann bin ich fertig",
+    "on_this_list": "schon auf dieser Liste",
+    "item_name": "Artikel"
 }
