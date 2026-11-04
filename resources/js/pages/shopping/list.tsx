@@ -19,6 +19,8 @@ import {
     X,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+
+import { syncThemeColor } from '@/hooks/use-appearance';
 import { createPortal } from 'react-dom';
 
 import { DuplicateWarning } from '@/components/duplicate-warning';
@@ -182,6 +184,9 @@ export default function ListDetail({
     // The tail of `transcript` the browser may still rewrite (interim results): the listening screen dims it.
     const [interim, setInterim] = useState('');
     const [listening, setListening] = useState(false);
+    // The recognizer's last error code (e.g. 'no-speech', 'audio-capture', 'network'), shown on the listening screen.
+    // Before, every error but a refusal was swallowed, so a failing recognizer looked like a frozen "Listening" screen.
+    const [voiceError, setVoiceError] = useState<string | null>(null);
     // "Type" on the listening screen: the same overlay with the textarea instead (what was said so far kept).
     const [typing, setTyping] = useState(false);
     // S3a over the listening screen: 'intro' before the first-ever listen, 'denied' after the mic was refused.
@@ -194,6 +199,14 @@ export default function ListDetail({
     const [parsed, setParsed] = useState<Parsed[]>([]);
     const recRef = useRef<{ stop: () => void } | null>(null);
     // Web Speech API is a native browser feature (Chrome/Safari incl. iOS); when absent we fall back to typing.
+    // The phone's status bar takes <meta theme-color> (iOS and Android): paint it ink while the full-screen ink voice
+    // screens (mic intro, listening) are up, so the top isn't a light strip above them; back to the page colour after.
+    const inkScreen = voiceOpen && stage !== 'review' && (micIntro !== null || (stage === 'voice' && !typing));
+    useEffect(() => {
+        if (!inkScreen) return;
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#121100'); // --color-ink
+        return syncThemeColor;
+    }, [inkScreen]);
     const speechSupported = typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
 
     const memberById = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
@@ -468,6 +481,7 @@ export default function ListDetail({
         const SR = w.SpeechRecognition ?? w.webkitSpeechRecognition;
         if (!SR) return;
         stopListening(); // Redo / a new language: one recognizer at a time
+        setVoiceError(null);
         const rec = new SR();
         rec.continuous = true;
         rec.interimResults = true;
@@ -491,10 +505,11 @@ export default function ListDetail({
         };
         // Mic or speech recognition refused (now or earlier): the intro's denied state, with the way back and Type.
         rec.onerror = (e) => {
-            if (recRef.current === rec && (e.error === 'not-allowed' || e.error === 'service-not-allowed')) {
-                stopListening();
-                setMicIntro('denied');
-            }
+            // 'aborted' is our own stop() (Redo, language change, close): not an error.
+            if (recRef.current !== rec || e.error === 'aborted') return;
+            stopListening();
+            if (e.error === 'not-allowed' || e.error === 'service-not-allowed') setMicIntro('denied');
+            else setVoiceError(e.error);
         };
         rec.start();
         recRef.current = rec;
@@ -946,7 +961,13 @@ export default function ListDetail({
                                 }}
                                 onClose={closeVoice}
                                 onStart={() => startListening(voiceLang)}
-                                onDone={() => runParse()}
+                                // Nothing heard yet: Done still does something useful, it stops and opens typing.
+                                onDone={() => {
+                                    if (transcript.trim()) return runParse();
+                                    stopListening();
+                                    setTyping(true);
+                                }}
+                                error={voiceError}
                                 onRedo={() => {
                                     setTranscript('');
                                     setInterim('');

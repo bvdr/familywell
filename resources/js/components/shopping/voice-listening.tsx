@@ -87,6 +87,7 @@ export function VoiceListening({
     onDone,
     onRedo,
     onType,
+    error,
 }: {
     listName: string;
     finalText: string;
@@ -101,6 +102,8 @@ export function VoiceListening({
     onDone: () => void;
     onRedo: () => void;
     onType: () => void;
+    // The recognizer's error code, if it stopped with one: said in plain words, the code kept for bug reports.
+    error: string | null;
 }) {
     const t = useT();
 
@@ -186,7 +189,11 @@ export function VoiceListening({
                             <span className="text-white/35">{interim}</span>
                         </>
                     ) : (
-                        <span className="text-white/35">{t('shopping.voice_prompt')}</span>
+                        <span className="text-white/35">
+                            {error
+                                ? `${t(error === 'no-speech' ? 'shopping.voice_no_speech' : 'shopping.voice_error')} (${error})`
+                                : t('shopping.voice_prompt')}
+                        </span>
                     )}
                 </p>
                 {chips.length > 0 && (
@@ -230,11 +237,11 @@ export function VoiceListening({
                         </span>
                         {t('shopping.type')}
                     </button>
-                    {/* Done: a sun disc in a soft halo. Disabled until something was said. */}
+                    {/* Done: a sun disc in a soft halo. With nothing said it switches to typing (the list page decides). */}
                     <button
                         type="button"
                         onClick={onDone}
-                        disabled={!said.trim() || parsing}
+                        disabled={parsing}
                         aria-label={t('shopping.done_button')}
                         className="bg-sun/15 flex size-[116px] items-center justify-center rounded-full disabled:opacity-60"
                     >

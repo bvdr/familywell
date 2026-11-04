@@ -10,7 +10,10 @@
                 "href": "/m/shopping"
             }
         ],
-        "fixes": ["Shopping's Lists tab ends with Add a list, like Add a shop on Shops"]
+        "fixes": [
+            "Shopping's Lists tab ends with Add a list, like Add a shop on Shops",
+            "Dictation says why it stopped, Done with nothing heard opens typing, and the phone's top bar turns dark with it"
+        ]
     },
     {
         "version": "1.5",

@@ -261,5 +261,7 @@
     "type_instead": "Écrire plutôt",
     "mic_denied_title": "Le micro est désactivé",
     "mic_denied_sub": "Réactivez-le dans les réglages du téléphone pour cette app (sur iPhone : Réglages › Apps › Safari › Micro) ou écrivez votre liste.",
-    "add_a_list": "Ajouter une liste"
+    "add_a_list": "Ajouter une liste",
+    "voice_no_speech": "Je n'ai rien entendu. Touchez pour parler et réessayez.",
+    "voice_error": "La dictée s'est arrêtée. Touchez pour parler à nouveau, ou tapez."
 }

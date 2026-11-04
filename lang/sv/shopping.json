@@ -261,5 +261,7 @@
     "type_instead": "Skriv i stället",
     "mic_denied_title": "Mikrofonen är av",
     "mic_denied_sub": "Slå på den igen i telefonens inställningar för appen (på iPhone: Inställningar › Appar › Safari › Mikrofon) eller skriv din lista.",
-    "add_a_list": "Lägg till en lista"
+    "add_a_list": "Lägg till en lista",
+    "voice_no_speech": "Jag hörde inget. Tryck för att prata och försök igen.",
+    "voice_error": "Dikteringen stoppades. Tryck för att prata igen, eller skriv."
 }
