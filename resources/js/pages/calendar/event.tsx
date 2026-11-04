@@ -46,7 +46,8 @@ export default function CalendarEvent({
 }) {
     const t = useT();
     const locale = useLocale();
-    const [editing, setEditing] = useState(false);
+    // false | 'details' (⋯ › Edit) | 'dates' (the date line: the sheet opens on the start date's calendar).
+    const [editing, setEditing] = useState<false | 'details' | 'dates'>(false);
     const [sharing, setSharing] = useState(false);
     // The nav's "+" adds a to-do here (like a task list), not a new event.
     const addInputRef = useRef<HTMLInputElement>(null);
@@ -78,7 +79,7 @@ export default function CalendarEvent({
     const everyone = members.length > 1 && members.every((m) => users.some((u) => u.id === m.id));
     const whoText = everyone ? t('calendar.whole_family') : event.people.map((p) => p.name.split(' ')[0]).join(', ');
     const round = 'bg-surface text-primary flex size-10 items-center justify-center rounded-full';
-    const edit = canEdit ? () => setEditing(true) : undefined;
+    const edit = canEdit ? () => setEditing('details') : undefined;
 
     const actions = (
         <div className="flex gap-2">
@@ -94,7 +95,7 @@ export default function CalendarEvent({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-52">
                         {canEdit && (
-                            <DropdownMenuItem onSelect={() => setEditing(true)}>
+                            <DropdownMenuItem onSelect={() => setEditing('details')}>
                                 <Pencil className="size-4" /> {t('calendar.edit')}
                             </DropdownMenuItem>
                         )}
@@ -140,7 +141,19 @@ export default function CalendarEvent({
                         <LucideIcon name={event.icon ?? 'calendar'} className="size-7" />
                     </span>
                     <h1 className="font-heading text-primary text-4xl font-extrabold tracking-tight break-words">{event.title}</h1>
-                    <p className="text-muted-foreground">{when}</p>
+                    {/* Tapping the dates is how people try to change them (user, 2026-11-05): it opens the edit sheet on
+                        the start date's calendar. */}
+                    {canEdit ? (
+                        <button
+                            type="button"
+                            onClick={() => setEditing('dates')}
+                            className="text-muted-foreground self-start text-left underline-offset-4 hover:underline"
+                        >
+                            {when}
+                        </button>
+                    ) : (
+                        <p className="text-muted-foreground">{when}</p>
+                    )}
                     {days > 1 && (
                         <div className="flex flex-col gap-2">
                             <div className="flex gap-1" aria-hidden>
@@ -228,8 +241,9 @@ export default function CalendarEvent({
             </div>
             {canEdit && (
                 <EventSheet
-                    open={editing}
-                    onOpenChange={setEditing}
+                    open={editing !== false}
+                    onOpenChange={(v) => setEditing(v ? 'details' : false)}
+                    pickDate={editing === 'dates'}
                     event={{ ...event, project: event.project ? { id: event.project.id } : null }}
                     defaultDate={event.start_date}
                     members={members}

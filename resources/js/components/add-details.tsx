@@ -362,9 +362,11 @@ export function DatePick({
     onChange,
     time,
     onTime,
+    required,
 }: {
     value: string;
     onChange: (v: string) => void;
+    required?: boolean; // no Clear date (an event's start/end always has one)
     time?: string; // HH:MM, '' = any time
     onTime?: (v: string) => void;
 }) {
@@ -388,7 +390,7 @@ export function DatePick({
                     </p>
                     {value && <p className="text-muted-foreground text-sm">{relativeWord(daysBetween(today, value), 'day')}</p>}
                 </div>
-                {value && (
+                {value && !required && (
                     <button type="button" onClick={() => onChange('')} className="text-primary shrink-0 text-sm font-semibold">
                         {t('add_details.clear_date')}
                     </button>

@@ -38,7 +38,11 @@
                 "href": "/dashboard"
             }
         ],
-        "fixes": ["The Timeline settles on whole days, and today's line no longer cuts through the dates"]
+        "fixes": [
+            "The Timeline settles on whole days, and today's line no longer cuts through the dates",
+            "Tapping an event's date opens a month calendar, and its times open the phone's picker",
+            "The Timeline shows birthdays, appointments and open to-dos too, each on its own row"
+        ]
     },
     {
         "version": "1.4",
