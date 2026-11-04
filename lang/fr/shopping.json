@@ -251,5 +251,6 @@
     "type": "Écrire",
     "pause_hint": "Faites une pause de 2 secondes et je termine",
     "on_this_list": "déjà sur cette liste",
-    "item_name": "Article"
+    "item_name": "Article",
+    "add_a_list": "Ajouter une liste"
 }

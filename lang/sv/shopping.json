@@ -251,5 +251,6 @@
     "type": "Skriv",
     "pause_hint": "Pausa i 2 sekunder så avslutar jag",
     "on_this_list": "finns redan på listan",
-    "item_name": "Vara"
+    "item_name": "Vara",
+    "add_a_list": "Lägg till en lista"
 }

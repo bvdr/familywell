@@ -251,5 +251,6 @@
     "type": "Skriv",
     "pause_hint": "Ta en pause på 2 sekunder, så runder jeg av",
     "on_this_list": "allerede på denne listen",
-    "item_name": "Vare"
+    "item_name": "Vare",
+    "add_a_list": "Legg til en liste"
 }

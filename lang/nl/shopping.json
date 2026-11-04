@@ -251,5 +251,6 @@
     "type": "Typen",
     "pause_hint": "Wacht 2 seconden en ik rond af",
     "on_this_list": "staat al op deze lijst",
-    "item_name": "Artikel"
+    "item_name": "Artikel",
+    "add_a_list": "Lijst toevoegen"
 }
