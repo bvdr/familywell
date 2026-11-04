@@ -136,3 +136,12 @@ it('never creates an account from the password form', function () {
     $this->post('/login/password', ['email' => 'new@example.com', 'password' => 'whatever'])->assertSessionHasErrors('email');
     expect(User::where('email', 'new@example.com')->exists())->toBeFalse();
 });
+
+it('lets a guest pick the page language, and a new account keeps it', function () {
+    $this->post('/locale', ['locale' => 'de'], ['Accept-Language' => 'en'])->assertRedirect();
+    $this->get('/login', ['Accept-Language' => 'en'])->assertInertia(fn ($page) => $page->where('locale', 'de'));
+    $this->post('/locale', ['locale' => 'xx'])->assertStatus(422);
+
+    signInWithCode('neu@example.com');
+    expect(User::where('email', 'neu@example.com')->value('locale'))->toBe('de');
+});

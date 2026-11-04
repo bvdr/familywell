@@ -16,6 +16,8 @@ Route::middleware('guest')->group(function () {
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
 
+    Route::post('locale', [AuthenticatedSessionController::class, 'locale'])->name('auth.locale');
+
     // Per IP. EmailCode also caps sends per address and wrong guesses per code.
     Route::post('auth/code', [AuthenticatedSessionController::class, 'sendCode'])
         ->middleware('throttle:10,1')
