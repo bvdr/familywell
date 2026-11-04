@@ -10,10 +10,19 @@ interface AppLayoutProps {
     mobileHeader?: React.ReactNode;
     // Hide the breadcrumb bar on phones (desktop keeps it): the settings pages have their own back pill.
     hideMobileHeader?: boolean;
+    // Hide the phone tab bar: a page whose own bottom bar is where the thumb goes (a shopping list's composer, S2).
+    hideTabBar?: boolean;
 }
 
-export default ({ children, breadcrumbs, actions, mobileHeader, hideMobileHeader, ...props }: AppLayoutProps) => (
-    <AppLayoutTemplate breadcrumbs={breadcrumbs} actions={actions} mobileHeader={mobileHeader} hideMobileHeader={hideMobileHeader} {...props}>
+export default ({ children, breadcrumbs, actions, mobileHeader, hideMobileHeader, hideTabBar, ...props }: AppLayoutProps) => (
+    <AppLayoutTemplate
+        breadcrumbs={breadcrumbs}
+        actions={actions}
+        mobileHeader={mobileHeader}
+        hideMobileHeader={hideMobileHeader}
+        hideTabBar={hideTabBar}
+        {...props}
+    >
         {children}
     </AppLayoutTemplate>
 );
