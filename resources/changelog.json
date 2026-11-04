@@ -1,5 +1,30 @@
 [
     {
+        "version": "1.4",
+        "date": "2026-11-04",
+        "items": [
+            {
+                "module": "app",
+                "title": "5 days free, no card",
+                "text": "Every new family gets 5 days to try everything. Pick a plan when you're ready: one price covers the whole family, and Settings › Billing shows how many days are left.",
+                "href": "/settings/billing"
+            },
+            {
+                "module": "shopping",
+                "title": "A cleaner shopping list",
+                "text": "One card per aisle, bought items sink to the bottom, and Hide bought keeps only what's left to grab. Tick something by mistake? Undo is right there. Filter by shop when a list spans a few.",
+                "href": "/m/shopping"
+            },
+            {
+                "module": "shopping",
+                "title": "Each list its own settings",
+                "text": "The ⋯ on a list opens its settings: who can see it, default shop, sort, and how soon bought items clear away. Or clear them now.",
+                "href": null
+            }
+        ],
+        "fixes": []
+    },
+    {
         "version": "1.3",
         "date": "2026-11-03",
         "items": [

@@ -4,6 +4,7 @@ use App\Models\Family;
 use App\Models\OAuthClient;
 use App\Models\User;
 use App\Notifications\LoginCode;
+use App\Support\Billing\Billing;
 use App\Support\Modules\ModuleRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -256,12 +257,12 @@ function mcpToolNames(string $token): array
 }
 
 /**
- * Put a family past its free period, so an unpaid one hits the paywall (Billing::paywallDue): it used
- * enough modules (engaged_at) and is older than the grace hours. Tests about the locked state call this.
+ * Put a family past its 5-day free trial (Billing::paywallDue), so an unpaid one hits the paywall. Tests about the
+ * locked state call this.
  */
 function pastFreePeriod(Family $family): Family
 {
-    $family->forceFill(['created_at' => now()->subDays(2), 'engaged_at' => now()->subDay()])->save();
+    $family->forceFill(['created_at' => now()->subDays(Billing::TRIAL_DAYS + 1)])->save();
 
     return $family;
 }

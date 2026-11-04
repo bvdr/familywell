@@ -279,6 +279,10 @@
     "plan_line_monthly": "FamilyWell :tier · Mensuel",
     "plan_intro_line": "Remise",
     "plan_due": "À payer aujourd'hui",
+    "plan_due_family": "À payer aujourd'hui · toute la famille",
+    "plan_family_title": "Un prix pour toute la famille",
+    "plan_family_sub": ":names + toute personne ajoutée.",
+    "plan_family_sub_solo": "Tous ceux que tu ajoutes, même prix.",
     "plan_renews": "Renouvelé le :date à :amount. Résiliable à tout moment.",
     "plan_renews_short": "Renouvelé le :date à :amount",
     "plan_pay": "Payer :amount et commencer",
@@ -348,10 +352,7 @@
     "plan_tiers": "Formule",
     "plan_included_in": "Inclus dans :tier",
     "plan_inc_storage": ":gb Go de stockage, sauvegardé chaque jour",
-    "plan_inc_short": "Tous les modules, membres illimités",
     "plan_inc_cancel": "Résiliable à tout moment dans Réglages → Facturation",
-    "plan_payer_short": ":names ne reçoivent jamais de facture.",
-    "plan_payer_short_solo": "Un seul prix pour toutes les personnes que vous ajoutez.",
     "plan_secure_by": "Paiement sécurisé par",
     "rail_cancel_title": "Résiliable à tout moment",
     "rail_cancel_body": "Deux clics dans Réglages → Facturation. Vos listes, photos et votre historique restent à vous, exportables.",
@@ -365,5 +366,8 @@
     "promo_hint": "Reçu d'un ami ou par la newsletter ? Un code par famille.",
     "promo_invalid": "Ce code n'est pas valide ou a expiré.",
     "promo_remove": "Retirer le code promo",
-    "promo_line": "Promo :code"
+    "promo_line": "Promo :code",
+    "plan_trial_cta_one": "Commencer mon :count jour gratuit",
+    "plan_trial_cta_other": "Commencer mes :count jours gratuits",
+    "plan_trial_note": "Sans carte. Choisissez une formule quand vous voulez dans Réglages › Facturation."
 }

@@ -279,6 +279,10 @@
     "plan_line_monthly": "FamilyWell :tier · Månadsvis",
     "plan_intro_line": "Rabatt",
     "plan_due": "Att betala i dag",
+    "plan_due_family": "Att betala i dag · hela familjen",
+    "plan_family_title": "Ett pris för hela familjen",
+    "plan_family_sub": ":names + alla du lägger till.",
+    "plan_family_sub_solo": "Alla du lägger till, samma pris.",
     "plan_renews": "Förnyas :date för :amount. Avsluta när du vill.",
     "plan_renews_short": "Förnyas :date för :amount",
     "plan_pay": "Betala :amount och börja",
@@ -348,10 +352,7 @@
     "plan_tiers": "Plan",
     "plan_included_in": "Ingår i :tier",
     "plan_inc_storage": ":gb GB lagring, säkerhetskopierad dagligen",
-    "plan_inc_short": "Alla moduler, obegränsat med familjemedlemmar",
     "plan_inc_cancel": "Avsluta när som helst under Inställningar → Fakturering",
-    "plan_payer_short": ":names får aldrig en räkning.",
-    "plan_payer_short_solo": "Ett pris för alla du lägger till.",
     "plan_secure_by": "Säker betalning via",
     "rail_cancel_title": "Avsluta när som helst",
     "rail_cancel_body": "Två klick under Inställningar → Fakturering. Dina listor, foton och din historik är fortfarande dina att exportera.",
@@ -365,5 +366,8 @@
     "promo_hint": "Fått en av en vän eller i nyhetsbrevet? En kod per familj.",
     "promo_invalid": "Koden är ogiltig eller har gått ut.",
     "promo_remove": "Ta bort rabattkod",
-    "promo_line": "Kod :code"
+    "promo_line": "Kod :code",
+    "plan_trial_cta_one": "Starta min :count gratisdag",
+    "plan_trial_cta_other": "Starta mina :count gratisdagar",
+    "plan_trial_note": "Inget kort behövs. Välj en plan när du vill i Inställningar › Betalning."
 }

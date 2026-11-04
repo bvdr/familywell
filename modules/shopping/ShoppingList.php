@@ -26,9 +26,10 @@ class ShoppingList extends Model
 
     protected $table = 'shopping_lists';
 
-    protected $fillable = ['name', 'store', 'color', 'icon', 'archived_at', 'position', 'created_by'];
+    // sort / bought / clean_after_days: the list's own choices in List settings (S2b, S2c); null = the family's default.
+    protected $fillable = ['name', 'store', 'color', 'icon', 'archived_at', 'position', 'created_by', 'sort', 'bought', 'clean_after_days'];
 
-    protected $casts = ['archived_at' => 'datetime'];
+    protected $casts = ['archived_at' => 'datetime', 'clean_after_days' => 'integer'];
 
     public function items(): HasMany
     {

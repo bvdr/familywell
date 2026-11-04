@@ -31,5 +31,7 @@
     "months_free_other": ":count Monate gratis",
     "cta": "Starte dein FamilyWell · :price",
     "price_yr": ":amount/Jahr",
-    "price_mo": ":amount/Monat"
+    "price_mo": ":amount/Monat",
+    "trial_left_one": "Noch :count Tag in deiner Testphase.",
+    "trial_left_other": "Noch :count Tage in deiner Testphase."
 }

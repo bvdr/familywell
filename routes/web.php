@@ -103,6 +103,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('onboarding/plan', [OnboardingController::class, 'plan'])->name('onboarding.plan');
     // Starts the incomplete subscription the browser then pays (throttled: each call is a Stripe API write).
     Route::post('onboarding/plan', [OnboardingController::class, 'subscribe'])->middleware(['not-demo', 'throttle:10,1'])->name('onboarding.plan.subscribe');
+    // "Start my free days": past the plan step with no card, while the 5-day trial lasts.
+    Route::post('onboarding/plan/trial', [OnboardingController::class, 'startTrial'])->name('onboarding.plan.trial');
     // Promo codes (throttled: each check is a Stripe API read, and it stops someone guessing codes).
     Route::post('onboarding/plan/promo', [OnboardingController::class, 'applyPromo'])->middleware('throttle:10,1')->name('onboarding.plan.promo');
     Route::delete('onboarding/plan/promo', [OnboardingController::class, 'removePromo'])->name('onboarding.plan.promo.remove');

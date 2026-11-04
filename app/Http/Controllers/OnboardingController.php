@@ -166,8 +166,6 @@ class OnboardingController extends Controller
             // The skin they picked on About you becomes the family's: skins are per family (ThemeTokens::resolve).
             'theme' => $user->theme,
         ]);
-        // Hard paywall: no free period for a family made here (Billing::hasAccess). Not fillable, so forceFill.
-        $family->forceFill(['hard_paywall' => true])->save();
         $family->members()->attach($user, ['role' => 'admin']);
         app(ModuleRegistry::class)->enableAll($family->id);
         // Modules set up their per-family defaults here (e.g. Spending's currency, Vehicles' units: from where the
@@ -499,7 +497,28 @@ class OnboardingController extends Controller
             'paid' => false,
             'next' => null,
             'selfHostingUrl' => config('familywell.self_hosting_url') ?: null,
+            // Days of the free trial left (0 once it's over): while there are some, the step offers "Start my free
+            // days" past the checkout (startTrial); after, it's the paywall and paying is the only way in.
+            'trialDaysLeft' => Billing::trialDaysLeft($family),
+            'trialDays' => Billing::TRIAL_DAYS,
+            // Who the one price covers, payer first, for the "One price for the whole family" card (design 06).
+            'members' => [str($request->user()->name)->before(' ')->toString(), ...$this->invitedNames($family)],
         ]);
+    }
+
+    /**
+     * "Start my 5 free days": past the plan step with no card, on to the recap (or the app when a lapsed family is
+     * here outside the onboarding). Only while the trial lasts; after it the plan step is the paywall.
+     */
+    public function startTrial(Request $request): RedirectResponse
+    {
+        abort_unless(Billing::enabled() && ($family = $this->payingFamily($request)) && ! Billing::paywallDue($family), 403);
+        $user = $request->user();
+        $onboarding = $user->onboarding_step === 'plan';
+        $user->forceFill(['onboarding_step' => $onboarding ? 'ready' : null])->save();
+        Analytics::queue('trial_started', ['days' => Billing::trialDaysLeft($family)]);
+
+        return to_route($onboarding ? 'onboarding.ready' : 'dashboard');
     }
 
     // Apply a promo code (design 06a): checked against Stripe's promotion codes now, so a bad one is a line under

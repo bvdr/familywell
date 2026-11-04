@@ -283,6 +283,10 @@
     "plan_line_monthly": "FamilyWell :tier · Lunar",
     "plan_intro_line": "Reducere",
     "plan_due": "De plată azi",
+    "plan_due_family": "De plată azi · toată familia",
+    "plan_family_title": "Un preț pentru toată familia",
+    "plan_family_sub": ":names + oricine adaugi.",
+    "plan_family_sub_solo": "Oricine adaugi, același preț.",
     "plan_renews": "Se reînnoiește pe :date la :amount. Anulezi oricând.",
     "plan_renews_short": "Se reînnoiește pe :date la :amount",
     "plan_pay": "Plătește :amount și începe",
@@ -354,10 +358,7 @@
     "plan_tiers": "Plan",
     "plan_included_in": "Inclus în :tier",
     "plan_inc_storage": ":gb GB spațiu, copie de siguranță zilnică",
-    "plan_inc_short": "Toate modulele, membri nelimitați",
     "plan_inc_cancel": "Anulezi oricând din Setări → Facturare",
-    "plan_payer_short": ":names nu primesc niciodată o factură.",
-    "plan_payer_short_solo": "Un singur preț pentru toți cei pe care îi adaugi.",
     "plan_secure_by": "Plată securizată prin",
     "rail_cancel_title": "Anulezi oricând",
     "rail_cancel_body": "Două clicuri în Setări → Facturare. Listele, pozele și istoricul rămân ale tale, de exportat.",
@@ -371,5 +372,9 @@
     "promo_hint": "Ai primit unul de la un prieten sau din newsletter? Un cod per familie.",
     "promo_invalid": "Codul nu e valid sau a expirat.",
     "promo_remove": "Șterge codul promoțional",
-    "promo_line": "Promo :code"
+    "promo_line": "Promo :code",
+    "plan_trial_cta_one": "Încep :count zi gratuită",
+    "plan_trial_cta_few": "Încep cele :count zile gratuite",
+    "plan_trial_cta_other": "Încep cele :count de zile gratuite",
+    "plan_trial_note": "Fără card. Alegi un plan oricând din Setări › Plată."
 }
