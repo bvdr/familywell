@@ -14,9 +14,10 @@ it('adds an email-code sign-up to the Resend segment at About you, once, with th
     $this->post('/onboarding/about', ['name' => 'Sara Green-Anderson']);
     $this->post('/onboarding/about', ['name' => 'Sara G']); // a rename is not a new account
 
-    Http::assertSentCount(1);
+    Http::assertSentCount(2); // contact + event, once
     Http::assertSent(fn ($r) => $r->url() === 'https://api.resend.com/contacts' && $r['email'] === 'sara@example.com'
         && $r['first_name'] === 'Sara' && $r['last_name'] === 'Green-Anderson' && $r['segments'] === [['id' => 'seg_1']]);
+    Http::assertSent(fn ($r) => $r->url() === 'https://api.resend.com/events/send' && $r['event'] === 'user.signed_up' && $r['email'] === 'sara@example.com');
 });
 
 it('sends nothing without a segment configured (self-hosted)', function () {
