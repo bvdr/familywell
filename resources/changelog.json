@@ -22,7 +22,7 @@
                 "href": null
             }
         ],
-        "fixes": []
+        "fixes": ["Settings › Billing opens the plan page, with a way back while your free days last"]
     },
     {
         "version": "1.3",

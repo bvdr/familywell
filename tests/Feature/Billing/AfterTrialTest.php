@@ -59,10 +59,11 @@ it('blocks writes too, not just pages', function () {
     actingAs($user)->post('/m/notes', ['title' => 'x'])->assertRedirect(route('onboarding.plan'));
 });
 
-it('keeps Billing and sign-out open for a locked family', function () {
+it('sends a locked admin from Billing to the paywall with no way back, and keeps sign-out open', function () {
     [$user] = lockedFamily();
 
-    actingAs($user)->get('/settings/billing')->assertOk()->assertInertia(fn ($page) => $page->where('locked', true)->where('subscribed', false));
+    actingAs($user)->get('/settings/billing')->assertRedirect(route('onboarding.plan'));
+    actingAs($user)->get('/onboarding/plan')->assertOk()->assertInertia(fn ($page) => $page->where('onboarding', false)->where('back', null));
     actingAs($user)->post('/logout')->assertRedirect();
     $this->assertGuest();
 });

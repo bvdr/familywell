@@ -86,9 +86,9 @@ it('hides the pricing endpoint when billing is off', function () {
     get('/pricing.json')->assertNotFound();
 });
 
-it('shows today\'s price on the billing page', function () {
+it('shows today\'s price on the plan page', function () {
     standardPricesOn(5);
     [$admin] = paidFamily();
 
-    actingAs($admin)->get('/settings/billing')->assertInertia(fn ($page) => $page->where('pricing.monthly', 5)->where('pricing.spotsLeft', 5));
+    actingAs($admin)->get('/onboarding/plan')->assertInertia(fn ($page) => $page->where('pricing.monthly', 5)->where('pricing.spotsLeft', 5));
 });

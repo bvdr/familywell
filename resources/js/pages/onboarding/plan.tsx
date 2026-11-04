@@ -48,6 +48,10 @@ type Props = {
     trialDaysLeft?: number;
     // First names the one price covers, payer first (OnboardingController::plan); absent on "paid".
     members?: string[];
+    // In the onboarding (back = the previous step, trial CTA shown) or opened from Settings > Billing (back = Settings,
+    // shown on phones too). back is null once the trial is over: there is nowhere to go but pay.
+    onboarding?: boolean;
+    back?: string | null;
 };
 
 // The tablet / desktop list under the plans; `{storage}` and `{ai}` rows take the tier's numbers.
@@ -91,6 +95,8 @@ export default function PlanStep({
     selfHostingUrl,
     trialDaysLeft = 0,
     members = [],
+    onboarding = true,
+    back = null,
 }: Props) {
     const t = useT();
     const [plan, setPlan] = useState<Plan>('yearly');
@@ -159,7 +165,8 @@ export default function PlanStep({
             <OnboardingLayout
                 step={5}
                 wide
-                back={route('onboarding.notifications')}
+                back={back ?? undefined}
+                backOnPhone={!onboarding}
                 homer={{ face: 'happy' }}
                 title={t('onboarding.plan_title', { name: family.name })}
                 sub={t(pricing.pro ? 'onboarding.plan_sub' : 'onboarding.plan_sub_one')}
@@ -370,7 +377,8 @@ export default function PlanStep({
                         <p className="text-stone text-center text-xs">{payLine}</p>
                     </div>
                 </div>
-                {trialDaysLeft > 0 && (
+                {/* The no-card way past the step belongs to the onboarding; from Billing, back does that job. */}
+                {onboarding && trialDaysLeft > 0 && (
                     <div className="flex flex-col items-center gap-1.5 px-5 pb-8 text-center md:px-0">
                         <button
                             type="button"

@@ -24,6 +24,8 @@ type Props = {
     step?: number;
     /** Back target (round button in the header; the desktop bottom bar's Back). */
     back?: string;
+    /** Show the back button on phones on the plan step (opened from Settings > Billing, not the onboarding). */
+    backOnPhone?: boolean;
     title: ReactNode;
     sub?: ReactNode;
     /** Primary action: full width at the bottom on phones, right of the tablet / desktop bottom bar. */
@@ -163,6 +165,7 @@ export function Progress({ step }: { step: number }) {
 export default function OnboardingLayout({
     step,
     back,
+    backOnPhone = false,
     title,
     sub,
     cta,
@@ -200,7 +203,7 @@ export default function OnboardingLayout({
                                     className={cn(
                                         'bg-paper-2 md:border-line flex size-9 items-center justify-center rounded-full md:size-10 md:border md:bg-white',
                                         // The phone's plan screen has no back button (design 06): it is the last stop.
-                                        step === 5 && 'max-md:hidden',
+                                        step === 5 && !backOnPhone && 'max-md:hidden',
                                     )}
                                 >
                                     <ChevronLeft className="size-[18px]" />
