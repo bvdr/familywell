@@ -4,6 +4,7 @@ use App\Models\Family;
 use App\Models\OAuthClient;
 use App\Models\User;
 use App\Notifications\LoginCode;
+use App\Support\Billing\Billing;
 use App\Support\Modules\ModuleRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -261,7 +262,7 @@ function mcpToolNames(string $token): array
  */
 function pastFreePeriod(Family $family): Family
 {
-    $family->forceFill(['created_at' => now()->subDays(\App\Support\Billing\Billing::TRIAL_DAYS + 1)])->save();
+    $family->forceFill(['created_at' => now()->subDays(Billing::TRIAL_DAYS + 1)])->save();
 
     return $family;
 }
