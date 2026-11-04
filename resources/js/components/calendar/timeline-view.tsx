@@ -266,16 +266,19 @@ export const TimelineView = forwardRef<
     return (
         <div className="flex flex-col gap-5">
             <div className="bg-surface-card relative overflow-hidden rounded-2xl border">
-                <div ref={box} data-scroll-x className="overflow-x-auto overflow-y-hidden overscroll-x-contain select-none [scrollbar-width:none]">
+                <div
+                    ref={box}
+                    data-scroll-x
+                    className="snap-x snap-mandatory overflow-x-auto overflow-y-hidden overscroll-x-contain select-none [scrollbar-width:none]"
+                >
                     <div className="relative" style={{ width: px(trackW) }}>
-                        {/* Weekend columns shaded, and today's line through every row. */}
+                        {/* Weekend columns shaded. */}
                         <div className="pointer-events-none absolute inset-0" aria-hidden>
                             {days.map((d, k) =>
                                 [0, 6].includes(parseDay(d).getDay()) ? (
                                     <div key={d} className="bg-surface/70 absolute inset-y-0" style={{ left: px(k * dayW), width: px(dayW) }} />
                                 ) : null,
                             )}
-                            {todayIdx >= 0 && <div className="bg-primary absolute inset-y-0 w-0.5" style={{ left: px((todayIdx + 0.5) * dayW) }} />}
                         </div>
 
                         {/* Day header: letter + date (1w: the weekday and a dot per timed thing). Tap a day for its agenda. */}
@@ -294,7 +297,8 @@ export const TimelineView = forwardRef<
                                         type="button"
                                         onClick={() => pick(d)}
                                         aria-pressed={d === selected}
-                                        className={`flex shrink-0 flex-col items-center gap-0.5 py-1.5 ${d.endsWith('-01') ? 'border-l' : ''}`}
+                                        // snap-start: a swipe comes to rest on a whole day (free scrolling left the first column cut in half).
+                                        className={`flex shrink-0 snap-start flex-col items-center gap-0.5 py-1.5 ${d.endsWith('-01') ? 'border-l' : ''}`}
                                         style={{ width: px(dayW) }}
                                     >
                                         <span className="text-muted-foreground font-mono text-[10px] font-semibold uppercase">
@@ -323,72 +327,86 @@ export const TimelineView = forwardRef<
                             })}
                         </div>
 
-                        {rows.map(({ key, item: i, bars }) => {
-                            const { offset, span: len } = bars[0];
-                            const before = i.start < firstDay;
-                            // Inside the bar when ~45% of the screen shows it (a long name fits); otherwise beside it, on
-                            // whichever side of the screen has room (an ended one: at the left edge, after its bar).
-                            const barL = offset * dayW;
-                            const barR = (offset + len) * dayW;
-                            const inside = Math.min(barR, viewR) - Math.max(barL, viewL) >= 0.45 * boxW;
-                            const right = viewR - barR >= barL - viewL;
-                            const after = i.start > lastDay;
-                            const label = (
-                                <span className="flex min-w-0 items-baseline gap-1.5">
-                                    {before && <ArrowLeft className="size-3.5 shrink-0 self-center" />}
-                                    <span className="truncate font-semibold">{i.title}</span>
-                                    <span className="text-muted-foreground shrink-0 font-mono text-[11px]">{meta(i)}</span>
-                                    {after && <ArrowRight className="size-3.5 shrink-0 self-center" />}
-                                    {fresh.has(key) && (
-                                        <span className="bg-primary text-accent-strong shrink-0 rounded px-1 font-mono text-[10px] font-bold">
-                                            {t('calendar.new_badge')}
-                                        </span>
-                                    )}
-                                </span>
-                            );
-                            return (
-                                <Link
-                                    key={key}
-                                    href={i.href}
-                                    className={`border-border/60 relative block border-b transition-colors duration-700 ${fresh.has(key) ? 'bg-accent-strong/25' : ''}`}
-                                    style={{ height: ROW_PX }}
-                                >
-                                    {bars.map((b, k) => (
-                                        // overflow-clip, not hidden: hidden makes the bar a scroll container and the sticky
-                                        // label would stick inside the bar instead of the screen's left edge.
-                                        <span
-                                            key={k}
-                                            className={`absolute top-1.5 bottom-1.5 flex items-center overflow-clip text-sm ${itemTone(i.color)} ${b.item.start < span.from ? '' : `rounded-l-lg border-l-4 ${stripe(i.color).replace('bg-', 'border-')}`} ${b.item.end > span.to ? '' : 'rounded-r-lg'}`}
-                                            style={{ left: px(b.offset * dayW), width: px(b.span * dayW) }}
-                                        >
-                                            {k === 0 && inside && (
-                                                // Sticks to the screen's left edge while the bar's start scrolls away.
-                                                <span className="sticky left-0 min-w-0 px-2" style={{ maxWidth: px(Math.min(b.span * dayW, boxW)) }}>
+                        {/* Today's line runs through the rows only: over the header it cut through the weekday and date,
+                            and with no rows it was a stray line under today (iPhone, 2026-11-05). */}
+                        <div className="relative">
+                            {todayIdx >= 0 && rows.length > 0 && (
+                                <div
+                                    className="bg-primary pointer-events-none absolute inset-y-0 w-0.5"
+                                    style={{ left: px((todayIdx + 0.5) * dayW) }}
+                                    aria-hidden
+                                />
+                            )}
+                            {rows.map(({ key, item: i, bars }) => {
+                                const { offset, span: len } = bars[0];
+                                const before = i.start < firstDay;
+                                // Inside the bar when ~45% of the screen shows it (a long name fits); otherwise beside it, on
+                                // whichever side of the screen has room (an ended one: at the left edge, after its bar).
+                                const barL = offset * dayW;
+                                const barR = (offset + len) * dayW;
+                                const inside = Math.min(barR, viewR) - Math.max(barL, viewL) >= 0.45 * boxW;
+                                const right = viewR - barR >= barL - viewL;
+                                const after = i.start > lastDay;
+                                const label = (
+                                    <span className="flex min-w-0 items-baseline gap-1.5">
+                                        {before && <ArrowLeft className="size-3.5 shrink-0 self-center" />}
+                                        <span className="truncate font-semibold">{i.title}</span>
+                                        <span className="text-muted-foreground shrink-0 font-mono text-[11px]">{meta(i)}</span>
+                                        {after && <ArrowRight className="size-3.5 shrink-0 self-center" />}
+                                        {fresh.has(key) && (
+                                            <span className="bg-primary text-accent-strong shrink-0 rounded px-1 font-mono text-[10px] font-bold">
+                                                {t('calendar.new_badge')}
+                                            </span>
+                                        )}
+                                    </span>
+                                );
+                                return (
+                                    <Link
+                                        key={key}
+                                        href={i.href}
+                                        className={`border-border/60 relative block border-b transition-colors duration-700 ${fresh.has(key) ? 'bg-accent-strong/25' : ''}`}
+                                        style={{ height: ROW_PX }}
+                                    >
+                                        {bars.map((b, k) => (
+                                            // overflow-clip, not hidden: hidden makes the bar a scroll container and the sticky
+                                            // label would stick inside the bar instead of the screen's left edge.
+                                            <span
+                                                key={k}
+                                                className={`absolute top-1.5 bottom-1.5 flex items-center overflow-clip text-sm ${itemTone(i.color)} ${b.item.start < span.from ? '' : `rounded-l-lg border-l-4 ${stripe(i.color).replace('bg-', 'border-')}`} ${b.item.end > span.to ? '' : 'rounded-r-lg'}`}
+                                                style={{ left: px(b.offset * dayW), width: px(b.span * dayW) }}
+                                            >
+                                                {k === 0 && inside && (
+                                                    // Sticks to the screen's left edge while the bar's start scrolls away.
+                                                    <span
+                                                        className="sticky left-0 min-w-0 px-2"
+                                                        style={{ maxWidth: px(Math.min(b.span * dayW, boxW)) }}
+                                                    >
+                                                        {label}
+                                                    </span>
+                                                )}
+                                            </span>
+                                        ))}
+                                        {!inside && (
+                                            // Beside the bar: a lane from the bar to the track's end (or start), with the label
+                                            // sticky in it. The browser holds it at the screen edge while the bar is off
+                                            // screen, every frame of a swipe. Positioning it from the visible days in JS made
+                                            // it slide with the strip and snap back a day at a time (Nov 3 recording).
+                                            <span
+                                                className={`absolute top-0 bottom-0 flex items-center ${right ? '' : 'justify-end'}`}
+                                                style={right ? { left: px(barR), right: 0 } : { left: 0, width: px(barL) }}
+                                            >
+                                                <span
+                                                    className={`text-primary sticky flex px-2 text-sm whitespace-nowrap ${right ? 'left-0' : 'right-0'}`}
+                                                    style={{ maxWidth: px(boxW * 0.9) }}
+                                                >
                                                     {label}
                                                 </span>
-                                            )}
-                                        </span>
-                                    ))}
-                                    {!inside && (
-                                        // Beside the bar: a lane from the bar to the track's end (or start), with the label
-                                        // sticky in it. The browser holds it at the screen edge while the bar is off
-                                        // screen, every frame of a swipe. Positioning it from the visible days in JS made
-                                        // it slide with the strip and snap back a day at a time (Nov 3 recording).
-                                        <span
-                                            className={`absolute top-0 bottom-0 flex items-center ${right ? '' : 'justify-end'}`}
-                                            style={right ? { left: px(barR), right: 0 } : { left: 0, width: px(barL) }}
-                                        >
-                                            <span
-                                                className={`text-primary sticky flex px-2 text-sm whitespace-nowrap ${right ? 'left-0' : 'right-0'}`}
-                                                style={{ maxWidth: px(boxW * 0.9) }}
-                                            >
-                                                {label}
                                             </span>
-                                        </span>
-                                    )}
-                                </Link>
-                            );
-                        })}
+                                        )}
+                                    </Link>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
 
