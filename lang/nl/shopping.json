@@ -251,5 +251,14 @@
     "type": "Typen",
     "pause_hint": "Wacht 2 seconden en ik rond af",
     "on_this_list": "staat al op deze lijst",
-    "item_name": "Artikel"
+    "item_name": "Artikel",
+    "mic_intro_title": "Zeg je lijst hardop",
+    "mic_intro_sub": "„Melk, eieren, een paar bananen...” en ik splits het in artikelen, gesorteerd per gang.",
+    "mic_intro_open": "Luistert alleen zolang dit scherm open is",
+    "mic_intro_words": "Alleen de woorden blijven, nooit de opname",
+    "mic_intro_settings": "Altijd te wijzigen in Instellingen",
+    "allow_mic": "Microfoon toestaan",
+    "type_instead": "Liever typen",
+    "mic_denied_title": "De microfoon staat uit",
+    "mic_denied_sub": "Zet hem weer aan in de instellingen van je telefoon voor deze app (iPhone: Instellingen › Apps › Safari › Microfoon), of typ je lijst."
 }

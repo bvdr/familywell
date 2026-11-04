@@ -251,5 +251,14 @@
     "type": "Skriv",
     "pause_hint": "Ta en pause på 2 sekunder, så runder jeg av",
     "on_this_list": "allerede på denne listen",
-    "item_name": "Vare"
+    "item_name": "Vare",
+    "mic_intro_title": "Si listen din høyt",
+    "mic_intro_sub": "«Melk, egg, noen bananer ...» så deler jeg den opp i varer sortert etter avdeling.",
+    "mic_intro_open": "Lytter bare mens denne skjermen er åpen",
+    "mic_intro_words": "Bare ordene lagres, aldri lyden",
+    "mic_intro_settings": "Kan endres når som helst i Innstillinger",
+    "allow_mic": "Tillat mikrofon",
+    "type_instead": "Skriv i stedet",
+    "mic_denied_title": "Mikrofonen er av",
+    "mic_denied_sub": "Slå den på igjen i telefonens innstillinger for denne appen (på iPhone: Innstillinger › Apper › Safari › Mikrofon), eller skriv listen."
 }

@@ -251,5 +251,14 @@
     "type": "Digitar",
     "pause_hint": "Faça uma pausa de 2 segundos e eu termino",
     "on_this_list": "já está nesta lista",
-    "item_name": "Item"
+    "item_name": "Item",
+    "mic_intro_title": "Diga sua lista em voz alta",
+    "mic_intro_sub": "“Leite, ovos, algumas bananas...” e eu separo em itens organizados por corredor.",
+    "mic_intro_open": "Só escuta enquanto esta tela está aberta",
+    "mic_intro_words": "Só as palavras ficam, nunca o áudio",
+    "mic_intro_settings": "Mude quando quiser nos Ajustes",
+    "allow_mic": "Permitir microfone",
+    "type_instead": "Digitar em vez disso",
+    "mic_denied_title": "O microfone está desligado",
+    "mic_denied_sub": "Ative-o nos ajustes do celular para este app (no iPhone: Ajustes › Apps › Safari › Microfone) ou digite sua lista."
 }
