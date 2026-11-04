@@ -36,9 +36,12 @@ class NewUserList
                     'first_name' => $first,
                     'last_name' => $last,
                     'segments' => [['id' => $segment]],
+                    // One Resend account holds Folio's contacts too, and segments are fixed lists (not filters), so
+                    // contacts are tagged instead: the Automation only mails app=familywell + env=prod.
+                    'properties' => ['app' => 'familywell', 'env' => app()->isProduction() ? 'prod' : 'dev'],
                 ])->throw();
             } catch (Throwable $e) {
-                report($e); // e.g. the address is already a contact: still start the sequence below
+                report($e); // still start the sequence below (an existing contact is updated by the create, no error)
             }
             try {
                 Http::withToken($key)->post('https://api.resend.com/events/send', ['event' => self::EVENT, 'email' => $user->email])->throw();
