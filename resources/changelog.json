@@ -14,6 +14,12 @@
                 "title": "Homer turns with your phone",
                 "text": "Tilt your phone and Homer turns to follow. On an iPhone, tap him once to let him feel the motion.",
                 "href": "/dashboard"
+            },
+            {
+                "module": "app",
+                "title": "A calmer sidebar",
+                "text": "On a computer the sidebar now starts with your family, keeps your pinned modules up top, and puts Members and Settings at the bottom.",
+                "href": "/dashboard"
             }
         ],
         "fixes": []
