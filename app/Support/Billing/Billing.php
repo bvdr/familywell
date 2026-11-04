@@ -382,8 +382,38 @@ class Billing
     public static function applySubscription(array $subscription): void
     {
         if ($family = Family::find($subscription['metadata']['family_id'] ?? null)) {
-            self::setStatus($family, $subscription['customer'], $subscription);
+            self::setStatus($family, $subscription['customer'], self::current($subscription));
         }
+    }
+
+    /**
+     * A customer can hold several subscriptions: the inline Plan & pay makes a new `incomplete` one per attempt,
+     * and an abandoned attempt expires 23h later (`incomplete_expired`). Its events must not overwrite the one
+     * the family actually pays for (family 151, 2026-11-04: paid, then locked out by its first attempt
+     * expiring). So when an event says "not paid", ask Stripe whether another of the customer's subscriptions
+     * is, and store that one instead. One extra call, only on non-paid events. A Stripe hiccup = the event as is.
+     */
+    private static function current(array $subscription): array
+    {
+        if (in_array($subscription['status'], self::PAID, true) || ! isset($subscription['id'])) {
+            return $subscription;
+        }
+        try {
+            $subs = self::request()->get('subscriptions', ['customer' => $subscription['customer'], 'status' => 'all', 'limit' => 10])
+                ->throw()->json('data') ?? [];
+        } catch (\Throwable $e) {
+            report($e);
+
+            return $subscription;
+        }
+        foreach ($subs as $other) {
+            if ($other['id'] !== $subscription['id'] && in_array($other['status'], self::PAID, true)
+                && (string) ($other['metadata']['family_id'] ?? '') === (string) ($subscription['metadata']['family_id'] ?? '')) {
+                return $other;
+            }
+        }
+
+        return $subscription;
     }
 
     /**

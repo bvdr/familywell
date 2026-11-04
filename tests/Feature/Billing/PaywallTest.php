@@ -149,3 +149,19 @@ it('opens checkout with no Stripe trial: the free period before the paywall is t
     actingAs($admin)->post('/settings/billing/checkout', ['plan' => 'monthly']);
     Http::assertSent(fn ($r) => ! isset($r['subscription_data']['trial_period_days']));
 });
+
+it('ignores an abandoned attempt expiring when another subscription of the family is paid', function () {
+    // Family 151, 2026-11-04: first Plan & pay attempt left incomplete, second paid; 23h later the first
+    // expired and its webhook locked the paying family out.
+    stripeOn();
+    umamiOn();
+    [, $family] = paidFamily();
+    $sub = fn (string $id, string $status) => ['id' => $id, 'customer' => 'cus_1', 'status' => $status,
+        'metadata' => ['family_id' => (string) $family->id], 'items' => ['data' => [['price' => ['id' => 'price_y']]]]];
+    Http::fake(['api.stripe.com/v1/subscriptions*' => Http::response(['data' => [$sub('sub_paid', 'active'), $sub('sub_old', 'incomplete_expired')]])]);
+
+    signedWebhook(['type' => 'customer.subscription.updated', 'data' => ['object' => $sub('sub_paid', 'active')]]);
+    signedWebhook(['type' => 'customer.subscription.updated', 'data' => ['object' => $sub('sub_old', 'incomplete_expired')]]);
+
+    expect($family->fresh()->subscription_status)->toBe('active');
+});
