@@ -11,9 +11,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Which modules a family has actually used: the first time someone added an item in each. Drives the
- * paywall (Billing::hasAccess: unpaid families keep access until MODULES_NEEDED modules, and the grace
- * period) and the admin's per-family progress bar.
+ * Which modules a family has actually used: the first time someone added an item in each. Drives the admin's
+ * per-family progress bar. (It used to gate the paywall too; since 2026-11-04 the 5-day trial does, Billing::paywallDue.)
  *
  * A module joins with ONE line in its service provider, naming the model that counts as "adding an item":
  *   Engagement::track('shopping', ShoppingItem::class);
@@ -85,13 +84,14 @@ final class Engagement
             'name' => $registry->manifest($r->module_id)?->name ?? $r->module_id,
             'at' => Carbon::parse($r->created_at)->toIso8601String(),
         ])->values()->all();
-        $paywallAt = $family->engaged_at ? max($family->engaged_at, $family->created_at->copy()->addHours(Billing::GRACE_HOURS)) : null;
+        // Engagement no longer gates the paywall (the 5-day trial does, Billing::paywallDue); admin still shows when.
+        $paywallAt = Billing::trialEndsAt($family);
 
         return [
             'modules' => $modules,
             'needed' => self::MODULES_NEEDED,
             'engagedAt' => $family->engaged_at?->toIso8601String(),
-            'paywallAt' => $paywallAt?->toIso8601String(),
+            'paywallAt' => $paywallAt->toIso8601String(),
         ];
     }
 

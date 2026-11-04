@@ -41,6 +41,8 @@ class BillingController extends Controller
             'subscribed' => Billing::isPaid($family),
             // Still in the free period (no paywall yet): the plans page offers a way back into the app.
             'locked' => ! Billing::hasAccess($family),
+            // Days left in the 5-day free trial (0 = over), for "N days left" on the plans page.
+            'trialDaysLeft' => Billing::trialDaysLeft($family),
             // Comped by an admin: the page shows "Lifetime (VIP)" with no checkout or portal prompts.
             'lifetime' => Billing::isLifetime($family),
             'status' => $family->subscription_status,

@@ -44,7 +44,8 @@ class Family extends Model
 
     protected $casts = ['is_demo' => 'boolean', 'subscription_period_end' => 'datetime', 'subscription_canceling' => 'boolean', 'engaged_at' => 'datetime', 'hard_paywall' => 'boolean'];
 
-    // `hard_paywall`, like is_demo, is NOT fillable: only the onboarding sets it (forceFill), see Billing::hasAccess.
+    // `hard_paywall` is no longer written or read (the 5-day trial replaced it, Billing::hasAccess); the column stays
+    // as a record of which families signed up while checkout came before the app.
 
     // Comped access ("Lifetime (VIP)"): `access_override`, like is_demo, is NOT fillable. Only the platform
     // admin paths set it, through Billing::setLifetime().

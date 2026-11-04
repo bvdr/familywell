@@ -26,11 +26,11 @@ class Billing
     // keeps access during that grace; it flips to unpaid/canceled when retries run out, which locks.
     private const PAID = ['active', 'trialing', 'past_due'];
 
-    // No paywall right after signup (23 checkouts in the first week, 2 payments): an unpaid family keeps
-    // full access until it has added items in Engagement::MODULES_NEEDED modules AND is this old. That free
-    // use IS the trial, so checkout has no Stripe trial (the 3-day one from #224 was dropped for this).
-    // 'trialing' stays in PAID for any subscription that started on that trial.
-    public const GRACE_HOURS = 24;
+    // A 5-day free trial, no card (2026-11-04): every family has full access for TRIAL_DAYS from when it was made,
+    // then the plan selection. Replaced both the onboarding's hard paywall (pay before getting in) and the earlier
+    // "3 modules + 24 hours" free period. No Stripe trial on checkout: the free days ARE the trial, so paying during
+    // them starts billing that day. 'trialing' stays in PAID for any subscription that started on the old Stripe trial.
+    public const TRIAL_DAYS = 5;
 
     public static function enabled(): bool
     {
@@ -38,17 +38,12 @@ class Billing
     }
 
     /**
-     * May this family use the app? Paid (or comped, demo, self-hosted), or still in its free period.
-     *
-     * Hard paywall: a family made by the onboarding (families.hard_paywall = true, set only there) has NO free
-     * period: it needs a paying subscription from the first minute, so the plan step can't be skipped. This is the
-     * one shared check (RequireFamily for the web app, McpFamilyContext for connectors), so no route can sneak past.
-     * Families that existed before the flag keep the soft rule above, so nobody who has access today is locked out.
-     * isPaid() already exempts self-hosted installs, the demo and lifetime (comped) families from both rules.
+     * May this family use the app? Paid (or comped, demo, self-hosted), or still in its free trial. The one shared
+     * check (RequireFamily for the web app, McpFamilyContext for connectors), so no route can sneak past.
      */
     public static function hasAccess(Family $family): bool
     {
-        return self::isPaid($family) || (! $family->hard_paywall && ! self::paywallDue($family));
+        return self::isPaid($family) || ! self::paywallDue($family);
     }
 
     /**
@@ -62,13 +57,22 @@ class Billing
             || in_array($family->subscription_status, self::PAID, true);
     }
 
-    /**
-     * The free period is over: the family used enough modules (engaged_at, see Engagement) and is at least
-     * GRACE_HOURS old. Both are on the row already, so the per-request gate costs no extra query.
-     */
+    /** When the family's free trial ends (TRIAL_DAYS after it was made). On the row already: no extra query. */
+    public static function trialEndsAt(Family $family): Carbon
+    {
+        return $family->created_at->copy()->addDays(self::TRIAL_DAYS);
+    }
+
+    /** The free trial is over (an unpaid family now gets the plan selection). */
     public static function paywallDue(Family $family): bool
     {
-        return $family->engaged_at !== null && $family->created_at->lte(now()->subHours(self::GRACE_HOURS));
+        return now()->gte(self::trialEndsAt($family));
+    }
+
+    /** Whole days of trial left, rounded up (0 once it's over), for "N days left" in the app. */
+    public static function trialDaysLeft(Family $family): int
+    {
+        return self::paywallDue($family) ? 0 : (int) ceil(now()->diffInHours(self::trialEndsAt($family)) / 24);
     }
 
     public static function isLifetime(Family $family): bool
