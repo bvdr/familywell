@@ -1,9 +1,10 @@
 import { Head, router } from '@inertiajs/react';
 import { Elements } from '@stripe/react-stripe-js';
-import { Check, Github, Lock } from 'lucide-react';
+import { Check, Github, Lock, Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { Homer, reactHomer } from '@/components/homer';
+import { LEGAL_LINKS } from '@/components/legal-note';
 import {
     Brands,
     Pay,
@@ -45,12 +46,16 @@ type Props = {
     selfHostingUrl: string | null;
     // Free-trial days left (Billing::trialDaysLeft); 0 = trial over, so paying is the only way in. Absent on "paid".
     trialDaysLeft?: number;
+    // First names the one price covers, payer first (OnboardingController::plan); absent on "paid".
+    members?: string[];
 };
 
 // The tablet / desktop list under the plans; `{storage}` and `{ai}` rows take the tier's numbers.
 const INCLUDED = ['plan_inc_modules', 'plan_inc_members', 'storage', 'ai', 'plan_inc_open', 'plan_inc_ads'] as const;
-// The phone's shorter list (design 06).
-const INCLUDED_PHONE = ['plan_inc_short', 'storage', 'ai', 'plan_inc_cancel'] as const;
+// The phone's shorter list (design 06). "Every module, unlimited members" moved into the whole-family card above it.
+const INCLUDED_PHONE = ['storage', 'ai', 'plan_inc_cancel'] as const;
+// Avatar fills for the whole-family card, in the design's order (ink, blue, green).
+const AVATAR = ['bg-ink text-white', 'bg-[#7AA7FF] text-ink', 'bg-[#6FD08C] text-ink'] as const;
 
 // Phone layout (< md): Apple / Google Pay + "Pay with card" in a sheet. Tablet / desktop: the checkout card inline.
 // Only one is mounted, since a Payment Element can exist once per Elements group.
@@ -85,6 +90,7 @@ export default function PlanStep({
     next,
     selfHostingUrl,
     trialDaysLeft = 0,
+    members = [],
 }: Props) {
     const t = useT();
     const [plan, setPlan] = useState<Plan>('yearly');
@@ -146,10 +152,6 @@ export default function PlanStep({
     const payLine = invited.length
         ? t('onboarding.plan_payer', { name: family.name, names: invited.join(` ${t('onboarding.and')} `) })
         : t('onboarding.plan_payer_solo', { name: family.name });
-    const payLineShort = invited.length
-        ? t('onboarding.plan_payer_short', { names: invited.join(` ${t('onboarding.and')} `) })
-        : t('onboarding.plan_payer_short_solo');
-
     return (
         // Deferred intent: Elements knows the amount up front and the subscription is only created on Pay (subscribe).
         <Elements stripe={stripePromise} options={elementsOptions(total)}>
@@ -242,6 +244,34 @@ export default function PlanStep({
                                 );
                             })}
                         </div>
+
+                        {/* Design 06 (YqKQt): say plainly the price is per family, not per person, with who it covers. */}
+                        <div className="border-line flex items-center gap-3 rounded-2xl border bg-white px-3.5 py-3">
+                            <span className="flex shrink-0 -space-x-2">
+                                {members.slice(0, 3).map((m, i) => (
+                                    <span
+                                        key={i}
+                                        className={cn(
+                                            'flex size-8 items-center justify-center rounded-full text-sm font-bold ring-2 ring-white',
+                                            AVATAR[i],
+                                        )}
+                                    >
+                                        {m.charAt(0).toUpperCase()}
+                                    </span>
+                                ))}
+                                <span className="bg-paper-2 text-ink flex size-8 items-center justify-center rounded-full ring-2 ring-white">
+                                    <Plus className="size-4" />
+                                </span>
+                            </span>
+                            <span className="min-w-0">
+                                <span className="block text-[15px] font-bold">{t('onboarding.plan_family_title')}</span>
+                                <span className="text-stone block text-[13px]">
+                                    {members.length > 1
+                                        ? t('onboarding.plan_family_sub', { names: members.join(', ') })
+                                        : t('onboarding.plan_family_sub_solo')}
+                                </span>
+                            </span>
+                        </div>
                     </div>
 
                     <div className="flex flex-col gap-2.5 lg:row-start-2">
@@ -286,7 +316,7 @@ export default function PlanStep({
                             {/* Right-hand panel Homer faces left by default; here he sits left of the total, so mirror him. */}
                             <Homer face="happy" view="mirror" className="size-11" />
                             <span className="flex-1">
-                                <span className="block text-sm font-semibold">{t('onboarding.plan_due')}</span>
+                                <span className="block text-sm font-semibold">{t('onboarding.plan_due_family')}</span>
                                 <span className="text-stone block text-xs">
                                     {t('onboarding.plan_renews_short', { date: renewsText, amount: renewAmount })}
                                 </span>
@@ -307,7 +337,16 @@ export default function PlanStep({
                             </span>
                         </div>
                         {phone && <Pay variant="phone" plan={plan} tier={tier} email={email} label={payLabel} busy={busy} setBusy={setBusy} />}
-                        <p className="text-stone text-center text-xs">{payLineShort}</p>
+                        {/* Design 06: the legal links under the pay buttons; who pays is now the whole-family card's job. */}
+                        <p className="text-ink-2 flex justify-center gap-2 text-xs">
+                            <a href={LEGAL_LINKS.terms} target="_blank" rel="noopener">
+                                {t('auth.legal_terms')}
+                            </a>
+                            <span className="text-stone">·</span>
+                            <a href={LEGAL_LINKS.privacy} target="_blank" rel="noopener">
+                                {t('auth.legal_privacy')}
+                            </a>
+                        </p>
                         <p className="text-stone flex items-center justify-center gap-1.5 text-xs">
                             <Lock className="size-3.5" />
                             {t('onboarding.plan_secure_by')}

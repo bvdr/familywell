@@ -501,6 +501,8 @@ class OnboardingController extends Controller
             // days" past the checkout (startTrial); after, it's the paywall and paying is the only way in.
             'trialDaysLeft' => Billing::trialDaysLeft($family),
             'trialDays' => Billing::TRIAL_DAYS,
+            // Who the one price covers, payer first, for the "One price for the whole family" card (design 06).
+            'members' => [str($request->user()->name)->before(' ')->toString(), ...$this->invitedNames($family)],
         ]);
     }
 
