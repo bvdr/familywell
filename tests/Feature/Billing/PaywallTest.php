@@ -21,7 +21,7 @@ it('sends an unpaid family to the plan selection and lets a paid or demo family 
     actingAs($user);
 
     get('/dashboard')->assertRedirect(route('onboarding.plan'));
-    get('/settings/billing')->assertOk();
+    get('/settings/billing')->assertRedirect(route('onboarding.plan')); // Billing is the paywall while unpaid
     get('/settings/profile')->assertOk();
 
     $family->forceFill(['subscription_status' => 'active'])->save();

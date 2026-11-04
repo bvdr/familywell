@@ -25,21 +25,19 @@ function settingsCheckoutFamily(string $role = 'admin', array $attrs = []): arra
     return [$user, $family];
 }
 
-it('gives an unpaid family the onboarding checkout on the billing page and lets its admin pay through it', function () {
+it('sends an unsubscribed admin from Billing to the plan & pay page, back to Settings, and lets them pay there', function () {
     [$user, $family] = settingsCheckoutFamily();
     Http::fake([
         'api.stripe.com/v1/customers' => Http::response(['id' => 'cus_1']),
         'api.stripe.com/v1/subscriptions' => Http::response(['id' => 'sub_1', 'latest_invoice' => ['confirmation_secret' => ['client_secret' => 'pi_1_secret_x']]]),
     ]);
 
-    actingAs($user)->get('/settings/billing')->assertOk()->assertInertia(fn ($page) => $page
-        ->component('settings/billing')
-        ->where('subscribed', false)
+    actingAs($user)->get('/settings/billing')->assertRedirect(route('onboarding.plan'));
+    actingAs($user)->get('/onboarding/plan')->assertOk()->assertInertia(fn ($page) => $page
+        ->component('onboarding/plan')
         ->where('stripeKey', 'pk_test_x')
-        ->where('email', $user->email)
-        ->where('tax', null)
-        ->where('standard.basic.yearly', 54)
-        ->has('tiers.basic'));
+        ->where('onboarding', false)
+        ->where('back', route('settings.family')));
 
     actingAs($user)->postJson('/onboarding/plan', ['plan' => 'yearly'])->assertOk()->assertJson(['subscription' => 'sub_1']);
     expect($family->fresh()->stripe_customer_id)->toBe('cus_1');
@@ -48,6 +46,8 @@ it('gives an unpaid family the onboarding checkout on the billing page and lets 
 // One family per test: the session's active family carries over between requests within a test.
 it('keeps a member out of the checkout', function () {
     [$member] = settingsCheckoutFamily('member');
+    // A member can't pay, so Billing stays the read-only plans page ("ask an admin").
+    actingAs($member)->get('/settings/billing')->assertOk()->assertInertia(fn ($page) => $page->component('settings/billing')->where('canManage', false));
     actingAs($member)->postJson('/onboarding/plan', ['plan' => 'yearly'])->assertForbidden();
 });
 

@@ -1,26 +1,11 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Elements } from '@stripe/react-stripe-js';
-import { ArrowRight, Check, Crown, ExternalLink, Lock, LogOut } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Check, Crown, ExternalLink, LogOut } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
 
 import AppLogo from '@/components/app-logo';
-import {
-    Brands,
-    Pay,
-    PromoSheet,
-    elementsOptions,
-    stripeFor,
-    useCheckout,
-    type Amounts,
-    type CheckoutPricing,
-    type Plan,
-    type Promo,
-    type Tax,
-    type Tier,
-} from '@/components/plan-checkout';
+import { useCheckout, type Amounts, type CheckoutPricing, type Plan, type Promo, type Tax, type Tier } from '@/components/plan-checkout';
 import { SettingsGroup, SettingsPage, SettingsRow } from '@/components/settings-ui';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { useLocale, useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -41,10 +26,8 @@ type Props = {
     // The onboarding checkout's inputs (unpaid families only, see BillingController::show).
     standard?: { basic: Amounts; pro: Amounts } | null;
     tiers?: Record<Tier, { storage_gb: number; ai_points: number }> | null;
-    stripeKey?: string | null;
     tax?: Tax;
     promo?: Promo | null;
-    email?: string;
 };
 
 // Settings > Billing (design Y6). Unpaid: "One plan, whole family." with the two plan cards, a short included list
@@ -183,16 +166,12 @@ function PlanStatus({ plan, periodEnd, canceling, lifetime, status, hasCustomer,
 }
 
 // The plan picker (design Y6): Monthly | Yearly cards (yearly preselected, says why: months free), a Basic | Pro
-// switch only where Pro is on offer, the short included list, and the CTA. The CTA unfolds the onboarding checkout
-// in place (summary with intro discount / promo / tax, then Pay) instead of a second plan picker on another page.
-// Stripe.js only loads once it's opened, so just looking at the plans costs no Stripe call.
-function Plans({ canManage, pricing, standard, tiers, stripeKey, tax, promo: appliedPromo, email }: Props) {
+// switch only where Pro is on offer, and the short included list. Read-only: only a member who can't pay sees it.
+function Plans({ pricing, standard, tiers, tax, promo: appliedPromo }: Props) {
     const t = useT();
     const [plan, setPlan] = useState<Plan>('yearly');
     const [tier, setTier] = useState<Tier>('basic');
-    const [checkout, setCheckout] = useState(false);
-    const [busy, setBusy] = useState(false);
-    const { usd, prices, listPrices, total, summary, payLabel, setPromo, promoOpen, setPromoOpen } = useCheckout({
+    const { usd, prices, listPrices } = useCheckout({
         plan,
         tier,
         pricing,
@@ -200,11 +179,6 @@ function Plans({ canManage, pricing, standard, tiers, stripeKey, tax, promo: app
         tax: tax ?? null,
         appliedPromo: appliedPromo ?? null,
     });
-    const stripePromise = useMemo(() => (checkout && stripeKey ? stripeFor(stripeKey) : null), [checkout, stripeKey]);
-    const checkoutRef = useRef<HTMLDivElement>(null);
-    useEffect(() => {
-        if (checkout) checkoutRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, [checkout]);
     // "3 months free": what yearly saves, in months of the monthly price.
     const monthsFree = Math.round(12 - prices.yearly / prices.monthly);
 
@@ -259,44 +233,9 @@ function Plans({ canManage, pricing, standard, tiers, stripeKey, tax, promo: app
                 ))}
             </ul>
 
-            {!canManage ? (
-                <p className="text-muted-foreground px-1 text-sm">{t('billing.ask_admin')}</p>
-            ) : !checkout ? (
-                <Button
-                    size="cta"
-                    className="bg-primary text-primary-foreground hover:bg-primary/90 h-14 w-full rounded-full text-[17px] font-bold"
-                    onClick={() => setCheckout(true)}
-                >
-                    <ArrowRight />
-                    {t('billing.cta', {
-                        price: t(plan === 'yearly' ? 'billing.price_yr' : 'billing.price_mo', {
-                            amount: usd(plan === 'yearly' ? prices.yearly : prices.monthly),
-                        }),
-                    })}
-                </Button>
-            ) : (
-                // The onboarding's checkout card as is (its fixed paper / ink look, like Stripe's own fields inside it),
-                // so the summary and the Elements iframes stay readable on every skin and in dark mode.
-                <Elements stripe={stripePromise} options={elementsOptions(total)}>
-                    <div ref={checkoutRef} className="border-line text-ink flex scroll-mt-4 flex-col gap-4 rounded-[22px] border bg-white p-5">
-                        <span className="flex items-center gap-2 text-[15px] font-bold">
-                            <Lock className="size-4" />
-                            {t('onboarding.plan_checkout')}
-                        </span>
-                        {summary}
-                        <Pay variant="desk" plan={plan} tier={tier} email={email ?? ''} label={payLabel} busy={busy} setBusy={setBusy} />
-                        <Brands />
-                    </div>
-                    <PromoSheet
-                        open={promoOpen}
-                        onOpenChange={setPromoOpen}
-                        onApplied={(p) => {
-                            setPromo(p);
-                            setPromoOpen(false);
-                        }}
-                    />
-                </Elements>
-            )}
+            {/* Only a member who can't pay sees these plans: an unsubscribed admin is sent to the plan & pay page
+                (BillingController::show), the one checkout in the app. */}
+            <p className="text-muted-foreground px-1 text-sm">{t('billing.ask_admin')}</p>
         </>
     );
 }
