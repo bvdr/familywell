@@ -65,8 +65,6 @@
     "everything_done": "Tout est dans le caddie. Bien joué ! 🎉",
     "done_heading": "Terminé",
     "close": "Fermer",
-    "start_listening": "Commencer l'écoute",
-    "stop_listening": "Arrêter",
     "voice_prompt": "Dis simplement tout ce qu'il te faut, je le range dans ta liste.",
     "type_prompt": "Tape tout ce qu'il te faut, je le range dans ta liste.",
     "voice_placeholder": "lait, œufs, quelques bananes pour les enfants...",
@@ -250,5 +248,10 @@
     "in_the_cart": ":name dans le panier",
     "undo": "Annuler",
     "add_item_placeholder": "Ajouter un article…",
-    "all": "Tout"
+    "all": "Tout",
+    "listening": "J'écoute",
+    "tap_to_talk": "Touchez pour parler",
+    "adding_to": "Ajout à :list",
+    "type": "Écrire",
+    "pause_hint": "Faites une pause de 2 secondes et je termine"
 }

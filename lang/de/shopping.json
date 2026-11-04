@@ -65,8 +65,6 @@
     "everything_done": "Alles ist im Einkaufswagen. Gut gemacht! 🎉",
     "done_heading": "Erledigt",
     "close": "Schließen",
-    "start_listening": "Zuhören starten",
-    "stop_listening": "Stopp",
     "voice_prompt": "Sag einfach alles, was du brauchst, ich sortiere es in deine Liste.",
     "type_prompt": "Tippe alles, was du brauchst, ich sortiere es in deine Liste.",
     "voice_placeholder": "Milch, Eier, ein paar Bananen für die Kinder …",
@@ -250,5 +248,10 @@
     "in_the_cart": ":name im Wagen",
     "undo": "Rückgängig",
     "add_item_placeholder": "Artikel hinzufügen…",
-    "all": "Alle"
+    "all": "Alle",
+    "listening": "Hört zu",
+    "tap_to_talk": "Tippen zum Sprechen",
+    "adding_to": "Hinzufügen zu :list",
+    "type": "Schreiben",
+    "pause_hint": "2 Sekunden Pause, dann bin ich fertig"
 }

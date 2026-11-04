@@ -278,3 +278,15 @@ homer-mascot::part(canvas) {
     height: 180%;
     margin: -40% 0;
 }
+
+/* The listening screen's waveform (components/shopping/voice-listening.tsx): each bar breathes between a third and full
+   height. Only under motion-safe (the class adds it), so reduced motion gets still bars. */
+@keyframes voice-bar {
+    0%,
+    100% {
+        transform: scaleY(0.35);
+    }
+    50% {
+        transform: scaleY(1);
+    }
+}

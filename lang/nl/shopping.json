@@ -65,8 +65,6 @@
     "everything_done": "Alles ligt in het karretje. Goed gedaan! 🎉",
     "done_heading": "Klaar",
     "close": "Sluiten",
-    "start_listening": "Begin met luisteren",
-    "stop_listening": "Stop",
     "voice_prompt": "Zeg gewoon alles wat je nodig hebt, ik zet het op je lijst.",
     "type_prompt": "Typ alles wat je nodig hebt, ik zet het op je lijst.",
     "voice_placeholder": "melk, eieren, een paar bananen voor de kinderen...",
@@ -250,5 +248,10 @@
     "in_the_cart": ":name in de kar",
     "undo": "Ongedaan maken",
     "add_item_placeholder": "Item toevoegen…",
-    "all": "Alles"
+    "all": "Alles",
+    "listening": "Luistert",
+    "tap_to_talk": "Tik om te praten",
+    "adding_to": "Toevoegen aan :list",
+    "type": "Typen",
+    "pause_hint": "Wacht 2 seconden en ik rond af"
 }

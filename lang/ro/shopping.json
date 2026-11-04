@@ -65,8 +65,6 @@
     "everything_done": "Totul e în coș. Bravo! 🎉",
     "done_heading": "Cumpărate",
     "close": "Închide",
-    "start_listening": "Începe ascultarea",
-    "stop_listening": "Oprește",
     "voice_prompt": "Spune tot ce ai nevoie, le sortez eu în listă.",
     "type_prompt": "Scrie tot ce ai nevoie, le sortez eu în listă.",
     "voice_placeholder": "lapte, ouă, câteva banane pentru copii...",
@@ -259,5 +257,10 @@
     "in_the_cart": ":name e în coș",
     "undo": "Anulează",
     "add_item_placeholder": "Adaugă produs…",
-    "all": "Toate"
+    "all": "Toate",
+    "listening": "Ascult",
+    "tap_to_talk": "Atinge ca să vorbești",
+    "adding_to": "Adaug în :list",
+    "type": "Scrie",
+    "pause_hint": "Fă o pauză de 2 secunde și închei"
 }

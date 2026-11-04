@@ -65,8 +65,6 @@
     "everything_done": "Tudo no carrinho. Mandou bem! 🎉",
     "done_heading": "Pronto",
     "close": "Fechar",
-    "start_listening": "Começar a ouvir",
-    "stop_listening": "Parar",
     "voice_prompt": "É só dizer tudo o que você precisa, eu organizo na sua lista.",
     "type_prompt": "Digite tudo o que você precisa, eu organizo na sua lista.",
     "voice_placeholder": "leite, ovos, umas bananas para as crianças...",
@@ -250,5 +248,10 @@
     "in_the_cart": ":name no carrinho",
     "undo": "Desfazer",
     "add_item_placeholder": "Adicionar item…",
-    "all": "Tudo"
+    "all": "Tudo",
+    "listening": "Ouvindo",
+    "tap_to_talk": "Toque para falar",
+    "adding_to": "Adicionando a :list",
+    "type": "Digitar",
+    "pause_hint": "Faça uma pausa de 2 segundos e eu termino"
 }
