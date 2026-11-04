@@ -269,3 +269,12 @@
     height: 0;
     pointer-events: none;
 }
+
+/* Homer's canvas gets 40% headroom above and below his box, so a hop (tap, celebrations) isn't cut off at the top.
+   Symmetric, so the renderer still centres and sizes him exactly as before (its scale follows the width); the box
+   itself keeps its size. Vertical % margins follow the width, which matches the height because every Homer is
+   square (size-*). lib/homer.js is a synced copy, hence this lives here, via its part="canvas". */
+homer-mascot::part(canvas) {
+    height: 180%;
+    margin: -40% 0;
+}
