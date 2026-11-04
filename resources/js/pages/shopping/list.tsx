@@ -29,7 +29,7 @@ import { Picker } from '@/components/picker';
 import { SettingsSwitch } from '@/components/settings-ui';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
 import { ListSettingsSheet, type ListDefaults, type ListPrefs } from '@/components/shopping/list-settings-sheet';
-import { VoiceListening } from '@/components/shopping/voice-listening';
+import { IOS, VoiceListening } from '@/components/shopping/voice-listening';
 import { VoiceMicIntro } from '@/components/shopping/voice-mic-intro';
 import { VoiceReview } from '@/components/shopping/voice-review';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
+import { useVoice, voiceSupported } from '@/hooks/use-voice';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
 import { save } from '@/lib/save';
@@ -207,7 +208,10 @@ export default function ListDetail({
         document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#121100'); // --color-ink
         return syncThemeColor;
     }, [inkScreen]);
-    const speechSupported = typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+    // iPhone records instead of using Web Speech (see the recorder below), so there it needs MediaRecorder.
+    const speechSupported = IOS
+        ? voiceSupported()
+        : typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
 
     const memberById = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
 
@@ -474,9 +478,64 @@ export default function ListDetail({
         setVoiceOpen(false);
     };
 
+    // iPhone/iPad: record and transcribe on the server (the "Just say it" recorder, Whisper) instead of Web Speech.
+    // There webkitSpeechRecognition started, held the mic (orange dot) and never returned a word or an error, in the
+    // Home Screen app at least (WebKit bug 225298: not available in Home Screen web apps) and with continuous mode
+    // (reported deaf on iOS in Safari too). The recorder works in both. Words arrive every ~4s instead of live, and
+    // Whisper detects the language itself. Free, but it needs AI points left (409 'out').
+    const heardRef = useRef(''); // the latest words from the recorder (its callbacks outlive renders)
+    const levelRef = useRef(0); // its loudness, read by the waveform every frame (no re-render per level)
+    const lastLoudRef = useRef(0);
+    const finishingRef = useRef(false);
+    const recorder = useVoice(
+        (text) => {
+            heardRef.current = text;
+            setTranscript(text);
+        },
+        (level) => {
+            levelRef.current = level;
+            const now = performance.now();
+            if (level > 0.08) lastLoudRef.current = now;
+            // The same "pause and I'll wrap up" as Web Speech's 2s silence timer: quiet for 2.5s after words came in.
+            else if (heardRef.current.trim() && now - lastLoudRef.current > 2500) void finishRecording();
+        },
+    );
+    // Stop, get the final words for the whole recording, then sort them (or open typing when nothing was said).
+    const finishRecording = async () => {
+        if (finishingRef.current) return;
+        finishingRef.current = true;
+        clearTimeout(silenceRef.current);
+        setParsing(true); // the Done spinner while the last words are read
+        await recorder.stop();
+        recRef.current = null;
+        setListening(false);
+        finishingRef.current = false;
+        setParsing(false);
+        if (heardRef.current.trim()) void runParseRef.current(heardRef.current);
+        else setTyping(true);
+    };
+    // A refused mic: the intro's denied state; no points left or the reader down: the message on the listening screen.
+    useEffect(() => {
+        if (!recorder.error) return;
+        recRef.current = null;
+        setListening(false);
+        if (recorder.error === 'denied') setMicIntro('denied');
+        else setVoiceError(recorder.error);
+    }, [recorder.error]);
+
     // Start dictation in a specific language. The Web Speech API can't auto-detect the spoken language,
     // it needs a BCP-47 code up front, so the user picks via the chips (default Romanian, remembered).
     const startListening = (lang: string) => {
+        if (IOS) {
+            stopListening();
+            setVoiceError(null);
+            heardRef.current = '';
+            lastLoudRef.current = performance.now();
+            void recorder.start(); // inside the tap: getUserMedia and the AudioContext need the gesture
+            recRef.current = { stop: recorder.cancel };
+            setListening(true);
+            return;
+        }
         const w = window as unknown as { SpeechRecognition?: SpeechCtor; webkitSpeechRecognition?: SpeechCtor };
         const SR = w.SpeechRecognition ?? w.webkitSpeechRecognition;
         if (!SR) return;
@@ -963,11 +1022,13 @@ export default function ListDetail({
                                 onStart={() => startListening(voiceLang)}
                                 // Nothing heard yet: Done still does something useful, it stops and opens typing.
                                 onDone={() => {
+                                    if (IOS) return void finishRecording(); // its words may still be on the way
                                     if (transcript.trim()) return runParse();
                                     stopListening();
                                     setTyping(true);
                                 }}
                                 error={voiceError}
+                                level={IOS ? levelRef : undefined}
                                 onRedo={() => {
                                     setTranscript('');
                                     setInterim('');

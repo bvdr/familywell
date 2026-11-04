@@ -17,15 +17,35 @@ const BARS = Array.from({ length: 46 }, (_, i) => {
 // re-renders would be wasted work). Bars mirror from the centre: the middle ones follow the lowest voice frequencies.
 // Returns whether the real level is on (false = use the CSS breathing).
 // Not on iPhone/iPad: there the mic goes to one consumer, and with this stream open speech recognition got no audio at
-// all (seen on a real iPhone, 2026-11-04: the bars moved, no words ever came). The bars there follow recognised words.
+// all (seen on a real iPhone, 2026-11-04: the bars moved, no words ever came). iPhone now records instead (list.tsx)
+// and passes its loudness in as `level`.
 // iPadOS reports itself as a Mac, so a Mac with touch counts too.
-const IOS =
+export const IOS =
     typeof navigator !== 'undefined' &&
     (/iP(hone|ad|od)/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1));
-function useVoiceLevel(listening: boolean, bars: React.RefObject<(HTMLSpanElement | null)[]>) {
+// `level`: the loudness from the page's own recorder (iPhone, see list.tsx), so no second mic stream is opened here.
+function useVoiceLevel(listening: boolean, bars: React.RefObject<(HTMLSpanElement | null)[]>, level?: React.RefObject<number>) {
     const [live, setLive] = useState(false);
     useEffect(() => {
-        if (!listening || IOS || !navigator.mediaDevices?.getUserMedia || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        if (!listening || !level || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        let raf = 0;
+        setLive(true);
+        const frame = () => {
+            // One loudness for all bars, shaped by each bar's own height (BARS): the bell grows and shrinks with the voice.
+            const v = Math.max(0.08, Math.min(1, level.current * 1.6));
+            bars.current.forEach((el) => {
+                if (el) el.style.transform = `scaleY(${v})`;
+            });
+            raf = requestAnimationFrame(frame);
+        };
+        frame();
+        return () => {
+            cancelAnimationFrame(raf);
+            setLive(false);
+        };
+    }, [listening, bars, level]);
+    useEffect(() => {
+        if (!listening || level || IOS || !navigator.mediaDevices?.getUserMedia || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
         let stream: MediaStream | undefined;
         let ctx: AudioContext | undefined;
         let raf = 0;
@@ -64,7 +84,7 @@ function useVoiceLevel(listening: boolean, bars: React.RefObject<(HTMLSpanElemen
             ctx?.close().catch(() => {});
             setLive(false);
         };
-    }, [listening, bars]);
+    }, [listening, bars, level]);
     return live;
 }
 
@@ -88,6 +108,7 @@ export function VoiceListening({
     onRedo,
     onType,
     error,
+    level,
 }: {
     listName: string;
     finalText: string;
@@ -104,6 +125,7 @@ export function VoiceListening({
     onType: () => void;
     // The recognizer's error code, if it stopped with one: said in plain words, the code kept for bug reports.
     error: string | null;
+    level?: React.RefObject<number>; // the recorder's loudness, when the page records instead of using Web Speech
 }) {
     const t = useT();
 
@@ -119,7 +141,7 @@ export function VoiceListening({
 
     const said = finalText + interim;
     const barRefs = useRef<(HTMLSpanElement | null)[]>([]);
-    const live = useVoiceLevel(listening, barRefs);
+    const live = useVoiceLevel(listening, barRefs, level);
     // Without the live level: words arriving = speaking, so the bars breathe for a moment after each recognised word
     // and lie flat in silence (a still screen while you talk read as frozen).
     const [speaking, setSpeaking] = useState(false);
