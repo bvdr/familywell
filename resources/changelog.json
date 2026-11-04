@@ -12,7 +12,9 @@
         ],
         "fixes": [
             "Shopping's Lists tab ends with Add a list, like Add a shop on Shops",
-            "Dictation says why it stopped, Done with nothing heard opens typing, and the phone's top bar turns dark with it"
+            "Dictation says why it stopped, Done with nothing heard opens typing, and the phone's top bar turns dark with it",
+            "Dictation on iPhone works from the Home Screen app too",
+            "Calendar filters show on every view, so a filter can't quietly hide everything"
         ]
     },
     {
