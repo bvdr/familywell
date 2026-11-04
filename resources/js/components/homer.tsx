@@ -82,9 +82,10 @@ function onOrientation(e: DeviceOrientationEvent) {
         // Scenes have their own fixed camera; leave them be.
         if (!el.h || el.hasAttribute('scene')) return;
         const v = views![el.getAttribute('view') ?? 'three'] ?? views!.three;
-        el.h.yaw = (el.hasAttribute('yaw') ? +el.getAttribute('yaw')! : v.yaw) + dx * TILT_YAW;
-        el.h.tilt = (el.hasAttribute('tilt') ? +el.getAttribute('tilt')! : v.tilt) - dy * TILT_PITCH;
-        el.h.gaze = [dx, -dy];
+        // Signs checked on an iPhone (2026-11-04): the first guess turned him the wrong way, so all three are flipped.
+        el.h.yaw = (el.hasAttribute('yaw') ? +el.getAttribute('yaw')! : v.yaw) - dx * TILT_YAW;
+        el.h.tilt = (el.hasAttribute('tilt') ? +el.getAttribute('tilt')! : v.tilt) + dy * TILT_PITCH;
+        el.h.gaze = [-dx, dy];
         el.draw?.();
     });
 }
