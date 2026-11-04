@@ -1,50 +1,34 @@
 import { useAddAction } from '@/lib/add-action';
 import { Head, Link, router } from '@inertiajs/react';
 import {
-    Archive,
     Calendar,
     Check,
     ChevronLeft,
-    ChevronRight,
     ClipboardPaste,
-    Copy,
-    LayoutList,
+    EyeOff,
     Loader2,
     Lock,
     Mic,
     Minus,
     MoreHorizontal,
-    Pencil,
     Plus,
-    ShoppingCart,
+    ShoppingBasket,
     Sparkles,
     Store,
     Trash2,
-    UnfoldVertical,
-    UserCheck,
     UserPlus,
-    Users,
     X,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-import { AisleEditor } from '@/components/aisle-editor';
 import { DuplicateWarning } from '@/components/duplicate-warning';
 import { MemberAvatar } from '@/components/member-avatar';
 import { Picker } from '@/components/picker';
+import { SettingsSwitch } from '@/components/settings-ui';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
+import { ListSettingsSheet, type ListDefaults, type ListPrefs } from '@/components/shopping/list-settings-sheet';
 import { Button } from '@/components/ui/button';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuSub,
-    DropdownMenuSubContent,
-    DropdownMenuSubTrigger,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
@@ -52,7 +36,7 @@ import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
 import { save } from '@/lib/save';
-import { aisleIcon, bumpQuantity, getVoiceLang, LIST_COLORS, LIST_ICONS, listColor, listIcon, normalizeItemName } from '@/lib/shopping';
+import { aisleIcon, bumpQuantity, getVoiceLang, normalizeItemName } from '@/lib/shopping';
 import { newClientKey, PendingAdds, saveTick, send, useQueuedBought } from '@/lib/shopping-outbox';
 import { type BreadcrumbItem } from '@/types';
 
@@ -69,7 +53,7 @@ type Item = {
     store: string | null; // primary shop; null => inherits the list's store
     altStores: string[]; // also-available-at shops
 };
-type List = { id: number; name: string; store: string | null; color: string; icon: string; archived: boolean; visibility: string };
+type List = ListPrefs & { archived: boolean };
 
 type Draft = {
     name: string;
@@ -83,13 +67,6 @@ type Draft = {
 };
 const emptyDraft: Draft = { name: '', quantity: '', department: 'other', assigned_to: null, note: '', due_date: '', store: '', alt_stores: [] };
 const FOCUS_ALL = '__all__'; // focus-mode sentinel: show every shop's items in one run
-
-// Visibility options for the edit-list drawer (mirrors the new-list drawer on the index).
-const VISIBILITY = [
-    { key: 'family', icon: Users, titleKey: 'shopping.visibility_family_title', subKey: 'shopping.visibility_family_sub' },
-    { key: 'invited', icon: UserCheck, titleKey: 'shopping.visibility_invited_title', subKey: 'shopping.visibility_invited_sub' },
-    { key: 'private', icon: Lock, titleKey: 'shopping.visibility_private_title', subKey: 'shopping.visibility_private_sub' },
-] as const;
 
 function AssigneeBadge({ member }: { member?: Member }) {
     if (!member) return null;
@@ -123,7 +100,8 @@ export default function ListDetail({
     share,
     stores,
     shops = [],
-    shopIds = {},
+    shopLogos = {},
+    defaults,
     aiEnabled,
 }: {
     list: List;
@@ -134,7 +112,8 @@ export default function ListDetail({
     share: ShareState;
     stores: string[];
     shops?: string[];
-    shopIds?: Record<string, number>;
+    shopLogos?: Record<string, string | null>;
+    defaults: ListDefaults;
     aiEnabled: boolean;
 }) {
     const t = useT();
@@ -143,14 +122,32 @@ export default function ListDetail({
     // Cleared on settle (success or error), at which point the reloaded prop is authoritative again.
     const listOpt = useOptimistic<Partial<List>>();
     const list: List = { ...serverList, ...listOpt.get(serverList.id, {}) };
-    const [hideCompleted, setHideCompleted] = useState(false);
-    const [sortAz, setSortAz] = useState(false);
+    // The list's own Sort / Bought items (List settings, S2b), else the family's Shopping settings.
+    const sort = list.sort ?? defaults.sort;
+    // Hide bought (S2a) is remembered per list on this device; until it's touched it starts from Bought items.
+    const hideKey = `shopping.hideBought.${list.id}`;
+    const [hideBought, setHideBoughtState] = useState(() => {
+        try {
+            const v = localStorage.getItem(hideKey);
+            if (v !== null) return v === '1';
+        } catch {
+            /* storage blocked (private mode): fall through to the list's setting */
+        }
+        return (list.bought ?? defaults.bought) === 'hide';
+    });
+    const setHideBought = (v: boolean) => {
+        setHideBoughtState(v);
+        try {
+            localStorage.setItem(hideKey, v ? '1' : '0');
+        } catch {
+            /* not remembered, still applies for this visit */
+        }
+    };
+    const [shopFilter, setShopFilter] = useState(''); // '' = All; else only what you can get at that shop
+    const [settingsOpen, setSettingsOpen] = useState(false);
     const [focus, setFocus] = useState(false); // full-screen "shopping mode" overlay
     const [focusStore, setFocusStore] = useState(''); // which shop the focus run is for
     const [sharing, setSharing] = useState(false);
-    const [editingTitle, setEditingTitle] = useState(false);
-    const [title, setTitle] = useState(list.name);
-    const [aislesOpen, setAislesOpen] = useState(false);
     const [editingId, setEditingId] = useState<number | null>(null); // null = closed; 0 = new item; >0 = editing
     const [draft, setDraft] = useState<Draft>(emptyDraft);
     const [extraStores, setExtraStores] = useState<string[]>([]); // stores typed in the sheet this session
@@ -226,14 +223,6 @@ export default function ListDetail({
         return [...byStore.keys()].sort(storeOrder).map((s) => ({ store: s, aisles: groupByAisle(byStore.get(s)!, aislesFor(s || null)) }));
     };
 
-    const storeGroups = useMemo(() => {
-        let visible = liveItems.filter((i) => (hideCompleted ? !isBought(i) : true));
-        if (sortAz) visible = [...visible].sort((a, b) => a.name.localeCompare(b.name));
-        return groupByStore(visible);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [items, list, aislesByStore, defaultAisles, hideCompleted, sortAz, bought, removed]);
-    const multiStore = storeGroups.length > 1;
-
     // Focus mode is per shop: the store chips are every shop with something still to get (primary or
     // alternative); the selected shop's run shows the items available there, grouped by its aisles.
     const focusStores = useMemo(() => {
@@ -268,11 +257,44 @@ export default function ListDetail({
     const focusEmpty = focusStoreGroups.every((g) => g.aisles.length === 0);
     const doneItems = liveItems.filter((i) => isBought(i) && (focusStore === FOCUS_ALL || availableAt(i, focusStore)));
 
+    // The page (S2). Shop chips: every shop with something still to get (primary or alternative), with what's left
+    // there; only when there's more than one. A chip whose shop ran out falls back to All.
+    const shopCounts = focusStores
+        .filter((s) => s && s !== FOCUS_ALL)
+        .map((s) => ({ shop: s, count: focusUnbought.filter((i) => availableAt(i, s)).length }));
+    const filterShop = shopCounts.some((c) => c.shop === shopFilter) ? shopFilter : '';
+    const inView = liveItems.filter((i) => !filterShop || availableAt(i, filterShop));
+    // Hide bought (S2a): ticked items leave the page, fully bought aisles go with them, a line at the end counts them.
+    const hiddenCount = hideBought ? inView.filter((i) => isBought(i)).length : 0;
+    const shown = hideBought ? inView.filter((i) => !isBought(i)) : inView;
+    // Bought items sink to the bottom of their aisle. By aisle: one card per aisle in the shop's walk order (the chip's
+    // shop, else the list's); A–Z and As added: one card. ponytail: All groups by the list shop's aisles, so an item
+    // whose aisle only exists at another shop lands in Other there; pick that shop's chip to see its own aisles.
+    const sinkBought = (xs: Item[]) => [...xs.filter((i) => !isBought(i)), ...xs.filter((i) => isBought(i))];
+    const groups: { aisle: Aisle | null; items: Item[] }[] =
+        sort === 'aisle'
+            ? groupByAisle(shown, aislesFor(filterShop || list.store)).map((g) => ({ ...g, items: sinkBought(g.items) }))
+            : shown.length
+              ? [{ aisle: null, items: sinkBought(sort === 'az' ? [...shown].sort((a, b) => a.name.localeCompare(b.name)) : shown) }]
+              : [];
+    // An item's shop shows under its name only when it isn't the one the page is grouped by ("2 · Lidl").
+    const pageShop = filterShop || list.store || '';
+    const subLine = (i: Item) => [i.quantity, i.note, itemStore(i) !== pageShop && itemStore(i)].filter(Boolean).join(' · ');
+
+    // "Bananas in the cart · Undo" after a tick (S2); a few seconds, or until the next tick.
+    const [toast, setToast] = useState<Item | null>(null);
+    useEffect(() => {
+        if (!toast) return;
+        const id = setTimeout(() => setToast(null), 4000);
+        return () => clearTimeout(id);
+    }, [toast]);
+
     // Sends the new value, not the bare toggle: a queued tick that replays (or a fast double tap) sets the
     // state instead of flipping it again. With no connection the tick waits in the outbox.
     const toggle = (item: Item) => {
         const next = !isBought(item);
         bought.set(item.id, next);
+        setToast(next ? item : null);
         void saveTick({
             kind: 'bought',
             key: newClientKey(),
@@ -290,38 +312,6 @@ export default function ListDetail({
     const patchList = (data: Partial<List>) => {
         listOpt.set(list.id, { ...listOpt.get(list.id, {}), ...data });
         void save('patch', route('shopping.lists.update', list.id), data).then(() => listOpt.clear(list.id));
-    };
-
-    const saveTitle = () => {
-        setEditingTitle(false);
-        if (title.trim() && title !== list.name) patchList({ name: title.trim() });
-    };
-
-    // Full "Edit list" drawer (name, shop, colour/icon, visibility) — like the new-list drawer plus a
-    // shop. Setting the shop makes every item WITHOUT its own shop inherit it (via itemStore/itemShops),
-    // so no item rows are rewritten; clearing it drops them back to "no shop".
-    const [editingList, setEditingList] = useState(false);
-    const [listForm, setListForm] = useState({
-        name: list.name,
-        store: list.store ?? '',
-        color: list.color,
-        icon: list.icon,
-        visibility: list.visibility,
-    });
-    const openEditList = () => {
-        setListForm({ name: list.name, store: list.store ?? '', color: list.color, icon: list.icon, visibility: list.visibility });
-        setEditingList(true);
-    };
-    const saveList = () => {
-        if (!listForm.name.trim()) return;
-        patchList({
-            name: listForm.name.trim(),
-            store: listForm.store || null,
-            color: listForm.color,
-            icon: listForm.icon,
-            visibility: listForm.visibility,
-        });
-        setEditingList(false);
     };
 
     const openNew = () => {
@@ -519,226 +509,206 @@ export default function ListDetail({
         );
     };
 
-    const headerActions = (
-        <>
-            <button
-                type="button"
-                onClick={() => setSharing(true)}
-                aria-label={t('shopping.share_list')}
-                className="border-border text-primary hover:bg-surface flex size-9 items-center justify-center rounded-lg border transition-colors"
-            >
-                <UserPlus className="size-4.5" />
-            </button>
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <button
-                        type="button"
-                        aria-label={t('shopping.list_options')}
-                        className="border-border text-primary hover:bg-surface flex size-9 items-center justify-center rounded-lg border transition-colors"
-                    >
-                        <MoreHorizontal className="size-4.5" />
-                    </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52">
-                    <DropdownMenuItem onSelect={() => setSharing(true)}>
-                        <UserPlus className="size-4" /> {t('shopping.share_list')}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => setTimeout(openEditList, 0)}>
-                        <Pencil className="size-4" /> {t('shopping.edit_list')}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => setAislesOpen(true)}>
-                        <LayoutList className="size-4" /> {t('shopping.edit_departments')}
-                    </DropdownMenuItem>
-                    <DropdownMenuSub>
-                        <DropdownMenuSubTrigger>
-                            <UnfoldVertical className="size-4" /> {t('shopping.sort_items')}
-                        </DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent>
-                            <DropdownMenuItem onSelect={() => setSortAz(false)}>
-                                {!sortAz && <Check className="size-4" />} {t('shopping.by_aisle')}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => setSortAz(true)}>
-                                {sortAz && <Check className="size-4" />} {t('shopping.a_to_z')}
-                            </DropdownMenuItem>
-                        </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                    <DropdownMenuSeparator />
-                    {list.visibility === 'family' ? (
-                        <DropdownMenuItem onSelect={() => patchList({ visibility: 'private' })}>
-                            <Lock className="size-4" /> {t('shopping.make_private')}
-                        </DropdownMenuItem>
-                    ) : (
-                        <DropdownMenuItem onSelect={() => patchList({ visibility: 'family' })}>
-                            <Users className="size-4" /> {t('shopping.share_with_family')}
-                        </DropdownMenuItem>
-                    )}
-                    <DropdownMenuItem onSelect={() => router.post(route('shopping.lists.duplicate', list.id))}>
-                        <Copy className="size-4" /> {t('shopping.duplicate_list')}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => patchList({ archived: true })}>
-                        <Archive className="size-4" /> {t('shopping.archive_list')}
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                        className="text-destructive focus:text-destructive"
-                        onSelect={() => {
-                            if (confirm(t('shopping.confirm_delete_list'))) router.delete(route('shopping.lists.destroy', list.id));
-                        }}
-                    >
-                        <Trash2 className="size-4" /> {t('shopping.delete_list')}
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
-        </>
-    );
-
     return (
-        <AppLayout breadcrumbs={breadcrumbs} actions={headerActions}>
+        <AppLayout breadcrumbs={breadcrumbs} hideMobileHeader hideTabBar>
             <Head title={list.name} />
-            <div className="mx-auto w-full max-w-2xl">
-                <header className="bg-background/95 sticky top-0 z-20 px-4 pt-3 pb-3 backdrop-blur-sm">
-                    {editingTitle ? (
-                        <input
-                            autoFocus
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            onBlur={saveTitle}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') saveTitle();
-                                if (e.key === 'Escape') {
-                                    setTitle(list.name);
-                                    setEditingTitle(false);
-                                }
-                            }}
-                            aria-label={t('shopping.list_name')}
-                            className="font-heading text-primary border-border focus:border-accent w-full rounded-lg border bg-transparent px-1 text-2xl outline-none"
-                        />
-                    ) : (
-                        <div className="flex items-center justify-between gap-3">
-                            <button type="button" onClick={() => setEditingTitle(true)} className="group flex min-w-0 items-center gap-2 text-left">
-                                <h1 className="font-heading text-primary truncate text-2xl">{list.name}</h1>
-                                {list.visibility === 'private' && <Lock className="text-muted-foreground size-4 shrink-0" />}
-                            </button>
-                            {/* Count sits inline with the title; no progress bar. */}
-                            <div className="text-muted-foreground shrink-0 text-sm tabular-nums">
-                                {t('shopping.done_count', { bought: boughtCount, total: liveItems.length })}
-                            </div>
-                        </div>
-                    )}
-                </header>
-
-                <div className="flex flex-col gap-4 p-4">
+            <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 pt-4">
+                {/* Top bar (S2): back to Shopping, then share and List settings. Sticky like the settings pages' back
+                    pill (no app top bar on phones), with a fade so rows slide under it softly. */}
+                <div className="bg-background sticky top-0 z-20 -mx-4 -mt-4 flex items-center gap-2 px-4 pt-4 pb-1">
+                    <Link
+                        href="/m/shopping"
+                        prefetch
+                        className="bg-surface text-primary inline-flex min-h-11 items-center gap-1.5 rounded-full py-2 pr-4 pl-3 text-base font-semibold"
+                    >
+                        <ChevronLeft className="size-5" /> {t('nav.shopping')}
+                    </Link>
                     <button
                         type="button"
-                        role="switch"
-                        aria-checked={hideCompleted}
-                        onClick={() => setHideCompleted((v) => !v)}
-                        className="text-muted-foreground flex items-center justify-between text-sm"
+                        onClick={() => setSharing(true)}
+                        aria-label={t('shopping.share_list')}
+                        className="bg-surface text-primary ml-auto flex size-11 items-center justify-center rounded-full"
                     >
-                        <span>{t('shopping.hide_completed')}</span>
-                        <span className={`relative h-6 w-10 rounded-full transition-colors ${hideCompleted ? 'bg-accent-strong' : 'bg-border'}`}>
-                            <span
-                                className={`bg-background absolute top-0.5 size-5 rounded-full shadow transition-all ${hideCompleted ? 'left-[1.125rem]' : 'left-0.5'}`}
-                            />
-                        </span>
+                        <UserPlus className="size-5" />
                     </button>
+                    <button
+                        type="button"
+                        onClick={() => setSettingsOpen(true)}
+                        aria-label={t('shopping.list_settings')}
+                        className="bg-surface text-primary flex size-11 items-center justify-center rounded-full"
+                    >
+                        <MoreHorizontal className="size-5" />
+                    </button>
+                    <div
+                        aria-hidden
+                        className="from-background pointer-events-none absolute inset-x-0 top-full h-6 bg-gradient-to-b to-transparent"
+                    />
+                </div>
 
-                    {storeGroups.map((sg) => (
-                        <div key={sg.store || '__none__'} className="flex flex-col gap-2">
-                            {/* Store header only when the list actually spans shops, so single-store lists stay clean.
-                                Tapping it opens that shop's page (the cross-list view for that shop). */}
-                            {multiStore &&
-                                (sg.store && shopIds[sg.store] ? (
-                                    <Link
-                                        href={`/m/shopping/shops/${shopIds[sg.store]}`}
-                                        className="text-primary border-border/60 hover:border-accent mt-1 flex items-center gap-1.5 border-b pb-1 text-sm font-semibold"
-                                    >
-                                        <Store className="size-4" /> {sg.store}
-                                        <ChevronRight className="ml-auto size-4 opacity-50" />
-                                    </Link>
-                                ) : (
-                                    <div className="text-primary border-border/60 mt-1 flex items-center gap-1.5 border-b pb-1 text-sm font-semibold">
-                                        <Store className="size-4" /> {sg.store || t('shopping.no_store')}
-                                    </div>
-                                ))}
-                            {sg.aisles.map((group) => {
-                                const AisleIcon = aisleIcon(group.aisle.icon);
-                                return (
-                                    <section key={group.aisle.slug} className="flex flex-col gap-2">
-                                        <h2 className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
-                                            <AisleIcon className="size-3.5" /> {group.aisle.name}
-                                        </h2>
-                                        {group.items.map((item) => (
-                                            <div key={item.id} className="bg-surface-card group flex items-center gap-3 rounded-xl border p-3">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => toggle(item)}
-                                                    aria-label={isBought(item) ? t('shopping.mark_not_bought') : t('shopping.mark_bought')}
-                                                    className={`flex size-6 shrink-0 items-center justify-center rounded-md border transition-colors ${
-                                                        isBought(item)
-                                                            ? 'border-primary bg-accent-strong text-accent-strong-foreground'
-                                                            : 'border-border'
-                                                    }`}
+                <div className="flex flex-col gap-2">
+                    <h1 className="font-display text-primary flex items-center gap-2 text-[34px] leading-[1.05] font-bold tracking-[-1.2px] text-balance">
+                        <span className="min-w-0">{list.name}</span>
+                        {list.visibility === 'private' && <Lock className="text-muted-foreground size-5 shrink-0" />}
+                    </h1>
+                    <div className="flex items-center justify-between gap-3">
+                        <span className="text-muted-foreground font-mono text-sm tabular-nums">
+                            {t('shopping.n_of_m_bought', { bought: boughtCount, total: liveItems.length })}
+                        </span>
+                        <label className="text-primary flex items-center gap-2 text-sm">
+                            {t('shopping.hide_bought')}
+                            <SettingsSwitch on={hideBought} onToggle={() => setHideBought(!hideBought)} label={t('shopping.hide_bought')} />
+                        </label>
+                    </div>
+                </div>
+
+                {shopCounts.length > 1 && (
+                    <div data-scroll-x className="-mx-4 flex gap-2 overflow-x-auto px-4">
+                        {[{ shop: '', count: 0 }, ...shopCounts].map((c) => (
+                            <button
+                                key={c.shop || '__all__'}
+                                type="button"
+                                onClick={() => setShopFilter(c.shop)}
+                                aria-pressed={filterShop === c.shop}
+                                className={`min-h-10 shrink-0 rounded-full border px-4 text-base font-semibold whitespace-nowrap ${
+                                    filterShop === c.shop ? 'bg-primary text-primary-foreground border-primary' : 'bg-surface-card text-primary'
+                                }`}
+                            >
+                                {c.shop ? `${c.shop} · ${c.count}` : t('shopping.all')}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {groups.map((group) => {
+                    const AisleIcon = group.aisle ? aisleIcon(group.aisle.icon) : null;
+                    return (
+                        <section key={group.aisle?.slug ?? '__all__'} className="flex flex-col gap-2">
+                            {group.aisle && AisleIcon && (
+                                <h2 className="text-muted-foreground flex items-center gap-2 px-1 font-mono text-xs font-semibold tracking-[0.12em] uppercase">
+                                    <AisleIcon className="size-4" /> {group.aisle.name}
+                                    <span className="ml-auto tabular-nums">{group.items.filter((i) => !isBought(i)).length}</span>
+                                </h2>
+                            )}
+                            <div className="bg-surface-card divide-border flex flex-col divide-y overflow-hidden rounded-[22px] border">
+                                {group.items.map((item) => {
+                                    const done = isBought(item);
+                                    const sub = subLine(item);
+                                    return (
+                                        <div key={item.id} className="group flex items-center gap-3 px-4 py-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => toggle(item)}
+                                                aria-label={done ? t('shopping.mark_not_bought') : t('shopping.mark_bought')}
+                                                className={`flex size-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                                                    done ? 'border-primary bg-primary text-accent-strong' : 'border-primary/70'
+                                                }`}
+                                            >
+                                                {done && <Check className="size-4" strokeWidth={3} />}
+                                            </button>
+                                            <button type="button" onClick={() => openEdit(item)} className="min-w-0 flex-1 text-left">
+                                                <span
+                                                    className={`block truncate text-[17px] font-semibold ${done ? 'text-muted-foreground' : 'text-primary'}`}
                                                 >
-                                                    {isBought(item) && <Check className="size-4" />}
-                                                </button>
-                                                <button type="button" onClick={() => openEdit(item)} className="min-w-0 flex-1 text-left">
-                                                    <div
-                                                        className={`text-primary text-sm font-medium ${isBought(item) ? 'text-muted-foreground line-through' : ''}`}
-                                                    >
-                                                        {item.name}
-                                                    </div>
-                                                    {item.quantity && <div className="text-muted-foreground text-xs">{item.quantity}</div>}
-                                                    {item.altStores.length > 0 && (
-                                                        <div className="text-text-muted mt-0.5 text-[11px]">
-                                                            {t('shopping.also_at', { stores: item.altStores.join(', ') })}
-                                                        </div>
-                                                    )}
-                                                </button>
-                                                {item.assignedTo != null && <AssigneeBadge member={memberById.get(item.assignedTo)} />}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => remove(item)}
-                                                    aria-label={t('shopping.remove_item')}
-                                                    className="text-muted-foreground hover:text-destructive flex size-7 items-center justify-center rounded-lg opacity-0 transition-opacity group-hover:opacity-100"
-                                                >
-                                                    <Trash2 className="size-4" />
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </section>
-                                );
-                            })}
-                        </div>
-                    ))}
+                                                    {item.name}
+                                                </span>
+                                                {sub && <span className="text-muted-foreground block truncate text-sm">{sub}</span>}
+                                            </button>
+                                            {item.assignedTo != null && <AssigneeBadge member={memberById.get(item.assignedTo)} />}
+                                            {/* Desktop hover shortcut; on touch, delete is in the item sheet. */}
+                                            <button
+                                                type="button"
+                                                onClick={() => remove(item)}
+                                                aria-label={t('shopping.remove_item')}
+                                                className="text-muted-foreground hover:text-destructive hidden size-7 items-center justify-center rounded-lg opacity-0 transition-opacity group-hover:opacity-100 md:flex"
+                                            >
+                                                <Trash2 className="size-4" />
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </section>
+                    );
+                })}
 
-                    {liveItems.length === 0 && <p className="text-muted-foreground py-6 text-center text-sm">{t('shopping.no_items_yet')}</p>}
+                {hiddenCount > 0 && (
+                    <p className="text-muted-foreground flex items-center justify-center gap-1.5 py-2 text-sm">
+                        <EyeOff className="size-4" /> {t('shopping.n_hidden', { count: hiddenCount })} ·
+                        <button type="button" onClick={() => setHideBought(false)} className="text-primary font-semibold">
+                            {t('shopping.show')}
+                        </button>
+                    </p>
+                )}
 
-                    <PendingAdds />
+                {liveItems.length === 0 && <p className="text-muted-foreground py-6 text-center text-sm">{t('shopping.no_items_yet')}</p>}
 
-                    <div className="sticky bottom-4 flex flex-col gap-2">
-                        <div className="flex gap-2">
-                            <Button type="button" variant="outline" onClick={openNew} className="flex-1">
-                                <Plus className="size-4" /> {t('shopping.add_item')}
-                            </Button>
-                            <Button type="button" variant="outline" size="icon" onClick={() => openVoice()} aria-label={t('shopping.add_by_voice')}>
-                                <Mic className="size-4" />
-                            </Button>
-                            <Button type="button" variant="outline" size="icon" onClick={openPaste} aria-label={t('shopping.paste_list')}>
-                                <ClipboardPaste className="size-4" />
-                            </Button>
-                        </div>
-                        {liveItems.some((i) => !isBought(i)) && (
-                            <Button
+                <PendingAdds />
+
+                {/* Composer + Shop where the thumb is (S2): the page has no tab bar (Back is the way out), so it sits at the
+                    bottom on every width; the undo toast sits on top of it. */}
+                <div className="sticky bottom-0 z-10 mt-auto flex flex-col gap-3 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+                    {toast && !focus && (
+                        <div
+                            role="status"
+                            className="bg-primary text-primary-foreground flex items-center gap-3 rounded-2xl py-3 pr-3 pl-4 shadow-lg"
+                        >
+                            <span className="bg-accent-strong text-primary flex size-6 shrink-0 items-center justify-center rounded-full">
+                                <Check className="size-4" strokeWidth={3} />
+                            </span>
+                            <span className="min-w-0 flex-1 truncate text-base font-semibold">{t('shopping.in_the_cart', { name: toast.name })}</span>
+                            <button
                                 type="button"
                                 onClick={() => {
-                                    setFocusStore(focusStores[0] ?? '');
+                                    const it = toast;
+                                    setToast(null);
+                                    if (isBought(it)) toggle(it);
+                                }}
+                                className="text-accent-strong min-h-10 px-2 text-base font-bold"
+                            >
+                                {t('shopping.undo')}
+                            </button>
+                        </div>
+                    )}
+                    <div className="flex items-center gap-3">
+                        <div className="bg-surface-card flex min-w-0 flex-1 items-center gap-1 rounded-full border py-1.5 pr-1.5 pl-4 shadow-[var(--shadow-fw-md)]">
+                            <button
+                                type="button"
+                                onClick={openNew}
+                                className="text-muted-foreground flex min-h-10 min-w-0 flex-1 items-center gap-2 text-left text-base"
+                            >
+                                <Plus className="text-primary size-5 shrink-0" />
+                                <span className="truncate">{t('shopping.add_item_placeholder')}</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={openPaste}
+                                aria-label={t('shopping.paste_list')}
+                                className="bg-surface text-primary flex size-10 shrink-0 items-center justify-center rounded-full"
+                            >
+                                <ClipboardPaste className="size-5" />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => openVoice()}
+                                aria-label={t('shopping.add_by_voice')}
+                                className="bg-primary text-accent-strong flex size-10 shrink-0 items-center justify-center rounded-full"
+                            >
+                                <Mic className="size-5" />
+                            </button>
+                        </div>
+                        {liveItems.some((i) => !isBought(i)) && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    // Shop mode opens on the chip you're on, else the first shop with something to get.
+                                    setFocusStore(filterShop || focusStores[0] || '');
                                     setFocus(true);
                                 }}
-                                className="w-full shadow-[var(--shadow-fw-md)]"
+                                aria-label={t('shopping.start_shopping')}
+                                className="bg-accent-strong text-accent-strong-foreground border-primary flex size-14 shrink-0 items-center justify-center rounded-full border-2 shadow-[var(--shadow-fw-md)]"
                             >
-                                <ShoppingCart className="size-4" /> {t('shopping.start_shopping')}
-                            </Button>
+                                <ShoppingBasket className="size-6" />
+                            </button>
                         )}
                     </div>
                 </div>
@@ -1057,131 +1027,15 @@ export default function ListDetail({
 
             {share && <ShareSheet open={sharing} onOpenChange={setSharing} share={share} eventName={list.name} />}
 
-            <AisleEditor open={aislesOpen} onOpenChange={setAislesOpen} listId={list.id} stores={storeOptions} initialStore={list.store ?? ''} />
-
-            {/* Edit list: name, shop, colour/icon, visibility. Mirrors the new-list drawer plus a shop. */}
-            <ResponsiveModal
-                open={editingList}
-                onOpenChange={setEditingList}
-                title={t('shopping.edit_list')}
-                footer={
-                    <Button className="w-full" disabled={!listForm.name.trim()} onClick={saveList}>
-                        <Check className="size-4" /> {t('shopping.save')}
-                    </Button>
-                }
-            >
-                <div className="flex flex-col gap-5">
-                    <div className="flex items-center gap-3">
-                        <span className={`flex size-12 shrink-0 items-center justify-center rounded-xl ${listColor(listForm.color)}`}>
-                            {(() => {
-                                const Icon = listIcon(listForm.icon);
-                                return <Icon className="size-6" />;
-                            })()}
-                        </span>
-                        <Input
-                            value={listForm.name}
-                            onChange={(e) => setListForm((f) => ({ ...f, name: e.target.value }))}
-                            placeholder={t('shopping.list_name')}
-                            className="text-base"
-                        />
-                    </div>
-
-                    {/* Shop: single pick. Items without their own shop inherit this one. */}
-                    <div className="grid gap-2">
-                        <div className="flex items-center justify-between">
-                            <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.list_shop')}</Label>
-                            {listForm.store && (
-                                <button
-                                    type="button"
-                                    onClick={() => setListForm((f) => ({ ...f, store: '' }))}
-                                    className="text-muted-foreground hover:text-primary text-xs"
-                                >
-                                    {t('shopping.clear')}
-                                </button>
-                            )}
-                        </div>
-                        <Picker
-                            searchable
-                            placeholder={t('shopping.pick_shop')}
-                            options={[...new Set([...shops, ...storeOptions, ...extraStores, listForm.store].filter(Boolean))].map((s) => ({
-                                value: s,
-                                label: s,
-                                icon: Store,
-                            }))}
-                            selected={listForm.store ? [listForm.store] : []}
-                            onChange={(next) => setListForm((f) => ({ ...f, store: next[0] ?? '' }))}
-                            onCreate={(name) => {
-                                setExtraStores((prev) => [...new Set([...prev, name])]);
-                                setListForm((f) => ({ ...f, store: name }));
-                            }}
-                        />
-                        <p className="text-muted-foreground text-xs">{t('shopping.list_shop_hint')}</p>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.color_icon')}</Label>
-                        <div className="flex flex-wrap gap-2">
-                            {Object.keys(LIST_COLORS).map((c) => (
-                                <button
-                                    key={c}
-                                    type="button"
-                                    onClick={() => setListForm((f) => ({ ...f, color: c }))}
-                                    aria-label={t('shopping.color_aria', { c })}
-                                    className={`flex size-9 items-center justify-center rounded-full ${listColor(c)} ${listForm.color === c ? 'ring-primary ring-2 ring-offset-2' : ''}`}
-                                >
-                                    {listForm.color === c && <Check className="size-4" />}
-                                </button>
-                            ))}
-                        </div>
-                        <div className="mt-1 flex flex-wrap gap-2">
-                            {Object.keys(LIST_ICONS).map((ic) => {
-                                const Icon = listIcon(ic);
-                                return (
-                                    <button
-                                        key={ic}
-                                        type="button"
-                                        onClick={() => setListForm((f) => ({ ...f, icon: ic }))}
-                                        aria-label={t('shopping.icon_aria', { ic })}
-                                        className={`flex size-9 items-center justify-center rounded-lg border transition-colors ${
-                                            listForm.icon === ic
-                                                ? 'border-primary bg-accent-subtle text-primary'
-                                                : 'border-border text-muted-foreground'
-                                        }`}
-                                    >
-                                        <Icon className="size-4.5" />
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{t('shopping.who_can_view')}</Label>
-                        <div className="flex flex-col gap-2">
-                            {VISIBILITY.map((v) => {
-                                const active = listForm.visibility === v.key;
-                                return (
-                                    <button
-                                        key={v.key}
-                                        type="button"
-                                        onClick={() => setListForm((f) => ({ ...f, visibility: v.key }))}
-                                        className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
-                                            active ? 'border-primary bg-accent-subtle' : 'border-border'
-                                        }`}
-                                    >
-                                        <v.icon className="text-primary size-5 shrink-0" />
-                                        <div className="min-w-0 flex-1">
-                                            <div className="text-primary text-sm font-medium">{t(v.titleKey)}</div>
-                                            <div className="text-muted-foreground text-xs">{t(v.subKey)}</div>
-                                        </div>
-                                        {active && <Check className="text-primary size-4 shrink-0" />}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
-            </ResponsiveModal>
+            <ListSettingsSheet
+                open={settingsOpen}
+                onOpenChange={setSettingsOpen}
+                list={list}
+                defaults={defaults}
+                shops={shops.map((name) => ({ name, logo: shopLogos[name] ?? null }))}
+                boughtCount={boughtCount}
+                patch={(data) => patchList(data as Partial<List>)}
+            />
 
             {/* Add / edit item. Editing auto-saves; only new items need a commit button. */}
             <ResponsiveModal
