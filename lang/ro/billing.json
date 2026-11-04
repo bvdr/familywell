@@ -32,5 +32,8 @@
     "months_free_other": ":count de luni gratuite",
     "cta": "Pornește FamilyWell · :price",
     "price_yr": ":amount/an",
-    "price_mo": ":amount/lună"
+    "price_mo": ":amount/lună",
+    "trial_left_one": "Mai ai :count zi de probă gratuită.",
+    "trial_left_few": "Mai ai :count zile de probă gratuită.",
+    "trial_left_other": "Mai ai :count de zile de probă gratuită."
 }

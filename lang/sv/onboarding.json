@@ -365,5 +365,8 @@
     "promo_hint": "Fått en av en vän eller i nyhetsbrevet? En kod per familj.",
     "promo_invalid": "Koden är ogiltig eller har gått ut.",
     "promo_remove": "Ta bort rabattkod",
-    "promo_line": "Kod :code"
+    "promo_line": "Kod :code",
+    "plan_trial_cta_one": "Starta min :count gratisdag",
+    "plan_trial_cta_other": "Starta mina :count gratisdagar",
+    "plan_trial_note": "Inget kort behövs. Välj en plan när du vill i Inställningar › Betalning."
 }

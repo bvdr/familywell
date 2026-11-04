@@ -31,5 +31,7 @@
     "months_free_other": ":count maanden gratis",
     "cta": "Start je FamilyWell · :price",
     "price_yr": ":amount/jaar",
-    "price_mo": ":amount/maand"
+    "price_mo": ":amount/maand",
+    "trial_left_one": "Nog :count dag van je gratis proefperiode.",
+    "trial_left_other": "Nog :count dagen van je gratis proefperiode."
 }

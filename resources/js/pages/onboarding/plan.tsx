@@ -43,6 +43,8 @@ type Props = {
     // Where the celebration goes next (the "home is ready" recap, or the app for a family paying again).
     next: string | null;
     selfHostingUrl: string | null;
+    // Free-trial days left (Billing::trialDaysLeft); 0 = trial over, so paying is the only way in. Absent on "paid".
+    trialDaysLeft?: number;
 };
 
 // The tablet / desktop list under the plans; `{storage}` and `{ai}` rows take the tier's numbers.
@@ -64,8 +66,8 @@ function usePhone(): boolean {
     return phone;
 }
 
-// Plan & pay (design 06 / T09 / D09): right after the notifications, before the "home is ready" recap and the tour, and
-// the only way into the app (hard paywall). A Basic / Pro switch (Pro only where it's on offer), yearly preselected,
+// Plan & pay (design 06 / T09 / D09): right after the notifications, before the "home is ready" recap and the tour.
+// While the 5-day free trial lasts it can be skipped ("Start my free days", no card); after it, it's the paywall. A Basic / Pro switch (Pro only where it's on offer), yearly preselected,
 // the total in plain sight, paid right here with Stripe Elements (Apple Pay / Google Pay first, card second).
 // Prices come from Billing::pricing() (config/familywell.php), never from here.
 export default function PlanStep({
@@ -82,6 +84,7 @@ export default function PlanStep({
     paid,
     next,
     selfHostingUrl,
+    trialDaysLeft = 0,
 }: Props) {
     const t = useT();
     const [plan, setPlan] = useState<Plan>('yearly');
@@ -328,6 +331,18 @@ export default function PlanStep({
                         <p className="text-stone text-center text-xs">{payLine}</p>
                     </div>
                 </div>
+                {trialDaysLeft > 0 && (
+                    <div className="flex flex-col items-center gap-1.5 px-5 pb-8 text-center md:px-0">
+                        <button
+                            type="button"
+                            onClick={() => router.post(route('onboarding.plan.trial'))}
+                            className="border-line text-ink min-h-12 rounded-full border bg-white px-6 text-base font-bold"
+                        >
+                            {t('onboarding.plan_trial_cta', { count: trialDaysLeft })}
+                        </button>
+                        <p className="text-stone text-xs">{t('onboarding.plan_trial_note')}</p>
+                    </div>
+                )}
             </OnboardingLayout>
             <PromoSheet
                 open={promoOpen}

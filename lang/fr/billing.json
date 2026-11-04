@@ -31,5 +31,7 @@
     "months_free_other": ":count mois offerts",
     "cta": "Lance ton FamilyWell · :price",
     "price_yr": ":amount/an",
-    "price_mo": ":amount/mois"
+    "price_mo": ":amount/mois",
+    "trial_left_one": "Il reste :count jour d’essai gratuit.",
+    "trial_left_other": "Il reste :count jours d’essai gratuit."
 }

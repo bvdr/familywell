@@ -365,5 +365,8 @@
     "promo_hint": "Got one from a friend or a newsletter? One code per family.",
     "promo_invalid": "That code isn't valid or has expired.",
     "promo_remove": "Remove promo code",
-    "promo_line": "Promo :code"
+    "promo_line": "Promo :code",
+    "plan_trial_cta_one": "Start my :count free day",
+    "plan_trial_cta_other": "Start my :count free days",
+    "plan_trial_note": "No card needed. Pick a plan any time in Settings › Billing."
 }
