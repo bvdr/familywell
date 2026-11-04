@@ -8,6 +8,12 @@
                 "title": "A friendlier way in",
                 "text": "Signing up and logging in got a fresh look: six boxes for your code, the email you used last time already filled in, a shortcut to your inbox, and a language picker.",
                 "href": "/settings/sign-in"
+            },
+            {
+                "module": "app",
+                "title": "Homer turns with your phone",
+                "text": "Tilt your phone and Homer turns to follow. On an iPhone, tap him once to let him feel the motion.",
+                "href": "/dashboard"
             }
         ],
         "fixes": []

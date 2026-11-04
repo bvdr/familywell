@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, type CSSProperties, type DetailedHTMLProps, type HTMLAttributes } from 'react';
+import { forwardRef, useEffect, useState, type CSSProperties, type DetailedHTMLProps, type HTMLAttributes } from 'react';
 
 import type { HomerAction, HomerReaction } from '@/lib/homer';
 import { cn } from '@/lib/utils';
@@ -22,7 +22,14 @@ export type HomerFace =
     | 'glitch'
     | 'listening';
 
-type HomerElement = HTMLElement & { react: (r: HomerReaction) => void; play: (a: HomerAction) => void; readInk: () => void };
+type HomerElement = HTMLElement & {
+    // The renderer's own state (lib/homer.js): the camera eases toward yaw / tilt every frame, gaze moves the eyes.
+    h?: { yaw: number; tilt: number; gaze: [number, number] };
+    draw?: () => void;
+    react: (r: HomerReaction) => void;
+    play: (a: HomerAction) => void;
+    readInk: () => void;
+};
 
 declare module 'react' {
     // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -45,6 +52,71 @@ declare module 'react' {
 // page also renders through Inertia SSR where there is no customElements.
 let loading: Promise<unknown> | null = null;
 const load = () => (loading ??= import('@/lib/homer'));
+
+// Tilt: Homer turns as the phone turns, a little 3D parallax (user asked 2026-11-04). One shared
+// deviceorientation listener, on only while some Homer is mounted; it sets each renderer's camera target and the
+// renderer's own easing smooths it. Lives here, not in lib/homer.js, because that file is a synced copy.
+// The angle you hold the phone at drifts into the new "straight" over a few seconds, so only movement shows.
+// Android: no prompt, starts by itself. iOS 13+: needs DeviceOrientationEvent.requestPermission() from a tap, so
+// tapping Homer asks once (tiltNeedsTap). Off with reduced motion.
+type OrientationCtor = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<'granted' | 'denied'> };
+const TILT_YAW = 22; // degrees Homer turns at a full lean (25 degrees of phone)
+const TILT_PITCH = 10;
+let tiltUsers = 0;
+let base: [number, number] | null = null;
+// iOS answered this page session: no more tapping Homer to ask.
+let asked = false;
+let views: Record<string, { yaw: number; tilt: number }> | null = null;
+
+function onOrientation(e: DeviceOrientationEvent) {
+    if (e.beta == null || e.gamma == null || !views) return;
+    // Screen-relative axes: in landscape the phone's beta / gamma swap roles.
+    const angle = screen.orientation?.angle ?? 0;
+    const [x, y] = angle === 90 ? [e.beta, -e.gamma] : angle === 270 || angle === -90 ? [-e.beta, e.gamma] : [e.gamma, e.beta];
+    if (!base) base = [x, y];
+    // ponytail: slow exponential drift of the neutral angle (~3 s); a real calibration only if this feels off.
+    base = [base[0] + (x - base[0]) * 0.006, base[1] + (y - base[1]) * 0.006];
+    const dx = Math.max(-1, Math.min(1, (x - base[0]) / 25));
+    const dy = Math.max(-1, Math.min(1, (y - base[1]) / 25));
+    document.querySelectorAll<HomerElement>('homer-mascot').forEach((el) => {
+        // Scenes have their own fixed camera; leave them be.
+        if (!el.h || el.hasAttribute('scene')) return;
+        const v = views![el.getAttribute('view') ?? 'three'] ?? views!.three;
+        el.h.yaw = (el.hasAttribute('yaw') ? +el.getAttribute('yaw')! : v.yaw) + dx * TILT_YAW;
+        el.h.tilt = (el.hasAttribute('tilt') ? +el.getAttribute('tilt')! : v.tilt) - dy * TILT_PITCH;
+        el.h.gaze = [dx, -dy];
+        el.draw?.();
+    });
+}
+
+const tiltOff = () =>
+    typeof window === 'undefined' || !('DeviceOrientationEvent' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches;
+const tiltNeedsTap = () => !asked && !tiltOff() && typeof (DeviceOrientationEvent as OrientationCtor).requestPermission === 'function';
+
+function useTilt(): (() => void) | undefined {
+    const [needsTap, setNeedsTap] = useState(false);
+    useEffect(() => {
+        if (tiltOff()) return;
+        void load().then((m) => (views = (m as { VIEWS: typeof views }).VIEWS));
+        if (tiltUsers++ === 0) addEventListener('deviceorientation', onOrientation);
+        // On iOS the listener stays silent until permission is granted (in this page session).
+        setNeedsTap(tiltNeedsTap());
+        return () => {
+            if (--tiltUsers === 0) {
+                removeEventListener('deviceorientation', onOrientation);
+                base = null;
+            }
+        };
+    }, []);
+    if (!needsTap) return undefined;
+    return () =>
+        void (DeviceOrientationEvent as OrientationCtor).requestPermission!()
+            .catch(() => 'denied')
+            .finally(() => {
+                asked = true;
+                setNeedsTap(false);
+            });
+}
 
 /** Fire a reaction on every Homer on the page (README: hello, success, celebrate, error, yes, no, ...). */
 export function reactHomer(name: HomerReaction): void {
@@ -81,6 +153,7 @@ export const Homer = forwardRef<HomerElement, Props>(function Homer(
     useEffect(() => {
         void load();
     }, []);
+    const askTilt = useTilt();
 
     return (
         <homer-mascot
@@ -94,7 +167,9 @@ export const Homer = forwardRef<HomerElement, Props>(function Homer(
             // Decoration: a click shouldn't make him spin in the middle of a form.
             inert-click=""
             aria-hidden
-            className={cn('pointer-events-none block shrink-0', className)}
+            // Tappable only while iOS still has to be asked for motion access (useTilt); otherwise he never takes a tap.
+            onClick={askTilt}
+            className={cn('block shrink-0', askTilt ? 'cursor-pointer' : 'pointer-events-none', className)}
             style={onDark ? ON_DARK : undefined}
         />
     );
