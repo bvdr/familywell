@@ -1,17 +1,68 @@
 import { Check, ChevronDown, Keyboard, Loader2, Mic, RotateCcw, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { useT } from '@/lib/i18n';
 import { VOICE_LANGS } from '@/lib/shopping';
 
-// The design's waveform (S3b): a bell of bars, tallest in the middle. Heights are fixed fractions; while listening each
-// bar breathes (voice-bar keyframes in app.css) at its own offset, so the whole thing ripples.
-// ponytail: an animated stand-in, not the real mic level. The real level needs getUserMedia + an AnalyserNode next to
-// SpeechRecognition, and iOS Safari hands the mic to only one of them (recognition stops). Revisit if iOS allows both.
+// The design's waveform (S3b): a bell of bars, tallest in the middle. These are each bar's full height; useVoiceLevel
+// scales them by the real mic level. Where the level can't be read (mic stream refused, the audio context won't run),
+// each bar breathes on the voice-bar keyframes (app.css) instead, so the screen still looks alive.
 const BARS = Array.from({ length: 46 }, (_, i) => {
     const x = (i - 22.5) / 11; // -2..2 across the row
     return Math.max(0.08, Math.exp(-x * x) * (0.75 + 0.25 * Math.sin(i * 2.3)));
 });
+
+// Live mic level for the waveform: a second, read-only mic stream into an AnalyserNode, next to SpeechRecognition (which
+// doesn't expose its own audio). Each frame writes the bars' scaleY straight to the DOM (refs, no React state: 60fps of
+// re-renders would be wasted work). Bars mirror from the centre: the middle ones follow the lowest voice frequencies.
+// Returns whether the real level is on (false = use the CSS breathing).
+// ponytail: if iOS hands the mic to only one consumer and recognition stops when this opens, this is the place to back
+// out (skip it on iOS); untested on a real iPhone when written.
+function useVoiceLevel(listening: boolean, bars: React.RefObject<(HTMLSpanElement | null)[]>) {
+    const [live, setLive] = useState(false);
+    useEffect(() => {
+        if (!listening || !navigator.mediaDevices?.getUserMedia || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        let stream: MediaStream | undefined;
+        let ctx: AudioContext | undefined;
+        let raf = 0;
+        let gone = false;
+        navigator.mediaDevices
+            .getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } })
+            .then(async (s) => {
+                stream = s;
+                if (gone) return s.getTracks().forEach((t) => t.stop());
+                ctx = new AudioContext();
+                await ctx.resume().catch(() => {});
+                if (gone || ctx.state !== 'running') return; // iOS without a gesture: keep the CSS breathing
+                const analyser = ctx.createAnalyser();
+                analyser.fftSize = 256; // 128 bins of ~187Hz: speech sits in the first ~20
+                analyser.smoothingTimeConstant = 0.6;
+                ctx.createMediaStreamSource(s).connect(analyser);
+                const bins = new Uint8Array(analyser.frequencyBinCount);
+                const mid = (BARS.length - 1) / 2;
+                setLive(true);
+                const frame = () => {
+                    analyser.getByteFrequencyData(bins);
+                    bars.current.forEach((el, i) => {
+                        if (!el) return;
+                        const v = bins[1 + Math.round(Math.abs(i - mid))] / 255; // bin 0 is DC/rumble
+                        el.style.transform = `scaleY(${Math.max(0.08, Math.min(1, v * 1.4))})`;
+                    });
+                    raf = requestAnimationFrame(frame);
+                };
+                frame();
+            })
+            .catch(() => {}); // refused / no mic: the CSS breathing stays
+        return () => {
+            gone = true;
+            cancelAnimationFrame(raf);
+            stream?.getTracks().forEach((t) => t.stop());
+            ctx?.close().catch(() => {});
+            setLive(false);
+        };
+    }, [listening, bars]);
+    return live;
+}
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
@@ -60,6 +111,8 @@ export function VoiceListening({
     }, [listening]);
 
     const said = finalText + interim;
+    const barRefs = useRef<(HTMLSpanElement | null)[]>([]);
+    const live = useVoiceLevel(listening, barRefs);
 
     return (
         <div className="bg-ink fixed inset-0 flex flex-col text-white">
@@ -141,7 +194,11 @@ export function VoiceListening({
                 {BARS.map((h, i) => (
                     <span
                         key={i}
-                        className={`w-[4px] shrink-0 rounded-full ${h > 0.25 ? 'bg-sun' : 'bg-sun/50'} ${listening ? 'motion-safe:animate-[voice-bar_1.1s_ease-in-out_infinite]' : ''}`}
+                        ref={(el) => {
+                            barRefs.current[i] = el;
+                        }}
+                        // Live level: useVoiceLevel owns `transform`; otherwise the CSS breathing while listening.
+                        className={`w-[4px] shrink-0 rounded-full ${h > 0.25 ? 'bg-sun' : 'bg-sun/50'} ${listening && !live ? 'motion-safe:animate-[voice-bar_1.1s_ease-in-out_infinite]' : ''}`}
                         style={{
                             height: `${Math.round(h * 100)}%`,
                             animationDelay: `${(i * 97) % 1100}ms`,
