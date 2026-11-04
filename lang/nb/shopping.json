@@ -65,8 +65,6 @@
     "everything_done": "Alt er i handlevogna. Bra jobba! 🎉",
     "done_heading": "Ferdig",
     "close": "Lukk",
-    "start_listening": "Start lytting",
-    "stop_listening": "Stopp",
     "voice_prompt": "Bare si alt du trenger, så sorterer jeg det inn i listen.",
     "type_prompt": "Skriv alt du trenger, så sorterer jeg det inn i listen.",
     "voice_placeholder": "melk, egg, noen bananer til barna...",
@@ -250,5 +248,10 @@
     "in_the_cart": ":name i kurven",
     "undo": "Angre",
     "add_item_placeholder": "Legg til vare…",
-    "all": "Alle"
+    "all": "Alle",
+    "listening": "Lytter",
+    "tap_to_talk": "Trykk for å snakke",
+    "adding_to": "Legger til i :list",
+    "type": "Skriv",
+    "pause_hint": "Ta en pause på 2 sekunder, så runder jeg av"
 }

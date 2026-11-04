@@ -65,8 +65,6 @@
     "everything_done": "Allt ligger i vagnen. Bra jobbat! 🎉",
     "done_heading": "Klart",
     "close": "Stäng",
-    "start_listening": "Börja lyssna",
-    "stop_listening": "Stopp",
     "voice_prompt": "Säg bara allt du behöver, så sorterar jag in det i listan.",
     "type_prompt": "Skriv allt du behöver, så sorterar jag in det i listan.",
     "voice_placeholder": "mjölk, ägg, några bananer till barnen...",
@@ -250,5 +248,10 @@
     "in_the_cart": ":name i korgen",
     "undo": "Ångra",
     "add_item_placeholder": "Lägg till vara…",
-    "all": "Alla"
+    "all": "Alla",
+    "listening": "Lyssnar",
+    "tap_to_talk": "Tryck för att prata",
+    "adding_to": "Lägger till i :list",
+    "type": "Skriv",
+    "pause_hint": "Pausa i 2 sekunder så avslutar jag"
 }

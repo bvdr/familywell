@@ -65,8 +65,6 @@
     "everything_done": "Everything's in the cart. Nice work! 🎉",
     "done_heading": "Done",
     "close": "Close",
-    "start_listening": "Start listening",
-    "stop_listening": "Stop",
     "voice_prompt": "Just say everything you need, I'll sort it into your list.",
     "type_prompt": "Type everything you need, I'll sort it into your list.",
     "voice_placeholder": "milk, eggs, a few bananas for the kids...",
@@ -250,5 +248,10 @@
     "in_the_cart": ":name in the cart",
     "undo": "Undo",
     "add_item_placeholder": "Add item…",
-    "all": "All"
+    "all": "All",
+    "listening": "Listening",
+    "tap_to_talk": "Tap to talk",
+    "adding_to": "Adding to :list",
+    "type": "Type",
+    "pause_hint": "Pause for 2 seconds and I'll wrap up"
 }
