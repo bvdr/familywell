@@ -1,4 +1,5 @@
-import { NavMain } from '@/components/nav-main';
+import { FamilyMark } from '@/components/family-mark';
+import { NAV_ROW, NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
@@ -15,33 +16,35 @@ import { useT } from '@/lib/i18n';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import {
-    Blocks,
     Cake,
     CalendarDays,
     Car,
     ChefHat,
     ChevronDown,
+    ChevronsUpDown,
     Contact,
     FolderKanban,
+    House,
     Import,
     LayoutGrid,
-    LayoutList,
     ListChecks,
     type LucideIcon,
     Package,
+    Settings,
     ShoppingCart,
     StickyNote,
     Users,
     Wallet,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import AppLogo from './app-logo';
 
 // titleKey is a translation key, resolved per-render so the sidebar is localized.
-const baseNavItems: { titleKey: string; url: string; icon: LucideIcon }[] = [
-    { titleKey: 'nav.dashboard', url: '/dashboard', icon: LayoutGrid },
+// Design D10 (xmhlN): Home on top, Members and Settings at the foot. The old "Modules" link (/family/modules) left the
+// sidebar with that design; it lives in Settings > Family, and every enabled module is listed here anyway.
+const homeItem = { titleKey: 'nav.home', url: '/dashboard', icon: House };
+const footItems: { titleKey: string; url: string; icon: LucideIcon }[] = [
     { titleKey: 'nav.members', url: '/family/members', icon: Users },
-    { titleKey: 'nav.modules', url: '/family/modules', icon: Blocks },
+    { titleKey: 'nav.settings', url: '/settings', icon: Settings },
 ];
 
 // Page-modules that earn a sidebar link when the family has enabled them.
@@ -86,10 +89,18 @@ function useMoreBelow() {
 export function AppSidebar() {
     const [navRef, moreBelow] = useMoreBelow();
     const t = useT();
-    const props = usePage().props as { modules?: { enabled?: string[] }; pins?: string[] | null };
+    const props = usePage().props as {
+        modules?: { enabled?: string[] };
+        pins?: string[] | null;
+        currentFamily?: { name: string; color: string; symbol?: string | null; emoji?: string | null } | null;
+    };
+    const family = props.currentFamily;
     const enabled = props.modules?.enabled ?? [];
     const toItem = (i: { titleKey: string; url: string; icon: LucideIcon }): NavItem => ({ title: t(i.titleKey), url: i.url, icon: i.icon });
-    const mainNavItems: NavItem[] = [...baseNavItems, ...enabled.map((id) => moduleNavItems[id]).filter(Boolean)].map(toItem);
+    const moduleItems: NavItem[] = enabled
+        .map((id) => moduleNavItems[id])
+        .filter(Boolean)
+        .map(toItem);
 
     // "Pin your top 4": someone who pinned modules (the onboarding, or Edit on the dashboard) gets Home, their pins on
     // top, and everything else folded under "All modules +N". Someone who never pinned keeps the flat list as before.
@@ -98,13 +109,20 @@ export function AppSidebar() {
     const [allOpen, setAllOpen] = useState(false);
 
     return (
-        <Sidebar collapsible="icon" variant="inset">
-            <SidebarHeader>
+        // Its paper-2 fill and the white hover/current rows are the Sun skin's sidebar-background and sidebar-accent
+        // (resources/themes/sun/theme.json; JSON has no comments, so the why is here).
+        // variant="sidebar", not "inset": the design is a flat paper-2 column with a hairline on its right and the page
+        // straight on paper next to it, not the page as a rounded card floating on the sidebar colour.
+        <Sidebar collapsible="icon" variant="sidebar">
+            {/* The family on top (design: sun tile, name, chevrons), like the phones' top bar: it opens Members. */}
+            <SidebarHeader className="md:px-3 md:pt-4">
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton size="lg" asChild>
-                            <Link href="/dashboard" prefetch>
-                                <AppLogo />
+                        <SidebarMenuButton size="lg" asChild className="md:gap-2.5 md:px-2 md:hover:bg-transparent">
+                            <Link href="/family/members" prefetch>
+                                {family && <FamilyMark {...family} className="size-[34px] rounded-[11px] text-base" iconClassName="size-[18px]" />}
+                                <span className="flex-1 truncate text-base font-bold">{family?.name}</span>
+                                <ChevronsUpDown className="text-muted-foreground size-4" />
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -117,11 +135,11 @@ export function AppSidebar() {
                 // What the onboarding tour spotlights on a computer (design D07): where their modules live.
                 data-tour={pinned.length ? undefined : 'modules-sidebar'}
                 data-more={moreBelow || undefined}
-                className="data-[more]:[mask-image:linear-gradient(to_bottom,black_calc(100%-64px),transparent)]"
+                className="data-[more]:[mask-image:linear-gradient(to_bottom,black_calc(100%-64px),transparent)] md:px-1"
             >
                 {pinned.length ? (
                     <>
-                        <NavMain items={[toItem(baseNavItems[0])]} />
+                        <NavMain label={null} items={[toItem(homeItem)]} />
                         {/* The tour's first stop (design D07) spotlights the pins and the way to the rest. */}
                         <div data-tour="modules-sidebar">
                             <NavMain label={t('nav.pinned')} items={pinned.map((id) => toItem(moduleNavItems[id]))} />
@@ -131,14 +149,17 @@ export function AppSidebar() {
                                         <SidebarMenu>
                                             <SidebarMenuItem>
                                                 <CollapsibleTrigger asChild>
-                                                    <SidebarMenuButton className="max-md:h-12 max-md:gap-3 max-md:px-3 max-md:text-[17px] md:h-10 md:gap-2.5 md:text-[15px] max-md:[&>svg]:size-[22px] md:[&>svg]:size-5">
-                                                        <LayoutList />
+                                                    <SidebarMenuButton className={NAV_ROW}>
+                                                        <LayoutGrid />
                                                         <span className="flex-1 text-left">{t('nav.all_modules')}</span>
                                                         {/* The count is of the modules people pick between (the onboarding's "11"); the Expense import add-on is listed but not counted. */}
-                                                        <span className="text-muted-foreground text-xs">
+                                                        <span className="text-muted-foreground font-mono text-xs font-semibold">
                                                             +{rest.filter((id) => id !== 'expense_import').length}
                                                         </span>
-                                                        <ChevronDown className={`size-4! transition-transform ${allOpen ? 'rotate-180' : ''}`} />
+                                                        {/* Desktop follows the design (just "+7"); the phone drawer keeps the chevron. */}
+                                                        <ChevronDown
+                                                            className={`size-4! transition-transform md:hidden ${allOpen ? 'rotate-180' : ''}`}
+                                                        />
                                                     </SidebarMenuButton>
                                                 </CollapsibleTrigger>
                                             </SidebarMenuItem>
@@ -150,15 +171,23 @@ export function AppSidebar() {
                                 </Collapsible>
                             )}
                         </div>
-                        <NavMain label={null} items={baseNavItems.slice(1).map(toItem)} />
                     </>
                 ) : (
-                    <NavMain items={mainNavItems} />
+                    // Never pinned: Home, then every module under the design's MODULES label.
+                    <>
+                        <NavMain label={null} items={[toItem(homeItem)]} />
+                        <NavMain label={t('nav.modules')} items={moduleItems} />
+                    </>
                 )}
             </SidebarContent>
 
-            <SidebarFooter>
-                <NavUser />
+            <SidebarFooter className="md:px-1 md:pb-4">
+                <NavMain label={null} items={footItems.map(toItem)} />
+                {/* Desktop has Settings (Me: profile, log out) instead, as in the design; the phone drawer keeps the
+                    person row with its menu. */}
+                <div className="md:hidden">
+                    <NavUser />
+                </div>
             </SidebarFooter>
         </Sidebar>
     );
