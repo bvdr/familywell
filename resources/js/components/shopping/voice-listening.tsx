@@ -16,12 +16,16 @@ const BARS = Array.from({ length: 46 }, (_, i) => {
 // doesn't expose its own audio). Each frame writes the bars' scaleY straight to the DOM (refs, no React state: 60fps of
 // re-renders would be wasted work). Bars mirror from the centre: the middle ones follow the lowest voice frequencies.
 // Returns whether the real level is on (false = use the CSS breathing).
-// ponytail: if iOS hands the mic to only one consumer and recognition stops when this opens, this is the place to back
-// out (skip it on iOS); untested on a real iPhone when written.
+// Not on iPhone/iPad: there the mic goes to one consumer, and with this stream open speech recognition got no audio at
+// all (seen on a real iPhone, 2026-11-04: the bars moved, no words ever came). The bars there follow recognised words.
+// iPadOS reports itself as a Mac, so a Mac with touch counts too.
+const IOS =
+    typeof navigator !== 'undefined' &&
+    (/iP(hone|ad|od)/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1));
 function useVoiceLevel(listening: boolean, bars: React.RefObject<(HTMLSpanElement | null)[]>) {
     const [live, setLive] = useState(false);
     useEffect(() => {
-        if (!listening || !navigator.mediaDevices?.getUserMedia || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        if (!listening || IOS || !navigator.mediaDevices?.getUserMedia || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
         let stream: MediaStream | undefined;
         let ctx: AudioContext | undefined;
         let raf = 0;
@@ -113,6 +117,16 @@ export function VoiceListening({
     const said = finalText + interim;
     const barRefs = useRef<(HTMLSpanElement | null)[]>([]);
     const live = useVoiceLevel(listening, barRefs);
+    // Without the live level: words arriving = speaking, so the bars breathe for a moment after each recognised word
+    // and lie flat in silence (a still screen while you talk read as frozen).
+    const [speaking, setSpeaking] = useState(false);
+    useEffect(() => {
+        if (!said) return;
+        setSpeaking(true);
+        const id = setTimeout(() => setSpeaking(false), 700);
+        return () => clearTimeout(id);
+    }, [said]);
+    const breathe = listening && !live && speaking;
 
     return (
         <div className="bg-ink fixed inset-0 flex flex-col text-white">
@@ -197,12 +211,12 @@ export function VoiceListening({
                         ref={(el) => {
                             barRefs.current[i] = el;
                         }}
-                        // Live level: useVoiceLevel owns `transform`; otherwise the CSS breathing while listening.
-                        className={`w-[4px] shrink-0 rounded-full ${h > 0.25 ? 'bg-sun' : 'bg-sun/50'} ${listening && !live ? 'motion-safe:animate-[voice-bar_1.1s_ease-in-out_infinite]' : ''}`}
+                        // Live level: useVoiceLevel owns `transform`; otherwise the CSS breathing while words arrive (`breathe`).
+                        className={`w-[4px] shrink-0 rounded-full ${h > 0.25 ? 'bg-sun' : 'bg-sun/50'} ${breathe ? 'motion-safe:animate-[voice-bar_1.1s_ease-in-out_infinite]' : ''}`}
                         style={{
                             height: `${Math.round(h * 100)}%`,
                             animationDelay: `${(i * 97) % 1100}ms`,
-                            transform: listening ? undefined : 'scaleY(0.15)',
+                            transform: live || breathe ? undefined : 'scaleY(0.15)',
                         }}
                     />
                 ))}
