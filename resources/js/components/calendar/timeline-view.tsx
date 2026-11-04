@@ -13,6 +13,10 @@ const LINGER = 14; // days a thing that ended keeps its row after it scrolls off
 const AHEAD = 42; // days before it starts that a coming thing gets its row (6 weeks past the screen's right edge)
 const CHUNK = 42; // days fetched per edge load: more than the widest zoom (35), so one load always fills a screen
 const ACROSS = { week: 7, twoweeks: 14, month: 35 } as const; // days across the screen per zoom
+// What gets a row: everything on the calendar (birthdays, single all-day and timed events, open to-dos) except what's
+// done. Only multi-day things had rows before, and a week of birthdays and appointments read as "nothing here"
+// (user, 2026-11-05).
+const onTimeline = (i: CalItem) => !i.done;
 const fmt = (d: string, o: Intl.DateTimeFormatOptions) => parseDay(d).toLocaleDateString(appLocale(), o);
 const px = (n: number) => `${n}px`;
 
@@ -30,9 +34,8 @@ async function fetchItems(from: string, to: string): Promise<CalItem[] | null> {
     }
 }
 
-// Timeline (design j6QDy4 04b, C6 / C7 / C8, D2): the big stuff, one row each. Only things that take a day (trips,
-// fasts, holidays: a 3pm dentist is a dot in Month and stays out of here), and only those touching the days on screen:
-// no empty rows, nothing overlaps. Oldest on top. A name sits inside its bar when the bar is long enough, beside it
+// Timeline (design j6QDy4 04b, C6 / C7 / C8, D2): one row per thing (see onTimeline), only those touching the days
+// on screen: no empty rows, nothing overlaps. Oldest on top. A name sits inside its bar when the bar is long enough, beside it
 // when it's short. A NEXT row says what's coming.
 // It scrolls freely, like the 1.1 endless timeline it replaced (feedback 2026-11-03: the design's one-week-per-swipe
 // felt stuck): a native sideways scroll that loads CHUNK more days as it nears either edge. Zoom sets how many days fit
@@ -164,14 +167,24 @@ export const TimelineView = forwardRef<
             if (first < across) void loadLeft();
             if (last > days.length - 1 - across - AHEAD) void loadRight(); // AHEAD: the coming rows need those days
         };
+        // Settle on a whole day once a swipe stops (no scroll event for 150ms, momentum included): a free swipe left the
+        // first column cut in half. Not CSS scroll-snap: browsers re-snap on their own when days are prepended, on top
+        // of our shift, and the strip ran away into next year (2026-11-05).
+        let settle = 0;
         const onScroll = () => {
             frame ||= requestAnimationFrame(measure);
+            clearTimeout(settle);
+            settle = window.setTimeout(() => {
+                const to = Math.round(b.scrollLeft / dayW) * dayW;
+                if (Math.abs(to - b.scrollLeft) > 1) b.scrollTo({ left: to, behavior: 'smooth' });
+            }, 150);
         };
         measure();
         b.addEventListener('scroll', onScroll, { passive: true });
         return () => {
             b.removeEventListener('scroll', onScroll);
             cancelAnimationFrame(frame);
+            clearTimeout(settle);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- re-bind when the strip or day width changes
     }, [days, dayW]);
@@ -204,13 +217,19 @@ export const TimelineView = forwardRef<
     }));
 
     // One row per thing touching the screen, oldest first; a repeating one keeps every time it falls here on its row.
-    const rows = timelineRows(all.filter(takesADay), span.from, span.to).filter(
+    const rows = timelineRows(all.filter(onTimeline), span.from, span.to).filter(
         // A thing that ended stays until you've scrolled LINGER days past its end, and a coming one shows up AHEAD days
         // before it reaches the screen (feedback 2026-11-03: rows popping in and out exactly at the edges felt jumpy).
-        ({ bars }) => !win || bars.some((b) => b.offset <= win[1] + AHEAD && b.offset + b.span - 1 >= win[0] - LINGER),
+        // Single-day things (a birthday, an appointment, a to-do) only while their day is on screen: lingering, a week
+        // of birthdays stacked up as rows of ones already past.
+        ({ item, bars }) =>
+            !win ||
+            (item.end > item.start
+                ? bars.some((b) => b.offset <= win[1] + AHEAD && b.offset + b.span - 1 >= win[0] - LINGER)
+                : bars.some((b) => b.offset <= win[1] && b.offset >= win[0])),
     );
     // NEXT: the first thing coming after the screen that isn't already a row (loaded, or the server's months ahead).
-    const next = [...all.filter(takesADay), ...ahead]
+    const next = [...all.filter(onTimeline), ...ahead]
         .filter((a) => a.start > lastDay && !rows.some((r) => r.key === `${a.source}-${a.kind}-${a.id}`))
         .sort((a, b) => a.start.localeCompare(b.start))[0];
 
@@ -266,11 +285,7 @@ export const TimelineView = forwardRef<
     return (
         <div className="flex flex-col gap-5">
             <div className="bg-surface-card relative overflow-hidden rounded-2xl border">
-                <div
-                    ref={box}
-                    data-scroll-x
-                    className="snap-x snap-mandatory overflow-x-auto overflow-y-hidden overscroll-x-contain select-none [scrollbar-width:none]"
-                >
+                <div ref={box} data-scroll-x className="overflow-x-auto overflow-y-hidden overscroll-x-contain select-none [scrollbar-width:none]">
                     <div className="relative" style={{ width: px(trackW) }}>
                         {/* Weekend columns shaded. */}
                         <div className="pointer-events-none absolute inset-0" aria-hidden>
@@ -297,8 +312,7 @@ export const TimelineView = forwardRef<
                                         type="button"
                                         onClick={() => pick(d)}
                                         aria-pressed={d === selected}
-                                        // snap-start: a swipe comes to rest on a whole day (free scrolling left the first column cut in half).
-                                        className={`flex shrink-0 snap-start flex-col items-center gap-0.5 py-1.5 ${d.endsWith('-01') ? 'border-l' : ''}`}
+                                        className={`flex shrink-0 flex-col items-center gap-0.5 py-1.5 ${d.endsWith('-01') ? 'border-l' : ''}`}
                                         style={{ width: px(dayW) }}
                                     >
                                         <span className="text-muted-foreground font-mono text-[10px] font-semibold uppercase">
@@ -410,7 +424,7 @@ export const TimelineView = forwardRef<
                     </div>
                 </div>
 
-                {rows.length === 0 && <p className="text-muted-foreground px-4 py-6 text-center text-sm">{t('calendar.nothing_big')}</p>}
+                {rows.length === 0 && <p className="text-muted-foreground px-4 py-6 text-center text-sm">{t('calendar.nothing_range')}</p>}
 
                 {/* Under the rows: back to Today (while it's off screen, on the side it's on) and NEXT, what's coming
                     after these days; tapping either scrolls there. */}
