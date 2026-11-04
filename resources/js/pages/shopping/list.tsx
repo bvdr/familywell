@@ -512,7 +512,7 @@ export default function ListDetail({
     return (
         <AppLayout breadcrumbs={breadcrumbs} hideMobileHeader hideTabBar>
             <Head title={list.name} />
-            <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 pt-4">
+            <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 pt-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))]">
                 {/* Top bar (S2): back to Shopping, then share and List settings. Sticky like the settings pages' back
                     pill (no app top bar on phones), with a fade so rows slide under it softly. */}
                 <div className="bg-background sticky top-0 z-20 -mx-4 -mt-4 flex items-center gap-2 px-4 pt-4 pb-1">
@@ -644,72 +644,77 @@ export default function ListDetail({
 
                 <PendingAdds />
 
-                {/* Composer + Shop where the thumb is (S2): the page has no tab bar (Back is the way out), so it sits at the
-                    bottom on every width; the undo toast sits on top of it. */}
-                <div className="sticky bottom-0 z-10 mt-auto flex flex-col gap-3 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-                    {toast && !focus && (
-                        <div
-                            role="status"
-                            className="bg-primary text-primary-foreground flex items-center gap-3 rounded-2xl py-3 pr-3 pl-4 shadow-lg"
-                        >
-                            <span className="bg-accent-strong text-primary flex size-6 shrink-0 items-center justify-center rounded-full">
-                                <Check className="size-4" strokeWidth={3} />
-                            </span>
-                            <span className="min-w-0 flex-1 truncate text-base font-semibold">{t('shopping.in_the_cart', { name: toast.name })}</span>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    const it = toast;
-                                    setToast(null);
-                                    if (isBought(it)) toggle(it);
-                                }}
-                                className="text-accent-strong min-h-10 px-2 text-base font-bold"
+                {/* Composer + Shop where the thumb is (S2): the page has no tab bar (Back is the way out), so it's fixed to the
+                    bottom on every width, over the content column (right of the sidebar on desktop, like the
+                    other bottom bars); the page's bottom padding keeps the last row clear. The undo toast sits on top. */}
+                <div className="fixed inset-x-0 bottom-0 z-30 md:left-(--sidebar-width)">
+                    <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+                        {toast && !focus && (
+                            <div
+                                role="status"
+                                className="bg-primary text-primary-foreground flex items-center gap-3 rounded-2xl py-3 pr-3 pl-4 shadow-lg"
                             >
-                                {t('shopping.undo')}
-                            </button>
-                        </div>
-                    )}
-                    <div className="flex items-center gap-3">
-                        <div className="bg-surface-card flex min-w-0 flex-1 items-center gap-1 rounded-full border py-1.5 pr-1.5 pl-4 shadow-[var(--shadow-fw-md)]">
-                            <button
-                                type="button"
-                                onClick={openNew}
-                                className="text-muted-foreground flex min-h-10 min-w-0 flex-1 items-center gap-2 text-left text-base"
-                            >
-                                <Plus className="text-primary size-5 shrink-0" />
-                                <span className="truncate">{t('shopping.add_item_placeholder')}</span>
-                            </button>
-                            <button
-                                type="button"
-                                onClick={openPaste}
-                                aria-label={t('shopping.paste_list')}
-                                className="bg-surface text-primary flex size-10 shrink-0 items-center justify-center rounded-full"
-                            >
-                                <ClipboardPaste className="size-5" />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => openVoice()}
-                                aria-label={t('shopping.add_by_voice')}
-                                className="bg-primary text-accent-strong flex size-10 shrink-0 items-center justify-center rounded-full"
-                            >
-                                <Mic className="size-5" />
-                            </button>
-                        </div>
-                        {liveItems.some((i) => !isBought(i)) && (
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    // Shop mode opens on the chip you're on, else the first shop with something to get.
-                                    setFocusStore(filterShop || focusStores[0] || '');
-                                    setFocus(true);
-                                }}
-                                aria-label={t('shopping.start_shopping')}
-                                className="bg-accent-strong text-accent-strong-foreground border-primary flex size-14 shrink-0 items-center justify-center rounded-full border-2 shadow-[var(--shadow-fw-md)]"
-                            >
-                                <ShoppingBasket className="size-6" />
-                            </button>
+                                <span className="bg-accent-strong text-primary flex size-6 shrink-0 items-center justify-center rounded-full">
+                                    <Check className="size-4" strokeWidth={3} />
+                                </span>
+                                <span className="min-w-0 flex-1 truncate text-base font-semibold">
+                                    {t('shopping.in_the_cart', { name: toast.name })}
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const it = toast;
+                                        setToast(null);
+                                        if (isBought(it)) toggle(it);
+                                    }}
+                                    className="text-accent-strong min-h-10 px-2 text-base font-bold"
+                                >
+                                    {t('shopping.undo')}
+                                </button>
+                            </div>
                         )}
+                        <div className="flex items-center gap-3">
+                            <div className="bg-surface-card flex min-w-0 flex-1 items-center gap-1 rounded-full border py-1.5 pr-1.5 pl-4 shadow-[var(--shadow-fw-md)]">
+                                <button
+                                    type="button"
+                                    onClick={openNew}
+                                    className="text-muted-foreground flex min-h-10 min-w-0 flex-1 items-center gap-2 text-left text-base"
+                                >
+                                    <Plus className="text-primary size-5 shrink-0" />
+                                    <span className="truncate">{t('shopping.add_item_placeholder')}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={openPaste}
+                                    aria-label={t('shopping.paste_list')}
+                                    className="bg-surface text-primary flex size-10 shrink-0 items-center justify-center rounded-full"
+                                >
+                                    <ClipboardPaste className="size-5" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => openVoice()}
+                                    aria-label={t('shopping.add_by_voice')}
+                                    className="bg-primary text-accent-strong flex size-10 shrink-0 items-center justify-center rounded-full"
+                                >
+                                    <Mic className="size-5" />
+                                </button>
+                            </div>
+                            {liveItems.some((i) => !isBought(i)) && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        // Shop mode opens on the chip you're on, else the first shop with something to get.
+                                        setFocusStore(filterShop || focusStores[0] || '');
+                                        setFocus(true);
+                                    }}
+                                    aria-label={t('shopping.start_shopping')}
+                                    className="bg-accent-strong text-accent-strong-foreground border-primary flex size-14 shrink-0 items-center justify-center rounded-full border-2 shadow-[var(--shadow-fw-md)]"
+                                >
+                                    <ShoppingBasket className="size-6" />
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
