@@ -251,5 +251,6 @@
     "type": "Type",
     "pause_hint": "Pause for 2 seconds and I'll wrap up",
     "on_this_list": "already on this list",
-    "item_name": "Item"
+    "item_name": "Item",
+    "add_a_list": "Add a list"
 }

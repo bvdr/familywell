@@ -260,5 +260,6 @@
     "type": "Scrie",
     "pause_hint": "Fă o pauză de 2 secunde și închei",
     "on_this_list": "deja pe această listă",
-    "item_name": "Produs"
+    "item_name": "Produs",
+    "add_a_list": "Adaugă o listă"
 }

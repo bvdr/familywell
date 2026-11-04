@@ -384,13 +384,18 @@ export default function Lists({
                             </div>
                         )}
 
-                        {active.length > 0 && (
-                            <div className="bg-surface-card divide-border divide-y overflow-hidden rounded-[22px] border">
-                                {active.map((l) => (
-                                    <ListRow key={l.id} list={l} />
-                                ))}
-                            </div>
-                        )}
+                        {/* "Add a list" closes the card, the same row the Shops tab ends with (Add a shop). */}
+                        <div className="bg-surface-card divide-border divide-y overflow-hidden rounded-[22px] border">
+                            {active.map((l) => (
+                                <ListRow key={l.id} list={l} />
+                            ))}
+                            <button type="button" onClick={() => setCreating(true)} className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
+                                <span className="border-border text-primary flex size-11 shrink-0 items-center justify-center rounded-xl border bg-white">
+                                    <Plus className="size-5" />
+                                </span>
+                                <span className="text-primary text-[17px] font-semibold">{t('shopping.add_a_list')}</span>
+                            </button>
+                        </div>
 
                         {/* Archived lists sit below, folded into one quiet line (Shopping settings > Archived lists opens it). */}
                         {archived.length > 0 && (

@@ -251,5 +251,6 @@
     "type": "Schreiben",
     "pause_hint": "2 Sekunden Pause, dann bin ich fertig",
     "on_this_list": "schon auf dieser Liste",
-    "item_name": "Artikel"
+    "item_name": "Artikel",
+    "add_a_list": "Liste hinzufügen"
 }

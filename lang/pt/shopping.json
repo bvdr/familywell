@@ -251,5 +251,6 @@
     "type": "Digitar",
     "pause_hint": "Faça uma pausa de 2 segundos e eu termino",
     "on_this_list": "já está nesta lista",
-    "item_name": "Item"
+    "item_name": "Item",
+    "add_a_list": "Adicionar uma lista"
 }
