@@ -29,6 +29,13 @@ class BillingController extends Controller
             return to_route('billing.show');
         }
 
+        // Not subscribed and allowed to pay: Billing *is* the paywall, the same plan & pay page as the onboarding
+        // (user asked 2026-11-04), with a back button while the trial lasts. A member who can't pay stays here
+        // ("ask an admin"); a subscribed or comped family gets its plan card below.
+        if (! Billing::isPaid($family) && Gate::allows('manageBilling', $family)) {
+            return to_route('onboarding.plan');
+        }
+
         Billing::backfillPlan($family);
 
         return Inertia::render('settings/billing', [
@@ -50,17 +57,14 @@ class BillingController extends Controller
             'canManage' => Gate::allows('manageBilling', $family),
             // Today's price for new subscribers (intro while spots last), shown on the plan picker.
             'pricing' => Billing::pricing(),
-            // The rest of what the onboarding checkout (components/plan-checkout.tsx) needs, the same values
-            // OnboardingController::plan passes: the page pays through that flow, not a checkout of its own.
-            // Only for an unpaid family: a paying one sees its plan card and no checkout (and no tax lookup).
+            // The plan cards' prices (components/plan-checkout useCheckout), for the member who can't pay and sees
+            // them read-only; a paying family sees its plan card instead (and no tax lookup).
             ...(Billing::isPaid($family) ? [] : [
                 'standard' => ['basic' => config('familywell.pricing.standard'), 'pro' => config('familywell.pricing.pro.standard')],
                 'tiers' => config('familywell.tiers'),
-                'stripeKey' => config('services.stripe.key'),
                 'tax' => Billing::taxRate((string) ($request->header('CF-Connecting-IP') ?: $request->ip())),
                 // Applied on the checkout (POST onboarding.plan.promo), kept in the session until paid or removed.
                 'promo' => $request->session()->get('onboarding.promo'),
-                'email' => $request->user()->email,
             ]),
         ]);
     }

@@ -34,7 +34,7 @@ it('keeps a new unpaid family in for 5 days, however much it uses, then shows th
 
     $this->travel(4)->days();
     actingAs($user)->get('/dashboard')->assertOk();
-    actingAs($user)->get('/settings/billing')->assertInertia(fn ($page) => $page->where('locked', false)->where('trialDaysLeft', 1));
+    actingAs($user)->get('/onboarding/plan')->assertInertia(fn ($page) => $page->where('trialDaysLeft', 1));
 
     $this->travel(1)->days();
     actingAs($user)->get('/dashboard')->assertRedirect(route('onboarding.plan'));
@@ -85,10 +85,12 @@ it('rebuilds activity for existing families from the items they already have', f
 it('lets a free-period family open the plans and go back; a paid one sees its plan', function () {
     [$user, $family] = freeFamily();
 
-    actingAs($user)->get('/settings/billing')->assertInertia(fn ($page) => $page->where('subscribed', false)->where('locked', false));
+    // Billing is the paywall while unpaid: back to Settings during the trial, no way back after it.
+    actingAs($user)->get('/settings/billing')->assertRedirect(route('onboarding.plan'));
+    actingAs($user)->get('/onboarding/plan')->assertInertia(fn ($page) => $page->where('back', route('settings.family')));
 
     pastFreePeriod($family);
-    actingAs($user)->get('/settings/billing')->assertInertia(fn ($page) => $page->where('subscribed', false)->where('locked', true));
+    actingAs($user)->get('/onboarding/plan')->assertInertia(fn ($page) => $page->where('back', null));
 
     $family->forceFill(['subscription_status' => 'active'])->save();
     actingAs($user)->get('/settings/billing')->assertInertia(fn ($page) => $page->where('subscribed', true));
