@@ -1,5 +1,18 @@
 [
     {
+        "version": "1.5",
+        "date": "2026-11-04",
+        "items": [
+            {
+                "module": "app",
+                "title": "A friendlier way in",
+                "text": "Signing up and logging in got a fresh look: six boxes for your code, the email you used last time already filled in, a shortcut to your inbox, and a language picker.",
+                "href": "/settings/sign-in"
+            }
+        ],
+        "fixes": []
+    },
+    {
         "version": "1.4",
         "date": "2026-11-04",
         "items": [
