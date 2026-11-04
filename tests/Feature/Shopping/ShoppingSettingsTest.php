@@ -80,3 +80,31 @@ it('lists your shops in their dragged order', function () {
     $this->get('/m/shopping/settings/shops')->assertInertia(fn ($p) => $p->component('shopping/your-shops')
         ->where('shops.0.name', 'Lidl')->where('shops.0.logo', '/brands/lidl.png')->where('shops.1.name', 'Kaufland'));
 });
+
+it('saves a list\'s own sort, bought and auto-clean, and null goes back to the family default (S2b, S2c)', function () {
+    shoppingSettingsUser();
+    ShoppingSetting::current()->update(['sort' => 'az', 'clean_after_days' => 3]);
+    $list = ShoppingList::createFor(auth()->user(), ['name' => 'Weekly']);
+
+    $this->get("/m/shopping/lists/{$list->id}")->assertInertia(fn ($p) => $p
+        ->where('list.sort', null)->where('list.cleanAfterDays', null)
+        ->where('defaults.sort', 'az')->where('defaults.cleanAfterDays', 3));
+
+    $this->patch("/m/shopping/lists/{$list->id}", ['sort' => 'added', 'bought' => 'hide', 'clean_after_days' => 0])->assertSessionHasNoErrors();
+    expect($list->fresh()->only(['sort', 'bought', 'clean_after_days']))->toBe(['sort' => 'added', 'bought' => 'hide', 'clean_after_days' => 0]);
+
+    $this->patch("/m/shopping/lists/{$list->id}", ['clean_after_days' => null, 'sort' => null])->assertSessionHasNoErrors();
+    expect($list->fresh()->clean_after_days)->toBeNull()->and($list->fresh()->sort)->toBeNull();
+    $this->patch("/m/shopping/lists/{$list->id}", ['clean_after_days' => 5])->assertSessionHasErrors('clean_after_days');
+});
+
+it('clears a list\'s bought items now, into Recently deleted', function () {
+    shoppingSettingsUser();
+    $list = ShoppingList::createFor(auth()->user(), ['name' => 'Weekly']);
+    $list->items()->create(['created_by' => auth()->id(), 'name' => 'Eggs', 'bought' => true]);
+    $list->items()->create(['created_by' => auth()->id(), 'name' => 'Milk']);
+
+    $this->post("/m/shopping/lists/{$list->id}/clear-bought")->assertRedirect();
+    expect($list->items()->pluck('name')->all())->toBe(['Milk'])
+        ->and(ShoppingItem::onlyTrashed()->where('name', 'Eggs')->exists())->toBeTrue();
+});

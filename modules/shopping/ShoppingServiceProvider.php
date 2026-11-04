@@ -291,6 +291,7 @@ class ShoppingServiceProvider extends ServiceProvider
                 Route::get('/lists/{list}', [ShoppingController::class, 'show'])->name('show');
                 Route::patch('/lists/{list}', [ShoppingController::class, 'updateList'])->name('lists.update');
                 Route::post('/lists/{list}/duplicate', [ShoppingController::class, 'duplicateList'])->name('lists.duplicate');
+                Route::post('/lists/{list}/clear-bought', [ShoppingController::class, 'clearBought'])->name('lists.clear-bought');
                 Route::delete('/lists/{list}', [ShoppingController::class, 'destroyList'])->name('lists.destroy');
                 Route::post('/lists/{list}/items', [ShoppingController::class, 'storeItem'])->name('items.store');
                 Route::post('/lists/{list}/items/bulk', [ShoppingController::class, 'storeItems'])->name('items.bulk');
