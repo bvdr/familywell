@@ -1,7 +1,8 @@
 import { router } from '@inertiajs/react';
 import { Check, ChevronRight, Clock, Contact, FolderKanban, Plus, Repeat, Sun } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 
+import { DatePick } from '@/components/add-details';
 import { IconPicker } from '@/components/icon-picker';
 import { MemberAvatar } from '@/components/member-avatar';
 import { Picker } from '@/components/picker';
@@ -69,6 +70,7 @@ export function EventSheet({
     members,
     contacts,
     projects,
+    pickDate,
 }: {
     open: boolean;
     onOpenChange: (v: boolean) => void;
@@ -77,11 +79,27 @@ export function EventSheet({
     members: Named[];
     contacts: Named[];
     projects: Named[] | null;
+    pickDate?: boolean; // open with the start date's calendar showing (the event page's date line was tapped)
 }) {
     const t = useT();
     const [f, setF] = useState<EventForm>(event ?? blank(defaultDate));
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
+    // Which date has its month calendar open under its row (the tasks' DatePick). The hidden native date input that
+    // was here relied on showPicker(), which does nothing on iPhone: tapping a date did nothing (2026-11-05).
+    const [picking, setPicking] = useState<'start_date' | 'end_date' | 'repeat_until' | null>(null);
+    const dateText = (d: string, o: Intl.DateTimeFormatOptions) => new Date(`${d}T12:00`).toLocaleDateString(appLocale(), o);
+    const dateButton = (k: 'start_date' | 'end_date' | 'repeat_until', label: string, text: string) => (
+        <button
+            type="button"
+            aria-label={label}
+            aria-expanded={picking === k}
+            onClick={() => setPicking(picking === k ? null : k)}
+            className={`rounded-lg px-1 py-1 text-base font-semibold whitespace-nowrap ${picking === k ? 'bg-primary text-primary-foreground px-2' : 'text-primary'}`}
+        >
+            {text}
+        </button>
+    );
     // Optional bits (C4): below the fold, each behind a "+" chip until it has something.
     const [more, setMore] = useState({ project: false, notes: false });
 
@@ -94,6 +112,7 @@ export function EventSheet({
         if (open) {
             setF(event ?? blank(defaultDate));
             setErrors({});
+            setPicking(pickDate ? 'start_date' : null);
             setMore({ project: false, notes: false });
         }
     }
@@ -206,34 +225,44 @@ export function EventSheet({
                         />
                     </div>
                     {(['start', 'end'] as const).map((k) => (
-                        <div key={k} className={row}>
-                            <Clock className="text-primary size-5 shrink-0" />
-                            <span className="text-primary shrink-0 text-[17px]">{t(k === 'start' ? 'calendar.starts' : 'calendar.ends')}</span>
-                            <span className="flex min-w-0 flex-1 items-center justify-end gap-1">
-                                <NativePick
-                                    type="date"
-                                    label={t(k === 'start' ? 'calendar.starts' : 'calendar.ends')}
-                                    value={f[`${k}_date`]}
-                                    text={new Date(`${f[`${k}_date`]}T12:00`).toLocaleDateString(appLocale(), {
-                                        weekday: 'short',
-                                        month: 'short',
-                                        day: 'numeric',
-                                    })}
-                                    onChange={(v) => v && set({ [`${k}_date`]: v } as Partial<EventForm>)}
-                                />
-                                {!allDay && (
-                                    <>
-                                        <span className="text-muted-foreground">·</span>
-                                        <NativePick
-                                            type="time"
-                                            label={t(k === 'start' ? 'calendar.starts' : 'calendar.ends')}
-                                            value={f[`${k}_time`] ?? ''}
-                                            text={(f[`${k}_time`] ?? '').replace(/^0(\d)/, '$1')}
-                                            onChange={(v) => set({ [`${k}_time`]: v || null } as Partial<EventForm>)}
-                                        />
-                                    </>
-                                )}
-                            </span>
+                        <div key={k}>
+                            <div className={row}>
+                                <Clock className="text-primary size-5 shrink-0" />
+                                <span className="text-primary shrink-0 text-[17px]">{t(k === 'start' ? 'calendar.starts' : 'calendar.ends')}</span>
+                                <span className="flex min-w-0 flex-1 items-center justify-end gap-1">
+                                    {dateButton(
+                                        `${k}_date`,
+                                        t(k === 'start' ? 'calendar.starts' : 'calendar.ends'),
+                                        dateText(f[`${k}_date`], { weekday: 'short', month: 'short', day: 'numeric' }),
+                                    )}
+                                    {!allDay && (
+                                        <>
+                                            <span className="text-muted-foreground">·</span>
+                                            <NativePick
+                                                type="time"
+                                                label={t(k === 'start' ? 'calendar.starts' : 'calendar.ends')}
+                                                value={f[`${k}_time`] ?? ''}
+                                                text={(f[`${k}_time`] ?? '').replace(/^0(\d)/, '$1')}
+                                                onChange={(v) => set({ [`${k}_time`]: v || null } as Partial<EventForm>)}
+                                            />
+                                        </>
+                                    )}
+                                </span>
+                            </div>
+                            {picking === `${k}_date` && (
+                                <div className="border-b px-4 py-3">
+                                    <DatePick
+                                        value={f[`${k}_date`]}
+                                        required
+                                        onChange={(v) => {
+                                            // A start moved past the end drags the end along (an event can't end before it starts).
+                                            if (k === 'start') set({ start_date: v, ...(f.end_date < v ? { end_date: v } : {}) });
+                                            else set({ end_date: v });
+                                            setPicking(null);
+                                        }}
+                                    />
+                                </div>
+                            )}
                         </div>
                     ))}
                     <label className={`${row} relative`}>
@@ -269,20 +298,24 @@ export function EventSheet({
                                 onChange={(e) => set({ repeat_interval: Math.min(99, Math.max(1, Number(e.target.value) || 1)) })}
                             />
                             <span className="ml-auto">{t('calendar.until')}</span>
-                            <NativePick
-                                type="date"
-                                label={t('calendar.until')}
+                            {dateButton(
+                                'repeat_until',
+                                t('calendar.until'),
+                                f.repeat_until
+                                    ? dateText(f.repeat_until, { month: 'short', day: 'numeric', year: 'numeric' })
+                                    : t('calendar.until_forever'),
+                            )}
+                        </div>
+                    )}
+                    {f.repeat !== 'none' && picking === 'repeat_until' && (
+                        <div className="border-t px-4 py-3">
+                            {/* Clear date = repeat forever. */}
+                            <DatePick
                                 value={f.repeat_until ?? ''}
-                                text={
-                                    f.repeat_until
-                                        ? new Date(`${f.repeat_until}T12:00`).toLocaleDateString(appLocale(), {
-                                              month: 'short',
-                                              day: 'numeric',
-                                              year: 'numeric',
-                                          })
-                                        : t('calendar.until_forever')
-                                }
-                                onChange={(v) => set({ repeat_until: v || null })}
+                                onChange={(v) => {
+                                    set({ repeat_until: v || null });
+                                    setPicking(null);
+                                }}
                             />
                         </div>
                     )}
@@ -393,31 +426,23 @@ function NativePick({
     text,
     onChange,
 }: {
-    type: 'date' | 'time';
+    type: 'time';
     label: string;
     value: string;
     text: string;
     onChange: (v: string) => void;
 }) {
-    const ref = useRef<HTMLInputElement>(null);
+    // The transparent native input lies ON the text, so the tap lands on it: iPhone opens its own picker only for a
+    // real tap on the input; showPicker() from a button under it did nothing there (2026-11-05).
     return (
-        <span className="relative">
-            <button
-                type="button"
-                aria-label={label}
-                onClick={() => (ref.current?.showPicker ? ref.current.showPicker() : ref.current?.focus())}
-                className="text-primary rounded-lg px-1 py-1 text-base font-semibold whitespace-nowrap"
-            >
-                {text || '—'}
-            </button>
+        <span className="text-primary relative rounded-lg px-1 py-1 text-base font-semibold whitespace-nowrap">
+            {text || '—'}
             <input
-                ref={ref}
                 type={type}
                 value={value}
-                tabIndex={-1}
-                aria-hidden
+                aria-label={label}
                 onChange={(e) => onChange(e.target.value)}
-                className="pointer-events-none absolute inset-0 -z-10 opacity-0"
+                className="absolute inset-0 size-full cursor-pointer opacity-0"
             />
         </span>
     );
