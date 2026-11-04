@@ -4,6 +4,12 @@
         "date": "2026-11-04",
         "items": [
             {
+                "module": "app",
+                "title": "5 days free, no card",
+                "text": "Every new family gets 5 days to try everything. Pick a plan when you're ready; Settings › Billing shows how many days are left.",
+                "href": "/settings/billing"
+            },
+            {
                 "module": "shopping",
                 "title": "A cleaner shopping list",
                 "text": "One card per aisle, bought items sink to the bottom, and Hide bought keeps only what's left to grab. Tick something by mistake? Undo is right there. Filter by shop when a list spans a few.",
