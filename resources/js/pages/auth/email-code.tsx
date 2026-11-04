@@ -292,7 +292,11 @@ export default function EmailCode({ mode, status, canDemo, codeSentTo }: Props) 
                             )}
                         </div>
                     ) : (
-                        <Homer face="happy" view="mirror" className="size-[110px] self-end" />
+                        <Homer
+                            face="happy"
+                            // Default view: he sits at the right edge and faces left, into the page (user asked 2026-11-04).
+                            className="size-[110px] self-end"
+                        />
                     )}
                     {register && canDemo && !askCode && (
                         <div className="bg-ink flex items-center gap-3 rounded-[22px] p-4 text-white">
