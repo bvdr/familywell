@@ -11,6 +11,7 @@ use App\Support\Auth\Handoff;
 use App\Support\Billing\Billing;
 use App\Support\Modules\Hooks;
 use App\Support\Modules\ModuleRegistry;
+use App\Support\NewUserList;
 use App\Support\Region;
 use App\Support\Tenancy\CurrentFamily;
 use App\Support\Theming\ThemeTokens;
@@ -74,8 +75,12 @@ class OnboardingController extends Controller
     {
         $data = $request->validate(['name' => ['required', 'string', 'max:255']]);
         $user = $request->user();
+        $newAccount = blank($user->name); // email-code sign-ups get their name here, not at sign-up
         // The language they're looking at is theirs from now on, picked or not (it came from the browser).
         $user->update(['name' => trim($data['name']), 'locale' => $user->locale ?? app()->getLocale()]);
+        if ($newAccount) {
+            NewUserList::add($user);
+        }
 
         // Arrived from an invitation: finish joining that family instead of creating one.
         if ($token = $request->session()->get('invite_token')) {
