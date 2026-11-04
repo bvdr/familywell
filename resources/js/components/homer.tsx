@@ -164,12 +164,16 @@ export const Homer = forwardRef<HomerElement, Props>(function Homer(
             follow={follow ? '' : undefined}
             greet={greet ? '' : undefined}
             idle={idle ? String(idle) : undefined}
-            // Decoration: a click shouldn't make him spin in the middle of a form.
+            // The renderer's own click trick (a random spin, dance...) stays off; onClick below always does the same small hop.
             inert-click=""
             aria-hidden
-            // Tappable only while iOS still has to be asked for motion access (useTilt); otherwise he never takes a tap.
-            onClick={askTilt}
-            className={cn('block shrink-0', askTilt ? 'cursor-pointer' : 'pointer-events-none', className)}
+            // A tap makes him hop (user asked 2026-11-04), and on iOS also asks for motion access the first time (useTilt).
+            // play() skips the hop under reduced motion. inert-click above still stops the renderer's own random tricks.
+            onClick={(e) => {
+                askTilt?.();
+                (e.currentTarget as HomerElement).play('hop');
+            }}
+            className={cn('block shrink-0 cursor-pointer', className)}
             style={onDark ? ON_DARK : undefined}
         />
     );
