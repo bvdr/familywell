@@ -22,7 +22,7 @@
                 "href": "/dashboard"
             }
         ],
-        "fixes": []
+        "fixes": ["The Timeline settles on whole days, and today's line no longer cuts through the dates"]
     },
     {
         "version": "1.4",
