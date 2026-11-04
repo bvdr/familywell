@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Support\AdminPush;
 use App\Support\Analytics;
+use App\Support\NewUserList;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -32,6 +33,7 @@ class RegisteredUserController extends Controller
         AdminPush::send('New account', "{$who} signed up".($method === 'email' ? '' : " with {$method}").'.'.self::sourceLine($user), "/users/{$user->id}");
 
         event(new Registered($user));
+        NewUserList::add($user); // no-op without a name yet (email code): "About you" adds them then
 
         // Remembered: with no password to type, signing in again means another code, so keep them signed in.
         Auth::login($user, remember: true);
