@@ -14,12 +14,14 @@ export default function AppSidebarLayout({
     actions,
     mobileHeader,
     hideMobileHeader,
+    hideTabBar,
 }: {
     children: React.ReactNode;
     breadcrumbs?: BreadcrumbItem[];
     actions?: React.ReactNode;
     mobileHeader?: React.ReactNode;
     hideMobileHeader?: boolean;
+    hideTabBar?: boolean;
 }) {
     return (
         <AppShell variant="sidebar">
@@ -43,9 +45,9 @@ export default function AppSidebarLayout({
                 <AppSidebarHeader breadcrumbs={breadcrumbs} actions={actions} mobileHeader={mobileHeader} hideMobileHeader={hideMobileHeader} />
                 {/* Clear the floating tab bar: its pill height plus the same safe-area inset the bar
                     itself uses, so the last row never hides under it on notched phones. */}
-                <div className="pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0">{children}</div>
+                <div className={hideTabBar ? 'md:pb-0' : 'pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0'}>{children}</div>
             </AppContent>
-            <MobileTabBar />
+            {!hideTabBar && <MobileTabBar />}
             <InstallNudge />
             {/* A new deploy while the app is open: Refresh when it suits (design ntvzN). */}
             <UpdateNudge />

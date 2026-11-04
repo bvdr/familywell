@@ -541,6 +541,9 @@ class ShoppingController extends Controller
             'store' => $list->store,
             'color' => $list->color,
             'icon' => $list->icon,
+            'sort' => $list->sort,
+            'bought' => $list->bought,
+            'clean_after_days' => $list->clean_after_days,
             'created_by' => $request->user()->id,
         ]);
         $copy->shares()->create(['user_id' => $request->user()->id, 'role' => 'owner']);
@@ -613,6 +616,7 @@ class ShoppingController extends Controller
             ->merge($items->pluck('alt_stores')->flatten())
             ->merge($familyStores)
             ->filter()->unique()->values();
+        $shops = ShoppingShop::orderBy('position')->orderBy('name')->get();
         $aislesByStore = [];
         foreach ($storeNames as $s) {
             $aislesByStore[$s] = $this->resolveAisles($s);
@@ -627,15 +631,26 @@ class ShoppingController extends Controller
                 'icon' => $list->icon,
                 'archived' => $list->archived_at !== null,
                 'visibility' => $list->visibility(),
+                // The list's own List settings (S2b); null = follow `defaults` below.
+                'sort' => $list->sort,
+                'bought' => $list->bought,
+                'cleanAfterDays' => $list->clean_after_days,
             ],
+            // The family's Shopping settings a list follows until it picks its own; 0 days = auto-clean off.
+            'defaults' => (function () {
+                $s = ShoppingSetting::current();
+
+                return ['sort' => $s->sort, 'bought' => $s->bought, 'cleanAfterDays' => $s->auto_clean ? $s->clean_after_days : 0];
+            })(),
             // Reuse the core sharing UI (ShareSheet); shopping lists are registered as `shopping_list`.
             'share' => $this->shareState($list, $family),
             // Distinct stores the family already uses (aisle keys, grouping).
             'stores' => $familyStores,
-            // Every shop the family has, for the item editor's Shops picker (superset of `stores`).
-            'shops' => ShoppingShop::orderBy('name')->pluck('name')->values(),
-            // name => id, so a store header can deep-link to that shop's page.
-            'shopIds' => ShoppingShop::pluck('id', 'name'),
+            // Every shop the family has, in the family's order (Your shops), for the item editor's Shops picker
+            // (superset of `stores`) and List settings' Default shop.
+            'shops' => $shops->pluck('name')->values(),
+            // name => logo URL (or null), for the shop rows in List settings.
+            'shopLogos' => $shops->mapWithKeys(fn (ShoppingShop $s) => [$s->name => $s->logoUrl()]),
             'items' => $items->map(fn (ShoppingItem $i) => [
                 'id' => $i->id,
                 'name' => $i->name,
@@ -669,12 +684,16 @@ class ShoppingController extends Controller
             'icon' => ['sometimes', 'string', 'max:20'],
             'archived' => ['sometimes', 'boolean'],
             'visibility' => ['sometimes', 'in:family,invited,private'],
+            // List settings (S2b/S2c): null puts the list back on the family default.
+            'sort' => ['sometimes', 'nullable', 'in:aisle,az,added'],
+            'bought' => ['sometimes', 'nullable', 'in:sink,hide'],
+            'clean_after_days' => ['sometimes', 'nullable', 'integer', 'in:0,1,3,7,14,30'],
         ]);
 
         if (array_key_exists('archived', $data)) {
             $list->archived_at = $data['archived'] ? now() : null;
         }
-        $list->fill(array_intersect_key($data, array_flip(['name', 'store', 'color', 'icon'])))->save();
+        $list->fill(array_intersect_key($data, array_flip(['name', 'store', 'color', 'icon', 'sort', 'bought', 'clean_after_days'])))->save();
 
         // Promote the list's store to a real shop so it gets a card in the Shops tab and the items that
         // inherit it (own store null) are reachable there, not stranded in the "No shop" bucket.
@@ -686,6 +705,20 @@ class ShoppingController extends Controller
             $list->setVisibility($data['visibility']);
         }
 
+        Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
+
+        return back();
+    }
+
+    /**
+     * "Clear N bought items now" (S2c): what auto-clean would do later, right away. Into Recently deleted like
+     * auto-clean, through the model one by one so SoftDeletes + CascadesTrash keep restore working.
+     */
+    public function clearBought(Request $request, ShoppingList $list): RedirectResponse
+    {
+        abort_unless($this->access->roleFor($request->user(), $list) !== null, 403);
+
+        $list->items()->where('bought', true)->get()->each->delete();
         Realtime::broadcast(new ShoppingChanged((int) CurrentFamily::id()));
 
         return back();
