@@ -50,7 +50,8 @@ export default function SocialButtons({ signup = false }: { signup?: boolean }) 
     // Apple's HIG: black button, white Apple logo, "Continue with Apple"; the light outline keeps it visible
     // on a dark background.
     const tracked = (method: string) => (signup ? { 'data-umami-event': 'signup_started', 'data-umami-event-method': method } : {});
-    const base = 'flex h-11 w-full items-center justify-center gap-2 rounded-md px-4 text-[15px] font-medium transition-colors';
+    // Full-width pills, one row each (design A01/M01): same size as the yellow "Email me a code" under them.
+    const base = 'flex h-14 w-full items-center justify-center gap-2.5 rounded-full px-4 text-[17px] font-semibold transition-colors';
 
     return (
         <div className="grid gap-3">
@@ -58,27 +59,23 @@ export default function SocialButtons({ signup = false }: { signup?: boolean }) 
                 <a
                     href="/auth/google/redirect"
                     {...tracked('google')}
-                    className={`${base} border border-[#747775] bg-white text-[#1f1f1f] hover:bg-[#f2f2f2]`}
+                    className={`${base} border-line text-ink border-2 bg-white hover:bg-[#f2f2f2]`}
                 >
                     <GoogleLogo className="size-[18px]" />
                     {t('auth.continue_with_google')}
                 </a>
             )}
             {socialProviders.includes('apple') && (
-                <a
-                    href="/auth/apple/redirect"
-                    {...tracked('apple')}
-                    className={`${base} bg-black text-white hover:bg-black/85 dark:border dark:border-white/40`}
-                >
+                <a href="/auth/apple/redirect" {...tracked('apple')} className={`${base} bg-ink hover:bg-ink/85 text-white`}>
                     <AppleLogo className="size-[18px]" />
                     {t('auth.continue_with_apple')}
                 </a>
             )}
             <InputError message={errors?.social} className="text-center" />
-            <div className="text-muted-foreground flex items-center gap-3 text-xs uppercase">
-                <span className="bg-border h-px flex-1" />
+            <div className="text-ink-2 my-1 flex items-center gap-4 font-mono text-[11px] font-semibold tracking-[1.2px] uppercase">
+                <span className="bg-line h-px flex-1" />
                 {t('auth.or_with_email')}
-                <span className="bg-border h-px flex-1" />
+                <span className="bg-line h-px flex-1" />
             </div>
         </div>
     );

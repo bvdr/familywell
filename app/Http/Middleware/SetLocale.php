@@ -14,7 +14,8 @@ class SetLocale
 {
     public function handle(Request $request, Closure $next)
     {
-        $locale = $request->user()?->locale;
+        // A guest who picked a language on the sign-in page (AuthenticatedSessionController::locale) beats the browser's.
+        $locale = $request->user()?->locale ?? ($request->hasSession() ? $request->session()->get('locale') : null);
         if (! $locale || ! Translations::supported($locale)) {
             $locale = Translations::fromBrowser($request);
         }

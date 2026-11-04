@@ -48,6 +48,16 @@ class AuthenticatedSessionController extends Controller
         ]);
     }
 
+    /** The language picker on the sign-in page (design A01): kept for the visit; sign-up then saves it as theirs. */
+    public function locale(Request $request): RedirectResponse
+    {
+        $locale = $request->validate(['locale' => ['required', 'string']])['locale'];
+        abort_unless(Translations::supported($locale), 422);
+        $request->session()->put('locale', $locale);
+
+        return back();
+    }
+
     public function sendCode(Request $request): RedirectResponse
     {
         $email = EmailCode::normalize((string) $request->validate(['email' => ['required', 'string', 'email', 'max:255']])['email']);
