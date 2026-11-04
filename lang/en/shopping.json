@@ -71,10 +71,7 @@
     "sorting": "Sorting...",
     "done_button": "Done",
     "redo": "Redo",
-    "organized_by_ai": "Organized by AI",
     "heard_heading": "Here's what I heard",
-    "items_sorted_one": ":n item sorted into aisles. Edit or remove any.",
-    "items_sorted_other": ":n items sorted into aisles. Edit or remove any.",
     "quantity": "Quantity",
     "quantity_placeholder": "2 bunches",
     "remove": "Remove",
@@ -131,7 +128,6 @@
     "already_on_list": ":name is already on this list.",
     "add_anyway": "Add anyway",
     "bump_to": "Bump to :n",
-    "on_list_tag": "Already on list",
     "waiting_to_sync_one": ":n item waiting to sync",
     "waiting_to_sync_other": ":n items waiting to sync",
     "aisle_produce": "Produce",
@@ -253,5 +249,7 @@
     "tap_to_talk": "Tap to talk",
     "adding_to": "Adding to :list",
     "type": "Type",
-    "pause_hint": "Pause for 2 seconds and I'll wrap up"
+    "pause_hint": "Pause for 2 seconds and I'll wrap up",
+    "on_this_list": "already on this list",
+    "item_name": "Item"
 }

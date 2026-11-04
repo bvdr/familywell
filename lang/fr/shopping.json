@@ -71,10 +71,7 @@
     "sorting": "Tri en cours...",
     "done_button": "Terminé",
     "redo": "Recommencer",
-    "organized_by_ai": "Organisé par l'IA",
     "heard_heading": "Voici ce que j'ai entendu",
-    "items_sorted_one": ":n article rangé par rayon. Modifie ou retire ce que tu veux.",
-    "items_sorted_other": ":n articles rangés par rayon. Modifie ou retire ce que tu veux.",
     "quantity": "Quantité",
     "quantity_placeholder": "2 bottes",
     "remove": "Retirer",
@@ -131,7 +128,6 @@
     "already_on_list": ":name est déjà sur cette liste.",
     "add_anyway": "Ajouter quand même",
     "bump_to": "Passer à :n",
-    "on_list_tag": "Déjà sur la liste",
     "waiting_to_sync_one": ":n article en attente de synchronisation",
     "waiting_to_sync_other": ":n articles en attente de synchronisation",
     "aisle_produce": "Fruits et légumes",
@@ -253,5 +249,7 @@
     "tap_to_talk": "Touchez pour parler",
     "adding_to": "Ajout à :list",
     "type": "Écrire",
-    "pause_hint": "Faites une pause de 2 secondes et je termine"
+    "pause_hint": "Faites une pause de 2 secondes et je termine",
+    "on_this_list": "déjà sur cette liste",
+    "item_name": "Article"
 }

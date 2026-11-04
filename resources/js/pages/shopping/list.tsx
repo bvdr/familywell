@@ -13,7 +13,6 @@ import {
     MoreHorizontal,
     Plus,
     ShoppingBasket,
-    Sparkles,
     Store,
     Trash2,
     UserPlus,
@@ -29,6 +28,7 @@ import { SettingsSwitch } from '@/components/settings-ui';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
 import { ListSettingsSheet, type ListDefaults, type ListPrefs } from '@/components/shopping/list-settings-sheet';
 import { VoiceListening } from '@/components/shopping/voice-listening';
+import { VoiceReview } from '@/components/shopping/voice-review';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -104,7 +104,6 @@ export default function ListDetail({
     shops = [],
     shopLogos = {},
     defaults,
-    aiEnabled,
 }: {
     list: List;
     items: Item[];
@@ -116,7 +115,6 @@ export default function ListDetail({
     shops?: string[];
     shopLogos?: Record<string, string | null>;
     defaults: ListDefaults;
-    aiEnabled: boolean;
 }) {
     const t = useT();
     // Optimistic list fields: rename / visibility / edit-drawer saves render instantly by shadowing the
@@ -469,6 +467,9 @@ export default function ListDetail({
         recRef.current = rec;
         setListening(true);
     };
+    // The review's "already on this list" row: the active item it matches (same normalized name as the server's check).
+    const reviewDup = (it: Parsed) =>
+        it.on_list ? liveItems.find((i) => !isBought(i) && normalizeItemName(i.name) === normalizeItemName(it.name)) : undefined;
     // From the review: Redo / "Add more by voice" go back to the input they came from, listening again (design S3 -> S3b).
     const backToInput = () => {
         setTranscript('');
@@ -509,7 +510,10 @@ export default function ListDetail({
                 credentials: 'same-origin',
                 body: JSON.stringify(mode === 'paste' ? { text } : { transcript: text }),
             });
-            const items: Parsed[] = res.ok ? (await res.json()).items : naiveParse(text);
+            // The server sends null for an empty quantity/note; Parsed (and the review's stepper) wants strings.
+            const items: Parsed[] = res.ok
+                ? ((await res.json()).items as Parsed[]).map((x) => ({ ...x, quantity: x.quantity ?? '', note: x.note ?? '' }))
+                : naiveParse(text);
             setParsed((prev) => [...prev, ...items]);
         } catch {
             setParsed((prev) => [...prev, ...naiveParse(text)]);
@@ -871,7 +875,10 @@ export default function ListDetail({
             {/* Voice dictation + AI review, portaled full-screen over everything. */}
             {voiceOpen &&
                 createPortal(
-                    <div className="bg-primary text-primary-foreground fixed inset-0 z-[60] flex flex-col">
+                    <div
+                        // The review is a sheet over the dimmed list (design S3); the other stages fill the screen.
+                        className={`fixed inset-0 z-[60] flex flex-col ${stage === 'review' ? 'bg-ink/60' : 'bg-primary text-primary-foreground'}`}
+                    >
                         {stage === 'voice' && speechSupported && !typing ? (
                             <VoiceListening
                                 listName={list.name}
@@ -943,121 +950,41 @@ export default function ListDetail({
                                 </div>
                             </>
                         ) : (
-                            <>
-                                <div className="flex items-center justify-between px-5 pt-[calc(1rem+env(safe-area-inset-top))] pb-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setParsed([]);
-                                            backToInput();
-                                        }}
-                                        className="text-accent-strong-foreground/80 flex items-center gap-1 text-sm"
-                                    >
-                                        <ChevronLeft className="size-4" /> {t('shopping.redo')}
-                                    </button>
-                                    {aiEnabled && (
-                                        <span className="bg-primary-foreground/15 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium">
-                                            <Sparkles className="size-3.5" /> {t('shopping.organized_by_ai')}
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="flex-1 space-y-4 overflow-y-auto px-5 pb-[calc(9rem+env(safe-area-inset-bottom))]">
-                                    <div>
-                                        <h2 className="font-heading text-2xl">
-                                            {t(mode === 'paste' ? 'shopping.pasted_heading' : 'shopping.heard_heading')}
-                                        </h2>
-                                        {transcript && mode === 'voice' && (
-                                            <p className="text-accent-strong-foreground/70 mt-2 text-sm italic">"{transcript}"</p>
-                                        )}
-                                        <p className="text-accent-strong-foreground/70 mt-2 text-sm">
-                                            {t(parsed.length === 1 ? 'shopping.items_sorted_one' : 'shopping.items_sorted_other', {
-                                                n: parsed.length,
-                                            })}
-                                        </p>
-                                    </div>
-                                    {aislesFor(list.store)
-                                        .map((a) => ({
-                                            aisle: a,
-                                            entries: parsed.map((it, idx) => ({ it, idx })).filter((e) => e.it.department === a.slug),
-                                        }))
-                                        .filter((g) => g.entries.length > 0)
-                                        .map((group) => {
-                                            const AisleIcon = aisleIcon(group.aisle.icon);
-                                            return (
-                                                <section key={group.aisle.slug} className="space-y-2">
-                                                    <h3 className="text-accent-strong-foreground/60 flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
-                                                        <AisleIcon className="size-3.5" /> {group.aisle.name}
-                                                    </h3>
-                                                    {group.entries.map(({ it, idx }) => (
-                                                        <div
-                                                            key={idx}
-                                                            className="border-primary-foreground/15 flex items-center gap-3 rounded-xl border p-3"
-                                                        >
-                                                            <div className="min-w-0 flex-1">
-                                                                {it.on_list && (
-                                                                    <span className="border-primary-foreground/25 mb-1 inline-block rounded-md border px-1.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase opacity-80">
-                                                                        {t('shopping.on_list_tag')}
-                                                                    </span>
-                                                                )}
-                                                                <input
-                                                                    value={it.name}
-                                                                    onChange={(e) =>
-                                                                        setParsed((p) =>
-                                                                            p.map((x, i) => (i === idx ? { ...x, name: e.target.value } : x)),
-                                                                        )
-                                                                    }
-                                                                    className="w-full bg-transparent font-medium outline-none"
-                                                                />
-                                                                <input
-                                                                    value={[it.quantity, it.note].filter(Boolean).join(' · ')}
-                                                                    onChange={(e) =>
-                                                                        setParsed((p) =>
-                                                                            p.map((x, i) =>
-                                                                                i === idx ? { ...x, quantity: e.target.value, note: '' } : x,
-                                                                            ),
-                                                                        )
-                                                                    }
-                                                                    placeholder={t('shopping.quantity')}
-                                                                    className="text-accent-strong-foreground/60 w-full bg-transparent text-sm outline-none"
-                                                                />
-                                                            </div>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setParsed((p) => p.filter((_, i) => i !== idx))}
-                                                                aria-label={t('shopping.remove')}
-                                                                className="hover:bg-primary-foreground/10 flex size-8 shrink-0 items-center justify-center rounded-lg"
-                                                            >
-                                                                <X className="size-4" />
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                </section>
-                                            );
-                                        })}
-                                    {parsed.length === 0 && (
-                                        <p className="text-accent-strong-foreground/70 py-8 text-center text-sm">{t('shopping.nothing_left')}</p>
-                                    )}
-                                </div>
-                                <div className="bg-accent-strong absolute inset-x-0 bottom-0 space-y-2 px-5 pt-2 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
-                                    <button
-                                        type="button"
-                                        onClick={backToInput}
-                                        className="border-primary-foreground/25 flex w-full items-center justify-center gap-2 rounded-xl border py-3 text-sm font-medium"
-                                    >
-                                        {mode === 'paste' ? <ClipboardPaste className="size-4" /> : <Mic className="size-4" />}{' '}
-                                        {t(mode === 'paste' ? 'shopping.add_more_by_paste' : 'shopping.add_more_by_voice')}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={addAll}
-                                        disabled={parsed.length === 0 || addingAllState}
-                                        className="bg-primary-foreground text-primary flex w-full items-center justify-center gap-2 rounded-xl py-3.5 font-medium disabled:opacity-50"
-                                    >
-                                        <Check className="size-5" />{' '}
-                                        {t(parsed.length === 1 ? 'shopping.add_n_items_one' : 'shopping.add_n_items_other', { n: parsed.length })}
-                                    </button>
-                                </div>
-                            </>
+                            <VoiceReview
+                                heading={t(mode === 'paste' ? 'shopping.pasted_heading' : 'shopping.heard_heading')}
+                                transcript={mode === 'voice' && transcript ? transcript : null}
+                                groups={aislesFor(list.store)
+                                    .map((a) => ({
+                                        slug: a.slug,
+                                        name: a.name,
+                                        entries: parsed.map((it, idx) => ({ it, idx })).filter((e) => e.it.department === a.slug),
+                                    }))
+                                    .filter((g) => g.entries.length > 0)}
+                                count={parsed.length}
+                                paste={mode === 'paste'}
+                                adding={addingAllState}
+                                existing={(it) => {
+                                    const cur = reviewDup(it);
+                                    return cur ? { quantity: cur.quantity || null, bump: bumpQuantity(cur.quantity) } : null;
+                                }}
+                                onName={(idx, name) => setParsed((p) => p.map((x, i) => (i === idx ? { ...x, name } : x)))}
+                                onQuantity={(idx, quantity) => setParsed((p) => p.map((x, i) => (i === idx ? { ...x, quantity } : x)))}
+                                onRemove={(idx) => setParsed((p) => p.filter((_, i) => i !== idx))}
+                                onBump={(idx) => {
+                                    // One-tap fix (design S3): +1 on the row already on the list, and this one isn't added.
+                                    const cur = reviewDup(parsed[idx]);
+                                    const next = cur ? bumpQuantity(cur.quantity) : null;
+                                    if (cur && next !== null) void save('patch', route('shopping.items.update', cur.id), { quantity: next });
+                                    setParsed((p) => p.filter((_, i) => i !== idx));
+                                }}
+                                onClose={closeVoice}
+                                onAddMore={backToInput}
+                                onRedo={() => {
+                                    setParsed([]);
+                                    backToInput();
+                                }}
+                                onAdd={addAll}
+                            />
                         )}
                     </div>,
                     document.body,
