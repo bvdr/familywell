@@ -261,5 +261,7 @@
     "type_instead": "Lieber schreiben",
     "mic_denied_title": "Das Mikrofon ist aus",
     "mic_denied_sub": "Schalte es in den Einstellungen deines Handys für diese App wieder ein (iPhone: Einstellungen › Apps › Safari › Mikrofon) oder schreib deine Liste.",
-    "add_a_list": "Liste hinzufügen"
+    "add_a_list": "Liste hinzufügen",
+    "voice_no_speech": "Ich habe nichts gehört. Tippe zum Sprechen und versuch es noch mal.",
+    "voice_error": "Diktat gestoppt. Tippe zum Sprechen für einen neuen Versuch oder schreib."
 }

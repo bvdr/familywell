@@ -270,5 +270,7 @@
     "type_instead": "Scrie în schimb",
     "mic_denied_title": "Microfonul e oprit",
     "mic_denied_sub": "Pornește-l din setările telefonului pentru această aplicație (pe iPhone: Setări › Aplicații › Safari › Microfon) sau scrie lista.",
-    "add_a_list": "Adaugă o listă"
+    "add_a_list": "Adaugă o listă",
+    "voice_no_speech": "N-am auzit nimic. Atinge ca să vorbești și încearcă din nou.",
+    "voice_error": "Dictarea s-a oprit. Atinge ca să vorbești din nou, sau scrie."
 }

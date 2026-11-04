@@ -261,5 +261,7 @@
     "type_instead": "Liever typen",
     "mic_denied_title": "De microfoon staat uit",
     "mic_denied_sub": "Zet hem weer aan in de instellingen van je telefoon voor deze app (iPhone: Instellingen › Apps › Safari › Microfoon), of typ je lijst.",
-    "add_a_list": "Lijst toevoegen"
+    "add_a_list": "Lijst toevoegen",
+    "voice_no_speech": "Ik hoorde niets. Tik om te praten en probeer het opnieuw.",
+    "voice_error": "Dicteren is gestopt. Tik om opnieuw te praten, of typ."
 }

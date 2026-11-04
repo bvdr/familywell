@@ -261,5 +261,7 @@
     "type_instead": "Digitar em vez disso",
     "mic_denied_title": "O microfone está desligado",
     "mic_denied_sub": "Ative-o nos ajustes do celular para este app (no iPhone: Ajustes › Apps › Safari › Microfone) ou digite sua lista.",
-    "add_a_list": "Adicionar uma lista"
+    "add_a_list": "Adicionar uma lista",
+    "voice_no_speech": "Não ouvi nada. Toque para falar e tente de novo.",
+    "voice_error": "O ditado parou. Toque para falar de novo, ou escreva."
 }

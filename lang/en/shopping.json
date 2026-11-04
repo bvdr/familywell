@@ -261,5 +261,7 @@
     "type_instead": "Type instead",
     "mic_denied_title": "The microphone is off",
     "mic_denied_sub": "Turn it back on in your phone's settings for this app (on an iPhone: Settings › Apps › Safari › Microphone), or type your list instead.",
-    "add_a_list": "Add a list"
+    "add_a_list": "Add a list",
+    "voice_no_speech": "I didn't hear anything. Tap to talk and try again.",
+    "voice_error": "Dictation stopped. Tap to talk to try again, or type."
 }

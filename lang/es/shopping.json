@@ -261,5 +261,7 @@
     "type_instead": "Escribir en su lugar",
     "mic_denied_title": "El micrófono está desactivado",
     "mic_denied_sub": "Actívalo en los ajustes del teléfono para esta app (en iPhone: Ajustes › Apps › Safari › Micrófono) o escribe tu lista.",
-    "add_a_list": "Añadir una lista"
+    "add_a_list": "Añadir una lista",
+    "voice_no_speech": "No he oído nada. Toca para hablar e inténtalo de nuevo.",
+    "voice_error": "El dictado se ha detenido. Toca para hablar de nuevo o escribe."
 }
