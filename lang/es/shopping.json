@@ -260,5 +260,6 @@
     "allow_mic": "Permitir micrófono",
     "type_instead": "Escribir en su lugar",
     "mic_denied_title": "El micrófono está desactivado",
-    "mic_denied_sub": "Actívalo en los ajustes del teléfono para esta app (en iPhone: Ajustes › Apps › Safari › Micrófono) o escribe tu lista."
+    "mic_denied_sub": "Actívalo en los ajustes del teléfono para esta app (en iPhone: Ajustes › Apps › Safari › Micrófono) o escribe tu lista.",
+    "add_a_list": "Añadir una lista"
 }

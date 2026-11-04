@@ -260,5 +260,6 @@
     "allow_mic": "Microfoon toestaan",
     "type_instead": "Liever typen",
     "mic_denied_title": "De microfoon staat uit",
-    "mic_denied_sub": "Zet hem weer aan in de instellingen van je telefoon voor deze app (iPhone: Instellingen › Apps › Safari › Microfoon), of typ je lijst."
+    "mic_denied_sub": "Zet hem weer aan in de instellingen van je telefoon voor deze app (iPhone: Instellingen › Apps › Safari › Microfoon), of typ je lijst.",
+    "add_a_list": "Lijst toevoegen"
 }

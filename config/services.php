@@ -26,6 +26,8 @@ return [
 
     'resend' => [
         'key' => env('RESEND_KEY'),
+        // Segment id new accounts join; a Resend Automation on it sends the welcome sequence (NewUserList).
+        'new_users_segment' => env('RESEND_NEW_USERS_SEGMENT'),
     ],
 
     'slack' => [

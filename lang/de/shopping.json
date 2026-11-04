@@ -260,5 +260,6 @@
     "allow_mic": "Mikrofon erlauben",
     "type_instead": "Lieber schreiben",
     "mic_denied_title": "Das Mikrofon ist aus",
-    "mic_denied_sub": "Schalte es in den Einstellungen deines Handys für diese App wieder ein (iPhone: Einstellungen › Apps › Safari › Mikrofon) oder schreib deine Liste."
+    "mic_denied_sub": "Schalte es in den Einstellungen deines Handys für diese App wieder ein (iPhone: Einstellungen › Apps › Safari › Mikrofon) oder schreib deine Liste.",
+    "add_a_list": "Liste hinzufügen"
 }

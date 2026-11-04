@@ -260,5 +260,6 @@
     "allow_mic": "Allow microphone",
     "type_instead": "Type instead",
     "mic_denied_title": "The microphone is off",
-    "mic_denied_sub": "Turn it back on in your phone's settings for this app (on an iPhone: Settings › Apps › Safari › Microphone), or type your list instead."
+    "mic_denied_sub": "Turn it back on in your phone's settings for this app (on an iPhone: Settings › Apps › Safari › Microphone), or type your list instead.",
+    "add_a_list": "Add a list"
 }

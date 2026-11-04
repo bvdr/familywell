@@ -260,5 +260,6 @@
     "allow_mic": "Tillat mikrofon",
     "type_instead": "Skriv i stedet",
     "mic_denied_title": "Mikrofonen er av",
-    "mic_denied_sub": "Slå den på igjen i telefonens innstillinger for denne appen (på iPhone: Innstillinger › Apper › Safari › Mikrofon), eller skriv listen."
+    "mic_denied_sub": "Slå den på igjen i telefonens innstillinger for denne appen (på iPhone: Innstillinger › Apper › Safari › Mikrofon), eller skriv listen.",
+    "add_a_list": "Legg til en liste"
 }
