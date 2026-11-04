@@ -371,5 +371,9 @@
     "promo_hint": "Ai primit unul de la un prieten sau din newsletter? Un cod per familie.",
     "promo_invalid": "Codul nu e valid sau a expirat.",
     "promo_remove": "Șterge codul promoțional",
-    "promo_line": "Promo :code"
+    "promo_line": "Promo :code",
+    "plan_trial_cta_one": "Încep :count zi gratuită",
+    "plan_trial_cta_few": "Încep cele :count zile gratuite",
+    "plan_trial_cta_other": "Încep cele :count de zile gratuite",
+    "plan_trial_note": "Fără card. Alegi un plan oricând din Setări › Plată."
 }

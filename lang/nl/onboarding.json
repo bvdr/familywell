@@ -365,5 +365,8 @@
     "promo_hint": "Gekregen van een vriend of uit de nieuwsbrief? Eén code per gezin.",
     "promo_invalid": "Die code is ongeldig of verlopen.",
     "promo_remove": "Kortingscode verwijderen",
-    "promo_line": "Code :code"
+    "promo_line": "Code :code",
+    "plan_trial_cta_one": "Start mijn :count gratis dag",
+    "plan_trial_cta_other": "Start mijn :count gratis dagen",
+    "plan_trial_note": "Geen kaart nodig. Kies wanneer je wilt een abonnement in Instellingen › Betaling."
 }

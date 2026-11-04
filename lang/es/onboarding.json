@@ -365,5 +365,8 @@
     "promo_hint": "¿Te lo dio un amigo o llegó en la newsletter? Un código por familia.",
     "promo_invalid": "Ese código no es válido o ha caducado.",
     "promo_remove": "Quitar código promocional",
-    "promo_line": "Promo :code"
+    "promo_line": "Promo :code",
+    "plan_trial_cta_one": "Empezar mi :count día gratis",
+    "plan_trial_cta_other": "Empezar mis :count días gratis",
+    "plan_trial_note": "Sin tarjeta. Elige un plan cuando quieras en Ajustes › Facturación."
 }

@@ -365,5 +365,8 @@
     "promo_hint": "Von Freunden oder aus dem Newsletter? Ein Code pro Familie.",
     "promo_invalid": "Dieser Code ist ungültig oder abgelaufen.",
     "promo_remove": "Gutscheincode entfernen",
-    "promo_line": "Code :code"
+    "promo_line": "Code :code",
+    "plan_trial_cta_one": "Meinen :count Gratistag starten",
+    "plan_trial_cta_other": "Meine :count Gratistage starten",
+    "plan_trial_note": "Keine Karte nötig. Wähle jederzeit einen Plan unter Einstellungen › Abrechnung."
 }

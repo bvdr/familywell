@@ -12,8 +12,8 @@ use Modules\Notes\Note;
 
 use function Pest\Laravel\actingAs;
 
-// The paywall waits for real use: an unpaid family keeps full access until it has added items in
-// Engagement::MODULES_NEEDED (3) modules AND is Billing::GRACE_HOURS (24) old. No Stripe trial on top.
+// The 5-day free trial: an unpaid family keeps full access for Billing::TRIAL_DAYS after it was made, no card, then
+// gets the plan selection. Engagement (modules used) no longer gates it; it still feeds the admin's progress bar.
 
 function freeFamily(): array
 {
@@ -25,33 +25,35 @@ function freeFamily(): array
     return [$user, $family];
 }
 
-it('keeps a new unpaid family in until 3 modules AND 24 hours, then shows the paywall', function () {
+it('keeps a new unpaid family in for 5 days, however much it uses, then shows the plan selection', function () {
     [$user, $family] = freeFamily();
-    actingAs($user)->get('/dashboard')->assertOk(); // brand new: no paywall
-
-    foreach (['shopping', 'tasks', 'spending'] as $module) {
-        Engagement::record($family->id, $module);
+    foreach (['shopping', 'tasks', 'spending', 'notes'] as $module) {
+        Engagement::record($family->id, $module); // heavy use doesn't end the trial early
     }
-    expect($family->fresh()->engaged_at)->not->toBeNull();
-    actingAs($user)->get('/dashboard')->assertOk(); // 3 modules, but not 24h old yet
-
-    $this->travel(25)->hours();
-    actingAs($user)->get('/dashboard')->assertRedirect(route('onboarding.plan'));
-    // The plan selection opens for them (no onboarding step needed), not the old Billing page.
-    actingAs($user)->get('/onboarding/plan')->assertOk()->assertInertia(fn ($page) => $page->component('onboarding/plan'));
-});
-
-it('shows the paywall the moment an older family adds its 3rd module, not before', function () {
-    [$user, $family] = freeFamily();
-    $family->forceFill(['created_at' => now()->subDays(5)])->save();
-
-    Engagement::record($family->id, 'notes');
-    Engagement::record($family->id, 'notes'); // the same module twice is still one
-    Engagement::record($family->id, 'recipes');
     actingAs($user)->get('/dashboard')->assertOk();
 
-    Engagement::record($family->id, 'calendar');
+    $this->travel(4)->days();
+    actingAs($user)->get('/dashboard')->assertOk();
+    actingAs($user)->get('/settings/billing')->assertInertia(fn ($page) => $page->where('locked', false)->where('trialDaysLeft', 1));
+
+    $this->travel(1)->days();
     actingAs($user)->get('/dashboard')->assertRedirect(route('onboarding.plan'));
+    actingAs($user)->get('/onboarding/plan')->assertOk()->assertInertia(fn ($page) => $page->component('onboarding/plan')->where('trialDaysLeft', 0));
+});
+
+it('starts the trial from the plan step with no card, only while it lasts', function () {
+    [$user, $family] = freeFamily();
+    $user->forceFill(['onboarding_step' => 'plan'])->save();
+    session(['active_family_id' => $family->id]);
+
+    actingAs($user)->get('/onboarding/plan')->assertInertia(fn ($page) => $page->where('trialDaysLeft', 5));
+    actingAs($user)->post('/onboarding/plan/trial')->assertRedirect(route('onboarding.ready'));
+    expect($user->fresh()->onboarding_step)->toBe('ready');
+
+    // After the trial the plan step is the paywall: no way past it without paying.
+    pastFreePeriod($family);
+    $user->forceFill(['onboarding_step' => 'plan'])->save();
+    actingAs($user->fresh())->post('/onboarding/plan/trial')->assertForbidden();
 });
 
 it('counts the items people add (any path), not the containers the app or they set up', function () {
@@ -77,7 +79,7 @@ it('rebuilds activity for existing families from the items they already have', f
     Engagement::backfill(); // idempotent
 
     expect(DB::table('family_module_activity')->where('family_id', $family->id)->count())->toBe(1)
-        ->and($family->fresh()->engaged_at)->toBeNull(); // one module: still free
+        ->and($family->fresh()->engaged_at)->toBeNull(); // one module: not engaged yet
 });
 
 it('lets a free-period family open the plans and go back; a paid one sees its plan', function () {
@@ -108,7 +110,7 @@ it('shows each family\'s module progress and paywall time in the admin API', fun
     expect(collect($item['modules'])->pluck('name')->all())->toBe(['Shopping', 'Tasks', 'Spending'])
         ->and($item['needed'])->toBe(3)
         ->and($item['engagedAt'])->toStartWith('2026-10-10T11:00:00')
-        ->and($item['paywallAt'])->toStartWith('2026-10-11T08:00:00'); // created + 24h, later than engaged
+        ->and($item['paywallAt'])->toStartWith('2026-10-15T08:00:00'); // created + the 5-day trial
 
     $listed = collect($this->withToken($token)->getJson('/api/admin/families')->assertOk()->json('items'))->firstWhere('id', $family->id);
     expect(count($listed['engagement']['modules']))->toBe(3)->and($listed['paying'])->toBeFalse();

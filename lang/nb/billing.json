@@ -31,5 +31,7 @@
     "months_free_other": ":count måneder gratis",
     "cta": "Kom i gang med FamilyWell · :price",
     "price_yr": ":amount/år",
-    "price_mo": ":amount/md."
+    "price_mo": ":amount/md.",
+    "trial_left_one": ":count dag igjen av gratisperioden.",
+    "trial_left_other": ":count dager igjen av gratisperioden."
 }

@@ -35,6 +35,7 @@ type Props = {
     plan: string | null; // 'monthly' | 'yearly' | 'unknown', null until synced from Stripe
     periodEnd: string | null; // ISO; when the current period renews (or ends, when canceling)
     canceling: boolean; // canceled at period end: access runs until periodEnd, then stops
+    trialDaysLeft?: number; // free-trial days left, 0 = over (Billing::trialDaysLeft)
     locked: boolean; // free period over: the app redirects here. False = came here on their own, can go back
     pricing: CheckoutPricing & { spotsLeft: number };
     // The onboarding checkout's inputs (unpaid families only, see BillingController::show).
@@ -68,7 +69,13 @@ export default function Billing(props: Props) {
     }
 
     const title = t('billing.choose_title');
-    const lede = t('billing.locked_desc', { family: family.name });
+    // In the free trial (not locked yet): how many days are left, after the one-plan line.
+    const lede = [
+        t('billing.locked_desc', { family: family.name }),
+        !locked && props.trialDaysLeft ? t('billing.trial_left', { count: props.trialDaysLeft }) : null,
+    ]
+        .filter(Boolean)
+        .join(' ');
 
     if (locked) {
         return (

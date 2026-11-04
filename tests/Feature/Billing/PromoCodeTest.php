@@ -16,7 +16,6 @@ function promoFamily(): User
         'services.stripe.price_yearly' => 'price_y', 'services.stripe.price_monthly' => 'price_m']);
     $user = User::factory()->create(['onboarding_step' => 'plan']);
     $family = Family::factory()->create(['owner_id' => $user->id]);
-    $family->forceFill(['hard_paywall' => true])->save();
     $family->members()->attach($user, ['role' => 'admin']);
 
     return $user;

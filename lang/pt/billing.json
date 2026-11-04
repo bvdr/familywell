@@ -31,5 +31,7 @@
     "months_free_other": ":count meses grátis",
     "cta": "Comece seu FamilyWell · :price",
     "price_yr": ":amount/ano",
-    "price_mo": ":amount/mês"
+    "price_mo": ":amount/mês",
+    "trial_left_one": "Falta :count dia do teu período grátis.",
+    "trial_left_other": "Faltam :count dias do teu período grátis."
 }
