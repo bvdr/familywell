@@ -25,7 +25,9 @@ export function voiceSupported(): boolean {
     return typeof window !== 'undefined' && !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== 'undefined';
 }
 
-export function useVoice(onText: (text: string) => void) {
+// onLevel: take the loudness (0-1, every 50ms) as a callback instead of the `levels` state. The shopping list uses it so
+// a 20-a-second level doesn't re-render the whole list page; it draws the bars from a ref.
+export function useVoice(onText: (text: string) => void, onLevel?: (level: number) => void) {
     const [listening, setListening] = useState(false);
     const [seconds, setSeconds] = useState(0);
     const [levels, setLevels] = useState<number[]>(() => Array(BARS).fill(0));
@@ -38,6 +40,8 @@ export function useVoice(onText: (text: string) => void) {
     const inFlight = useRef(false);
     const onTextRef = useRef(onText);
     onTextRef.current = onText;
+    const onLevelRef = useRef(onLevel);
+    onLevelRef.current = onLevel;
     const stopRef = useRef<() => Promise<void>>(async () => {});
 
     const send = useCallback(async (blob: Blob): Promise<void> => {
@@ -95,7 +99,9 @@ export function useVoice(onText: (text: string) => void) {
                 // the bars are the person's own voice, newest on the right.
                 analyser.getByteTimeDomainData(buf);
                 const rms = Math.sqrt(buf.reduce((sum, v) => sum + ((v - 128) / 128) ** 2, 0) / buf.length);
-                setLevels((cur) => [...cur.slice(1), Math.min(1, rms * 6)]);
+                const level = Math.min(1, rms * 6);
+                if (onLevelRef.current) onLevelRef.current(level);
+                else setLevels((cur) => [...cur.slice(1), level]);
                 setSeconds(Math.floor((Date.now() - started) / 1000));
             }, 50),
             // Two minutes: a proper stop (final words in, microphone released). Timer ids share one pool, so the
