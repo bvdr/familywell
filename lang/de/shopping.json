@@ -252,5 +252,14 @@
     "pause_hint": "2 Sekunden Pause, dann bin ich fertig",
     "on_this_list": "schon auf dieser Liste",
     "item_name": "Artikel",
+    "mic_intro_title": "Sag deine Liste laut",
+    "mic_intro_sub": "„Milch, Eier, ein paar Bananen …“ und ich mache daraus Artikel, sortiert nach Gang.",
+    "mic_intro_open": "Hört nur zu, solange dieser Bildschirm offen ist",
+    "mic_intro_words": "Nur die Wörter bleiben, nie die Aufnahme",
+    "mic_intro_settings": "Jederzeit in den Einstellungen änderbar",
+    "allow_mic": "Mikrofon erlauben",
+    "type_instead": "Lieber schreiben",
+    "mic_denied_title": "Das Mikrofon ist aus",
+    "mic_denied_sub": "Schalte es in den Einstellungen deines Handys für diese App wieder ein (iPhone: Einstellungen › Apps › Safari › Mikrofon) oder schreib deine Liste.",
     "add_a_list": "Liste hinzufügen"
 }

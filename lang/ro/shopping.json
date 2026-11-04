@@ -261,5 +261,14 @@
     "pause_hint": "Fă o pauză de 2 secunde și închei",
     "on_this_list": "deja pe această listă",
     "item_name": "Produs",
+    "mic_intro_title": "Spune lista cu voce tare",
+    "mic_intro_sub": "„Lapte, ouă, câteva banane...” și o împart în produse, sortate pe raioane.",
+    "mic_intro_open": "Ascultă doar cât timp acest ecran e deschis",
+    "mic_intro_words": "Rămân doar cuvintele, niciodată înregistrarea",
+    "mic_intro_settings": "Poți schimba oricând din Setări",
+    "allow_mic": "Permite microfonul",
+    "type_instead": "Scrie în schimb",
+    "mic_denied_title": "Microfonul e oprit",
+    "mic_denied_sub": "Pornește-l din setările telefonului pentru această aplicație (pe iPhone: Setări › Aplicații › Safari › Microfon) sau scrie lista.",
     "add_a_list": "Adaugă o listă"
 }

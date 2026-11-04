@@ -252,5 +252,14 @@
     "pause_hint": "Pausa i 2 sekunder så avslutar jag",
     "on_this_list": "finns redan på listan",
     "item_name": "Vara",
+    "mic_intro_title": "Säg din lista högt",
+    "mic_intro_sub": "”Mjölk, ägg, några bananer ...” så delar jag upp den i varor sorterade efter avdelning.",
+    "mic_intro_open": "Lyssnar bara medan den här skärmen är öppen",
+    "mic_intro_words": "Bara orden sparas, aldrig ljudet",
+    "mic_intro_settings": "Ändra när du vill i Inställningar",
+    "allow_mic": "Tillåt mikrofon",
+    "type_instead": "Skriv i stället",
+    "mic_denied_title": "Mikrofonen är av",
+    "mic_denied_sub": "Slå på den igen i telefonens inställningar för appen (på iPhone: Inställningar › Appar › Safari › Mikrofon) eller skriv din lista.",
     "add_a_list": "Lägg till en lista"
 }

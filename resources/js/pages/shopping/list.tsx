@@ -28,6 +28,7 @@ import { SettingsSwitch } from '@/components/settings-ui';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
 import { ListSettingsSheet, type ListDefaults, type ListPrefs } from '@/components/shopping/list-settings-sheet';
 import { VoiceListening } from '@/components/shopping/voice-listening';
+import { VoiceMicIntro } from '@/components/shopping/voice-mic-intro';
 import { VoiceReview } from '@/components/shopping/voice-review';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -88,10 +89,29 @@ type SpeechRec = {
     lang: string;
     onresult: (e: SpeechResultEvent) => void;
     onend: () => void;
+    onerror: (e: { error: string }) => void;
     start: () => void;
     stop: () => void;
 };
 type SpeechCtor = new () => SpeechRec;
+
+// The mic intro (design S3a) shows once per device: after "Allow microphone" the browser remembers the answer itself.
+// try/catch: storage can throw (private mode); then the intro just shows again next time.
+const MIC_INTRO_KEY = 'familywell:micIntroSeen';
+const micIntroSeen = () => {
+    try {
+        return localStorage.getItem(MIC_INTRO_KEY) === '1';
+    } catch {
+        return false;
+    }
+};
+const markMicIntroSeen = () => {
+    try {
+        localStorage.setItem(MIC_INTRO_KEY, '1');
+    } catch {
+        /* shows again next time */
+    }
+};
 
 export default function ListDetail({
     list: serverList,
@@ -164,6 +184,8 @@ export default function ListDetail({
     const [listening, setListening] = useState(false);
     // "Type" on the listening screen: the same overlay with the textarea instead (what was said so far kept).
     const [typing, setTyping] = useState(false);
+    // S3a over the listening screen: 'intro' before the first-ever listen, 'denied' after the mic was refused.
+    const [micIntro, setMicIntro] = useState<'intro' | 'denied' | null>(null);
     // Dictation language: the Shopping settings choice (per device), also switchable from the listening screen's EN pill.
     const [voiceLang, setLang] = useState(getVoiceLang);
     // S3b "Pause for 2 seconds and I'll wrap up": reset on every result, fires Done after 2s without one.
@@ -414,12 +436,16 @@ export default function ListDetail({
         setTranscript('');
         setInterim('');
         setTyping(false);
+        setMicIntro(null);
         setParsed([]);
         setMode(from);
         setStage(from);
         setVoiceOpen(true);
+        if (from !== 'voice' || !speechSupported) return;
+        // The first time on this device: the intro first; its Allow tap starts listening (and the system prompts).
+        if (!micIntroSeen()) setMicIntro('intro');
         // Straight into listening (design S3b), inside this tap: iOS only starts recognition from a user gesture.
-        if (from === 'voice' && speechSupported) startListening(voiceLang);
+        else startListening(voiceLang);
     };
     // "Paste a list": same overlay + review + bulk-add as voice, just a textarea and the line-aware
     // server split (shopping.paste) instead of dictation.
@@ -462,6 +488,13 @@ export default function ListDetail({
         // Only the current recognizer may flip the state: a stopped one ends AFTER its replacement started.
         rec.onend = () => {
             if (recRef.current === rec) setListening(false);
+        };
+        // Mic or speech recognition refused (now or earlier): the intro's denied state, with the way back and Type.
+        rec.onerror = (e) => {
+            if (recRef.current === rec && (e.error === 'not-allowed' || e.error === 'service-not-allowed')) {
+                stopListening();
+                setMicIntro('denied');
+            }
         };
         rec.start();
         recRef.current = rec;
@@ -879,7 +912,21 @@ export default function ListDetail({
                         // The review is a sheet over the dimmed list (design S3); the other stages fill the screen.
                         className={`fixed inset-0 z-[60] flex flex-col ${stage === 'review' ? 'bg-ink/60' : 'bg-primary text-primary-foreground'}`}
                     >
-                        {stage === 'voice' && speechSupported && !typing ? (
+                        {micIntro ? (
+                            <VoiceMicIntro
+                                denied={micIntro === 'denied'}
+                                onAllow={() => {
+                                    markMicIntroSeen();
+                                    setMicIntro(null);
+                                    startListening(voiceLang); // still inside the tap, as iOS requires
+                                }}
+                                onType={() => {
+                                    setMicIntro(null);
+                                    setTyping(true);
+                                }}
+                                onClose={closeVoice}
+                            />
+                        ) : stage === 'voice' && speechSupported && !typing ? (
                             <VoiceListening
                                 listName={list.name}
                                 finalText={transcript.slice(0, transcript.length - interim.length)}

@@ -252,5 +252,14 @@
     "pause_hint": "Haz una pausa de 2 segundos y termino",
     "on_this_list": "ya está en esta lista",
     "item_name": "Artículo",
+    "mic_intro_title": "Di tu lista en voz alta",
+    "mic_intro_sub": "«Leche, huevos, unos plátanos...» y lo separo en artículos ordenados por pasillo.",
+    "mic_intro_open": "Solo escucha mientras esta pantalla está abierta",
+    "mic_intro_words": "Solo se guardan las palabras, nunca el audio",
+    "mic_intro_settings": "Cámbialo cuando quieras en Ajustes",
+    "allow_mic": "Permitir micrófono",
+    "type_instead": "Escribir en su lugar",
+    "mic_denied_title": "El micrófono está desactivado",
+    "mic_denied_sub": "Actívalo en los ajustes del teléfono para esta app (en iPhone: Ajustes › Apps › Safari › Micrófono) o escribe tu lista.",
     "add_a_list": "Añadir una lista"
 }
