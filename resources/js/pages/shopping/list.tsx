@@ -13,13 +13,14 @@ import {
     MoreHorizontal,
     Plus,
     ShoppingBasket,
-    Sparkles,
     Store,
     Trash2,
     UserPlus,
     X,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+
+import { syncThemeColor } from '@/hooks/use-appearance';
 import { createPortal } from 'react-dom';
 
 import { DuplicateWarning } from '@/components/duplicate-warning';
@@ -28,15 +29,19 @@ import { Picker } from '@/components/picker';
 import { SettingsSwitch } from '@/components/settings-ui';
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
 import { ListSettingsSheet, type ListDefaults, type ListPrefs } from '@/components/shopping/list-settings-sheet';
+import { IOS, VoiceListening } from '@/components/shopping/voice-listening';
+import { VoiceMicIntro } from '@/components/shopping/voice-mic-intro';
+import { VoiceReview } from '@/components/shopping/voice-review';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useOptimistic } from '@/hooks/use-optimistic';
+import { useVoice, voiceSupported } from '@/hooks/use-voice';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
 import { save } from '@/lib/save';
-import { aisleIcon, bumpQuantity, getVoiceLang, normalizeItemName } from '@/lib/shopping';
+import { aisleIcon, bumpQuantity, getVoiceLang, normalizeItemName, setVoiceLang } from '@/lib/shopping';
 import { newClientKey, PendingAdds, saveTick, send, useQueuedBought } from '@/lib/shopping-outbox';
 import { type BreadcrumbItem } from '@/types';
 
@@ -79,17 +84,37 @@ type Parsed = { name: string; quantity: string; department: string; note: string
 type Aisle = { slug: string; name: string; icon: string };
 
 // Minimal shape of the native SpeechRecognition API (not in the TS DOM lib; Chrome/Safari incl. iOS).
-type SpeechResultEvent = { results: ArrayLike<ArrayLike<{ transcript: string }>> };
+// isFinal: the browser won't change that part any more; the rest (interim) is its live guess, drawn dimmed.
+type SpeechResultEvent = { results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }> };
 type SpeechRec = {
     continuous: boolean;
     interimResults: boolean;
     lang: string;
     onresult: (e: SpeechResultEvent) => void;
     onend: () => void;
+    onerror: (e: { error: string }) => void;
     start: () => void;
     stop: () => void;
 };
 type SpeechCtor = new () => SpeechRec;
+
+// The mic intro (design S3a) shows once per device: after "Allow microphone" the browser remembers the answer itself.
+// try/catch: storage can throw (private mode); then the intro just shows again next time.
+const MIC_INTRO_KEY = 'familywell:micIntroSeen';
+const micIntroSeen = () => {
+    try {
+        return localStorage.getItem(MIC_INTRO_KEY) === '1';
+    } catch {
+        return false;
+    }
+};
+const markMicIntroSeen = () => {
+    try {
+        localStorage.setItem(MIC_INTRO_KEY, '1');
+    } catch {
+        /* shows again next time */
+    }
+};
 
 export default function ListDetail({
     list: serverList,
@@ -102,7 +127,6 @@ export default function ListDetail({
     shops = [],
     shopLogos = {},
     defaults,
-    aiEnabled,
 }: {
     list: List;
     items: Item[];
@@ -114,7 +138,6 @@ export default function ListDetail({
     shops?: string[];
     shopLogos?: Record<string, string | null>;
     defaults: ListDefaults;
-    aiEnabled: boolean;
 }) {
     const t = useT();
     // Optimistic list fields: rename / visibility / edit-drawer saves render instantly by shadowing the
@@ -159,14 +182,36 @@ export default function ListDetail({
     // Which input the review screen came from, so Redo / "add more" go back to the same one.
     const [mode, setMode] = useState<'voice' | 'paste'>('voice');
     const [transcript, setTranscript] = useState('');
+    // The tail of `transcript` the browser may still rewrite (interim results): the listening screen dims it.
+    const [interim, setInterim] = useState('');
     const [listening, setListening] = useState(false);
-    // Dictation language is chosen on the module Settings page; read the saved choice on mount.
-    const [voiceLang] = useState(getVoiceLang);
+    // The recognizer's last error code (e.g. 'no-speech', 'audio-capture', 'network'), shown on the listening screen.
+    // Before, every error but a refusal was swallowed, so a failing recognizer looked like a frozen "Listening" screen.
+    const [voiceError, setVoiceError] = useState<string | null>(null);
+    // "Type" on the listening screen: the same overlay with the textarea instead (what was said so far kept).
+    const [typing, setTyping] = useState(false);
+    // S3a over the listening screen: 'intro' before the first-ever listen, 'denied' after the mic was refused.
+    const [micIntro, setMicIntro] = useState<'intro' | 'denied' | null>(null);
+    // Dictation language: the Shopping settings choice (per device), also switchable from the listening screen's EN pill.
+    const [voiceLang, setLang] = useState(getVoiceLang);
+    // S3b "Pause for 2 seconds and I'll wrap up": reset on every result, fires Done after 2s without one.
+    const silenceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
     const [parsing, setParsing] = useState(false);
     const [parsed, setParsed] = useState<Parsed[]>([]);
     const recRef = useRef<{ stop: () => void } | null>(null);
     // Web Speech API is a native browser feature (Chrome/Safari incl. iOS); when absent we fall back to typing.
-    const speechSupported = typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+    // The phone's status bar takes <meta theme-color> (iOS and Android): paint it ink while the full-screen ink voice
+    // screens (mic intro, listening) are up, so the top isn't a light strip above them; back to the page colour after.
+    const inkScreen = voiceOpen && stage !== 'review' && (micIntro !== null || (stage === 'voice' && !typing));
+    useEffect(() => {
+        if (!inkScreen) return;
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#121100'); // --color-ink
+        return syncThemeColor;
+    }, [inkScreen]);
+    // iPhone records instead of using Web Speech (see the recorder below), so there it needs MediaRecorder.
+    const speechSupported = IOS
+        ? voiceSupported()
+        : typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
 
     const memberById = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
 
@@ -406,43 +451,139 @@ export default function ListDetail({
 
     const openVoice = (from: 'voice' | 'paste' = 'voice') => {
         setTranscript('');
+        setInterim('');
+        setTyping(false);
+        setMicIntro(null);
         setParsed([]);
         setMode(from);
         setStage(from);
         setVoiceOpen(true);
+        if (from !== 'voice' || !speechSupported) return;
+        // The first time on this device: the intro first; its Allow tap starts listening (and the system prompts).
+        if (!micIntroSeen()) setMicIntro('intro');
+        // Straight into listening (design S3b), inside this tap: iOS only starts recognition from a user gesture.
+        else startListening(voiceLang);
     };
     // "Paste a list": same overlay + review + bulk-add as voice, just a textarea and the line-aware
     // server split (shopping.paste) instead of dictation.
     const openPaste = () => openVoice('paste');
-    const closeVoice = () => {
+    const stopListening = () => {
+        clearTimeout(silenceRef.current);
         recRef.current?.stop();
+        recRef.current = null;
         setListening(false);
+    };
+    const closeVoice = () => {
+        stopListening();
         setVoiceOpen(false);
     };
+
+    // iPhone/iPad: record and transcribe on the server (the "Just say it" recorder, Whisper) instead of Web Speech.
+    // There webkitSpeechRecognition started, held the mic (orange dot) and never returned a word or an error, in the
+    // Home Screen app at least (WebKit bug 225298: not available in Home Screen web apps) and with continuous mode
+    // (reported deaf on iOS in Safari too). The recorder works in both. Words arrive every ~4s instead of live, and
+    // Whisper detects the language itself. Free, but it needs AI points left (409 'out').
+    const heardRef = useRef(''); // the latest words from the recorder (its callbacks outlive renders)
+    const levelRef = useRef(0); // its loudness, read by the waveform every frame (no re-render per level)
+    const lastLoudRef = useRef(0);
+    const finishingRef = useRef(false);
+    const recorder = useVoice(
+        (text) => {
+            heardRef.current = text;
+            setTranscript(text);
+        },
+        (level) => {
+            levelRef.current = level;
+            const now = performance.now();
+            if (level > 0.08) lastLoudRef.current = now;
+            // The same "pause and I'll wrap up" as Web Speech's 2s silence timer: quiet for 2.5s after words came in.
+            else if (heardRef.current.trim() && now - lastLoudRef.current > 2500) void finishRecording();
+        },
+    );
+    // Stop, get the final words for the whole recording, then sort them (or open typing when nothing was said).
+    const finishRecording = async () => {
+        if (finishingRef.current) return;
+        finishingRef.current = true;
+        clearTimeout(silenceRef.current);
+        setParsing(true); // the Done spinner while the last words are read
+        await recorder.stop();
+        recRef.current = null;
+        setListening(false);
+        finishingRef.current = false;
+        setParsing(false);
+        if (heardRef.current.trim()) void runParseRef.current(heardRef.current);
+        else setTyping(true);
+    };
+    // A refused mic: the intro's denied state; no points left or the reader down: the message on the listening screen.
+    useEffect(() => {
+        if (!recorder.error) return;
+        recRef.current = null;
+        setListening(false);
+        if (recorder.error === 'denied') setMicIntro('denied');
+        else setVoiceError(recorder.error);
+    }, [recorder.error]);
 
     // Start dictation in a specific language. The Web Speech API can't auto-detect the spoken language,
     // it needs a BCP-47 code up front, so the user picks via the chips (default Romanian, remembered).
     const startListening = (lang: string) => {
+        if (IOS) {
+            stopListening();
+            setVoiceError(null);
+            heardRef.current = '';
+            lastLoudRef.current = performance.now();
+            void recorder.start(); // inside the tap: getUserMedia and the AudioContext need the gesture
+            recRef.current = { stop: recorder.cancel };
+            setListening(true);
+            return;
+        }
         const w = window as unknown as { SpeechRecognition?: SpeechCtor; webkitSpeechRecognition?: SpeechCtor };
         const SR = w.SpeechRecognition ?? w.webkitSpeechRecognition;
         if (!SR) return;
+        stopListening(); // Redo / a new language: one recognizer at a time
+        setVoiceError(null);
         const rec = new SR();
         rec.continuous = true;
         rec.interimResults = true;
         rec.lang = lang;
         rec.onresult = (e: SpeechResultEvent) => {
-            let text = '';
-            for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript;
-            setTranscript(text);
+            let done = '';
+            let live = '';
+            for (let i = 0; i < e.results.length; i++) {
+                if (e.results[i].isFinal) done += e.results[i][0].transcript;
+                else live += e.results[i][0].transcript;
+            }
+            setTranscript(done + live);
+            setInterim(live);
+            clearTimeout(silenceRef.current);
+            // Through a ref: this closure is from the render that started listening, and runParse reads `mode`.
+            silenceRef.current = setTimeout(() => runParseRef.current(done + live), 2000);
         };
-        rec.onend = () => setListening(false);
+        // Only the current recognizer may flip the state: a stopped one ends AFTER its replacement started.
+        rec.onend = () => {
+            if (recRef.current === rec) setListening(false);
+        };
+        // Mic or speech recognition refused (now or earlier): the intro's denied state, with the way back and Type.
+        rec.onerror = (e) => {
+            // 'aborted' is our own stop() (Redo, language change, close): not an error.
+            if (recRef.current !== rec || e.error === 'aborted') return;
+            stopListening();
+            if (e.error === 'not-allowed' || e.error === 'service-not-allowed') setMicIntro('denied');
+            else setVoiceError(e.error);
+        };
         rec.start();
         recRef.current = rec;
         setListening(true);
     };
-    const toggleListening = () => {
-        if (listening) recRef.current?.stop();
-        else startListening(voiceLang);
+    // The review's "already on this list" row: the active item it matches (same normalized name as the server's check).
+    const reviewDup = (it: Parsed) =>
+        it.on_list ? liveItems.find((i) => !isBought(i) && normalizeItemName(i.name) === normalizeItemName(it.name)) : undefined;
+    // From the review: Redo / "Add more by voice" go back to the input they came from, listening again (design S3 -> S3b).
+    const backToInput = () => {
+        setTranscript('');
+        setInterim('');
+        setTyping(false);
+        setStage(mode);
+        if (mode === 'voice' && speechSupported) startListening(voiceLang);
     };
 
     // Offline fallback (used only if the AI parse can't be reached): split a run-on list on commas,
@@ -458,10 +599,10 @@ export default function ListDetail({
             .filter(Boolean)
             .map((name) => ({ name, quantity: '', department: 'other', note: '' }));
 
-    const runParse = async () => {
-        recRef.current?.stop();
-        setListening(false);
-        const text = transcript.trim();
+    // `said` lets the silence timer pass the text it heard (its closure's `transcript` is stale).
+    const runParse = async (said: string = transcript) => {
+        stopListening();
+        const text = said.trim();
         if (!text) return;
         setParsing(true);
         try {
@@ -476,7 +617,10 @@ export default function ListDetail({
                 credentials: 'same-origin',
                 body: JSON.stringify(mode === 'paste' ? { text } : { transcript: text }),
             });
-            const items: Parsed[] = res.ok ? (await res.json()).items : naiveParse(text);
+            // The server sends null for an empty quantity/note; Parsed (and the review's stepper) wants strings.
+            const items: Parsed[] = res.ok
+                ? ((await res.json()).items as Parsed[]).map((x) => ({ ...x, quantity: x.quantity ?? '', note: x.note ?? '' }))
+                : naiveParse(text);
             setParsed((prev) => [...prev, ...items]);
         } catch {
             setParsed((prev) => [...prev, ...naiveParse(text)]);
@@ -485,6 +629,8 @@ export default function ListDetail({
             setStage('review');
         }
     };
+    const runParseRef = useRef(runParse);
+    runParseRef.current = runParse;
 
     // `addingAll` guards against a double-tap posting the batch twice (the reported voice-dictation
     // duplication): a ref, not state, so a second synchronous tap sees the flag immediately, before
@@ -836,8 +982,65 @@ export default function ListDetail({
             {/* Voice dictation + AI review, portaled full-screen over everything. */}
             {voiceOpen &&
                 createPortal(
-                    <div className="bg-primary text-primary-foreground fixed inset-0 z-[60] flex flex-col">
-                        {stage !== 'review' ? (
+                    <div
+                        // The review is a sheet over the dimmed list (design S3); the other stages fill the screen.
+                        className={`fixed inset-0 z-[60] flex flex-col ${stage === 'review' ? 'bg-ink/60' : 'bg-primary text-primary-foreground'}`}
+                    >
+                        {micIntro ? (
+                            <VoiceMicIntro
+                                denied={micIntro === 'denied'}
+                                onAllow={() => {
+                                    markMicIntroSeen();
+                                    setMicIntro(null);
+                                    startListening(voiceLang); // still inside the tap, as iOS requires
+                                }}
+                                onType={() => {
+                                    setMicIntro(null);
+                                    setTyping(true);
+                                }}
+                                onClose={closeVoice}
+                            />
+                        ) : stage === 'voice' && speechSupported && !typing ? (
+                            <VoiceListening
+                                listName={list.name}
+                                finalText={transcript.slice(0, transcript.length - interim.length)}
+                                interim={interim}
+                                // Items heard so far, from the offline splitter on the settled text only (the AI sort
+                                // runs on Done). Capitalised like list items.
+                                chips={naiveParse(transcript.slice(0, transcript.length - interim.length)).map(
+                                    (p) => p.name.charAt(0).toLocaleUpperCase() + p.name.slice(1),
+                                )}
+                                listening={listening}
+                                parsing={parsing}
+                                lang={voiceLang}
+                                onLang={(code) => {
+                                    setVoiceLang(code);
+                                    setLang(code);
+                                    startListening(code);
+                                }}
+                                onClose={closeVoice}
+                                onStart={() => startListening(voiceLang)}
+                                // Nothing heard yet: Done still does something useful, it stops and opens typing.
+                                onDone={() => {
+                                    if (IOS) return void finishRecording(); // its words may still be on the way
+                                    if (transcript.trim()) return runParse();
+                                    stopListening();
+                                    setTyping(true);
+                                }}
+                                error={voiceError}
+                                level={IOS ? levelRef : undefined}
+                                onRedo={() => {
+                                    setTranscript('');
+                                    setInterim('');
+                                    startListening(voiceLang);
+                                }}
+                                onType={() => {
+                                    stopListening();
+                                    setInterim('');
+                                    setTyping(true);
+                                }}
+                            />
+                        ) : stage !== 'review' ? (
                             <>
                                 <div className="flex justify-end px-5 pt-[calc(1rem+env(safe-area-inset-top))]">
                                     <button
@@ -850,53 +1053,23 @@ export default function ListDetail({
                                     </button>
                                 </div>
                                 <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
-                                    {stage === 'voice' && speechSupported && (
-                                        <button
-                                            type="button"
-                                            onClick={toggleListening}
-                                            aria-label={listening ? t('shopping.stop_listening') : t('shopping.start_listening')}
-                                            className="bg-primary-foreground/15 relative flex size-28 items-center justify-center rounded-full"
-                                        >
-                                            {listening && <span className="bg-primary-foreground/20 absolute inset-0 animate-ping rounded-full" />}
-                                            <Mic className="size-11" />
-                                        </button>
-                                    )}
-                                    {listening && (
-                                        <div className="flex h-8 items-end gap-1">
-                                            {[0, 1, 2, 3, 4, 5, 6].map((i) => (
-                                                <span
-                                                    key={i}
-                                                    className="bg-primary-foreground/70 w-1 animate-pulse rounded-full"
-                                                    style={{ height: `${8 + ((i * 7) % 24)}px`, animationDelay: `${i * 90}ms` }}
-                                                />
-                                            ))}
-                                        </div>
-                                    )}
-                                    {stage === 'voice' && speechSupported ? (
-                                        transcript ? (
-                                            <p className="text-lg leading-relaxed">{transcript}</p>
-                                        ) : (
-                                            <p className="text-accent-strong-foreground/70 text-sm">{t('shopping.voice_prompt')}</p>
-                                        )
-                                    ) : (
-                                        <>
-                                            <p className="text-accent-strong-foreground/70 text-sm">
-                                                {t(stage === 'paste' ? 'shopping.paste_prompt' : 'shopping.type_prompt')}
-                                            </p>
-                                            <textarea
-                                                autoFocus
-                                                value={transcript}
-                                                onChange={(e) => setTranscript(e.target.value)}
-                                                placeholder={t(stage === 'paste' ? 'shopping.paste_placeholder' : 'shopping.voice_placeholder')}
-                                                className={`border-primary-foreground/20 placeholder:text-accent-strong-foreground/40 w-full rounded-xl border bg-transparent p-3 text-base outline-none ${stage === 'paste' ? 'min-h-56' : 'min-h-28'}`}
-                                            />
-                                        </>
-                                    )}
+                                    {/* Paste, Type (from the listening screen) and browsers without speech: a textarea. Listening
+                                        itself is VoiceListening above. */}
+                                    <p className="text-accent-strong-foreground/70 text-sm">
+                                        {t(stage === 'paste' ? 'shopping.paste_prompt' : 'shopping.type_prompt')}
+                                    </p>
+                                    <textarea
+                                        autoFocus
+                                        value={transcript}
+                                        onChange={(e) => setTranscript(e.target.value)}
+                                        placeholder={t(stage === 'paste' ? 'shopping.paste_placeholder' : 'shopping.voice_placeholder')}
+                                        className={`border-primary-foreground/20 placeholder:text-accent-strong-foreground/40 w-full rounded-xl border bg-transparent p-3 text-base outline-none ${stage === 'paste' ? 'min-h-56' : 'min-h-28'}`}
+                                    />
                                 </div>
                                 <div className="px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
                                     <button
                                         type="button"
-                                        onClick={runParse}
+                                        onClick={() => runParse()}
                                         disabled={!transcript.trim() || parsing}
                                         className="bg-primary-foreground text-primary flex w-full items-center justify-center gap-2 rounded-xl py-3.5 font-medium disabled:opacity-50"
                                     >
@@ -906,125 +1079,41 @@ export default function ListDetail({
                                 </div>
                             </>
                         ) : (
-                            <>
-                                <div className="flex items-center justify-between px-5 pt-[calc(1rem+env(safe-area-inset-top))] pb-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setParsed([]);
-                                            setTranscript('');
-                                            setStage(mode);
-                                        }}
-                                        className="text-accent-strong-foreground/80 flex items-center gap-1 text-sm"
-                                    >
-                                        <ChevronLeft className="size-4" /> {t('shopping.redo')}
-                                    </button>
-                                    {aiEnabled && (
-                                        <span className="bg-primary-foreground/15 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium">
-                                            <Sparkles className="size-3.5" /> {t('shopping.organized_by_ai')}
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="flex-1 space-y-4 overflow-y-auto px-5 pb-[calc(9rem+env(safe-area-inset-bottom))]">
-                                    <div>
-                                        <h2 className="font-heading text-2xl">
-                                            {t(mode === 'paste' ? 'shopping.pasted_heading' : 'shopping.heard_heading')}
-                                        </h2>
-                                        {transcript && mode === 'voice' && (
-                                            <p className="text-accent-strong-foreground/70 mt-2 text-sm italic">"{transcript}"</p>
-                                        )}
-                                        <p className="text-accent-strong-foreground/70 mt-2 text-sm">
-                                            {t(parsed.length === 1 ? 'shopping.items_sorted_one' : 'shopping.items_sorted_other', {
-                                                n: parsed.length,
-                                            })}
-                                        </p>
-                                    </div>
-                                    {aislesFor(list.store)
-                                        .map((a) => ({
-                                            aisle: a,
-                                            entries: parsed.map((it, idx) => ({ it, idx })).filter((e) => e.it.department === a.slug),
-                                        }))
-                                        .filter((g) => g.entries.length > 0)
-                                        .map((group) => {
-                                            const AisleIcon = aisleIcon(group.aisle.icon);
-                                            return (
-                                                <section key={group.aisle.slug} className="space-y-2">
-                                                    <h3 className="text-accent-strong-foreground/60 flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase">
-                                                        <AisleIcon className="size-3.5" /> {group.aisle.name}
-                                                    </h3>
-                                                    {group.entries.map(({ it, idx }) => (
-                                                        <div
-                                                            key={idx}
-                                                            className="border-primary-foreground/15 flex items-center gap-3 rounded-xl border p-3"
-                                                        >
-                                                            <div className="min-w-0 flex-1">
-                                                                {it.on_list && (
-                                                                    <span className="border-primary-foreground/25 mb-1 inline-block rounded-md border px-1.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase opacity-80">
-                                                                        {t('shopping.on_list_tag')}
-                                                                    </span>
-                                                                )}
-                                                                <input
-                                                                    value={it.name}
-                                                                    onChange={(e) =>
-                                                                        setParsed((p) =>
-                                                                            p.map((x, i) => (i === idx ? { ...x, name: e.target.value } : x)),
-                                                                        )
-                                                                    }
-                                                                    className="w-full bg-transparent font-medium outline-none"
-                                                                />
-                                                                <input
-                                                                    value={[it.quantity, it.note].filter(Boolean).join(' · ')}
-                                                                    onChange={(e) =>
-                                                                        setParsed((p) =>
-                                                                            p.map((x, i) =>
-                                                                                i === idx ? { ...x, quantity: e.target.value, note: '' } : x,
-                                                                            ),
-                                                                        )
-                                                                    }
-                                                                    placeholder={t('shopping.quantity')}
-                                                                    className="text-accent-strong-foreground/60 w-full bg-transparent text-sm outline-none"
-                                                                />
-                                                            </div>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setParsed((p) => p.filter((_, i) => i !== idx))}
-                                                                aria-label={t('shopping.remove')}
-                                                                className="hover:bg-primary-foreground/10 flex size-8 shrink-0 items-center justify-center rounded-lg"
-                                                            >
-                                                                <X className="size-4" />
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                </section>
-                                            );
-                                        })}
-                                    {parsed.length === 0 && (
-                                        <p className="text-accent-strong-foreground/70 py-8 text-center text-sm">{t('shopping.nothing_left')}</p>
-                                    )}
-                                </div>
-                                <div className="bg-accent-strong absolute inset-x-0 bottom-0 space-y-2 px-5 pt-2 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setTranscript('');
-                                            setStage(mode);
-                                        }}
-                                        className="border-primary-foreground/25 flex w-full items-center justify-center gap-2 rounded-xl border py-3 text-sm font-medium"
-                                    >
-                                        {mode === 'paste' ? <ClipboardPaste className="size-4" /> : <Mic className="size-4" />}{' '}
-                                        {t(mode === 'paste' ? 'shopping.add_more_by_paste' : 'shopping.add_more_by_voice')}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={addAll}
-                                        disabled={parsed.length === 0 || addingAllState}
-                                        className="bg-primary-foreground text-primary flex w-full items-center justify-center gap-2 rounded-xl py-3.5 font-medium disabled:opacity-50"
-                                    >
-                                        <Check className="size-5" />{' '}
-                                        {t(parsed.length === 1 ? 'shopping.add_n_items_one' : 'shopping.add_n_items_other', { n: parsed.length })}
-                                    </button>
-                                </div>
-                            </>
+                            <VoiceReview
+                                heading={t(mode === 'paste' ? 'shopping.pasted_heading' : 'shopping.heard_heading')}
+                                transcript={mode === 'voice' && transcript ? transcript : null}
+                                groups={aislesFor(list.store)
+                                    .map((a) => ({
+                                        slug: a.slug,
+                                        name: a.name,
+                                        entries: parsed.map((it, idx) => ({ it, idx })).filter((e) => e.it.department === a.slug),
+                                    }))
+                                    .filter((g) => g.entries.length > 0)}
+                                count={parsed.length}
+                                paste={mode === 'paste'}
+                                adding={addingAllState}
+                                existing={(it) => {
+                                    const cur = reviewDup(it);
+                                    return cur ? { quantity: cur.quantity || null, bump: bumpQuantity(cur.quantity) } : null;
+                                }}
+                                onName={(idx, name) => setParsed((p) => p.map((x, i) => (i === idx ? { ...x, name } : x)))}
+                                onQuantity={(idx, quantity) => setParsed((p) => p.map((x, i) => (i === idx ? { ...x, quantity } : x)))}
+                                onRemove={(idx) => setParsed((p) => p.filter((_, i) => i !== idx))}
+                                onBump={(idx) => {
+                                    // One-tap fix (design S3): +1 on the row already on the list, and this one isn't added.
+                                    const cur = reviewDup(parsed[idx]);
+                                    const next = cur ? bumpQuantity(cur.quantity) : null;
+                                    if (cur && next !== null) void save('patch', route('shopping.items.update', cur.id), { quantity: next });
+                                    setParsed((p) => p.filter((_, i) => i !== idx));
+                                }}
+                                onClose={closeVoice}
+                                onAddMore={backToInput}
+                                onRedo={() => {
+                                    setParsed([]);
+                                    backToInput();
+                                }}
+                                onAdd={addAll}
+                            />
                         )}
                     </div>,
                     document.body,

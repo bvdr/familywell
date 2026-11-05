@@ -1,5 +1,23 @@
 [
     {
+        "version": "1.6",
+        "date": "2026-11-04",
+        "items": [
+            {
+                "module": "shopping",
+                "title": "Say your list, see it land",
+                "text": "Tap the mic and Shopping starts listening right away: your words appear as you speak, items pop in as you go, and a short pause wraps it up.",
+                "href": "/m/shopping"
+            }
+        ],
+        "fixes": [
+            "Shopping's Lists tab ends with Add a list, like Add a shop on Shops",
+            "Dictation says why it stopped, Done with nothing heard opens typing, and the phone's top bar turns dark with it",
+            "Dictation on iPhone works from the Home Screen app too",
+            "Calendar filters show on every view, so a filter can't quietly hide everything"
+        ]
+    },
+    {
         "version": "1.5",
         "date": "2026-11-04",
         "items": [

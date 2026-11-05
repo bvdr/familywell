@@ -668,8 +668,6 @@ class ShoppingController extends Controller
             // item's department chips. Grouping is store -> aisle now that items can span shops.
             'aislesByStore' => $aislesByStore,
             'defaultAisles' => $this->resolveAisles(null),
-            // Drives the "Add by voice" entry + the "Organized by AI" badge; false falls back to a naive split.
-            'aiEnabled' => GroceryParser::configured(),
         ]);
     }
 

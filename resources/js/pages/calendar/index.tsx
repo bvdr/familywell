@@ -177,26 +177,23 @@ export default function CalendarIndex({
                             ))}
                         </div>
                     )}
-                    {view === 'agenda' && (
-                        <>
-                            <button
-                                type="button"
-                                onClick={() => setFiltering(true)}
-                                aria-label={t('calendar.filters')}
-                                className={`${round} relative`}
-                            >
-                                <SlidersHorizontal className="size-5" />
-                                {active > 0 && (
-                                    <span className="bg-accent-strong text-accent-strong-foreground absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full text-[11px] font-bold">
-                                        {active}
-                                    </span>
-                                )}
-                            </button>
+                    {/* Filters on every view: they apply to all three, and a filter set under Agenda used to hide
+                        everything on Timeline/Month with no sign of it there (desktop, 2026-11-05). */}
+                    <>
+                        <button type="button" onClick={() => setFiltering(true)} aria-label={t('calendar.filters')} className={`${round} relative`}>
+                            <SlidersHorizontal className="size-5" />
+                            {active > 0 && (
+                                <span className="bg-accent-strong text-accent-strong-foreground absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full text-[11px] font-bold">
+                                    {active}
+                                </span>
+                            )}
+                        </button>
+                        {view === 'agenda' && (
                             <button type="button" onClick={() => setFeedOpen(true)} aria-label={t('calendar.calendars_title')} className={round}>
                                 <Share className="size-5" />
                             </button>
-                        </>
-                    )}
+                        )}
+                    </>
                     {/* Month steps with arrows everywhere; the other views on desktop (phones swipe; the timeline scrolls freely). */}
                     <div className={`gap-2 ${view === 'month' ? 'flex' : 'hidden md:flex'}`}>
                         <button type="button" onClick={() => step(-1)} aria-label={t('calendar.previous')} className={round}>
