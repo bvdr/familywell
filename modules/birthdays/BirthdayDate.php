@@ -28,9 +28,9 @@ class BirthdayDate extends Model
 
     protected $table = 'birthdays_dates';
 
-    protected $fillable = ['person_id', 'month', 'day', 'birthdate', 'family_id', 'notified_on'];
+    protected $fillable = ['person_id', 'month', 'day', 'birthdate', 'family_id', 'notified_on', 'remind_days', 'reminded_on'];
 
-    protected $casts = ['birthdate' => 'date', 'notified_on' => 'date'];
+    protected $casts = ['birthdate' => 'date', 'notified_on' => 'date', 'reminded_on' => 'date', 'remind_days' => 'integer'];
 
     /**
      * Birthdays falling on the given day (default today). A Feb 29 birthday is celebrated on Mar 1
@@ -40,12 +40,14 @@ class BirthdayDate extends Model
     public function scopeOn(Builder $query, ?Carbon $date = null): Builder
     {
         $date ??= FamilyClock::date();
-        $query->where(fn (Builder $q) => $q->where('month', $date->month)->where('day', $date->day));
-        if ($date->month === 3 && $date->day === 1 && ! $date->isLeapYear()) {
-            $query->orWhere(fn (Builder $q) => $q->where('month', 2)->where('day', 29));
-        }
 
-        return $query;
+        // One group, so the Feb 29 OR can never swallow the filters chained after on() (family, reminder ledger).
+        return $query->where(function (Builder $q) use ($date) {
+            $q->where(fn (Builder $q) => $q->where('month', $date->month)->where('day', $date->day));
+            if ($date->month === 3 && $date->day === 1 && ! $date->isLeapYear()) {
+                $q->orWhere(fn (Builder $q) => $q->where('month', 2)->where('day', 29));
+            }
+        });
     }
 
     /** "Veronica turns 22 today" / "It's Veronica's birthday today", in the given locale. */
@@ -55,6 +57,24 @@ class BirthdayDate extends Model
         $key = $turning !== null ? 'birthdays.today_turns' : 'birthdays.today_noage';
 
         return strtr(Translations::get($key, $locale), [':name' => $this->person->name, ':age' => (string) $turning]);
+    }
+
+    /**
+     * The advance reminder (design 10b M12): "Lucia turns 12 in a week" / "Dana's birthday is in 3 days", for a
+     * birthday $days ahead. On the reminder's day the birthday is still ahead, so turning() is the age they reach.
+     */
+    public function reminderHeadline(int $days, ?string $locale = null): string
+    {
+        $when = match (true) {
+            $days === 1 => Translations::get('birthdays.when_tomorrow', $locale),
+            $days === 7 => Translations::get('birthdays.when_week', $locale),
+            $days % 7 === 0 => Translations::choice('birthdays.when_weeks', intdiv($days, 7), $locale),
+            default => Translations::choice('birthdays.when_days', $days, $locale),
+        };
+        $turning = $this->turning();
+        $key = $turning !== null ? 'birthdays.remind_turns' : 'birthdays.remind_noage';
+
+        return strtr(Translations::get($key, $locale), [':name' => $this->person->name, ':age' => (string) $turning, ':when' => $when]);
     }
 
     public function person()

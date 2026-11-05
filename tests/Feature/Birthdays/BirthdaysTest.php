@@ -109,3 +109,25 @@ it('caps the upcoming widget feed to the nearest few, soonest first, and reports
     actingAs($user)->get('/m/birthdays')->assertOk()
         ->assertInertia(fn ($page) => $page->component('birthdays/index')->has('birthdays', 8));
 });
+
+it('adds a birthday to an existing contact with their own reminder, and Use default clears it', function () {
+    [, $user] = birthdaysFamily();
+    actingAs($user)->post('/m/contacts/people', ['name' => 'Mihai Rusu'])->assertRedirect();
+    $mihai = Person::firstOrFail();
+
+    actingAs($user)->post('/m/birthdays', ['person_id' => $mihai->id, 'birth_day' => 14, 'birth_month' => 11, 'birth_year' => 1988, 'remind_days' => 5])
+        ->assertSessionHasNoErrors();
+    expect(Person::count())->toBe(1); // no duplicate contact
+    $bd = BirthdayDate::where('person_id', $mihai->id)->firstOrFail();
+    expect($bd->remind_days)->toBe(5);
+
+    actingAs($user)->get('/m/birthdays')->assertInertia(fn ($p) => $p
+        ->where('birthdays.0.remindDays', 5)->where('defaults.remindDays', 3)->where('defaults.sendHour', 9)
+        ->where('people.0.name', 'Mihai Rusu'));
+
+    actingAs($user)->patch("/m/birthdays/{$bd->id}", ['birth_day' => 14, 'birth_month' => 11, 'remind_days' => null])->assertSessionHasNoErrors();
+    expect($bd->fresh()->remind_days)->toBeNull();
+
+    actingAs($user)->post('/m/birthdays', ['person_id' => $mihai->id, 'birth_day' => 1, 'birth_month' => 1, 'remind_days' => 61])
+        ->assertSessionHasErrors('remind_days');
+});
