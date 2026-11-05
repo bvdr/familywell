@@ -135,7 +135,7 @@ export default function Lists({
     const shopNameRef = useRef<HTMLInputElement>(null);
     // The "+" is tab-aware: a new list on Lists, a new shop on Shops.
     const startCreate = () => (view === 'shops' ? setCreatingShop(true) : setCreating(true));
-    useAddAction(startCreate);
+    useAddAction(startCreate, { label: 'create.shopping', icon: ShoppingCart, replaces: 'shopping' });
     const submitShop = () => {
         if (!shopName.trim()) return;
         router.post(

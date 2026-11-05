@@ -13,7 +13,7 @@ export default function VehiclesIndex({ vehicles, unitSystem, canManage }: Props
     const t = useT();
     const breadcrumbs: BreadcrumbItem[] = [{ title: t('vehicles.title'), href: '/m/vehicles' }];
     // The mobile nav "+" adds a car from this screen.
-    useAddAction(() => router.visit('/m/vehicles/new'));
+    useAddAction(() => router.visit('/m/vehicles/new'), { label: 'create.vehicles', icon: Car, replaces: 'vehicles' });
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>

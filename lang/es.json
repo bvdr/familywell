@@ -204,7 +204,6 @@
         "f_year": "Año",
         "f_plate": "Matrícula",
         "f_color": "Color",
-        "on_this_page": "Añadir en esta página",
         "kind_task_list": "lista de tareas",
         "kind_shopping_list": "lista de la compra",
         "kind_project": "proyecto",
@@ -233,6 +232,10 @@
         "mic_denied": "El micrófono está desactivado para este sitio. Actívalo en los ajustes del navegador o escribe.",
         "paste": "Pegar del portapapeles",
         "clipboard_empty": "El portapapeles está vacío.",
-        "clipboard_denied": "No se pudo leer el portapapeles. Mantén pulsado en el cuadro y elige Pegar."
+        "clipboard_denied": "No se pudo leer el portapapeles. Mantén pulsado en el cuadro y elige Pegar.",
+        "page_todo": "Añadir una tarea",
+        "page_maintenance": "Añadir un mantenimiento",
+        "page_shopping_item": "Añadir algo para comprar",
+        "page_project_item": "Añadir al proyecto"
     }
 }

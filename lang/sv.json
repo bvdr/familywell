@@ -204,7 +204,6 @@
         "f_year": "Årsmodell",
         "f_plate": "Regnummer",
         "f_color": "Färg",
-        "on_this_page": "Lägg till på den här sidan",
         "kind_task_list": "att göra-lista",
         "kind_shopping_list": "inköpslista",
         "kind_project": "projekt",
@@ -233,6 +232,10 @@
         "mic_denied": "Mikrofonen är av för den här webbplatsen. Tillåt den i webbläsarens inställningar, eller skriv.",
         "paste": "Klistra in från urklipp",
         "clipboard_empty": "Urklipp är tomt.",
-        "clipboard_denied": "Kunde inte läsa urklipp. Håll in i rutan och välj Klistra in."
+        "clipboard_denied": "Kunde inte läsa urklipp. Håll in i rutan och välj Klistra in.",
+        "page_todo": "Lägg till en uppgift",
+        "page_maintenance": "Lägg till service",
+        "page_shopping_item": "Lägg till något att köpa",
+        "page_project_item": "Lägg till i projektet"
     }
 }

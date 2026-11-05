@@ -28,7 +28,7 @@ export default function RecipesIndex({ recipes }: { recipes: Card[] }) {
     const [query, setQuery] = useState('');
     const [tag, setTag] = useState(ALL);
     const create = () => router.visit(route('recipes.create'));
-    useAddAction(create); // the mobile nav's "+" adds a recipe here
+    useAddAction(create, { label: 'create.recipes', icon: ChefHat, replaces: 'recipes' }); // the mobile nav's "+" adds a recipe here
 
     const tags = useMemo(() => [...new Set(recipes.flatMap((r) => r.tags))].sort((a, b) => a.localeCompare(b)), [recipes]);
     const visible = useMemo(() => {

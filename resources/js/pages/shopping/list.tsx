@@ -13,6 +13,7 @@ import {
     MoreHorizontal,
     Plus,
     ShoppingBasket,
+    ShoppingCart,
     Store,
     Trash2,
     UserPlus,
@@ -366,7 +367,7 @@ export default function ListDetail({
         setDraft({ ...emptyDraft, store: (focus && focusStore !== FOCUS_ALL ? focusStore : list.store) || '' });
         setEditingId(0);
     };
-    useAddAction(() => openNew());
+    useAddAction(() => openNew(), { label: 'add.page_shopping_item', icon: ShoppingCart });
     const openEdit = (item: Item) => {
         skipAutosave.current = true;
         setDraft({

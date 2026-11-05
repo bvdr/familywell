@@ -204,7 +204,6 @@
         "f_year": "Year",
         "f_plate": "Plate",
         "f_color": "Colour",
-        "on_this_page": "Add on this page",
         "kind_task_list": "to-do list",
         "kind_shopping_list": "shopping list",
         "kind_project": "project",
@@ -233,6 +232,10 @@
         "mic_denied": "The microphone is off for this site. Allow it in your browser settings, or type instead.",
         "paste": "Paste from clipboard",
         "clipboard_empty": "The clipboard is empty.",
-        "clipboard_denied": "Couldn’t read the clipboard. Long-press in the box and choose Paste instead."
+        "clipboard_denied": "Couldn’t read the clipboard. Long-press in the box and choose Paste instead.",
+        "page_todo": "Add a to-do",
+        "page_maintenance": "Add a maintenance schedule",
+        "page_shopping_item": "Add an item to buy",
+        "page_project_item": "Add to this project"
     }
 }
