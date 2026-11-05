@@ -9,6 +9,7 @@ import {
     Check,
     ChevronRight,
     Copy,
+    FolderKanban,
     Image as ImageIcon,
     ListChecks,
     Pencil,
@@ -100,7 +101,7 @@ export default function ProjectDetail({
     const [linkingType, setLinkingType] = useState<LinkType | null>(null); // the link spending list / contact sheet
     const [newSpend, setNewSpend] = useState(false); // the "New expense list for this project" sheet
     const [adding, setAdding] = useState(false); // the "Add to project" sheet
-    useAddAction(() => setAdding(true));
+    useAddAction(() => setAdding(true), { label: 'add.page_project_item', icon: FolderKanban });
     // Sections stay hidden until they have content; choosing to add one reveals it (with its input).
     const [reveal, setReveal] = useState<Set<string>>(new Set());
     const [depName, setDepName] = useState('');

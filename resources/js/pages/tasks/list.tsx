@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Archive, Check, ChevronLeft, Copy, Lock, MoreHorizontal, Pencil, Trash2, UserPlus, Users } from 'lucide-react';
+import { Archive, Check, ChevronLeft, Copy, ListChecks, Lock, MoreHorizontal, Pencil, Trash2, UserPlus, Users } from 'lucide-react';
 import { useRef, useState } from 'react';
 
 import { ShareSheet, type ShareState } from '@/components/share-sheet';
@@ -36,10 +36,13 @@ export default function ListDetail({ list, share, members, tasks, lastDone, fami
 
     // The nav's "+" focuses the add-a-task input on this page.
     const addInputRef = useRef<HTMLInputElement>(null);
-    useAddAction(() => {
-        addInputRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-        addInputRef.current?.focus();
-    });
+    useAddAction(
+        () => {
+            addInputRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            addInputRef.current?.focus();
+        },
+        { label: 'add.page_todo', icon: ListChecks },
+    );
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: t('nav.tasks'), href: '/m/tasks' },

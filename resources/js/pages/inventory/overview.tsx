@@ -13,7 +13,16 @@ import { relativeTime } from '@/lib/notifications';
 import type { BreadcrumbItem } from '@/types';
 
 type Summary = { total: number; low: number; empty: number; expiring: number };
-type Recent = { id: number; itemId: number; itemName: string; unit: string; type: string; delta: number | null; user: string | null; at: string | null };
+type Recent = {
+    id: number;
+    itemId: number;
+    itemName: string;
+    unit: string;
+    type: string;
+    delta: number | null;
+    user: string | null;
+    at: string | null;
+};
 type CatCounts = Record<string, { count: number; attention: number }>;
 
 type Props = {
@@ -32,7 +41,7 @@ export default function InventoryOverview({ summary, attention, recent, categori
     const catMap = byKey(categories);
     const breadcrumbs: BreadcrumbItem[] = [{ title: t('inventory.title'), href: '/m/inventory' }];
     const [adding, setAdding] = useState(openNewOnArrival);
-    useAddAction(() => setAdding(true)); // the mobile nav "+" adds an item here
+    useAddAction(() => setAdding(true), { label: 'create.inventory', icon: Package, replaces: 'inventory' }); // the mobile nav "+" adds an item here
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -80,10 +89,13 @@ export default function InventoryOverview({ summary, attention, recent, categori
                         {/* Needs attention: the whole point — what to act on, most-urgent first. */}
                         <section className="flex flex-col gap-2">
                             <div className="flex items-center gap-2">
-                                <AlertTriangle className="text-[var(--warning)] size-4" />
+                                <AlertTriangle className="size-4 text-[var(--warning)]" />
                                 <h2 className="font-heading text-primary text-lg">{t('inventory.needs_attention')}</h2>
                                 {attention.length > 0 && (
-                                    <Link href="/m/inventory/needs-attention" className="text-primary ml-auto flex items-center gap-0.5 text-xs font-medium">
+                                    <Link
+                                        href="/m/inventory/needs-attention"
+                                        className="text-primary ml-auto flex items-center gap-0.5 text-xs font-medium"
+                                    >
                                         {t('inventory.view_needs_attention')} <ChevronRight className="size-3.5" />
                                     </Link>
                                 )}
@@ -208,10 +220,7 @@ function SummaryCards({ summary, t }: { summary: Summary; t: TFn }) {
             {cards.map((c) => (
                 <div key={c.label} className="bg-surface-card flex flex-col gap-1 px-4 py-4">
                     <span className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{c.label}</span>
-                    <span
-                        className="text-2xl font-semibold tabular-nums"
-                        style={{ color: c.value > 0 && c.color ? c.color : 'var(--primary)' }}
-                    >
+                    <span className="text-2xl font-semibold tabular-nums" style={{ color: c.value > 0 && c.color ? c.color : 'var(--primary)' }}>
                         {c.value}
                     </span>
                 </div>

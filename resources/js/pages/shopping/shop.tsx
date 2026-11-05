@@ -126,7 +126,7 @@ export default function ShopDetail({
         });
         setEditingId(i.id);
     };
-    useAddAction(openNew); // the nav "+" adds an item at this shop
+    useAddAction(openNew, { label: 'add.page_shopping_item', icon: ShoppingCart }); // the nav "+" adds an item at this shop
 
     const buildPayload = (d: Draft) => {
         const shopsUniq = [...new Set(d.shops)];

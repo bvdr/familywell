@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react';
-import { ChevronLeft, ChevronRight, Share, SlidersHorizontal } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Share, SlidersHorizontal } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { AgendaView } from '@/components/calendar/agenda';
@@ -90,7 +90,7 @@ export default function CalendarIndex({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [range.from, range.to]);
     const [sheet, setSheet] = useState<{ open: boolean; day: string }>(() => ({ open: openNewOnArrival(), day: selected }));
-    useAddAction(() => setSheet({ open: true, day: selected }));
+    useAddAction(() => setSheet({ open: true, day: selected }), { label: 'create.calendar', icon: CalendarDays, replaces: 'calendar' });
 
     // Drop any remembered source/person no longer valid for this family (a module disabled since it was saved, or a
     // removed member/contact) so a stale filter never silently hides everything.

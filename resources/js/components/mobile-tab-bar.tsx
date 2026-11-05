@@ -2,7 +2,7 @@ import { JustSayIt, type SubView } from '@/components/add-just-say-it';
 import { Segmented } from '@/components/segmented';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useNavPins } from '@/hooks/use-nav-pins';
-import { hasAddAction, runAddAction } from '@/lib/add-action';
+import { addActionInfo, runAddAction } from '@/lib/add-action';
 import { useT } from '@/lib/i18n';
 import { Link, router, usePage } from '@inertiajs/react';
 import {
@@ -254,9 +254,10 @@ function AddSheet({ open, onOpenChange, enabled }: { open: boolean; onOpenChange
     const data = useOnOpen<Usage>(open, '/add/usage');
     const [mode, setModeState] = useState<'say' | 'classic'>(() => {
         try {
-            return localStorage.getItem(MODE_KEY) === 'classic' ? 'classic' : 'say';
+            // Classic unless this device picked Just say it (the user, 2026-11-05: Classic is the default).
+            return localStorage.getItem(MODE_KEY) === 'say' ? 'say' : 'classic';
         } catch {
-            return 'say';
+            return 'classic';
         }
     });
     const setMode = (m: 'say' | 'classic') => {
@@ -274,8 +275,8 @@ function AddSheet({ open, onOpenChange, enabled }: { open: boolean; onOpenChange
         if (!open) setSub(null);
     }, [open]);
     const ai = data?.ai.available ?? false;
-    // Read when the sheet renders: the page that claimed the + (only reachable here when "Just say it" is on).
-    const pageAction = open && hasAddAction();
+    // Read when the sheet renders: what the page that claimed the + adds (only reachable here when "Just say it" is on).
+    const pageAction = open ? addActionInfo() : null;
     const usage = data?.usage ?? null;
     const last = data?.last ?? {};
     // Pins (design H2d): per person, saved on the server (users.add_pins, like home_layout) so a pin follows the person
@@ -300,7 +301,8 @@ function AddSheet({ open, onOpenChange, enabled }: { open: boolean; onOpenChange
             .catch(() => setPins(before)); // offline: undo, so the row isn't shown pinned when it isn't
     };
     const press = useLongPress(togglePin);
-    const items = CREATE.filter((c) => enabled.includes(c.key));
+    // The page's own action stands in for the suggestion it replaces, so that one isn't offered twice.
+    const items = CREATE.filter((c) => enabled.includes(c.key) && c.key !== pageAction?.replaces);
     // Pinned first, then most added; ties (and the moment before the counts arrive) keep the CREATE order.
     const score = (key: string) => (pins.includes(key) ? 1e9 : 0) + (usage?.[key] ?? 0);
     const ranked = [...items].sort((a, b) => score(b.key) - score(a.key));
@@ -332,9 +334,9 @@ function AddSheet({ open, onOpenChange, enabled }: { open: boolean; onOpenChange
                         className="bg-accent-subtle text-primary flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left"
                     >
                         <span className={iconBox}>
-                            <Plus className="size-5.5" />
+                            <pageAction.icon className="size-5.5" />
                         </span>
-                        <span className="min-w-0 flex-1 truncate text-base font-semibold">{t('add.on_this_page')}</span>
+                        <span className="min-w-0 flex-1 truncate text-base font-semibold">{t(pageAction.label)}</span>
                         <ChevronRight className="text-muted-foreground size-5 shrink-0" />
                     </button>
                 )}
