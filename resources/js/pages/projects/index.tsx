@@ -83,7 +83,7 @@ export default function ProjectsIndex({ projects }: { projects: Project[] }) {
     const t = useT();
     const breadcrumbs: BreadcrumbItem[] = [{ title: t('nav.projects'), href: '/m/projects' }];
     const [creating, setCreating] = useState(openNewOnArrival);
-    useAddAction(() => setCreating(true));
+    useAddAction(() => setCreating(true), { label: 'create.projects', icon: FolderKanban, replaces: 'projects' });
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
         description: '',

@@ -204,7 +204,6 @@
         "f_year": "Ano",
         "f_plate": "Matrícula",
         "f_color": "Cor",
-        "on_this_page": "Adicionar nesta página",
         "kind_task_list": "lista de tarefas",
         "kind_shopping_list": "lista de compras",
         "kind_project": "projeto",
@@ -233,6 +232,10 @@
         "mic_denied": "O microfone está desligado para este site. Permita-o nas definições do navegador ou escreva.",
         "paste": "Colar da área de transferência",
         "clipboard_empty": "A área de transferência está vazia.",
-        "clipboard_denied": "Não foi possível ler a área de transferência. Mantenha premido na caixa e escolha Colar."
+        "clipboard_denied": "Não foi possível ler a área de transferência. Mantenha premido na caixa e escolha Colar.",
+        "page_todo": "Adicionar uma tarefa",
+        "page_maintenance": "Adicionar uma manutenção",
+        "page_shopping_item": "Adicionar um item para comprar",
+        "page_project_item": "Adicionar ao projeto"
     }
 }

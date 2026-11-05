@@ -204,7 +204,6 @@
         "f_year": "Baujahr",
         "f_plate": "Kennzeichen",
         "f_color": "Farbe",
-        "on_this_page": "Auf dieser Seite hinzufügen",
         "kind_task_list": "Aufgabenliste",
         "kind_shopping_list": "Einkaufsliste",
         "kind_project": "Projekt",
@@ -233,6 +232,10 @@
         "mic_denied": "Das Mikrofon ist für diese Seite aus. Erlaube es in den Browser-Einstellungen oder tippe stattdessen.",
         "paste": "Aus der Zwischenablage einfügen",
         "clipboard_empty": "Die Zwischenablage ist leer.",
-        "clipboard_denied": "Die Zwischenablage konnte nicht gelesen werden. Halte im Feld gedrückt und wähle Einfügen."
+        "clipboard_denied": "Die Zwischenablage konnte nicht gelesen werden. Halte im Feld gedrückt und wähle Einfügen.",
+        "page_todo": "To-do hinzufügen",
+        "page_maintenance": "Wartung hinzufügen",
+        "page_shopping_item": "Etwas zum Einkaufen hinzufügen",
+        "page_project_item": "Zum Projekt hinzufügen"
     }
 }

@@ -30,7 +30,7 @@ export default function MaintenanceIndex({ vehicle, schedules }: Props) {
     ];
     const addHref = `/m/vehicles/${vehicle.id}/maintenance/new`;
     // The mobile nav "+" adds a schedule from this screen.
-    useAddAction(() => router.visit(addHref));
+    useAddAction(() => router.visit(addHref), { label: 'add.page_maintenance', icon: Wrench });
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>

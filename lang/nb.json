@@ -204,7 +204,6 @@
         "f_year": "År",
         "f_plate": "Skilt",
         "f_color": "Farge",
-        "on_this_page": "Legg til på denne siden",
         "kind_task_list": "gjøremålsliste",
         "kind_shopping_list": "handleliste",
         "kind_project": "prosjekt",
@@ -233,6 +232,10 @@
         "mic_denied": "Mikrofonen er av for dette nettstedet. Tillat den i nettleserinnstillingene, eller skriv.",
         "paste": "Lim inn fra utklippstavlen",
         "clipboard_empty": "Utklippstavlen er tom.",
-        "clipboard_denied": "Kunne ikke lese utklippstavlen. Hold inne i feltet og velg Lim inn."
+        "clipboard_denied": "Kunne ikke lese utklippstavlen. Hold inne i feltet og velg Lim inn.",
+        "page_todo": "Legg til en oppgave",
+        "page_maintenance": "Legg til service",
+        "page_shopping_item": "Legg til noe å kjøpe",
+        "page_project_item": "Legg til i prosjektet"
     }
 }

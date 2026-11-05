@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ChevronLeft, FolderKanban, MoreHorizontal, NotebookPen, Pencil, Repeat2, Share2, Trash2, Users } from 'lucide-react';
+import { ChevronLeft, FolderKanban, ListChecks, MoreHorizontal, NotebookPen, Pencil, Repeat2, Share2, Trash2, Users } from 'lucide-react';
 import { useRef, useState } from 'react';
 
 import { stripe } from '@/components/calendar/agenda';
@@ -51,10 +51,13 @@ export default function CalendarEvent({
     const [sharing, setSharing] = useState(false);
     // The nav's "+" adds a to-do here (like a task list), not a new event.
     const addInputRef = useRef<HTMLInputElement>(null);
-    useAddAction(() => {
-        addInputRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-        addInputRef.current?.focus();
-    });
+    useAddAction(
+        () => {
+            addInputRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            addInputRef.current?.focus();
+        },
+        { label: 'add.page_todo', icon: ListChecks },
+    );
     const fmt = (d: string) => new Date(d + 'T12:00').toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' });
     const time = (x: string | null) => (x ? x.replace(/^0(\d)/, '$1') : '');
     const days = daysBetween(event.start_date, event.end_date) + 1;

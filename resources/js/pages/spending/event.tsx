@@ -283,7 +283,7 @@ export default function Event({
     const archivedOpt = useOptimistic<boolean>();
     const archived = archivedOpt.get(event.id, event.archived);
     // The nav's "+" adds to this list, except when it's archived (read-only): then it falls back to the global sheet.
-    useAddAction(archived ? null : () => setAdding(true));
+    useAddAction(archived ? null : () => setAdding(true), { label: 'create.spending', icon: Wallet, replaces: 'spending' });
     const toggleArchived = () => {
         archivedOpt.set(event.id, !archived);
         void save('patch', route('spending.events.update', event.id), { archived: !archived }).then(() => archivedOpt.clear(event.id));

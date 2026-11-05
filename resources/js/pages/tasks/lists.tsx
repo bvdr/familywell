@@ -212,7 +212,7 @@ export default function Lists({ lists, tasks, members, doneTasks }: { lists: Lis
         setShowDone(next);
         if (next && !doneTasks) router.reload({ only: ['doneTasks'] });
     };
-    useAddAction(() => setCreating(true));
+    useAddAction(() => setCreating(true), { label: 'create.tasks', icon: ListChecks, replaces: 'tasks' });
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
         color: 'green',

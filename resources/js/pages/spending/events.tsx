@@ -139,7 +139,7 @@ export default function Events({
     // a list is reachable from the Lists tab only.
     const [adding, setAdding] = useState(openNewOnArrival);
     const [creating, setCreating] = useState(false);
-    useAddAction(() => setAdding(true));
+    useAddAction(() => setAdding(true), { label: 'create.spending', icon: Wallet, replaces: 'spending' });
     const amountRef = useRef<HTMLInputElement>(null);
 
     // Lists the viewer may add spends to; the picker offers these plus the "Others" default (value '').

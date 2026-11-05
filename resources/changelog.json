@@ -1,5 +1,11 @@
 [
     {
+        "version": "1.9",
+        "date": "2026-11-05",
+        "items": [],
+        "fixes": ["The Add sheet opens on Classic and puts what this page adds first, like Add an item to buy in a shopping list"]
+    },
+    {
         "version": "1.8",
         "date": "2026-11-05",
         "items": [

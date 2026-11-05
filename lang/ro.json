@@ -226,7 +226,6 @@
         "f_color": "Culoare",
         "add_n_few": "Adaugă :count lucruri",
         "points_left_few": "Îți mai rămân :count puncte AI luna asta.",
-        "on_this_page": "Adaugă pe pagina asta",
         "kind_task_list": "listă de sarcini",
         "kind_shopping_list": "listă de cumpărături",
         "kind_project": "proiect",
@@ -255,6 +254,10 @@
         "mic_denied": "Microfonul e oprit pentru acest site. Permite-l din setările browserului sau scrie.",
         "paste": "Lipește din clipboard",
         "clipboard_empty": "Clipboardul e gol.",
-        "clipboard_denied": "Nu am putut citi clipboardul. Ține apăsat în casetă și alege Lipire."
+        "clipboard_denied": "Nu am putut citi clipboardul. Ține apăsat în casetă și alege Lipire.",
+        "page_todo": "Adaugă un lucru de făcut",
+        "page_maintenance": "Adaugă o revizie",
+        "page_shopping_item": "Adaugă un produs de cumpărat",
+        "page_project_item": "Adaugă la proiect"
     }
 }

@@ -85,7 +85,7 @@ export default function BirthdaysIndex({ birthdays, defaults, people }: { birthd
     // One sheet for add (starting at Find, M5) and edit (M10, straight to the form).
     const [sheet, setSheet] = useState<{ open: boolean; edit: Birthday | null }>({ open: false, edit: null });
     const [settingsOpen, setSettingsOpen] = useState(false);
-    useAddAction(() => setSheet({ open: true, edit: null }));
+    useAddAction(() => setSheet({ open: true, edit: null }), { label: 'birthdays.add', icon: Cake });
 
     const removed = useOptimistic<boolean>();
     const visible = birthdays.filter((b) => !removed.get(b.id, false));
