@@ -121,6 +121,7 @@ class BirthdaysServiceProvider extends ServiceProvider
             ->group(function () {
                 Route::get('/', [BirthdaysController::class, 'index'])->name('index');
                 Route::post('/', [BirthdaysController::class, 'store'])->name('store');
+                Route::patch('/settings', [BirthdaysController::class, 'settings'])->name('settings');
                 Route::patch('/{birthday}', [BirthdaysController::class, 'update'])->name('update');
                 Route::delete('/{birthday}', [BirthdaysController::class, 'destroy'])->name('destroy');
                 Route::get('/upcoming', [BirthdaysController::class, 'upcoming'])->name('upcoming');

@@ -107,3 +107,42 @@ it('does not push a birthday that is in the trash, or one of a trashed contact',
     test()->artisan('birthdays:notify')->assertExitCode(0);
     Notification::assertNothingSent();
 });
+
+it('sends the advance reminder on the family default day at the send hour, once, with per-person overrides', function () {
+    [, $admin, $ro] = todayFamily();
+    Notification::fake();
+    todayBirthday($admin->id, 'Lucia', 2014, 10, 28);             // family default: 3 days → Oct 25
+    todayBirthday($admin->id, 'Dana', null, 10, 28)->update(['remind_days' => 7]); // own: 1 week → Oct 21
+    todayBirthday($admin->id, 'Teo', null, 10, 24)->update(['remind_days' => 0]); // on the day: the wish only
+
+    Carbon::setTestNow('2026-10-21 08:30'); // before the 9:00 send hour
+    test()->artisan('birthdays:notify')->assertExitCode(0);
+    Notification::assertNothingSent();
+
+    Carbon::setTestNow('2026-10-21 09:00');
+    test()->artisan('birthdays:notify')->assertExitCode(0);
+    Notification::assertSentTo($admin, PushAlert::class, fn (PushAlert $n) => $n->title === "🎂 Dana's birthday is in a week" && $n->body === "That's Wednesday, Oct 28.");
+    Notification::assertSentTo($ro, PushAlert::class, fn (PushAlert $n) => $n->title === '🎂 Ziua lui Dana e peste o săptămână');
+    Notification::assertSentTimes(PushAlert::class, 2);
+    test()->artisan('birthdays:notify')->assertExitCode(0); // same day again: reminded_on ledger
+    Notification::assertSentTimes(PushAlert::class, 2);
+
+    Carbon::setTestNow('2026-10-25 10:00');
+    test()->artisan('birthdays:notify')->assertExitCode(0);
+    Notification::assertSentTo($admin, PushAlert::class, fn (PushAlert $n) => $n->title === '🎂 Lucia turns 12 in 3 days');
+    Notification::assertSentTimes(PushAlert::class, 4); // Teo (on the day) got no advance reminder on Oct 24 - 0
+});
+
+it('follows a changed family default and send hour', function () {
+    [, $admin] = todayFamily();
+    Notification::fake();
+    todayBirthday($admin->id, 'Lucia', null, 10, 28);
+    actingAs($admin)->patch('/m/birthdays/settings', ['remind_days' => 14, 'send_hour' => 18])->assertSessionHasNoErrors();
+
+    Carbon::setTestNow('2026-10-14 17:00');
+    test()->artisan('birthdays:notify')->assertExitCode(0);
+    Notification::assertNothingSent();
+    Carbon::setTestNow('2026-10-14 18:05');
+    test()->artisan('birthdays:notify')->assertExitCode(0);
+    Notification::assertSentTo($admin, PushAlert::class, fn (PushAlert $n) => $n->title === "🎂 Lucia's birthday is in 2 weeks");
+});

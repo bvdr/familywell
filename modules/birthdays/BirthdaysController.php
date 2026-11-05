@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Contacts\Person;
 
 class BirthdaysController extends Controller
 {
@@ -16,8 +17,11 @@ class BirthdaysController extends Controller
     // and gated by module:birthdays on the route.
     public function index(): Response
     {
+        $birthdays = BirthdayDate::soonestFirst();
+        $settings = BirthdaySettings::current();
+
         return Inertia::render('birthdays/index', [
-            'birthdays' => BirthdayDate::soonestFirst()->map(fn (BirthdayDate $b) => [
+            'birthdays' => $birthdays->map(fn (BirthdayDate $b) => [
                 'id' => $b->id,
                 'personId' => $b->person_id,
                 'name' => $b->person->name,
@@ -28,7 +32,11 @@ class BirthdaysController extends Controller
                 'daysUntil' => $b->daysUntil(),
                 'age' => $b->age(),
                 'turning' => $b->turning(),
+                'remindDays' => $b->remind_days, // null = the family default
             ])->values(),
+            'defaults' => ['remindDays' => $settings->remind_days, 'sendHour' => $settings->send_hour],
+            // "Who's celebrating?" (M5) searches Contacts, so nobody is added twice; id + name only (the demo has 366).
+            'people' => Person::query()->orderBy('name')->get(['id', 'name'])->map(fn (Person $p) => ['id' => $p->id, 'name' => $p->name])->values(),
         ]);
     }
 
@@ -36,9 +44,19 @@ class BirthdaysController extends Controller
     // so the MCP birthdays_add tool behaves identically.
     public function store(Request $request): RedirectResponse
     {
-        $data = $request->validate(array_merge(['name' => ['required', 'string', 'max:255']], self::rules()));
+        // A contact picked in M5 (person_id), or a name for a new one (M8).
+        $data = $request->validate(array_merge([
+            'person_id' => ['nullable', 'integer'],
+            'name' => ['required_without:person_id', 'nullable', 'string', 'max:255'],
+        ], self::rules()));
 
-        BirthdayDate::addFor($data['name'], $request, $request->user());
+        if ($data['person_id'] ?? null) {
+            $person = Person::findOrFail($data['person_id']); // family-scoped: another family's id is a 404
+            BirthdayDate::setFor($person->id, self::attributesFromRequest($request) + self::reminderFromRequest($request));
+        } else {
+            $birthday = BirthdayDate::addFor($data['name'], $request, $request->user());
+            $birthday->update(self::reminderFromRequest($request));
+        }
 
         return back();
     }
@@ -46,9 +64,28 @@ class BirthdaysController extends Controller
     public function update(Request $request, BirthdayDate $birthday): RedirectResponse
     {
         $request->validate(self::rules());
-        $birthday->update(self::attributesFromRequest($request));
+        $birthday->update(self::attributesFromRequest($request) + self::reminderFromRequest($request));
 
         return back();
+    }
+
+    // M11: the family's default (how many days ahead, the hour it arrives). Any member may change it, like the
+    // rest of Birthdays; the sheet lists who is set differently so an override is never lost.
+    public function settings(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'remind_days' => ['required', 'integer', 'between:0,60'],
+            'send_hour' => ['required', 'integer', 'between:0,23'],
+        ]);
+        BirthdaySettings::current()->fill($data)->save();
+
+        return back();
+    }
+
+    /** remind_days when the request carries it (null = back to the family default), else nothing. */
+    private static function reminderFromRequest(Request $request): array
+    {
+        return $request->exists('remind_days') ? ['remind_days' => $request->input('remind_days')] : [];
     }
 
     /** Removes the birthday only. The person stays a contact; deleting them is a Contacts action. */
@@ -93,6 +130,8 @@ class BirthdaysController extends Controller
             'birth_month' => ['required', 'integer', 'between:1,12'],
             'birth_day' => ['required', 'integer', 'between:1,31'],
             'birth_year' => ['nullable', 'integer', 'between:1900,'.date('Y')],
+            // Days ahead for this person's reminder: 0 = on the day, up to 60 (M7's stepper); null = family default.
+            'remind_days' => ['sometimes', 'nullable', 'integer', 'between:0,60'],
         ];
     }
 
