@@ -1,5 +1,24 @@
 [
     {
+        "version": "1.8",
+        "date": "2026-11-05",
+        "items": [
+            {
+                "module": "birthdays",
+                "title": "Hear about birthdays in time",
+                "text": "Pick how many days ahead you want a reminder: one default for the family, or different for anyone. The reminder says the day and how old they turn.",
+                "href": "/m/birthdays"
+            },
+            {
+                "module": "birthdays",
+                "title": "Find the person first",
+                "text": "Adding a birthday now searches your contacts, so nobody gets added twice. Tap anyone on the list to change their date or reminder.",
+                "href": "/m/birthdays"
+            }
+        ],
+        "fixes": []
+    },
+    {
         "version": "1.7",
         "date": "2026-11-05",
         "items": [
