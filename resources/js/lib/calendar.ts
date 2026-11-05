@@ -19,8 +19,22 @@ export type CalItem = {
     done: boolean;
     editable: boolean;
     sub?: string | null; // a second line where people alone don't say it (a to-do's list)
+    category?: string | null; // calendar events only (CalendarEvent::CATEGORIES)
 };
-export type CalFilter = { people: string[]; sources: string[] };
+// category: one of CATEGORIES or null = All (the design's chip row is single-choice, All first).
+export type CalFilter = { people: string[]; sources: string[]; category: string | null };
+
+// The design's category chips (04b C9/C10/D2), in its order, with the event colour each one stands for: picking a
+// category on an event with no colour gives it this one, so the chip's dot matches the bars it filters to.
+export const CATEGORIES: Record<string, string> = { trips: 'green', faith: 'amber', family: 'red', school: 'blue', work: 'sand' };
+// The chip dot: a solid version of that colour (the palette's tiles are pale, too faint for a 7px dot).
+export const CATEGORY_DOT: Record<string, string> = {
+    trips: 'bg-emerald-600', // not bg-primary: that is ink on some skins, and the design's dot is green
+    faith: 'bg-amber-500',
+    family: 'bg-red-500',
+    school: 'bg-blue-500',
+    work: 'bg-muted-foreground',
+};
 
 export function parseDay(s: string): Date {
     const [y, m, d] = s.split('-').map(Number);
@@ -99,6 +113,8 @@ export function filterItems(items: CalItem[], f: CalFilter): CalItem[] {
     return items.filter(
         (i) =>
             (f.sources.length === 0 || f.sources.includes(i.source)) &&
+            // A category shows only events in it; birthdays, to-dos and cars have none, so they step aside.
+            (f.category === null || i.category === f.category) &&
             (f.people.length === 0 || i.people.some((p) => f.people.includes(personKey(p)))),
     );
 }
@@ -124,13 +140,15 @@ export function timelineRows(items: CalItem[], from: string, to: string): { key:
         const key = `${item.source}-${item.kind}-${item.id}`;
         rows.set(key, [...(rows.get(key) ?? []), { item, ...geo }]);
     }
-    return [...rows]
-        .map(([key, bars]) => {
-            bars.sort((a, b) => a.offset - b.offset);
-            return { key, item: bars[0].item, bars };
-        })
-        // Oldest on top (design 04b): by when the thing really starts, so one that began before the window sits above.
-        .sort((a, b) => a.item.start.localeCompare(b.item.start) || a.item.title.localeCompare(b.item.title));
+    return (
+        [...rows]
+            .map(([key, bars]) => {
+                bars.sort((a, b) => a.offset - b.offset);
+                return { key, item: bars[0].item, bars };
+            })
+            // Oldest on top (design 04b): by when the thing really starts, so one that began before the window sits above.
+            .sort((a, b) => a.item.start.localeCompare(b.item.start) || a.item.title.localeCompare(b.item.title))
+    );
 }
 
 // Kinds that are something to get done by a date, as opposed to something that happens on it (an event, a birthday):

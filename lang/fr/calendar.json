@@ -120,5 +120,12 @@
     "whos_going": "Qui vient",
     "add_contact": "Ajouter un contact",
     "ended_on": "terminé :day",
-    "starts_on": "commence :day"
+    "starts_on": "commence :day",
+    "all": "Tout",
+    "category": "Catégorie",
+    "category_trips": "Voyages",
+    "category_faith": "Foi",
+    "category_family": "Famille",
+    "category_school": "École",
+    "category_work": "Travail"
 }

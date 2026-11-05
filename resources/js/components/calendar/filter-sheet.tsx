@@ -39,7 +39,7 @@ export function FilterSheet({
             onOpenChange={onOpenChange}
             title={t('calendar.filters')}
             footer={
-                <Button variant="outline" className="w-full" onClick={() => onChange({ people: [], sources: [] })}>
+                <Button variant="outline" className="w-full" onClick={() => onChange({ people: [], sources: [], category: null })}>
                     {t('calendar.clear')}
                 </Button>
             }

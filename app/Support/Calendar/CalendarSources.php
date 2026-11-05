@@ -50,7 +50,7 @@ class CalendarSources
     public static function item(
         string $kind, int $id, string $title, string $start, ?string $end = null, string $href = '', string $icon = 'calendar',
         ?string $color = null, array $people = [], bool $done = false, ?string $startTime = null, ?string $endTime = null, bool $editable = false,
-        ?string $sub = null,
+        ?string $sub = null, ?string $category = null,
     ): array {
         return [
             'kind' => $kind, 'id' => $id, 'title' => $title, 'start' => $start, 'end' => $end ?? $start,
@@ -58,6 +58,8 @@ class CalendarSources
             'people' => $people, 'done' => $done, 'editable' => $editable,
             // The agenda row's second line where the people alone don't say it ("Household" for a to-do's list).
             'sub' => $sub,
+            // The calendar's category chips filter on this; only calendar events have one (CalendarEvent::CATEGORIES).
+            'category' => $category,
         ];
     }
 }

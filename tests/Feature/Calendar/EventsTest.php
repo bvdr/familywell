@@ -32,6 +32,24 @@ it('creates an event with people and shows it on the calendar page', function ()
             ->where('items.0.title', 'Grecia')->where('items.0.start', '2026-07-17')->where('items.0.editable', true));
 });
 
+it('stores a category, sends it on the calendar items, and rejects one it does not know', function () {
+    [, $users] = calendarFamily();
+    actingAs($users[0])->post('/m/calendar/events', ['title' => 'Grecia', 'start_date' => '2026-07-17', 'end_date' => '2026-07-25', 'category' => 'trips'])
+        ->assertSessionHasNoErrors();
+    actingAs($users[0])->get('/m/calendar?view=month&date=2026-07-10')
+        ->assertInertia(fn ($p) => $p->where('items.0.category', 'trips'));
+
+    // A PATCH that leaves category out keeps it; null clears it.
+    $e = CalendarEvent::firstOrFail();
+    actingAs($users[0])->patch("/m/calendar/events/{$e->id}", ['title' => 'Greece'])->assertSessionHasNoErrors();
+    expect($e->fresh()->category)->toBe('trips');
+    actingAs($users[0])->patch("/m/calendar/events/{$e->id}", ['category' => null])->assertSessionHasNoErrors();
+    expect($e->fresh()->category)->toBeNull();
+
+    actingAs($users[0])->post('/m/calendar/events', ['title' => 'X', 'start_date' => '2026-07-17', 'end_date' => '2026-07-17', 'category' => 'parties'])
+        ->assertSessionHasErrors('category');
+});
+
 it('rejects an end before the start and a same-day end time before the start time', function () {
     [, $users] = calendarFamily();
     actingAs($users[0])->post('/m/calendar/events', ['title' => 'X', 'start_date' => '2026-07-17', 'end_date' => '2026-07-16'])

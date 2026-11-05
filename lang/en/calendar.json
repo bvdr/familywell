@@ -120,5 +120,12 @@
     "whos_going": "Who's going",
     "add_contact": "Add a contact",
     "ended_on": "ended :day",
-    "starts_on": "starts :day"
+    "starts_on": "starts :day",
+    "all": "All",
+    "category": "Category",
+    "category_trips": "Trips",
+    "category_faith": "Faith",
+    "category_family": "Family",
+    "category_school": "School",
+    "category_work": "Work"
 }
