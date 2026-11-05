@@ -1,5 +1,18 @@
 [
     {
+        "version": "1.7",
+        "date": "2026-11-05",
+        "items": [
+            {
+                "module": "calendar",
+                "title": "Trips, faith, family, school, work",
+                "text": "Give an event a category and filter the calendar with one tap: the chips sit above Agenda, Month and Timeline.",
+                "href": "/m/calendar"
+            }
+        ],
+        "fixes": []
+    },
+    {
         "version": "1.6",
         "date": "2026-11-04",
         "items": [

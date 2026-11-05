@@ -637,7 +637,7 @@ class DemoSeeder extends Seeder
 
         // A trip happening now (shows on the home screen's Now & next card and the timeline).
         $trip = CalendarEvent::createFor($sarah, CalendarEvent::validated([
-            'title' => $this->t('Lake Tahoe trip'), 'icon' => 'tent', 'color' => 'blue', 'start_date' => $day(-2), 'end_date' => $day(5),
+            'title' => $this->t('Lake Tahoe trip'), 'icon' => 'tent', 'color' => 'blue', 'category' => 'trips', 'start_date' => $day(-2), 'end_date' => $day(5),
             'notes' => $this->t('Cabin check-in after 3pm. Bring the kayak paddles.'), 'people' => $users('Sarah', 'David', 'Emma', 'Noah', 'Lily'),
         ]));
         foreach (['Pack the kayak paddles', 'Download offline maps', 'Book the boat tour'] as $i => $title) {
@@ -645,15 +645,15 @@ class DemoSeeder extends Seeder
             $trip->links()->create(['linkable_type' => 'task', 'linkable_id' => $t->id]);
         }
         $events = [
-            ['Swim practice', 'waves', 'green', $day(1), $day(1), '17:00', '18:00', 'weekly', $users('Noah')],
-            ["Emma's piano recital", 'music', 'purple', $day(9), $day(9), '18:30', '20:00', 'none', $users('Emma', 'Sarah', 'David')],
-            ['Grandma visits', 'heart', 'red', $day(16), $day(20), null, null, 'none', $users('Sarah', 'Lily')],
-            ['Parent-teacher conferences', 'school', 'amber', $day(12), $day(12), '15:30', '16:30', 'none', $users('Sarah')],
-            ['Anniversary dinner', 'utensils', 'red', $day(25), $day(25), '19:30', '22:00', 'yearly', $users('Sarah', 'David')],
+            ['Swim practice', 'waves', 'green', $day(1), $day(1), '17:00', '18:00', 'weekly', $users('Noah'), 'school'],
+            ["Emma's piano recital", 'music', 'purple', $day(9), $day(9), '18:30', '20:00', 'none', $users('Emma', 'Sarah', 'David'), 'family'],
+            ['Grandma visits', 'heart', 'red', $day(16), $day(20), null, null, 'none', $users('Sarah', 'Lily'), 'family'],
+            ['Parent-teacher conferences', 'school', 'amber', $day(12), $day(12), '15:30', '16:30', 'none', $users('Sarah'), 'school'],
+            ['Anniversary dinner', 'utensils', 'red', $day(25), $day(25), '19:30', '22:00', 'yearly', $users('Sarah', 'David'), null],
         ];
-        foreach ($events as [$title, $icon, $color, $start, $end, $from, $to, $repeat, $people]) {
+        foreach ($events as [$title, $icon, $color, $start, $end, $from, $to, $repeat, $people, $category]) {
             CalendarEvent::createFor($sarah, CalendarEvent::validated([
-                'title' => $this->t($title), 'icon' => $icon, 'color' => $color, 'start_date' => $start, 'end_date' => $end,
+                'title' => $this->t($title), 'icon' => $icon, 'color' => $color, 'category' => $category, 'start_date' => $start, 'end_date' => $end,
                 'start_time' => $from, 'end_time' => $to, 'repeat' => $repeat, 'people' => $people,
             ]));
         }

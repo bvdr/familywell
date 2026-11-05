@@ -120,5 +120,12 @@
     "whos_going": "Wer kommt mit",
     "add_contact": "Kontakt hinzufügen",
     "ended_on": "endete :day",
-    "starts_on": "beginnt :day"
+    "starts_on": "beginnt :day",
+    "all": "Alle",
+    "category": "Kategorie",
+    "category_trips": "Reisen",
+    "category_faith": "Glaube",
+    "category_family": "Familie",
+    "category_school": "Schule",
+    "category_work": "Arbeit"
 }

@@ -19,6 +19,7 @@ final class CalendarData
             'notes' => $s->string()->description('Free-text notes.'),
             'icon' => $s->string()->description('Lucide icon name, e.g. plane, car, briefcase, cake.'),
             'color' => $s->string()->description('One of: green, blue, orange, red, purple, yellow, gray.'),
+            'category' => $s->string()->description('What kind of event it is; the calendar filters by it.')->enum(CalendarEvent::CATEGORIES),
             'start_date' => $s->string()->description('Y-m-d'),
             'end_date' => $s->string()->description('Y-m-d, inclusive; same as start_date for one day.'),
             'start_time' => $s->string()->description('H:i local time; omit (with end_time) for all-day.'),

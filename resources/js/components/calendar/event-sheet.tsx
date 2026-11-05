@@ -8,7 +8,7 @@ import { MemberAvatar } from '@/components/member-avatar';
 import { Picker } from '@/components/picker';
 import { SettingsSwitch } from '@/components/settings-ui';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
-import { personKey, type CalPerson } from '@/lib/calendar';
+import { CATEGORIES, CATEGORY_DOT, personKey, type CalPerson } from '@/lib/calendar';
 import { appLocale, useT } from '@/lib/i18n';
 import { LIST_COLOR_KEYS, listColor } from '@/lib/tasks';
 
@@ -18,6 +18,7 @@ export type EventForm = {
     notes: string | null;
     icon: string | null;
     color: string | null;
+    category: string | null;
     start_date: string;
     end_date: string;
     start_time: string | null;
@@ -48,6 +49,7 @@ const blank = (day: string): EventForm => ({
     notes: null,
     icon: null,
     color: null,
+    category: null,
     start_date: day,
     end_date: day,
     start_time: nextHalfHour()[0],
@@ -128,6 +130,7 @@ export function EventSheet({
             notes: f.notes,
             icon: f.icon,
             color: f.color,
+            category: f.category,
             start_date: f.start_date,
             // Moving the start past the end drags the end along instead of failing validation.
             end_date: f.end_date < f.start_date ? f.start_date : f.end_date,
@@ -209,6 +212,30 @@ export function EventSheet({
                                 {f.color === c && <Check className="size-3.5" />}
                             </button>
                         ))}
+                    </div>
+                    {/* Category (the calendar's filter chips). Tap again to clear. An event with no colour takes the
+                        category's, so its bars match the chip's dot; a colour picked by hand is kept. */}
+                    <div
+                        role="group"
+                        aria-label={t('calendar.category')}
+                        className="-mx-1 flex gap-2 overflow-x-auto px-1 pt-2 [scrollbar-width:none]"
+                        data-scroll-x
+                    >
+                        {Object.keys(CATEGORIES).map((c) => {
+                            const on = f.category === c;
+                            return (
+                                <button
+                                    key={c}
+                                    type="button"
+                                    aria-pressed={on}
+                                    onClick={() => set(on ? { category: null } : { category: c, color: f.color ?? CATEGORIES[c] })}
+                                    className={`flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-sm ${on ? 'border-primary bg-accent-subtle text-primary font-semibold' : 'border-border text-muted-foreground'}`}
+                                >
+                                    <span className={`size-[7px] rounded-full ${CATEGORY_DOT[c]}`} />
+                                    {t(`calendar.category_${c}`)}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 
