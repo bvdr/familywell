@@ -125,5 +125,12 @@
     "whos_going": "Cine vine",
     "add_contact": "Adaugă un contact",
     "ended_on": "s-a încheiat :day",
-    "starts_on": "începe :day"
+    "starts_on": "începe :day",
+    "all": "Toate",
+    "category": "Categorie",
+    "category_trips": "Călătorii",
+    "category_faith": "Credință",
+    "category_family": "Familie",
+    "category_school": "Școală",
+    "category_work": "Muncă"
 }

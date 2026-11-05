@@ -120,5 +120,12 @@
     "whos_going": "Hvem blir med",
     "add_contact": "Legg til en kontakt",
     "ended_on": "sluttet :day",
-    "starts_on": "starter :day"
+    "starts_on": "starter :day",
+    "all": "Alle",
+    "category": "Kategori",
+    "category_trips": "Reiser",
+    "category_faith": "Tro",
+    "category_family": "Familie",
+    "category_school": "Skole",
+    "category_work": "Jobb"
 }

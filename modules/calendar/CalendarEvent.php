@@ -38,7 +38,7 @@ class CalendarEvent extends Model
     protected $table = 'calendar_events';
 
     protected $fillable = [
-        'title', 'notes', 'icon', 'color', 'start_date', 'end_date', 'start_time', 'end_time',
+        'title', 'notes', 'icon', 'color', 'category', 'start_date', 'end_date', 'start_time', 'end_time',
         'repeat', 'repeat_interval', 'repeat_until', 'created_by',
     ];
 
@@ -46,7 +46,10 @@ class CalendarEvent extends Model
 
     protected $attributes = ['repeat' => 'none', 'repeat_interval' => 1];
 
-    public const COLUMNS = ['title', 'notes', 'icon', 'color', 'start_date', 'end_date', 'start_time', 'end_time', 'repeat', 'repeat_interval', 'repeat_until'];
+    // The design's filter chips (04b). Slugs only; names are translated (calendar.category_*), colours live in lib/calendar.
+    public const CATEGORIES = ['trips', 'faith', 'family', 'school', 'work'];
+
+    public const COLUMNS = ['title', 'notes', 'icon', 'color', 'category', 'start_date', 'end_date', 'start_time', 'end_time', 'repeat', 'repeat_interval', 'repeat_until'];
 
     protected static function booted(): void
     {
@@ -145,6 +148,7 @@ class CalendarEvent extends Model
             'notes' => ['nullable', 'string', 'max:10000'],
             'icon' => ['nullable', 'string', 'max:40'],
             'color' => ['nullable', 'string', 'max:20'],
+            'category' => ['nullable', Rule::in(self::CATEGORIES)],
             'start_date' => ['required', 'date_format:Y-m-d'],
             'end_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:start_date'],
             'start_time' => ['nullable', 'date_format:H:i', 'required_with:end_time'],
@@ -196,7 +200,7 @@ class CalendarEvent extends Model
     public function formValues(): array
     {
         return [
-            'title' => $this->title, 'notes' => $this->notes, 'icon' => $this->icon, 'color' => $this->color,
+            'title' => $this->title, 'notes' => $this->notes, 'icon' => $this->icon, 'color' => $this->color, 'category' => $this->category,
             'start_date' => $this->start_date->toDateString(), 'end_date' => $this->end_date->toDateString(),
             'start_time' => $this->start_time, 'end_time' => $this->end_time, 'repeat' => $this->repeat,
             'repeat_interval' => $this->repeat_interval, 'repeat_until' => $this->repeat_until?->toDateString(),
@@ -341,7 +345,7 @@ class CalendarEvent extends Model
             foreach (Occurrences::starts($e->start_date->toDateString(), $e->end_date->toDateString(), $e->repeat, $e->repeat_interval, $e->repeat_until?->toDateString(), $from, $to) as $start) {
                 $items[] = CalendarSources::item(
                     'event', $e->id, $e->title, $start, CarbonImmutable::parse($start)->addDays($days)->toDateString(),
-                    href: "/m/calendar/events/{$e->id}", icon: $e->icon ?: 'calendar', color: $e->color,
+                    href: "/m/calendar/events/{$e->id}", icon: $e->icon ?: 'calendar', color: $e->color, category: $e->category,
                     people: $people[$e->id] ?? [], startTime: $e->start_time, endTime: $e->end_time, editable: $editable,
                 );
             }

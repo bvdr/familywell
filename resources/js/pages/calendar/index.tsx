@@ -12,7 +12,7 @@ import { HomeTopBar } from '@/components/home-top-bar';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useAddAction } from '@/lib/add-action';
-import { addDays, filterItems, parseDay, shiftDate, type CalFilter, type CalItem } from '@/lib/calendar';
+import { addDays, CATEGORIES, CATEGORY_DOT, filterItems, parseDay, shiftDate, type CalFilter, type CalItem } from '@/lib/calendar';
 import { openNewOnArrival } from '@/lib/create-intent';
 import { localToday } from '@/lib/date-groups';
 import { useLocale, useT } from '@/lib/i18n';
@@ -22,9 +22,14 @@ const FILTER_KEY = 'familywell:calendarFilter';
 const readFilter = (): CalFilter => {
     try {
         const v = JSON.parse(localStorage.getItem(FILTER_KEY) ?? '');
-        return { people: Array.isArray(v?.people) ? v.people : [], sources: Array.isArray(v?.sources) ? v.sources : [] };
+        return {
+            people: Array.isArray(v?.people) ? v.people : [],
+            sources: Array.isArray(v?.sources) ? v.sources : [],
+            // Only a category we still know (a stale slug would quietly hide every event).
+            category: typeof v?.category === 'string' && v.category in CATEGORIES ? v.category : null,
+        };
     } catch {
-        return { people: [], sources: [] };
+        return { people: [], sources: [], category: null };
     }
 };
 
@@ -93,7 +98,12 @@ export default function CalendarIndex({
     const validPeople = new Set([...members.map((m) => `user:${m.id}`), ...contacts.map((c) => `person:${c.id}`)]);
     const [filter, setFilterState] = useState<CalFilter>(() => {
         const f = readFilter();
-        return { people: f.people.filter((p) => validPeople.has(p)), sources: f.sources.filter((s) => validSources.has(s)) };
+        return {
+            people: f.people.filter((p) => validPeople.has(p)),
+            sources: f.sources.filter((s) => validSources.has(s)),
+            // Categories belong to calendar events: with that source turned off, a category would leave nothing.
+            category: validSources.has('calendar') ? f.category : null,
+        };
     });
     const [filtering, setFiltering] = useState(false);
     const [feedOpen, setFeedOpen] = useState(false);
@@ -230,7 +240,31 @@ export default function CalendarIndex({
                     ))}
                 </div>
 
-                {/* Timeline: a chip per source (04b), All first. */}
+                {/* Category chips (04b C9/C10/D2): All first, one choice at a time, on every view. Only when the calendar
+                    source is on (categories are on calendar events). The badge on the filter button doesn't count it:
+                    the chip row already shows it. */}
+                {sources.includes('calendar') && (
+                    <div data-scroll-x className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none]">
+                        {[null, ...Object.keys(CATEGORIES)].map((c) => {
+                            const on = filter.category === c;
+                            return (
+                                <button
+                                    key={c ?? 'all'}
+                                    type="button"
+                                    aria-pressed={on}
+                                    onClick={() => setFilter({ ...filter, category: c })}
+                                    className={`flex shrink-0 items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-semibold ${
+                                        on ? 'bg-primary text-primary-foreground border-transparent' : 'bg-surface-card text-primary border-border'
+                                    }`}
+                                >
+                                    {c && <span className={`size-[7px] rounded-full ${CATEGORY_DOT[c]}`} />}
+                                    {t(c ? `calendar.category_${c}` : 'calendar.all')}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+
                 {view === 'agenda' ? (
                     <AgendaView
                         items={shown}
