@@ -41,6 +41,7 @@
         "home": "Início",
         "more_desc": "Todos os módulos e os espaços da tua família",
         "birthdays": "Aniversários",
+        "days": "Datas",
         "calendar": "Agenda",
         "expense_import": "Importar gastos",
         "pinned": "Fixados",
@@ -130,7 +131,15 @@
         "anytime_other": "Sem data · :count tarefas",
         "spent_month_one": "gasto este mês · :count despesa",
         "spent_month_other": "gasto este mês · :count despesas",
-        "week_n": "Sem :n"
+        "week_n": "Sem :n",
+        "sum_days_one": ":count a caminho",
+        "sum_days_other": ":count a caminho",
+        "days": "Datas especiais",
+        "remembering": "Lembrando de",
+        "day_today": "Hoje",
+        "since": "Desde :date",
+        "call_family": "Ligar para a família",
+        "hide_today": "Ocultar por hoje"
     },
     "settings": {
         "title": "Configurações",

@@ -41,6 +41,7 @@
         "home": "Home",
         "more_desc": "Alle modules en de plekken van je gezin",
         "birthdays": "Verjaardagen",
+        "days": "Dagen",
         "calendar": "Agenda",
         "expense_import": "Uitgaven importeren",
         "pinned": "Gepind",
@@ -130,7 +131,15 @@
         "anytime_other": "Ooit · :count taken zonder datum",
         "spent_month_one": "uitgegeven deze maand · :count uitgave",
         "spent_month_other": "uitgegeven deze maand · :count uitgaven",
-        "week_n": "Wk :n"
+        "week_n": "Wk :n",
+        "sum_days_one": ":count op komst",
+        "sum_days_other": ":count op komst",
+        "days": "Bijzondere dagen",
+        "remembering": "We denken aan",
+        "day_today": "Vandaag",
+        "since": "Sinds :date",
+        "call_family": "Familie bellen",
+        "hide_today": "Verberg voor vandaag"
     },
     "settings": {
         "title": "Instellingen",

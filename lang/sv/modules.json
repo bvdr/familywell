@@ -73,5 +73,10 @@
         "name": "Fordon",
         "description": "Allt om familjens bilar på ett ställe: status, miltal, underhåll, utgifter och dokument. Lugn bilvård, inget verkstadssystem.",
         "tagline": "Service, reparationer, dokument"
+    },
+    "days": {
+        "name": "Viktiga dagar",
+        "description": "Varje årligt datum som betyder något, förutom födelsedagar: ett bröllop, en flytt, dagen någon gick bort. Varje dag har en stämning (Fira är varm, Stilla är lugn), en ikon, en valfri påminnelse i förväg och ett kort på Hem på själva dagen.",
+        "tagline": "Dagarna som stannar hos dig"
     }
 }

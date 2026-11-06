@@ -73,5 +73,10 @@
         "name": "Kjøretøy",
         "description": "Alt om familiens biler på ett sted: status, kilometerstand, vedlikehold, utgifter og dokumenter. Rolig bilstell, ikke et verkstedsystem.",
         "tagline": "Service, reparasjoner, dokumenter"
+    },
+    "days": {
+        "name": "Viktige dager",
+        "description": "Alle årlige datoer som betyr noe, utenom bursdager: et bryllup, en flytting, dagen noen gikk bort. Hver dag har en stemning (Feire er varm, Stille er rolig), et ikon, en valgfri påminnelse i forkant og et kort på Hjem på selve dagen.",
+        "tagline": "Dagene som blir hos deg"
     }
 }

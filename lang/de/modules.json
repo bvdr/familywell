@@ -73,5 +73,10 @@
         "name": "Fahrzeuge",
         "description": "Das Zuhause für alles rund um die Familienautos: Zustand, Kilometerstand, Wartung, Ausgaben und Dokumente. Entspannte Autopflege, kein Werkstattsystem.",
         "tagline": "Wartung, Reparaturen, Dokumente"
+    },
+    "days": {
+        "name": "Besondere Tage",
+        "description": "Jedes jährliche Datum, das zählt, außer Geburtstagen: eine Hochzeit, ein Einzug, der Tag, an dem jemand gegangen ist. Jeder Tag hat eine Stimmung (Feiern ist warm, Still ist ruhig), ein Symbol, eine optionale Erinnerung vorab und am Tag selbst eine Karte auf Start.",
+        "tagline": "Die Tage, die bei dir bleiben"
     }
 }
