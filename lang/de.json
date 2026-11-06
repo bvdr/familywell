@@ -41,6 +41,7 @@
         "home": "Start",
         "more_desc": "Alle Module und die Bereiche deiner Familie",
         "birthdays": "Geburtstage",
+        "days": "Jahrestage",
         "calendar": "Kalender",
         "expense_import": "Ausgabenimport",
         "pinned": "Angepinnt",
@@ -130,7 +131,15 @@
         "anytime_other": "Irgendwann · :count Aufgaben ohne Datum",
         "spent_month_one": "diesen Monat ausgegeben · :count Ausgabe",
         "spent_month_other": "diesen Monat ausgegeben · :count Ausgaben",
-        "week_n": "KW :n"
+        "week_n": "KW :n",
+        "sum_days_one": ":count bald",
+        "sum_days_other": ":count bald",
+        "days": "Besondere Tage",
+        "remembering": "Wir denken an",
+        "day_today": "Heute",
+        "since": "Seit :date",
+        "call_family": "Familie anrufen",
+        "hide_today": "Für heute ausblenden"
     },
     "settings": {
         "title": "Einstellungen",

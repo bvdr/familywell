@@ -73,5 +73,10 @@
         "name": "Voertuigen",
         "description": "Alles over de gezinsauto's op één plek: staat, kilometerstand, onderhoud, uitgaven en documenten. Rustig autobeheer, geen garagesysteem.",
         "tagline": "Onderhoud, reparaties, documenten"
+    },
+    "days": {
+        "name": "Bijzondere dagen",
+        "description": "Elke jaarlijkse datum die telt, naast verjaardagen: een bruiloft, een verhuizing, de dag dat iemand overleed. Elke dag heeft een sfeer (Vieren is warm, Stil is rustig), een icoon, een optionele herinnering vooraf en op de dag zelf een kaart op Home.",
+        "tagline": "De dagen die bij je blijven"
     }
 }

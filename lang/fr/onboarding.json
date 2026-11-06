@@ -120,6 +120,7 @@
     "module_contacts": "Contacts",
     "module_contacts_desc": "Le carnet d'adresses familial",
     "module_birthdays": "Anniversaires",
+    "module_days": "Dates à retenir",
     "module_birthdays_desc": "Le prochain arrive",
     "install_title": "Mettez FamilyWell sur votre écran d'accueil.",
     "install_sub": "Cette étape est obligatoire. L'app s'ouvre en plein écran comme les autres, et sur iPhone c'est le seul moyen de recevoir les rappels.",

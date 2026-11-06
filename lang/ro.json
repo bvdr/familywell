@@ -41,6 +41,7 @@
         "home": "Acasă",
         "more_desc": "Toate modulele și locurile familiei tale",
         "birthdays": "Zile de naștere",
+        "days": "Zile",
         "calendar": "Calendar",
         "expense_import": "Import cheltuieli",
         "pinned": "Fixate",
@@ -150,7 +151,16 @@
         "spent_month_one": "cheltuit luna asta · :count cheltuială",
         "spent_month_few": "cheltuit luna asta · :count cheltuieli",
         "spent_month_other": "cheltuit luna asta · :count de cheltuieli",
-        "week_n": "Săpt :n"
+        "week_n": "Săpt :n",
+        "sum_days_one": ":count în curând",
+        "sum_days_few": ":count în curând",
+        "sum_days_other": ":count în curând",
+        "days": "Zile speciale",
+        "remembering": "Ne amintim de",
+        "day_today": "Azi",
+        "since": "Din :date",
+        "call_family": "Sună familia",
+        "hide_today": "Ascunde pentru azi"
     },
     "settings": {
         "title": "Setări",

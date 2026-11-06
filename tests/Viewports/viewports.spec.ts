@@ -9,6 +9,7 @@ const PAGES: [string, string][] = [
     ['notifications', '/notifications'],
     ['search', '/search?q=banana'],
     ['birthdays', '/m/birthdays'],
+    ['days', '/m/days'],
     ['calendar', '/m/calendar'],
     ['contacts', '/m/contacts'],
     ['inventory', '/m/inventory'],

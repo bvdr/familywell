@@ -14,6 +14,7 @@ class HomeLayout
     public const SECTIONS = [
         'important' => 'important_todos', // Your important to-dos, pinned on top (the important_todos module's card)
         'birthdays' => 'birthdays',
+        'days' => 'days',    // Days to remember (the days module's card, design A4/A5)
         'today' => null,     // Today + Tomorrow
         'week' => null,      // Next 3 days strip
         'anytime' => 'tasks', // To-dos with no date

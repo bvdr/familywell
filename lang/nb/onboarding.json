@@ -120,6 +120,7 @@
     "module_contacts": "Kontakter",
     "module_contacts_desc": "Familiens adressebok",
     "module_birthdays": "Bursdager",
+    "module_days": "Viktige dager",
     "module_birthdays_desc": "Den neste som kommer",
     "install_title": "Legg FamilyWell på Hjem-skjermen.",
     "install_sub": "Dette steget er påkrevd. Den åpnes i fullskjerm som en vanlig app, og på iPhone er det den eneste måten påminnelser når deg på.",

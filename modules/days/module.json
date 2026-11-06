@@ -1,0 +1,9 @@
+{
+    "id": "days",
+    "name": "Days to remember",
+    "description": "Every yearly date that matters besides birthdays: a wedding, moving in, the day someone passed away. Each day has a tone (Celebrate is warm, Quiet is calm), an icon, an optional reminder ahead, and a card on Home on the day.",
+    "version": "1.0.0",
+    "provider": "Modules\\Days\\DaysServiceProvider",
+    "frontend": "",
+    "requires": ["contacts"]
+}

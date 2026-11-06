@@ -73,5 +73,10 @@
         "name": "Vehicule",
         "description": "Locul pentru tot ce ține de mașinile familiei: stare, kilometraj, întreținere, cheltuieli și documente. Grija liniștită pentru mașină, nu un sistem de service.",
         "tagline": "Revizii, reparații, documente"
+    },
+    "days": {
+        "name": "Zile speciale",
+        "description": "Fiecare dată anuală care contează, în afară de zilele de naștere: o nuntă, o mutare, ziua în care a plecat cineva drag. Fiecare zi are un ton (Sărbătorește e cald, Liniștit e calm), o pictogramă, un memento opțional din timp și un card pe Acasă chiar în acea zi.",
+        "tagline": "Zilele care rămân cu tine"
     }
 }

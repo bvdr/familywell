@@ -73,5 +73,10 @@
         "name": "Véhicules",
         "description": "Tout sur les voitures de la famille au même endroit : état, kilométrage, entretien, dépenses et documents. Un suivi serein, pas un logiciel d'atelier.",
         "tagline": "Entretien, réparations, documents"
+    },
+    "days": {
+        "name": "Dates à retenir",
+        "description": "Chaque date annuelle qui compte en dehors des anniversaires : un mariage, un emménagement, le jour où quelqu'un est parti. Chaque date a une ambiance (Fêter est chaleureux, Calme est serein), une icône, un rappel facultatif à l'avance, et une carte sur l'accueil le jour même.",
+        "tagline": "Les jours qui restent avec toi"
     }
 }

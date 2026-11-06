@@ -58,6 +58,13 @@ return [
 
         // Shopping lists
         'Weekly groceries' => 'Wocheneinkauf',
+        'Grandpa Walter' => 'Opa Walter',
+        'His stories at the kitchen table.' => 'Seine Geschichten am Küchentisch.',
+        "Biscuit's adoption day" => 'Keksis Adoptionstag',
+        "Sarah & David's wedding" => 'Hochzeitstag von Sarah & David',
+        'Moved into our home' => 'Eingezogen in unser Zuhause',
+        'Aunt Maria' => 'Tante Maria',
+        'The roses in her garden.' => 'Die Rosen in ihrem Garten.',
         'Costco run' => 'Großeinkauf Kaufland',
         'Back to school' => 'Schulanfang',
         'Saturday dinner party' => 'Abendessen mit Gästen am Samstag',

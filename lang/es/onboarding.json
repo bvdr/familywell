@@ -120,6 +120,7 @@
     "module_contacts": "Contactos",
     "module_contacts_desc": "La agenda de la familia",
     "module_birthdays": "Cumpleaños",
+    "module_days": "Fechas especiales",
     "module_birthdays_desc": "El próximo que llega",
     "install_title": "Pon FamilyWell en tu pantalla de inicio.",
     "install_sub": "Este paso es obligatorio. Se abre a pantalla completa como cualquier app y, en iPhone, es la única forma de que te lleguen los recordatorios.",

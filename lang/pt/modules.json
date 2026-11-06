@@ -73,5 +73,10 @@
         "name": "Veículos",
         "description": "O lar de tudo sobre os carros da família: estado, quilometragem, manutenção, gastos e documentos. Cuidado tranquilo com o carro, não um sistema de oficina.",
         "tagline": "Revisões, reparos, documentos"
+    },
+    "days": {
+        "name": "Datas especiais",
+        "description": "Toda data anual que importa, além dos aniversários: um casamento, uma mudança de casa, o dia em que alguém partiu. Cada data tem um clima (Celebrar é caloroso, Tranquilo é sereno), um ícone, um lembrete opcional com antecedência e um cartão no Início no próprio dia.",
+        "tagline": "Os dias que ficam com você"
     }
 }

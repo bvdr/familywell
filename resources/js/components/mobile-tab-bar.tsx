@@ -8,6 +8,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 import {
     Bell,
     Cake,
+    CalendarHeart,
     CalendarDays,
     Car,
     ChefHat,
@@ -54,6 +55,7 @@ export const MODULE_ITEMS: Item[] = [
     { key: 'notes', labelKey: 'nav.notes', url: '/m/notes', icon: StickyNote },
     { key: 'contacts', labelKey: 'nav.contacts', url: '/m/contacts', icon: Contact },
     { key: 'birthdays', labelKey: 'nav.birthdays', url: '/m/birthdays', icon: Cake },
+    { key: 'days', labelKey: 'nav.days', url: '/m/days', icon: CalendarHeart },
     { key: 'expense_import', labelKey: 'nav.expense_import', url: '/m/expense-import', icon: Import },
 ];
 // The family's own places, under the modules in More.

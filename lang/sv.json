@@ -41,6 +41,7 @@
         "home": "Hem",
         "more_desc": "Alla moduler och familjens platser",
         "birthdays": "Födelsedagar",
+        "days": "Dagar",
         "calendar": "Kalender",
         "expense_import": "Importera utgifter",
         "pinned": "Fästa",
@@ -130,7 +131,15 @@
         "anytime_other": "När som helst · :count uppgifter utan datum",
         "spent_month_one": "spenderat denna månad · :count utgift",
         "spent_month_other": "spenderat denna månad · :count utgifter",
-        "week_n": "V :n"
+        "week_n": "V :n",
+        "sum_days_one": ":count på väg",
+        "sum_days_other": ":count på väg",
+        "days": "Viktiga dagar",
+        "remembering": "Vi minns",
+        "day_today": "I dag",
+        "since": "Sedan :date",
+        "call_family": "Ring familjen",
+        "hide_today": "Dölj för i dag"
     },
     "settings": {
         "title": "Inställningar",

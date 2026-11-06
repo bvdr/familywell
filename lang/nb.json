@@ -41,6 +41,7 @@
         "home": "Hjem",
         "more_desc": "Alle moduler og familiens steder",
         "birthdays": "Bursdager",
+        "days": "Dager",
         "calendar": "Kalender",
         "expense_import": "Utgiftsimport",
         "pinned": "Festet",
@@ -130,7 +131,15 @@
         "anytime_other": "Når som helst · :count gjøremål uten dato",
         "spent_month_one": "brukt denne måneden · :count utgift",
         "spent_month_other": "brukt denne måneden · :count utgifter",
-        "week_n": "Uke :n"
+        "week_n": "Uke :n",
+        "sum_days_one": ":count på vei",
+        "sum_days_other": ":count på vei",
+        "days": "Viktige dager",
+        "remembering": "Vi minnes",
+        "day_today": "I dag",
+        "since": "Siden :date",
+        "call_family": "Ring familien",
+        "hide_today": "Skjul for i dag"
     },
     "settings": {
         "title": "Innstillinger",

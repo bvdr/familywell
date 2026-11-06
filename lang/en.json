@@ -51,7 +51,8 @@
         "family": "Your family",
         "modules_on_one": ":count on",
         "modules_on_other": ":count on",
-        "pin_hint": "Long-press a module to pin it to your tab bar (up to 3)."
+        "pin_hint": "Long-press a module to pin it to your tab bar (up to 3).",
+        "days": "Days to remember"
     },
     "dashboard": {
         "good_morning": "Good morning",
@@ -130,7 +131,15 @@
         "anytime_other": "Anytime · :count to-dos with no date",
         "spent_month_one": "spent this month · :count expense",
         "spent_month_other": "spent this month · :count expenses",
-        "week_n": "Wk :n"
+        "week_n": "Wk :n",
+        "sum_days_one": ":count coming up",
+        "sum_days_other": ":count coming up",
+        "days": "Days to remember",
+        "remembering": "Remembering",
+        "day_today": "Today",
+        "since": "Since :date",
+        "call_family": "Call family",
+        "hide_today": "Hide for today"
     },
     "settings": {
         "title": "Settings",

@@ -73,5 +73,10 @@
         "name": "Vehículos",
         "description": "El lugar para todo lo relacionado con los vehículos de la familia: estado, kilometraje, mantenimiento, gastos y documentos. Cuidado tranquilo del vehículo, no un sistema de taller.",
         "tagline": "Mantenimiento, reparaciones, documentos"
+    },
+    "days": {
+        "name": "Fechas especiales",
+        "description": "Cada fecha anual que importa, además de los cumpleaños: una boda, una mudanza, el día en que alguien nos dejó. Cada fecha tiene un tono (Celebrar es cálido, Tranquilo es sereno), un icono, un recordatorio opcional con antelación y una tarjeta en Inicio el mismo día.",
+        "tagline": "Los días que se quedan contigo"
     }
 }
