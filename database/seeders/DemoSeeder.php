@@ -19,6 +19,7 @@ use Modules\Calendar\CalendarEvent;
 use Modules\Calendar\CalendarSubscription;
 use Modules\Calendar\CalendarSubscriptionEvent;
 use Modules\Contacts\Person;
+use Modules\Days\Day;
 use Modules\ExpenseImport\ImportBatch;
 use Modules\ExpenseImport\Importer;
 use Modules\ExpenseImport\ImportSetting;
@@ -78,7 +79,7 @@ class DemoSeeder extends Seeder
 
     public const MODULES = [
         'shopping', 'spending', 'inventory', 'vehicles', 'tasks', 'notes', 'contacts', 'birthdays',
-        'projects', 'notifications', 'important_todos', 'recurring_todos', 'calendar', 'recipes', 'expense_import',
+        'projects', 'notifications', 'important_todos', 'recurring_todos', 'calendar', 'recipes', 'expense_import', 'days',
     ];
 
     private Carbon $today;
@@ -125,6 +126,7 @@ class DemoSeeder extends Seeder
             $this->calendar();
             $this->recipes();
             $this->people();
+            $this->days();
             $this->notifications();
         });
 
@@ -819,6 +821,33 @@ class DemoSeeder extends Seeder
                 'family_id' => CurrentFamily::id(), 'person_id' => $person->id, 'birthdate' => ['1951-08-03', '1949-11-21', '1955-04-17'][$i],
                 'month' => [8, 11, 4][$i], 'day' => [3, 21, 17][$i], 'created_at' => $now, 'updated_at' => $now,
             ]);
+        }
+    }
+
+    // ---- Days to remember ------------------------------------------------------------------------------
+
+    // Relative to today so Home always has something: a Quiet day today (its note and Call family, linked to Nana
+    // Ruth who has a phone), a Celebrate day coming up, and a few further out for the list's months.
+    private function days(): void
+    {
+        $sarah = $this->u['Sarah'];
+        $ruth = Person::where('name', $this->t('Nana Ruth (Ruth Callahan)'))->value('id');
+        // [title, tone, icon, days from today, years ago (null = no year), note, linked person, remind days]
+        $days = [
+            ['Grandpa Walter', 'quiet', 'leaf', 0, 3, 'His stories at the kitchen table.', $ruth, 3],
+            ["Biscuit's adoption day", 'celebrate', 'paw-print', 5, 3, null, null, null],
+            ["Sarah & David's wedding", 'celebrate', 'heart', 18, 14, null, null, 7],
+            ['Moved into our home', 'celebrate', 'house', 39, 6, null, null, null],
+            ['Aunt Maria', 'quiet', 'flower-2', 75, 7, 'The roses in her garden.', null, 3],
+        ];
+        foreach ($days as [$title, $tone, $icon, $in, $ago, $note, $person, $remind]) {
+            $date = $this->today->copy()->addDays($in);
+            $day = Day::create([
+                'title' => $this->t($title), 'tone' => $tone, 'icon' => $icon, 'month' => $date->month, 'day' => $date->day,
+                'year' => $ago === null ? null : $date->year - $ago, 'note' => $this->t($note),
+                'person_ids' => $person ? [$person] : null, 'remind_days' => $remind, 'created_by' => $sarah->id,
+            ]);
+            $day->shares()->create(['user_id' => $sarah->id, 'role' => 'owner']);
         }
     }
 
