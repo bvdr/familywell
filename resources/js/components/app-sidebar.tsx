@@ -17,6 +17,7 @@ import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import {
     Cake,
+    CalendarHeart,
     CalendarDays,
     Car,
     ChefHat,
@@ -58,6 +59,7 @@ const moduleNavItems: Record<string, { titleKey: string; url: string; icon: Luci
     recipes: { titleKey: 'nav.recipes', url: '/m/recipes', icon: ChefHat },
     contacts: { titleKey: 'nav.contacts', url: '/m/contacts', icon: Contact },
     birthdays: { titleKey: 'nav.birthdays', url: '/m/birthdays', icon: Cake },
+    days: { titleKey: 'nav.days', url: '/m/days', icon: CalendarHeart },
     inventory: { titleKey: 'nav.inventory', url: '/m/inventory', icon: Package },
     vehicles: { titleKey: 'nav.vehicles', url: '/m/vehicles', icon: Car },
     expense_import: { titleKey: 'nav.expense_import', url: '/m/expense-import', icon: Import },

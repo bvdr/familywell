@@ -1,6 +1,7 @@
 import { Link } from '@inertiajs/react';
 import {
     Cake,
+    CalendarHeart,
     CalendarDays,
     Car,
     ChefHat,
@@ -34,6 +35,7 @@ export const MODULES: Record<string, { icon: LucideIcon; href: string }> = {
     projects: { icon: FolderKanban, href: '/m/projects' },
     contacts: { icon: Contact, href: '/m/contacts' },
     birthdays: { icon: Cake, href: '/m/birthdays' },
+    days: { icon: CalendarHeart, href: '/m/days' },
 };
 
 export type ModuleSummary = { key: string; params?: Record<string, string | number> };

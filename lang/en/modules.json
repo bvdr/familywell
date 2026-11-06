@@ -73,5 +73,10 @@
         "name": "Vehicles",
         "description": "The home for everything about the family cars — state, mileage, maintenance, expenses and documents. Calm car care, not a workshop system.",
         "tagline": "Service, repairs, documents"
+    },
+    "days": {
+        "name": "Days to remember",
+        "description": "Every yearly date that matters besides birthdays: a wedding, moving in, the day someone passed away. Each day has a tone (Celebrate is warm, Quiet is calm), an icon, an optional reminder ahead, and a card on Home on the day.",
+        "tagline": "The days that stay with you"
     }
 }

@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import {
     Cake,
+    CalendarHeart,
     CalendarDays,
     Car,
     ChefHat,
@@ -45,6 +46,7 @@ const MODULE_ICONS: Record<string, LucideIcon> = {
     recipes: ChefHat,
     contacts: Contact,
     birthdays: Cake,
+    days: CalendarHeart,
     inventory: Package,
     vehicles: Car,
 };

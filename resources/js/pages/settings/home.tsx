@@ -2,7 +2,7 @@ import { closestCenter, DndContext, MouseSensor, TouchSensor, useSensor, useSens
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Head } from '@inertiajs/react';
-import { Cake, CalendarDays, GripVertical, History, Inbox, LayoutGrid, ListChecks, RotateCcw, Star, Wallet, type LucideIcon } from 'lucide-react';
+import { Cake, CalendarDays, CalendarHeart, GripVertical, History, Inbox, LayoutGrid, ListChecks, RotateCcw, Star, Wallet, type LucideIcon } from 'lucide-react';
 import { useState, type KeyboardEvent } from 'react';
 
 import { usePinned } from '@/components/pin-modules';
@@ -23,6 +23,7 @@ type Section = { id: string; on: boolean };
 const ICONS: Record<string, LucideIcon> = {
     important: Star,
     birthdays: Cake,
+    days: CalendarHeart,
     today: ListChecks,
     week: CalendarDays,
     anytime: Inbox,

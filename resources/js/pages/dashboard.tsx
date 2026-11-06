@@ -1,4 +1,5 @@
 import { Confetti } from '@/components/confetti';
+import { DayIcon } from '@/components/day-icon';
 import { HomeTopBar } from '@/components/home-top-bar';
 import { LucideIcon as DynamicLucideIcon } from '@/components/lucide-icon';
 import { MemberAvatar } from '@/components/member-avatar';
@@ -8,9 +9,10 @@ import { localToday } from '@/lib/date-groups';
 import { useLocale, useT, type TFn } from '@/lib/i18n';
 import { money } from '@/lib/money';
 import { save } from '@/lib/save';
+import type { Day } from '@/pages/days/index';
 import { type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { Blocks, Cake, Check, ChevronDown, ChevronRight, Heart, Inbox, Phone, Plus, Star } from 'lucide-react';
+import { Blocks, Cake, Check, ChevronDown, ChevronRight, EyeOff, Heart, Inbox, Phone, Plus, Star } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 
 // Home (design node XMkKm, "H1 · Today"): Today first. One agenda of to-dos and events for today and tomorrow,
@@ -188,6 +190,158 @@ function Birthdays({ people }: { people: Birthday[] }) {
                 })}
             </div>
             {today.length > 0 && <Confetti onceKey={`${todayYmd()}:${today.map((b) => b.personId).join(',')}`} />}
+        </section>
+    );
+}
+
+// Days to remember (design A4 / A5), under Birthdays. Today's Celebrate day borrows the birthday card (sun, the years,
+// Call / Send a wish to the first linked contact with a phone); a Quiet day is plain white: no big number, no
+// countdown, its note like a memory, Call family and "Hide for today" (this device only, localStorage). The next
+// few days follow underneath.
+type HomeDay = Day & { people: { id: number; name: string; phone: string | null }[] };
+
+function hiddenKey() {
+    return `days-hidden:${todayYmd()}`;
+}
+
+function DaysCard({ days }: { days: HomeDay[] }) {
+    const t = useT();
+    const locale = useLocale();
+    const [hidden, setHidden] = useState<number[]>(() => {
+        try {
+            return JSON.parse(localStorage.getItem(hiddenKey()) ?? '[]');
+        } catch {
+            return [];
+        }
+    });
+    const hide = (id: number) => {
+        const next = [...hidden, id];
+        setHidden(next);
+        localStorage.setItem(hiddenKey(), JSON.stringify(next));
+    };
+    const today = days.filter((d) => d.daysUntil === 0 && !hidden.includes(d.id));
+    const coming = days.filter((d) => d.daysUntil > 0).slice(0, 3);
+    if (!today.length && !coming.length) return null;
+    const celebrate = today.filter((d) => d.tone === 'celebrate');
+    const quiet = today.filter((d) => d.tone === 'quiet');
+    const phone = (d: HomeDay) => d.people.find((p) => p.phone)?.phone ?? null;
+    const action = 'flex items-center justify-center gap-2 rounded-full py-2.5 text-[15px] font-semibold';
+
+    return (
+        <section className="flex flex-col gap-2.5">
+            <SectionLabel label={t('dashboard.days')} count={today.length + coming.length} />
+            {quiet.map((d) => (
+                <div key={d.id} className={`${card} flex flex-col gap-3.5 p-4`}>
+                    <div className="flex items-center gap-3">
+                        <span className="bg-paper-2 flex size-14 shrink-0 items-center justify-center rounded-2xl">
+                            <DayIcon name={d.icon} className="text-ink-2 size-6" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                            <span className="text-muted-foreground flex items-center gap-1.5 font-mono text-[11px] font-semibold tracking-[0.14em] uppercase">
+                                <DayIcon name={d.icon} className="size-3.5" />
+                                {t('dashboard.remembering')}
+                            </span>
+                            <span className="font-heading text-primary block truncate text-2xl leading-tight font-bold">{d.title}</span>
+                            {d.years && <span className="text-muted-foreground block text-sm">{t('days.years_today', { count: d.years })}</span>}
+                        </div>
+                    </div>
+                    {d.note && <p className="text-ink-2 text-[15px] font-medium break-words">{d.note}</p>}
+                    <div className="grid grid-cols-2 gap-2.5">
+                        {phone(d) ? (
+                            <a href={`tel:${phone(d)}`} className={`bg-paper-2 text-ink ${action}`}>
+                                <Phone className="size-4" />
+                                {t('dashboard.call_family')}
+                            </a>
+                        ) : (
+                            <span />
+                        )}
+                        <button type="button" onClick={() => hide(d.id)} className={`text-ink ${action}`}>
+                            <EyeOff className="size-4" />
+                            {t('dashboard.hide_today')}
+                        </button>
+                    </div>
+                </div>
+            ))}
+            {(celebrate.length > 0 || coming.length > 0) && (
+                <div className={card}>
+                    {celebrate.map((d) => (
+                        <div key={d.id} className="bg-accent-strong text-accent-strong-foreground flex flex-col gap-4 p-4">
+                            <div className="flex items-center gap-3">
+                                <span className="bg-surface-card flex size-14 shrink-0 items-center justify-center rounded-2xl">
+                                    <DayIcon name={d.icon} className="text-ink size-6" />
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                    <span className="flex items-center gap-1.5 font-mono text-[11px] font-semibold tracking-[0.14em] uppercase">
+                                        <DayIcon name={d.icon} className="size-3.5" />
+                                        {t('dashboard.day_today')}
+                                    </span>
+                                    <span className="font-heading block truncate text-2xl leading-tight font-bold">{d.title}</span>
+                                    {d.year && (
+                                        <span className="block text-sm">
+                                            {t('dashboard.since', {
+                                                date: new Date(d.year, d.month - 1, d.day).toLocaleDateString(locale, { dateStyle: 'medium' }),
+                                            })}
+                                        </span>
+                                    )}
+                                </div>
+                                {d.years && (
+                                    <span className="flex shrink-0 flex-col items-end gap-1.5">
+                                        <span className="font-heading text-5xl leading-none font-extrabold tabular-nums">{d.years}</span>
+                                        <span className="font-mono text-[10px] font-semibold tracking-[0.14em] uppercase">
+                                            {t('dashboard.years')}
+                                        </span>
+                                    </span>
+                                )}
+                            </div>
+                            {phone(d) && (
+                                <div className="grid grid-cols-2 gap-2.5">
+                                    <a href={`tel:${phone(d)}`} className={`bg-primary text-primary-foreground ${action}`}>
+                                        <Phone className="size-4" />
+                                        {t('dashboard.call')}
+                                    </a>
+                                    <a href={`sms:${phone(d)}`} className={`bg-accent-subtle text-primary ${action}`}>
+                                        <Heart className="size-4" />
+                                        {t('dashboard.send_wish')}
+                                    </a>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                    {coming.map((d) => {
+                        const date = parseDay(d.next);
+                        return (
+                            <Link key={d.id} href="/m/days" prefetch className="flex items-center gap-3 border-t px-4 py-3 first:border-t-0">
+                                <span
+                                    className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${d.tone === 'quiet' ? 'bg-paper-2' : 'bg-sun-soft'}`}
+                                >
+                                    <DayIcon name={d.icon} className="text-ink size-4.5" />
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                    <span className="text-primary block truncate font-semibold">{d.title}</span>
+                                    {(d.tone === 'quiet' ? d.year : d.years) && (
+                                        <span className="text-muted-foreground block text-sm">
+                                            {d.tone === 'quiet' ? t('days.since', { year: d.year! }) : t('days.n_years', { count: d.years! })}
+                                        </span>
+                                    )}
+                                </span>
+                                <span className="flex shrink-0 flex-col items-end">
+                                    <span className="text-primary font-mono text-xs font-semibold uppercase">
+                                        {date.toLocaleDateString(locale, {
+                                            weekday: 'short',
+                                            day: 'numeric',
+                                            month: d.daysUntil > 6 ? 'short' : undefined,
+                                        })}
+                                    </span>
+                                    <span className="text-muted-foreground text-sm">
+                                        {d.daysUntil === 1 ? t('dashboard.tomorrow') : t('dashboard.in_days', { count: d.daysUntil })}
+                                    </span>
+                                </span>
+                            </Link>
+                        );
+                    })}
+                </div>
+            )}
+            {celebrate.length > 0 && <Confetti onceKey={`days:${todayYmd()}:${celebrate.map((d) => d.id).join(',')}`} />}
         </section>
     );
 }
@@ -676,7 +830,7 @@ export default function Dashboard({
     widgets = {},
     summaries = {},
     // The person's Home sections in their order, hidden ones left out (HomeLayout on the server).
-    sections = ['important', 'birthdays', 'today', 'week', 'anytime', 'money', 'modules', 'recent'],
+    sections = ['important', 'birthdays', 'days', 'today', 'week', 'anytime', 'money', 'modules', 'recent'],
 }: {
     sections?: string[];
     family?: Family | null;
@@ -691,6 +845,7 @@ export default function Dashboard({
     widgets?: {
         spending?: { total: number; currency: string; count: number; weeks: number[] };
         birthdays?: Birthday[];
+        days?: HomeDay[];
         tasks?: { undated: number; titles: string[] };
         important_todos?: ImportantData;
     };
@@ -715,6 +870,7 @@ export default function Dashboard({
     const render: Record<string, () => ReactNode> = {
         important: () => widgets.important_todos && <ImportantCard data={widgets.important_todos} />,
         birthdays: () => widgets.birthdays && <Birthdays people={widgets.birthdays} />,
+        days: () => widgets.days && <DaysCard days={widgets.days} />,
         today: () => (
             <>
                 {today.length > 0 && (
@@ -794,7 +950,7 @@ export default function Dashboard({
                         </h1>
                         <p className="text-muted-foreground mt-1">{dayLine}</p>
                     </div>
-                    {column(['important', 'birthdays', 'today', 'week', 'anytime'])}
+                    {column(['important', 'birthdays', 'days', 'today', 'week', 'anytime'])}
                 </div>
 
                 <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-7">{column(['money', 'modules', 'recent'])}</div>

@@ -120,6 +120,7 @@
     "module_contacts": "Contacts",
     "module_contacts_desc": "The family address book",
     "module_birthdays": "Birthdays",
+    "module_days": "Days to remember",
     "module_birthdays_desc": "The next one coming",
     "install_title": "Put FamilyWell on your Home Screen.",
     "install_sub": "This step is required. It opens full screen like any app, and on iPhone it's the only way reminders can reach you.",
