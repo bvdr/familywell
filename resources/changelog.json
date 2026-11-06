@@ -10,7 +10,7 @@
                 "href": "/m/days"
             }
         ],
-        "fixes": []
+        "fixes": ["Save stays on top at the bottom of a sheet, instead of disappearing under the fields when the keyboard is open"]
     },
     {
         "version": "1.9",

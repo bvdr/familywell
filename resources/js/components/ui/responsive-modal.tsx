@@ -222,7 +222,11 @@ export function ResponsiveModal({
                     {footer && (
                         <div
                             className={cn(
-                                'border-border/60 shrink-0 border-t px-5 pt-2.5',
+                                // Its own layer + background, painted over the body: on iOS a focused field inside vaul's
+                                // transformed sheet can escape the scroll body's clip, and without this the fields below
+                                // (e.g. "Paid with" on Edit spend, 2026-11-06) drew over Save. The body wrapper is
+                                // `relative`, so a non-positioned footer always painted underneath anything that leaked.
+                                'border-border/60 bg-background relative z-10 shrink-0 border-t px-5 pt-2.5',
                                 // The safe-area inset clears the home indicator, but the keyboard already covers
                                 // that strip. Reserving it while the keyboard is open just leaves dead space under Save.
                                 keyboardOffset ? 'pb-3' : 'pb-[calc(0.75rem+env(safe-area-inset-bottom))]',
