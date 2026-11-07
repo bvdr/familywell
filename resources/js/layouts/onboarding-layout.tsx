@@ -1,6 +1,6 @@
 import { Link, router } from '@inertiajs/react';
 import { ArrowLeft, Check, ChevronLeft, CreditCard, ShieldCheck, UsersRound } from 'lucide-react';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type FocusEvent, type ReactNode } from 'react';
 
 import { AppWordmark } from '@/components/app-logo';
 import AppLogoIcon from '@/components/app-logo-icon';
@@ -156,8 +156,12 @@ export function Progress({ step }: { step: number }) {
     );
 }
 
+// Text inputs and textareas: what raises the phone keyboard (not checkboxes, radios or buttons).
+const TEXT_FIELD =
+    'textarea, [contenteditable="true"], input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]):not([type=range])';
+
 // The onboarding frame, three ways (design: phone 390, tablet 834, desktop 1280):
-// - phone: paper screen, back button + "STEP n OF 4 · X" + progress, CTA pinned to the bottom;
+// - phone: paper screen, back button + "STEP n OF 4 · X" + progress, CTA pinned to the bottom (not while typing);
 // - tablet (md): the same flow with room: logo on the right of the header, a bottom bar with the hint on the left;
 // - desktop (lg): the dark rail instead of the header, a bottom bar with Back · hint · CTA.
 // Drawn in the fixed brand colours (bg-paper, text-ink, ...), not the skin tokens: this is the brand's first
@@ -185,11 +189,19 @@ export default function OnboardingLayout({
         const offs = [router.on('error', () => reactHomer('error')), router.on('exception', () => reactHomer('error'))];
         return () => offs.forEach((off) => off());
     }, []);
+    // Typing = a text field has focus, so the phone keyboard is up. Then the action bar stops being pinned to the
+    // bottom and sits after the content: pinned, the price note + Send + "later" took most of what the keyboard
+    // left and the field got a sliver (2026-11-07, Android, step 2 People). Moving between fields keeps it unpinned
+    // (relatedTarget), so the bar doesn't jump back for a frame on every Next.
+    const [typing, setTyping] = useState(false);
+    const isField = (el: EventTarget | null) => el instanceof HTMLElement && el.matches(TEXT_FIELD);
+    const onFocus = (e: FocusEvent) => isField(e.target) && setTyping(true);
+    const onBlur = (e: FocusEvent) => !isField(e.relatedTarget) && setTyping(false);
     const meta = step && step <= 4 ? STEPS[step - 1] : undefined;
     const label = step && step <= 4 ? `${t('onboarding.step_of', { n: step, total: 4 })} · ${t(meta!.label)}` : t('onboarding.step_plan');
 
     return (
-        <div className="bg-paper text-ink flex min-h-dvh font-sans">
+        <div className="bg-paper text-ink flex min-h-dvh font-sans" onFocus={onFocus} onBlur={onBlur}>
             {rail && <Rail step={step} homer={homer} />}
 
             <div className="flex min-w-0 flex-1 flex-col">
@@ -248,7 +260,7 @@ export default function OnboardingLayout({
                         {/* Below lg the action bar is FIXED to the bottom (content scrolls under it, like the app's tab bar),
                             and this invisible copy in the flow reserves its height so the last row can scroll clear of it.
                             invisible = not focusable, not read out. On desktop it's a plain bar after the content. */}
-                        <div aria-hidden className="invisible mt-auto lg:hidden">
+                        <div aria-hidden className={cn('invisible mt-auto lg:hidden', typing && 'hidden')}>
                             <div className="flex flex-col items-center gap-3 px-5 pt-3.5 pb-[calc(30px+env(safe-area-inset-bottom))] md:flex-row md:px-14 md:py-[18px]">
                                 <div className="flex w-full flex-col items-center gap-3 md:flex-row">
                                     {cta}
@@ -256,7 +268,12 @@ export default function OnboardingLayout({
                                 </div>
                             </div>
                         </div>
-                        <footer className="bg-paper md:border-line fixed inset-x-0 bottom-0 z-10 flex flex-col items-center gap-3 px-5 pt-3.5 pb-[calc(30px+env(safe-area-inset-bottom))] md:flex-row md:justify-between md:border-t md:px-14 md:py-[18px] lg:static lg:mt-auto lg:px-16">
+                        <footer
+                            className={cn(
+                                'bg-paper md:border-line z-10 flex flex-col items-center gap-3 px-5 pt-3.5 pb-[calc(30px+env(safe-area-inset-bottom))] md:flex-row md:justify-between md:border-t md:px-14 md:py-[18px] lg:static lg:mt-auto lg:px-16',
+                                typing ? 'mt-auto' : 'fixed inset-x-0 bottom-0',
+                            )}
+                        >
                             {back && (
                                 <Link href={back} className="text-ink-2 hidden items-center gap-1.5 text-sm font-semibold lg:flex">
                                     <ArrowLeft className="size-4" />
