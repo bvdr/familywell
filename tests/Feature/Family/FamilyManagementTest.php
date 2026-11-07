@@ -118,3 +118,50 @@ it('does not let an admin revoke another family invite', function () {
     session(['active_family_id' => $familyB->id]);
     actingAs($adminB)->delete("/family/invitations/{$inviteA->id}")->assertNotFound();
 });
+
+// 2026-11-06 incident: an emailed invite opened while signed in as the public demo joined the DEMO account to a real
+// family. The demo never joins another family, and an emailed invite is only for its own address.
+it('never lets the demo account accept an invite, not even the family link', function () {
+    [$family, $admin] = managedFamily();
+    $demoFamily = Family::factory()->create(['is_demo' => true]);
+    $demo = User::factory()->create(['email' => 'demo@familywell.co']);
+    $demoFamily->members()->attach($demo, ['role' => 'admin']);
+    $emailed = $family->invitations()->create(['email' => 'demo@familywell.co', 'role' => 'admin', 'invited_by' => $admin->id]);
+    $link = $family->invitations()->create(['email' => null, 'role' => 'member', 'invited_by' => $admin->id]);
+
+    foreach ([$emailed, $link] as $invite) {
+        actingAs($demo)->get("/invite/{$invite->token}")->assertInertia(fn ($page) => $page->where('blocked', 'demo'));
+        actingAs($demo)->post("/invite/{$invite->token}")->assertRedirect(route('invite.show', $invite->token));
+    }
+    expect($family->members()->where('users.id', $demo->id)->exists())->toBeFalse()
+        ->and(FamilyInvitation::count())->toBe(2); // nothing consumed
+});
+
+it('keeps an emailed invite for its own address, and signs the wrong account out to continue', function () {
+    [$family, $admin] = managedFamily();
+    $invite = $family->invitations()->create(['email' => 'Partner@Example.com', 'role' => 'admin', 'invited_by' => $admin->id]);
+    $someoneElse = User::factory()->create(['email' => 'someone@example.com']);
+
+    actingAs($someoneElse)->get("/invite/{$invite->token}")
+        ->assertInertia(fn ($page) => $page->where('blocked', 'other_email')->where('invitedEmail', 'Partner@Example.com'));
+    actingAs($someoneElse)->post("/invite/{$invite->token}")->assertRedirect(route('invite.show', $invite->token));
+    expect($someoneElse->fresh()->families)->toHaveCount(0);
+
+    // Sign out and continue: a guest again, with the invite remembered for sign-up / sign-in.
+    actingAs($someoneElse)->post("/invite/{$invite->token}/switch")->assertRedirect(route('invite.show', $invite->token));
+    $this->assertGuest();
+
+    // The invited address (any case) can accept.
+    $partner = User::factory()->create(['email' => 'partner@example.com']);
+    actingAs($partner)->post("/invite/{$invite->token}")->assertRedirect(route('dashboard'));
+    expect($partner->fresh()->families)->toHaveCount(1);
+});
+
+it('lets anyone but the demo use the family link', function () {
+    [$family, $admin] = managedFamily();
+    $link = $family->invitations()->create(['email' => null, 'role' => 'member', 'invited_by' => $admin->id]);
+    $friend = User::factory()->create();
+
+    actingAs($friend)->post("/invite/{$link->token}")->assertRedirect(route('dashboard'));
+    expect($friend->fresh()->families)->toHaveCount(1);
+});

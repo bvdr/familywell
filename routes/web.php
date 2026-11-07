@@ -115,6 +115,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Accepting requires a logged-in user, but NOT a family (a new/joining user has none yet).
     Route::post('invite/{token}', [FamilyInviteController::class, 'accept'])->name('invite.accept');
+    Route::post('invite/{token}/switch', [FamilyInviteController::class, 'switchAccount'])->name('invite.switch');
 
     // Web Push subscription + the in-app notifications feed now live in the notifications module
     // (Modules\Notifications\NotificationsServiceProvider), registered globally there.

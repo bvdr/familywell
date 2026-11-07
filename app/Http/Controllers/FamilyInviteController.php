@@ -10,6 +10,7 @@ use App\Support\Analytics;
 use App\Support\Tenancy\CurrentFamily;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -92,6 +93,7 @@ class FamilyInviteController extends Controller
         if ($invite->family->members()->where('users.id', $request->user()->id)->exists()) {
             return redirect()->route('dashboard');
         }
+        $blocked = self::blockedFor($invite, $request->user());
 
         return Inertia::render('family/invite', [
             'invite' => [
@@ -100,6 +102,9 @@ class FamilyInviteController extends Controller
                 'inviter' => $invite->inviter->name,
                 'memberCount' => $invite->family->members()->count(),
             ],
+            // Why this account can't accept (the page offers "Sign out and continue" instead): null when it can.
+            'blocked' => $blocked,
+            'invitedEmail' => $blocked === 'other_email' ? $invite->email : null,
         ]);
     }
 
@@ -110,10 +115,41 @@ class FamilyInviteController extends Controller
         if (! $invite || $invite->isExpired()) {
             return redirect()->route('dashboard')->with('status', 'That invitation is no longer valid.');
         }
+        if (self::blockedFor($invite, $request->user())) {
+            return redirect()->route('invite.show', $token);
+        }
 
         self::join($request, $invite);
 
         return redirect()->route('dashboard');
+    }
+
+    /**
+     * Whether $user may accept this invite, or why not. 2026-11-06 incident: an emailed invite (admin role) was opened
+     * in a browser still signed in as the public demo account, and accepting joined THE DEMO ACCOUNT to a real family,
+     * so every /demo visitor could open that family. So:
+     *  - 'demo': the shared demo account never joins another family (any invite, the family link included).
+     *  - 'other_email': an emailed invite is for that address only; whoever else is signed in signs out first.
+     *    The family link (no email) is meant to be passed around, so anyone (but the demo) may use it.
+     */
+    public static function blockedFor(FamilyInvitation $invite, User $user): ?string
+    {
+        return match (true) {
+            $user->isDemo() => 'demo',
+            $invite->email !== null && mb_strtolower($invite->email) !== mb_strtolower($user->email) => 'other_email',
+            default => null,
+        };
+    }
+
+    // "Sign out and continue": the invite page for the wrong account. Signs out, keeps the invite, and goes on as a
+    // guest (who is sent to sign up / in, then lands back on the invite).
+    public function switchAccount(Request $request, string $token): RedirectResponse
+    {
+        Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('invite.show', $token);
     }
 
     // Shared by accept() and post-registration: attach the user, consume the invite, make it active.

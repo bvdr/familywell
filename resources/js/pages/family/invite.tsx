@@ -11,9 +11,20 @@ type Invite = {
     memberCount: number;
 };
 
-export default function Invite({ invite }: { invite: Invite }) {
+// blocked: why the signed-in account can't take this invite (FamilyInviteController::blockedFor). The demo account never
+// joins a real family; an emailed invite is only for its address. Either way: sign out and continue as the right person.
+export default function Invite({
+    invite,
+    blocked = null,
+    invitedEmail = null,
+}: {
+    invite: Invite;
+    blocked?: 'demo' | 'other_email' | null;
+    invitedEmail?: string | null;
+}) {
     const form = useForm({});
     const accept = () => form.post(route('invite.accept', invite.token));
+    const switchAccount = () => form.post(route('invite.switch', invite.token));
 
     return (
         <AuthSplitLayout
@@ -33,9 +44,22 @@ export default function Invite({ invite }: { invite: Invite }) {
             </div>
 
             <div className="flex flex-col gap-3">
-                <Button className="w-full" onClick={accept} disabled={form.processing}>
-                    Accept invite
-                </Button>
+                {blocked ? (
+                    <>
+                        <p className="bg-surface text-primary rounded-2xl px-4 py-3 text-sm">
+                            {blocked === 'demo'
+                                ? "You're signed in to the demo. Sign out to join with your own account."
+                                : `This invite is for ${invitedEmail}. Sign out, then sign in with that email to join.`}
+                        </p>
+                        <Button className="w-full" onClick={switchAccount} disabled={form.processing}>
+                            Sign out and continue
+                        </Button>
+                    </>
+                ) : (
+                    <Button className="w-full" onClick={accept} disabled={form.processing}>
+                        Accept invite
+                    </Button>
+                )}
                 <Button variant="outline" className="w-full" onClick={() => router.visit('/')}>
                     Not now
                 </Button>
