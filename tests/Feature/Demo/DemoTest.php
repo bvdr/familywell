@@ -342,3 +342,15 @@ it('seeds the German screenshot family when demo_locale is de, with every string
         // App-named defaults follow the demo locale too (DemoSeeder sets it).
         ->and(DB::table('spending_events')->where('family_id', $demo->id)->pluck('name')->all())->toContain('Sonstiges');
 });
+
+it('takes the demo accounts out of any other family on reset', function () {
+    $demo = demoSeed();
+    $real = Family::factory()->create();
+    $sarah = User::where('email', DemoSeeder::OWNER_EMAIL)->first();
+    $real->members()->attach($sarah, ['role' => 'admin']);
+
+    test()->artisan('demo:reset')->assertExitCode(0);
+
+    expect($sarah->fresh()->families->pluck('id')->all())->toBe([$demo->id])
+        ->and($real->members()->count())->toBe(0);
+});

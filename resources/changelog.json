@@ -1,5 +1,11 @@
 [
     {
+        "version": "1.11",
+        "date": "2026-11-07",
+        "items": [],
+        "fixes": ["An emailed invite only works for the person it was sent to, so opening it while signed in as someone else asks you to switch accounts first"]
+    },
+    {
         "version": "1.10",
         "date": "2026-11-06",
         "items": [

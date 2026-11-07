@@ -180,6 +180,9 @@ class DemoSeeder extends Seeder
 
         // Per-user residue from the previous day's visitors (not family-scoped, so not in wipe()).
         $ids = collect($this->u)->pluck('id')->all();
+        // The demo accounts belong to the demo family only. Safety net for the 2026-11-06 incident (a visitor's demo
+        // session accepted a real family's invite, see FamilyInviteController::blockedFor): drop any other membership.
+        DB::table('family_user')->whereIn('user_id', $ids)->where('family_id', '!=', $family->id)->delete();
         DB::table('notifications')->where('notifiable_type', User::class)->whereIn('notifiable_id', $ids)->delete();
         DB::table('entity_visits')->whereIn('user_id', $ids)->delete();
         DB::table('push_subscriptions')->where('subscribable_type', User::class)->whereIn('subscribable_id', $ids)->delete();
