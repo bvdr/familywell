@@ -3,7 +3,7 @@
         "version": "1.11",
         "date": "2026-11-07",
         "items": [],
-        "fixes": ["An emailed invite only works for the person it was sent to, so opening it while signed in as someone else asks you to switch accounts first"]
+        "fixes": ["While you type during sign-up, the buttons at the bottom step out of the way so the field has room", "An emailed invite only works for the person it was sent to, so opening it while signed in as someone else asks you to switch accounts first"]
     },
     {
         "version": "1.10",
