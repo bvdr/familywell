@@ -8,6 +8,7 @@ use App\Mcp\Tools\GetToday;
 use App\Models\Family;
 use App\Models\OAuthClient;
 use App\Models\User;
+use App\Support\Mcp\ClientRepository as McpClientRepository;
 use App\Support\Mcp\McpRegistrar;
 use App\Support\Mcp\McpTools;
 use App\Support\Mcp\ScopeRepository;
@@ -24,6 +25,7 @@ use Inertia\Inertia;
 use Laravel\Mcp\Server\Registrar;
 use Laravel\Passport\Bridge\ScopeRepository as PassportScopeRepository;
 use Laravel\Passport\Client;
+use Laravel\Passport\ClientRepository as PassportClientRepository;
 use Laravel\Passport\Passport;
 
 class AppServiceProvider extends ServiceProvider
@@ -48,6 +50,8 @@ class AppServiceProvider extends ServiceProvider
         // `family:<id>` scope (see App\Support\Mcp\ScopeRepository). A plain binding, Octane-safe.
         Passport::ignoreRoutes();
         $this->app->bind(PassportScopeRepository::class, ScopeRepository::class);
+        // Non-UUID client ids are "unknown client" (OAuth invalid_client), not a Postgres error (App\Support\Mcp\ClientRepository).
+        $this->app->singleton(PassportClientRepository::class, McpClientRepository::class);
         // Passport gives its own AuthorizationController the session guard contextually; our subclass
         // (always-show-consent) needs the same binding.
         $this->app->when(AuthorizeController::class)

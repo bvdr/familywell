@@ -1,6 +1,8 @@
 <?php
 
 use App\Support\Mcp\McpTools;
+use Illuminate\Support\Facades\DB;
+use Laravel\Passport\ClientRepository;
 use Laravel\Passport\Token;
 
 use function Pest\Laravel\actingAs;
@@ -91,4 +93,32 @@ it('sends a guest to login first', function () {
     mcpKeys();
     [$query] = mcpAuthorizeQuery(mcpClient());
     $this->get("/oauth/authorize?{$query}")->assertRedirect('/login');
+});
+
+// SEC-IQNGL (2026-11-08): a client_id that isn't a UUID made Postgres throw on the uuid column, so /oauth/authorize and
+// /oauth/token answered 500 "Something broke". It's now just an unknown client: the standard OAuth error, no query.
+it('treats a non-UUID client_id as an unknown client, without touching the database', function () {
+    mcpKeys();
+    $queries = 0;
+    DB::listen(function () use (&$queries) {
+        $queries++;
+    });
+    expect(app(ClientRepository::class)->find('nope'))->toBeNull()
+        ->and(app(ClientRepository::class)->find("1' or '1'='1"))->toBeNull()
+        ->and($queries)->toBe(0);
+});
+
+it('answers an unknown or malformed client_id with OAuth invalid_client, and no params with invalid_request', function () {
+    mcpKeys();
+    $this->getJson('/oauth/authorize')->assertStatus(400)->assertJsonPath('error', 'invalid_request');
+    foreach (['nope', '00000000-0000-0000-0000-000000000000'] as $id) {
+        [$query] = mcpAuthorizeQuery($id);
+        $this->getJson("/oauth/authorize?{$query}")->assertStatus(401)->assertJsonPath('error', 'invalid_client');
+        $this->postJson('/oauth/token', ['grant_type' => 'authorization_code', 'client_id' => $id, 'code' => 'x',
+            'redirect_uri' => 'https://claude.ai/api/mcp/auth_callback', 'code_verifier' => str_repeat('a', 64)])
+            ->assertStatus(401)->assertJsonPath('error', 'invalid_client');
+    }
+    // A registered client still reaches the normal flow (a guest is sent to sign in first).
+    [$query] = mcpAuthorizeQuery(mcpClient());
+    $this->get("/oauth/authorize?{$query}")->assertRedirect();
 });
