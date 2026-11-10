@@ -87,8 +87,17 @@ class DaysServiceProvider extends ServiceProvider
     private function visible()
     {
         $userId = Auth::id();
+        if (! $userId) {
+            return collect();
+        }
+        // Home's card and its status line both ask: one load per request (request attribute bag, dies with the request).
+        $bag = app('request')->attributes;
+        $key = 'days.visible.'.CurrentFamily::id().".{$userId}";
+        if (! $bag->has($key)) {
+            $bag->set($key, Day::visibleTo($userId)->with('shareSetting')->get());
+        }
 
-        return $userId ? Day::visibleTo($userId)->with('shareSetting')->get() : collect();
+        return $bag->get($key);
     }
 
     private function enabledHere(): bool

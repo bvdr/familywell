@@ -22,6 +22,7 @@ use App\Support\Tenancy\CurrentFamily;
 use App\Support\Translations;
 use App\Support\Trash\Trash;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\ValidationException;
@@ -79,9 +80,8 @@ class SpendingServiceProvider extends ServiceProvider
 
         // "Your modules" tile: this month's total, the same number as the dashboard's Spending card.
         DashboardSummaries::register('spending', function (int $userId) {
-            $eventCcy = MonthToDate::visibleEventCurrencies($userId);
-            $currency = MonthToDate::displayCurrencyFor($eventCcy);
-            $amount = (new \NumberFormatter(app()->getLocale(), \NumberFormatter::CURRENCY))->formatCurrency(MonthToDate::total($eventCcy, $currency) / 100, $currency);
+            [$eventCcy, $currency, $total] = self::homeMonthToDate($userId);
+            $amount = (new \NumberFormatter(app()->getLocale(), \NumberFormatter::CURRENCY))->formatCurrency($total / 100, $currency);
 
             return ['key' => 'dashboard.sum_spending', 'params' => ['amount' => $amount]];
         });
@@ -195,10 +195,9 @@ class SpendingServiceProvider extends ServiceProvider
             if (! $userId || ! $familyId || ! app(ModuleRegistry::class)->isEnabled('spending', $familyId)) {
                 return null;
             }
-            $eventCcy = MonthToDate::visibleEventCurrencies($userId);
-            $currency = MonthToDate::displayCurrencyFor($eventCcy);
+            [$eventCcy, $currency, $total] = self::homeMonthToDate($userId);
 
-            return ['total' => MonthToDate::total($eventCcy, $currency), 'currency' => $currency, ...MonthToDate::weeks($eventCcy, $currency)];
+            return ['total' => $total, 'currency' => $currency, ...MonthToDate::weeks($eventCcy, $currency)];
         });
 
         // H5 search: expense note/store/category match, only events this user can see. Meta is
@@ -272,5 +271,25 @@ class SpendingServiceProvider extends ServiceProvider
                 Route::delete('/spends/{spend}', [GuestSpendController::class, 'destroy'])->name('spends.destroy');
                 Route::post('/settle', [GuestSpendController::class, 'settle'])->name('settle');
             });
+    }
+
+    /**
+     * [lists => currency, display currency, month-to-date cents] for Home: its Spending card and its status line both
+     * worked this out (6 queries twice per Home visit). Once per request here, on the request attribute bag so it
+     * dies with the request; MonthToDate itself stays uncached for the pages that write and then read.
+     *
+     * @return array{0: Collection<int, string>, 1: string, 2: int}
+     */
+    private static function homeMonthToDate(int $userId): array
+    {
+        $bag = app('request')->attributes;
+        $key = 'spending.mtd.'.CurrentFamily::id().".{$userId}";
+        if (! $bag->has($key)) {
+            $eventCcy = MonthToDate::visibleEventCurrencies($userId);
+            $currency = MonthToDate::displayCurrencyFor($eventCcy);
+            $bag->set($key, [$eventCcy, $currency, MonthToDate::total($eventCcy, $currency)]);
+        }
+
+        return $bag->get($key);
     }
 }
