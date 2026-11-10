@@ -311,9 +311,16 @@ class CalendarEvent extends Model
     {
         $links = CalendarEventLink::whereIn('event_id', $events->pluck('id'))->whereIn('linkable_type', ['user', 'person'])
             ->orderBy('position')->get();
-        $family = Family::find(CurrentFamily::id());
-        $users = $family ? $family->members()->whereIn('users.id', $links->where('linkable_type', 'user')->pluck('linkable_id'))->pluck('name', 'users.id') : collect();
-        $persons = Person::whereIn('id', $links->where('linkable_type', 'person')->pluck('linkable_id'))->pluck('name', 'id');
+        // Skip a lookup with nothing to look up, and filter members by the pivot instead of loading the family row
+        // first: Home calls this on each visit, and those were 3 of its queries for usually-empty answers.
+        $userIds = $links->where('linkable_type', 'user')->pluck('linkable_id');
+        $personIds = $links->where('linkable_type', 'person')->pluck('linkable_id');
+        $users = $userIds->isEmpty() ? collect() : User::query()
+            ->join('family_user', 'family_user.user_id', '=', 'users.id')
+            ->where('family_user.family_id', CurrentFamily::id())
+            ->whereIn('users.id', $userIds)
+            ->pluck('users.name', 'users.id');
+        $persons = $personIds->isEmpty() ? collect() : Person::whereIn('id', $personIds)->pluck('name', 'id');
 
         $out = [];
         foreach ($links as $l) {

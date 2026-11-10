@@ -119,7 +119,7 @@ class CalendarServiceProvider extends ServiceProvider
 
         // "Your modules" tile: events from today to the end of the week (their own calendar view, recurrences included).
         DashboardSummaries::register('calendar', fn (int $userId) => ['key' => 'dashboard.sum_calendar', 'params' => [
-            'count' => count(CalendarEvent::itemsFor($userId, FamilyClock::today(), FamilyClock::date()->endOfWeek()->toDateString())),
+            'count' => count(self::upcoming($userId, FamilyClock::date()->endOfWeek()->toDateString())),
         ]]);
         // "Calendar changes": its own on/off row in Settings > Notifications and the onboarding's notifications step.
         // Pushed by CalendarEvent::createFor / applyUpdate (events added, moved or renamed).
@@ -190,7 +190,7 @@ class CalendarServiceProvider extends ServiceProvider
             $today = FamilyClock::today(); // the family's day: "day N of M" and Today follow it, not UTC
             $until = DashboardAgenda::until();
 
-            return collect(CalendarEvent::itemsFor($userId, $today, $until))
+            return collect(self::upcoming($userId, $until))
                 ->map(function (array $i) use ($today) {
                     $days = (int) now()->parse($i['start'])->diffInDays(now()->parse($i['end'])) + 1;
                     $subtitle = $i['startTime']
@@ -225,7 +225,7 @@ class CalendarServiceProvider extends ServiceProvider
                 return null;
             }
             $today = FamilyClock::today();
-            $rows = collect(CalendarEvent::itemsFor($userId, $today, FamilyClock::date()->addDays(30)->toDateString()))
+            $rows = collect(self::upcoming($userId, FamilyClock::date()->addDays(self::UPCOMING_DAYS)->toDateString()))
                 ->filter(fn ($i) => $i['end'] > $i['start'])
                 ->map(function ($i) use ($today) {
                     $now = $i['start'] <= $today;
@@ -295,5 +295,33 @@ class CalendarServiceProvider extends ServiceProvider
         $familyId = CurrentFamily::id();
 
         return $familyId && app(ModuleRegistry::class)->isEnabled('calendar', (int) $familyId);
+    }
+
+    /** How far ahead Home looks (the Now & next card); the agenda and the week's count look less far. */
+    private const UPCOMING_DAYS = 30;
+
+    /**
+     * Event occurrences from the family's today to $to, for Home. Its agenda, Now & next card and status line each
+     * asked CalendarEvent::itemsFor for today onward with a different end (3 loads of the same events on every Home
+     * visit), so load today..+30 days once per request and cut it down. Same result: itemsFor keeps an occurrence
+     * when it overlaps [from, to], so with the same from that is exactly "starts on or before $to".
+     * Request attribute bag (like ModuleRegistry), so it dies with the request under Octane.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private static function upcoming(int $userId, string $to): array
+    {
+        $today = FamilyClock::today();
+        $wide = FamilyClock::date()->addDays(self::UPCOMING_DAYS)->toDateString();
+        if ($to > $wide) {
+            return CalendarEvent::itemsFor($userId, $today, $to);
+        }
+        $bag = app('request')->attributes;
+        $key = 'calendar.upcoming.'.CurrentFamily::id().".{$userId}.{$today}";
+        if (! $bag->has($key)) {
+            $bag->set($key, CalendarEvent::itemsFor($userId, $today, $wide));
+        }
+
+        return array_values(array_filter($bag->get($key), fn (array $i) => $i['start'] <= $to));
     }
 }

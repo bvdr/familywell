@@ -42,10 +42,20 @@ class EntityVisit extends Model
             return collect();
         }
 
-        return static::query()
-            ->where('user_id', $userId)
-            ->where('visitable_type', $type)
-            ->where('visited_at', '>=', now()->subDays($days))
-            ->pluck('visited_at', 'visitable_id');
+        // All of this person's recent visits in ONE query per request, split by type here: Home's "Pick up where you
+        // left off" asks once per module (6 queries on every Home visit). Request attribute bag (like ModuleRegistry),
+        // so it dies with the request under Octane. ponytail: a visit recorded later in the same request isn't seen;
+        // only Home reads this, and it records nothing.
+        $bag = app('request')->attributes;
+        $key = "visits.recent.{$userId}.{$days}";
+        if (! $bag->has($key)) {
+            $bag->set($key, static::query()
+                ->where('user_id', $userId)
+                ->where('visited_at', '>=', now()->subDays($days))
+                ->get(['visitable_type', 'visitable_id', 'visited_at'])
+                ->groupBy('visitable_type'));
+        }
+
+        return ($bag->get($key)[$type] ?? collect())->pluck('visited_at', 'visitable_id');
     }
 }
