@@ -35,7 +35,8 @@
 
         @routes
         @viteReactRefresh
-        @vite(['resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])
+        {{-- Not @vite: ViteTags memoizes the same output per page component (it cost ~480ms per app open in prod). --}}
+        {{ \App\Support\ViteTags::for(['resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"]) }}
         @inertiaHead
 
         {{-- Umami (cookieless; tracks Inertia page changes through the History API). Only when a website id

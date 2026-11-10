@@ -18,7 +18,12 @@ class ShareModules
         if ($familyId = CurrentFamily::id()) {
             foreach ($this->registry->discover() as $manifest) {
                 if ($manifest->frontend && $this->registry->isEnabled($manifest->id, (int) $familyId)) {
-                    $urls[] = route('module.frontend', ['module' => $manifest->id]);
+                    // ?v= the file's content hash: the asset is served with a year-long cache (ModuleAssetController), so
+                    // a new build must get a new URL. Hashed once per worker; files only change on deploy (new workers).
+                    static $hashes = [];
+                    $file = (string) $manifest->frontendFile();
+                    $hashes[$file] ??= is_file($file) ? substr(md5_file($file), 0, 12) : '0';
+                    $urls[] = route('module.frontend', ['module' => $manifest->id, 'v' => $hashes[$file]]);
                 }
             }
         }
