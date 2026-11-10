@@ -44,7 +44,7 @@ class BirthdaysServiceProvider extends ServiceProvider
     {
         // "Your modules" tile: birthdays in the next 30 days.
         DashboardSummaries::register('birthdays', fn () => ['key' => 'dashboard.sum_birthdays', 'params' => [
-            'count' => BirthdayDate::with('person')->get()->filter(fn (BirthdayDate $b) => $b->person && $b->daysUntil() <= 30)->count(),
+            'count' => BirthdayDate::allWithPeople()->filter(fn (BirthdayDate $b) => $b->person && $b->daysUntil() <= 30)->count(),
         ]]);
         // Adding a BirthdayDate counts as using this module (paywall timing + the admin's progress bar).
         Engagement::track('birthdays', BirthdayDate::class);
@@ -91,7 +91,7 @@ class BirthdaysServiceProvider extends ServiceProvider
             $items = [];
             $fromY = (int) substr($from, 0, 4);
             $toY = (int) substr($to, 0, 4);
-            foreach (BirthdayDate::with('person')->get() as $b) {
+            foreach (BirthdayDate::allWithPeople() as $b) {
                 if (! $b->person) {
                     continue;
                 }
@@ -143,7 +143,9 @@ class BirthdaysServiceProvider extends ServiceProvider
             if (! $this->enabledHere()) {
                 return $payload;
             }
-            $bd = BirthdayDate::where('person_id', $person->id)->first();
+            // From the family's birthdays loaded once per request (allWithPeople): one query per person was an N+1
+            // (366 queries on the demo's Contacts page).
+            $bd = BirthdayDate::allWithPeople()->get($person->id);
             $payload['birthdate'] = $bd?->birthdate?->toDateString();
             $payload['birthMonth'] = $bd?->month;
             $payload['birthDay'] = $bd?->day;
