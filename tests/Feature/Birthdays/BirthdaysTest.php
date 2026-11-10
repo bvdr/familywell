@@ -4,6 +4,7 @@ use App\Models\Family;
 use App\Models\User;
 use App\Support\Modules\ModuleRegistry;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Modules\Birthdays\BirthdayDate;
 use Modules\Birthdays\BirthdaysController;
 use Modules\Contacts\Person;
@@ -130,4 +131,39 @@ it('adds a birthday to an existing contact with their own reminder, and Use defa
 
     actingAs($user)->post('/m/birthdays', ['person_id' => $mihai->id, 'birth_day' => 1, 'birth_month' => 1, 'remind_days' => 61])
         ->assertSessionHasErrors('remind_days');
+});
+
+it('loads Contacts with the same number of queries for 2 people or 12 (no birthday N+1)', function () {
+    [$family, $user] = birthdaysFamily();
+    $count = function () use ($user) {
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        actingAs($user)->get('/m/contacts')->assertOk();
+
+        return count(DB::getQueryLog());
+    };
+    $add = fn (int $n) => collect(range(1, $n))->each(fn ($i) => actingAs($user)
+        ->post('/m/birthdays', ['name' => "P{$i}-".uniqid(), 'birth_day' => $i, 'birth_month' => 3, 'birth_year' => 1990]));
+
+    $add(2);
+    $count(); // the first visit does one-off writes (last seen); measure warm requests on both sides
+    $few = $count();
+    $add(10);
+    $count();
+
+    expect($count())->toBe($few);
+});
+
+it('works out age by the calendar: the day before, on, and a Feb 29 birthday in a non-leap year', function () {
+    [$family, $user] = birthdaysFamily();
+    actingAs($user)->post('/m/birthdays', ['name' => 'Leap', 'birth_day' => 29, 'birth_month' => 2, 'birth_year' => 2000]);
+    $bd = BirthdayDate::firstOrFail();
+
+    Carbon::setTestNow('2025-02-28');
+    expect($bd->age())->toBe(24)->and($bd->turning())->toBe(25)->and($bd->daysUntil())->toBe(1);
+    Carbon::setTestNow('2025-03-01'); // non-leap: celebrated today, so the age has ticked over
+    expect($bd->age())->toBe(25)->and($bd->turning())->toBe(25)->and($bd->daysUntil())->toBe(0)
+        ->and($bd->nextBirthday()->toDateString())->toBe('2025-03-01');
+    Carbon::setTestNow('2028-02-29');
+    expect($bd->age())->toBe(28)->and($bd->daysUntil())->toBe(0);
 });
