@@ -341,6 +341,10 @@ export default function PlanStep({
                                     </span>
                                 )}
                                 <span className="font-display block text-2xl font-bold">{usd(total, true)}</span>
+                                {/* The total is the whole period's charge, not the per-month price above, so say which. */}
+                                <span className="text-stone block text-xs">
+                                    {t(plan === 'yearly' ? 'onboarding.plan_per_year' : 'onboarding.plan_per_month')}
+                                </span>
                             </span>
                         </div>
                         {phone && <Pay variant="phone" plan={plan} tier={tier} email={email} label={payLabel} busy={busy} setBusy={setBusy} />}
