@@ -40,7 +40,7 @@ export default function InventoryItems({ items, categories, locations, shops, st
     const [category, setCategory] = useState<string>(initialParam('category'));
     const [location, setLocation] = useState<string>(initialParam('location'));
     const [adding, setAdding] = useState(openNewOnArrival);
-    useAddAction(() => setAdding(true), { label: 'create.inventory', icon: Package, replaces: 'inventory' }); // the mobile nav "+" adds an item here
+    useAddAction(() => setAdding(true), { label: 'create.inventory', icon: Package }); // the mobile nav "+" adds an item here
 
     const filtered = useMemo(
         () =>

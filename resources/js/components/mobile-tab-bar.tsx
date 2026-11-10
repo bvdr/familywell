@@ -2,14 +2,14 @@ import { JustSayIt, type SubView } from '@/components/add-just-say-it';
 import { Segmented } from '@/components/segmented';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useNavPins } from '@/hooks/use-nav-pins';
-import { addActionInfo, runAddAction } from '@/lib/add-action';
+import { addActions, runAddAction } from '@/lib/add-action';
 import { useT } from '@/lib/i18n';
 import { Link, router, usePage } from '@inertiajs/react';
 import {
     Bell,
     Cake,
-    CalendarHeart,
     CalendarDays,
+    CalendarHeart,
     Car,
     ChefHat,
     ChevronRight,
@@ -243,6 +243,7 @@ export function MobileTabBar() {
 // The Add sheet (design XMkKm H2 / H2d): "Just say it" (the AI box, add-just-say-it.tsx) when a reader is configured
 // and the family has points, else / or by choice Classic: the family's most-added kinds as rows with their 30-day
 // count, everything else as chips. The last mode used is remembered on this device.
+// Inside a module page that claimed the + (useAddActions), Classic is only that page's actions, nothing else.
 const MODE_KEY = 'familywell:addMode';
 type Usage = {
     usage: Record<string, number>;
@@ -278,7 +279,8 @@ function AddSheet({ open, onOpenChange, enabled }: { open: boolean; onOpenChange
     }, [open]);
     const ai = data?.ai.available ?? false;
     // Read when the sheet renders: what the page that claimed the + adds (only reachable here when "Just say it" is on).
-    const pageAction = open ? addActionInfo() : null;
+    // Inside a module the sheet is just these (no "Most used" / "Everything else": too crowded, the user 2026-11-10).
+    const pageActions = open ? addActions() : [];
     const usage = data?.usage ?? null;
     const last = data?.last ?? {};
     // Pins (design H2d): per person, saved on the server (users.add_pins, like home_layout) so a pin follows the person
@@ -303,8 +305,7 @@ function AddSheet({ open, onOpenChange, enabled }: { open: boolean; onOpenChange
             .catch(() => setPins(before)); // offline: undo, so the row isn't shown pinned when it isn't
     };
     const press = useLongPress(togglePin);
-    // The page's own action stands in for the suggestion it replaces, so that one isn't offered twice.
-    const items = CREATE.filter((c) => enabled.includes(c.key) && c.key !== pageAction?.replaces);
+    const items = CREATE.filter((c) => enabled.includes(c.key));
     // Pinned first, then most added; ties (and the moment before the counts arrive) keep the CREATE order.
     const score = (key: string) => (pins.includes(key) ? 1e9 : 0) + (usage?.[key] ?? 0);
     const ranked = [...items].sort((a, b) => score(b.key) - score(a.key));
@@ -319,29 +320,34 @@ function AddSheet({ open, onOpenChange, enabled }: { open: boolean; onOpenChange
     });
 
     const classic =
-        items.length === 0 ? (
+        pageActions.length > 0 ? (
+            <div className="flex flex-col gap-2">
+                {pageActions.map((action, i) => (
+                    <button
+                        key={action.label}
+                        type="button"
+                        onClick={() => {
+                            close();
+                            action.run();
+                        }}
+                        // The first is what this view is about, so it keeps the highlight; the rest are plain rows.
+                        className={`text-primary flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left ${i === 0 ? 'bg-accent-subtle' : 'bg-surface'}`}
+                    >
+                        <span className={iconBox}>
+                            <action.icon className="size-5.5" />
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-base font-semibold">{t(action.label)}</span>
+                        <ChevronRight className="text-muted-foreground size-5 shrink-0" />
+                    </button>
+                ))}
+            </div>
+        ) : items.length === 0 ? (
             <Link href="/family/modules" onClick={close} className="text-primary hover:bg-surface flex items-center gap-3 rounded-xl p-3">
                 <LayoutGrid className="size-5.5" />
                 <span className="text-base font-medium">{t('create.turn_on')}</span>
             </Link>
         ) : (
             <div className="flex flex-col gap-5">
-                {pageAction && (
-                    <button
-                        type="button"
-                        onClick={() => {
-                            close();
-                            runAddAction();
-                        }}
-                        className="bg-accent-subtle text-primary flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left"
-                    >
-                        <span className={iconBox}>
-                            <pageAction.icon className="size-5.5" />
-                        </span>
-                        <span className="min-w-0 flex-1 truncate text-base font-semibold">{t(pageAction.label)}</span>
-                        <ChevronRight className="text-muted-foreground size-5 shrink-0" />
-                    </button>
-                )}
                 <section className="flex flex-col gap-2">
                     <h3 className={sectionLabel}>{t('create.most_used')}</h3>
                     <div className="bg-surface divide-border overflow-hidden rounded-2xl border">
