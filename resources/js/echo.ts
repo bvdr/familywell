@@ -28,3 +28,6 @@ if (cfg && cfg.key) {
         activityTimeout: 30000,
     });
 }
+
+// Loaded lazily through lib/realtime (loadEcho), never imported directly, so it stays out of the entry chunk.
+export default window.Echo;

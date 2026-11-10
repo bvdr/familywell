@@ -55,6 +55,7 @@ import { catColor, categoryMap, catLabel, defaultCategoryKey, type CategoryDef }
 import { compressImage, makeThumbnail } from '@/lib/compress-image';
 import { appLocale, useT, type TFn } from '@/lib/i18n';
 import { currencyOptions, money, selectAllOnFocus } from '@/lib/money';
+import { loadEcho } from '@/lib/realtime';
 import { save } from '@/lib/save';
 import { type BreadcrumbItem } from '@/types';
 
@@ -375,11 +376,18 @@ export default function Event({
     );
 
     // Live sync: a change from anyone in the family reloads this page's data. Best-effort.
+    // Echo arrives after first paint (lib/realtime), so wait for it; `left` stops a late arrival subscribing an unmounted page.
     useEffect(() => {
-        const echo = window.Echo;
-        if (!echo) return;
-        echo.private(`family.${familyId}`).listen('.SpendingChanged', () => router.reload());
-        return () => echo.leave(`family.${familyId}`);
+        const channel = `family.${familyId}`;
+        let left = false;
+        void loadEcho().then((echo) => {
+            if (left || !echo) return;
+            echo.private(channel).listen('.SpendingChanged', () => router.reload());
+        });
+        return () => {
+            left = true;
+            window.Echo?.leave(channel);
+        };
     }, [familyId]);
 
     // Currency choices as Picker options: every supported currency for the expense form; the header display

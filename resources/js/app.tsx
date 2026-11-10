@@ -22,7 +22,6 @@ import '@fontsource/playfair-display/600.css';
 import '@fontsource/playfair-display/700.css';
 
 import '../css/app.css';
-import './echo';
 
 import { createInertiaApp, router } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
@@ -38,6 +37,7 @@ import { listenForInstallPrompt } from './lib/install';
 import { loadModules, registerSlot } from './lib/modules';
 import { watchPrefetches } from './lib/prefetch-watch';
 import { registerServiceWorker } from './lib/push';
+import { loadEcho } from './lib/realtime';
 import { startShoppingOutbox } from './lib/shopping-outbox';
 
 declare global {
@@ -125,3 +125,8 @@ startShoppingOutbox();
 void registerServiceWorker();
 // Keep Chrome's one-tap install offer for the onboarding's install step (lib/install.ts).
 listenForInstallPrompt();
+
+// Realtime is not needed for the first paint: fetch its chunk once the browser is idle (lib/realtime). Safari has no
+// requestIdleCallback, hence the timeout fallback.
+const whenIdle = window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 1000));
+whenIdle(() => void loadEcho());
