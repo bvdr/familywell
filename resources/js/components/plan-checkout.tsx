@@ -158,7 +158,13 @@ export function useCheckout({
             )}
             <div className="border-line flex items-baseline justify-between border-t pt-2">
                 <span className="text-[15px] font-bold">{t('onboarding.plan_due_family')}</span>
-                <span className="text-[17px] font-bold">{usd(total, true)}</span>
+                <span className="text-[17px] font-bold">
+                    {usd(total, true)}{' '}
+                    {/* Whole-period charge, so name the period (it sits next to a per-month price). */}
+                    <span className="text-stone text-xs font-normal">
+                        {t(plan === 'yearly' ? 'onboarding.plan_per_year' : 'onboarding.plan_per_month')}
+                    </span>
+                </span>
             </div>
             <span className="text-stone text-xs">{t('onboarding.plan_renews', { date: renewsText, amount: renewAmount })}</span>
         </div>

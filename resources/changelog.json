@@ -1,5 +1,11 @@
 [
     {
+        "version": "1.12",
+        "date": "2026-11-10",
+        "items": [],
+        "fixes": ["The plan step says plainly that only you pay and everyone you add is free, and the total shows whether it's per year or per month"]
+    },
+    {
         "version": "1.11",
         "date": "2026-11-07",
         "items": [],
