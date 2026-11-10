@@ -36,6 +36,7 @@ import { setFamilyTimezone } from './lib/date-groups';
 import { appLocale, setAppLocale, useT } from './lib/i18n';
 import { listenForInstallPrompt } from './lib/install';
 import { loadModules, registerSlot } from './lib/modules';
+import { watchPrefetches } from './lib/prefetch-watch';
 import { registerServiceWorker } from './lib/push';
 import { startShoppingOutbox } from './lib/shopping-outbox';
 
@@ -61,10 +62,13 @@ armCrashRecovery();
 // the family's zone is empty). A cookie, so every request carries it with no extra call. A year, refreshed every load.
 document.cookie = `fw_tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}; path=/; max-age=31536000; samesite=lax`;
 
+// Every page's lazy chunk. Shared by resolve and the warm-up below, so both hit the same module.
+const pages = import.meta.glob('./pages/**/*.tsx');
+
 createInertiaApp({
     // No app-name suffix on page titles — just the page's own title.
     title: (title) => title,
-    resolve: (name) => resolvePageComponent(`./pages/${name}.tsx`, import.meta.glob('./pages/**/*.tsx')),
+    resolve: (name) => resolvePageComponent(`./pages/${name}.tsx`, pages),
     setup({ el, App, props }) {
         const root = createRoot(el);
 
@@ -93,6 +97,11 @@ createInertiaApp({
         color: '#2D5E3A',
     },
 });
+
+// A prefetch (the tab bar's, the More sheet's) only fetches the page's data; its code chunk used to download on the
+// first tap, ~300ms on a phone (measured 2026-11-10). Start loading the chunk as soon as the data is in, so the first
+// tap on a tab is as instant as the later ones.
+watchPrefetches((component) => void pages[`./pages/${component}.tsx`]?.());
 
 router.on('navigate', (event) => {
     // The onboarding is drawn in fixed brand colours, light only. In dark mode the page behind it (body) was dark,

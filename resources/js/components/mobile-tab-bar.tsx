@@ -4,6 +4,7 @@ import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useNavPins } from '@/hooks/use-nav-pins';
 import { addActions, runAddAction } from '@/lib/add-action';
 import { useT } from '@/lib/i18n';
+import { prefetchedAt } from '@/lib/prefetch-watch';
 import { Link, router, usePage } from '@inertiajs/react';
 import {
     Bell,
@@ -86,6 +87,21 @@ const CREATE: Item[] = [
 const TOP = 4;
 
 const LONG_PRESS_MS = 500;
+
+// Snappy tabs (the user, 2026-11-10: "really snappy"): a pinned tab's prefetch is shown at once for up to 10 minutes
+// (cacheFor [fresh, max]); one older than FRESH_MS is then refreshed in the background right after it shows, so the
+// tap is instant and the data catches up a moment later. Before, after 30s idle a tap waited on the network again.
+const FRESH_MS = 30_000;
+const TAB_CACHE: [string, string] = ['30s', '10m'];
+// Called on a tab tap: if what it'll show is an older prefetch, reload the page quietly once it's on screen.
+function refreshIfStale(url: string) {
+    const at = prefetchedAt.get(url);
+    if (!at || Date.now() - at <= FRESH_MS) return;
+    const off = router.on('navigate', () => {
+        off();
+        router.reload({ async: true, showProgress: false });
+    });
+}
 
 // Long-press = a second action on a tappable tile/row (pin or unpin), shared by More and Classic add. The timer fires
 // the action; the click that follows the release is swallowed (`swallow`) so a long-press doesn't also navigate.
@@ -183,9 +199,12 @@ export function MobileTabBar() {
                             <Link
                                 key={item.key}
                                 href={item.url}
-                                onClick={() => setPending(item.url)}
+                                onClick={() => {
+                                    setPending(item.url);
+                                    refreshIfStale(item.url);
+                                }}
                                 prefetch="mount"
-                                cacheFor="30s"
+                                cacheFor={TAB_CACHE}
                                 className={`${cell} ${active ? 'bg-accent-subtle text-primary font-semibold' : 'text-text-muted'}`}
                             >
                                 {loading ? <Loader2 className="size-5.5 animate-spin" /> : <item.icon className="size-5.5" />}
@@ -501,6 +520,12 @@ function MoreSheet({
                                     key={item.key}
                                     href={item.url}
                                     {...press.bind(item.key)}
+                                    // Start fetching on finger-down, not on release: a tap is ~100ms+, and the click's visit picks
+                                    // up the request already in flight. Not mount-prefetched: that's a dozen requests per open.
+                                    onPointerDown={() => {
+                                        press.bind(item.key).onPointerDown();
+                                        router.prefetch(item.url, {}, { cacheFor: '30s' });
+                                    }}
                                     onClick={(e) => press.swallow(e) || onGo(item.url)}
                                     aria-label={isPinned ? `${t(item.labelKey)} · ${t('nav.pinned')}` : undefined}
                                     className={`${tile} ${isActive(item.url) ? 'bg-accent-subtle ring-primary ring-1' : 'bg-surface'} [-webkit-touch-callout:none]`}
