@@ -119,7 +119,7 @@ const markMicIntroSeen = () => {
 
 export default function ListDetail({
     list: serverList,
-    items,
+    items: serverItems,
     members,
     aislesByStore,
     defaultAisles,
@@ -220,6 +220,11 @@ export default function ListDetail({
     // background request + prop reload become authoritative. render THESE, not the raw server fields.
     const bought = useOptimistic<boolean>();
     const removed = useOptimistic<boolean>();
+    // Item edits (the edit sheet's autosave, a quantity bump): the row under the sheet shows the new name/qty/shop as
+    // soon as the sheet closes, instead of the old values until the save + reload land. Shadowing the server items
+    // here makes every `items` read below optimistic, like `list` above. Cleared when the save settles (or fails).
+    const edited = useOptimistic<Partial<Item>>();
+    const items = serverItems.map((i) => (edited.has(i.id) ? { ...i, ...edited.get(i.id, {}) } : i));
     // A tick queued offline (lib/shopping-outbox) wins over everything until it has synced.
     const queuedBought = useQueuedBought();
     const isBought = (i: Item) => queuedBought.get(i.id) ?? bought.get(i.id, i.bought);
@@ -383,7 +388,25 @@ export default function ListDetail({
         setEditingId(item.id);
     };
     const buildPayload = (d: Draft) => ({ ...d, name: d.name.trim(), due_date: d.due_date || null, store: d.store || null });
-    const patchItem = (id: number) => void save('patch', route('shopping.items.update', id), buildPayload(draft));
+    // Saves fields of an existing item, overlaying them on the row right away (see `edited`). `fields` is the same
+    // change in the Item's own (camelCase) shape; the payload is what the controller takes.
+    const saveItem = (id: number, payload: Record<string, unknown>, fields: Partial<Item>) => {
+        edited.set(id, { ...edited.get(id, {}), ...fields });
+        void save('patch', route('shopping.items.update', id), payload).then(() => edited.clear(id));
+    };
+    const patchItem = (id: number) => {
+        const p = buildPayload(draft);
+        saveItem(id, p, {
+            name: p.name,
+            quantity: p.quantity || null,
+            department: p.department,
+            assignedTo: p.assigned_to,
+            note: p.note || null,
+            dueDate: p.due_date,
+            store: p.store,
+            altStores: p.alt_stores,
+        });
+    };
     // Only the "Add item" (new item) button commits; editing an existing item auto-saves (below).
     // `adding` guards against a double-tap creating duplicate items.
     const [adding, setAdding] = useState(false);
@@ -419,7 +442,7 @@ export default function ListDetail({
     const dupBump = dupItem ? bumpQuantity(dupItem.quantity) : null;
     const bumpExisting = () => {
         if (!dupItem || dupBump === null) return;
-        void save('patch', route('shopping.items.update', dupItem.id), { quantity: dupBump });
+        saveItem(dupItem.id, { quantity: dupBump }, { quantity: dupBump });
         setEditingId(null);
     };
     useEffect(() => setDupWarning(null), [draft.name, editingId]);
@@ -1104,7 +1127,7 @@ export default function ListDetail({
                                     // One-tap fix (design S3): +1 on the row already on the list, and this one isn't added.
                                     const cur = reviewDup(parsed[idx]);
                                     const next = cur ? bumpQuantity(cur.quantity) : null;
-                                    if (cur && next !== null) void save('patch', route('shopping.items.update', cur.id), { quantity: next });
+                                    if (cur && next !== null) saveItem(cur.id, { quantity: next }, { quantity: next });
                                     setParsed((p) => p.filter((_, i) => i !== idx));
                                 }}
                                 onClose={closeVoice}

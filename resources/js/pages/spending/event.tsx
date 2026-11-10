@@ -272,7 +272,12 @@ export default function Event({
         const name = title.trim();
         setEditingTitle(false);
         if (name && name !== event.name) {
-            router.patch(route('spending.events.update', event.id), { name }, { preserveScroll: true });
+            // The heading already shows `title`; save() (lib/save.ts) instead of router.patch so the rename doesn't
+            // run a full page visit (which reset this page's state and could be aborted by the next tap). If the
+            // server says no or there's no connection, put the confirmed name back: the reload won't change
+            // event.name, so the effect above wouldn't do it.
+            const before = event.name;
+            void save('patch', route('spending.events.update', event.id), { name }).then((r) => r !== 'ok' && setTitle(before));
         } else {
             setTitle(event.name); // ignore an empty or unchanged rename
         }
