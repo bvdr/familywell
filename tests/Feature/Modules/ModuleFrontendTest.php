@@ -30,4 +30,7 @@ it('serves the module asset as javascript when enabled', function () {
     $res->assertOk();
     expect($res->headers->get('content-type'))->toContain('javascript');
     expect($res->getContent())->toContain('registerSlot');
+    // Cached for a year by the browser; the page links it with a content hash so a new build gets a new URL.
+    expect($res->headers->get('cache-control'))->toContain('max-age=31536000');
+    $this->actingAs($user)->get('/dashboard')->assertSee('/m/important_todos/frontend.js?v=', false);
 });
