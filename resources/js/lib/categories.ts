@@ -8,7 +8,7 @@ export type CategoryDef = { key: string; name: string; icon: string; color: stri
 
 // Built-in categories store a PascalCase lucide COMPONENT name ('Utensils') resolved from this small
 // static map. Custom categories instead store a kebab-case lucide KEY (e.g. 'party-popper') chosen via
-// the IconPicker and rendered by the dynamic renderer — see <CategoryIcon>, which bridges the two. Tag
+// the IconPicker and rendered by <LucideIcon> — see <CategoryIcon>, which bridges the two. Tag
 // stays here so legacy custom rows saved with the old PascalCase 'Tag' fallback still resolve.
 const ICONS: Record<string, LucideIcon> = {
     Utensils,
@@ -24,7 +24,7 @@ const ICONS: Record<string, LucideIcon> = {
 
 // Resolve a PascalCase default-category icon name to its static lucide component, or undefined when the
 // name isn't one of the built-in set. <CategoryIcon> uses this to pick between the static map (defaults)
-// and the dynamic renderer (custom kebab-case keys).
+// and <LucideIcon> (custom kebab-case keys).
 export const staticCatIcon = (name?: string | null): LucideIcon | undefined => ICONS[name ?? ''];
 
 // Fallback colour for a category key that no longer resolves (e.g. a deleted category still on a spend).

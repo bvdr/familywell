@@ -1,24 +1,60 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Search, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 
+import { LucideIcon } from '@/components/lucide-icon';
 import { Input } from '@/components/ui/input';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
-import { LucideIcon, LUCIDE_ICON_NAMES } from '@/components/lucide-icon';
 import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
-// How many icons we render at once. The lucide set is ~1700 icons and each grid cell lazy-loads its own
-// chunk, so rendering them all would fire hundreds of requests and thrash layout. Capping to a screenful
+// How many icons we render at once. The lucide set is ~1700 icons and each grid cell outside LucideIcon's static
+// map lazy-loads its own chunk, so rendering them all would fire hundreds of requests and thrash layout. Capping to a screenful
 // of matches keeps it snappy; the search box is how you reach anything past the cap.
 const MAX_RESULTS = 90;
 
 // A handful of broadly useful icons shown before the user types, so the grid is never empty. Picked to
-// cover the common "what is this list about" cases (travel, food, home, money…). All are real lucide keys.
+// cover the common "what is this list about" cases (travel, food, home, money…). All are real lucide keys, and all
+// are in LucideIcon's static map, so this first view renders without a request per icon.
 const SUGGESTED: readonly string[] = [
-    'wallet', 'plane', 'car', 'utensils', 'shopping-cart', 'shopping-bag', 'house', 'gift', 'heart',
-    'gamepad-2', 'baby', 'graduation-cap', 'briefcase', 'plug', 'wrench', 'stethoscope', 'pizza',
-    'coffee', 'beer', 'shirt', 'dumbbell', 'party-popper', 'tree-palm', 'tent', 'fuel', 'bus', 'train-front',
-    'bike', 'dog', 'cat', 'flower', 'gem', 'music', 'film', 'book-open', 'camera', 'phone', 'laptop', 'wifi',
+    'wallet',
+    'plane',
+    'car',
+    'utensils',
+    'shopping-cart',
+    'shopping-bag',
+    'house',
+    'gift',
+    'heart',
+    'gamepad-2',
+    'baby',
+    'graduation-cap',
+    'briefcase',
+    'plug',
+    'wrench',
+    'stethoscope',
+    'pizza',
+    'coffee',
+    'beer',
+    'shirt',
+    'dumbbell',
+    'party-popper',
+    'tree-palm',
+    'tent',
+    'fuel',
+    'bus',
+    'train-front',
+    'bike',
+    'dog',
+    'cat',
+    'flower',
+    'gem',
+    'music',
+    'film',
+    'book-open',
+    'camera',
+    'phone',
+    'laptop',
+    'wifi',
 ];
 
 // Debounce a rapidly-changing value so the (capped) filter over the whole icon set only runs once the
@@ -47,7 +83,7 @@ export type IconPickerProps = {
 // A generic, reusable icon selector. It shows the current icon on a trigger button; tapping it opens a
 // searchable, scrollable grid of the full lucide-react library (the icon set this app already renders
 // everywhere). Typing filters by icon name substring (case-insensitive). Picking one returns its key
-// via onChange. Rendering reuses <LucideIcon>, the same dynamic renderer used to display stored keys, so
+// via onChange. Rendering reuses <LucideIcon>, the same renderer used to display stored keys, so
 // the key a user picks here is exactly the key that renders back elsewhere.
 export function IconPicker({ value, onChange, className, style, iconClassName, ariaLabel, disabled, allowClear = true }: IconPickerProps) {
     const t = useT();
@@ -58,10 +94,18 @@ export function IconPicker({ value, onChange, className, style, iconClassName, a
 
     // With no query, show the curated suggestions; otherwise substring-match the whole set, capped. We
     // note when the cap hides matches so the UI can hint that narrowing the search reveals more.
+    // The full name list is lucide's whole import map (~47KB gz), so it's fetched when the sheet first opens, not
+    // with every page that has a picker (spending lists, calendar, inventory). SUGGESTED needs no list; a search
+    // typed before it lands just matches nothing for that moment.
+    const [names, setNames] = useState<readonly string[]>([]);
+    useEffect(() => {
+        if (open && !names.length) void import('@/components/lucide-icon-all').then((m) => setNames(m.LUCIDE_ICON_NAMES));
+    }, [open, names.length]);
+
     const { results, truncated } = useMemo(() => {
         if (!debounced) return { results: SUGGESTED, truncated: false };
         const matches: string[] = [];
-        for (const name of LUCIDE_ICON_NAMES) {
+        for (const name of names) {
             if (name.includes(debounced)) {
                 matches.push(name);
                 if (matches.length >= MAX_RESULTS) break;
@@ -70,7 +114,7 @@ export function IconPicker({ value, onChange, className, style, iconClassName, a
         // `break` above stops at the cap; there may be more matches we didn't collect.
         const more = matches.length >= MAX_RESULTS;
         return { results: matches, truncated: more };
-    }, [debounced]);
+    }, [debounced, names]);
 
     const pick = (key: string | null) => {
         onChange(key);
@@ -94,13 +138,7 @@ export function IconPicker({ value, onChange, className, style, iconClassName, a
                 <LucideIcon name={value} className={cn('size-5', iconClassName)} />
             </button>
 
-            <ResponsiveModal
-                open={open}
-                onOpenChange={setOpen}
-                title={t('common.choose_icon')}
-                autoFocusRef={searchRef}
-                className="sm:max-w-lg"
-            >
+            <ResponsiveModal open={open} onOpenChange={setOpen} title={t('common.choose_icon')} autoFocusRef={searchRef} className="sm:max-w-lg">
                 <div className="flex flex-col gap-3">
                     {/* Search box: filters the whole lucide library by name (e.g. "car"). */}
                     <div className="relative">

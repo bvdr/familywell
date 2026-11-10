@@ -1,39 +1,256 @@
 import { cn } from '@/lib/utils';
-import { Wallet, type LucideProps } from 'lucide-react';
-import { DynamicIcon, iconNames, type IconName } from 'lucide-react/dynamic';
+import {
+    Anchor,
+    Archive,
+    Armchair,
+    Baby,
+    Backpack,
+    Bath,
+    BedDouble,
+    Beer,
+    Bike,
+    Bird,
+    Bone,
+    BookOpen,
+    Briefcase,
+    Bug,
+    Bus,
+    Cake,
+    Calendar,
+    CalendarDays,
+    Camera,
+    Car,
+    Cat,
+    ChefHat,
+    Cherry,
+    Church,
+    Cloud,
+    CloudSun,
+    Clover,
+    Coffee,
+    Contact,
+    CookingPot,
+    CupSoda,
+    Dog,
+    DoorOpen,
+    Dumbbell,
+    Egg,
+    Feather,
+    Fence,
+    FileText,
+    Film,
+    Fish,
+    Flame,
+    FlameKindling,
+    Flower,
+    Flower2,
+    FolderKanban,
+    Fuel,
+    Gamepad2,
+    Gem,
+    Gift,
+    GraduationCap,
+    Guitar,
+    HandHeart,
+    Heart,
+    House,
+    KeyRound,
+    Lamp,
+    Laptop,
+    Leaf,
+    ListChecks,
+    Mailbox,
+    MapPin,
+    Moon,
+    MoonStar,
+    Mountain,
+    Music,
+    Package,
+    Palette,
+    PartyPopper,
+    PawPrint,
+    Phone,
+    Pizza,
+    Plane,
+    Plug,
+    Rabbit,
+    Rainbow,
+    Refrigerator,
+    Sailboat,
+    School,
+    Shirt,
+    ShoppingBag,
+    ShoppingCart,
+    ShowerHead,
+    Snowflake,
+    Sofa,
+    SprayCan,
+    Sprout,
+    Squirrel,
+    Star,
+    Stethoscope,
+    StickyNote,
+    Sun,
+    Tag,
+    Tent,
+    TrainFront,
+    TreeDeciduous,
+    TreePalm,
+    Trees,
+    Trophy,
+    Turtle,
+    Utensils,
+    Volleyball,
+    Wallet,
+    Warehouse,
+    WashingMachine,
+    Waves,
+    Wifi,
+    Wrench,
+    type LucideIcon as LucideComponent,
+    type LucideProps,
+} from 'lucide-react';
+import { lazy, Suspense, type ReactNode } from 'react';
 
-// The full lucide set as a lookup, so validating/searching an icon key is O(1)/one pass. `iconNames`
-// is lucide's own list of every icon's kebab-case key ('wallet', 'car-front', ...) — the same keys the
-// server validates against (see modules/spending/lucide-icon-names.php).
-const ICON_NAME_SET = new Set<string>(iconNames);
+// The icon keys the app actually stores or offers, imported statically so they render on the first paint. Picked
+// from: IconPicker's SUGGESTED, DayIcon's ICON_GROUPS, FamilySymbolSheet's SYMBOL_GROUPS (the family mark sits in
+// the sidebar on every page), the inventory default categories/locations (InventoryCategory/InventoryLocation.php),
+// the module icons the server sends for dashboard/calendar/search items (*ServiceProvider.php, CalendarSources),
+// spending's 'wallet' default + 'tag' custom-category default, and the DemoSeeder's lists/events.
+// Why not DynamicIcon for all of them: it renders a stand-in, then fetches each icon as its own chunk and swaps it
+// in (a visible flash, ~20 requests on a list page), and importing it at all puts lucide's whole import map + name
+// list (~47KB gz) in the chunk of every page. A Map, not an object, so a key like 'constructor' can't hit the prototype.
+// Add a key here when a new default/suggestion starts storing it; anything missing still renders, just lazily.
+const STATIC_ICONS = new Map<string, LucideComponent>(
+    Object.entries({
+        anchor: Anchor,
+        archive: Archive,
+        armchair: Armchair,
+        baby: Baby,
+        backpack: Backpack,
+        bath: Bath,
+        'bed-double': BedDouble,
+        beer: Beer,
+        bike: Bike,
+        bird: Bird,
+        bone: Bone,
+        'book-open': BookOpen,
+        briefcase: Briefcase,
+        bug: Bug,
+        bus: Bus,
+        cake: Cake,
+        calendar: Calendar,
+        'calendar-days': CalendarDays,
+        camera: Camera,
+        car: Car,
+        cat: Cat,
+        'chef-hat': ChefHat,
+        cherry: Cherry,
+        church: Church,
+        cloud: Cloud,
+        'cloud-sun': CloudSun,
+        clover: Clover,
+        coffee: Coffee,
+        contact: Contact,
+        'cooking-pot': CookingPot,
+        'cup-soda': CupSoda,
+        dog: Dog,
+        'door-open': DoorOpen,
+        dumbbell: Dumbbell,
+        egg: Egg,
+        feather: Feather,
+        fence: Fence,
+        'file-text': FileText,
+        film: Film,
+        fish: Fish,
+        flame: Flame,
+        'flame-kindling': FlameKindling,
+        flower: Flower,
+        'flower-2': Flower2,
+        'folder-kanban': FolderKanban,
+        fuel: Fuel,
+        'gamepad-2': Gamepad2,
+        gem: Gem,
+        gift: Gift,
+        'graduation-cap': GraduationCap,
+        guitar: Guitar,
+        'hand-heart': HandHeart,
+        heart: Heart,
+        house: House,
+        'key-round': KeyRound,
+        lamp: Lamp,
+        laptop: Laptop,
+        leaf: Leaf,
+        'list-checks': ListChecks,
+        mailbox: Mailbox,
+        'map-pin': MapPin,
+        moon: Moon,
+        'moon-star': MoonStar,
+        mountain: Mountain,
+        music: Music,
+        package: Package,
+        palette: Palette,
+        'party-popper': PartyPopper,
+        'paw-print': PawPrint,
+        phone: Phone,
+        pizza: Pizza,
+        plane: Plane,
+        plug: Plug,
+        rabbit: Rabbit,
+        rainbow: Rainbow,
+        refrigerator: Refrigerator,
+        sailboat: Sailboat,
+        school: School,
+        shirt: Shirt,
+        'shopping-bag': ShoppingBag,
+        'shopping-cart': ShoppingCart,
+        'shower-head': ShowerHead,
+        snowflake: Snowflake,
+        sofa: Sofa,
+        'spray-can': SprayCan,
+        sprout: Sprout,
+        squirrel: Squirrel,
+        star: Star,
+        stethoscope: Stethoscope,
+        'sticky-note': StickyNote,
+        sun: Sun,
+        tag: Tag,
+        tent: Tent,
+        'train-front': TrainFront,
+        'tree-deciduous': TreeDeciduous,
+        'tree-palm': TreePalm,
+        trees: Trees,
+        trophy: Trophy,
+        turtle: Turtle,
+        utensils: Utensils,
+        volleyball: Volleyball,
+        wallet: Wallet,
+        warehouse: Warehouse,
+        'washing-machine': WashingMachine,
+        waves: Waves,
+        wifi: Wifi,
+        wrench: Wrench,
+    }),
+);
 
-/** Every lucide icon key (kebab-case). The IconPicker searches this list. */
-export const LUCIDE_ICON_NAMES: readonly string[] = iconNames;
+// Everything else (a rare icon picked via the picker's search): the whole lucide set, loaded only when one renders.
+const AnyLucideIcon = lazy(() => import('@/components/lucide-icon-all'));
 
-/** True when `name` is a real lucide icon key. Guards rendering and picker input. */
-export function isLucideIconName(name?: string | null): name is IconName {
-    return !!name && ICON_NAME_SET.has(name);
-}
+type LucideIconProps = { name?: string | null; fallback?: ReactNode } & Omit<LucideProps, 'ref' | 'name'>;
 
-type LucideIconProps = { name?: string | null } & Omit<LucideProps, 'ref' | 'name'>;
-
-// Renders ANY lucide icon from its stored kebab-case key. Uses lucide's DynamicIcon so only the icons
-// actually rendered are pulled in as lazy chunks — importing the whole set statically would add
-// hundreds of KB to the bundle. An unknown/empty key renders Wallet, the spending module's historical
-// default, so a list with no icon (or a legacy/removed key) still shows something sensible.
-//
-// During the async load DynamicIcon shows its `fallback`; we pass a same-sized Wallet so there's no
-// layout jump and SSR (where the effect never runs) renders a stable Wallet that the client matches.
-export function LucideIcon({ name, className, ...props }: LucideIconProps) {
-    if (!isLucideIconName(name)) {
-        return <Wallet className={cn('h-4 w-4', className)} {...props} />;
-    }
+// Renders ANY lucide icon from its stored kebab-case key: synchronously from STATIC_ICONS, else lazily via
+// lucide's DynamicIcon. `fallback` shows while a lazy icon loads and for an empty/unknown key; it defaults to a
+// same-sized Wallet (the spending module's historical default) so there's no layout jump, and SSR (which never
+// resolves the lazy chunk) renders the same stand-in the client starts with.
+export function LucideIcon({ name, className, fallback, ...props }: LucideIconProps) {
+    const cls = cn('h-4 w-4', className);
+    const Static = name ? STATIC_ICONS.get(name) : undefined;
+    if (Static) return <Static className={cls} {...props} />;
+    const standIn = fallback ?? <Wallet className={cls} {...props} />;
+    if (!name) return standIn;
     return (
-        <DynamicIcon
-            name={name}
-            className={cn('h-4 w-4', className)}
-            fallback={() => <Wallet className={cn('h-4 w-4', className)} {...props} />}
-            {...props}
-        />
+        <Suspense fallback={standIn}>
+            <AnyLucideIcon name={name} className={cls} fallback={standIn} {...props} />
+        </Suspense>
     );
 }

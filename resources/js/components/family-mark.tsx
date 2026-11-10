@@ -1,17 +1,29 @@
-import { DynamicIcon, type IconName } from 'lucide-react/dynamic';
+import { type ReactNode } from 'react';
 
-import { isLucideIconName } from '@/components/lucide-icon';
+import { LucideIcon } from '@/components/lucide-icon';
 import { cn } from '@/lib/utils';
 
-// A symbol icon, lazy-loaded per icon like LucideIcon, but with an empty same-size box while it loads (not
-// LucideIcon's Wallet stand-in, which would flash in the symbol grids).
-export function SymbolIcon({ name, className, strokeWidth = 2.25 }: { name: IconName; className?: string; strokeWidth?: number }) {
+// A symbol icon via LucideIcon (the curated symbols are in its static map, so they paint at once), but with an
+// empty same-size box as the stand-in for a rare searched symbol that loads lazily (not LucideIcon's Wallet, which
+// would flash in the symbol grids). Not using lucide-react/dynamic directly: the mark is in the sidebar on every
+// page, and that import alone costs every page lucide's whole import map.
+export function SymbolIcon({
+    name,
+    className,
+    strokeWidth = 2.25,
+    fallback,
+}: {
+    name: string;
+    className?: string;
+    strokeWidth?: number;
+    fallback?: ReactNode;
+}) {
     return (
-        <DynamicIcon
+        <LucideIcon
             name={name}
             className={className}
             strokeWidth={strokeWidth}
-            fallback={() => <span className={cn('inline-block', className)} />}
+            fallback={fallback ?? <span className={cn('inline-block', className)} />}
         />
     );
 }
@@ -56,8 +68,9 @@ export function FamilyMark({ name, color, symbol, emoji, className, iconClassNam
         <span className={cn('flex shrink-0 items-center justify-center', className)} style={{ backgroundColor: color, color: fg }} aria-hidden>
             {symbol === 'monogram' ? (
                 <span className="font-display leading-none font-extrabold">{monogramOf(name)}</span>
-            ) : isLucideIconName(symbol) ? (
-                <SymbolIcon name={symbol} className={cn('size-1/2', iconClassName)} />
+            ) : symbol ? (
+                // An unknown key renders the emoji (the fallback); so does a rare symbol for the moment it loads.
+                <SymbolIcon name={symbol} className={cn('size-1/2', iconClassName)} fallback={emoji} />
             ) : (
                 emoji
             )}

@@ -1,5 +1,5 @@
 import { Check, Ellipsis } from 'lucide-react';
-import { type IconName } from 'lucide-react/dynamic';
+import type { IconName } from 'lucide-react/dynamic';
 import { useState } from 'react';
 
 import { inkOn, monogramOf, SymbolIcon } from '@/components/family-mark';

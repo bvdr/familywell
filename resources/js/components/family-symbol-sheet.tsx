@@ -1,9 +1,10 @@
 import { Check, Search } from 'lucide-react';
-import { type IconName } from 'lucide-react/dynamic';
+import type { IconName } from 'lucide-react/dynamic';
 import { useEffect, useMemo, useState } from 'react';
 
 import { SymbolIcon } from '@/components/family-mark';
-import { isLucideIconName, LUCIDE_ICON_NAMES } from '@/components/lucide-icon';
+// The full name list (heavy, see lucide-icon-all) is fine here: this sheet only lives on onboarding + Settings > Family look.
+import { isLucideIconName, LUCIDE_ICON_NAMES } from '@/components/lucide-icon-all';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
