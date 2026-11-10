@@ -1,5 +1,6 @@
 import { useOptimistic } from '@/hooks/use-optimistic';
 import { useAddAction } from '@/lib/add-action';
+import { save } from '@/lib/save';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
     Archive,
@@ -72,7 +73,7 @@ type Project = {
 };
 
 export default function ProjectDetail({
-    project,
+    project: serverProject,
     members,
     tasks,
     dependencies,
@@ -93,6 +94,10 @@ export default function ProjectDetail({
     share: ShareState;
 }) {
     const t = useT();
+    // Edit-sheet saves overlay the project here, so the hero (name, status, progress, owner…) shows the change when
+    // the sheet closes instead of after the save + reload. Every `project.*` read below is optimistic for free.
+    const projectOpt = useOptimistic<Partial<Project>>();
+    const project: Project = { ...serverProject, ...projectOpt.get(serverProject.id, {}) };
     const [sharing, setSharing] = useState(false);
     const [editing, setEditing] = useState(false);
     const [linking, setLinking] = useState(false);
@@ -157,12 +162,12 @@ export default function ProjectDetail({
     const visibleNotes = notes.filter((n) => !unlinkedNote.get(n.id, false));
     const visibleSpends = (spendLists ?? []).filter((e) => !unlinkedSpend.get(e.id, false));
     const visibleContacts = (contacts ?? []).filter((c) => !unlinkedContact.get(c.id, false));
-    const settle = (o: ReturnType<typeof useOptimistic<boolean>> | ReturnType<typeof useOptimistic<string>>, id: number) => ({
-        preserveScroll: true,
-        preserveState: true,
-        onSuccess: () => o.clear(id),
-        onError: () => o.clear(id),
-    });
+    // save() (lib/save.ts), not router.patch/delete: Inertia aborts an in-flight visit when the next starts, so two
+    // quick taps (unlink A, unlink B) cancelled A, and a cancelled visit fires neither onSuccess nor onError, leaving
+    // A's overlay stuck. save() never aborts, reloads once after the last save, and resolves on every outcome
+    // ('ok' / 'rejected' / 'offline'), so the overlay always clears: kept on success, rolled back otherwise.
+    const send = (o: { clear: (id: number) => void }, id: number, method: 'patch' | 'delete', url: string, body?: Record<string, unknown>) =>
+        void save(method, url, body).then(() => o.clear(id));
 
     // A section shows once it has content, or right after the user chooses to add it from the sheet.
     const showDeps = visibleDeps.length > 0 || reveal.has('deps');
@@ -174,30 +179,30 @@ export default function ProjectDetail({
 
     const toggleArchived = () => {
         archivedOpt.set(project.id, !isArchived);
-        router.patch(route('projects.update', project.id), { archived: !isArchived }, settle(archivedOpt, project.id));
+        send(archivedOpt, project.id, 'patch', route('projects.update', project.id), { archived: !isArchived });
     };
     const cycleDep = (d: Dep) => {
         const current = depStatusOpt.get(d.id, d.status);
         const next = DEP_STATUS_KEYS[(DEP_STATUS_KEYS.indexOf(current) + 1) % DEP_STATUS_KEYS.length];
         depStatusOpt.set(d.id, next);
-        router.patch(route('projects.deps.update', d.id), { status: next }, settle(depStatusOpt, d.id));
+        send(depStatusOpt, d.id, 'patch', route('projects.deps.update', d.id), { status: next });
     };
     const removeDep = (d: Dep) => {
         removedDep.set(d.id, true);
-        router.delete(route('projects.deps.destroy', d.id), settle(removedDep, d.id));
+        send(removedDep, d.id, 'delete', route('projects.deps.destroy', d.id));
     };
     const unlinkList = (l: LinkedList) => {
         unlinkedList.set(l.id, true);
-        router.delete(route('projects.lists.unlink', [project.id, l.id]), settle(unlinkedList, l.id));
+        send(unlinkedList, l.id, 'delete', route('projects.lists.unlink', [project.id, l.id]));
     };
     const unlinkNote = (n: LinkedNote) => {
         unlinkedNote.set(n.id, true);
-        router.delete(route('projects.notes.unlink', [project.id, n.id]), settle(unlinkedNote, n.id));
+        send(unlinkedNote, n.id, 'delete', route('projects.notes.unlink', [project.id, n.id]));
     };
     const unlinkItem = (type: LinkType, id: number) => {
         const o = type === 'spend_event' ? unlinkedSpend : unlinkedContact;
         o.set(id, true);
-        router.delete(route('projects.links.destroy', [project.id, type, id]), settle(o, id));
+        send(o, id, 'delete', route('projects.links.destroy', [project.id, type, id]));
     };
     const openLinkType = (type: LinkType) => {
         setAdding(false);
@@ -535,7 +540,16 @@ export default function ProjectDetail({
             </div>
 
             {share && <ShareSheet open={sharing} onOpenChange={setSharing} share={share} eventName={project.name} />}
-            <EditModal open={editing} onOpenChange={setEditing} project={project} members={members} />
+            <EditModal
+                open={editing}
+                onOpenChange={setEditing}
+                project={project}
+                members={members}
+                onSave={(payload, fields) => {
+                    projectOpt.set(project.id, { ...projectOpt.get(project.id, {}), ...fields });
+                    void save('patch', route('projects.update', project.id), payload).then(() => projectOpt.clear(project.id));
+                }}
+            />
             <LinkListModal open={linking} onOpenChange={setLinking} projectId={project.id} projectName={project.name} initialView={linkView} />
             <LinkNoteModal open={linkingNote} onOpenChange={setLinkingNote} projectId={project.id} projectName={project.name} />
             <NewSpendListModal open={newSpend} onOpenChange={setNewSpend} projectId={project.id} projectName={project.name} />
@@ -730,14 +744,16 @@ function EditModal({
     onOpenChange,
     project,
     members,
+    onSave,
 }: {
     open: boolean;
     onOpenChange: (v: boolean) => void;
     project: Project;
     members: Member[];
+    onSave: (payload: Record<string, unknown>, fields: Partial<Project>) => void;
 }) {
     const t = useT();
-    const { data, setData, patch } = useForm({
+    const { data, setData } = useForm({
         name: project.name,
         description: project.description ?? '',
         status: project.status,
@@ -746,7 +762,19 @@ function EditModal({
         target_start: project.targetStart ?? '',
         waiting_on: project.waitingOn ?? '',
     });
-    const patchProject = () => patch(route('projects.update', project.id), { preserveScroll: true, preserveState: true });
+    // Optimistic via the page's overlay (onSave): every control here can only produce a valid value (non-empty name is
+    // checked before saving, the rest are a date input, a 0-100 slider, pickers), so there is no server message to show.
+    const patchProject = () =>
+        onSave(data, {
+            name: data.name,
+            description: data.description || null,
+            status: data.status,
+            progress: data.progress,
+            ownerId: data.owner_id,
+            ownerName: members.find((m) => m.id === data.owner_id)?.name ?? null,
+            targetStart: data.target_start || null,
+            waitingOn: data.waiting_on || null,
+        });
     // Auto-save: debounce edits; skip the initial mount; flush on close. No Save button.
     const first = useRef(true);
     useEffect(() => {
@@ -772,12 +800,14 @@ function EditModal({
             <form id="edit-project" onSubmit={(e) => e.preventDefault()} className="flex flex-col gap-5">
                 <div className="grid gap-2">
                     <Label>{t('projects.name')}</Label>
-                    <Input value={data.name} onChange={(e) => setData('name', e.target.value)} />
+                    {/* maxLength = the server's limits: saves here are optimistic, so a too-long value would just roll back. */}
+                    <Input value={data.name} maxLength={255} onChange={(e) => setData('name', e.target.value)} />
                 </div>
                 <div className="grid gap-2">
                     <Label>{t('projects.description')}</Label>
                     <textarea
                         value={data.description}
+                        maxLength={2000}
                         onChange={(e) => setData('description', e.target.value)}
                         className="border-border focus:border-accent min-h-20 w-full resize-none rounded-lg border bg-transparent p-3 text-base outline-none md:text-sm"
                     />
@@ -802,6 +832,7 @@ function EditModal({
                         <Label>{t('projects.waiting_on')}</Label>
                         <Input
                             value={data.waiting_on}
+                            maxLength={255}
                             onChange={(e) => setData('waiting_on', e.target.value)}
                             placeholder={t('projects.waiting_on_placeholder')}
                         />
