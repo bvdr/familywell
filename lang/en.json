@@ -158,6 +158,7 @@
         "tasks": "New to-do list",
         "projects": "New project",
         "spending": "New expense",
+        "spending_list": "New spending list",
         "notes": "New note",
         "recipes": "New recipe",
         "vehicles": "Add a vehicle",

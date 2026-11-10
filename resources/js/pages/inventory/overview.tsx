@@ -41,7 +41,7 @@ export default function InventoryOverview({ summary, attention, recent, categori
     const catMap = byKey(categories);
     const breadcrumbs: BreadcrumbItem[] = [{ title: t('inventory.title'), href: '/m/inventory' }];
     const [adding, setAdding] = useState(openNewOnArrival);
-    useAddAction(() => setAdding(true), { label: 'create.inventory', icon: Package, replaces: 'inventory' }); // the mobile nav "+" adds an item here
+    useAddAction(() => setAdding(true), { label: 'create.inventory', icon: Package }); // the mobile nav "+" adds an item here
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>

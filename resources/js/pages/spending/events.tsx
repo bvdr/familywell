@@ -1,7 +1,22 @@
-import { useAddAction } from '@/lib/add-action';
+import { useAddActions } from '@/lib/add-action';
 import { openNewOnArrival } from '@/lib/create-intent';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { Archive, Banknote, Camera, ChartLine, ChevronRight, Loader2, Plus, RotateCcw, Settings, Store, Tag, User, Wallet } from 'lucide-react';
+import {
+    Archive,
+    Banknote,
+    Camera,
+    ChartLine,
+    ChevronRight,
+    ListPlus,
+    Loader2,
+    Plus,
+    RotateCcw,
+    Settings,
+    Store,
+    Tag,
+    User,
+    Wallet,
+} from 'lucide-react';
 import { FormEventHandler, useRef, useState } from 'react';
 
 import { useCategorySuggest } from '@/hooks/use-category-suggest';
@@ -135,11 +150,20 @@ export default function Events({
     // expense-first; lists are the secondary way in.
     const [view, setView] = useState<'expenses' | 'lists'>('expenses');
 
-    // The "+" (mobile nav + desktop header, and ?new=1 from the global quick-add) ADDS AN EXPENSE. Creating
-    // a list is reachable from the Lists tab only.
+    // The desktop header's add and ?new=1 from the global quick-add ADD AN EXPENSE. The mobile "+" offers both an
+    // expense and a list, the current tab's first (the user, 2026-11-10), so on Lists it starts a list.
     const [adding, setAdding] = useState(openNewOnArrival);
     const [creating, setCreating] = useState(false);
-    useAddAction(() => setAdding(true), { label: 'create.spending', icon: Wallet, replaces: 'spending' });
+    const addExpense = { label: 'create.spending', icon: Wallet, run: () => setAdding(true) };
+    const addList = {
+        label: 'create.spending_list',
+        icon: ListPlus,
+        run: () => {
+            setView('lists'); // the new-list form lives on the Lists tab
+            setCreating(true);
+        },
+    };
+    useAddActions(view === 'lists' ? [addList, addExpense] : [addExpense, addList]);
     const amountRef = useRef<HTMLInputElement>(null);
 
     // Lists the viewer may add spends to; the picker offers these plus the "Others" default (value '').

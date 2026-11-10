@@ -91,7 +91,7 @@ export default function NotesIndex({ notes, folders }: { notes: Note[]; folders:
     // selected. This runs on a user click, when Inertia's router is ready. Cross-page quick-add
     // instead POSTs straight to notes.store from the nav (see MobileTabBar), landing in the editor.
     const createNote = () => router.post(route('notes.store'), activeFolder === ALL ? {} : { folder_id: Number(activeFolder) });
-    useAddAction(createNote, { label: 'create.notes', icon: StickyNote, replaces: 'notes' });
+    useAddAction(createNote, { label: 'create.notes', icon: StickyNote });
 
     const visible = useMemo(() => {
         const q = query.trim().toLowerCase();
