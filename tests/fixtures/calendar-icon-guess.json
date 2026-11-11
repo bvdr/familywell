@@ -1,0 +1,20 @@
+{
+    "_about": "Title -> icon guesses; run by tests/Feature/Calendar/IconGuessTest.php (PHP) and resources/js/lib/icon-guess.test.mjs (JS) so both twins agree. The first case is the design's own (C13).",
+    "cases": [
+        { "title": "Parastas Mamaie & Turtă Luna", "word": "Parastas", "icons": ["church", "flame", "flower-2", "hand-heart", "book-open"] },
+        { "title": "Swim practice", "word": "Swim", "icons": ["waves", "trophy", "dumbbell"] },
+        { "title": "Cină la bunica", "word": "Cină", "icons": ["utensils", "pizza", "coffee", "beer", "heart"] },
+        { "title": "Plată excursie școală", "word": "Plată", "icons": ["wallet", "mailbox", "tree-palm", "sun", "plane"] },
+        { "title": "Dentist Ana", "word": "Dentist", "icons": ["stethoscope", "heart-pulse", "pill", "hand-heart"] },
+        { "title": "Geburtstag von Müller", "word": "Geburtstag", "icons": ["cake", "party-popper", "gift", "gem", "heart"] },
+        { "title": "Bryllupsdag", "word": "Bryllupsdag", "icons": ["gem", "heart", "party-popper", "gift", "church"] },
+        { "title": "Ärztin Termin", "word": "Ärztin", "icons": ["stethoscope", "heart-pulse", "pill", "hand-heart"] },
+        { "title": "Frisør", "word": "Frisør", "icons": ["scissors", "gem"] },
+        { "title": "Fußball Training", "word": "Fußball", "icons": ["volleyball", "trophy", "users", "dumbbell", "bike"] },
+        { "title": "Business lunch", "word": "lunch", "icons": ["utensils", "pizza", "coffee", "beer"] },
+        { "title": "Booking hotel", "word": "hotel", "icons": ["bed-double", "key-round", "house"] },
+        { "title": "Carnaval", "word": null, "icons": [] },
+        { "title": "Ziua lui Tim", "word": null, "icons": [] },
+        { "title": "", "word": null, "icons": [] }
+    ]
+}

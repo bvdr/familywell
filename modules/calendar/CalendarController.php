@@ -67,6 +67,7 @@ class CalendarController extends Controller
             'members' => $family->members->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values(),
             'contacts' => $this->contactOptions(),
             'projects' => $this->projectOptions($request),
+            'categories' => CalendarCategory::forFamily(), // the chips, the filter and the event sheet; one query a request
             'feedUrl' => CalendarFeed::urlFor($request->user()->id), // Task 10; null until then
             // Other calendars for the Calendars sheet. A closure, so date navigation (partial reloads of items) skips it.
             'subscriptions' => fn () => CalendarSubscriptionController::listFor($request->user()->id),
@@ -133,6 +134,7 @@ class CalendarController extends Controller
             // The edit sheet's people + project pickers, same lists as the index.
             'contacts' => $this->contactOptions(),
             'projects' => $this->projectOptions($request),
+            'categories' => CalendarCategory::forFamily(),
         ]);
     }
 

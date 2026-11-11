@@ -268,6 +268,10 @@ class CalendarServiceProvider extends ServiceProvider
                 Route::post('/subscriptions', [CalendarSubscriptionController::class, 'store'])->middleware('throttle:10,1')->name('subscriptions.store');
                 Route::patch('/subscriptions/{subscription}', [CalendarSubscriptionController::class, 'update'])->name('subscriptions.update');
                 Route::delete('/subscriptions/{subscription}', [CalendarSubscriptionController::class, 'destroy'])->name('subscriptions.destroy');
+                // Family event categories (C14): any member adds, admins rename/delete.
+                Route::post('/categories', [CalendarCategoryController::class, 'store'])->name('categories.store');
+                Route::patch('/categories/{category}', [CalendarCategoryController::class, 'update'])->name('categories.update');
+                Route::delete('/categories/{category}', [CalendarCategoryController::class, 'destroy'])->name('categories.destroy');
                 Route::get('/external/{event}', [CalendarSubscriptionController::class, 'show'])->name('external.show');
             });
 

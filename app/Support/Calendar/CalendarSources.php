@@ -58,7 +58,7 @@ class CalendarSources
             'people' => $people, 'done' => $done, 'editable' => $editable,
             // The agenda row's second line where the people alone don't say it ("Household" for a to-do's list).
             'sub' => $sub,
-            // The calendar's category chips filter on this; only calendar events have one (CalendarEvent::CATEGORIES).
+            // The calendar's category chips filter on this; only calendar events have one (CalendarCategory).
             'category' => $category,
         ];
     }

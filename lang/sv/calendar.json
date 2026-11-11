@@ -127,5 +127,14 @@
     "category_faith": "Tro",
     "category_family": "Familj",
     "category_school": "Skola",
-    "category_work": "Jobb"
+    "category_work": "Jobb",
+    "new_category": "Ny kategori",
+    "category_name": "Namn",
+    "category_name_placeholder": "Sport, Kyrka, Mormor…",
+    "category_color": "Färg",
+    "category_hint": "Händelser i :name börjar med den här ikonen och färgen. Varje händelse kan fortfarande välja en egen ikon.",
+    "save_category": "Spara kategori",
+    "category_exists": "Det finns redan en kategori med det namnet.",
+    "icon_suggested": "Förslag för :word",
+    "icon_auto": "Välj ikon åt mig"
 }
