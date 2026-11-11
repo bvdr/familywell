@@ -290,3 +290,26 @@ homer-mascot::part(canvas) {
         transform: scaleY(1);
     }
 }
+
+/* A timeline row that left the screen folds into a thin line and goes (components/calendar/timeline-view.tsx, design C11).
+   600ms matches FOLD_MS there; 40px is its ROW_PX. Reduced motion: it just goes. */
+.fold-away {
+    animation: fold-away 600ms ease-in forwards;
+}
+@keyframes fold-away {
+    from {
+        height: 40px;
+    }
+    40% {
+        height: 12px;
+    }
+    to {
+        height: 0;
+        border-width: 0;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .fold-away {
+        display: none;
+    }
+}
