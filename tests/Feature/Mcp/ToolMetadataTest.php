@@ -1,5 +1,7 @@
 <?php
 
+use App\Mcp\TrackedCallTool;
+
 // The ChatGPT app review (2026-10) rejected FamilyWell for "tool naming and description quality": names must
 // be clear, unique and reflect what the tool does; descriptions must say WHEN to use the tool, with no
 // comparative, biased or preferential language (developers.openai.com/apps-sdk/app-submission-guidelines).
@@ -70,4 +72,18 @@ it('describes every input parameter, with no platform names', function () {
                 ->and($desc)->not->toMatch('/chatgpt|claude|openai|anthropic|gemini/i', "{$t['name']}.{$param}");
         }
     }
+});
+
+it('still answers the tool names the approved app was reviewed with, without listing them', function () {
+    $names = collect(everyTool())->pluck('name');
+    foreach (TrackedCallTool::OLD_NAMES as $old => $new) {
+        expect($names)->toContain($new)->not->toContain($old);
+    }
+
+    [, $users] = mcpFamily(['calendar', 'contacts'], 1);
+    $token = mcpConnect($users[0], $users[0]->families()->first()->id, ['calendar' => 'read'])['access_token'];
+    [$err, $list] = mcpTool($token, 'calendar_list', ['from' => '2026-07-01', 'to' => '2026-07-31']);
+    expect($err)->toBeFalse()->and($list['items'])->toBe([])
+        // An old name still needs the scope its new tool needs.
+        ->and(mcpTool($token, 'calendar_list_deleted')[0])->toBeTrue();
 });
