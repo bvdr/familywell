@@ -1,8 +1,9 @@
 import { Link } from '@inertiajs/react';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ArrowUp } from 'lucide-react';
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { DayList, stripe, takesADay } from '@/components/calendar/agenda';
+import { LucideIcon } from '@/components/lucide-icon';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { addDays, daysBetween, daysOf, filterItems, itemKey, itemsOn, parseDay, timelineRows, type CalFilter, type CalItem } from '@/lib/calendar';
 import { appLocale, useT } from '@/lib/i18n';
@@ -18,6 +19,12 @@ const ACROSS = { week: 7, twoweeks: 14, month: 35 } as const; // days across the
 // done. Only multi-day things had rows before, and a week of birthdays and appointments read as "nothing here"
 // (user, 2026-11-05).
 const onTimeline = (i: CalItem) => !i.done;
+// A one-day thing is a tile with its icon (design C9 / T4bW5f: a cake for a birthday, an open circle for a to-do, the
+// event's own icon); a longer one keeps its stripe and no icon, the name goes in the bar.
+const oneDay = (i: CalItem) => i.end === i.start;
+const tileIcon = (i: CalItem) => (i.kind === 'task' ? 'circle' : i.icon);
+const FOLD_MS = 600; // how long a row that left takes to fold away (C11), matches .fold-away in app.css
+type Row = ReturnType<typeof timelineRows>[number];
 const fmt = (d: string, o: Intl.DateTimeFormatOptions) => parseDay(d).toLocaleDateString(appLocale(), o);
 const px = (n: number) => `${n}px`;
 
@@ -234,19 +241,38 @@ export const TimelineView = forwardRef<
     // screen stood still (the first edge loads, a save) are not news.
     const seen = useRef<{ keys: Set<string>; first: string } | null>(null);
     const [fresh, setFresh] = useState<Set<string>>(new Set());
+    // Rows that left because you scrolled (C11): they fold into a thin line in place, then go, and a note over the rows
+    // says what left for a beat. Order never changes; only the top and bottom move.
+    const shownRows = useRef<Row[]>([]);
+    const [leaving, setLeaving] = useState<{ row: Row; at: number }[]>([]);
+    const [left, setLeft] = useState<string[]>([]);
     const rowKeys = rows.map((r) => r.key).join('|');
     useEffect(() => {
         if (!win) return;
         const now = new Set(rows.map((r) => r.key));
         const moved = !!seen.current && seen.current.first !== firstDay;
         const added = moved ? [...now].filter((k) => !seen.current!.keys.has(k)) : [];
+        const gone = moved ? shownRows.current.map((row, at) => ({ row, at })).filter(({ row }) => !now.has(row.key)) : [];
         seen.current = { keys: now, first: firstDay };
-        if (!added.length) return;
-        setFresh(new Set(added));
-        const id = window.setTimeout(() => setFresh(new Set()), 2500);
-        return () => window.clearTimeout(id);
+        shownRows.current = rows;
+        const timers: number[] = [];
+        if (added.length) {
+            setFresh(new Set(added));
+            timers.push(window.setTimeout(() => setFresh(new Set()), 2500));
+        }
+        if (gone.length) {
+            setLeaving(gone);
+            setLeft(gone.map((g) => g.row.item.title));
+            timers.push(window.setTimeout(() => setLeaving([]), FOLD_MS));
+            timers.push(window.setTimeout(() => setLeft([]), 2500));
+        }
+        return () => timers.forEach((id) => window.clearTimeout(id));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [rowKeys, firstDay]);
+    // The rows as drawn: the current ones with the leaving ones put back where they were.
+    const drawn: (Row & { leaving?: true })[] = [...rows];
+    for (const { row, at } of leaving)
+        if (!rows.some((r) => r.key === row.key)) drawn.splice(Math.min(at, drawn.length), 0, { ...row, leaving: true });
 
     const meta = (i: CalItem) => {
         const total = daysBetween(i.start, i.end) + 1;
@@ -348,8 +374,45 @@ export const TimelineView = forwardRef<
                                     aria-hidden
                                 />
                             )}
-                            {rows.map(({ key, item: i, bars }) => {
-                                const { offset, span: len } = bars[0];
+                            {left.length > 0 && (
+                                // C11's note over the top row: what just left, for a beat. Over the rows, not above them, so
+                                // the rows don't jump down and back up again.
+                                <div
+                                    className="bg-card/90 text-muted-foreground pointer-events-none absolute top-0 z-10 flex items-center gap-1.5 px-3 py-0.5 text-xs"
+                                    // The rows are the wide scrolling strip; pin the note to the days on screen.
+                                    style={{ left: px(viewL), width: px(viewR - viewL) }}
+                                >
+                                    <ArrowUp className="size-3.5 shrink-0" />
+                                    <span className="truncate">
+                                        {t('calendar.rows_left', {
+                                            names: left.length > 2 ? `${left.slice(0, 2).join(' · ')} +${left.length - 2}` : left.join(' · '),
+                                        })}
+                                    </span>
+                                </div>
+                            )}
+                            {drawn.map(({ key, item: first, bars, leaving: going }) => {
+                                if (going) {
+                                    // Folding away (C11): a thin faded line with its colour and name, collapsing to nothing.
+                                    return (
+                                        <div
+                                            key={`${key}-leaving`}
+                                            // overflow-clip, not hidden: hidden makes the row a scroll container and the sticky line would stick
+                                            // inside it, back at the strip's first day, instead of at the screen's left edge.
+                                            className="fold-away border-border/60 flex items-center overflow-clip border-b opacity-40"
+                                            aria-hidden
+                                        >
+                                            <span className="sticky left-0 flex min-w-0 items-center gap-1.5 px-2.5" style={{ maxWidth: px(boxW) }}>
+                                                <span className={`h-1.5 w-4 shrink-0 rounded-full ${stripe(first.color)}`} />
+                                                <span className="text-primary truncate text-sm font-semibold">{first.title}</span>
+                                            </span>
+                                        </div>
+                                    );
+                                }
+                                // A repeating thing has a bar per time on its row; the label and its "ended / starts" belong to
+                                // the first time not over yet, else a weekly class sat on this week's tile saying "ended" last week.
+                                const lead = (win && bars.find((b) => b.offset + b.span - 1 >= win[0])) || bars[bars.length - 1];
+                                const i = lead.item;
+                                const { offset, span: len } = lead;
                                 const before = i.start < firstDay;
                                 // Inside the bar when ~45% of the screen shows it (a long name fits); otherwise beside it, on
                                 // whichever side of the screen has room (an ended one: at the left edge, after its bar).
@@ -383,9 +446,14 @@ export const TimelineView = forwardRef<
                                             // label would stick inside the bar instead of the screen's left edge.
                                             <span
                                                 key={k}
-                                                className={`absolute top-1.5 bottom-1.5 flex items-center overflow-clip text-sm ${itemTone(i.color)} ${b.item.start < span.from ? '' : `rounded-l-lg border-l-4 ${stripe(i.color).replace('bg-', 'border-')}`} ${b.item.end > span.to ? '' : 'rounded-r-lg'}`}
+                                                className={`absolute top-1.5 bottom-1.5 flex items-center overflow-clip text-sm ${itemTone(i.color)} ${
+                                                    oneDay(i)
+                                                        ? 'justify-center rounded-lg'
+                                                        : `${b.item.start < span.from ? '' : `rounded-l-lg border-l-4 ${stripe(i.color).replace('bg-', 'border-')}`} ${b.item.end > span.to ? '' : 'rounded-r-lg'}`
+                                                }`}
                                                 style={{ left: px(b.offset * dayW), width: px(b.span * dayW) }}
                                             >
+                                                {oneDay(i) && <LucideIcon name={tileIcon(i)} className="text-primary size-4" />}
                                                 {k === 0 && inside && (
                                                     // Sticks to the screen's left edge while the bar's start scrolls away.
                                                     <span
@@ -447,6 +515,7 @@ export const TimelineView = forwardRef<
                                 <span className="text-muted-foreground font-mono text-[11px] font-semibold uppercase">
                                     {t('calendar.next_label')}
                                 </span>
+                                {oneDay(next) && <LucideIcon name={tileIcon(next)} className="size-4 shrink-0" />}
                                 <span className="truncate font-semibold">
                                     {next.title} · {fmt(next.start, { weekday: 'short', month: 'short', day: 'numeric' })}
                                 </span>
