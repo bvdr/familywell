@@ -1,14 +1,15 @@
 import { Contact, UserRound } from 'lucide-react';
 
+import { stripe } from '@/components/calendar/agenda';
 import { Picker } from '@/components/picker';
 import { Button } from '@/components/ui/button';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
-import { type CalFilter } from '@/lib/calendar';
+import { type CalCategory, type CalFilter } from '@/lib/calendar';
 import { useT } from '@/lib/i18n';
 
 type Named = { id: number; name: string };
 
-// People + source chips. Empty selection = show everything. "Bogdan + Timeline" is the PTO view.
+// Source chips, a category (one at a time, like the chip row on the page), and people. Empty selection = show everything. "Bogdan + Timeline" is the PTO view.
 export function FilterSheet({
     open,
     onOpenChange,
@@ -17,6 +18,7 @@ export function FilterSheet({
     sources,
     members,
     contacts,
+    categories,
 }: {
     open: boolean;
     onOpenChange: (v: boolean) => void;
@@ -25,6 +27,7 @@ export function FilterSheet({
     sources: string[];
     members: Named[];
     contacts: Named[];
+    categories: CalCategory[];
 }) {
     const t = useT();
     const toggle = (key: 'people' | 'sources', v: string) =>
@@ -61,6 +64,27 @@ export function FilterSheet({
                         ))}
                     </div>
                 </div>
+                {/* Category: the same single choice as the chips on the page, for a phone where that row has scrolled away.
+                    Only with the Events source available (categories live on calendar events). */}
+                {sources.includes('calendar') && (
+                    <div className="flex flex-col gap-2">
+                        <span className="text-muted-foreground text-sm">{t('calendar.category')}</span>
+                        <div className="flex flex-wrap gap-2">
+                            {categories.map((c) => (
+                                <button
+                                    key={c.slug}
+                                    type="button"
+                                    aria-pressed={value.category === c.slug}
+                                    className={`flex items-center gap-2 ${chip(value.category === c.slug)}`}
+                                    onClick={() => onChange({ ...value, category: value.category === c.slug ? null : c.slug })}
+                                >
+                                    <span className={`size-[7px] rounded-full ${stripe(c.color)}`} />
+                                    {c.name}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
                 {/* People: one searchable dropdown for family + contacts (a family with 40 contacts filled the sheet with chips). */}
                 <div className="flex flex-col gap-2">
                     <span className="text-muted-foreground text-sm">{t('calendar.people')}</span>

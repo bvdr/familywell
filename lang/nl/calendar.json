@@ -128,5 +128,14 @@
     "category_faith": "Geloof",
     "category_family": "Gezin",
     "category_school": "School",
-    "category_work": "Werk"
+    "category_work": "Werk",
+    "new_category": "Nieuwe categorie",
+    "category_name": "Naam",
+    "category_name_placeholder": "Sport, Kerk, Grootouders…",
+    "category_color": "Kleur",
+    "category_hint": "Afspraken in :name beginnen met dit icoon en deze kleur. Elke afspraak kan nog steeds een eigen icoon kiezen.",
+    "save_category": "Categorie opslaan",
+    "category_exists": "Er bestaat al een categorie met die naam.",
+    "icon_suggested": "Suggesties voor :word",
+    "icon_auto": "Kies het icoon voor mij"
 }

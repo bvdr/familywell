@@ -128,5 +128,14 @@
     "category_faith": "Foi",
     "category_family": "Famille",
     "category_school": "École",
-    "category_work": "Travail"
+    "category_work": "Travail",
+    "new_category": "Nouvelle catégorie",
+    "category_name": "Nom",
+    "category_name_placeholder": "Sport, Église, Grands-parents…",
+    "category_color": "Couleur",
+    "category_hint": "Les événements de :name commencent avec cette icône et cette couleur. Chaque événement peut quand même choisir la sienne.",
+    "save_category": "Enregistrer la catégorie",
+    "category_exists": "Une catégorie porte déjà ce nom.",
+    "icon_suggested": "Suggestions pour :word",
+    "icon_auto": "Choisir l'icône pour moi"
 }

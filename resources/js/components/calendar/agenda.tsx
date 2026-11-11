@@ -19,6 +19,8 @@ const STRIPE: Record<string, string> = {
     blue: 'bg-blue-600',
     purple: 'bg-purple-500',
     sand: 'bg-stone-400',
+    teal: 'bg-teal-500', // the category-only colours (CalendarCategory::COLORS), see lib/tasks EXTRA_TONES
+    pink: 'bg-pink-500',
 };
 export const stripe = (color: string | null) => (color && STRIPE[color]) || 'bg-primary';
 

@@ -128,5 +128,14 @@
     "category_faith": "Faith",
     "category_family": "Family",
     "category_school": "School",
-    "category_work": "Work"
+    "category_work": "Work",
+    "new_category": "New category",
+    "category_name": "Name",
+    "category_name_placeholder": "Sports, Church, Grandparents…",
+    "category_color": "Colour",
+    "category_hint": "Events in :name start with this icon and colour. Any event can still pick its own icon.",
+    "save_category": "Save category",
+    "category_exists": "There is already a category with that name.",
+    "icon_suggested": "Suggested for :word",
+    "icon_auto": "Pick the icon for me"
 }

@@ -133,5 +133,14 @@
     "category_faith": "Credință",
     "category_family": "Familie",
     "category_school": "Școală",
-    "category_work": "Muncă"
+    "category_work": "Muncă",
+    "new_category": "Categorie nouă",
+    "category_name": "Nume",
+    "category_name_placeholder": "Sport, Biserică, Bunici…",
+    "category_color": "Culoare",
+    "category_hint": "Evenimentele din :name încep cu această pictogramă și culoare. Orice eveniment își poate alege propria pictogramă.",
+    "save_category": "Salvează categoria",
+    "category_exists": "Există deja o categorie cu acest nume.",
+    "icon_suggested": "Sugestii pentru :word",
+    "icon_auto": "Alege pictograma pentru mine"
 }

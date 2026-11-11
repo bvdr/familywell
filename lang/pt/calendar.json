@@ -128,5 +128,14 @@
     "category_faith": "Fé",
     "category_family": "Família",
     "category_school": "Escola",
-    "category_work": "Trabalho"
+    "category_work": "Trabalho",
+    "new_category": "Nova categoria",
+    "category_name": "Nome",
+    "category_name_placeholder": "Desporto, Igreja, Avós…",
+    "category_color": "Cor",
+    "category_hint": "Os eventos em :name começam com este ícone e esta cor. Cada evento ainda pode escolher o seu próprio ícone.",
+    "save_category": "Guardar categoria",
+    "category_exists": "Já existe uma categoria com esse nome.",
+    "icon_suggested": "Sugestões para :word",
+    "icon_auto": "Escolher o ícone por mim"
 }
