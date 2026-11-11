@@ -19,22 +19,19 @@ export type CalItem = {
     done: boolean;
     editable: boolean;
     sub?: string | null; // a second line where people alone don't say it (a to-do's list)
-    category?: string | null; // calendar events only (CalendarEvent::CATEGORIES)
+    category?: string | null; // calendar events only: a CalCategory slug
 };
-// category: one of CATEGORIES or null = All (the design's chip row is single-choice, All first).
+// category: a category slug (CalCategory.slug) or null = All (the design's chip row is single-choice, All first).
 export type CalFilter = { people: string[]; sources: string[]; category: string | null };
 
-// The design's category chips (04b C9/C10/D2), in its order, with the event colour each one stands for: picking a
-// category on an event with no colour gives it this one, so the chip's dot matches the bars it filters to.
-export const CATEGORIES: Record<string, string> = { trips: 'green', faith: 'amber', family: 'red', school: 'blue', work: 'sand' };
-// The chip dot: a solid version of that colour (the palette's tiles are pale, too faint for a 7px dot).
-export const CATEGORY_DOT: Record<string, string> = {
-    trips: 'bg-emerald-600', // not bg-primary: that is ink on some skins, and the design's dot is green
-    faith: 'bg-amber-500',
-    family: 'bg-red-500',
-    school: 'bg-blue-500',
-    work: 'bg-muted-foreground',
-};
+// A category an event can be in, as CalendarCategory::forFamily sends it: the five built-ins (translated names) and the
+// ones the family added (C14), all the same shape. `color` is a palette key (lib/tasks listColor, agenda stripe): an
+// event picked into it takes that colour, so its bars match the chip's dot. `icon` is what its events show when
+// neither a pick nor the title says better.
+export type CalCategory = { slug: string; name: string; icon: string; color: string; builtin: boolean; id: number | null };
+
+// C14's swatches, in the design's order (violet, teal, pink, blue, green, coral, amber, grey). Same list as CalendarCategory::COLORS.
+export const CATEGORY_COLORS = ['purple', 'teal', 'pink', 'blue', 'green', 'red', 'amber', 'sand'];
 
 export function parseDay(s: string): Date {
     const [y, m, d] = s.split('-').map(Number);
