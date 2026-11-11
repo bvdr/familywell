@@ -169,14 +169,25 @@ class CalendarServiceProvider extends ServiceProvider
             }
 
             // Plus the events' dated to-dos: the tasks source only covers list tasks, so these would show nowhere.
+            $dated = CalendarEvent::datedTodos($userId, fn ($q) => $q->whereDate('due_date', '>=', $from)->whereDate('due_date', '<=', $to));
             $todos = array_map(fn (array $p) => CalendarSources::item(
                 'task', $p[0]->id, $p[0]->title, $p[0]->due_date->toDateString(), href: "/m/calendar/events/{$p[1]->id}",
                 icon: 'list-checks', color: $p[1]->color, done: $p[0]->done,
                 people: $p[0]->assignee ? [['type' => 'user', 'id' => $p[0]->assignee->id, 'name' => $p[0]->assignee->name]] : [],
-            ), CalendarEvent::datedTodos($userId, fn ($q) => $q->whereDate('due_date', '>=', $from)->whereDate('due_date', '<=', $to)));
+            ), $dated);
+
+            // The day cards of multi-day events show "1 to-do": count the open ones per event and date from the list
+            // we already have rather than asking the database again.
+            $openTodos = [];
+            foreach ($dated as [$task, $event]) {
+                if (! $task->done) {
+                    $date = $task->due_date->toDateString();
+                    $openTodos[$event->id][$date] = ($openTodos[$event->id][$date] ?? 0) + 1;
+                }
+            }
 
             // Plus other calendars the person subscribed to, or that someone shared with the family (read-only).
-            return [...CalendarEvent::itemsFor($userId, $from, $to), ...$todos, ...CalendarSubscription::itemsFor($userId, $from, $to)];
+            return [...CalendarEvent::itemsFor($userId, $from, $to, $openTodos), ...$todos, ...CalendarSubscription::itemsFor($userId, $from, $to)];
         });
 
         // Today / This Week: occurrences overlapping today..end of week. An ongoing multi-day event appears ONCE,
@@ -259,6 +270,11 @@ class CalendarServiceProvider extends ServiceProvider
                 Route::get('/events/{event}', [CalendarController::class, 'show'])->name('events.show');
                 Route::patch('/events/{event}', [CalendarController::class, 'update'])->name('events.update');
                 Route::delete('/events/{event}', [CalendarController::class, 'destroy'])->name('events.destroy');
+                // Days inside a multi-day event: marks by day index, a note per date (design C15-C17).
+                Route::post('/events/{event}/marks', [CalendarController::class, 'storeMark'])->name('marks.store');
+                Route::patch('/events/{event}/marks/{mark}', [CalendarController::class, 'updateMark'])->name('marks.update')->whereNumber('mark');
+                Route::delete('/events/{event}/marks/{mark}', [CalendarController::class, 'destroyMark'])->name('marks.destroy')->whereNumber('mark');
+                Route::put('/events/{event}/days/{date}/note', [CalendarController::class, 'putDayNote'])->name('days.note')->where('date', '\d{4}-\d{2}-\d{2}');
                 Route::post('/events/{event}/tasks', [CalendarController::class, 'storeTask'])->name('tasks.store');
                 Route::post('/events/{event}/tasks/reorder', [CalendarController::class, 'reorderTasks'])->name('tasks.reorder');
                 Route::patch('/tasks/{task}', [CalendarController::class, 'updateTask'])->name('tasks.update');

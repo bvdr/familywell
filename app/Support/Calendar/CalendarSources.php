@@ -50,7 +50,7 @@ class CalendarSources
     public static function item(
         string $kind, int $id, string $title, string $start, ?string $end = null, string $href = '', string $icon = 'calendar',
         ?string $color = null, array $people = [], bool $done = false, ?string $startTime = null, ?string $endTime = null, bool $editable = false,
-        ?string $sub = null, ?string $category = null,
+        ?string $sub = null, ?string $category = null, ?array $days = null,
     ): array {
         return [
             'kind' => $kind, 'id' => $id, 'title' => $title, 'start' => $start, 'end' => $end ?? $start,
@@ -60,6 +60,6 @@ class CalendarSources
             'sub' => $sub,
             // The calendar's category chips filter on this; only calendar events have one (CalendarEvent::CATEGORIES).
             'category' => $category,
-        ];
+        ] + ($days ? ['days' => $days] : []); // multi-day events only: marks / notes / open to-dos by day index (CalendarEvent::occurrenceDays)
     }
 }
