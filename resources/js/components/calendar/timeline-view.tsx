@@ -10,7 +10,8 @@ import { itemTone } from '@/lib/tasks';
 
 const ROW_PX = 40;
 const LINGER = 14; // days a thing that ended keeps its row after it scrolls off the left edge
-const AHEAD = 42; // days before it starts that a coming thing gets its row (6 weeks past the screen's right edge)
+const LEAD = 14; // days before it reaches the screen's right edge that a coming thing gets its row
+const AHEAD = 42; // days loaded past the screen's right edge, so the coming rows and NEXT have their data
 const CHUNK = 42; // days fetched per edge load: more than the widest zoom (35), so one load always fills a screen
 const ACROSS = { week: 7, twoweeks: 14, month: 35 } as const; // days across the screen per zoom
 // What gets a row: everything on the calendar (birthdays, single all-day and timed events, open to-dos) except what's
@@ -218,15 +219,11 @@ export const TimelineView = forwardRef<
 
     // One row per thing touching the screen, oldest first; a repeating one keeps every time it falls here on its row.
     const rows = timelineRows(all.filter(onTimeline), span.from, span.to).filter(
-        // A thing that ended stays until you've scrolled LINGER days past its end, and a coming one shows up AHEAD days
-        // before it reaches the screen (feedback 2026-11-03: rows popping in and out exactly at the edges felt jumpy).
-        // Single-day things (a birthday, an appointment, a to-do) only while their day is on screen: lingering, a week
-        // of birthdays stacked up as rows of ones already past.
-        ({ item, bars }) =>
-            !win ||
-            (item.end > item.start
-                ? bars.some((b) => b.offset <= win[1] + AHEAD && b.offset + b.span - 1 >= win[0] - LINGER)
-                : bars.some((b) => b.offset <= win[1] && b.offset >= win[0])),
+        // A thing that ended stays until you've scrolled LINGER days past its end, and a coming one shows up LEAD days
+        // before it reaches the screen, one-day things (a birthday, an appointment, a to-do) included (feedback
+        // 2026-11-03: rows popping in and out exactly at the edges felt jumpy; 2026-11-11: one-day rows still popped,
+        // the user asked for the same two weeks either side for them too).
+        ({ bars }) => !win || bars.some((b) => b.offset <= win[1] + LEAD && b.offset + b.span - 1 >= win[0] - LINGER),
     );
     // NEXT: the first thing coming after the screen that isn't already a row (loaded, or the server's months ahead).
     const next = [...all.filter(onTimeline), ...ahead]
