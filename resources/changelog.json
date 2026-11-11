@@ -2,7 +2,7 @@
     {
         "version": "1.12",
         "date": "2026-11-10",
-        "items": [],
+        "items": ["Events that last more than one day now list every day on their page. Mark days (like fish days in a fast) in one go with a weekend or Wed & Fri pattern, add a note or to-dos to a single day, and see them on that day in the calendar. Marks come back next year with a repeating event"],
         "fixes": ["On the calendar timeline, birthdays, to-dos and one-day events stay for two weeks after you scroll past them and show up two weeks before they reach the screen, instead of popping in and out at the edges", "Edits to shopping items and projects show the moment you close the sheet, without waiting for the save", "Faster everywhere: the app opens about half a second sooner, Home, Contacts and Birthdays load several times faster, and tabs open instantly (refreshing quietly in the background)", "Inside a module, + offers only what you can add there, starting with the tab you're on (Spending: an expense or a list)", "The plan step says plainly that only you pay and everyone you add is free, and the total shows whether it's per year or per month"]
     },
     {
