@@ -2,7 +2,7 @@ import { Head, router } from '@inertiajs/react';
 import { Bell, BellOff, ChevronDown, Heart, Lock, Minus, Plus, Trash2, Users } from 'lucide-react';
 import { useState } from 'react';
 
-import { DayIcon, ICON_GROUPS, iconsFor } from '@/components/day-icon';
+import { DayIcon, ICON_GROUPS, IconGrid, iconsFor } from '@/components/day-icon';
 import { Picker } from '@/components/picker';
 import { Segmented } from '@/components/segmented';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
@@ -355,23 +355,14 @@ function DaySheet({
                             <h3 className="text-muted-foreground font-mono text-xs font-semibold tracking-widest uppercase">
                                 {t(`days.icons_${g}`)}
                             </h3>
-                            <div className="grid grid-cols-5 gap-2">
-                                {ICON_GROUPS[g].map((name) => (
-                                    <button
-                                        key={name}
-                                        type="button"
-                                        aria-label={name}
-                                        aria-pressed={icon === name}
-                                        onClick={() => {
-                                            set({ icon: name });
-                                            setView('form');
-                                        }}
-                                        className={`flex h-12.5 items-center justify-center rounded-[14px] ${icon === name ? 'bg-sun-soft border-ink border-2' : 'bg-card border'}`}
-                                    >
-                                        <DayIcon name={name} className="text-ink size-5.5" />
-                                    </button>
-                                ))}
-                            </div>
+                            <IconGrid
+                                icons={ICON_GROUPS[g]}
+                                value={icon}
+                                onPick={(name) => {
+                                    set({ icon: name });
+                                    setView('form');
+                                }}
+                            />
                         </section>
                     ))}
                 </div>

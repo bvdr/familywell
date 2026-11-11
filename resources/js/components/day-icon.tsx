@@ -19,10 +19,16 @@ export function iconsFor(tone: 'celebrate' | 'quiet', more: boolean): IconGroup[
     return more ? [...first, 'faith', 'nature', 'everyday'] : first;
 }
 
+// The calendar's "Everyday" row (design C13): the icons events most often want, whatever the title says.
+export const EVENT_ICONS = ['cake', 'gift', 'party-popper', 'flag', 'graduation-cap', 'stethoscope', 'plane', 'car', 'house', 'trophy'] as const;
+
 const CUSTOM: Record<string, string> = {
     cross: 'M12 3v18m-5.5-12.5h11',
     'star-of-david': 'M12 2.5l8.4 14.5h-16.8z m0 19l-8.4-14.5h16.8z',
 };
+
+/** True for the icons drawn here (cross, star-of-david), which no other lucide-rendering screen can show. */
+export const isDrawnIcon = (name: string) => name in CUSTOM;
 
 export function DayIcon({ name, className }: { name: string; className?: string }) {
     const path = CUSTOM[name];
@@ -43,4 +49,25 @@ export function DayIcon({ name, className }: { name: string; className?: string 
         );
     }
     return <LucideIcon name={name} className={className} aria-hidden />;
+}
+
+// One picker row of icons (the Days sheet's A3b/A3c, the calendar's C13): 5 to a row, the chosen one marked. Tapping
+// one hands its key to the caller, which goes straight back to the form.
+export function IconGrid({ icons, value, onPick }: { icons: readonly string[]; value: string | null; onPick: (name: string) => void }) {
+    return (
+        <div className="grid grid-cols-5 gap-2">
+            {icons.map((name) => (
+                <button
+                    key={name}
+                    type="button"
+                    aria-label={name}
+                    aria-pressed={value === name}
+                    onClick={() => onPick(name)}
+                    className={`flex h-12.5 items-center justify-center rounded-[14px] ${value === name ? 'bg-sun-soft border-ink border-2' : 'bg-card border'}`}
+                >
+                    <DayIcon name={name} className="text-ink size-5.5" />
+                </button>
+            ))}
+        </div>
+    );
 }

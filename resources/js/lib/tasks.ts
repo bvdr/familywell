@@ -36,7 +36,11 @@ export const LIST_COLORS: Record<string, string> = {
 // The swatches the New list screen offers, in the design's order.
 export const NEW_LIST_COLORS = ['yellow', 'green', 'red', 'blue', 'amber', 'sand'];
 
-export const listColor = (slug: string) => LIST_COLORS[slug] ?? LIST_COLORS.green;
+// Two more tones for calendar categories (design C14: violet, teal, pink, blue, green, coral, amber, grey). Kept OUT of
+// LIST_COLORS so the task/shopping list colour pickers (which list its keys) don't grow swatches those modules never validated.
+const EXTRA_TONES: Record<string, string> = { teal: 'bg-teal-100 text-teal-700', pink: 'bg-pink-100 text-pink-700' };
+
+export const listColor = (slug: string) => LIST_COLORS[slug] ?? EXTRA_TONES[slug] ?? LIST_COLORS.green;
 export const LIST_COLOR_KEYS = Object.keys(LIST_COLORS);
 // Tile/bar classes for an optional colour (calendar items/events): the palette, or the neutral tile token when unset.
 export const itemTone = (color: string | null) => (color ? listColor(color) : 'bg-tile text-tile-foreground');

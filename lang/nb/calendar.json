@@ -162,5 +162,14 @@
     "mark_failed": "Kunne ikke lagre. Sjekk tilkoblingen og prøv igjen.",
     "todo_count_one": ":count gjøremål",
     "todo_count_other": ":count gjøremål",
-    "mark_limit": "En hendelse kan ha opptil :max merker."
+    "mark_limit": "En hendelse kan ha opptil :max merker.",
+    "new_category": "Ny kategori",
+    "category_name": "Navn",
+    "category_name_placeholder": "Sport, Kirke, Besteforeldre…",
+    "category_color": "Farge",
+    "category_hint": "Hendelser i :name starter med dette ikonet og denne fargen. Hver hendelse kan fortsatt velge sitt eget ikon.",
+    "save_category": "Lagre kategori",
+    "category_exists": "Det finnes allerede en kategori med dette navnet.",
+    "icon_suggested": "Forslag for :word",
+    "icon_auto": "Velg ikon for meg"
 }

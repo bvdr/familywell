@@ -5,7 +5,7 @@ import { useRef, useState } from 'react';
 import { stripe } from '@/components/calendar/agenda';
 import { DaySheet } from '@/components/calendar/day-sheet';
 import { DaysSection, MARK_LIMIT, type DayMark, type EventDays } from '@/components/calendar/event-days';
-import { EventSheet, type EventForm } from '@/components/calendar/event-sheet';
+import { EventSheet, eventIcon, type EventForm } from '@/components/calendar/event-sheet';
 import { MarkDaysSheet } from '@/components/calendar/mark-days-sheet';
 import { LucideIcon } from '@/components/lucide-icon';
 import { MemberAvatar } from '@/components/member-avatar';
@@ -16,7 +16,7 @@ import { type TaskMember, type TaskNode } from '@/components/tasks/task-tree';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import AppLayout from '@/layouts/app-layout';
 import { useAddAction } from '@/lib/add-action';
-import { daysBetween } from '@/lib/calendar';
+import { daysBetween, type CalCategory } from '@/lib/calendar';
 import { localToday } from '@/lib/date-groups';
 import { useLocale, useT } from '@/lib/i18n';
 import { itemTone } from '@/lib/tasks';
@@ -39,6 +39,7 @@ export default function CalendarEvent({
     projects,
     days: eventDays,
     openDay,
+    categories,
 }: {
     event: Payload;
     canEdit: boolean;
@@ -51,6 +52,7 @@ export default function CalendarEvent({
     // Multi-day events only (C15): the occurrence on screen, its marks and notes, what's coming up inside.
     days: EventDays | null;
     openDay: string | null; // ?day=: open that day's sheet (a tap on the event in the day list)
+    categories: CalCategory[];
 }) {
     const t = useT();
     const locale = useLocale();
@@ -162,7 +164,7 @@ export default function CalendarEvent({
             <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 p-4 pb-28">
                 <div className="flex flex-col gap-3">
                     <span className={`flex size-14 items-center justify-center rounded-2xl ${itemTone(event.color)}`}>
-                        <LucideIcon name={event.icon ?? 'calendar'} className="size-7" />
+                        <LucideIcon name={eventIcon(event, categories)} className="size-7" />
                     </span>
                     <h1 className="font-heading text-primary text-4xl font-extrabold tracking-tight break-words">{event.title}</h1>
                     {/* Tapping the dates is how people try to change them (user, 2026-11-05): it opens the edit sheet on
@@ -233,7 +235,11 @@ export default function CalendarEvent({
                         <SettingsRow
                             icon={Tag}
                             title={t('calendar.category')}
-                            value={<span className="text-primary font-semibold">{t(`calendar.category_${event.category}`)}</span>}
+                            value={
+                                <span className="text-primary font-semibold">
+                                    {categories.find((c) => c.slug === event.category)?.name ?? event.category}
+                                </span>
+                            }
                             onClick={edit}
                             right={<span />}
                         />
@@ -308,6 +314,7 @@ export default function CalendarEvent({
                     members={members}
                     contacts={contacts}
                     projects={projects}
+                    categories={categories}
                 />
             )}
             {eventDays && (

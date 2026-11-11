@@ -162,5 +162,14 @@
     "mark_failed": "Impossible d'enregistrer. Vérifiez votre connexion et réessayez.",
     "todo_count_one": ":count tâche",
     "todo_count_other": ":count tâches",
-    "mark_limit": "Un événement peut avoir jusqu'à :max marques."
+    "mark_limit": "Un événement peut avoir jusqu'à :max marques.",
+    "new_category": "Nouvelle catégorie",
+    "category_name": "Nom",
+    "category_name_placeholder": "Sport, Église, Grands-parents…",
+    "category_color": "Couleur",
+    "category_hint": "Les événements de :name commencent avec cette icône et cette couleur. Chaque événement peut quand même choisir la sienne.",
+    "save_category": "Enregistrer la catégorie",
+    "category_exists": "Une catégorie porte déjà ce nom.",
+    "icon_suggested": "Suggestions pour :word",
+    "icon_auto": "Choisir l'icône pour moi"
 }

@@ -162,5 +162,14 @@
     "mark_failed": "Couldn't save that. Check your connection and try again.",
     "todo_count_one": ":count to-do",
     "todo_count_other": ":count to-dos",
-    "mark_limit": "An event can have up to :max marks."
+    "mark_limit": "An event can have up to :max marks.",
+    "new_category": "New category",
+    "category_name": "Name",
+    "category_name_placeholder": "Sports, Church, Grandparents…",
+    "category_color": "Colour",
+    "category_hint": "Events in :name start with this icon and colour. Any event can still pick its own icon.",
+    "save_category": "Save category",
+    "category_exists": "There is already a category with that name.",
+    "icon_suggested": "Suggested for :word",
+    "icon_auto": "Pick the icon for me"
 }

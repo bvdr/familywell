@@ -169,5 +169,14 @@
     "todo_count_other": ":count de făcut",
     "mark_limit": "Un eveniment poate avea cel mult :max marcaje.",
     "mark_save_few": "Marchează :count zile",
-    "todo_count_few": ":count de făcut"
+    "todo_count_few": ":count de făcut",
+    "new_category": "Categorie nouă",
+    "category_name": "Nume",
+    "category_name_placeholder": "Sport, Biserică, Bunici…",
+    "category_color": "Culoare",
+    "category_hint": "Evenimentele din :name încep cu această pictogramă și culoare. Orice eveniment își poate alege propria pictogramă.",
+    "save_category": "Salvează categoria",
+    "category_exists": "Există deja o categorie cu acest nume.",
+    "icon_suggested": "Sugestii pentru :word",
+    "icon_auto": "Alege pictograma pentru mine"
 }

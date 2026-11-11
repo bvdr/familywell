@@ -162,5 +162,14 @@
     "mark_failed": "Det gick inte att spara. Kontrollera anslutningen och försök igen.",
     "todo_count_one": ":count att göra",
     "todo_count_other": ":count att göra",
-    "mark_limit": "Ett evenemang kan ha upp till :max markeringar."
+    "mark_limit": "Ett evenemang kan ha upp till :max markeringar.",
+    "new_category": "Ny kategori",
+    "category_name": "Namn",
+    "category_name_placeholder": "Sport, Kyrka, Mormor…",
+    "category_color": "Färg",
+    "category_hint": "Händelser i :name börjar med den här ikonen och färgen. Varje händelse kan fortfarande välja en egen ikon.",
+    "save_category": "Spara kategori",
+    "category_exists": "Det finns redan en kategori med det namnet.",
+    "icon_suggested": "Förslag för :word",
+    "icon_auto": "Välj ikon åt mig"
 }

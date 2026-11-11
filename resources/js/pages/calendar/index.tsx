@@ -2,7 +2,7 @@ import { Head, router } from '@inertiajs/react';
 import { CalendarDays, ChevronLeft, ChevronRight, Share, SlidersHorizontal } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-import { AgendaView } from '@/components/calendar/agenda';
+import { AgendaView, stripe } from '@/components/calendar/agenda';
 import { EventSheet } from '@/components/calendar/event-sheet';
 import { FeedSheet, type Subscription } from '@/components/calendar/feed-sheet';
 import { FilterSheet } from '@/components/calendar/filter-sheet';
@@ -12,7 +12,7 @@ import { HomeTopBar } from '@/components/home-top-bar';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useAddAction } from '@/lib/add-action';
-import { addDays, CATEGORIES, CATEGORY_DOT, filterItems, parseDay, shiftDate, type CalFilter, type CalItem } from '@/lib/calendar';
+import { addDays, filterItems, parseDay, shiftDate, type CalCategory, type CalFilter, type CalItem } from '@/lib/calendar';
 import { openNewOnArrival } from '@/lib/create-intent';
 import { localToday } from '@/lib/date-groups';
 import { useLocale, useT } from '@/lib/i18n';
@@ -25,8 +25,8 @@ const readFilter = (): CalFilter => {
         return {
             people: Array.isArray(v?.people) ? v.people : [],
             sources: Array.isArray(v?.sources) ? v.sources : [],
-            // Only a category we still know (a stale slug would quietly hide every event).
-            category: typeof v?.category === 'string' && v.category in CATEGORIES ? v.category : null,
+            // Checked against the family's categories where it is used (one may have been deleted since).
+            category: typeof v?.category === 'string' ? v.category : null,
         };
     } catch {
         return { people: [], sources: [], category: null };
@@ -47,6 +47,7 @@ export type CalendarProps = {
     members: Named[];
     contacts: Named[];
     projects: Named[] | null;
+    categories: CalCategory[];
     feedUrl: string | null;
     subscriptions: Subscription[];
 };
@@ -73,6 +74,7 @@ export default function CalendarIndex({
     members,
     contacts,
     projects,
+    categories,
     feedUrl,
     subscriptions,
 }: CalendarProps) {
@@ -101,8 +103,9 @@ export default function CalendarIndex({
         return {
             people: f.people.filter((p) => validPeople.has(p)),
             sources: f.sources.filter((s) => validSources.has(s)),
-            // Categories belong to calendar events: with that source turned off, a category would leave nothing.
-            category: validSources.has('calendar') ? f.category : null,
+            // Categories belong to calendar events: with that source turned off, a category would leave nothing. A
+            // deleted category would quietly hide every event, so only one the family still has stays.
+            category: validSources.has('calendar') && categories.some((c) => c.slug === f.category) ? f.category : null,
         };
     });
     const [filtering, setFiltering] = useState(false);
@@ -245,20 +248,20 @@ export default function CalendarIndex({
                     the chip row already shows it. */}
                 {sources.includes('calendar') && (
                     <div data-scroll-x className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none]">
-                        {[null, ...Object.keys(CATEGORIES)].map((c) => {
-                            const on = filter.category === c;
+                        {[null, ...categories].map((c) => {
+                            const on = filter.category === (c?.slug ?? null);
                             return (
                                 <button
-                                    key={c ?? 'all'}
+                                    key={c?.slug ?? 'all'}
                                     type="button"
                                     aria-pressed={on}
-                                    onClick={() => setFilter({ ...filter, category: c })}
+                                    onClick={() => setFilter({ ...filter, category: c?.slug ?? null })}
                                     className={`flex shrink-0 items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-semibold ${
                                         on ? 'bg-primary text-primary-foreground border-transparent' : 'bg-surface-card text-primary border-border'
                                     }`}
                                 >
-                                    {c && <span className={`size-[7px] rounded-full ${CATEGORY_DOT[c]}`} />}
-                                    {t(c ? `calendar.category_${c}` : 'calendar.all')}
+                                    {c && <span className={`size-[7px] rounded-full ${stripe(c.color)}`} />}
+                                    {c ? c.name : t('calendar.all')}
                                 </button>
                             );
                         })}
@@ -300,6 +303,7 @@ export default function CalendarIndex({
                 members={members}
                 contacts={contacts}
                 projects={projects}
+                categories={categories}
             />
             <FilterSheet
                 open={filtering}
@@ -309,6 +313,7 @@ export default function CalendarIndex({
                 sources={sources}
                 members={members}
                 contacts={contacts}
+                categories={categories}
             />
             <FeedSheet open={feedOpen} onOpenChange={setFeedOpen} url={feedUrl} subscriptions={subscriptions} />
         </AppLayout>

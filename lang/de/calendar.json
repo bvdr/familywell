@@ -162,5 +162,14 @@
     "mark_failed": "Das konnte nicht gespeichert werden. Prüfe deine Verbindung und versuche es erneut.",
     "todo_count_one": ":count Aufgabe",
     "todo_count_other": ":count Aufgaben",
-    "mark_limit": "Ein Termin kann bis zu :max Markierungen haben."
+    "mark_limit": "Ein Termin kann bis zu :max Markierungen haben.",
+    "new_category": "Neue Kategorie",
+    "category_name": "Name",
+    "category_name_placeholder": "Sport, Kirche, Großeltern…",
+    "category_color": "Farbe",
+    "category_hint": "Termine in :name beginnen mit diesem Symbol und dieser Farbe. Jeder Termin kann trotzdem ein eigenes Symbol wählen.",
+    "save_category": "Kategorie speichern",
+    "category_exists": "Es gibt bereits eine Kategorie mit diesem Namen.",
+    "icon_suggested": "Vorschläge für :word",
+    "icon_auto": "Symbol automatisch wählen"
 }

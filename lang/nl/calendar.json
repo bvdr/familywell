@@ -162,5 +162,14 @@
     "mark_failed": "Opslaan mislukt. Controleer je verbinding en probeer het opnieuw.",
     "todo_count_one": ":count to-do",
     "todo_count_other": ":count to-do's",
-    "mark_limit": "Een evenement kan maximaal :max markeringen hebben."
+    "mark_limit": "Een evenement kan maximaal :max markeringen hebben.",
+    "new_category": "Nieuwe categorie",
+    "category_name": "Naam",
+    "category_name_placeholder": "Sport, Kerk, Grootouders…",
+    "category_color": "Kleur",
+    "category_hint": "Afspraken in :name beginnen met dit icoon en deze kleur. Elke afspraak kan nog steeds een eigen icoon kiezen.",
+    "save_category": "Categorie opslaan",
+    "category_exists": "Er bestaat al een categorie met die naam.",
+    "icon_suggested": "Suggesties voor :word",
+    "icon_auto": "Kies het icoon voor mij"
 }
