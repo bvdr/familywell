@@ -11,6 +11,8 @@
     "type_recipe": "Recept",
     "type_calendar_event": "Händelse",
     "type_todo": "Att göra",
+    "type_mark": "Dagsmarkering",
+    "type_day_note": "Dagsanteckning",
     "type_project": "Projekt",
     "type_contact": "Kontakt",
     "type_birthday": "Födelsedag",

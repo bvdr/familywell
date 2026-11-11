@@ -137,6 +137,8 @@ class CalendarServiceProvider extends ServiceProvider
 
         Trash::source('calendar', CalendarTrash::class);
         Trash::register(CalendarEvent::class);
+        Trash::register(CalendarEventMark::class);
+        Trash::register(CalendarEventDayNote::class);
         // A trashed to-do keeps its event link so it can be restored onto the event; drop the link once
         // trash:purge erases the task for good (links have no FK to tasks_tasks).
         Task::forceDeleted(fn (Task $t) => CalendarEventLink::withoutGlobalScopes()->where(['linkable_type' => 'task', 'linkable_id' => $t->id])->delete());
@@ -147,6 +149,8 @@ class CalendarServiceProvider extends ServiceProvider
             Mcp\ListCalendar::class, Mcp\GetEvent::class, Mcp\CreateEvent::class,
             Mcp\UpdateEvent::class, Mcp\DeleteEvent::class, Mcp\AddTodo::class,
             Mcp\UpdateTodo::class, Mcp\DeleteTodo::class, Mcp\ListDeleted::class, Mcp\Restore::class,
+            Mcp\AddMark::class, Mcp\UpdateMark::class, Mcp\DeleteMark::class, Mcp\SetDayNote::class, Mcp\DeleteDayNote::class,
+            Mcp\ListCategories::class, Mcp\CreateCategory::class, Mcp\UpdateCategory::class,
         ]);
 
         // H5 search: title or notes match, visible events only (events already use the core sharing

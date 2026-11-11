@@ -11,6 +11,8 @@
     "type_recipe": "Oppskrift",
     "type_calendar_event": "Hendelse",
     "type_todo": "Gjøremål",
+    "type_mark": "Dagsmerke",
+    "type_day_note": "Dagsnotat",
     "type_project": "Prosjekt",
     "type_contact": "Kontakt",
     "type_birthday": "Bursdag",

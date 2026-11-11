@@ -11,6 +11,8 @@
     "type_recipe": "Receita",
     "type_calendar_event": "Evento",
     "type_todo": "Tarefa",
+    "type_mark": "Marca do dia",
+    "type_day_note": "Nota do dia",
     "type_project": "Projeto",
     "type_contact": "Contato",
     "type_birthday": "Aniversário",

@@ -120,6 +120,25 @@ class CalendarEvent extends Model
         return $this->occurrenceStartsOn($day) !== [];
     }
 
+    /**
+     * Write, change or (blank body) remove the note on $date, a day inside an occurrence (callers check coversDate).
+     * Removing trashes it (30 days, CalendarTrash). The (event_id, date) unique index also counts trashed rows, so
+     * a new note on that day revives the trashed row instead of inserting a second one.
+     */
+    public function setDayNote(string $date, ?string $body): void
+    {
+        $body = trim((string) $body);
+        if ($body === '') {
+            $this->dayNotes()->where('date', $date)->first()?->delete();
+
+            return;
+        }
+        $note = $this->dayNotes()->withTrashed()->firstOrNew(['date' => $date]);
+        $note->body = $body;
+        $note->deleted_at = null;
+        $note->save();
+    }
+
     /** @return list<int> */
     public function taskIds(): array
     {

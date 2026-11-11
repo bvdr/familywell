@@ -22,7 +22,7 @@ class ListDeleted extends Tool
 
     protected string $name = 'calendar_list_trash';
 
-    protected string $description = 'Use this when the user wants to find a calendar event or event to-do they deleted, to bring it back. Lists what this person can see in the trash, newest first, with the date each is deleted for good. Read-only.';
+    protected string $description = 'Use this when the user wants to find a calendar event, event to-do, day mark or day note they deleted, to bring it back. Lists what this person can see in the trash, newest first, with the date each is deleted for good. Read-only.';
 
     protected string $title = 'List deleted calendar items';
 

@@ -33,7 +33,7 @@ class CreateEvent extends Tool
 
     public function handle(Request $request): Response|ResponseFactory
     {
-        $e = CalendarEvent::createFor($this->user(), CalendarEvent::validated($request->all()));
+        $e = CalendarEvent::createFor($this->user(), CalendarEvent::validated(CalendarData::input($request->all())));
 
         return Response::structured(CalendarData::payload($e->fresh(), fn ($p) => $this->url($p)));
     }

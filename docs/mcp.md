@@ -46,7 +46,7 @@ per-module `TrashSource`); `trash:purge` removes it for good afterwards.
 | Recipes | `recipes_list` (search title / tag / ingredient), `recipes_get`, `recipes_scale` | `recipes_create`, `recipes_update`, `recipes_set_photo`, `recipes_add_to_shopping`, `recipes_delete` |
 | Inventory | `inventory_list`, `inventory_get`, `inventory_list_needs_attention` | `inventory_add_item`, `inventory_update_item`, `inventory_adjust_quantity`, `inventory_add_to_shopping`, `inventory_delete_item` |
 | Projects | `projects_list`, `projects_get` | `projects_create`, `projects_update`, `projects_add_task`, `projects_update_task`, `projects_delete_task`, `projects_delete` |
-| Calendar | `calendar_list_entries`, `calendar_get_event` | `calendar_create_event`, `calendar_update_event`, `calendar_delete_event`, `calendar_add_todo`, `calendar_update_todo`, `calendar_delete_todo`, `calendar_list_trash`, `calendar_restore` |
+| Calendar | `calendar_list_entries`, `calendar_get_event`, `calendar_list_categories` | `calendar_create_event`, `calendar_update_event`, `calendar_delete_event`, `calendar_add_todo`, `calendar_update_todo`, `calendar_delete_todo`, `calendar_add_mark`, `calendar_update_mark`, `calendar_delete_mark`, `calendar_set_day_note`, `calendar_delete_day_note`, `calendar_create_category`, `calendar_update_category`, `calendar_list_trash`, `calendar_restore` |
 
 **Files:** MCP has no upload primitive, so tools that take a file (`vehicles_add_document`,
 `vehicles_attach_file`, and the optional file on `vehicles_add_repair` / `vehicles_complete_maintenance`) accept it
@@ -107,6 +107,20 @@ and `calendar_delete_todo` deletes it (with its sub-tasks). Event to-dos are not
 `tasks_update_task`, which only covers tasks in a to-do list. A linked project only appears for people
 who can see it. Range requests are capped at 400 days. `calendar_list_trash` / `calendar_restore`
 work like the other modules' trash tools; restoring an event brings back its to-dos.
+
+**Days inside an event:** an event longer than one day has days. `calendar_get_event` returns them as `days`
+(`start`, `end`, `marks`, `notes`) for one occurrence; pass `day` (a date inside it) to pick a later occurrence of a
+repeating event. A mark is a short label on some of those days ("Fish allowed" on Lent's weekends):
+`calendar_add_mark` / `calendar_update_mark` take `dates`, stored as day indexes from the occurrence's start, so a
+yearly event's marks come back on the same days next year; the payload has both `days` (indexes) and `dates`. A day
+note is one note per date (`calendar_set_day_note` replaces it, `calendar_delete_day_note` removes it); notes belong
+to real dates, so they do not carry over. A day's to-dos are the event to-dos due on it (`calendar_add_todo` with
+that `due_date`). Deleted marks and notes go to the trash (`mark`, `day_note` in `calendar_list_trash`).
+
+**Categories:** `calendar_list_categories` returns the five built-ins (`id` null, can't change) and the family's own.
+Any member can `calendar_create_category`; renaming (`calendar_update_category`) is admin-only, as in the app. There is
+no delete tool: deleting a category takes it off its events, which the trash can't undo, so that stays in the app.
+An event given a `category` without a `color` takes the category's colour, like the event sheet.
 
 ## Widgets (MCP Apps)
 
