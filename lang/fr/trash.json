@@ -11,6 +11,8 @@
     "type_recipe": "Recette",
     "type_calendar_event": "Événement",
     "type_todo": "À faire",
+    "type_mark": "Repère du jour",
+    "type_day_note": "Note du jour",
     "type_project": "Projet",
     "type_contact": "Contact",
     "type_birthday": "Anniversaire",

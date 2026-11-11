@@ -11,6 +11,8 @@
     "type_recipe": "Recept",
     "type_calendar_event": "Afspraak",
     "type_todo": "To-do",
+    "type_mark": "Dagmarkering",
+    "type_day_note": "Dagnotitie",
     "type_project": "Project",
     "type_contact": "Contact",
     "type_birthday": "Verjaardag",

@@ -171,25 +171,13 @@ class CalendarController extends Controller
 
     // ---- Days inside an event (C15-C17): marks by day index, and a note per date ----
 
-    // Validation for a mark. Day indexes must lie inside the event's CURRENT length; a mark that outlives a shortened
-    // event keeps its stale indexes harmlessly (nothing renders them) until it is next saved.
+    // Who may mark which events; the field rules live in CalendarEventMark::validated (shared with the MCP tools).
     private function markData(Request $request, CalendarEvent $event, bool $partial): array
     {
         abort_unless($this->access->canEdit($request->user(), $event), 403);
         abort_unless($event->isMultiDay(), 422, 'Only events longer than one day have days to mark.');
-        $last = (int) $event->start_date->diffInDays($event->end_date);
-        $req = $partial ? 'sometimes' : 'required';
-        $data = $request->validate([
-            'name' => [$req, 'string', 'max:60'],
-            'icon' => ['sometimes', 'nullable', 'string', 'max:40'],
-            'days' => [$partial ? 'sometimes' : 'present', 'array', 'max:'.($last + 1)],
-            'days.*' => ['integer', "between:0,{$last}", 'distinct'],
-        ]);
-        if (isset($data['days'])) {
-            sort($data['days']); // stored sorted: stable for diffs and for the legend's count
-        }
 
-        return $data;
+        return CalendarEventMark::validated($event, $request->all(), $partial);
     }
 
     public function storeMark(Request $request, CalendarEvent $event): RedirectResponse
@@ -225,12 +213,7 @@ class CalendarController extends Controller
         abort_unless($this->access->canEdit($request->user(), $event), 403);
         abort_unless(checkdate((int) substr($date, 5, 2), (int) substr($date, 8, 2), (int) substr($date, 0, 4)), 422);
         abort_unless($event->isMultiDay() && $event->coversDate($date), 422, 'That date is not inside this event.');
-        $body = trim((string) $request->validate(['body' => ['present', 'nullable', 'string', 'max:500']])['body']);
-        if ($body === '') {
-            $event->dayNotes()->where('date', $date)->delete();
-        } else {
-            $event->dayNotes()->updateOrCreate(['date' => $date], ['body' => $body]);
-        }
+        $event->setDayNote($date, $request->validate(['body' => ['present', 'nullable', 'string', 'max:500']])['body']);
 
         return back();
     }

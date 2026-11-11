@@ -11,6 +11,8 @@
     "type_recipe": "Rețetă",
     "type_calendar_event": "Eveniment",
     "type_todo": "De făcut",
+    "type_mark": "Marcaj de zi",
+    "type_day_note": "Notă de zi",
     "type_project": "Proiect",
     "type_contact": "Contact",
     "type_birthday": "Zi de naștere",
