@@ -149,6 +149,8 @@ class CalendarServiceProvider extends ServiceProvider
             Mcp\ListCalendar::class, Mcp\GetEvent::class, Mcp\CreateEvent::class,
             Mcp\UpdateEvent::class, Mcp\DeleteEvent::class, Mcp\AddTodo::class,
             Mcp\UpdateTodo::class, Mcp\DeleteTodo::class, Mcp\ListDeleted::class, Mcp\Restore::class,
+            Mcp\AddMark::class, Mcp\UpdateMark::class, Mcp\DeleteMark::class, Mcp\SetDayNote::class, Mcp\DeleteDayNote::class,
+            Mcp\ListCategories::class, Mcp\CreateCategory::class, Mcp\UpdateCategory::class,
         ]);
 
         // H5 search: title or notes match, visible events only (events already use the core sharing

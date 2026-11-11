@@ -20,13 +20,16 @@ class GetEvent extends Tool
 
     protected ?string $app = 'calendar';
 
-    protected string $description = 'Use this when the user asks about one calendar event in detail. Returns its dates, people, to-dos, linked project and repeat rule. Read-only.';
+    protected string $description = 'Use this when the user asks about one calendar event in detail. Returns its dates, people, to-dos, linked project and repeat rule and, for an event longer than one day, its days: the marks and the note on each day. Read-only.';
 
     protected string $title = 'Get calendar event';
 
     public function schema(JsonSchema $schema): array
     {
-        return ['id' => $schema->integer()->description('Calendar event id, from calendar_list_entries.')->required()];
+        return [
+            'id' => $schema->integer()->description('Calendar event id, from calendar_list_entries.')->required(),
+            'day' => $schema->string()->description('Y-m-d inside the occurrence whose days you want (a repeating event has one per year, say); omit for the first.'),
+        ];
     }
 
     public function handle(Request $request): Response|ResponseFactory
@@ -36,6 +39,8 @@ class GetEvent extends Tool
             return $this->notFound('Event');
         }
 
-        return Response::structured(CalendarData::payload($e, fn ($p) => $this->url($p), withTodos: true));
+        $day = $request->validate(['day' => ['nullable', 'date_format:Y-m-d']])['day'] ?? null;
+
+        return Response::structured(CalendarData::payload($e, fn ($p) => $this->url($p), withTodos: true) + ['days' => CalendarData::days($e, $day)]);
     }
 }

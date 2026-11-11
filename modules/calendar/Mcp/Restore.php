@@ -19,7 +19,7 @@ class Restore extends Tool
 
     protected string $name = 'calendar_restore';
 
-    protected string $description = 'Use this when the user wants a deleted calendar event (with the to-dos deleted with it) or a single event to-do back. Takes the id and type from calendar_list_trash.';
+    protected string $description = 'Use this when the user wants a deleted calendar event (with the to-dos deleted with it) or a single event to-do, day mark or day note back. Takes the id and type from calendar_list_trash.';
 
     protected string $title = 'Restore calendar item';
 
@@ -27,13 +27,13 @@ class Restore extends Tool
     {
         return [
             'id' => $schema->integer()->required()->description('Id from calendar_list_trash.'),
-            'type' => $schema->string()->enum(['calendar_event', 'todo'])->description('The entry\'s type from calendar_list_trash (default calendar_event).'),
+            'type' => $schema->string()->enum(['calendar_event', 'todo', 'mark', 'day_note'])->description('The entry\'s type from calendar_list_trash (default calendar_event).'),
         ];
     }
 
     public function handle(Request $request): Response|ResponseFactory
     {
-        $data = $request->validate(['id' => ['required', 'integer'], 'type' => ['nullable', 'in:calendar_event,todo']]);
+        $data = $request->validate(['id' => ['required', 'integer'], 'type' => ['nullable', 'in:calendar_event,todo,mark,day_note']]);
         $id = (int) $data['id'];
         $path = CalendarTrash::restore($this->user(), $data['type'] ?? 'calendar_event', $id);
         if (! $path) {

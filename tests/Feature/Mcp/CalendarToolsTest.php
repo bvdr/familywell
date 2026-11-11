@@ -187,3 +187,90 @@ it('writes server strings in the person\'s language', function () {
     [, $list] = mcpTool($token, 'calendar_list_entries', ['from' => '2026-07-01', 'to' => '2026-07-31']);
     expect(collect($list['items'])->pluck('title')->all())->toBe(['Ziua lui Ana']);
 });
+
+it('marks days, writes day notes and shows them with the day\'s to-dos on the event', function () {
+    [, , $token] = calendarToken();
+    [, $e] = mcpTool($token, 'calendar_create_event', ['title' => 'Lake trip', 'start_date' => '2026-07-17', 'end_date' => '2026-07-21', 'repeat' => 'yearly']);
+
+    [$err, $m] = mcpTool($token, 'calendar_add_mark', ['event_id' => $e['id'], 'name' => 'Boat day', 'icon' => 'sailboat', 'dates' => ['2026-07-19', '2026-07-18']]);
+    expect($err)->toBeFalse()->and($m)->toMatchArray(['name' => 'Boat day', 'days' => [1, 2], 'dates' => ['2026-07-18', '2026-07-19']]);
+    [$err] = mcpTool($token, 'calendar_add_mark', ['event_id' => $e['id'], 'name' => 'Nope', 'dates' => ['2026-07-25']]);
+    expect($err)->toBeTrue();
+
+    [$err] = mcpTool($token, 'calendar_set_day_note', ['event_id' => $e['id'], 'date' => '2026-07-18', 'body' => 'Ferry at 9']);
+    expect($err)->toBeFalse();
+    mcpTool($token, 'calendar_add_todo', ['event_id' => $e['id'], 'title' => 'Buy fish', 'due_date' => '2026-07-19']);
+
+    [, $g] = mcpTool($token, 'calendar_get_event', ['id' => $e['id']]);
+    expect($g['days'])->toMatchArray(['start' => '2026-07-17', 'end' => '2026-07-21', 'notes' => [['date' => '2026-07-18', 'body' => 'Ferry at 9']]])
+        ->and($g['days']['marks'][0]['dates'])->toBe(['2026-07-18', '2026-07-19'])
+        ->and($g['todos'][0]['due_date'])->toBe('2026-07-19');
+
+    // Next year's occurrence: the mark carries over by day index, the note (a real date) does not.
+    [, $next] = mcpTool($token, 'calendar_get_event', ['id' => $e['id'], 'day' => '2027-07-18']);
+    expect($next['days']['start'])->toBe('2027-07-17')->and($next['days']['marks'][0]['dates'])->toBe(['2027-07-18', '2027-07-19'])
+        ->and($next['days']['notes'])->toBe([]);
+
+    [$err, $u] = mcpTool($token, 'calendar_update_mark', ['mark_id' => $m['id'], 'name' => 'Boat', 'dates' => ['2026-07-21']]);
+    expect($err)->toBeFalse()->and($u)->toMatchArray(['name' => 'Boat', 'icon' => 'sailboat', 'days' => [4]]);
+
+    // One-day events have no days to mark.
+    [, $one] = mcpTool($token, 'calendar_create_event', ['title' => 'Dentist', 'start_date' => '2026-07-01', 'end_date' => '2026-07-01']);
+    expect(mcpTool($token, 'calendar_add_mark', ['event_id' => $one['id'], 'name' => 'X', 'dates' => ['2026-07-01']])[0])->toBeTrue()
+        ->and(mcpTool($token, 'calendar_get_event', ['id' => $one['id']])[1]['days'])->toBeNull();
+});
+
+it('trashes a deleted mark and day note, restores them, and revives a note written on the same day again', function () {
+    [, , $token] = calendarToken();
+    [, $e] = mcpTool($token, 'calendar_create_event', ['title' => 'Lent', 'start_date' => '2026-02-18', 'end_date' => '2026-04-04']);
+    [, $m] = mcpTool($token, 'calendar_add_mark', ['event_id' => $e['id'], 'name' => 'Fish allowed', 'dates' => ['2026-02-21']]);
+    mcpTool($token, 'calendar_set_day_note', ['event_id' => $e['id'], 'date' => '2026-02-20', 'body' => 'Soup']);
+
+    expect(mcpTool($token, 'calendar_delete_mark', ['mark_id' => $m['id']])[0])->toBeFalse()
+        ->and(mcpTool($token, 'calendar_delete_day_note', ['event_id' => $e['id'], 'date' => '2026-02-20'])[0])->toBeFalse();
+    [, $g] = mcpTool($token, 'calendar_get_event', ['id' => $e['id']]);
+    expect($g['days']['marks'])->toBe([])->and($g['days']['notes'])->toBe([]);
+
+    [, $trash] = mcpTool($token, 'calendar_list_trash');
+    $rows = collect($trash['deleted'])->keyBy('type');
+    expect($rows['mark'])->toMatchArray(['title' => 'Fish allowed', 'where' => 'Lent'])->and($rows['day_note']['title'])->toBe('Soup');
+
+    expect(mcpTool($token, 'calendar_restore', ['type' => 'mark', 'id' => $m['id']])[0])->toBeFalse();
+    // Writing the day again revives the trashed row (the (event, date) slot is unique, trashed rows included).
+    mcpTool($token, 'calendar_set_day_note', ['event_id' => $e['id'], 'date' => '2026-02-20', 'body' => 'Bread']);
+    [, $g] = mcpTool($token, 'calendar_get_event', ['id' => $e['id']]);
+    expect($g['days']['marks'][0]['name'])->toBe('Fish allowed')->and($g['days']['notes'])->toBe([['date' => '2026-02-20', 'body' => 'Bread']]);
+});
+
+it('does not let someone who cannot edit the event mark its days', function () {
+    [$family, $users, $token] = calendarToken();
+    CurrentFamily::set($family->id);
+    $e = CalendarEvent::createFor($users[1], CalendarEvent::validated(['title' => 'Secret', 'start_date' => '2026-07-17', 'end_date' => '2026-07-20']));
+    $e->setVisibility('private');
+    $mark = $e->marks()->create(['name' => 'Gift day', 'days' => [1]]);
+
+    expect(mcpTool($token, 'calendar_add_mark', ['event_id' => $e->id, 'name' => 'X', 'dates' => ['2026-07-18']])[0])->toBeTrue()
+        ->and(mcpTool($token, 'calendar_delete_mark', ['mark_id' => $mark->id])[0])->toBeTrue()
+        ->and(mcpTool($token, 'calendar_set_day_note', ['event_id' => $e->id, 'date' => '2026-07-18', 'body' => 'x'])[0])->toBeTrue()
+        ->and($mark->fresh()->trashed())->toBeFalse();
+});
+
+it('lists, adds and (admins only) renames categories, and gives an event its category colour', function () {
+    [$family, $users, $token] = calendarToken();
+    [$err, $c] = mcpTool($token, 'calendar_create_category', ['name' => 'Sports', 'color' => 'teal']);
+    expect($err)->toBeFalse()->and($c)->toMatchArray(['slug' => 'sports', 'name' => 'Sports', 'color' => 'teal', 'builtin' => false]);
+    expect(mcpTool($token, 'calendar_create_category', ['name' => 'sports', 'color' => 'teal'])[0])->toBeTrue(); // name taken
+
+    [, $list] = mcpTool($token, 'calendar_list_categories');
+    expect(collect($list['categories'])->pluck('slug')->all())->toBe(['trips', 'faith', 'family', 'school', 'work', 'sports']);
+
+    [, $e] = mcpTool($token, 'calendar_create_event', ['title' => 'Match', 'start_date' => '2026-07-17', 'end_date' => '2026-07-17', 'category' => 'sports']);
+    expect($e)->toMatchArray(['category' => 'sports', 'color' => 'teal']);
+
+    [$err, $r] = mcpTool($token, 'calendar_update_category', ['id' => $c['id'], 'name' => 'Sport']);
+    expect($err)->toBeFalse()->and($r)->toMatchArray(['slug' => 'sports', 'name' => 'Sport', 'color' => 'teal']);
+
+    // A member who isn't an admin can add but not rename.
+    $member = mcpConnect($users[1], $family->id, ['calendar' => 'write'])['access_token'];
+    expect(mcpTool($member, 'calendar_update_category', ['id' => $c['id'], 'name' => 'Nope'])[0])->toBeTrue();
+});
