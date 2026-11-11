@@ -13,6 +13,7 @@
         { "title": "Fußball Training", "word": "Fußball", "icons": ["volleyball", "trophy", "users", "dumbbell", "bike"] },
         { "title": "Business lunch", "word": "lunch", "icons": ["utensils", "pizza", "coffee", "beer"] },
         { "title": "Booking hotel", "word": "hotel", "icons": ["bed-double", "key-round", "house"] },
+        { "title": "Lake Tahoe trip", "word": "trip", "icons": ["tree-palm", "sun", "plane", "waves", "tent"] },
         { "title": "Carnaval", "word": null, "icons": [] },
         { "title": "Ziua lui Tim", "word": null, "icons": [] },
         { "title": "", "word": null, "icons": [] }

@@ -336,7 +336,8 @@ export function EventSheet({
                             ))}
                         </div>
                     </section>
-                    <p className="text-muted-foreground text-sm">{t('calendar.category_hint', { name: name || t('calendar.category') })}</p>
+                    {/* Only once it has a name: "Events in Category start with…" read like a bug. */}
+                    {name && <p className="text-muted-foreground text-sm">{t('calendar.category_hint', { name })}</p>}
                 </div>
             </ResponsiveModal>
         );
@@ -381,13 +382,9 @@ export function EventSheet({
                     </div>
                     {err('title')}
                     {/* Category (the calendar's filter chips, the family's own included), right under the title. Tap
-                        again to clear. */}
-                    <div
-                        role="group"
-                        aria-label={t('calendar.category')}
-                        className="-mx-1 flex gap-2 overflow-x-auto px-1 pt-2 [scrollbar-width:none]"
-                        data-scroll-x
-                    >
+                        again to clear. Wrapped, not a sideways row (C12 has two rows): a swipe row hid "+ New category"
+                        past the right edge on a phone. */}
+                    <div role="group" aria-label={t('calendar.category')} className="flex flex-wrap gap-2 pt-2">
                         {categories.map((c) => {
                             const on = f.category === c.slug;
                             return (
