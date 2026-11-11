@@ -384,12 +384,17 @@ class CalendarEvent extends Model
      * Occurrences of the events $userId may see, overlapping [from, to], as unified calendar items.
      *
      * $openTodos opts in to the day-card extras (marks, a day's note, its open to-do count) on multi-day events:
-     * [eventId => [Y-m-d => open to-dos due that day]], which the calendar provider already has from datedTodos() so
-     * no to-do query is repeated here. Null (Home, MCP) skips them, and with them their 2 queries.
+     * called with the date window those events' occurrences cover, it returns [eventId => [Y-m-d => open to-dos due
+     * that day]] (the calendar provider answers from the to-dos it already loaded when the window fits its range).
+     * Null (Home, MCP) skips them, and with them their queries.
      *
-     * @param  array<int, array<string,int>>|null  $openTodos
+     * The window is wider than [from, to] on purpose: the timeline loads its strip in chunks and keeps one copy of each
+     * occurrence, the last one loaded, so every copy must carry the WHOLE occurrence's notes and to-dos. Clipped to the
+     * chunk, a 40-day fast loaded by a later chunk lost the note and "1 to-do" of a day the first chunk had (2026-11-11).
+     *
+     * @param  (Closure(string, string): array<int, array<string,int>>)|null  $openTodos
      */
-    public static function itemsFor(int $userId, string $from, string $to, ?array $openTodos = null): array
+    public static function itemsFor(int $userId, string $from, string $to, ?Closure $openTodos = null): array
     {
         if ($from > $to || CarbonImmutable::parse($from)->diffInDays(CarbonImmutable::parse($to)) > Occurrences::MAX_RANGE_DAYS) {
             throw new InvalidArgumentException('Range must be at most '.Occurrences::MAX_RANGE_DAYS.' days.');
@@ -399,7 +404,17 @@ class CalendarEvent extends Model
             ->where(fn ($q) => $q->where('repeat', '!=', 'none')->orWhereDate('end_date', '>=', $from))
             ->get();
         $people = self::peopleFor($events);
-        $decor = $openTodos === null ? [] : self::dayDecor($events->filter->isMultiDay(), $from, $to);
+        $multi = $openTodos === null ? collect() : $events->filter->isMultiDay();
+        $decor = [];
+        $todoCounts = [];
+        if ($multi->isNotEmpty()) {
+            // Any occurrence touching [from, to] lies within [from - longest span, to + longest span].
+            $longest = (int) $multi->max(fn (self $e) => $e->start_date->diffInDays($e->end_date));
+            $lo = CarbonImmutable::parse($from)->subDays($longest)->toDateString();
+            $hi = CarbonImmutable::parse($to)->addDays($longest)->toDateString();
+            $decor = self::dayDecor($multi, $lo, $hi);
+            $todoCounts = $openTodos($lo, $hi);
+        }
 
         $items = [];
         foreach ($events as $e) {
@@ -414,7 +429,10 @@ class CalendarEvent extends Model
                     'event', $e->id, $e->title, $start, CarbonImmutable::parse($start)->addDays($days)->toDateString(),
                     href: "/m/calendar/events/{$e->id}", icon: $icon, color: $e->color, category: $e->category,
                     people: $people[$e->id] ?? [], startTime: $e->start_time, endTime: $e->end_time, editable: $editable,
-                    days: isset($decor[$e->id]) ? self::occurrenceDays($decor[$e->id], $start, $days, $openTodos[$e->id] ?? []) : null,
+                    // An event with only to-dos (no marks, no notes) still says "1 to-do" on its day card.
+                    days: isset($decor[$e->id]) || isset($todoCounts[$e->id])
+                        ? self::occurrenceDays($decor[$e->id] ?? ['marks' => [], 'notes' => []], $start, $days, $todoCounts[$e->id] ?? [])
+                        : null,
                 );
             }
         }

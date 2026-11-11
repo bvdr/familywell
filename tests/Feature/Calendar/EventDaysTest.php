@@ -144,7 +144,7 @@ it('adds the day data in two queries however many multi-day events there are', f
     $queries = function () use ($users) {
         DB::flushQueryLog();
         DB::enableQueryLog();
-        CalendarEvent::itemsFor($users[0]->id, '2026-11-14', '2026-11-30', []);
+        CalendarEvent::itemsFor($users[0]->id, '2026-11-14', '2026-11-30', fn () => []);
 
         return count(DB::getQueryLog());
     };
@@ -199,4 +199,16 @@ it('deletes marks and notes with the event when it is erased, and keeps them whi
 
     $e->forceDelete(); // trash:purge
     expect(CalendarEventMark::count())->toBe(0)->and(CalendarEventDayNote::count())->toBe(0);
+});
+
+it('gives every loaded copy of an occurrence its whole notes and to-dos, not just the requested days', function () {
+    // The timeline loads its strip in chunks and keeps the last copy of each occurrence it loaded: a chunk that ends
+    // before a day with a note must still carry that note, or the day card loses it when the chunk lands.
+    [$e, $users] = fast(['start_date' => '2026-11-15', 'end_date' => '2026-12-24']);
+    $e->dayNotes()->create(['date' => '2026-12-10', 'body' => 'Sf. Nicolae']);
+    $items = CalendarEvent::itemsFor($users[0]->id, '2026-11-01', '2026-11-20', fn () => [$e->id => ['2026-12-10' => 2]]);
+    $days = collect($items)->firstWhere('id', $e->id)['days'];
+
+    expect((array) $days['notes'])->toBe([25 => 'Sf. Nicolae'])
+        ->and((array) $days['todos'])->toBe([25 => 2]);
 });

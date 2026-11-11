@@ -176,15 +176,22 @@ class CalendarServiceProvider extends ServiceProvider
                 people: $p[0]->assignee ? [['type' => 'user', 'id' => $p[0]->assignee->id, 'name' => $p[0]->assignee->name]] : [],
             ), $dated);
 
-            // The day cards of multi-day events show "1 to-do": count the open ones per event and date from the list
-            // we already have rather than asking the database again.
-            $openTodos = [];
-            foreach ($dated as [$task, $event]) {
-                if (! $task->done) {
-                    $date = $task->due_date->toDateString();
-                    $openTodos[$event->id][$date] = ($openTodos[$event->id][$date] ?? 0) + 1;
+            // The day cards of multi-day events show "1 to-do": open ones per event and date over the window their
+            // occurrences cover (CalendarEvent::itemsFor explains why it is wider than this range). From the to-dos
+            // already loaded when the window fits inside this range, else one more lookup for the wider window.
+            $openTodos = function (string $lo, string $hi) use ($dated, $from, $to, $userId): array {
+                $pairs = $lo >= $from && $hi <= $to ? $dated
+                    : CalendarEvent::datedTodos($userId, fn ($q) => $q->where('done', false)->whereDate('due_date', '>=', $lo)->whereDate('due_date', '<=', $hi));
+                $counts = [];
+                foreach ($pairs as [$task, $event]) {
+                    if (! $task->done) {
+                        $date = $task->due_date->toDateString();
+                        $counts[$event->id][$date] = ($counts[$event->id][$date] ?? 0) + 1;
+                    }
                 }
-            }
+
+                return $counts;
+            };
 
             // Plus other calendars the person subscribed to, or that someone shared with the family (read-only).
             return [...CalendarEvent::itemsFor($userId, $from, $to, $openTodos), ...$todos, ...CalendarSubscription::itemsFor($userId, $from, $to)];
