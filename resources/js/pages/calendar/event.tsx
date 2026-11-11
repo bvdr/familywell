@@ -1,9 +1,12 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ChevronLeft, FolderKanban, ListChecks, MoreHorizontal, NotebookPen, Pencil, Repeat2, Share2, Trash2, Users } from 'lucide-react';
+import { ChevronLeft, FolderKanban, ListChecks, MoreHorizontal, NotebookPen, Pencil, Repeat2, Share2, Tag, Trash2, Users } from 'lucide-react';
 import { useRef, useState } from 'react';
 
 import { stripe } from '@/components/calendar/agenda';
+import { DaySheet } from '@/components/calendar/day-sheet';
+import { DaysSection, MARK_LIMIT, type DayMark, type EventDays } from '@/components/calendar/event-days';
 import { EventSheet, eventIcon, type EventForm } from '@/components/calendar/event-sheet';
+import { MarkDaysSheet } from '@/components/calendar/mark-days-sheet';
 import { LucideIcon } from '@/components/lucide-icon';
 import { MemberAvatar } from '@/components/member-avatar';
 import { SettingsGroup, SettingsRow } from '@/components/settings-ui';
@@ -34,6 +37,8 @@ export default function CalendarEvent({
     share,
     contacts,
     projects,
+    days: eventDays,
+    openDay,
     categories,
 }: {
     event: Payload;
@@ -44,6 +49,9 @@ export default function CalendarEvent({
     share: ShareState;
     contacts: { id: number; name: string }[];
     projects: { id: number; name: string }[] | null;
+    // Multi-day events only (C15): the occurrence on screen, its marks and notes, what's coming up inside.
+    days: EventDays | null;
+    openDay: string | null; // ?day=: open that day's sheet (a tap on the event in the day list)
     categories: CalCategory[];
 }) {
     const t = useT();
@@ -51,6 +59,16 @@ export default function CalendarEvent({
     // false | 'details' (⋯ › Edit) | 'dates' (the date line: the sheet opens on the start date's calendar).
     const [editing, setEditing] = useState<false | 'details' | 'dates'>(false);
     const [sharing, setSharing] = useState(false);
+    // C16 / C17. The date and mark are kept after a sheet closes so its closing animation still has content.
+    const [dayOpen, setDayOpen] = useState(!!eventDays && !!openDay && openDay >= eventDays.start && openDay <= eventDays.end);
+    const [dayDate, setDayDate] = useState(openDay ?? eventDays?.start ?? event.start_date);
+    const [markOpen, setMarkOpen] = useState(false);
+    const [markCtx, setMarkCtx] = useState<{ mark: DayMark | null; preselect: number | null }>({ mark: null, preselect: null });
+    const markSheet = (mark: DayMark | null, preselect: number | null = null) => {
+        setMarkCtx({ mark, preselect });
+        setDayOpen(false);
+        setMarkOpen(true);
+    };
     // The nav's "+" adds a to-do here (like a task list), not a new event.
     const addInputRef = useRef<HTMLInputElement>(null);
     useAddAction(
@@ -62,15 +80,18 @@ export default function CalendarEvent({
     );
     const fmt = (d: string) => new Date(d + 'T12:00').toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' });
     const time = (x: string | null) => (x ? x.replace(/^0(\d)/, '$1') : '');
-    const days = daysBetween(event.start_date, event.end_date) + 1;
+    // The occurrence on screen: a repeating event has one page for every run, and a tap on a later run's day opens that run.
+    const first = eventDays?.start ?? event.start_date;
+    const last = eventDays?.end ?? event.end_date;
+    const days = daysBetween(first, last) + 1;
     const today = localToday();
     // "Sun, Oct 18 → Sun, Oct 25 · all day" / "Thu, Oct 22 · 3:00–4:00".
     const when = [
-        event.start_date === event.end_date ? fmt(event.start_date) : `${fmt(event.start_date)} → ${fmt(event.end_date)}`,
+        first === last ? fmt(first) : `${fmt(first)} → ${fmt(last)}`,
         event.start_time ? `${time(event.start_time)}–${time(event.end_time)}` : t('calendar.all_day_short'),
     ].join(' · ');
     // Multi-day (C3): a segment per day, done ones in the event's colour, today inked; where you are in it.
-    const nth = daysBetween(event.start_date, today) + 1;
+    const nth = daysBetween(first, today) + 1;
     const progress =
         nth < 1
             ? t('calendar.starts_in', { count: 1 - nth })
@@ -161,14 +182,24 @@ export default function CalendarEvent({
                     )}
                     {days > 1 && (
                         <div className="flex flex-col gap-2">
-                            <div className="flex gap-1" aria-hidden>
-                                {Array.from({ length: days }, (_, k) => (
-                                    <span
-                                        key={k}
-                                        className={`h-1.5 flex-1 rounded-full ${k + 1 < nth ? stripe(event.color) : k + 1 === nth ? 'bg-primary' : 'bg-border'}`}
+                            {/* A segment per day up to two weeks; a 40-day fast would be slivers, so it is one bar (design C15). */}
+                            {days <= 14 ? (
+                                <div className="flex gap-1" aria-hidden>
+                                    {Array.from({ length: days }, (_, k) => (
+                                        <span
+                                            key={k}
+                                            className={`h-1.5 flex-1 rounded-full ${k + 1 < nth ? stripe(event.color) : k + 1 === nth ? 'bg-primary' : 'bg-border'}`}
+                                        />
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="bg-border h-1.5 overflow-hidden rounded-full" aria-hidden>
+                                    <div
+                                        className={`h-full rounded-full ${stripe(event.color)}`}
+                                        style={{ width: `${(Math.min(Math.max(nth, 0), days) / days) * 100}%` }}
                                     />
-                                ))}
-                            </div>
+                                </div>
+                            )}
                             <p className="text-primary font-mono text-xs font-semibold tracking-[0.1em] uppercase">{progress}</p>
                         </div>
                     )}
@@ -200,6 +231,19 @@ export default function CalendarEvent({
                             <span className="text-primary truncate font-semibold">{whoText || t('calendar.nobody')}</span>
                         </span>
                     </button>
+                    {event.category && (
+                        <SettingsRow
+                            icon={Tag}
+                            title={t('calendar.category')}
+                            value={
+                                <span className="text-primary font-semibold">
+                                    {categories.find((c) => c.slug === event.category)?.name ?? event.category}
+                                </span>
+                            }
+                            onClick={edit}
+                            right={<span />}
+                        />
+                    )}
                     {(event.project || projects) && (
                         <SettingsRow
                             icon={FolderKanban}
@@ -227,6 +271,22 @@ export default function CalendarEvent({
                         </button>
                     )}
                 </SettingsGroup>
+
+                {eventDays && (
+                    <DaysSection
+                        days={eventDays}
+                        tasks={tasks}
+                        today={today}
+                        canEdit={canEdit}
+                        markLimit={eventDays.marks.length >= MARK_LIMIT}
+                        onOpenDay={(d) => {
+                            setDayDate(d);
+                            setDayOpen(true);
+                        }}
+                        onMarkDays={() => markSheet(null)}
+                        onEditMark={(m) => markSheet(m)}
+                    />
+                )}
 
                 <section className="flex flex-col gap-2">
                     <h2 className="text-muted-foreground px-1 font-mono text-xs font-semibold tracking-[0.12em] uppercase">
@@ -256,6 +316,31 @@ export default function CalendarEvent({
                     projects={projects}
                     categories={categories}
                 />
+            )}
+            {eventDays && (
+                <>
+                    <DaySheet
+                        open={dayOpen}
+                        onOpenChange={setDayOpen}
+                        date={dayDate}
+                        onDate={setDayDate}
+                        event={{ id: event.id, title: event.title }}
+                        days={eventDays}
+                        tasks={tasks}
+                        canEdit={canEdit}
+                        onNewMark={(idx) => markSheet(null, idx)}
+                    />
+                    {canEdit && (
+                        <MarkDaysSheet
+                            open={markOpen}
+                            onOpenChange={setMarkOpen}
+                            eventId={event.id}
+                            days={eventDays}
+                            mark={markCtx.mark}
+                            preselect={markCtx.preselect}
+                        />
+                    )}
+                </>
             )}
             {/* No read-only invite link: the server never issues one for events (shareState link: null). */}
             <ShareSheet open={sharing} onOpenChange={setSharing} share={share} eventName={event.title} withLink={false} />

@@ -119,6 +119,9 @@ class CalendarController extends Controller
     public function show(Request $request, CalendarEvent $event): Response
     {
         abort_unless($this->access->canView($request->user(), $event), 403);
+        // ?day= opens the occurrence covering that date (a repeating fast has one page for every year) with that
+        // day's sheet showing: where a tap on the event in the day list lands.
+        $day = $request->validate(['day' => ['nullable', 'date_format:Y-m-d']])['day'] ?? null;
         $family = Family::findOrFail(CurrentFamily::id());
         $tasks = Task::whereIn('id', $event->taskIds())->whereNull('parent_id')->with('subtasks')->orderBy('position')->orderBy('id')->get();
         $sub = fn (Task $t) => ['id' => $t->id, 'title' => $t->title, 'note' => $t->note, 'done' => $t->done,
@@ -134,8 +137,102 @@ class CalendarController extends Controller
             // The edit sheet's people + project pickers, same lists as the index.
             'contacts' => $this->contactOptions(),
             'projects' => $this->projectOptions($request),
+            'days' => $event->isMultiDay() ? $this->daysPayload($event, $day, $request->user()->id) : null,
+            'openDay' => $day,
             'categories' => CalendarCategory::forFamily(),
         ]);
+    }
+
+    /**
+     * What the event page's days grid (C15) needs for one occurrence: its dates, the marks (by day index, same in every
+     * occurrence), the notes dated inside it, and "coming up inside": the next few OTHER events that fall within
+     * the span, one range query through the calendar source so visibility and repeats follow the same rules as the
+     * calendar itself. To-dos need nothing extra: the page already has the event's dated to-dos.
+     */
+    private function daysPayload(CalendarEvent $event, ?string $day, int $userId): array
+    {
+        [$start, $end] = $event->occurrenceAt($day);
+        $today = FamilyClock::today();
+        $from = $end < $today ? $start : max($start, $today); // a finished occurrence lists all it had
+        $to = CarbonImmutable::parse($from)->addDays(Occurrences::MAX_RANGE_DAYS)->min(CarbonImmutable::parse($end))->toDateString();
+        $inside = collect(CalendarSources::collect($from, $to, $userId, ['calendar']))
+            ->filter(fn ($i) => $i['kind'] === 'event' && ! ($i['id'] === $event->id && $i['source'] === 'calendar'))
+            ->take(5)->map(fn ($i) => ['id' => $i['id'], 'title' => $i['title'], 'date' => max($i['start'], $from), 'startTime' => $i['startTime'], 'href' => $i['href']])
+            ->values()->all();
+
+        return [
+            'start' => $start,
+            'end' => $end,
+            'marks' => $event->marks->map->toPayload()->values()->all(),
+            'notes' => (object) $event->dayNotes()->whereBetween('date', [$start, $end])->pluck('body', 'date')->all(),
+            'inside' => $inside,
+        ];
+    }
+
+    // ---- Days inside an event (C15-C17): marks by day index, and a note per date ----
+
+    // Validation for a mark. Day indexes must lie inside the event's CURRENT length; a mark that outlives a shortened
+    // event keeps its stale indexes harmlessly (nothing renders them) until it is next saved.
+    private function markData(Request $request, CalendarEvent $event, bool $partial): array
+    {
+        abort_unless($this->access->canEdit($request->user(), $event), 403);
+        abort_unless($event->isMultiDay(), 422, 'Only events longer than one day have days to mark.');
+        $last = (int) $event->start_date->diffInDays($event->end_date);
+        $req = $partial ? 'sometimes' : 'required';
+        $data = $request->validate([
+            'name' => [$req, 'string', 'max:60'],
+            'icon' => ['sometimes', 'nullable', 'string', 'max:40'],
+            'days' => [$partial ? 'sometimes' : 'present', 'array', 'max:'.($last + 1)],
+            'days.*' => ['integer', "between:0,{$last}", 'distinct'],
+        ]);
+        if (isset($data['days'])) {
+            sort($data['days']); // stored sorted: stable for diffs and for the legend's count
+        }
+
+        return $data;
+    }
+
+    public function storeMark(Request $request, CalendarEvent $event): RedirectResponse
+    {
+        $data = $this->markData($request, $event, false);
+        abort_if($event->marks()->count() >= CalendarEventMark::MAX_PER_EVENT, 422, 'Too many marks on this event.');
+        $event->marks()->create($data);
+
+        return back();
+    }
+
+    // The mark is looked up through the event (its id is a plain route value, not a bound model), so a mark of
+    // another event or family can never be reached by guessing ids.
+    public function updateMark(Request $request, CalendarEvent $event, string $mark): RedirectResponse
+    {
+        $data = $this->markData($request, $event, true); // authorizes first: a 403 must not depend on whether the id exists
+        $event->marks()->findOrFail($mark)->update($data);
+
+        return back();
+    }
+
+    public function destroyMark(Request $request, CalendarEvent $event, string $mark): RedirectResponse
+    {
+        abort_unless($this->access->canEdit($request->user(), $event), 403);
+        $event->marks()->findOrFail($mark)->delete();
+
+        return back();
+    }
+
+    // One note per date; an empty body removes it. Only dates inside an occurrence can carry a note.
+    public function putDayNote(Request $request, CalendarEvent $event, string $date): RedirectResponse
+    {
+        abort_unless($this->access->canEdit($request->user(), $event), 403);
+        abort_unless(checkdate((int) substr($date, 5, 2), (int) substr($date, 8, 2), (int) substr($date, 0, 4)), 422);
+        abort_unless($event->isMultiDay() && $event->coversDate($date), 422, 'That date is not inside this event.');
+        $body = trim((string) $request->validate(['body' => ['present', 'nullable', 'string', 'max:500']])['body']);
+        if ($body === '') {
+            $event->dayNotes()->where('date', $date)->delete();
+        } else {
+            $event->dayNotes()->updateOrCreate(['date' => $date], ['body' => $body]);
+        }
+
+        return back();
     }
 
     public function update(Request $request, CalendarEvent $event): RedirectResponse

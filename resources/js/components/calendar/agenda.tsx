@@ -1,7 +1,8 @@
 import { Link } from '@inertiajs/react';
-import { Check } from 'lucide-react';
+import { Check, StickyNote } from 'lucide-react';
 import { useRef } from 'react';
 
+import { MarkPill } from '@/components/calendar/event-days';
 import { LucideIcon } from '@/components/lucide-icon';
 import { addDays, daysBetween, itemKey, itemsOn, parseDay, type CalItem } from '@/lib/calendar';
 import { appLocale, useT } from '@/lib/i18n';
@@ -42,7 +43,14 @@ export function AgendaRow({ item, day, onToggle }: { item: CalItem; day: string;
     const nth = daysBetween(item.start, day) + 1;
     const span = total > 1 ? (nth === total ? t('calendar.last_day_of', { total }) : t('calendar.day_of_cap', { n: nth, total })) : null;
     const who = item.people.map((p) => p.name.split(' ')[0]).join(', ');
-    const sub = [span, item.sub, who].filter(Boolean).join(' · ');
+    // A multi-day event's card also says what this day holds (design SMMOk): its open to-dos in the meta line, then its
+    // note and its marks. The server sends them by day index from the occurrence's start (CalendarEvent::occurrenceDays).
+    const idx = nth - 1;
+    const dayInfo = item.days;
+    const openTodos = dayInfo?.todos[idx] ?? 0;
+    const note = dayInfo?.notes[idx];
+    const marks = dayInfo?.marks.filter((m) => m.days.includes(idx)) ?? [];
+    const sub = [span, openTodos > 0 ? t('calendar.todo_count', { count: openTodos }) : null, item.sub, who].filter(Boolean).join(' · ');
     const isTask = item.kind === 'task';
     const left = item.startTime ? time(item.startTime) : isTask ? t('calendar.due') : t('calendar.all_day_short');
     const shape = isTask ? (
@@ -66,7 +74,8 @@ export function AgendaRow({ item, day, onToggle }: { item: CalItem; day: string;
     );
     return (
         <Link
-            href={item.href}
+            // A multi-day event opens on the day that was tapped (its day sheet), not just the event.
+            href={dayInfo || (total > 1 && item.kind === 'event' && item.source === 'calendar') ? `${item.href}?day=${day}` : item.href}
             // A multi-day all-day thing is tinted, so "today is part of the trip" reads at a glance (C5).
             className={`flex items-center gap-3 px-4 py-3 ${total > 1 && !item.startTime && item.color ? itemTone(item.color).split(' ')[0] : ''}`}
         >
@@ -77,6 +86,19 @@ export function AgendaRow({ item, day, onToggle }: { item: CalItem; day: string;
                     {item.title}
                 </span>
                 {sub && <span className="text-muted-foreground block truncate text-sm">{sub}</span>}
+                {note && (
+                    <span className="text-ink-2 mt-1 flex items-start gap-1.5 text-sm">
+                        <StickyNote className="text-muted-foreground mt-0.5 size-3.5 shrink-0" />
+                        <span className="line-clamp-2 min-w-0">{note}</span>
+                    </span>
+                )}
+                {marks.length > 0 && (
+                    <span className="mt-1.5 flex flex-wrap gap-1.5">
+                        {marks.map((m) => (
+                            <MarkPill key={m.id} mark={m} />
+                        ))}
+                    </span>
+                )}
             </span>
         </Link>
     );

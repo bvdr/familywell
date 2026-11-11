@@ -71,6 +71,55 @@ class CalendarEvent extends Model
         return $this->hasMany(CalendarEventLink::class, 'event_id');
     }
 
+    /** Marks on this event's days (by day index; see CalendarEventMark). Cascade-deleted with the event. */
+    public function marks(): HasMany
+    {
+        return $this->hasMany(CalendarEventMark::class, 'event_id')->orderBy('id');
+    }
+
+    public function dayNotes(): HasMany
+    {
+        return $this->hasMany(CalendarEventDayNote::class, 'event_id');
+    }
+
+    /** Only events longer than one day have days to mark and write on. */
+    public function isMultiDay(): bool
+    {
+        return $this->end_date->gt($this->start_date);
+    }
+
+    /**
+     * The occurrence of this event that covers $day (Y-m-d), as [start, end]; the stored dates when $day is null or
+     * falls in no occurrence. A repeating fast has one page, so a tap on next year's bar must open next year's days.
+     *
+     * @return array{0:string,1:string}
+     */
+    public function occurrenceAt(?string $day): array
+    {
+        $start = $this->start_date->toDateString();
+        $end = $this->end_date->toDateString();
+        if ($day) {
+            $first = $this->occurrenceStartsOn($day)[0] ?? null;
+            if ($first) {
+                return [$first, CarbonImmutable::parse($first)->addDays((int) $this->start_date->diffInDays($this->end_date))->toDateString()];
+            }
+        }
+
+        return [$start, $end];
+    }
+
+    /** Start dates of the occurrences covering $day (an event never overlaps itself, so 0 or 1). @return list<string> */
+    private function occurrenceStartsOn(string $day): array
+    {
+        return Occurrences::starts($this->start_date->toDateString(), $this->end_date->toDateString(), $this->repeat, $this->repeat_interval, $this->repeat_until?->toDateString(), $day, $day);
+    }
+
+    /** Whether $day (Y-m-d) lies inside some occurrence: the only dates a day note can belong to. */
+    public function coversDate(string $day): bool
+    {
+        return $this->occurrenceStartsOn($day) !== [];
+    }
+
     /** @return list<int> */
     public function taskIds(): array
     {
@@ -331,8 +380,21 @@ class CalendarEvent extends Model
         return $out;
     }
 
-    /** Occurrences of the events $userId may see, overlapping [from, to], as unified calendar items. */
-    public static function itemsFor(int $userId, string $from, string $to): array
+    /**
+     * Occurrences of the events $userId may see, overlapping [from, to], as unified calendar items.
+     *
+     * $openTodos opts in to the day-card extras (marks, a day's note, its open to-do count) on multi-day events:
+     * called with the date window those events' occurrences cover, it returns [eventId => [Y-m-d => open to-dos due
+     * that day]] (the calendar provider answers from the to-dos it already loaded when the window fits its range).
+     * Null (Home, MCP) skips them, and with them their queries.
+     *
+     * The window is wider than [from, to] on purpose: the timeline loads its strip in chunks and keeps one copy of each
+     * occurrence, the last one loaded, so every copy must carry the WHOLE occurrence's notes and to-dos. Clipped to the
+     * chunk, a 40-day fast loaded by a later chunk lost the note and "1 to-do" of a day the first chunk had (2026-11-11).
+     *
+     * @param  (Closure(string, string): array<int, array<string,int>>)|null  $openTodos
+     */
+    public static function itemsFor(int $userId, string $from, string $to, ?Closure $openTodos = null): array
     {
         if ($from > $to || CarbonImmutable::parse($from)->diffInDays(CarbonImmutable::parse($to)) > Occurrences::MAX_RANGE_DAYS) {
             throw new InvalidArgumentException('Range must be at most '.Occurrences::MAX_RANGE_DAYS.' days.');
@@ -342,6 +404,17 @@ class CalendarEvent extends Model
             ->where(fn ($q) => $q->where('repeat', '!=', 'none')->orWhereDate('end_date', '>=', $from))
             ->get();
         $people = self::peopleFor($events);
+        $multi = $openTodos === null ? collect() : $events->filter->isMultiDay();
+        $decor = [];
+        $todoCounts = [];
+        if ($multi->isNotEmpty()) {
+            // Any occurrence touching [from, to] lies within [from - longest span, to + longest span].
+            $longest = (int) $multi->max(fn (self $e) => $e->start_date->diffInDays($e->end_date));
+            $lo = CarbonImmutable::parse($from)->subDays($longest)->toDateString();
+            $hi = CarbonImmutable::parse($to)->addDays($longest)->toDateString();
+            $decor = self::dayDecor($multi, $lo, $hi);
+            $todoCounts = $openTodos($lo, $hi);
+        }
 
         $items = [];
         foreach ($events as $e) {
@@ -356,11 +429,71 @@ class CalendarEvent extends Model
                     'event', $e->id, $e->title, $start, CarbonImmutable::parse($start)->addDays($days)->toDateString(),
                     href: "/m/calendar/events/{$e->id}", icon: $icon, color: $e->color, category: $e->category,
                     people: $people[$e->id] ?? [], startTime: $e->start_time, endTime: $e->end_time, editable: $editable,
+                    // An event with only to-dos (no marks, no notes) still says "1 to-do" on its day card.
+                    days: isset($decor[$e->id]) || isset($todoCounts[$e->id])
+                        ? self::occurrenceDays($decor[$e->id] ?? ['marks' => [], 'notes' => []], $start, $days, $todoCounts[$e->id] ?? [])
+                        : null,
                 );
             }
         }
 
         return $items;
+    }
+
+    /**
+     * Marks and notes of the given multi-day events in 2 queries however many (marks: all of them, notes: only those
+     * dated inside the range), grouped by event. Events with neither are left out.
+     *
+     * @return array<int, array{marks: list<array>, notes: array<string,string>}>
+     */
+    private static function dayDecor($events, string $from, string $to): array
+    {
+        $ids = $events->pluck('id');
+        if ($ids->isEmpty()) {
+            return [];
+        }
+        $marks = CalendarEventMark::whereIn('event_id', $ids)->orderBy('id')->get()->groupBy('event_id');
+        $notes = CalendarEventDayNote::whereIn('event_id', $ids)->whereBetween('date', [$from, $to])->get()->groupBy('event_id');
+        $out = [];
+        foreach ($ids as $id) {
+            if ($marks->has($id) || $notes->has($id)) {
+                $out[$id] = [
+                    'marks' => ($marks[$id] ?? collect())->map->toPayload()->all(),
+                    'notes' => ($notes[$id] ?? collect())->pluck('body', 'date')->all(),
+                ];
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * One occurrence's day data, keyed by day index from ITS start: the event's marks apply to every occurrence
+     * (that is what carrying them to next year means), notes and to-dos are about real dates so only the ones inside
+     * this occurrence count. Null when the occurrence has nothing, to keep the payload small.
+     *
+     * @param  array{marks: list<array>, notes: array<string,string>}  $decor
+     * @param  array<string,int>  $todosByDate
+     */
+    private static function occurrenceDays(array $decor, string $start, int $span, array $todosByDate): ?array
+    {
+        $first = CarbonImmutable::parse($start);
+        $idx = fn (string $date) => (int) $first->diffInDays(CarbonImmutable::parse($date), false);
+        $inside = fn (int $i) => $i >= 0 && $i <= $span;
+        $notes = [];
+        foreach ($decor['notes'] as $date => $body) {
+            if ($inside($i = $idx($date))) {
+                $notes[$i] = $body;
+            }
+        }
+        $todos = [];
+        foreach ($todosByDate as $date => $count) {
+            if ($inside($i = $idx($date))) {
+                $todos[$i] = $count;
+            }
+        }
+
+        return $decor['marks'] || $notes || $todos ? ['marks' => $decor['marks'], 'notes' => (object) $notes, 'todos' => (object) $todos] : null;
     }
 
     /**

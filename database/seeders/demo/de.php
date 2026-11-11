@@ -264,6 +264,12 @@ return [
         // Calendar
         'Lake Tahoe trip' => 'Ostsee-Urlaub',
         'Cabin check-in after 3pm. Bring the kayak paddles.' => 'Check-in im Ferienhaus ab 15 Uhr. Die Kajakpaddel mitnehmen.',
+        'Boat day' => 'Bootstag',
+        'Pancakes at the lodge before the hike.' => 'Pfannkuchen im Ferienhaus vor der Wanderung.',
+        'Lent' => 'Fastenzeit',
+        'Fish allowed' => 'Fisch erlaubt',
+        "Noah's birthday cake: coconut cream, no eggs." => 'Noahs Geburtstagskuchen: Kokoscreme, ohne Eier.',
+        'Order the coconut cream' => 'Kokoscreme bestellen',
         'Pack the kayak paddles' => 'Kajakpaddel einpacken',
         'Download offline maps' => 'Offline-Karten laden',
         'Book the boat tour' => 'Bootstour buchen',

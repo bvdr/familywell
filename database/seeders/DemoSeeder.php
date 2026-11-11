@@ -663,6 +663,20 @@ class DemoSeeder extends Seeder
             ]));
         }
 
+        // Days inside an event (design C15-C17): the trip has a mark and a day note; a 40-day fast has fish days (Wed + Fri,
+        // stored by day index like the app does) and a note + to-do today, so the event page's grid, legend and the
+        // day-list card all have something to show.
+        $trip->marks()->create(['name' => $this->t('Boat day'), 'icon' => 'sailboat', 'days' => [3, 4]]);
+        $trip->dayNotes()->create(['date' => $day(0), 'body' => $this->t('Pancakes at the lodge before the hike.')]);
+        $fast = CalendarEvent::createFor($sarah, CalendarEvent::validated([
+            'title' => $this->t('Lent'), 'icon' => 'church', 'color' => 'amber', 'category' => 'faith', 'start_date' => $day(-4), 'end_date' => $day(35),
+            'people' => $users('Sarah', 'David', 'Emma', 'Noah', 'Lily'),
+        ]));
+        $fishDays = array_values(array_filter(range(0, 39), fn (int $i) => in_array($this->today->copy()->addDays($i - 4)->dayOfWeekIso, [3, 5], true)));
+        $fast->marks()->create(['name' => $this->t('Fish allowed'), 'icon' => 'fish', 'days' => $fishDays]);
+        $fast->dayNotes()->create(['date' => $day(0), 'body' => $this->t("Noah's birthday cake: coconut cream, no eggs.")]);
+        $fast->addTask($sarah, ['title' => $this->t('Order the coconut cream'), 'due_date' => $day(0)]);
+
         // An "other calendar" (ICS subscription, issue #222) Sarah shared with the family. Its rows are written here
         // so seeding never needs the network; the hourly calendar:sync-subscriptions swaps in the real US holidays.
         $holidays = CalendarSubscription::create([

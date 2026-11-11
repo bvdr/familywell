@@ -20,6 +20,12 @@ export type CalItem = {
     editable: boolean;
     sub?: string | null; // a second line where people alone don't say it (a to-do's list)
     category?: string | null; // calendar events only: a CalCategory slug
+    // Multi-day events only: what each day holds, keyed by day index from THIS occurrence's start (day 1 = 0).
+    days?: {
+        marks: { id: number; name: string; icon: string | null; days: number[] }[];
+        notes: Record<number, string>;
+        todos: Record<number, number>; // open to-dos due that day
+    };
 };
 // category: a category slug (CalCategory.slug) or null = All (the design's chip row is single-choice, All first).
 export type CalFilter = { people: string[]; sources: string[]; category: string | null };
