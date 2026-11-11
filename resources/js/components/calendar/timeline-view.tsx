@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { ArrowLeft, ArrowRight, ArrowUp } from 'lucide-react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { DayList, stripe, takesADay } from '@/components/calendar/agenda';
@@ -241,11 +241,11 @@ export const TimelineView = forwardRef<
     // screen stood still (the first edge loads, a save) are not news.
     const seen = useRef<{ keys: Set<string>; first: string } | null>(null);
     const [fresh, setFresh] = useState<Set<string>>(new Set());
-    // Rows that left because you scrolled (C11): they fold into a thin line in place, then go, and a note over the rows
-    // says what left for a beat. Order never changes; only the top and bottom move.
+    // Rows that left because you scrolled (C11): they fold into a thin line in place, then go. Order never changes; only
+    // the top and bottom move. No "X left" note: drawn over the top row it covered the event under it (2026-11-11), and
+    // the fold already shows what went.
     const shownRows = useRef<Row[]>([]);
     const [leaving, setLeaving] = useState<{ row: Row; at: number }[]>([]);
-    const [left, setLeft] = useState<string[]>([]);
     const rowKeys = rows.map((r) => r.key).join('|');
     useEffect(() => {
         if (!win) return;
@@ -262,9 +262,7 @@ export const TimelineView = forwardRef<
         }
         if (gone.length) {
             setLeaving(gone);
-            setLeft(gone.map((g) => g.row.item.title));
             timers.push(window.setTimeout(() => setLeaving([]), FOLD_MS));
-            timers.push(window.setTimeout(() => setLeft([]), 2500));
         }
         return () => timers.forEach((id) => window.clearTimeout(id));
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -373,22 +371,6 @@ export const TimelineView = forwardRef<
                                     style={{ left: px((todayIdx + 0.5) * dayW) }}
                                     aria-hidden
                                 />
-                            )}
-                            {left.length > 0 && (
-                                // C11's note over the top row: what just left, for a beat. Over the rows, not above them, so
-                                // the rows don't jump down and back up again.
-                                <div
-                                    className="bg-card/90 text-muted-foreground pointer-events-none absolute top-0 z-10 flex items-center gap-1.5 px-3 py-0.5 text-xs"
-                                    // The rows are the wide scrolling strip; pin the note to the days on screen.
-                                    style={{ left: px(viewL), width: px(viewR - viewL) }}
-                                >
-                                    <ArrowUp className="size-3.5 shrink-0" />
-                                    <span className="truncate">
-                                        {t('calendar.rows_left', {
-                                            names: left.length > 2 ? `${left.slice(0, 2).join(' · ')} +${left.length - 2}` : left.join(' · '),
-                                        })}
-                                    </span>
-                                </div>
                             )}
                             {drawn.map(({ key, item: first, bars, leaving: going }) => {
                                 if (going) {
