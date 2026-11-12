@@ -83,7 +83,13 @@ export default function BirthdaysIndex({ birthdays, defaults, people }: { birthd
     const months = monthNames(locale);
     const breadcrumbs: BreadcrumbItem[] = [{ title: t('nav.birthdays'), href: '/m/birthdays' }];
     // One sheet for add (starting at Find, M5) and edit (M10, straight to the form).
-    const [sheet, setSheet] = useState<{ open: boolean; edit: Birthday | null }>({ open: false, edit: null });
+    // ?date=MM-DD: the calendar's right-click › Birthday on <day> (design 04b D3) lands here with the add sheet open
+    // and that day and month filled in (the year stays the person's to type).
+    const [arrival] = useState(() => {
+        const m = new URLSearchParams(window.location.search).get('date')?.match(/^(\d{2})-(\d{2})$/);
+        return m ? { month: String(Number(m[1])), day: String(Number(m[2])) } : null;
+    });
+    const [sheet, setSheet] = useState<{ open: boolean; edit: Birthday | null }>({ open: !!arrival, edit: null });
     const [settingsOpen, setSettingsOpen] = useState(false);
     useAddAction(() => setSheet({ open: true, edit: null }), { label: 'birthdays.add', icon: Cake });
 
@@ -233,6 +239,7 @@ export default function BirthdaysIndex({ birthdays, defaults, people }: { birthd
                 people={people}
                 defaults={defaults}
                 months={months}
+                arrival={arrival}
             />
             <SettingsSheet
                 open={settingsOpen}
@@ -260,6 +267,7 @@ function BirthdaySheet({
     people,
     defaults,
     months,
+    arrival,
 }: {
     open: boolean;
     edit: Birthday | null;
@@ -270,6 +278,7 @@ function BirthdaySheet({
     people: Person[];
     defaults: Defaults;
     months: string[];
+    arrival: { day: string; month: string } | null; // a new birthday's day and month, from ?date=
 }) {
     const t = useT();
     const locale = useLocale();
@@ -291,7 +300,7 @@ function BirthdaySheet({
             setParts(
                 edit
                     ? { day: String(edit.day), month: String(edit.month), year: edit.year ? String(edit.year) : '' }
-                    : { day: '', month: '', year: '' },
+                    : { day: arrival?.day ?? '', month: arrival?.month ?? '', year: '' },
             );
             setRemind(edit?.remindDays ?? null);
             setCustom(edit?.remindDays != null && !PRESETS.includes(edit.remindDays));

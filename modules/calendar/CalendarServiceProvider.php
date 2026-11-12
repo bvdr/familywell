@@ -279,6 +279,7 @@ class CalendarServiceProvider extends ServiceProvider
                 Route::get('/items', [CalendarController::class, 'items'])->name('items');
                 Route::post('/events', [CalendarController::class, 'store'])->name('events.store');
                 Route::get('/events/{event}', [CalendarController::class, 'show'])->name('events.show');
+                Route::get('/events/{event}/form', [CalendarController::class, 'form'])->name('events.form');
                 Route::patch('/events/{event}', [CalendarController::class, 'update'])->name('events.update');
                 Route::delete('/events/{event}', [CalendarController::class, 'destroy'])->name('events.destroy');
                 // Days inside a multi-day event: marks by day index, a note per date (design C15-C17).

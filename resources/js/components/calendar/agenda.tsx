@@ -74,6 +74,7 @@ export function AgendaRow({ item, day, onToggle }: { item: CalItem; day: string;
     );
     return (
         <Link
+            data-cal-item={itemKey(item)} // the calendar's right-click menu (calendar-menu.tsx) reads what it's about from these
             // A multi-day event opens on the day that was tapped (its day sheet), not just the event.
             href={dayInfo || (total > 1 && item.kind === 'event' && item.source === 'calendar') ? `${item.href}?day=${day}` : item.href}
             // A multi-day all-day thing is tinted, so "today is part of the trip" reads at a glance (C5).
@@ -140,7 +141,7 @@ export function DayList({
             (a.startTime ? 1 : 0) - (b.startTime ? 1 : 0) || (a.startTime ?? '').localeCompare(b.startTime ?? '') || a.title.localeCompare(b.title),
     );
     return (
-        <section className="flex flex-col gap-2">
+        <section data-day={day} className="flex flex-col gap-2">
             <DayHeading day={day} today={today} count={count ? rows.length : undefined} />
             {rows.length ? (
                 <div className="bg-surface-card divide-y overflow-hidden rounded-2xl border">
@@ -197,6 +198,7 @@ export function WeekStrip({
                         <button
                             key={d}
                             type="button"
+                            data-day={d}
                             onClick={() => onSelect(d)}
                             aria-pressed={on}
                             aria-label={weekday(d, { weekday: 'long', day: 'numeric', month: 'long' })}
@@ -221,6 +223,7 @@ export function WeekStrip({
                 return (
                     <Link
                         key={itemKey(b)}
+                        data-cal-item={itemKey(b)}
                         href={b.href}
                         // The band covers its days; a short one's words carry on past it rather than being cut.
                         className={`mt-1.5 flex h-6 items-center gap-1.5 rounded-md px-2 text-xs font-semibold whitespace-nowrap ${itemTone(b.color)}`}

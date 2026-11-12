@@ -443,6 +443,8 @@ class CalendarEvent extends Model
             $icon = $e->icon ?: IconGuess::first($e->title) ?: (CalendarCategory::lookup($e->category)['icon'] ?? 'calendar');
             $days = (int) $e->start_date->diffInDays($e->end_date);
             $editable = self::editableBy($e, $userId);
+            // Right-click › Delete (design 04b D4) is offered only to whoever may delete it: the creator (CalendarController::destroy).
+            $deletable = ['deletable' => (int) $e->created_by === $userId];
             foreach (Occurrences::starts($e->start_date->toDateString(), $e->end_date->toDateString(), $e->repeat, $e->repeat_interval, $e->repeat_until?->toDateString(), $from, $to) as $start) {
                 $items[] = CalendarSources::item(
                     'event', $e->id, $e->title, $start, CarbonImmutable::parse($start)->addDays($days)->toDateString(),
@@ -452,7 +454,7 @@ class CalendarEvent extends Model
                     days: isset($decor[$e->id]) || isset($todoCounts[$e->id])
                         ? self::occurrenceDays($decor[$e->id] ?? ['marks' => [], 'notes' => []], $start, $days, $todoCounts[$e->id] ?? [])
                         : null,
-                );
+                ) + $deletable;
             }
         }
 

@@ -48,3 +48,16 @@ export function useAddActions(actions: AddAction[]): void {
 export function useAddAction(fn: (() => void) | null, info: AddActionInfo): void {
     useAddActions(fn ? [{ ...info, run: fn }] : []);
 }
+
+// Opening Add from outside the phone's "+" (design 01c): the desktop top bar's "+ Add", the N key and the calendar's
+// right-click menu. The Add sheet lives in MobileTabBar (rendered at every width; only its bar is phone-only), which
+// registers the opener. `sheet`: always the Add sheet, never the page's own add (right-click › Add anything). `paste`:
+// the sheet in Just say it with the clipboard read in (right-click › Paste). Neither: exactly what the phone's "+" does.
+export type OpenAddOptions = { sheet?: boolean; paste?: boolean };
+let opener: ((o: OpenAddOptions) => void) | null = null;
+export function openAdd(o: OpenAddOptions = {}): void {
+    opener?.(o);
+}
+export function setAddOpener(fn: ((o: OpenAddOptions) => void) | null): void {
+    opener = fn;
+}

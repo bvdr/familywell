@@ -86,6 +86,7 @@ export function EventSheet({
     projects,
     categories,
     pickDate,
+    preset,
 }: {
     open: boolean;
     onOpenChange: (v: boolean) => void;
@@ -96,9 +97,10 @@ export function EventSheet({
     projects: Named[] | null;
     categories: CalCategory[];
     pickDate?: boolean; // open with the start date's calendar showing (the event page's date line was tapped)
+    preset?: Partial<EventForm>; // a new event's starting values (right-click › Trip starting <day>: all day, Trips)
 }) {
     const t = useT();
-    const [f, setF] = useState<EventForm>(event ?? blank(defaultDate));
+    const [f, setF] = useState<EventForm>(event ?? { ...blank(defaultDate), ...preset });
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
     const [view, setView] = useState<View>('form');
@@ -131,7 +133,7 @@ export function EventSheet({
     if (open !== wasOpen) {
         setWasOpen(open);
         if (open) {
-            setF(event ?? blank(defaultDate));
+            setF(event ?? { ...blank(defaultDate), ...preset });
             setErrors({});
             setView('form');
             setMoreIcons(false);

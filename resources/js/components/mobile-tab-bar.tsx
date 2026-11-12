@@ -2,7 +2,7 @@ import { JustSayIt, type SubView } from '@/components/add-just-say-it';
 import { Segmented } from '@/components/segmented';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useNavPins } from '@/hooks/use-nav-pins';
-import { addActions, runAddAction } from '@/lib/add-action';
+import { addActions, runAddAction, setAddOpener } from '@/lib/add-action';
 import { useT } from '@/lib/i18n';
 import { markRootTap } from '@/lib/nav-origin';
 import { prefetchedAt } from '@/lib/prefetch-watch';
@@ -154,7 +154,7 @@ function useOnOpen<T>(open: boolean, url: string): T | null {
 const sectionLabel = 'text-muted-foreground px-1 font-mono text-xs font-semibold tracking-[0.14em] uppercase';
 const iconBox = 'bg-surface-card text-primary flex size-11 items-center justify-center rounded-xl border';
 
-export function MobileTabBar() {
+export function MobileTabBar({ hideBar = false }: { hideBar?: boolean }) {
     const page = usePage<{ modules?: { enabled?: string[] }; aiAdd?: boolean }>();
     const aiAdd = !!page.props.aiAdd;
     const t = useT();
@@ -168,6 +168,39 @@ export function MobileTabBar() {
 
     const [moreOpen, setMoreOpen] = useState(false);
     const [addOpen, setAddOpen] = useState(false);
+    // Right-click › Paste: the sheet opens in Just say it and reads the clipboard in (cleared when it closes).
+    const [paste, setPaste] = useState(false);
+    // With "Just say it" on, + always opens the sheet (the page is its context); the page's own add is the first row of
+    // Classic. Without it, the page's add runs as before.
+    const plus = () => {
+        if (aiAdd || !runAddAction()) setAddOpen(true);
+    };
+    const plusRef = useRef(plus);
+    plusRef.current = plus;
+    useEffect(() => {
+        // The other ways in (lib/add-action openAdd): desktop "+ Add", right-click › Add anything / Paste.
+        setAddOpener((o) => {
+            setPaste(!!o.paste);
+            if (o.sheet || o.paste) setAddOpen(true);
+            else plusRef.current();
+        });
+        // N on any page opens Add (design 01c KEYS), unless you're typing, a modifier is held (⌘N is the browser's),
+        // or a dialog / menu is already open.
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key !== 'n' && e.key !== 'N') return;
+            if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+            const el = e.target as HTMLElement | null;
+            if (el?.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]')) return;
+            if (document.querySelector('[role="dialog"], [role="menu"]')) return;
+            e.preventDefault();
+            plusRef.current();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => {
+            setAddOpener(null);
+            window.removeEventListener('keydown', onKey);
+        };
+    }, []);
     const [pending, setPending] = useState<string | null>(null);
     useEffect(() => {
         const offFinish = router.on('finish', (e) => {
@@ -190,60 +223,66 @@ export function MobileTabBar() {
         <>
             {/* translateZ(0) promotes the bar to its own layer so iOS standalone PWAs keep it pinned to
                 the viewport bottom instead of letting it scroll with the body (a known iOS fixed bug). */}
-            <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex [transform:translateZ(0)] items-center gap-2.5 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden [@media(display-mode:standalone)]:pb-[max(0.5rem,calc(env(safe-area-inset-bottom)/2))]">
-                {/* Pill fills the width; the + stays a fixed circle on the right. */}
-                <div className="border-border/60 bg-surface-card/75 pointer-events-auto flex flex-1 items-center justify-around gap-0.5 rounded-full border p-1.5 shadow-[var(--shadow-fw-md)] backdrop-blur-xl">
-                    {[HOME, ...pinned].map((item) => {
-                        const active = isActive(item.url);
-                        const loading = pending === item.url;
-                        return (
-                            <Link
-                                key={item.key}
-                                href={item.url}
-                                onClick={() => {
-                                    markRootTap();
-                                    setPending(item.url);
-                                    refreshIfStale(item.url);
-                                }}
-                                prefetch="mount"
-                                cacheFor={TAB_CACHE}
-                                className={`${cell} ${active ? 'bg-accent-subtle text-primary font-semibold' : 'text-text-muted'}`}
-                            >
-                                {loading ? <Loader2 className="size-5.5 animate-spin" /> : <item.icon className="size-5.5" />}
-                                {/* A span, not a bare text node, so a label too long for the bar (Dutch "Boodschappen" did) truncates inside its
+            {!hideBar && (
+                <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex [transform:translateZ(0)] items-center gap-2.5 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden [@media(display-mode:standalone)]:pb-[max(0.5rem,calc(env(safe-area-inset-bottom)/2))]">
+                    {/* Pill fills the width; the + stays a fixed circle on the right. */}
+                    <div className="border-border/60 bg-surface-card/75 pointer-events-auto flex flex-1 items-center justify-around gap-0.5 rounded-full border p-1.5 shadow-[var(--shadow-fw-md)] backdrop-blur-xl">
+                        {[HOME, ...pinned].map((item) => {
+                            const active = isActive(item.url);
+                            const loading = pending === item.url;
+                            return (
+                                <Link
+                                    key={item.key}
+                                    href={item.url}
+                                    onClick={() => {
+                                        markRootTap();
+                                        setPending(item.url);
+                                        refreshIfStale(item.url);
+                                    }}
+                                    prefetch="mount"
+                                    cacheFor={TAB_CACHE}
+                                    className={`${cell} ${active ? 'bg-accent-subtle text-primary font-semibold' : 'text-text-muted'}`}
+                                >
+                                    {loading ? <Loader2 className="size-5.5 animate-spin" /> : <item.icon className="size-5.5" />}
+                                    {/* A span, not a bare text node, so a label too long for the bar (Dutch "Boodschappen" did) truncates inside its
                                     min-w-0 cell instead of spilling over the next tab. */}
-                                <span className="max-w-full truncate">{t(item.labelKey)}</span>
-                            </Link>
-                        );
-                    })}
+                                    <span className="max-w-full truncate">{t(item.labelKey)}</span>
+                                </Link>
+                            );
+                        })}
+                        <button
+                            type="button"
+                            onClick={() => setMoreOpen(true)}
+                            className={`${cell} ${moreActive ? 'bg-accent-subtle text-primary font-semibold' : 'text-text-muted'}`}
+                        >
+                            <MoreHorizontal className="size-5.5" />
+                            {t('nav.more')}
+                        </button>
+                    </div>
+
+                    {/* Detached sun add button on the right (Slack-style separate action). Context-aware:
+                    if the current page claimed it (useAddAction) run that; else open the Add sheet. */}
                     <button
                         type="button"
-                        onClick={() => setMoreOpen(true)}
-                        className={`${cell} ${moreActive ? 'bg-accent-subtle text-primary font-semibold' : 'text-text-muted'}`}
+                        onClick={plus}
+                        aria-label={t('create.title')}
+                        data-tour="add"
+                        className="bg-accent-strong text-accent-strong-foreground pointer-events-auto flex size-14 shrink-0 items-center justify-center rounded-full shadow-[var(--shadow-fw-md)] transition-transform active:scale-95"
                     >
-                        <MoreHorizontal className="size-5.5" />
-                        {t('nav.more')}
+                        <Plus className="size-6" />
                     </button>
-                </div>
+                </nav>
+            )}
 
-                {/* Detached sun add button on the right (Slack-style separate action). Context-aware:
-                    if the current page claimed it (useAddAction) run that; else open the Add sheet. */}
-                <button
-                    type="button"
-                    onClick={() => {
-                        // With "Just say it" on, + always opens the sheet (the page is its context); the page's own
-                        // add is the first row of Classic. Without it, the page's add runs as before.
-                        if (aiAdd || !runAddAction()) setAddOpen(true);
-                    }}
-                    aria-label={t('create.title')}
-                    data-tour="add"
-                    className="bg-accent-strong text-accent-strong-foreground pointer-events-auto flex size-14 shrink-0 items-center justify-center rounded-full shadow-[var(--shadow-fw-md)] transition-transform active:scale-95"
-                >
-                    <Plus className="size-6" />
-                </button>
-            </nav>
-
-            <AddSheet open={addOpen} onOpenChange={setAddOpen} enabled={enabled} />
+            <AddSheet
+                open={addOpen}
+                onOpenChange={(v) => {
+                    setAddOpen(v);
+                    if (!v) setPaste(false);
+                }}
+                enabled={enabled}
+                paste={paste}
+            />
             <MoreSheet
                 open={moreOpen}
                 onOpenChange={setMoreOpen}
@@ -274,7 +313,17 @@ type Usage = {
     ai: { available: boolean; pointsLeft: number | null; limit: number | null };
 };
 
-function AddSheet({ open, onOpenChange, enabled }: { open: boolean; onOpenChange: (open: boolean) => void; enabled: string[] }) {
+function AddSheet({
+    open,
+    onOpenChange,
+    enabled,
+    paste,
+}: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    enabled: string[];
+    paste: boolean; // right-click › Paste: open in Just say it and read the clipboard in
+}) {
     const t = useT();
     const data = useOnOpen<Usage>(open, '/add/usage');
     const [mode, setModeState] = useState<'say' | 'classic'>(() => {
@@ -286,6 +335,7 @@ function AddSheet({ open, onOpenChange, enabled }: { open: boolean; onOpenChange
         }
     });
     const setMode = (m: 'say' | 'classic') => {
+        setForceSay(false);
         setModeState(m);
         try {
             localStorage.setItem(MODE_KEY, m);
@@ -300,6 +350,13 @@ function AddSheet({ open, onOpenChange, enabled }: { open: boolean; onOpenChange
         if (!open) setSub(null);
     }, [open]);
     const ai = data?.ai.available ?? false;
+    // Paste goes to Just say it for this opening only (the remembered mode stays what the person picked), until they
+    // switch modes themselves.
+    const [forceSay, setForceSay] = useState(false);
+    useEffect(() => {
+        if (open) setForceSay(paste);
+    }, [open, paste]);
+    const shownMode = forceSay && ai ? 'say' : mode;
     // Read when the sheet renders: what the page that claimed the + adds (only reachable here when "Just say it" is on).
     // Inside a module the sheet is just these (no "Most used" / "Everything else": too crowded, the user 2026-11-10).
     const pageActions = open ? addActions() : [];
@@ -455,7 +512,7 @@ function AddSheet({ open, onOpenChange, enabled }: { open: boolean; onOpenChange
                 {ai && !sub && (
                     <Segmented
                         ariaLabel={t('create.title')}
-                        value={mode}
+                        value={shownMode}
                         onChange={setMode}
                         options={[
                             { value: 'say', label: t('add.say_it') },
@@ -463,8 +520,14 @@ function AddSheet({ open, onOpenChange, enabled }: { open: boolean; onOpenChange
                         ]}
                     />
                 )}
-                {ai && mode === 'say' ? (
-                    <JustSayIt onClose={close} onClassic={() => setMode('classic')} pointsLeft={data?.ai.pointsLeft ?? null} onSubView={setSub} />
+                {ai && shownMode === 'say' ? (
+                    <JustSayIt
+                        onClose={close}
+                        onClassic={() => setMode('classic')}
+                        pointsLeft={data?.ai.pointsLeft ?? null}
+                        onSubView={setSub}
+                        pasteOnOpen={paste}
+                    />
                 ) : (
                     classic
                 )}

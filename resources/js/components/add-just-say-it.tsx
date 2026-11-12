@@ -153,11 +153,13 @@ export function JustSayIt({
     onClassic,
     pointsLeft: initialPoints,
     onSubView,
+    pasteOnOpen,
 }: {
     onClose: () => void;
     onClassic: () => void;
     pointsLeft: number | null;
     onSubView?: (sub: SubView | null) => void;
+    pasteOnOpen?: boolean; // right-click › Paste: read the clipboard in as soon as the box shows
 }) {
     const t = useT();
     const [text, setText] = useState('');
@@ -252,6 +254,13 @@ export function JustSayIt({
             setPasteNote(t('add.clipboard_denied'));
         }
     };
+
+    // Once, on mount: the menu click that asked for it is the reason to read the clipboard. A refused read leaves the
+    // same "allow clipboard" note the button does, and the button still works.
+    useEffect(() => {
+        if (pasteOnOpen && canPaste) void pasteFromClipboard();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const addFiles = async (files: FileList | File[] | null) => {
         const list = Array.from(files ?? []).filter((f) => f.type.startsWith('image/'));

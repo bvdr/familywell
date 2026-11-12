@@ -65,6 +65,7 @@ export function MonthView({
                                         <button
                                             key={d}
                                             type="button"
+                                            data-day={d} // the right-click menu's day (calendar-menu.tsx)
                                             onClick={() => onSelect(d)}
                                             aria-pressed={d === selected}
                                             aria-label={new Date(d + 'T12:00').toLocaleDateString(locale, { day: 'numeric', month: 'long' })}
@@ -103,6 +104,7 @@ export function MonthView({
                                             return (
                                                 <Link
                                                     key={itemKey(p.item)}
+                                                    data-cal-item={itemKey(p.item)}
                                                     href={p.item.href}
                                                     title={p.item.title}
                                                     className={`absolute flex h-5 items-center overflow-hidden px-1.5 text-[11px] font-semibold whitespace-nowrap ${itemTone(p.item.color)} ${starts ? 'rounded-l-md' : ''} ${ends ? 'rounded-r-md' : ''}`}
@@ -133,6 +135,7 @@ export function MonthView({
                                             <button
                                                 key={d}
                                                 type="button"
+                                                data-day={d}
                                                 onClick={() => onSelect(d)}
                                                 className="text-muted-foreground font-mono text-[10px] font-semibold"
                                             >
