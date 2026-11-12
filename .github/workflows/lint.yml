@@ -30,7 +30,8 @@ jobs:
           npm install
 
       - name: Run Pint
-        run: vendor/bin/pint
+        # --parallel: one process per core; the single-process run took ~1m45.
+        run: vendor/bin/pint --parallel
 
       - name: Format Frontend
         run: npm run format

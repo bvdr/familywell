@@ -68,9 +68,15 @@ jobs:
   # UI guardrail: every page at 390x844 and 1280x800, signed in as the seeded demo family, must have no
   # sideways scroll, cut-off content or overlapping text (tests/Viewports, playwright.config.ts); plus the
   # edit-and-save flows and the MCP widgets.
+  # Split across 3 machines (2026-11-12): one runner took ~3m45 of Playwright on top of ~2 min of setup, the slowest
+  # check on every PR. Each shard repeats the setup but runs a third of the pages.
   viewports:
-    name: viewports
+    name: viewports (${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
 
     steps:
       - name: Checkout
@@ -122,13 +128,13 @@ jobs:
         env:
           # php artisan serve with several workers, so parallel page loads don't queue behind each other.
           PHP_CLI_SERVER_WORKERS: 8
-        run: npm run test:viewports
+        run: npm run test:viewports -- --shard=${{ matrix.shard }}/3
 
       - name: Upload viewport screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: viewport-screenshots
+          name: viewport-screenshots-${{ matrix.shard }}
           path: |
             tests/Viewports/screenshots/
             tests/Viewports/report/
