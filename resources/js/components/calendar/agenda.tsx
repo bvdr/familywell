@@ -269,9 +269,12 @@ export function AgendaView({
         <div className="flex flex-col gap-5">
             <WeekStrip days={days} items={items} today={today} selected={selected} onSelect={onSelect} onSwipe={onWeek} />
             {listed.length === 0 && <p className="text-muted-foreground py-4 text-center text-sm">{t('calendar.nothing_week')}</p>}
-            {listed.map((d) => (
-                <DayList key={d} items={items} day={d} today={today} onToggle={onToggle} />
-            ))}
+            {/* Desktop: the days flow down the left column and on into the right (like the timeline's list, user Nov 12). */}
+            <div className="gap-5 md:columns-2 [&>*]:mb-5 [&>*]:min-w-0 [&>*]:break-inside-avoid">
+                {listed.map((d) => (
+                    <DayList key={d} items={items} day={d} today={today} onToggle={onToggle} />
+                ))}
+            </div>
         </div>
     );
 }

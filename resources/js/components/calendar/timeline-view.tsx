@@ -519,18 +519,18 @@ export const TimelineView = forwardRef<
                 )}
             </div>
 
-            {/* min-w-0 children: a long "who" line must truncate, not widen the page. */}
-            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 [&>*]:min-w-0">
-                {/* Every day on screen that has something, in order, so a swipe shows what's in those days without
-                    tapping each one (user, Nov 3). Tapping a day scrolls to its heading. */}
-                <div className="flex flex-col gap-5">
-                    {inView.length === 0 && <p className="text-muted-foreground px-1 text-sm">{t('calendar.nothing_range')}</p>}
-                    {inView.map((d) => (
-                        <div key={d} id={`day-${d}`} className="scroll-mt-4">
-                            <DayList items={all} day={d} today={today} onToggle={toggle} count />
-                        </div>
-                    ))}
-                </div>
+            {/* Every day on screen that has something, in order, so a swipe shows what's in those days without tapping each
+                one (user, Nov 3). Tapping a day scrolls to its heading. Desktop: the day cards flow down the left column and
+                on into the right one (newspaper columns, so each column still reads in date order), and Further out comes
+                last; a fixed left = days / right = Further out split left the right half empty whenever nothing big was
+                coming (user, Nov 12). break-inside-avoid keeps a day's card whole; min-w-0 lets a long "who" line truncate. */}
+            <div className="gap-5 md:columns-2 [&>*]:mb-5 [&>*]:min-w-0 [&>*]:break-inside-avoid">
+                {inView.length === 0 && <p className="text-muted-foreground px-1 text-sm">{t('calendar.nothing_range')}</p>}
+                {inView.map((d) => (
+                    <div key={d} id={`day-${d}`} className="scroll-mt-4">
+                        <DayList items={all} day={d} today={today} onToggle={toggle} count />
+                    </div>
+                ))}
                 {/* Desktop (D2): further out, the next few months' big things. */}
                 {ahead.length > 0 && (
                     <section className="hidden flex-col gap-2 md:flex">
