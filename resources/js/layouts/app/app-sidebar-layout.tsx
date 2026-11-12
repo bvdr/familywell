@@ -47,7 +47,8 @@ export default function AppSidebarLayout({
                     itself uses, so the last row never hides under it on notched phones. */}
                 <div className={hideTabBar ? 'md:pb-0' : 'pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0'}>{children}</div>
             </AppContent>
-            {!hideTabBar && <MobileTabBar />}
+            {/* Always mounted: it also owns the Add sheet that desktop's "+ Add" and N open. hideTabBar hides only the bar. */}
+            <MobileTabBar hideBar={hideTabBar} />
             <InstallNudge />
             {/* A new deploy while the app is open: Refresh when it suits (design ntvzN). */}
             <UpdateNudge />

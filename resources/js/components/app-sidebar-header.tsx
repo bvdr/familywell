@@ -1,9 +1,10 @@
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Plus } from 'lucide-react';
 
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { HomeTopBar } from '@/components/home-top-bar';
 import { NotificationsBell } from '@/components/notifications-bell';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { openAdd } from '@/lib/add-action';
 import { useT } from '@/lib/i18n';
 import { useNavMode } from '@/lib/nav-origin';
 import { type BreadcrumbItem as BreadcrumbItemType } from '@/types';
@@ -53,6 +54,17 @@ export function AppSidebarHeader({
                 {/* Global notifications bell + any per-page actions, pinned to the right. */}
                 <div className="flex shrink-0 items-center gap-2 pl-2">
                     {actions}
+                    {/* Desktop "+ Add" (design 01c A1): the phone's sun "+" for a big screen, same sheet, same page actions.
+                        Phones keep the floating "+" in the tab bar. N does the same from the keyboard (MobileTabBar). */}
+                    <button
+                        type="button"
+                        onClick={() => openAdd()}
+                        aria-keyshortcuts="N"
+                        className="bg-accent-strong text-accent-strong-foreground border-primary flex h-10 items-center gap-1.5 rounded-full border-2 px-4 text-sm font-bold transition-transform active:scale-95 max-md:hidden"
+                    >
+                        <Plus className="size-4.5" />
+                        {t('create.title')}
+                    </button>
                     <NotificationsBell />
                 </div>
             </header>
