@@ -16,6 +16,7 @@ import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useAddAction } from '@/lib/add-action';
 import { useT } from '@/lib/i18n';
+import { backClick } from '@/lib/nav-origin';
 import { save } from '@/lib/save';
 import { aisleIcon } from '@/lib/shopping';
 import { newClientKey, PendingAdds, saveTick, send, useQueuedBought } from '@/lib/shopping-outbox';
@@ -236,6 +237,7 @@ export default function ShopDetail({
                 <div className="flex items-center gap-2">
                     <Link
                         href="/m/shopping/shops"
+                        onClick={backClick}
                         aria-label={t('shopping.back_to_shops')}
                         className="text-muted-foreground hover:text-primary -ml-1 flex size-8 items-center justify-center"
                     >

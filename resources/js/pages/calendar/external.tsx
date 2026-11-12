@@ -4,6 +4,7 @@ import { CalendarDays, ChevronLeft, MapPin } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { daysBetween } from '@/lib/calendar';
 import { useLocale, useT } from '@/lib/i18n';
+import { backClick } from '@/lib/nav-origin';
 import { itemTone } from '@/lib/tasks';
 
 type ExternalEvent = {
@@ -41,6 +42,7 @@ export default function ExternalEvent({ event, calendar }: { event: ExternalEven
             mobileHeader={
                 <Link
                     href="/m/calendar"
+                    onClick={backClick}
                     prefetch
                     className="bg-surface text-primary inline-flex min-h-10 items-center gap-1.5 rounded-full py-2 pr-4 pl-3 text-base font-semibold"
                 >

@@ -19,6 +19,7 @@ import { useAddAction } from '@/lib/add-action';
 import { daysBetween, type CalCategory } from '@/lib/calendar';
 import { localToday } from '@/lib/date-groups';
 import { useLocale, useT } from '@/lib/i18n';
+import { backClick } from '@/lib/nav-origin';
 import { itemTone } from '@/lib/tasks';
 
 type Payload = Omit<EventForm, 'project'> & {
@@ -140,6 +141,7 @@ export default function CalendarEvent({
         <div className="flex w-full items-center justify-between gap-2">
             <Link
                 href="/m/calendar"
+                onClick={backClick}
                 prefetch
                 className="bg-surface text-primary inline-flex min-h-10 items-center gap-1.5 rounded-full py-2 pr-4 pl-3 text-base font-semibold"
             >

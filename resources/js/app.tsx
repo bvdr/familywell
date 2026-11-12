@@ -24,6 +24,8 @@ import '@fontsource/playfair-display/700.css';
 import '../css/app.css';
 
 import { createInertiaApp, router } from '@inertiajs/react';
+// Registers before the first page so the first navigate is seen (phone header: back vs family bar).
+import '@/lib/nav-origin';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import * as React from 'react';
 import { createRoot } from 'react-dom/client';

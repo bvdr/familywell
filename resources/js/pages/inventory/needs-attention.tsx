@@ -6,6 +6,7 @@ import { AddToShoppingButton, CategoryTile, QtyBar, QtyText, StateBadge } from '
 import AppLayout from '@/layouts/app-layout';
 import { useT, type TFn } from '@/lib/i18n';
 import { byKey, type InvCategory, type InvItem, type InvLocation } from '@/lib/inventory';
+import { backClick } from '@/lib/nav-origin';
 import type { BreadcrumbItem } from '@/types';
 
 // STALE_AFTER_DAYS on the server (InventoryItem::STALE_AFTER_DAYS). Mirrored here only for the section's
@@ -52,13 +53,17 @@ export default function InventoryNeedsAttention({ empty, low, expiring, stale, t
     const bulkCount = replenishable.filter((i) => !i.onShoppingList).length;
 
     const addAll = () =>
-        router.post(route('inventory.shopping.add-low'), {}, { preserveScroll: true, onStart: () => setAddingAll(true), onFinish: () => setAddingAll(false) });
+        router.post(
+            route('inventory.shopping.add-low'),
+            {},
+            { preserveScroll: true, onStart: () => setAddingAll(true), onFinish: () => setAddingAll(false) },
+        );
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={t('inventory.needs_attention_title')} />
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 p-4">
-                <Link href="/m/inventory" className="text-muted-foreground flex items-center gap-1.5 text-sm">
+                <Link onClick={backClick} href="/m/inventory" className="text-muted-foreground flex items-center gap-1.5 text-sm">
                     <ArrowLeft className="size-4" /> {t('inventory.title')}
                 </Link>
 
@@ -127,7 +132,10 @@ export default function InventoryNeedsAttention({ empty, low, expiring, stale, t
 function AllGood({ t }: { t: TFn }) {
     return (
         <div className="bg-surface-card flex flex-col items-center gap-3 rounded-2xl border px-6 py-14 text-center">
-            <span className="flex size-14 items-center justify-center rounded-2xl text-[var(--success)]" style={{ background: 'color-mix(in srgb, var(--success) 14%, transparent)' }}>
+            <span
+                className="flex size-14 items-center justify-center rounded-2xl text-[var(--success)]"
+                style={{ background: 'color-mix(in srgb, var(--success) 14%, transparent)' }}
+            >
                 <CheckCircle2 className="size-7" />
             </span>
             <h2 className="font-heading text-primary text-xl">{t('inventory.all_good_title')}</h2>

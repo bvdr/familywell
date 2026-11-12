@@ -129,8 +129,12 @@ test.describe('phone navigation', () => {
         page.locator(selector).evaluateAll((els) => els.map((e) => [e.textContent?.trim(), Math.round(e.getBoundingClientRect().height)] as const));
 
     test('nav-drawer', async ({ page }, info) => {
-        // Not Home: its phone top bar (family, search, alerts, avatar) replaces the header with the sidebar toggle.
-        await page.goto('/m/shopping');
+        // A page opened straight (no history) gets the family top bar on phones, and a page reached from inside the app
+        // gets a back button (lib/nav-origin); a page with its own header actions (a project) keeps the sidebar toggle.
+        await page.goto('/m/projects');
+        await page.waitForLoadState('networkidle');
+        const project = await page.locator('a[href*="/m/projects/"]').first().getAttribute('href');
+        await page.goto(project!);
         await page.getByRole('button', { name: 'Toggle Sidebar' }).click();
         const drawer = page.locator('[data-mobile="true"]');
         await expect(drawer).toBeVisible();

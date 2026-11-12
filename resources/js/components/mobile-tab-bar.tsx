@@ -4,6 +4,7 @@ import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { useNavPins } from '@/hooks/use-nav-pins';
 import { addActions, runAddAction } from '@/lib/add-action';
 import { useT } from '@/lib/i18n';
+import { markRootTap } from '@/lib/nav-origin';
 import { prefetchedAt } from '@/lib/prefetch-watch';
 import { Link, router, usePage } from '@inertiajs/react';
 import {
@@ -200,6 +201,7 @@ export function MobileTabBar() {
                                 key={item.key}
                                 href={item.url}
                                 onClick={() => {
+                                    markRootTap();
                                     setPending(item.url);
                                     refreshIfStale(item.url);
                                 }}
@@ -251,6 +253,7 @@ export function MobileTabBar() {
                 togglePin={togglePin}
                 isActive={isActive}
                 onGo={(url) => {
+                    markRootTap(); // opened "from the top": the family bar, not a back button (lib/nav-origin)
                     setMoreOpen(false);
                     setPending(url);
                 }}

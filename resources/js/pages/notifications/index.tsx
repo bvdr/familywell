@@ -5,6 +5,7 @@ import { useRef, useState } from 'react';
 import { MemberAvatar } from '@/components/member-avatar';
 import AppLayout from '@/layouts/app-layout';
 import { appLocale, useLocale, useT, type TFn } from '@/lib/i18n';
+import { backClick } from '@/lib/nav-origin';
 import { dismissNotification, markAllRead, markRead, type Notification } from '@/lib/notifications';
 import { type BreadcrumbItem } from '@/types';
 
@@ -156,6 +157,7 @@ export default function NotificationsIndex({ feed = [] }: { feed?: Notification[
                 <div className="flex items-center justify-between">
                     <Link
                         href="/dashboard"
+                        onClick={backClick}
                         className="border-border bg-surface-card text-primary inline-flex items-center gap-1 rounded-full border py-1.5 pr-3.5 pl-2.5 text-sm font-medium"
                     >
                         <ChevronLeft className="size-4" /> {t('nav.home')}

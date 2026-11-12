@@ -1,5 +1,18 @@
 [
     {
+        "version": "1.13",
+        "date": "2026-11-12",
+        "items": [
+            {
+                "module": "app",
+                "title": "A back button that takes you back",
+                "text": "Open something from another module (a birthday from Home, a task from the calendar) and the top bar shows a back arrow. Tap it as many times as you like to retrace your steps. Open a module from the tab bar or More and you get the family bar instead.",
+                "href": "/dashboard"
+            }
+        ],
+        "fixes": []
+    },
+    {
         "version": "1.12",
         "date": "2026-11-10",
         "items": [
