@@ -87,9 +87,10 @@ test('inventory: edit an item name', async ({ page }, info) => {
     await dialog.locator('input').first().fill(name);
     await dialog.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(dialog).toBeHidden();
-    await expect(page.getByText(name).first()).toBeVisible();
+    // The page title, not getByText: on phones the breadcrumb that also carries the name sits in the hidden desktop header.
+    await expect(page.getByRole('heading', { name })).toBeVisible();
     await page.reload();
-    await expect(page.getByText(name).first()).toBeVisible();
+    await expect(page.getByRole('heading', { name })).toBeVisible();
 });
 
 test('vehicles: edit a car', async ({ page }, info) => {
