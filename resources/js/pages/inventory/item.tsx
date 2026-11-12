@@ -8,6 +8,7 @@ import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { appLocale, useT, type TFn } from '@/lib/i18n';
 import { byKey, catLabel, fmtNumber, locLabel, unitLabel, type InvCategory, type InvItem, type InvLocation } from '@/lib/inventory';
+import { backClick } from '@/lib/nav-origin';
 import { relativeTime } from '@/lib/notifications';
 import { save } from '@/lib/save';
 import type { BreadcrumbItem } from '@/types';
@@ -36,19 +37,25 @@ export default function InventoryItem({ item, categories, locations, shops, hist
     ];
 
     const rows: { label: string; value: string }[] = [
-        { label: t('inventory.current'), value: shownQuantity === null ? t('inventory.qty_unknown') : `${fmtNumber(shownQuantity)} ${unitLabel(t, item.unit)}` },
+        {
+            label: t('inventory.current'),
+            value: shownQuantity === null ? t('inventory.qty_unknown') : `${fmtNumber(shownQuantity)} ${unitLabel(t, item.unit)}`,
+        },
         { label: t('inventory.minimum'), value: item.minQuantity > 0 ? `${fmtNumber(item.minQuantity)} ${unitLabel(t, item.unit)}` : '—' },
         { label: t('inventory.target'), value: item.targetQuantity ? `${fmtNumber(item.targetQuantity)} ${unitLabel(t, item.unit)}` : '—' },
         { label: t('inventory.category_label'), value: catLabel(t, item.category, catMap) },
         { label: t('inventory.location_label'), value: item.location ? locLabel(t, item.location, locMap) : t('inventory.no_location') },
-        { label: t('inventory.expires_label'), value: item.expiresAt ? new Date(item.expiresAt + 'T00:00:00').toLocaleDateString(appLocale()) : t('inventory.no_expiry') },
+        {
+            label: t('inventory.expires_label'),
+            value: item.expiresAt ? new Date(item.expiresAt + 'T00:00:00').toLocaleDateString(appLocale()) : t('inventory.no_expiry'),
+        },
     ];
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={item.name} />
             <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 p-4">
-                <Link href="/m/inventory/items" className="text-muted-foreground flex items-center gap-1.5 text-sm">
+                <Link onClick={backClick} href="/m/inventory/items" className="text-muted-foreground flex items-center gap-1.5 text-sm">
                     <ArrowLeft className="size-4" /> {t('inventory.all_items')}
                 </Link>
 
@@ -71,7 +78,12 @@ export default function InventoryItem({ item, categories, locations, shops, hist
                             ) : (
                                 <>
                                     {fmtNumber(shownQuantity)}
-                                    {item.targetQuantity ? <span className="text-muted-foreground text-xl"> {t('inventory.of')} {fmtNumber(item.targetQuantity)}</span> : null}
+                                    {item.targetQuantity ? (
+                                        <span className="text-muted-foreground text-xl">
+                                            {' '}
+                                            {t('inventory.of')} {fmtNumber(item.targetQuantity)}
+                                        </span>
+                                    ) : null}
                                     <span className="text-muted-foreground ml-1 text-lg">{unitLabel(t, item.unit)}</span>
                                 </>
                             )}
@@ -133,14 +145,22 @@ export default function InventoryItem({ item, categories, locations, shops, hist
                 <section className="flex flex-col gap-2">
                     <h2 className="font-heading text-primary text-lg">{t('inventory.history')}</h2>
                     {history.length === 0 ? (
-                        <p className="text-muted-foreground bg-surface-card rounded-xl border px-4 py-6 text-center text-sm">{t('inventory.history_empty')}</p>
+                        <p className="text-muted-foreground bg-surface-card rounded-xl border px-4 py-6 text-center text-sm">
+                            {t('inventory.history_empty')}
+                        </p>
                     ) : (
                         <ul className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-2xl border">
                             {history.map((h) => (
                                 <li key={h.id} className="bg-surface-card flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
                                     <span className="text-text-secondary">
                                         {t(`inventory.log_${h.type}`)}
-                                        {h.delta !== null ? <span className="text-muted-foreground tabular-nums"> {h.delta > 0 ? '+' : ''}{fmtNumber(h.delta)} {unitLabel(t, item.unit)}</span> : null}
+                                        {h.delta !== null ? (
+                                            <span className="text-muted-foreground tabular-nums">
+                                                {' '}
+                                                {h.delta > 0 ? '+' : ''}
+                                                {fmtNumber(h.delta)} {unitLabel(t, item.unit)}
+                                            </span>
+                                        ) : null}
                                         {h.user ? <span className="text-muted-foreground"> · {h.user}</span> : null}
                                     </span>
                                     <span className="text-muted-foreground shrink-0 text-xs">{h.at ? relativeTime(h.at) : ''}</span>
@@ -158,7 +178,15 @@ export default function InventoryItem({ item, categories, locations, shops, hist
                 onOptimistic={(nextQty) => qtyOpt.set(item.id, nextQty)}
                 onReconcile={() => qtyOpt.clear(item.id)}
             />
-            <ItemFormModal open={editing} onOpenChange={setEditing} item={item} categories={categories} locations={locations} shops={shops} names={[item.name]} />
+            <ItemFormModal
+                open={editing}
+                onOpenChange={setEditing}
+                item={item}
+                categories={categories}
+                locations={locations}
+                shops={shops}
+                names={[item.name]}
+            />
         </AppLayout>
     );
 }

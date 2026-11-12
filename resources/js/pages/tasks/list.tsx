@@ -14,6 +14,7 @@ import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useAddAction } from '@/lib/add-action';
 import { useT } from '@/lib/i18n';
+import { backClick } from '@/lib/nav-origin';
 import { save } from '@/lib/save';
 import { LIST_COLORS, LIST_ICONS, listColor, listIcon } from '@/lib/tasks';
 import { type BreadcrumbItem } from '@/types';
@@ -123,6 +124,7 @@ export default function ListDetail({ list, share, members, tasks, lastDone, fami
         <div className="flex w-full items-center justify-between gap-2">
             <Link
                 href="/m/tasks"
+                onClick={backClick}
                 prefetch
                 className="bg-surface text-primary inline-flex min-h-10 items-center gap-1.5 rounded-full py-2 pr-4 pl-3 text-base font-semibold"
             >

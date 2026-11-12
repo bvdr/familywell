@@ -4,7 +4,6 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Archive, Check, ListChecks, Lock, Plus, RotateCcw, UserCheck, Users } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
-import { HomeTopBar } from '@/components/home-top-bar';
 import InputError from '@/components/input-error';
 import { MemberAvatar } from '@/components/member-avatar';
 import { Button } from '@/components/ui/button';
@@ -236,7 +235,7 @@ export default function Lists({ lists, tasks, members, doneTasks }: { lists: Lis
     };
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs} mobileHeader={<HomeTopBar />}>
+        <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={t('nav.tasks')} />
             <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
                 <div className="flex items-center justify-between gap-3">

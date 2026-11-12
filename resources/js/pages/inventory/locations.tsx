@@ -12,6 +12,7 @@ import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
 import { byKey, locLabel, type InvLocation } from '@/lib/inventory';
+import { backClick } from '@/lib/nav-origin';
 import { save } from '@/lib/save';
 import type { BreadcrumbItem } from '@/types';
 
@@ -32,7 +33,7 @@ export default function InventoryLocations({ locations, canManage }: Props) {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={t('inventory.locations_title')} />
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 p-4">
-                <Link href="/m/inventory" className="text-muted-foreground flex items-center gap-1.5 text-sm">
+                <Link onClick={backClick} href="/m/inventory" className="text-muted-foreground flex items-center gap-1.5 text-sm">
                     <ArrowLeft className="size-4" /> {t('inventory.title')}
                 </Link>
 

@@ -41,6 +41,7 @@ import { useOptimistic } from '@/hooks/use-optimistic';
 import { useVoice, voiceSupported } from '@/hooks/use-voice';
 import AppLayout from '@/layouts/app-layout';
 import { useT } from '@/lib/i18n';
+import { backClick } from '@/lib/nav-origin';
 import { save } from '@/lib/save';
 import { aisleIcon, bumpQuantity, getVoiceLang, normalizeItemName, setVoiceLang } from '@/lib/shopping';
 import { newClientKey, PendingAdds, saveTick, send, useQueuedBought } from '@/lib/shopping-outbox';
@@ -688,6 +689,7 @@ export default function ListDetail({
                 <div className="bg-background sticky top-0 z-20 -mx-4 -mt-4 flex items-center gap-2 px-4 pt-4 pb-1">
                     <Link
                         href="/m/shopping"
+                        onClick={backClick}
                         prefetch
                         className="bg-surface text-primary inline-flex min-h-11 items-center gap-1.5 rounded-full py-2 pr-4 pl-3 text-base font-semibold"
                     >

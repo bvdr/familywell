@@ -11,6 +11,7 @@ import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import AppLayout from '@/layouts/app-layout';
 import { compressImage, makeThumbnail } from '@/lib/compress-image';
 import { useLocale, useT } from '@/lib/i18n';
+import { backClick } from '@/lib/nav-origin';
 import { formatQty, scaleIngredient } from '@/lib/recipe-scale.js';
 import { unitLabel, type Recipe } from '@/lib/recipes';
 import { type BreadcrumbItem } from '@/types';
@@ -87,7 +88,7 @@ export default function RecipePage({ recipe, canEdit, canDelete, shoppingLists, 
             <Head title={recipe.title} />
             <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 p-4">
                 <div className="flex items-center justify-between gap-2">
-                    <Link href="/m/recipes" className="text-muted-foreground hover:text-primary" aria-label={t('recipes.back')}>
+                    <Link onClick={backClick} href="/m/recipes" className="text-muted-foreground hover:text-primary" aria-label={t('recipes.back')}>
                         <ArrowLeft className="size-5" />
                     </Link>
                     <div className="flex items-center gap-1.5">

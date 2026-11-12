@@ -2,6 +2,7 @@ import { Link } from '@inertiajs/react';
 import { ChevronLeft, ChevronRight, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 
+import { backClick } from '@/lib/nav-origin';
 import { cn } from '@/lib/utils';
 
 // The settings look (design boards 11 "You & family" and 12 "Me"), shared by every settings page so they all read
@@ -32,6 +33,7 @@ export function SettingsPage({
             <div className="bg-background sticky top-0 z-20 -mx-4 -mt-4 px-4 pt-4 pb-1">
                 <Link
                     href={back.href}
+                    onClick={backClick}
                     prefetch
                     className="bg-surface text-primary inline-flex min-h-11 items-center gap-1.5 rounded-full py-2 pr-4 pl-3 text-base font-semibold"
                 >

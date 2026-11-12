@@ -8,7 +8,6 @@ import { FeedSheet, type Subscription } from '@/components/calendar/feed-sheet';
 import { FilterSheet } from '@/components/calendar/filter-sheet';
 import { MonthView } from '@/components/calendar/month-view';
 import { TimelineView, type TimelineHandle } from '@/components/calendar/timeline-view';
-import { HomeTopBar } from '@/components/home-top-bar';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useAddAction } from '@/lib/add-action';
@@ -162,7 +161,7 @@ export default function CalendarIndex({
         `rounded-full px-3 py-1.5 text-sm font-semibold ${on ? 'bg-surface-card text-primary shadow-sm' : 'text-muted-foreground'}`;
 
     return (
-        <AppLayout breadcrumbs={[{ title: t('nav.calendar'), href: '/m/calendar' }]} mobileHeader={<HomeTopBar />}>
+        <AppLayout breadcrumbs={[{ title: t('nav.calendar'), href: '/m/calendar' }]}>
             <Head title={t('nav.calendar')} />
             <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-4">
                 <div className="flex items-center gap-2">
