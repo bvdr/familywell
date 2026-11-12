@@ -8,6 +8,12 @@
                 "title": "A back button that takes you back",
                 "text": "Open something from another module (a birthday from Home, a task from the calendar) and the top bar shows a back arrow. Tap it as many times as you like to retrace your steps. Open a module from the tab bar or More and you get the family bar instead.",
                 "href": "/dashboard"
+            },
+            {
+                "module": "calendar",
+                "title": "Add and right-click on a computer",
+                "text": "On a computer the top bar has + Add (or press N on any page). In the calendar, right-click a day to add an event, a to-do, a birthday or a trip on that date, or right-click an event to open, edit, recolour, duplicate or delete it.",
+                "href": "/m/calendar"
             }
         ],
         "fixes": []
