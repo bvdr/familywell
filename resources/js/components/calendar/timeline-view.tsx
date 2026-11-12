@@ -28,7 +28,13 @@ type Row = ReturnType<typeof timelineRows>[number];
 const fmt = (d: string, o: Intl.DateTimeFormatOptions) => parseDay(d).toLocaleDateString(appLocale(), o);
 const px = (n: number) => `${n}px`;
 
-export type TimelineHandle = { scrollPage: (dir: 1 | -1) => void; scrollToDay: (d: string) => void };
+// find: a thing loaded by scrolling (not in the page's items), for the right-click menu. goToday: the Today pill.
+export type TimelineHandle = {
+    scrollPage: (dir: 1 | -1) => void;
+    scrollToDay: (d: string) => void;
+    goToday: () => void;
+    find: (key: string) => CalItem | undefined;
+};
 
 async function fetchItems(from: string, to: string): Promise<CalItem[] | null> {
     try {
@@ -222,6 +228,8 @@ export const TimelineView = forwardRef<
     useImperativeHandle(ref, () => ({
         scrollPage: (dir) => box.current?.scrollBy({ left: dir * box.current.clientWidth, behavior: 'smooth' }),
         scrollToDay,
+        goToday,
+        find: (key) => byKey.get(key),
     }));
 
     // One row per thing touching the screen, oldest first; a repeating one keeps every time it falls here on its row.
@@ -331,6 +339,7 @@ export const TimelineView = forwardRef<
                                     <button
                                         key={d}
                                         type="button"
+                                        data-day={d} // the right-click menu's day (calendar-menu.tsx)
                                         onClick={() => pick(d)}
                                         aria-pressed={d === selected}
                                         className={`flex shrink-0 flex-col items-center gap-0.5 py-1.5 ${d.endsWith('-01') ? 'border-l' : ''}`}
@@ -419,6 +428,7 @@ export const TimelineView = forwardRef<
                                 return (
                                     <Link
                                         key={key}
+                                        data-cal-item={itemKey(i)}
                                         href={i.href}
                                         className={`border-border/60 relative block border-b transition-colors duration-700 ${fresh.has(key) ? 'bg-accent-strong/25' : ''}`}
                                         style={{ height: ROW_PX }}
@@ -428,6 +438,7 @@ export const TimelineView = forwardRef<
                                             // label would stick inside the bar instead of the screen's left edge.
                                             <span
                                                 key={k}
+                                                data-cal-item={itemKey(b.item)} // a repeating row: the time you clicked
                                                 className={`absolute top-1.5 bottom-1.5 flex items-center overflow-clip text-sm ${itemTone(i.color)} ${
                                                     oneDay(i)
                                                         ? 'justify-center rounded-lg'
@@ -532,7 +543,7 @@ export const TimelineView = forwardRef<
                                 const total = daysBetween(i.start, i.end) + 1;
                                 const months = Math.round(daysBetween(today, i.start) / 30);
                                 return (
-                                    <Link key={itemKey(i)} href={i.href} className="flex items-center gap-3 px-4 py-3">
+                                    <Link key={itemKey(i)} data-cal-item={itemKey(i)} href={i.href} className="flex items-center gap-3 px-4 py-3">
                                         <span className={`h-9 w-1 shrink-0 rounded-full ${stripe(i.color)}`} aria-hidden />
                                         <span className="min-w-0 flex-1">
                                             <span className="text-primary block truncate font-semibold">{i.title}</span>

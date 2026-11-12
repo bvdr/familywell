@@ -20,6 +20,7 @@ use Modules\Contacts\Person;
 use Modules\Projects\Project;
 use Modules\Tasks\Mcp\TaskData;
 use Modules\Tasks\Task;
+use Modules\Tasks\TaskList;
 
 class CalendarController extends Controller
 {
@@ -71,6 +72,8 @@ class CalendarController extends Controller
             'feedUrl' => CalendarFeed::urlFor($request->user()->id), // Task 10; null until then
             // Other calendars for the Calendars sheet. A closure, so date navigation (partial reloads of items) skips it.
             'subscriptions' => fn () => CalendarSubscriptionController::listFor($request->user()->id),
+            // Right-click › To-do due <day> (design 04b D3): the lists it can go in, loaded only when that dialog opens.
+            'todoLists' => Inertia::optional(fn () => $registry->isEnabled('tasks', $familyId) ? TaskList::pickerChoices($request->user()) : []),
         ]);
     }
 
@@ -216,6 +219,15 @@ class CalendarController extends Controller
         $event->setDayNote($date, $request->validate(['body' => ['present', 'nullable', 'string', 'max:500']])['body']);
 
         return back();
+    }
+
+    // The event sheet's values, for the calendar's right-click › Edit / Duplicate (design 04b D4): the sheet opens over
+    // the calendar instead of sending you to the event's page and back (where the copy wasn't on screen yet).
+    public function form(Request $request, CalendarEvent $event): JsonResponse
+    {
+        abort_unless($this->access->canView($request->user(), $event), 403);
+
+        return response()->json($event->toPayload());
     }
 
     public function update(Request $request, CalendarEvent $event): RedirectResponse

@@ -1,13 +1,15 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { CalendarDays, ChevronLeft, ChevronRight, Share, SlidersHorizontal } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { AgendaView, stripe } from '@/components/calendar/agenda';
-import { EventSheet } from '@/components/calendar/event-sheet';
+import { CalendarMenu } from '@/components/calendar/calendar-menu';
+import { EventSheet, type EventForm } from '@/components/calendar/event-sheet';
 import { FeedSheet, type Subscription } from '@/components/calendar/feed-sheet';
 import { FilterSheet } from '@/components/calendar/filter-sheet';
 import { MonthView } from '@/components/calendar/month-view';
 import { TimelineView, type TimelineHandle } from '@/components/calendar/timeline-view';
+import { TodoSheet, type TodoList } from '@/components/calendar/todo-sheet';
 import { useOptimistic } from '@/hooks/use-optimistic';
 import AppLayout from '@/layouts/app-layout';
 import { useAddAction } from '@/lib/add-action';
@@ -49,6 +51,7 @@ export type CalendarProps = {
     categories: CalCategory[];
     feedUrl: string | null;
     subscriptions: Subscription[];
+    todoLists?: TodoList[]; // loaded when right-click › To-do first opens (Inertia::optional)
 };
 
 // ISO week number (the agenda's "Week 43").
@@ -76,6 +79,7 @@ export default function CalendarIndex({
     categories,
     feedUrl,
     subscriptions,
+    todoLists,
 }: CalendarProps) {
     const t = useT();
     const locale = useLocale();
@@ -90,8 +94,28 @@ export default function CalendarIndex({
         setSelected((s) => (inRange(s) ? s : inRange(today) ? today : range.from));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [range.from, range.to]);
-    const [sheet, setSheet] = useState<{ open: boolean; day: string }>(() => ({ open: openNewOnArrival(), day: selected }));
+    // The event sheet: new (on a day, maybe a Trip), or right-click › Edit / Duplicate with that event's values.
+    const [sheet, setSheet] = useState<{ open: boolean; day: string; event?: EventForm | null; preset?: Partial<EventForm> }>(() => ({
+        open: openNewOnArrival(),
+        day: selected,
+    }));
     useAddAction(() => setSheet({ open: true, day: selected }), { label: 'create.calendar', icon: CalendarDays });
+    const [todoDay, setTodoDay] = useState<string | null>(null);
+    const aiAdd = !!usePage<{ aiAdd?: boolean }>().props.aiAdd;
+    // Edit / Duplicate from the right-click menu open the sheet right here (the event's page would mean a round trip
+    // back, to a calendar that didn't have the copy on it yet). A duplicate is the same values without the id, so
+    // saving creates a new event.
+    const openEvent = async (i: CalItem, copy: boolean) => {
+        const res = await fetch(`/m/calendar/events/${i.id}/form`, { headers: { Accept: 'application/json' } });
+        if (!res.ok) return;
+        const e = await res.json();
+        setSheet({
+            open: true,
+            day: e.start_date,
+            event: { ...e, id: copy ? undefined : e.id, project: e.project ? { id: e.project.id } : null },
+        });
+    };
+    const trips = categories.find((c) => c.slug === 'trips');
 
     // Drop any remembered source/person no longer valid for this family (a module disabled since it was saved, or a
     // removed member/contact) so a stale filter never silently hides everything.
@@ -267,38 +291,81 @@ export default function CalendarIndex({
                     </div>
                 )}
 
-                {view === 'agenda' ? (
-                    <AgendaView
-                        items={shown}
-                        range={range}
-                        today={today}
-                        selected={selected}
-                        onSelect={setSelected}
-                        onWeek={(dir) => step(dir)}
-                        onToggle={toggle}
-                    />
-                ) : view === 'month' ? (
-                    <MonthView items={shown} range={range} date={date} today={today} selected={selected} onSelect={setSelected} onToggle={toggle} />
-                ) : (
-                    <TimelineView
-                        ref={strip}
-                        items={shown}
-                        ahead={filterItems(ahead, filter)}
-                        filter={filter}
-                        range={range}
-                        zoom={zoom}
-                        today={today}
-                        selected={selected}
-                        onSelect={setSelected}
-                        onVisible={(from, to) => setVisible({ from, to })}
-                        onToggle={toggle}
-                    />
-                )}
+                <CalendarMenu
+                    items={[...shown, ...ahead]}
+                    find={(k) => strip.current?.find(k)}
+                    categories={categories}
+                    canPaste={aiAdd}
+                    actions={{
+                        newEvent: (day) => setSheet({ open: true, day }),
+                        // A trip takes whole days: all day, in Trips (and its colour) when the family still has it.
+                        trip: (day) =>
+                            setSheet({
+                                open: true,
+                                day,
+                                preset: { start_time: null, end_time: null, ...(trips ? { category: trips.slug, color: trips.color } : {}) },
+                            }),
+                        todo: sources.includes('tasks') ? setTodoDay : null,
+                        birthdays: sources.includes('birthdays'),
+                        openDay: (day) => {
+                            if (view === 'timeline' || inRange(day)) {
+                                setSelected(day);
+                                // Its card: the agenda's day, the list under Month, the days under the timeline.
+                                requestAnimationFrame(() =>
+                                    document
+                                        .querySelector(`section[data-day="${day}"], #day-${day}`)
+                                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+                                );
+                            } else go({ date: day });
+                        },
+                        today: () => (view === 'timeline' ? strip.current?.goToday() : go({ date: today })),
+                        edit: (i) => void openEvent(i, false),
+                        duplicate: (i) => void openEvent(i, true),
+                    }}
+                >
+                    {view === 'agenda' ? (
+                        <AgendaView
+                            items={shown}
+                            range={range}
+                            today={today}
+                            selected={selected}
+                            onSelect={setSelected}
+                            onWeek={(dir) => step(dir)}
+                            onToggle={toggle}
+                        />
+                    ) : view === 'month' ? (
+                        <MonthView
+                            items={shown}
+                            range={range}
+                            date={date}
+                            today={today}
+                            selected={selected}
+                            onSelect={setSelected}
+                            onToggle={toggle}
+                        />
+                    ) : (
+                        <TimelineView
+                            ref={strip}
+                            items={shown}
+                            ahead={filterItems(ahead, filter)}
+                            filter={filter}
+                            range={range}
+                            zoom={zoom}
+                            today={today}
+                            selected={selected}
+                            onSelect={setSelected}
+                            onVisible={(from, to) => setVisible({ from, to })}
+                            onToggle={toggle}
+                        />
+                    )}
+                </CalendarMenu>
             </div>
             <EventSheet
                 open={sheet.open}
                 onOpenChange={(open) => setSheet((s) => ({ ...s, open }))}
                 defaultDate={sheet.day}
+                event={sheet.event}
+                preset={sheet.preset}
                 members={members}
                 contacts={contacts}
                 projects={projects}
@@ -314,6 +381,7 @@ export default function CalendarIndex({
                 contacts={contacts}
                 categories={categories}
             />
+            <TodoSheet day={todoDay} onClose={() => setTodoDay(null)} lists={todoLists} />
             <FeedSheet open={feedOpen} onOpenChange={setFeedOpen} url={feedUrl} subscriptions={subscriptions} />
         </AppLayout>
     );

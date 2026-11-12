@@ -18,6 +18,7 @@ export type CalItem = {
     people: CalPerson[];
     done: boolean;
     editable: boolean;
+    deletable?: boolean; // calendar events: you made it, so right-click › Delete is yours to use
     sub?: string | null; // a second line where people alone don't say it (a to-do's list)
     category?: string | null; // calendar events only: a CalCategory slug
     // Multi-day events only: what each day holds, keyed by day index from THIS occurrence's start (day 1 = 0).
