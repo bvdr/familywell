@@ -160,6 +160,7 @@ class NotesController extends Controller
 
     public function updateFolder(Request $request, Folder $folder): RedirectResponse
     {
+        abort_unless((int) $folder->family_id === (int) CurrentFamily::id(), 403);
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
             'color' => ['sometimes', 'string', 'max:20'],
@@ -171,6 +172,7 @@ class NotesController extends Controller
 
     public function destroyFolder(Request $request, Folder $folder): RedirectResponse
     {
+        abort_unless((int) $folder->family_id === (int) CurrentFamily::id(), 403);
         // Notes inside detach (folder_id -> null via nullOnDelete), they are not deleted.
         $folder->delete();
 
