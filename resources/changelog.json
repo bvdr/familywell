@@ -1,5 +1,11 @@
 [
     {
+        "version": "1.14",
+        "date": "2026-11-16",
+        "items": [],
+        "fixes": ["On the calendar's Month view, swipe the grid sideways to go to the next or previous month, as far as you like"]
+    },
+    {
         "version": "1.13",
         "date": "2026-11-12",
         "items": [
