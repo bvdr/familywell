@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import { useRef } from 'react';
 
 import { DayList, stripe, takesADay } from '@/components/calendar/agenda';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -20,6 +21,7 @@ export function MonthView({
     selected,
     onSelect,
     onToggle,
+    onSwipe,
 }: {
     items: CalItem[];
     range: { from: string; to: string };
@@ -28,6 +30,7 @@ export function MonthView({
     selected: string;
     onSelect: (day: string) => void;
     onToggle: (i: CalItem) => void;
+    onSwipe: (dir: 1 | -1) => void; // a sideways swipe on the grid: the next / previous month, as far as you like
 }) {
     const t = useT();
     const locale = useLocale();
@@ -37,10 +40,21 @@ export function MonthView({
     const weekdays = weeks[0].map((d) => new Date(d + 'T12:00').toLocaleDateString(locale, { weekday: 'narrow' }));
     const big = items.filter(takesADay);
     const small = items.filter((i) => !takesADay(i));
+    const swipeFrom = useRef<number | null>(null);
 
     return (
         <div className="flex flex-col gap-5">
-            <div className="bg-surface-card overflow-hidden rounded-2xl border">
+            {/* Swipe the grid sideways for the next / previous month, like the agenda's week strip (user, Nov 16). touch-pan-y
+                keeps vertical page scroll native; 60px so a tap that wobbles stays a tap. */}
+            <div
+                className="bg-surface-card touch-pan-y overflow-hidden rounded-2xl border"
+                onPointerDown={(e) => (swipeFrom.current = e.clientX)}
+                onPointerUp={(e) => {
+                    const dx = swipeFrom.current === null ? 0 : e.clientX - swipeFrom.current;
+                    swipeFrom.current = null;
+                    if (Math.abs(dx) > 60) onSwipe(dx < 0 ? 1 : -1);
+                }}
+            >
                 <div className="text-muted-foreground grid grid-cols-7 pt-2 text-center font-mono text-xs font-semibold uppercase">
                     {weekdays.map((w, i) => (
                         <div key={i} className="py-1">

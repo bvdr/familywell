@@ -168,6 +168,10 @@ export default function CalendarIndex({
     const strip = useRef<TimelineHandle>(null);
     const [visible, setVisible] = useState(range);
 
+    const shownDay = view === 'agenda' ? addDays(range.from, 3) : date;
+    // Swiped (or stepped) into another year: the year goes on the small line under the month ("January" over "2027"),
+    // since "January 2027" doesn't fit the big title on a phone (user, Nov 16).
+    const otherYear = view !== 'timeline' && shownDay.slice(0, 4) !== today.slice(0, 4) ? shownDay.slice(0, 4) : null;
     // Header: the month (agenda: of the week shown; "Week 43 · 6 things" under it), or the timeline's days.
     const title =
         view === 'timeline'
@@ -175,7 +179,7 @@ export default function CalendarIndex({
               (visible.from.slice(0, 7) === visible.to.slice(0, 7)
                   ? `${fmt(visible.from, { month: 'short', day: 'numeric' })} – ${Number(visible.to.slice(8))}`
                   : `${fmt(visible.from, { month: 'short', day: 'numeric' })} – ${fmt(visible.to, { month: 'short', day: 'numeric' })}`)
-            : fmt(view === 'agenda' ? addDays(range.from, 3) : date, { month: 'long' });
+            : fmt(shownDay, { month: 'long' });
     const step = (dir: 1 | -1) =>
         view === 'timeline'
             ? strip.current?.scrollPage(dir)
@@ -193,9 +197,11 @@ export default function CalendarIndex({
                         <h1 className="font-heading text-primary truncate text-4xl font-extrabold tracking-tight first-letter:uppercase">{title}</h1>
                         {view === 'agenda' && (
                             <p className="text-muted-foreground text-sm">
+                                {otherYear && `${otherYear} · `}
                                 {t('calendar.week_n', { n: isoWeek(range.from) })} · {t('calendar.things', { count: shown.length })}
                             </p>
                         )}
+                        {view === 'month' && otherYear && <p className="text-muted-foreground text-sm">{otherYear}</p>}
                     </div>
                     {view === 'timeline' && (
                         <div className="bg-surface flex shrink-0 rounded-full border p-0.5">
@@ -342,6 +348,7 @@ export default function CalendarIndex({
                             selected={selected}
                             onSelect={setSelected}
                             onToggle={toggle}
+                            onSwipe={step}
                         />
                     ) : (
                         <TimelineView
